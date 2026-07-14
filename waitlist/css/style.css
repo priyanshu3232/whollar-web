@@ -33,6 +33,8 @@
 .whl-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:pointer;font-weight:600;font-size:15px;color:#fff;background:var(--teal);border-radius:13px;padding:13px 22px;text-decoration:none;transition:background .18s,transform .18s;white-space:nowrap}
 .whl-btn:hover{background:var(--teal-deep);transform:translateY(-1px)}
 .whl-btn--sm{font-size:13.5px;padding:9px 16px;border-radius:11px;margin-left:auto}
+.whl-btn--go{background:var(--accent);box-shadow:0 6px 18px -6px rgba(30,158,99,.7)}
+.whl-btn--go:hover{background:var(--accent-hover)}
 .whl-eyebrow{display:inline-block;font-family:var(--label);font-weight:600;font-size:12.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);margin:0 0 14px}
 
 .split{display:grid;grid-template-columns:1.05fr 1fr;min-height:calc(100vh - 59px);position:relative}

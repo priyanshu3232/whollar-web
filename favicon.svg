@@ -1,0 +1,15 @@
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Whollar">
+  <defs>
+    <linearGradient id="whollarMark" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0E2A20"></stop>
+      <stop offset="1" stop-color="#1E9E63"></stop>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="6" width="108" height="108" rx="32" fill="url(#whollarMark)"></rect>
+  <g>
+    <path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"></path>
+    <circle cx="34" cy="42" r="11" fill="#FFFFFF"></circle>
+    <circle cx="86" cy="42" r="11" fill="#FFFFFF"></circle>
+    <circle cx="60" cy="80" r="11" fill="#FFFFFF"></circle>
+  </g>
+</svg>
