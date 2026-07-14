@@ -1,0 +1,12 @@
+{
+  "name": "whollar-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Whollar marketing site (static HTML/CSS/JS)",
+  "scripts": {
+    "start": "serve -l 3000 ."
+  },
+  "devDependencies": {
+    "serve": "^14.2.4"
+  }
+}

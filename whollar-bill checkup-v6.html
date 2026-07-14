@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Whollar checkup — design v6</title>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&f[]=general-sans@500,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --teal:#0E2A20; --teal-deep:#0A2018; --teal-bright:#178A5A; --teal-soft:#7FE3B0;
+  --accent:#1E9E63; --accent-hover:#178A5A;
+  --cream:#FAF8F3; --paper:#ffffff; --mist:#F6F4EE;
+  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#8A968F; --line:#e7ebe6;
+  --warn:#C2643B; --warn-soft:#F7E7DD; --amber:#B07A1E; --green-tint:#E4F4EC;
+  --label:'General Sans','Satoshi',system-ui,sans-serif;
+  --disp:'Satoshi',system-ui,sans-serif;
+  --body:'Inter',system-ui,sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
+  --wrap:1240px; --r:22px; --rf:26px;
+  --sh-1:0 1px 2px rgba(16,40,34,.04),0 8px 24px rgba(16,40,34,.05);
+  --sh-2:0 2px 6px rgba(16,40,34,.06),0 18px 44px rgba(16,40,34,.09);
+  --sh-3:0 4px 12px rgba(16,40,34,.07),0 32px 70px rgba(16,40,34,.13);
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--body);-webkit-font-smoothing:antialiased;font-size:16px;line-height:1.5}
+h1,h2,h3,h4{font-family:var(--disp);color:var(--teal);letter-spacing:-.02em;margin:0}
+p{margin:0}
+button{font-family:var(--body)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+.whl-nav{position:sticky;top:0;z-index:60;background:rgba(250,248,243,.86);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.whl-nav__in{max-width:var(--wrap);margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:14px}
+.whl-mark{display:flex;align-items:center;gap:10px;text-decoration:none}
+.whl-mark svg{width:34px;height:34px}
+.whl-mark b{font-family:var(--disp);font-weight:900;font-size:20px;color:var(--teal)}
+.whl-nav__back{margin-left:8px;font-size:14px;color:var(--ink-2);text-decoration:none}
+.whl-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:pointer;font-weight:600;font-size:15px;color:#fff;background:var(--teal);border-radius:13px;padding:13px 22px;text-decoration:none;transition:background .18s,transform .18s;white-space:nowrap}
+.whl-btn:hover{background:var(--teal-deep);transform:translateY(-1px)}
+.whl-btn--sm{font-size:13.5px;padding:9px 16px;border-radius:11px;margin-left:auto}
+.whl-btn--ghost{background:transparent;color:var(--teal);border:1.5px solid var(--line)}
+.whl-btn--ghost:hover{background:var(--mist)}
+.whl-eyebrow{display:inline-block;font-family:var(--label);font-weight:600;font-size:12.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);margin:0 0 14px}
+
+.hero{padding:clamp(38px,5.5vw,56px) 0 0}
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}
+.hero h1{font-weight:900;font-size:clamp(31px,4.8vw,52px);line-height:1.05;max-width:760px;text-wrap:balance}
+.hero .sub{margin-top:14px;font-size:clamp(15.5px,1.5vw,18px);line-height:1.6;color:var(--ink-2);max-width:640px}
+.hero .sub b{color:var(--teal)}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 402px;gap:26px;align-items:start;padding:10px 0 90px}
+
+/* screen switching */
+body[data-screen="1"] .only2{display:none!important}
+body[data-screen="2"] .only1{display:none!important}
+.screen-in{animation:rise .4s var(--ease)}
+
+/* ===== form card ===== */
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--rf);box-shadow:var(--sh-2);padding:clamp(22px,3vw,30px) clamp(22px,3.2vw,34px) clamp(20px,2.6vw,26px)}
+.card h2{font-size:clamp(21px,2.4vw,25px);font-weight:900}
+.card .lede{color:var(--ink-2);font-size:14.5px;line-height:1.6;margin-top:6px}
+
+.upload{position:relative;display:flex;align-items:center;gap:14px;border:1.5px dashed #cbd6d0;border-radius:16px;padding:14px 16px;margin-top:20px;background:var(--cream);flex-wrap:wrap;cursor:pointer;overflow:hidden;transition:border-color .2s var(--ease),background .2s var(--ease),box-shadow .2s var(--ease),transform .2s var(--ease)}
+.upload:hover{border-color:var(--accent);background:#fff;box-shadow:var(--sh-1);transform:translateY(-1px)}
+.upload.drag{border-color:var(--accent);border-style:solid;background:var(--green-tint);box-shadow:var(--sh-2);transform:scale(1.006)}
+.upload__icon{flex:none;width:42px;height:42px;border-radius:12px;background:var(--green-tint);display:grid;place-items:center;transition:background .2s var(--ease),transform .2s var(--ease)}
+.upload:hover .upload__icon{transform:translateY(-1px)}
+.upload.drag .upload__icon{background:#fff}
+.upload__icon svg{width:19px;height:19px;stroke:var(--teal-bright);stroke-width:2.1;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.upload.drag .upload__icon svg{animation:bob .7s var(--ease) infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.upload__copy{display:flex;flex-direction:column;gap:2px;min-width:0}
+.upload__copy b{font-size:13.5px;color:var(--teal);font-family:var(--label);font-weight:600}
+.upload__copy span{font-size:12px;color:var(--ink-3);line-height:1.45}
+.upload__cta{margin-left:auto;flex:none;display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:#fff;font-family:var(--label);font-weight:600;font-size:12.5px;padding:9px 15px 9px 13px;border-radius:11px;transition:background .15s,transform .15s}
+.upload:hover .upload__cta{background:var(--accent-hover)}
+.upload__cta svg{width:13px;height:13px;stroke:#fff;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s var(--ease)}
+.upload:hover .upload__cta svg{transform:translateY(-2px)}
+.filechip{display:none;align-items:center;gap:10px;margin-top:10px;background:var(--green-tint);border:1px solid #cfe9db;border-radius:13px;padding:10px 10px 10px 12px}
+.filechip.on{display:flex;animation:rise .3s var(--ease)}
+.filechip__ic{flex:none;width:30px;height:30px;border-radius:9px;background:#fff;display:grid;place-items:center}
+.filechip__ic svg{width:15px;height:15px;stroke:var(--teal-bright);stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.filechip__meta{min-width:0;flex:1}
+.filechip__meta b{display:block;font-size:12.5px;color:var(--teal-bright);font-weight:600;font-family:var(--label);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.filechip__meta span{font-size:11px;color:var(--ink-3)}
+.filechip__x{flex:none;width:24px;height:24px;border-radius:8px;border:none;background:transparent;color:var(--ink-3);cursor:pointer;display:grid;place-items:center;transition:background .15s,color .15s}
+.filechip__x:hover{background:#fff;color:var(--warn)}
+.filechip__x svg{width:13px;height:13px;stroke:currentColor;stroke-width:2.3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+.postal{display:flex;align-items:center;gap:14px;border:1px solid var(--line);border-radius:16px;padding:14px 17px;margin-top:18px;background:var(--paper);box-shadow:var(--sh-1);flex-wrap:wrap}
+.postal svg{width:18px;height:18px;stroke:var(--teal);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.postal label{font-weight:600;font-size:15px;color:var(--teal);font-family:var(--label)}
+.postal input{border:1.5px solid var(--line);border-radius:11px;padding:9px 13px;font-size:15px;width:140px;text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--ink);background:var(--cream)}
+.postal input:focus{outline:none;border-color:var(--accent);background:#fff}
+.postal .ok{display:none;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--accent);background:var(--green-tint);border-radius:999px;padding:6px 12px}
+.postal .ok.on{display:inline-flex;animation:rise .3s var(--ease)}
+
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:19px 22px;margin-top:22px}
+.f{display:flex;flex-direction:column;gap:7px;position:relative}
+.f label{font-family:var(--label);font-weight:600;font-size:13.5px;color:var(--teal)}
+.f .badge{position:absolute;right:0;top:1px;font-family:var(--label);font-weight:600;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--warn);background:var(--warn-soft);border-radius:999px;padding:3px 8px}
+.f input,.f select{font-family:var(--body);font-size:15px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;width:100%;appearance:none;transition:border-color .15s}
+.f select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2354625B' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+.f input:focus,.f select:focus{outline:none;border-color:var(--accent)}
+.f .fh{font-size:11.5px;color:var(--ink-3);line-height:1.5}
+.f.filled input,.f.filled select{border-color:#BBD9C8;background:#FDFEFD}
+.f.err input{border-color:var(--warn);animation:shake .3s}
+@keyframes shake{0%,100%{transform:none}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+/* waitlist block in-form */
+.wl{margin-top:22px;border:1.5px solid var(--line);border-radius:16px;overflow:hidden;transition:border-color .2s}
+.wl.on{border-color:#BBD9C8}
+.wl__row{display:flex;align-items:flex-start;gap:12px;padding:15px 17px;cursor:pointer;background:var(--paper)}
+.wl__row input{margin:2px 0 0;width:19px;height:19px;flex:none;accent-color:var(--accent);cursor:pointer}
+.wl__row b{display:block;font-family:var(--disp);font-weight:700;font-size:15.5px;color:var(--teal)}
+.wl__row span{font-size:12.5px;color:var(--ink-3);line-height:1.5;display:block;margin-top:2px}
+.wl__more{display:none;padding:15px 17px;border-top:1px dashed var(--line);background:var(--cream)}
+.wl.on .wl__more{display:block;animation:rise .3s var(--ease)}
+.wl__more input[type=email]{font-family:var(--body);font-size:15px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;width:100%}
+.wl__more input[type=email]:focus{outline:none;border-color:var(--accent)}
+.wl__more input.err{border-color:var(--warn);animation:shake .3s}
+.qrow{display:flex;align-items:center;gap:7px;margin-top:11px;flex-wrap:wrap}
+.qrow>span{font-size:12px;color:var(--ink-2);font-family:var(--label);font-weight:600}
+.qc{font-size:12.5px;font-weight:600;color:var(--ink-2);background:var(--paper);border:1.5px solid var(--line);border-radius:999px;padding:6px 13px;cursor:pointer;transition:all .14s}
+.qc.on{background:var(--teal);color:#fff;border-color:var(--teal)}
+.wl__trust{font-size:11px;color:var(--ink-3);margin-top:10px}
+
+.cta-row{display:flex;align-items:center;gap:14px;margin-top:22px}
+.cta-row .whl-btn{font-size:16px;padding:15px 26px;box-shadow:0 14px 30px -14px rgba(14,42,32,.85)}
+.cta-row .hint{font-size:12px;color:var(--ink-3);line-height:1.5}
+
+/* ===== rail screen 1 ===== */
+.rail{position:sticky;top:82px;display:flex;flex-direction:column;gap:12px}
+.know{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-1);padding:18px}
+.know>h4{font-family:var(--label);font-weight:600;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.krow{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line)}
+.krow:last-child{border-bottom:none;padding-bottom:2px}
+.krow .kn{flex:none;font-family:var(--disp);font-weight:900;font-size:19px;letter-spacing:-.02em;color:var(--teal);min-width:64px}
+.krow .kn.good{color:var(--accent)}
+.krow .kn.hot{color:var(--warn)}
+.krow p{font-size:12px;line-height:1.55;color:var(--ink-2)}
+.krow p b{color:var(--teal)}
+
+/* invoice animation */
+.inv-wrap{margin:13px 0 4px;display:flex;justify-content:center}
+.inv{width:100%;max-width:300px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh-2);padding:15px 16px 13px;font-family:var(--mono);font-size:11.5px;color:var(--ink);position:relative;overflow:hidden}
+.inv::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--teal),var(--accent))}
+.inv h5{font-family:var(--label);font-weight:600;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin:0 0 10px}
+.inv .il{display:flex;justify-content:space-between;gap:10px;padding:4.5px 0;opacity:0;transform:translateY(4px);transition:opacity .4s,transform .4s}
+.inv.p0 .il,.inv.p1 .il,.inv.p2 .il{opacity:1;transform:none}
+.inv .il em{font-style:normal;color:var(--ink-2)}
+.inv .il.disc em,.inv .il.disc b{color:var(--accent)}
+.inv .il.disc small{display:block;font-size:9.5px;color:var(--ink-3)}
+.inv .il b{font-weight:600}
+.inv .plus7{display:inline-block;font-size:9px;color:var(--warn);background:var(--warn-soft);border-radius:999px;padding:1px 6px;margin-left:6px;opacity:0;transition:opacity .3s}
+.inv.p1 .plus7,.inv.p2 .plus7{opacity:1}
+.inv .il.disc{position:relative}
+.inv.p2 .il.disc em,.inv.p2 .il.disc b{text-decoration:line-through;color:var(--ink-3)}
+.inv .stamp{position:absolute;right:44px;top:50%;transform:translateY(-50%) rotate(-8deg) scale(1.6);border:1.5px solid var(--warn);color:var(--warn);font-family:var(--label);font-weight:600;font-size:9px;letter-spacing:.12em;padding:1px 6px;border-radius:4px;opacity:0;transition:opacity .25s,transform .25s}
+.inv.p2 .stamp{opacity:1;transform:translateY(-50%) rotate(-8deg) scale(1)}
+.inv .tot{display:flex;justify-content:space-between;border-top:1px dashed var(--line);margin-top:8px;padding-top:8px;font-weight:600}
+.inv .tot b{font-family:var(--disp);font-size:15px;letter-spacing:-.01em;transition:color .3s}
+.inv.p2 .tot b{color:var(--warn)}
+.inv-cap{font-size:10.5px;color:var(--ink-3);text-align:center;margin-top:9px;line-height:1.5}
+
+.getnum{background:linear-gradient(140deg,var(--teal),#123B2C);border-radius:var(--r);box-shadow:var(--sh-2);padding:19px 20px;color:#fff;position:relative;overflow:hidden}
+.getnum::after{content:"";position:absolute;inset:0;background:radial-gradient(380px 160px at 90% -20%,rgba(127,227,176,.15),transparent 60%);pointer-events:none}
+.getnum h3{color:#fff;font-size:17px;font-weight:900;position:relative}
+.getnum .gp{display:flex;align-items:center;gap:10px;margin-top:11px;position:relative}
+.getnum .gp i{font-style:normal;flex:none;width:22px;height:22px;border-radius:7px;background:rgba(255,255,255,.12);color:var(--teal-soft);font-family:var(--mono);font-size:11px;font-weight:600;display:grid;place-items:center}
+.getnum .gp b{font-family:var(--disp);font-weight:700;font-size:13.5px;color:#fff}
+.gerow{display:flex;gap:8px;margin-top:15px;position:relative}
+.gerow input{flex:1;min-width:0;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.25);border-radius:11px;color:#fff;padding:10px 13px;font-size:14px}
+.gerow input::placeholder{color:rgba(255,255,255,.45)}
+.gerow input:focus{outline:none;border-color:var(--teal-soft)}
+.gerow input.err{border-color:#FFA26B;animation:shake .3s}
+.gerow .whl-btn{background:var(--accent);padding:10px 16px;font-size:14px;border-radius:11px}
+.gdone{display:none;margin-top:15px;background:rgba(127,227,176,.15);border:1px solid rgba(127,227,176,.4);border-radius:11px;padding:10px 14px;font-size:12.5px;color:#DFF7EA;position:relative}
+.gdone.on{display:block;animation:rise .3s var(--ease)}
+
+/* ===== screen 2 ===== */
+.sig{border-radius:var(--rf);overflow:hidden;box-shadow:var(--sh-3);background:linear-gradient(150deg,var(--teal-deep),#123B2C 55%,#17553D);color:#fff;padding:24px 26px 22px;position:relative}
+.sig::before{content:"";position:absolute;inset:0;background:radial-gradient(460px 200px at 110% -30%,rgba(127,227,176,.14),transparent 60%);pointer-events:none}
+.sig.warnbg{background:linear-gradient(150deg,#2E1509,#4A2412 55%,#6B3A1E)}
+.sig__label{font-family:var(--label);font-weight:600;font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--teal-soft);margin-bottom:14px;position:relative}
+.sig.warnbg .sig__label{color:#FFC9A8}
+.sig__bars{display:flex;align-items:flex-end;gap:6px;height:46px;margin-bottom:14px;position:relative}
+.sig__bars i{width:14px;border-radius:4px;background:rgba(255,255,255,.13)}
+.sig__bars i:nth-child(1){height:15px}.sig__bars i:nth-child(2){height:25px}.sig__bars i:nth-child(3){height:35px}.sig__bars i:nth-child(4){height:46px}
+.sig__bars i.f{background:var(--teal-soft)}
+.sig__bars i.fa{background:#F3D488}
+.sig__bars i.fw{background:#FFA26B}
+.sig__bars i.pop{animation:pop .45s var(--ease)}
+@keyframes pop{0%{transform:scaleY(.6)}60%{transform:scaleY(1.12)}100%{transform:scaleY(1)}}
+.sig__bars .arrow{align-self:center;margin:0 8px;font-size:15px;color:rgba(255,255,255,.55)}
+.sig h3{color:#fff;font-size:26px;font-weight:900;position:relative}
+.sig .read{margin-top:9px;font-size:14.5px;line-height:1.6;color:rgba(255,255,255,.86);position:relative;max-width:560px}
+.sig .read b{color:#fff}
+.sig .ctx{margin-top:13px;font-size:11.5px;color:rgba(255,255,255,.55);position:relative}
+.sig .joined{display:inline-flex;align-items:center;gap:7px;margin-top:13px;background:rgba(127,227,176,.15);border:1px solid rgba(127,227,176,.4);border-radius:999px;padding:6px 13px;font-size:12px;color:#DFF7EA;position:relative}
+
+.recap{background:var(--paper);border:1px solid var(--line);border-radius:var(--rf);box-shadow:var(--sh-1);padding:20px 22px;margin-top:14px}
+.recap__head{display:flex;align-items:center;gap:10px}
+.recap__head h4{font-family:var(--label);font-weight:600;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.recap__head button{margin-left:auto;background:none;border:none;color:var(--accent);font-weight:600;font-size:13px;cursor:pointer;font-family:var(--body)}
+.rgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.rv{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:15px;padding:12px 13px;cursor:pointer;background:var(--paper);text-align:left;transition:border-color .15s,transform .15s,box-shadow .15s;position:relative;font-family:var(--body);opacity:0;animation:rise .4s var(--ease) forwards}
+.rv:hover{border-color:#BBD9C8;transform:translateY(-2px);box-shadow:var(--sh-1)}
+.rv .ric{flex:none;width:34px;height:34px;border-radius:11px;background:var(--green-tint);display:grid;place-items:center}
+.rv .ric svg{width:16px;height:16px;stroke:var(--teal-bright);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.rv small{display:block;font-family:var(--label);font-weight:600;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.rv b{display:block;font-family:var(--disp);font-weight:700;font-size:14.5px;color:var(--teal);margin-top:2px;letter-spacing:-.01em;line-height:1.25}
+.rv .pen{position:absolute;right:10px;top:10px;width:13px;height:13px;stroke:var(--ink-3);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .15s}
+.rv:hover .pen{opacity:1}
+.rv.hotv .ric{background:var(--warn-soft)}
+.rv.hotv .ric svg{stroke:var(--warn)}
+.rv.hotv b{color:var(--warn)}
+
+.deep{margin-top:14px;background:var(--mist);border:1.5px dashed #c6d2cb;border-radius:var(--rf);padding:20px 22px;transition:border-color .2s,background .2s}
+.deep.pulse{border-color:var(--accent);background:#F2FAF5}
+.deep h4{font-size:16.5px;font-weight:900}
+.deep p{font-size:13px;color:var(--ink-2);line-height:1.6;margin-top:6px;max-width:520px}
+.dupl{display:flex;align-items:center;gap:10px;margin-top:14px;border:1.5px dashed #b9c8bf;border-radius:13px;padding:11px 14px;background:var(--paper);cursor:pointer;transition:border-color .15s}
+.dupl:hover{border-color:var(--accent)}
+.dupl svg{width:16px;height:16px;flex:none;stroke:var(--accent);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.dupl b{font-family:var(--label);font-weight:600;font-size:13px;color:var(--teal)}
+.dupl span{font-size:12px;color:var(--ink-3)}
+.dchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.dchips span{font-size:11px;color:var(--teal-bright);background:var(--green-tint);border:1px solid #cfe9db;border-radius:999px;padding:4px 10px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.deep textarea{width:100%;margin-top:10px;font-family:var(--body);font-size:13.5px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:10px 13px;resize:vertical;min-height:52px}
+.deep textarea:focus{outline:none;border-color:var(--accent)}
+.deep .drow{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+.deep .drow input{flex:1;min-width:180px;font-family:var(--body);font-size:13.5px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:10px 13px}
+.deep .drow input:focus{outline:none;border-color:var(--accent)}
+.deep .drow input.err{border-color:var(--warn);animation:shake .3s}
+.deep .drow .whl-btn{background:var(--accent);font-size:14px;padding:11px 17px}
+.deep .dnote{font-size:11px;color:var(--ink-3);margin-top:9px}
+.ddone{display:none;margin-top:14px;background:var(--green-tint);border:1px solid #cfe9db;border-radius:13px;padding:12px 15px;font-size:13px;color:var(--teal-bright)}
+.ddone b{color:var(--teal)}
+.ddone.on{display:block;animation:rise .3s var(--ease)}
+.join2{margin-top:14px;background:linear-gradient(140deg,var(--teal),#123B2C);border-radius:var(--rf);box-shadow:var(--sh-2);padding:20px 22px;color:#fff;position:relative;overflow:hidden}
+.join2::after{content:"";position:absolute;inset:0;background:radial-gradient(380px 160px at 90% -20%,rgba(127,227,176,.15),transparent 60%);pointer-events:none}
+.join2 h3{color:#fff;font-size:18px;font-weight:900;position:relative}
+.join2 p{font-size:13px;color:rgba(255,255,255,.75);margin-top:5px;line-height:1.55;position:relative}
+.join2 .gerow{margin-top:13px}
+
+/* 11 levers */
+.lev{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-1);padding:18px}
+.lev>h4{font-family:var(--label);font-weight:600;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.lev>p{font-size:12px;color:var(--ink-3);margin-top:7px;line-height:1.5}
+.lt{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:13px;padding:10px 12px;margin-top:9px;transition:border-color .2s,background .2s,transform .15s;cursor:default}
+.lt .no{flex:none;font-family:var(--mono);font-size:10px;font-weight:600;color:var(--ink-3);background:var(--mist);border-radius:7px;width:24px;height:24px;display:grid;place-items:center}
+.lt b{display:block;font-family:var(--disp);font-weight:700;font-size:13px;color:var(--teal)}
+.lt span{font-size:11px;color:var(--ink-3);line-height:1.45;display:block;margin-top:1px}
+.lt .st{margin-left:auto;flex:none;font-family:var(--label);font-weight:600;font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;border-radius:999px;padding:3px 8px;white-space:nowrap}
+.lt.got{border-color:#BFE3CF;background:#F7FCF9}
+.lt.got .no{background:var(--green-tint);color:var(--accent)}
+.lt.got .st{color:var(--accent);background:var(--green-tint)}
+.lt.lock{cursor:pointer}
+.lt.lock .st{color:var(--ink-3);background:var(--mist)}
+.lt.lock:hover{border-color:#cdd7d1;transform:translateY(-1px)}
+.lt .st.law{color:var(--accent);background:var(--green-tint)}
+
+footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;color:var(--ink-3);line-height:1.7}
+
+@media (max-width:1020px){
+  .grid{grid-template-columns:1fr}
+  .rail{position:static}
+  .f2{grid-template-columns:1fr}
+  .rgrid{grid-template-columns:1fr 1fr}
+}
+@media (max-width:560px){.rgrid{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body data-screen="1">
+<nav class="whl-nav">
+  <div class="whl-nav__in">
+    <a class="whl-mark" href="index.html">
+      <svg viewBox="0 0 120 120"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
+      <b>Whollar</b>
+    </a>
+    <a class="whl-nav__back" href="index.html">&larr; Back to home</a>
+    <a class="whl-btn whl-btn--sm" href="waitlist/">Join the waitlist</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="whl-eyebrow">The Whollar checkup</span>
+    <h1>What's your internet <em style="font-style:normal;color:var(--accent)">really</em> costing you?</h1>
+    <p class="sub">Not the sticker &mdash; the <b>complete bill</b>: your plan, the rented box, the credits, and the jump that lands when your promo quietly expires. Six answers, one straight verdict.</p>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+
+    <!-- ================= LEFT ================= -->
+    <div style="min-width:0">
+
+      <!-- SCREEN 1: form -->
+      <section class="card only1" id="form-card" aria-label="Whollar checkup">
+        <h2>Your complete bill, in six answers</h2>
+        <p class="lede">Rough numbers are fine &mdash; decoding is our job.</p>
+
+        <label class="upload" for="bill-file" id="uploadZone">
+          <span class="upload__icon"><svg viewBox="0 0 24 24"><path d="M12 16V5"/><path d="M7 10l5-5 5 5"/><path d="M4.5 18a4 4 0 0 1 1-7.9A6 6 0 0 1 17 7a5 5 0 0 1 3 9.5"/></svg></span>
+          <span class="upload__copy"><b>Shortcut: attach your bill</b><span>Drag it in, or click to browse &mdash; PDF or photo, we'll decode every line.</span></span>
+          <span class="upload__cta">Upload<svg viewBox="0 0 24 24"><path d="M12 16V5"/><path d="M7 10l5-5 5 5"/></svg></span>
+          <input type="file" id="bill-file" accept=".pdf,image/*" style="display:none">
+        </label>
+        <div class="filechip" id="filechip">
+          <span class="filechip__ic"><svg viewBox="0 0 24 24"><path d="M8 12l6.5-6.5a3.5 3.5 0 0 1 5 5L11 19a5.5 5.5 0 0 1-8-7.6L10.5 4"/></svg></span>
+          <span class="filechip__meta"><b id="filename"></b><span id="filesize"></span></span>
+          <button type="button" class="filechip__x" id="fileclear" aria-label="Remove attached file"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+
+        <div class="postal">
+          <svg viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          <label for="pc">Your postal code</label>
+          <input id="pc" placeholder="e.g. L5V 2C9" maxlength="7" autocomplete="postal-code">
+          <span class="ok" id="pc-ok">&#10003; <span id="pc-txt"></span></span>
+        </div>
+
+        <div class="f2">
+          <div class="f" data-live>
+            <label for="prov">Current provider</label>
+            <select id="prov"><option value="">Choose&hellip;</option><option>Rogers</option><option>Bell</option><option>Telus</option><option>Shaw</option><option>Vid&eacute;otron</option><option>Cogeco</option><option>Eastlink</option><option>SaskTel</option><option>An independent (oxio, TekSavvy&hellip;)</option><option>Other / not sure</option></select>
+          </div>
+          <div class="f" data-live>
+            <label for="cost">Monthly charge, before tax</label>
+            <input id="cost" placeholder="$ 90" inputmode="decimal">
+            <span class="fh">The &ldquo;Total monthly charges&rdquo; line on your bill.</span>
+          </div>
+          <div class="f" data-live>
+            <label for="spd">Download speed</label>
+            <select id="spd"><option value="">Choose&hellip;</option><option value="25">25 or less</option><option value="50">50</option><option value="100">100</option><option value="150">150</option><option value="300">300</option><option value="500">500</option><option value="1000">1 Gig</option><option value="1500">1.5 Gig or faster</option><option value="0">Not sure</option></select>
+            <span class="fh">Beside your plan name, e.g. &ldquo;Gigabit 1.5&rdquo;.</span>
+          </div>
+          <div class="f" data-live>
+            <label for="tech">How it reaches your house</label>
+            <select id="tech"><option value="">Choose&hellip;</option><option>Cable (TV coax jack)</option><option>Fibre (thin glass line)</option><option>DSL (old phone line)</option><option>Fixed wireless (5G antenna)</option><option>Satellite (dish)</option><option>Not sure</option></select>
+          </div>
+          <div class="f" data-live>
+            <label for="pdate">When does your promo / discount end?</label>
+            <span class="badge">the jump</span>
+            <input id="pdate" type="date">
+            <span class="fh">The &ldquo;Savings&rdquo; line on your bill shows it &mdash; e.g. <i>ends May 21/26</i>. Leave blank if none.</span>
+          </div>
+          <div class="f" data-live>
+            <label for="disc">Discount amount, if you know it</label>
+            <input id="disc" placeholder="$ / month (optional)" inputmode="decimal">
+            <span class="fh">Blank is fine &mdash; we estimate the jump and say so.</span>
+          </div>
+        </div>
+
+        <div class="wl" id="wl">
+          <label class="wl__row">
+            <input type="checkbox" id="wl-check">
+            <span><b>Join Whollar's waitlist</b>
+            <span>This isn't only about your bill. Every household that joins makes pricing a little more honest &mdash; and hears it first when Whollar goes beyond internet.</span></span>
+          </label>
+          <div class="wl__more">
+            <input type="email" id="email" placeholder="you@example.com" aria-label="Email">
+            <div class="qrow"><span>You'd switch for:</span><button type="button" class="qc on">$10+/mo</button><button type="button" class="qc">$25+/mo</button><button type="button" class="qc">Just curious</button></div>
+            <p class="wl__trust">Free for households &mdash; providers pay us only when they win your group.</p>
+          </div>
+        </div>
+
+        <div class="cta-row">
+          <button class="whl-btn" id="check" type="button">Check my results &rarr;</button>
+          <span class="hint">Your deal signal, instantly &mdash; from your answers and the advertised market.</span>
+        </div>
+      </section>
+
+      <!-- SCREEN 2: results -->
+      <div class="only2" id="result-left" style="display:none">
+        <div class="sig" id="sig" aria-live="polite"></div>
+
+        <section class="recap">
+          <div class="recap__head">
+            <h4>What you told us</h4>
+            <button type="button" id="edit-all">&#8249; Edit my answers</button>
+          </div>
+          <div class="rgrid" id="rgrid"></div>
+        </section>
+
+        <section class="deep" id="deep">
+          <h4>Want the deep read?</h4>
+          <p>The cliff, the reset date, the clauses that move your number &mdash; they're written in your paperwork. Share your agreement or a few more bills and we'll decode every line.</p>
+          <div id="deep-form">
+            <label class="dupl" for="deep-files">
+              <svg viewBox="0 0 24 24"><path d="M12 16V5"/><path d="M7 10l5-5 5 5"/><path d="M4.5 18a4 4 0 0 1 1-7.9A6 6 0 0 1 17 7a5 5 0 0 1 3 9.5"/></svg>
+              <span><b>Upload agreement / more bills</b> &middot; pictures or PDFs</span>
+              <input type="file" id="deep-files" accept=".pdf,image/*" multiple style="display:none">
+            </label>
+            <div class="dchips" id="dchips"></div>
+            <textarea id="deep-note" rows="2" placeholder="Anything else we should know? (optional)"></textarea>
+            <div class="drow">
+              <input type="email" id="deep-email" placeholder="Email for your results" aria-label="Email for results">
+              <button class="whl-btn" type="button" id="deep-send">Send for the deep read</button>
+            </div>
+            <p class="dnote">We read every line and email you what we find.</p>
+          </div>
+          <div class="ddone" id="ddone">&#10003;&nbsp; Received. <b>You'll see your results in your email shortly.</b></div>
+        </section>
+
+        <section class="join2" id="join2"></section>
+      </div>
+    </div>
+
+    <!-- ================= RIGHT ================= -->
+    <aside class="rail">
+
+      <!-- SCREEN 1 rail -->
+      <div class="know only1">
+        <h4>Worth knowing</h4>
+        <div class="krow"><span class="kn good">$0</span><p><b>What switching costs in fees since June 12, 2026.</b> Activation, change and cancellation fees are banned (CRTC 2026&#8209;43).</p></div>
+        <div class="krow"><span class="kn hot">30&ndash;60%</span><p><b>The average promo cliff.</b> How far prices reset when the discount expires &mdash; it lands on autopay, noticed a bill or two later.</p></div>
+        <div class="krow" style="display:block">
+          <div class="inv-wrap">
+            <div class="inv" id="inv" aria-label="A real bill, animated">
+              <h5>Internet &middot; monthly statement</h5>
+              <div class="il"><em>Gigabit 1.5 plan <span class="plus7">+$7 by letter</span></em><b id="inv-plan">$126.99</b></div>
+              <div class="il disc"><em>Savings: Internet Discount<small>ends May 21/26</small></em><b>&minus;$70.00</b><span class="stamp">Expired</span></div>
+              <div class="il"><em>Wi&#8209;Fi equipment</em><b>$10.00</b></div>
+              <div class="il"><em>Pod rental</em><b>$7.00</b></div>
+              <div class="tot"><em>Total before tax</em><b id="inv-tot">$73.99</b></div>
+            </div>
+          </div>
+          <p class="inv-cap">A real household's statements, Jan&rarr;May 2026 (anonymized). The discount expired &mdash; <b style="color:var(--teal)">nobody called to warn them.</b></p>
+        </div>
+        <div class="krow"><span class="kn">$60&ndash;180<span style="font-size:11px">/yr</span></span><p><b>What the rented box adds.</b> Most independents include the modem free &mdash; same internet, no line item.</p></div>
+      </div>
+
+      <div class="getnum only1">
+        <h3>Get your number</h3>
+        <div class="gp"><i>1</i><b>Check your signal</b></div>
+        <div class="gp"><i>2</i><b>Join your street's cohort</b></div>
+        <div class="gp"><i>3</i><b>Providers bid. You decide.</b></div>
+        <div class="gerow" id="gerow">
+          <input type="email" id="g-email" placeholder="you@example.com" aria-label="Email to join Whollar">
+          <button class="whl-btn" type="button" id="g-join">Join</button>
+        </div>
+        <div class="gdone" id="gdone">&#10003;&nbsp; You're in &mdash; we'll write when your cohort opens.</div>
+      </div>
+
+      <!-- SCREEN 2 rail: 11 levers -->
+      <div class="lev only2" id="lev" style="display:none">
+        <h4>The 11 levers behind one number</h4>
+        <p id="lev-sub">Whollar sorts this complexity for you &mdash; so you finally see what it actually takes to price your internet.</p>
+        <div id="lev-list"></div>
+      </div>
+
+    </aside>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap"><b style="font-family:var(--disp);color:var(--teal)">Whollar</b> &middot; forming now &middot; Design mock v6, for review. Figures from Whollar research on file; invoice trajectory from decoded statements (anonymized, before tax); CRTC 2026&#8209;43 in force June 12, 2026.</div>
+</footer>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const S={pc:null,prov:'',cost:0,spd:null,tech:'',pdate:null,pmo:0,expired:false,disc:0,joined:false,file:null,email:''};
+const TYP={'25':40,'50':50,'100':55,'150':58,'300':70,'500':75,'1000':85,'1500':88,'0':60}; /* drives state only — never rendered */
+const FSA={A:'Newfoundland & Labrador',B:'Nova Scotia',C:'PEI',E:'New Brunswick',G:'Quebec',H:'Quebec',J:'Quebec',K:'Ontario',L:'Ontario',M:'Ontario',N:'Ontario',P:'Ontario',R:'Manitoba',S:'Saskatchewan',T:'Alberta',V:'British Columbia',X:'the North',Y:'Yukon'};
+
+/* ---------- screen switch ---------- */
+function screen(n){document.body.dataset.screen=n;
+  $('#result-left').style.display=n==2?'block':'none';
+  $('#lev').style.display=n==2?'block':'none';
+  if(n==2){$('#result-left').classList.remove('screen-in');void $('#result-left').offsetWidth;$('#result-left').classList.add('screen-in');}
+  window.scrollTo({top:0,behavior:'smooth'});}
+
+/* ---------- form bindings ---------- */
+$$('[data-live] input,[data-live] select').forEach(el=>el.addEventListener('input',()=>{el.closest('.f').classList.toggle('filled',!!el.value);el.closest('.f').classList.remove('err');}));
+$('#pc').addEventListener('input',e=>{
+  e.target.value=e.target.value.toUpperCase();
+  const m=e.target.value.replace(/\s/g,'').match(/^([A-Z])\d[A-Z]/);
+  const ok=$('#pc-ok');
+  if(m&&FSA[m[1]]){S.pc=e.target.value.replace(/\s/g,'').slice(0,3);ok.classList.add('on');$('#pc-txt').textContent=FSA[m[1]]+' \u00b7 the '+S.pc+' cohort';}
+  else{S.pc=null;ok.classList.remove('on');}
+});
+$('#prov').addEventListener('change',e=>S.prov=e.target.value);
+$('#cost').addEventListener('input',e=>S.cost=parseFloat(e.target.value.replace(/[^0-9.]/g,''))||0);
+$('#spd').addEventListener('change',e=>S.spd=e.target.value||null);
+$('#tech').addEventListener('change',e=>S.tech=e.target.value);
+$('#disc').addEventListener('input',e=>S.disc=parseFloat(e.target.value.replace(/[^0-9.]/g,''))||0);
+$('#pdate').addEventListener('input',e=>{
+  S.pdate=e.target.value||null;S.pmo=0;S.expired=false;
+  if(S.pdate){const d=new Date(S.pdate+'T12:00:00');const diff=(d-Date.now())/(1000*60*60*24);
+    if(diff<0)S.expired=true;else S.pmo=Math.max(1,Math.round(diff/30.4));}
+});
+
+/* rail quick-join (syncs with form checkbox state) */
+function railJoin(inputEl,rowEl,doneEl){const em=inputEl.value.trim();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)){inputEl.classList.add('err');inputEl.focus();return false;}
+  inputEl.classList.remove('err');S.joined=true;S.email=em;$('#email').value=em;
+  /* WIRE-UP POINT: POST waitlist payload here */
+  console.log('[whollar-waitlist placeholder]',{email:em,via:'rail',...S});
+  rowEl.style.display='none';doneEl.classList.add('on');return true;}
+$('#g-join').addEventListener('click',()=>railJoin($('#g-email'),$('#gerow'),$('#gdone')));
+
+/* attach */
+/* ---------- bill upload (click + drag&drop) ---------- */
+function fmtSize(n){return n<1024?n+' B':n<1048576?(n/1024).toFixed(0)+' KB':(n/1048576).toFixed(1)+' MB';}
+function acceptFile(f){
+  if(!f)return;
+  S.file=f.name;
+  $('#filename').textContent=f.name;
+  $('#filesize').textContent=fmtSize(f.size);
+  $('#filechip').classList.add('on');
+}
+$('#bill-file').addEventListener('change',e=>acceptFile(e.target.files[0]));
+$('#fileclear').addEventListener('click',e=>{
+  e.preventDefault();
+  S.file=null;
+  $('#bill-file').value='';
+  $('#filename').textContent='';
+  $('#filesize').textContent='';
+  $('#filechip').classList.remove('on');
+});
+const uploadZone=$('#uploadZone');
+['dragenter','dragover'].forEach(ev=>uploadZone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();uploadZone.classList.add('drag');}));
+['dragleave','dragend'].forEach(ev=>uploadZone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();uploadZone.classList.remove('drag');}));
+uploadZone.addEventListener('drop',e=>{
+  e.preventDefault();e.stopPropagation();
+  uploadZone.classList.remove('drag');
+  const f=e.dataTransfer.files&&e.dataTransfer.files[0];
+  if(!f)return;
+  try{$('#bill-file').files=e.dataTransfer.files;}catch(err){}
+  acceptFile(f);
+});
+
+/* waitlist block */
+$('#email').addEventListener('input',e=>S.email=e.target.value.trim());
+$('#wl-check').addEventListener('change',e=>{S.joined=e.target.checked;$('#wl').classList.toggle('on',e.target.checked);});
+$$('.qc').forEach(c=>c.addEventListener('click',()=>{$$('.qc').forEach(x=>x.classList.remove('on'));c.classList.add('on');}));
+
+/* deep read mini-form */
+let deepFiles=[];
+$('#deep-files').addEventListener('change',e=>{
+  deepFiles=[...e.target.files].map(f=>f.name);
+  $('#dchips').innerHTML=deepFiles.map(n=>'<span>'+n+'</span>').join('');});
+$('#deep-send').addEventListener('click',()=>{
+  const em=$('#deep-email').value.trim();
+  if(!deepFiles.length){$('#deep').classList.add('pulse');setTimeout(()=>$('#deep').classList.remove('pulse'),1200);return;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)){$('#deep-email').classList.add('err');$('#deep-email').focus();return;}
+  $('#deep-email').classList.remove('err');
+  /* WIRE-UP POINT: POST deep-read payload (files, note, email) here */
+  console.log('[whollar-deepread placeholder]',{email:em,files:deepFiles,note:$('#deep-note').value.trim(),...S});
+  $('#deep-form').style.display='none';$('#ddone').classList.add('on');});
+
+/* ---------- CTA ---------- */
+$('#check').addEventListener('click',()=>{
+  let bad=null;
+  if(!(S.cost>=15)){bad=$('#cost');}
+  else if(!S.spd){bad=$('#spd');}
+  if(bad){const f=bad.closest('.f');f.classList.add('err');bad.focus();return;}
+  if(S.joined){const em=$('#email').value.trim();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)){$('#email').classList.add('err');$('#email').focus();return;}
+    $('#email').classList.remove('err');
+    /* WIRE-UP POINT: POST waitlist payload here */
+    console.log('[whollar-waitlist placeholder]',{email:em,switchFor:document.querySelector('.qc.on').textContent,...S});
+  }
+  renderResults();screen(2);
+});
+$('#edit-all').addEventListener('click',()=>screen(1));
+
+/* ---------- signal ---------- */
+const BAR=f=>'<div class="sig__bars">'+[0,1,2,3].map(i=>'<i class="'+(f[i]||'')+' pop"></i>').join('')+'</div>';
+const CTX=()=>{const sp=S.spd&&S.spd!=='0'?(+S.spd>=1000?(+S.spd>=1500?'1.5 Gbps+':'1 Gbps'):S.spd+' Mbps'):null;
+  return ['your complete bill vs the advertised market',sp,S.pc?FSA[S.pc[0]]:null].filter(Boolean).join(' \u00b7 ');};
+const STATES={
+strong:()=>({bars:BAR(['f','f','f','f']),h:'Strong deal',read:'Your complete bill sits ahead of the advertised market for your tier. The play now is <b>keeping it past renewal</b> \u2014 exactly what a pooled bid is for.'}),
+fair:()=>({bars:BAR(['f','f','fa','']),h:'Fair deal',read:'Near the going rate \u2014 not a crisis, not a deal. \u201cNear\u201d is what group bids beat, without you making a single call.'}),
+weak:()=>({bars:BAR(['fw','','','']),cls:'warnbg',h:'Weak deal',read:'Your complete bill runs <b>above the going rate</b> for what you\u2019re getting \u2014 the kind of gap that compounds every month. Your cohort\u2019s bid is built to close it.'}),
+cliff:()=>({bars:'<div class="sig__bars"><i class="f pop"></i><i class="f pop"></i><i class="f pop"></i><i class="f pop"></i><span class="arrow">\u2192</span><i class="fw pop"></i><i></i><i></i><i></i></div>',cls:'warnbg',h:'Cliff ahead',read:'Fine today. Around <b>'+monthName(S.pdate)+'</b> your promo ends and your complete bill jumps \u2014 resets usually land 30\u201360% higher, on autopay. The window to pool is <b>before</b> the jump.'})};
+function monthName(d){if(!d)return 'renewal';const dt=new Date(d+'T12:00:00');return dt.toLocaleDateString('en-CA',{month:'long',year:'numeric'});}
+function verdict(){
+  if(S.pmo>0)return 'cliff';
+  const r=S.cost/(TYP[S.spd]||60);
+  return r<=0.92?'strong':r<=1.12?'fair':'weak';}
+function setSig(k){const s=STATES[k]();
+  $('#sig').className='sig '+(s.cls||'');
+  $('#sig').innerHTML='<div class="sig__label">Your deal signal</div>'+s.bars+'<h3>'+s.h+'</h3><p class="read">'+s.read+'</p><p class="ctx">'+CTX()+'</p>'+(S.joined?'<span class="joined">&#10003; You\u2019re on the '+(S.pc?S.pc+' ':'')+'waitlist</span>':'');}
+
+/* ---------- recap ---------- */
+const RIC={pin:'<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',bld:'<rect x="4" y="3" width="12" height="18" rx="2"/><path d="M8 7h4M8 11h4M8 15h4M16 9h4v12h-4"/>',dol:'<circle cx="12" cy="12" r="9"/><path d="M12 7v10M15 9.5c0-1.4-1.3-2.5-3-2.5s-3 .9-3 2.2c0 3 6 1.6 6 4.6 0 1.3-1.3 2.2-3 2.2s-3-1.1-3-2.5"/>',gau:'<path d="M4 14a8 8 0 1 1 16 0"/><path d="M12 14l4-4"/><circle cx="12" cy="14" r="1.4"/>',plg:'<path d="M9 3v5M15 3v5M7 8h10v4a5 5 0 0 1-10 0V8Z"/><path d="M12 17v4"/>',cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>',tag:'<path d="M3 12V4h8l9 9-8 8-9-9Z"/><circle cx="7.5" cy="8.5" r="1.4"/>',clp:'<path d="M8 12l6.5-6.5a3.5 3.5 0 0 1 5 5L11 19a5.5 5.5 0 0 1-8-7.6L10.5 4"/>'};
+let rvI=0;
+function rv(label,val,target,hot,ic){rvI++;return '<button class="rv'+(hot?' hotv':'')+'" data-t="'+target+'" style="animation-delay:'+(rvI*55)+'ms"><span class="ric"><svg viewBox="0 0 24 24">'+(RIC[ic]||RIC.tag)+'</svg></span><span style="min-width:0"><small>'+label+'</small><b>'+val+'</b></span><svg class="pen" viewBox="0 0 24 24"><path d="M17 3l4 4L8 20l-5 1 1-5L17 3z"/></svg></button>';}
+function renderResults(){
+  setSig(verdict());
+  const sp=S.spd==='0'?'Not sure':(+S.spd>=1000?(+S.spd>=1500?'1.5 Gig+':'1 Gig'):S.spd+' Mbps');
+  let promoVal='None / not sure',hot=false;
+  if(S.expired)promoVal='Expired '+monthName(S.pdate);
+  else if(S.pmo>0){promoVal='Ends '+monthName(S.pdate);hot=true;}
+  rvI=0;
+  $('#rgrid').innerHTML=
+    rv('Cohort',S.pc?S.pc+' \u00b7 '+FSA[S.pc[0]]:'Add postal code','pc',false,'pin')+
+    rv('Provider',S.prov?S.prov.split(' (')[0]:'\u2014','prov',false,'bld')+
+    rv('Monthly charge',S.cost?('$'+S.cost+'/mo'):'\u2014','cost',false,'dol')+
+    rv('Speed',sp,'spd',false,'gau')+
+    rv('Connection',S.tech?S.tech.split(' (')[0]:'\u2014','tech',false,'plg')+
+    rv('Promo',promoVal,'pdate',hot,'cal')+
+    (S.disc?rv('Discount','$'+S.disc+'/mo','disc',false,'tag'):'')+
+    (S.file?rv('Bill attached','\u2713 '+S.file,'bill-file',false,'clp'):'');
+  $$('#rgrid .rv').forEach(b=>b.addEventListener('click',()=>{screen(1);const el=document.getElementById(b.dataset.t);if(el)setTimeout(()=>el.focus(),350);}));
+  renderLevers();
+  const j2=$('#join2');
+  if(S.joined){j2.innerHTML='<h3>&#10003; You\u2019re on the '+(S.pc?S.pc+' ':'')+'waitlist</h3><p>We\u2019ll write the moment your cohort opens &mdash; and you\u2019ll be first to hear where Whollar goes next.</p>';}
+  else{j2.innerHTML='<h3>'+(S.pc?'Put the '+S.pc+' cohort to work':'Get your number, the easy way')+'</h3><p>Join to shrink your bill &mdash; and to build a market where prices finally have to explain themselves. Internet first; more to come.</p><div class="gerow" id="j2row"><input type="email" id="j2-email" placeholder="you@example.com" aria-label="Email to join"><button class="whl-btn" type="button" id="j2-join">Join</button></div><div class="gdone" id="j2done">&#10003;&nbsp; You\u2019re in &mdash; we\u2019ll write when your cohort opens.</div>';
+    $('#j2-join').addEventListener('click',()=>{if(railJoin($('#j2-email'),$('#j2row'),$('#j2done')))setSig(verdict());});
+    if(S.email)$('#j2-email').value=S.email;}
+  if(S.email)$('#deep-email').value=$('#deep-email').value||S.email;
+}
+
+/* ---------- 11 levers ---------- */
+function renderLevers(){
+  const L=[
+    ['Speed tier','The headline differentiator \u2014 50 up to 8 Gbps rungs.',!!S.spd],
+    ['Access technology','Fibre, cable, 5G, DSL \u2014 same speed, different price.',!!S.tech],
+    ['Address / postal code','Decides who can even reach your door.',!!S.pc],
+    ['Promo vs. regular rate','The cliff \u2014 the single biggest driver of overpayment.',!!S.pdate],
+    ['Contract & exit terms','Early-exit fees: banned since June 2026.',false,'$0 by law'],
+    ['Equipment rental','$5\u201315/mo for the box \u2014 free at most independents.',false],
+    ['Install & activation','One-time fees: banned since June 2026.',false,'$0 by law'],
+    ['Data caps & overage','\u201cUnlimited\u201d sometimes means deprioritised.',false],
+    ['Bundling','Stated savings often evaporate under audit.',false],
+    ['Provider type','Same physical line, 20\u201340% apart on billing.',!!S.prov],
+    ['Add-ons & QoS','Static IP, mesh, priority support \u2014 rarely contractual.',false]
+  ];
+  $('#lev-list').innerHTML=L.map((l,i)=>{
+    const got=l[2];const law=l[3];
+    return '<div class="lt '+(got?'got':'lock')+'"><span class="no">'+String(i+1).padStart(2,'0')+'</span><span style="min-width:0"><b>'+l[0]+'</b><span>'+l[1]+'</span></span><span class="st'+(law?' law':'')+'">'+(law?law:(got?'\u2713 yours':'agreement'))+'</span></div>';
+  }).join('');
+  $$('#lev-list .lt.lock').forEach(t=>t.addEventListener('click',()=>{
+    const d=$('#deep');d.classList.add('pulse');d.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>d.classList.remove('pulse'),1600);}));
+}
+
+/* ---------- invoice animation loop ---------- */
+const inv=$('#inv');const invTot=$('#inv-tot');const invPlan=$('#inv-plan');
+function tween(el,from,to,ms,pre){const t0=performance.now();
+  function f(t){const p=Math.min(1,(t-t0)/ms);const v=from+(to-from)*(p*p*(3-2*p));
+    el.textContent=pre+v.toFixed(2);if(p<1)requestAnimationFrame(f);}
+  requestAnimationFrame(f);}
+function invLoop(){
+  inv.className='inv';invTot.textContent='$73.99';invPlan.textContent='$126.99';
+  setTimeout(()=>inv.classList.add('p0'),200);
+  setTimeout(()=>{inv.classList.add('p1');tween(invPlan,126.99,133.99,600,'$');tween(invTot,73.99,80.99,600,'$');},2400);
+  setTimeout(()=>{inv.classList.add('p2');tween(invTot,80.99,150.99,1100,'$');},4600);
+  setTimeout(invLoop,9200);}
+if(matchMedia('(prefers-reduced-motion: reduce)').matches){inv.classList.add('p0','p1','p2');invPlan.textContent='$133.99';invTot.textContent='$150.99';}
+else invLoop();
+})();
+</script>
+</body>
+</html>

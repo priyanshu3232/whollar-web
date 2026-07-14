@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+
+<script src="js/dc-runtime.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<script src="js/lottie.min.js"></script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&amp;f[]=general-sans@500,600&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/style.css">
+</helmet>
+
+<div class="whl">
+<nav class="whl-nav">
+  <div class="whl-nav__in">
+    <a class="whl-mark" href="index.html">
+      <svg sc-camel-view-box="0 0 120 120"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" sc-camel-gradient-units="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"></stop><stop offset="1" stop-color="#1E9E63"></stop></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"></rect><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"></path><circle cx="34" cy="42" r="11" fill="#fff"></circle><circle cx="86" cy="42" r="11" fill="#fff"></circle><circle cx="60" cy="80" r="11" fill="#fff"></circle></svg>
+      <b>Whollar</b>
+    </a>
+    <a class="whl-nav__back" href="index.html">← Back to home</a>
+    <a class="whl-btn whl-btn--sm" href="whollar-checkup-v6.html">Run the checkup</a>
+  </div>
+</nav>
+
+<section class="split">
+  <div class="hs-left">
+    <canvas class="hs-net" id="hs-net" aria-hidden="true"></canvas>
+    <svg class="hs-left__mark" sc-camel-view-box="0 0 120 120"><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="34" cy="42" r="11" fill="#fff"></circle><circle cx="86" cy="42" r="11" fill="#fff"></circle><circle cx="60" cy="80" r="11" fill="#fff"></circle></svg>
+    <div class="hs-left__in">
+      <span class="whl-eyebrow">Founding members</span>
+      <h1>Become a founding member of Whollar.</h1>
+      <p class="sub">Join to <b>shrink your bill</b>, to make this market <b>explain itself</b>, and to be <b>inside before what's next goes public</b>.</p>
+      <div class="trust">
+        <span><svg sc-camel-view-box="0 0 24 24"><path d="M20 6L9 17l-5-5"></path></svg>Free for households</span>
+        <span><svg sc-camel-view-box="0 0 24 24"><path d="M20 6L9 17l-5-5"></path></svg>No commitment to switch</span>
+        <span><svg sc-camel-view-box="0 0 24 24"><path d="M20 6L9 17l-5-5"></path></svg>Takes under a minute</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="hs-right">
+    <div class="form-pane">
+
+      <div id="joinform">
+        <h3>Hold your spot</h3>
+        <p class="fsub">Whollar is free to join for households. One short form and you're in.</p>
+        <div class="jf">
+          <label for="j-name">What should we call you?</label>
+          <div class="namerow">
+            <input type="text" id="j-name" placeholder="First name" autocomplete="given-name" aria-label="First name">
+            <input type="text" id="j-last" placeholder="Last name" autocomplete="family-name" aria-label="Last name">
+          </div>
+        </div>
+        <div class="jf">
+          <label for="j-email">Email</label>
+          <input type="email" id="j-email" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="jf">
+          <label for="j-phone">A number to text when bids land</label>
+          <input type="tel" id="j-phone" placeholder="(555) 555-0123" autocomplete="tel" inputmode="tel">
+        </div>
+        <div class="jf">
+          <label for="j-pc">Postal code</label>
+          <input id="j-pc" placeholder="e.g. L5V 2C9" maxlength="7" autocomplete="postal-code">
+          <span class="okc" id="j-okc"></span>
+        </div>
+        <button type="button" class="reflink" id="ref-toggle">Have a referral code?</button>
+        <div class="jf" id="refbox" style="display:none;margin-top:10px">
+          <label for="j-ref">Referral code or a neighbour's email</label>
+          <input type="text" id="j-ref" placeholder="Optional">
+        </div>
+        <button class="whl-btn go" id="j-go" type="button">Become a founding member</button>
+        <p class="perksline"><b>Founding perks, locked in for joining now.</b> Early access and first pick on every market we open next.</p>
+      </div>
+
+      <div class="jdone" id="joindone">
+        <div class="donehead">
+          <span class="chk"><svg sc-camel-view-box="0 0 24 24"><path d="M20 6L9 17l-5-5"></path></svg></span>
+          <div>
+            <h3 id="done-h">You're in.</h3>
+            <p id="done-p">Your spot is held. We'll text the moment bids land in your area.</p>
+          </div>
+        </div>
+        <div class="share">
+          <b id="sh-h">Move your area up the line</b>
+          <p id="sh-p">Share your link. Every neighbour who joins through you strengthens the bid you'll all get.</p>
+          <div class="srow">
+            <span class="lnk" id="sh-lnk">whollar.ca/join</span>
+            <button class="cp" id="sh-cp" type="button">Copy</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</section>
+
+<section class="sect">
+  <div class="wrap">
+    <div class="shead">
+      <h2>What joining gets you</h2>
+    </div>
+    <div class="trio">
+      <section class="tcard" id="p3">
+        <div class="pviz" style="background:var(--green-tint);display:flex;align-items:center;justify-content:center;padding:0;aspect-ratio:320/190;height:auto;overflow:hidden">
+          <div id="viz3-lottie" style="width:78%;height:78%"></div>
+        </div>
+        <span class="k">01 · FOR THE CURIOUS</span>
+        <h2>Be first to what's next</h2>
+        <p class="tdesc">Internet is chapter one. The next markets are already on our map, sealed until launch, and founding members hear it before a word goes public.</p>
+      </section>
+
+      <section class="tcard" id="p2">
+        <div class="pviz" style="background:var(--green-tint);display:flex;align-items:center;justify-content:center;padding:0;aspect-ratio:320/190;height:auto;overflow:hidden">
+          <div id="viz2-lottie" style="width:78%;height:78%"></div>
+        </div>
+        <span class="k">02 · FOR THE BELIEVERS</span>
+        <h2>Let's make pricing honest, together</h2>
+        <p class="tdesc">Honest pricing isn't a favour providers grant. It's what happens when enough households ask the same question at the same time.</p>
+      </section>
+
+      <section class="tcard" id="p1">
+        <div class="pviz" style="background:var(--green-tint);display:flex;align-items:center;justify-content:center;padding:0;aspect-ratio:320/190;height:auto;overflow:hidden">
+          <video id="neural-vid" src="assets/neural-connections.mp4" autoplay="autoplay" loop="loop" playsinline="playsinline" style="width:100%;height:100%;display:block;object-fit:cover;mix-blend-mode:multiply;filter:sepia(1) saturate(2.6) hue-rotate(108deg) brightness(1.1) contrast(1)"></video>
+        </div>
+        <span class="k">03 · FOR THE SAVERS</span>
+        <h2>New connection or a lower bill</h2>
+        <p class="tdesc">Setting up a new place, or done overpaying at the old one? Either way, providers bid for your street and the group price is yours to take.</p>
+      </section>
+    </div>
+  </div>
+</section>
+
+<section class="sect sect--mist">
+  <div class="wrap">
+    <div class="shead">
+      <span class="whl-eyebrow">Stay tuned</span>
+      <h2>You'll always hear it first</h2>
+    </div>
+    <div class="stay3">
+      <div class="s3card"><div class="s3head"><span class="ntile"><svg sc-camel-view-box="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1.6" fill="currentColor" stroke="none"></circle></svg></span><b>Launches &amp; updates</b></div><p>New markets, new tools. Founding members hear it first, region by region.</p></div>
+      <div class="s3card"><div class="s3head"><span class="ntile"><svg sc-camel-view-box="0 0 24 24"><path d="M12 3 3 8l9 5 9-5-9-5Z"></path><path d="M7 10.5V17c0 1.6 2.2 3 5 3s5-1.4 5-3v-6.5"></path></svg></span><b>Regulator &amp; market watch</b></div><p>CRTC rulings, price moves and competitor plays, decoded in plain language.</p></div>
+      <div class="s3card"><div class="s3head"><span class="ntile"><svg sc-camel-view-box="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14Z"></path><path d="M9 8h7M9 11.5h5"></path></svg></span><b>Guides that take you forward</b></div><p>Reading a bill, timing a switch, knowing your rights. Our writing, minus the jargon.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="sect">
+  <div class="wrap">
+    <div class="shead">
+      <span class="whl-eyebrow">FAQ</span>
+      <h2>Questions, answered</h2>
+    </div>
+    <div class="faqwrap">
+      <div class="qa open">
+        <button type="button"><b>What happens after I join?</b><span class="pm"><svg sc-camel-view-box="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></span></button>
+        <div class="ans">When enough neighbours are in, your area's cohort opens and providers bid for the whole group. You'll see the winning offer in plain numbers. Say yes only if it's better than what you have.</div>
+      </div>
+      <div class="qa">
+        <button type="button"><b>Am I committing to switch?</b><span class="pm"><svg sc-camel-view-box="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></span></button>
+        <div class="ans">No. Joining holds a spot and adds weight to your area's cohort. Whatever offer comes back, the decision stays with you.</div>
+      </div>
+      <div class="qa">
+        <button type="button"><b>What about my current contract?</b><span class="pm"><svg sc-camel-view-box="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></span></button>
+        <div class="ans">Since June 12, 2026, providers can't charge activation, change or cancellation fees on internet plans (CRTC 2026‑43). Cohorts are also timed to renewal windows, so most members move when their promo was ending anyway.</div>
+      </div>
+      <div class="qa">
+        <button type="button"><b>When does my area open?</b><span class="pm"><svg sc-camel-view-box="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></span></button>
+        <div class="ans">Regions open in order of demand. Your postal code puts you in line, and every neighbour who joins moves your area up.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="whl-foot">
+  <div class="wrap"><b style="font-family:var(--disp);color:var(--teal)">Whollar</b> · Design mock v6, for review. CRTC 2026‑43 in force June 12, 2026. Share link is a placeholder pending domain wiring.</div>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="">
+class Component extends DCLogic {
+  componentDidMount(){
+    const root = this.base || document;
+    const $ = s => root.querySelector(s);
+    const $$ = s => [...root.querySelectorAll(s)];
+    const FSA={A:'Newfoundland & Labrador',B:'Nova Scotia',C:'PEI',E:'New Brunswick',G:'Quebec',H:'Quebec',J:'Quebec',K:'Ontario',L:'Ontario',M:'Ontario',N:'Ontario',P:'Ontario',R:'Manitoba',S:'Saskatchewan',T:'Alberta',V:'British Columbia',X:'the North',Y:'Yukon'};
+    const S={name:'',last:'',email:'',phone:'',fsa:null};
+
+    if($('#viz2-lottie')&&window.lottie){window.lottie.loadAnimation({container:$('#viz2-lottie'),renderer:'svg',loop:true,autoplay:true,path:(window.__resources&&window.__resources.walletLottie)||'./flying-wallet-money.json'});}
+    if($('#viz3-lottie')&&window.lottie){window.lottie.loadAnimation({container:$('#viz3-lottie'),renderer:'svg',loop:true,autoplay:true,path:(window.__resources&&window.__resources.searchLottie)||'./search.json'});}
+
+    const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('vis');io.unobserve(e.target);}}),{threshold:.12});
+    $$('.tcard,.s3card,.faqwrap').forEach(p=>io.observe(p));
+
+    const q=new URLSearchParams(location.search);
+    if(q.get('email')&&$('#j-email'))$('#j-email').value=q.get('email');
+    if(q.get('fsa')&&$('#j-pc'))$('#j-pc').value=q.get('fsa');
+
+    function parsePC(){const el=$('#j-pc');const v=el.value.toUpperCase();el.value=v;
+      const m=v.replace(/\s/g,'').match(/^([A-Z])\d[A-Z]/);
+      if(m&&FSA[m[1]]){S.fsa=v.replace(/\s/g,'').slice(0,3);
+        $('#j-okc').textContent='\u2713 '+FSA[m[1]]+' \u00b7 the '+S.fsa+' cohort';$('#j-okc').classList.add('on');}
+      else{S.fsa=null;$('#j-okc').classList.remove('on');}}
+    if($('#j-pc')){$('#j-pc').addEventListener('input',parsePC);if($('#j-pc').value)parsePC();}
+
+    $('#ref-toggle').addEventListener('click',()=>{const r=$('#refbox');const show=r.style.display==='none';r.style.display=show?'block':'none';if(show)$('#j-ref').focus();});
+
+    $('#j-go').addEventListener('click',()=>{
+      const nm=$('#j-name').value.trim();
+      if(nm.length<2){$('#j-name').classList.add('err');$('#j-name').focus();return;}
+      $('#j-name').classList.remove('err');
+      const ln=$('#j-last').value.trim();
+      if(ln.length<2){$('#j-last').classList.add('err');$('#j-last').focus();return;}
+      $('#j-last').classList.remove('err');
+      const em=$('#j-email').value.trim();
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)){$('#j-email').classList.add('err');$('#j-email').focus();return;}
+      $('#j-email').classList.remove('err');
+      const ph=$('#j-phone').value.replace(/\D/g,'');
+      if(ph.length<10||ph.length>11){$('#j-phone').classList.add('err');$('#j-phone').focus();return;}
+      $('#j-phone').classList.remove('err');
+      if(!S.fsa){$('#j-pc').classList.add('err');$('#j-pc').focus();return;}
+      $('#j-pc').classList.remove('err');
+      S.name=nm;S.last=ln;S.email=em;S.phone=ph;
+      /* WIRE-UP POINT: POST founding-member signup {name, email, phone, fsa, referral} here */
+      console.log('[whollar-join placeholder]',{firstName:S.name,lastName:S.last,email:S.email,phone:S.phone,fsa:S.fsa,referral:$('#j-ref').value.trim()||null,ts:new Date().toISOString()});
+      $('#done-h').textContent=nm+", you're in.";
+      $('#done-p').textContent='Your spot in the '+S.fsa+' cohort is held. We\u2019ll text the moment bids land.';
+      $('#sh-lnk').textContent='whollar.ca/join?fsa='+S.fsa;
+      $('#sh-p').textContent='Share your link. Every neighbour in '+S.fsa+' who joins through you strengthens the bid you\u2019ll all get.';
+      $('#joinform').style.display='none';
+      $('#joindone').classList.add('on');
+    });
+
+    $('#sh-cp').addEventListener('click',()=>{
+      const t='https://'+$('#sh-lnk').textContent;
+      const done=()=>{$('#sh-cp').textContent='Copied';setTimeout(()=>$('#sh-cp').textContent='Copy',1600);};
+      if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(done,done);else done();});
+
+    (function(){
+      const g=$('#v1-houses');if(!g)return;
+      const HOUSE='M0 8 L9 0 L18 8 V18 H0 Z';
+      const HX=[96,168,240];
+      g.innerHTML=HX.map(x=>'<g class="hs" transform="translate('+(x-9)+',128)"><path d="'+HOUSE+'" fill="#E4F4EC" stroke="#1C9C82" stroke-width="1.8" stroke-linejoin="round"/><rect x="7" y="11" width="4.5" height="7" fill="#1C9C82"/></g>').join('');
+      const path=$('#v1path'),knob=$('#v1knob'),ring=$('#v1ring'),link=$('#v1link'),
+            tag=$('#v1-tag'),tagbg=$('#v1tagbg'),houses=$$('#v1-houses .hs'),
+            rows=$$('#viz2 .v2row');
+      const L=path.getTotalLength();
+      path.style.strokeDasharray=L;
+      const ease=x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
+      function setTag(dn){
+        if(dn){tag.textContent='together';tag.setAttribute('fill','#178A5A');tagbg.setAttribute('fill','#E4F4EC');tagbg.setAttribute('width','78');tag.setAttribute('x','59');}
+        else{tag.textContent='alone';tag.setAttribute('fill','#C2643B');tagbg.setAttribute('fill','#F7E7DD');tagbg.setAttribute('width','60');tag.setAttribute('x','50');}}
+      function reset(){
+        path.style.strokeDashoffset=L;
+        knob.setAttribute('cx',24);knob.setAttribute('cy',44);
+        houses.forEach(h=>h.classList.remove('on'));
+        link.classList.remove('on');ring.classList.remove('on');ring.setAttribute('opacity','0');
+        rows.forEach(r=>r.classList.remove('on'));
+        setTag(false);}
+      function finale(){
+        link.classList.add('on');
+        const pt=path.getPointAtLength(L);
+        ring.setAttribute('cx',pt.x);ring.setAttribute('cy',pt.y);ring.setAttribute('opacity','1');ring.classList.add('on');
+        setTag(true);}
+      function run(){
+        reset();
+        const t0=performance.now(),D=4300;
+        rows.forEach((r,i)=>setTimeout(()=>r.classList.add('on'),1100+i*900));
+        requestAnimationFrame(function fr(now){
+          const p=Math.min(1,(now-t0)/D),e=ease(p);
+          path.style.strokeDashoffset=L*(1-e);
+          const pt=path.getPointAtLength(L*e);
+          knob.setAttribute('cx',pt.x);knob.setAttribute('cy',pt.y);
+          houses.forEach((h,i)=>{if(pt.x>=HX[i]-2&&pt.y>=60&&!h.classList.contains('on'))h.classList.add('on');});
+          if(p<1)requestAnimationFrame(fr);else finale();});
+        setTimeout(run,8200);}
+      if(matchMedia('(prefers-reduced-motion: reduce)').matches){
+        path.style.strokeDashoffset=0;houses.forEach(h=>h.classList.add('on'));
+        const pt=path.getPointAtLength(L);knob.setAttribute('cx',pt.x);knob.setAttribute('cy',pt.y);
+        link.classList.add('on');setTag(true);
+        rows.forEach(r=>r.classList.add('on'));}
+      else run();
+    })();
+
+    $$('.qa>button').forEach(b=>b.addEventListener('click',()=>b.closest('.qa').classList.toggle('open')));
+
+    const vid=$('#whatnext-vid');
+    if(vid){
+      vid.muted=true;vid.loop=true;vid.playsInline=true;
+      const tryPlay=()=>vid.play().catch(()=>{});
+      tryPlay();
+      vid.addEventListener('loadeddata',tryPlay);
+    }
+
+    (function(){
+      const cv=$('#hs-net');if(!cv)return;
+      const ctx=cv.getContext('2d');
+      const host=cv.parentElement;
+      const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let W=0,H=0,dpr=Math.min(window.devicePixelRatio||1,2),nodes=[],raf=0;
+      function build(){
+        const r=host.getBoundingClientRect();
+        W=Math.max(1,r.width);H=Math.max(1,r.height);
+        cv.width=W*dpr;cv.height=H*dpr;
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+        const count=Math.max(14,Math.round(W*H/26000));
+        nodes=Array.from({length:count},()=>({
+          x:Math.random()*W,y:Math.random()*H,
+          vx:(Math.random()-.5)*.18,vy:(Math.random()-.5)*.18,
+          r:Math.random()*2.4+1.4,
+          glow:Math.random()<.28
+        }));
+      }
+      const LINK=150;
+      function frame(){
+        ctx.clearRect(0,0,W,H);
+        for(const n of nodes){
+          n.x+=n.vx;n.y+=n.vy;
+          if(n.x<-20)n.x=W+20;if(n.x>W+20)n.x=-20;
+          if(n.y<-20)n.y=H+20;if(n.y>H+20)n.y=-20;
+        }
+        for(let i=0;i<nodes.length;i++){
+          for(let j=i+1;j<nodes.length;j++){
+            const a=nodes[i],b=nodes[j],dx=a.x-b.x,dy=a.y-b.y,d=Math.hypot(dx,dy);
+            if(d<LINK){
+              ctx.strokeStyle='rgba(127,227,176,'+(0.16*(1-d/LINK)).toFixed(3)+')';
+              ctx.lineWidth=1;
+              ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+            }
+          }
+        }
+        for(const n of nodes){
+          if(n.glow){
+            const g=ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,n.r*6);
+            g.addColorStop(0,'rgba(127,227,176,.5)');g.addColorStop(1,'rgba(127,227,176,0)');
+            ctx.fillStyle=g;ctx.beginPath();ctx.arc(n.x,n.y,n.r*6,0,6.283);ctx.fill();
+          }
+          ctx.fillStyle=n.glow?'#7FE3B0':'rgba(127,227,176,.55)';
+          ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,6.283);ctx.fill();
+        }
+        raf=requestAnimationFrame(frame);
+      }
+      build();
+      if(reduce){frame();cancelAnimationFrame(raf);}
+      else raf=requestAnimationFrame(frame);
+      const ro=new ResizeObserver(()=>{build();if(reduce){cancelAnimationFrame(raf);frame();cancelAnimationFrame(raf);}});
+      ro.observe(host);
+    })();
+  }
+  renderVals(){ return {}; }
+}
+</script>
+
+
+</body></html>
