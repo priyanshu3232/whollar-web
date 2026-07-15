@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Become a founding partner — Whollar</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://api.fontshare.com">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&f[]=general-sans@500,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --teal:#0E2A20; --teal-deep:#0A2018; --teal-bright:#178A5A; --teal-soft:#7FE3B0;
+  --accent:#1E9E63; --accent-hover:#178A5A;
+  --cream:#FAF8F3; --paper:#ffffff; --mist:#F6F4EE;
+  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#8A968F; --line:#e7ebe6;
+  --warn:#C2643B; --green-tint:#E4F4EC;
+  --label:'General Sans','Satoshi',system-ui,sans-serif;
+  --disp:'Satoshi',system-ui,sans-serif;
+  --body:'Inter',system-ui,sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
+  --wrap:1240px; --r:22px; --rf:26px;
+  --sh-1:0 1px 2px rgba(16,40,34,.04),0 8px 24px rgba(16,40,34,.05);
+  --sh-2:0 2px 6px rgba(16,40,34,.06),0 18px 44px rgba(16,40,34,.09);
+  --sh-3:0 4px 12px rgba(16,40,34,.07),0 32px 70px rgba(16,40,34,.13);
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--body);-webkit-font-smoothing:antialiased;font-size:16px;line-height:1.5}
+h1,h2,h3,h4{font-family:var(--disp);color:var(--teal);letter-spacing:-.02em;margin:0}
+p{margin:0}
+button{font-family:var(--body)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes shake{0%,100%{transform:none}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}
+
+.whl-nav{position:sticky;top:0;z-index:60;background:rgba(250,248,243,.86);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.whl-nav__in{max-width:var(--wrap);margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:14px}
+.whl-mark{display:flex;align-items:center;gap:10px;text-decoration:none}
+.whl-mark svg{width:34px;height:34px}
+.whl-mark b{font-family:var(--disp);font-weight:900;font-size:20px;color:var(--teal)}
+.whl-nav__tag{margin-left:6px;font-family:var(--label);font-weight:600;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);border-left:1px solid var(--line);padding-left:12px}
+.whl-nav__back{margin-left:auto;font-size:14px;color:var(--ink-2);text-decoration:none}
+.whl-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:pointer;font-weight:600;font-size:15px;color:#fff;background:var(--teal);border-radius:13px;padding:13px 22px;text-decoration:none;transition:background .18s,transform .18s;white-space:nowrap}
+.whl-btn:hover{background:var(--teal-deep);transform:translateY(-1px)}
+.whl-eyebrow{display:inline-block;font-family:var(--label);font-weight:600;font-size:12.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);margin:0 0 14px}
+
+/* split hero */
+.split{display:grid;grid-template-columns:1.02fr 1fr;min-height:calc(100vh - 59px)}
+.hs-left{background:linear-gradient(160deg,var(--teal-deep),#123B2C 52%,#17553D);color:#fff;position:relative;overflow:hidden;display:flex;align-items:center}
+.hs-left::before{content:"";position:absolute;inset:0;background:radial-gradient(640px 320px at 82% -8%,rgba(127,227,176,.16),transparent 62%),radial-gradient(520px 300px at 0% 112%,rgba(30,158,99,.15),transparent 60%);pointer-events:none}
+.hs-left__mark{position:absolute;right:-70px;bottom:-70px;width:340px;height:340px;opacity:.08;pointer-events:none}
+.hs-left__in{padding:clamp(38px,4.6vw,68px) clamp(26px,4.2vw,60px);position:relative;max-width:640px}
+.hs-left .whl-eyebrow{color:var(--teal-soft)}
+.hs-left h1{color:#fff;font-weight:900;font-size:clamp(32px,4.1vw,52px);line-height:1.05;text-wrap:balance}
+.hs-left .sub{margin-top:16px;font-size:clamp(15px,1.45vw,17.5px);line-height:1.65;color:rgba(255,255,255,.72);max-width:520px}
+.hs-left .sub b{color:#fff}
+.hpts{margin-top:26px;display:flex;flex-direction:column;gap:12px}
+.hpt{display:flex;gap:11px;align-items:flex-start}
+.hpt svg{width:17px;height:17px;flex:none;stroke:var(--teal-soft);stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round;margin-top:2px}
+.hpt b{display:block;font-family:var(--disp);font-weight:700;font-size:14.5px;color:#fff}
+.hpt span{font-size:12.5px;color:rgba(255,255,255,.6);line-height:1.5}
+
+.hs-right{background:var(--mist);display:flex;align-items:center;justify-content:center;position:relative}
+.form-pane{width:min(520px,100%);padding:clamp(28px,3.4vw,44px) clamp(22px,3vw,36px)}
+.form-pane h3{font-size:21px;font-weight:900}
+.form-pane .fsub{margin-top:6px;font-size:13.5px;color:var(--ink-2);line-height:1.55}
+
+.route{margin-top:18px}
+.route>span{display:block;font-family:var(--label);font-weight:600;font-size:12.5px;color:var(--teal);margin-bottom:9px}
+.rlist{display:grid;gap:8px}
+.rc{display:flex;align-items:center;gap:11px;text-align:left;background:var(--paper);border:1.5px solid var(--line);border-radius:13px;padding:11px 13px;cursor:pointer;transition:border-color .15s,transform .12s;font-family:var(--body)}
+.rc:hover{border-color:#c6d5cc;transform:translateY(-1px)}
+.rc.on{border-color:var(--accent);background:#F7FCF9}
+.rc.err{border-color:var(--warn);animation:shake .3s}
+.rc .dot{flex:none;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center}
+.rc.on .dot{border-color:var(--accent);background:var(--accent)}
+.rc.on .dot::after{content:"";width:5px;height:5px;border-radius:50%;background:#fff}
+.rc b{display:block;font-family:var(--disp);font-weight:700;font-size:13.5px;color:var(--teal)}
+.rc span{font-size:11.5px;color:var(--ink-3);line-height:1.45;display:block}
+
+.jf{margin-top:14px}
+.jf label{display:block;font-family:var(--label);font-weight:600;font-size:12.5px;color:var(--teal);margin-bottom:7px}
+.jf label .opt{font-weight:400;color:var(--ink-3);font-size:11px}
+.jf input,.jf select,.jf textarea{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:12px;color:var(--ink);padding:11px 13px;font-size:14.5px;transition:border-color .15s;appearance:none;font-family:var(--body)}
+.jf select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%2354625B' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center}
+.jf textarea{resize:vertical;min-height:74px}
+.jf input::placeholder,.jf textarea::placeholder{color:#AEB8B2}
+.jf input:focus,.jf select:focus,.jf textarea:focus{outline:none;border-color:var(--accent)}
+.jf input.err,.jf textarea.err{border-color:var(--warn);animation:shake .3s}
+.namerow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fmsg{display:none;margin-top:7px;font-size:11.5px;line-height:1.5;color:var(--warn)}
+.fmsg.on{display:block;animation:rise .25s var(--ease)}
+.fmsg.good{color:var(--accent)}
+
+/* role-conditional credential block */
+.cred{display:none;margin-top:18px;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:15px 16px 17px}
+.cred.on{display:block;animation:rise .3s var(--ease)}
+.cred__h{display:flex;align-items:center;gap:9px;margin-bottom:4px}
+.cred__h svg{width:15px;height:15px;flex:none;stroke:var(--accent);stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.cred__h b{font-family:var(--disp);font-weight:700;font-size:13.5px;color:var(--teal)}
+.cred__s{font-size:11.5px;line-height:1.55;color:var(--ink-3)}
+.cred .jf:first-of-type{margin-top:12px}
+
+.chipgrp{margin-top:16px}
+.chipgrp>span{display:block;font-family:var(--label);font-weight:600;font-size:12.5px;color:var(--teal);margin-bottom:8px}
+.chipgrp .hint{font-weight:400;font-size:11px;color:var(--ink-3)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{font-size:12.5px;font-weight:600;color:var(--ink-2);background:var(--paper);border:1.5px solid var(--line);border-radius:999px;padding:7px 12px;cursor:pointer;transition:all .14s}
+.chips button:hover{border-color:#c6d5cc}
+.chips button.on{background:var(--teal);color:#fff;border-color:var(--teal)}
+
+.go{margin-top:20px;width:100%;background:var(--accent);font-size:15.5px;padding:14px 20px}
+.go:hover{background:var(--accent-hover)}
+.reassure{margin-top:12px;text-align:center;font-size:11.5px;line-height:1.6;color:var(--ink-3)}
+.reassure b{color:var(--ink-2)}
+
+#done{display:none}
+#done.on{display:block;animation:rise .4s var(--ease)}
+.dhead{display:flex;align-items:center;gap:12px}
+.dhead .tick{flex:none;width:42px;height:42px;border-radius:13px;background:var(--green-tint);display:grid;place-items:center}
+.dhead .tick svg{width:21px;height:21px;stroke:var(--accent);stroke-width:2.8;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:26;stroke-dashoffset:26;animation:draw .5s .2s var(--ease) forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.dhead h3{font-size:20px}
+.dsub{margin-top:13px;font-size:14px;line-height:1.65;color:var(--ink-2)}
+.dsub b{color:var(--teal)}
+.dnote{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);font-size:12px;line-height:1.6;color:var(--ink-3)}
+
+/* sections */
+.sect{padding:clamp(60px,8vw,96px) 0}
+.sect--paper{background:var(--paper);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.shead{text-align:center;max-width:700px;margin:0 auto clamp(28px,4vw,42px)}
+.shead h2{font-size:clamp(26px,3.3vw,37px);font-weight:900}
+.shead p{margin-top:11px;font-size:15px;color:var(--ink-2);line-height:1.6}
+
+.flow{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.fs{background:var(--cream);border:1px solid var(--line);border-radius:var(--rf);padding:14px 14px 22px;opacity:0;transform:translateY(12px);transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.fs.vis{opacity:1;transform:none}
+.fviz{border:1px solid var(--line);border-radius:16px;background:var(--paper);padding:6px;margin-bottom:15px}
+.fviz svg{width:100%;height:auto;display:block}
+.fs .k{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);letter-spacing:.08em;display:block;padding:0 6px}
+.fs h3{font-size:18px;font-weight:900;margin-top:5px;padding:0 6px}
+.fs p{margin-top:8px;padding:0 6px;font-size:13px;line-height:1.6;color:var(--ink-2)}
+
+/* step animations */
+#s1 .ln{stroke:#DDE4DF;stroke-width:7;stroke-linecap:round}
+#s1 .fill{stroke:#1C9C82;stroke-width:7;stroke-linecap:round;stroke-dasharray:120;stroke-dashoffset:120;transition:stroke-dashoffset .6s var(--ease)}
+#s1 .fill.on{stroke-dashoffset:0}
+#s1 .cur{opacity:0;transition:opacity .25s}
+#s1 .cur.on{opacity:1}
+#s2 .doc{transition:transform .5s var(--ease)}
+#s2 .stamp{opacity:0;transform-box:fill-box;transform-origin:center;transform:scale(1.7) rotate(-12deg);transition:opacity .35s var(--ease),transform .35s var(--ease)}
+#s2 .stamp.on{opacity:1;transform:scale(1) rotate(-8deg)}
+#s2 .glow{opacity:0;transition:opacity .4s}
+#s2 .glow.on{opacity:1}
+#s3 .hs{opacity:0;transform-box:fill-box;transform-origin:50% 100%}
+#s3 .hs.on{animation:hpop .5s var(--ease) forwards}
+@keyframes hpop{0%{opacity:0;transform:translateY(10px) scale(.6)}60%{opacity:1;transform:translateY(-2px) scale(1.06)}100%{opacity:1;transform:none}}
+#s3 .bid{opacity:0;transform-box:fill-box;transform-origin:center;transition:opacity .3s,transform .3s var(--ease);transform:translateY(6px)}
+#s3 .bid.on{opacity:1;transform:none}
+#s3 .win{stroke-dasharray:3 4;animation:flow 3s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-42}}
+
+/* faq */
+.faqwrap{max-width:900px;margin:0 auto;background:var(--paper);border:1px solid var(--line);border-radius:var(--rf);box-shadow:var(--sh-1);padding:clamp(10px,1.6vw,16px) clamp(22px,3vw,32px);opacity:0;transform:translateY(12px);transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.faqwrap.vis{opacity:1;transform:none}
+.qa{border-bottom:1px solid var(--line)}
+.qa:last-child{border-bottom:none}
+.qa>button{width:100%;display:flex;align-items:center;gap:12px;background:none;border:none;padding:18px 0;cursor:pointer;text-align:left}
+.qa>button b{font-family:var(--disp);font-weight:700;font-size:16.5px;color:var(--teal)}
+.qa>button .pm{margin-left:auto;flex:none;width:24px;height:24px;border-radius:8px;background:var(--mist);color:var(--teal);display:grid;place-items:center;font-weight:700;font-size:15px;transition:transform .2s var(--ease)}
+.qa.open>button .pm{transform:rotate(45deg)}
+.qa .ans{display:none;padding:0 0 18px;font-size:14px;line-height:1.7;color:var(--ink-2);max-width:720px}
+.qa.open .ans{display:block;animation:rise .3s var(--ease)}
+
+
+
+/* lanes */
+.lanes{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px}
+.lane{background:var(--paper);border:1px solid var(--line);border-radius:var(--rf);padding:24px 22px;box-shadow:var(--sh-1)}
+.lane .tile{width:42px;height:42px;border-radius:12px;background:var(--green-tint);display:grid;place-items:center;margin-bottom:13px}
+.lane .tile svg{width:19px;height:19px;stroke:var(--teal-bright);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.lane em{font-style:normal;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--ink-3);display:block;margin-bottom:5px}
+.lane b{display:block;font-family:var(--disp);font-weight:900;font-size:18px;color:var(--teal)}
+.lane p{margin-top:8px;font-size:13px;line-height:1.6;color:var(--ink-2)}
+@media (max-width:900px){.lanes{grid-template-columns:1fr}}
+
+.ctarow{display:grid;grid-template-columns:1.35fr 1fr;gap:10px;margin-top:20px}
+.ctarow .go{margin-top:0}
+.ghost{background:var(--paper);color:var(--teal);border:1.5px solid var(--line);text-decoration:none}
+.ghost:hover{background:#fff;border-color:#c6d5cc;color:var(--teal)}
+.spec{display:none}
+.spec.on{display:block;animation:rise .28s var(--ease)}
+footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;color:var(--ink-3);line-height:1.7}
+
+@media (max-width:1020px){
+  .split{grid-template-columns:1fr;min-height:0}
+  .hs-left{min-height:44vh}
+  .hs-right{padding:12px 0 44px}
+  .flow{grid-template-columns:1fr}
+}
+@media (max-width:620px){.namerow{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}.fs,.faqwrap{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<nav class="whl-nav">
+  <div class="whl-nav__in">
+    <a class="whl-mark" href="index.html">
+      <svg viewBox="0 0 120 120"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
+      <b>Whollar</b>
+    </a>
+    <span class="whl-nav__tag">For providers</span>
+    <a class="whl-nav__back" href="index.html">&larr; Back to home</a>
+  </div>
+</nav>
+
+<section class="split">
+  <div class="hs-left">
+    <svg class="hs-left__mark" viewBox="0 0 120 120"><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
+    <div class="hs-left__in">
+      <span class="whl-eyebrow">Founding partners</span>
+      <h1>Households, delivered as a group.</h1>
+      <p class="sub">Whollar pools neighbouring households into cohorts timed to renewal windows, then invites providers to bid for the whole group. <b>You see the demand before you commit to anything.</b></p>
+      <div class="hpts">
+        <div class="hpt"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg><span><b>Bid for a street, not a click</b><span>Pre-decided households, timed to the moment they can actually move.</span></span></div>
+        <div class="hpt"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg><span><b>You price at bid time</b><span>Nothing on this form asks what you would charge.</span></span></div>
+        <div class="hpt"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg><span><b>Verified partners only</b><span>Every bidder is a checked, registered provider. Households know that.</span></span></div>
+        <div class="hpt"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg><span><b>Founding slots are capped by region</b><span>A cohort can only be bid by so many. Early partners get the first ones.</span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hs-right">
+    <div class="form-pane">
+
+      <div id="stage1">
+        <h3>Become a founding partner</h3>
+        <p class="fsub">One minute. No pricing, no commissions, no contractual commitments at this stage.</p>
+
+        <div class="route">
+          <span>Which describes you?</span>
+          <div class="rlist" id="rlist">
+            <button type="button" class="rc" data-r="provider"><span class="dot"></span><span><b>I work at the provider</b><span>Network, product, operations or exec team.</span></span></button>
+            <button type="button" class="rc" data-r="sales"><span class="dot"></span><span><b>I'm in sales at the provider</b><span>Rep, manager or VP of sales.</span></span></button>
+            <button type="button" class="rc" data-r="distributor"><span class="dot"></span><span><b>I'm a distributor, dealer or agent</b><span>I represent one or more providers.</span></span></button>
+            <button type="button" class="rc" data-r="other"><span class="dot"></span><span><b>Something else</b><span>Agency, vendor, or just curious.</span></span></button>
+          </div>
+          <div class="jf spec" id="spec">
+            <label for="o-spec">Then what are you?</label>
+            <input type="text" id="o-spec" placeholder="Agency, vendor, investor, journalist, other">
+          </div>
+        </div>
+
+        <div id="fields">
+          <div class="jf">
+            <label for="p-name">Your name</label>
+            <div class="namerow">
+              <input type="text" id="p-name" placeholder="First name" autocomplete="given-name" aria-label="First name">
+              <input type="text" id="p-last" placeholder="Last name" autocomplete="family-name" aria-label="Last name">
+            </div>
+          </div>
+          <div class="jf">
+            <label for="p-company" id="lab-company">Company</label>
+            <input type="text" id="p-company" placeholder="Legal or trading name" autocomplete="organization">
+          </div>
+          <div class="jf">
+            <label for="p-site">Company website</label>
+            <input type="text" id="p-site" placeholder="yourcompany.ca">
+          </div>
+          <div class="jf">
+            <label for="p-email">Work email</label>
+            <input type="email" id="p-email" placeholder="you@yourcompany.ca" autocomplete="email">
+            <p class="fmsg" id="m-email"></p>
+          </div>
+          <div class="jf">
+            <label for="p-phone">Phone</label>
+            <input type="tel" id="p-phone" placeholder="(555) 555-0123" autocomplete="tel" inputmode="tel">
+          </div>
+
+          <!-- role-conditional credentials -->
+          <div class="cred" id="cred-provider">
+            <div class="cred__h"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.4-2.9 8.3-7 9.5C7.9 19.3 5 15.4 5 11V6l7-3Z"/></svg><b>Your provider credentials</b></div>
+            <p class="cred__s">So we can confirm the entity that would bid.</p>
+            <div class="jf">
+              <label for="c-legal">Registered legal name</label>
+              <input type="text" id="c-legal" placeholder="As registered with the CRTC">
+            </div>
+            <div class="jf">
+              <label for="c-type">You operate as</label>
+              <select id="c-type">
+                <option value="">Choose&hellip;</option>
+                <option>Facilities-based carrier</option>
+                <option>Reseller on wholesale access</option>
+                <option>Both</option>
+                <option>Not sure</option>
+              </select>
+            </div>
+            <div class="jf">
+              <label for="c-bn">Business number <span class="opt">(9 digits)</span></label>
+              <input type="text" id="c-bn" placeholder="123456789" inputmode="numeric" maxlength="9">
+            </div>
+            <div class="jf">
+              <label for="c-brands">Brands you operate <span class="opt">optional</span></label>
+              <input type="text" id="c-brands" placeholder="Any flanker or trading brands">
+            </div>
+          </div>
+
+          <div class="cred" id="cred-sales">
+            <div class="cred__h"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.4-2.9 8.3-7 9.5C7.9 19.3 5 15.4 5 11V6l7-3Z"/></svg><b>Your provider credentials</b></div>
+            <p class="cred__s">The account sits with the provider, not the individual, so tell us who signs.</p>
+            <div class="jf">
+              <label for="s-legal">Registered legal name</label>
+              <input type="text" id="s-legal" placeholder="As registered with the CRTC">
+            </div>
+            <div class="jf">
+              <label for="s-bn">Business number <span class="opt">(9 digits, if you have it)</span></label>
+              <input type="text" id="s-bn" placeholder="123456789" inputmode="numeric" maxlength="9">
+            </div>
+            <div class="jf">
+              <label for="s-signer">Who signs at your company</label>
+              <input type="text" id="s-signer" placeholder="Name and title of an officer or director">
+            </div>
+          </div>
+
+          <div class="cred" id="cred-dist">
+            <div class="cred__h"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.4-2.9 8.3-7 9.5C7.9 19.3 5 15.4 5 11V6l7-3Z"/></svg><b>Who you represent</b></div>
+            <p class="cred__s">Distributors are welcome. The bidding entity is always the registered provider, so we ask for a letter of authorization per brand.</p>
+            <div class="jf">
+              <label for="d-brands">Providers or brands you represent</label>
+              <input type="text" id="d-brands" placeholder="Separate with commas">
+            </div>
+            <div class="jf">
+              <label for="d-bn">Your business number <span class="opt">(9 digits)</span></label>
+              <input type="text" id="d-bn" placeholder="123456789" inputmode="numeric" maxlength="9">
+            </div>
+            <div class="jf">
+              <label for="d-loa">Can you supply a signed letter of authorization for each brand?</label>
+              <select id="d-loa">
+                <option value="">Choose&hellip;</option>
+                <option>Yes, for all of them</option>
+                <option>Yes, for some of them</option>
+                <option>Not yet, but I can arrange it</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="cred" id="cred-other">
+            <div class="jf" style="margin-top:0">
+              <label for="o-note">Tell us what you have in mind</label>
+              <textarea id="o-note" placeholder="A line or two is plenty."></textarea>
+            </div>
+          </div>
+
+          <div id="coverage">
+            <div class="chipgrp">
+              <span>Where do you serve? <span class="hint">select all that apply</span></span>
+              <div class="chips" id="prov-chips"></div>
+            </div>
+            <div class="chipgrp">
+              <span>How does it reach the home?</span>
+              <div class="chips" id="tech-chips"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ctarow">
+          <button class="whl-btn go" id="p-go" type="button">Apply as a founding partner</button>
+          <a class="whl-btn go ghost" id="p-call" href="#book">Book a call</a>
+        </div>
+        <p class="reassure"><b>No pricing, commissions, or contractual commitments.</b> You set your number at bid time, on your own terms.</p>
+      </div>
+
+      <div id="done">
+        <div class="dhead">
+          <span class="tick"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>
+          <h3 id="d-h">Application received</h3>
+        </div>
+        <p class="dsub" id="d-sub">Thanks, <b id="d-name">there</b>. We'll review it and come back within two business days with the next step.</p>
+        <p class="dnote" id="d-note">Anything else we need, we'll ask for it directly. Nothing is shared with households until you're a confirmed partner.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section class="sect sect--paper">
+  <div class="wrap">
+    <div class="shead">
+      <h2>Three steps to your first cohort</h2>
+    </div>
+    <div class="flow">
+      <div class="fs" id="f1">
+        <div class="fviz">
+          <svg id="s1" viewBox="0 0 300 150" role="img" aria-label="Apply in a minute">
+            <rect x="42" y="20" width="216" height="112" rx="14" fill="#FAF8F3" stroke="#e7ebe6"/>
+            <line class="ln" x1="64" y1="46" x2="196" y2="46"/><line class="fill" id="l1" x1="64" y1="46" x2="196" y2="46"/>
+            <line class="ln" x1="64" y1="72" x2="236" y2="72"/><line class="fill" id="l2" x1="64" y1="72" x2="236" y2="72"/>
+            <line class="ln" x1="64" y1="98" x2="160" y2="98"/><line class="fill" id="l3" x1="64" y1="98" x2="160" y2="98"/>
+            <g class="cur" id="cur"><rect x="196" y="86" width="2" height="24" rx="1" fill="#0E2A20"/></g>
+          </svg>
+        </div>
+        <span class="k">01</span>
+        <h3>Apply</h3>
+        <p>The form on this page. A minute, and nothing binding.</p>
+      </div>
+
+      <div class="fs" id="f2">
+        <div class="fviz">
+          <svg id="s2" viewBox="0 0 300 150" role="img" aria-label="We review">
+            <circle class="glow" id="glow" cx="150" cy="76" r="52" fill="#E4F4EC"/>
+            <g class="doc"><rect x="112" y="34" width="76" height="92" rx="9" fill="#fff" stroke="#e7ebe6"/>
+              <line x1="126" y1="56" x2="174" y2="56" stroke="#DDE4DF" stroke-width="5" stroke-linecap="round"/>
+              <line x1="126" y1="72" x2="166" y2="72" stroke="#DDE4DF" stroke-width="5" stroke-linecap="round"/>
+              <line x1="126" y1="88" x2="172" y2="88" stroke="#DDE4DF" stroke-width="5" stroke-linecap="round"/></g>
+            <g class="stamp" id="stamp"><circle cx="186" cy="106" r="21" fill="#1C9C82"/><path d="M177 106l6 6 12-13" stroke="#fff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
+          </svg>
+        </div>
+        <span class="k">02</span>
+        <h3>We review</h3>
+        <p>We confirm you are who you say you are, then talk about what you can serve.</p>
+      </div>
+
+      <div class="fs" id="f3">
+        <div class="fviz">
+          <svg id="s3" viewBox="0 0 300 150" role="img" aria-label="Bid for the cohort">
+            <line x1="40" y1="124" x2="260" y2="124" stroke="#e7ebe6" stroke-width="1.5"/>
+            <g id="s3-houses"></g>
+            <path class="win" id="win" d="M150 92 V52" stroke="#1C9C82" stroke-width="2" fill="none"/>
+            <g class="bid" id="bid"><rect x="106" y="24" width="88" height="30" rx="9" fill="#0E2A20"/><text x="150" y="44" text-anchor="middle" font-family="General Sans,system-ui" font-size="13" font-weight="600" fill="#7FE3B0">your bid</text></g>
+          </svg>
+        </div>
+        <span class="k">03</span>
+        <h3>Bid</h3>
+        <p>You see the group and the renewal window. You price it, or you pass.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sect sect--paper">
+  <div class="wrap">
+    <div class="shead">
+      <h2>The way households will be won from here</h2>
+      <p>Not a lead list, and not another price comparison page. A channel where demand arrives already decided, already grouped, and timed to the month it can actually move.</p>
+    </div>
+    <div class="lanes">
+      <div class="lane">
+        <span class="tile"><svg viewBox="0 0 24 24"><path d="M3 21V10l9-7 9 7v11"/><path d="M9 21v-6h6v6"/></svg></span>
+        <em>LANE 01</em>
+        <b>Win the street</b>
+        <p>Bid for a group of households whose contracts all come up at once. They have already decided to look. You are competing on your offer, not on who called first.</p>
+      </div>
+      <div class="lane">
+        <span class="tile"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.4-2.9 8.3-7 9.5C7.9 19.3 5 15.4 5 11V6l7-3Z"/></svg></span>
+        <em>LANE 02</em>
+        <b>Defend the ones you have</b>
+        <p>Some of those households are already yours, and about to leave. Bid to keep them at a cost you set, before they churn. Losing them costs you a replacement. Keeping them costs you a bid.</p>
+      </div>
+      <div class="lane">
+        <span class="tile"><svg viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/><path d="M3 20h18"/></svg></span>
+        <em>WHERE THE MONEY COMES FROM</em>
+        <b>Turn retention cost into acquisition</b>
+        <p>Every dollar in a win-back offer is a dollar spent on a customer you already had. Move that budget to the front, spend it on the rate you bid, and the same money that used to rescue one customer now wins a street.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sect">
+  <div class="wrap">
+    <div class="shead">
+      <h2>Questions, answered</h2>
+    </div>
+    <div class="faqwrap">
+      <div class="qa open">
+        <button type="button"><b>What does it cost to be listed?</b><span class="pm">+</span></button>
+        <div class="ans">Applying and being a partner costs nothing. Commercial terms come up once we have spoken and know what you can serve, and they are agreed in writing before anything goes live.</div>
+      </div>
+      <div class="qa">
+        <button type="button"><b>Can I bid to keep customers who are already mine?</b><span class="pm">+</span></button>
+        <div class="ans">Yes. Cohorts include households from across the market, and defending one you already serve is a legitimate reason to be at the table. It is usually cheaper than replacing them later.</div>
+      </div>
+      <div class="qa">
+        <button type="button"><b>I'm a distributor. Can I apply on behalf of a provider?</b><span class="pm">+</span></button>
+        <div class="ans">Yes, and you are welcome. The bidding entity is always the registered provider. Beyond that, you run the relationship.</div>
+      </div>
+      <div class="qa">
+        <button type="button"><b>Do I have to serve a whole province?</b><span class="pm">+</span></button>
+        <div class="ans">No. Cohorts are local by design. Tell us where you actually reach and we will only bring you the groups you can serve.</div>
+      </div>
+      <div class="qa">
+        <button type="button"><b>How large is a cohort?</b><span class="pm">+</span></button>
+        <div class="ans">It varies by region and by how many households have joined, which is exactly why we ask about your capacity to activate. We will never hand you a group larger than you told us you can take.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap"><b style="font-family:var(--disp);color:var(--teal)">Whollar</b> &middot; For providers &middot; Design mock v6, for review.</div>
+</footer>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const S={role:null,provinces:[],tech:[]};
+const PROV=['AB','BC','MB','NB','NL','NS','NT','NU','ON','PE','QC','SK','YT'];
+const TECH=['Fibre / FTTP','Cable (TPIA)','DSL','Fixed wireless','Satellite'];
+const FREE=['gmail.com','yahoo.com','hotmail.com','outlook.com','icloud.com','live.com','aol.com','proton.me','protonmail.com','msn.com','me.com','gmx.com','yandex.com'];
+
+function chips(el,items,key){el.innerHTML=items.map(i=>'<button type="button">'+i+'</button>').join('');
+  [...el.children].forEach(b=>b.addEventListener('click',()=>{b.classList.toggle('on');
+    S[key]=[...el.children].filter(x=>x.classList.contains('on')).map(x=>x.textContent);}));}
+chips($('#prov-chips'),PROV,'provinces');
+chips($('#tech-chips'),TECH,'tech');
+
+const CREDS={provider:'#cred-provider',sales:'#cred-sales',distributor:'#cred-dist',other:'#cred-other'};
+$$('#rlist .rc').forEach(b=>b.addEventListener('click',()=>{
+  $$('#rlist .rc').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  S.role=b.dataset.r;
+  Object.values(CREDS).forEach(sel=>$(sel).classList.remove('on'));
+  $(CREDS[S.role]).classList.add('on');
+  const other=S.role==='other';
+  $('#spec').classList.toggle('on',other);
+  $('#coverage').style.display=other?'none':'block';
+  $('#lab-company').textContent=S.role==='distributor'?'Your company (the distributor)':'Company';
+  $('#p-go').textContent=other?'Send us a note':'Apply as a founding partner';
+  $('.reassure').style.display=other?'none':'block';
+}));
+
+function domainOf(v){return (v||'').toLowerCase().replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0].trim();}
+function checkEmail(){
+  const em=$('#p-email').value.trim().toLowerCase(),msg=$('#m-email');
+  msg.classList.remove('on','good');
+  if(!em.includes('@'))return true;
+  const d=em.split('@')[1]||'';
+  if(FREE.includes(d)){msg.textContent='Please use your work email.';msg.classList.add('on');return false;}
+  const site=domainOf($('#p-site').value);
+  if(site&&d&&(S.role==='provider'||S.role==='sales')){
+    const base=site.split('.').slice(-2).join('.'),ebase=d.split('.').slice(-2).join('.');
+    if(base===ebase){msg.textContent='\u2713 Matches '+site;msg.classList.add('on','good');}
+  }
+  return true;
+}
+$('#p-email').addEventListener('input',checkEmail);
+$('#p-site').addEventListener('input',checkEmail);
+
+function bad(el){el.classList.add('err');el.focus();setTimeout(()=>el.classList.remove('err'),700);return false;}
+$('#p-go').addEventListener('click',()=>{
+  if(!S.role){$$('#rlist .rc').forEach(c=>{c.classList.add('err');setTimeout(()=>c.classList.remove('err'),700);});return;}
+  const nm=$('#p-name').value.trim(); if(nm.length<2)return bad($('#p-name'));
+  if($('#p-last').value.trim().length<2)return bad($('#p-last'));
+  if($('#p-company').value.trim().length<2)return bad($('#p-company'));
+  if(S.role!=='other'&&$('#p-site').value.trim().length<4)return bad($('#p-site'));
+  const em=$('#p-email').value.trim();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em))return bad($('#p-email'));
+  if(!checkEmail())return bad($('#p-email'));
+  const ph=$('#p-phone').value.replace(/\D/g,''); if(ph.length<10||ph.length>11)return bad($('#p-phone'));
+  if(S.role==='provider'){
+    if($('#c-legal').value.trim().length<2)return bad($('#c-legal'));
+    if(!$('#c-type').value)return bad($('#c-type'));
+    if($('#c-bn').value.replace(/\D/g,'').length!==9)return bad($('#c-bn'));
+  }
+  if(S.role==='sales'){
+    if($('#s-legal').value.trim().length<2)return bad($('#s-legal'));
+    if($('#s-signer').value.trim().length<2)return bad($('#s-signer'));
+  }
+  if(S.role==='distributor'){
+    if($('#d-brands').value.trim().length<2)return bad($('#d-brands'));
+    if(!$('#d-loa').value)return bad($('#d-loa'));
+  }
+  if(S.role==='other'){
+    if($('#o-spec').value.trim().length<2)return bad($('#o-spec'));
+    if($('#o-note').value.trim().length<4)return bad($('#o-note'));
+  }
+  if(S.role!=='other'&&!S.provinces.length){$('#prov-chips').scrollIntoView({behavior:'smooth',block:'center'});return;}
+
+  const payload={role:S.role,firstName:nm,lastName:$('#p-last').value.trim(),company:$('#p-company').value.trim(),
+    website:$('#p-site').value.trim(),email:em,phone:ph,provinces:S.provinces,tech:S.tech,
+    legalName:$('#c-legal').value.trim()||$('#s-legal').value.trim()||null,
+    providerType:$('#c-type').value||null,
+    businessNumber:($('#c-bn').value||$('#s-bn').value||$('#d-bn').value||'').replace(/\D/g,'')||null,
+    brands:$('#c-brands').value.trim()||null,
+    signatory:$('#s-signer').value.trim()||null,
+    representsBrands:$('#d-brands').value.trim()||null,
+    loa:$('#d-loa').value||null,
+    otherType:$('#o-spec').value.trim()||null,
+    note:$('#o-note').value.trim()||null,
+    ts:new Date().toISOString()};
+  /* WIRE-UP POINT: POST partner application here */
+  console.log('[whollar-partner placeholder]',payload);
+
+  $('#d-name').textContent=nm;
+  if(S.role==='other'){$('#d-h').textContent='Note received';
+    $('#d-sub').innerHTML='Thanks, <b>'+nm+'</b>. We\u2019ll read it and come back if there\u2019s a fit.';
+    $('#d-note').textContent='';}
+  $('#stage1').style.display='none';$('#done').classList.add('on');
+  document.querySelector('.hs-right').scrollIntoView({behavior:'smooth',block:'center'});
+});
+
+/* step animations */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('vis');io.unobserve(e.target);}}),{threshold:.12});
+$$('.fs,.faqwrap').forEach(el=>io.observe(el));
+
+(function anims(){
+  const hg=$('#s3-houses'); if(!hg)return;
+  const HOUSE='M0 9 L10 0 L20 9 V21 H0 Z';
+  hg.innerHTML=[96,140,184].map(x=>'<g class="hs" transform="translate('+(x-10)+',100)"><path d="'+HOUSE+'" fill="#E4F4EC" stroke="#1C9C82" stroke-width="1.8" stroke-linejoin="round"/><rect x="8" y="13" width="5" height="8" fill="#1C9C82"/></g>').join('');
+  const l=[$('#l1'),$('#l2'),$('#l3')],cur=$('#cur'),stamp=$('#stamp'),glow=$('#glow'),
+        houses=$$('#s3-houses .hs'),bid=$('#bid'),win=$('#win');
+  win.style.opacity=0;
+  function loop(){
+    l.forEach(x=>x.classList.remove('on'));cur.classList.remove('on');
+    stamp.classList.remove('on');glow.classList.remove('on');
+    houses.forEach(h=>h.classList.remove('on'));bid.classList.remove('on');win.style.opacity=0;
+    setTimeout(()=>cur.classList.add('on'),200);
+    l.forEach((x,i)=>setTimeout(()=>x.classList.add('on'),400+i*450));
+    setTimeout(()=>cur.classList.remove('on'),1900);
+    setTimeout(()=>glow.classList.add('on'),1500);
+    setTimeout(()=>stamp.classList.add('on'),2100);
+    houses.forEach((h,i)=>setTimeout(()=>h.classList.add('on'),2600+i*300));
+    setTimeout(()=>{win.style.opacity=1;bid.classList.add('on');},3700);
+    setTimeout(loop,6800);}
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches){
+    l.forEach(x=>x.classList.add('on'));stamp.classList.add('on');glow.classList.add('on');
+    houses.forEach(h=>h.classList.add('on'));bid.classList.add('on');win.style.opacity=1;}
+  else loop();
+})();
+
+$('#p-call').addEventListener('click',e=>{e.preventDefault();
+  /* WIRE-UP POINT: replace with your scheduling link, e.g. window.open('https://cal.com/whollar','_blank') */
+  console.log('[whollar-partner book-a-call placeholder]',{role:S.role||null,ts:new Date().toISOString()});
+  $('#p-call').textContent='Calendar coming soon';setTimeout(()=>$('#p-call').textContent='Book a call',1800);});
+
+$$('.qa>button').forEach(b=>b.addEventListener('click',()=>b.closest('.qa').classList.toggle('open')));
+})();
+</script>
+</body>
+</html>
