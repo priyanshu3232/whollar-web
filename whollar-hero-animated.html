@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Whollar · stop paying the loyalty tax</title>
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@900,700,500,400&f[]=general-sans@600,500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --teal:#0E2A20; --teal-deep:#0A2018; --teal-bright:#178A5A;
+    --accent:#1E9E63; --accent-hover:#22B06F; --mint:#7FE3B0;
+    --cream:#FAF8F3; --warn:#C2643B; --warn-soft:#E7B393;
+    --tx:#EAF4EE; --tx-mut:#A6C4B6; --tx-faint:#7A9488;
+    --line:rgba(255,255,255,.12);
+    --disp:'Satoshi',system-ui,-apple-system,sans-serif;
+    --label:'General Sans','Satoshi',system-ui,sans-serif;
+    --body:'Inter',system-ui,-apple-system,sans-serif;
+    --ease:cubic-bezier(.22,.61,.36,1);
+  }
+  html,body{height:100%}
+  body{
+    font-family:var(--body); color:var(--tx); background:#0A2018;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    overflow-x:hidden;
+  }
+
+  /* ---------- header ---------- */
+  .hdr{position:absolute; top:0; left:0; right:0; z-index:5;}
+  .hdr__in{max-width:1240px; margin:0 auto; padding:22px 40px; display:flex; align-items:center; justify-content:space-between; gap:20px;}
+  .logo{display:inline-flex; align-items:center; gap:11px; text-decoration:none; color:var(--tx);}
+  .logo__word{font-family:var(--disp); font-weight:700; font-size:20px; letter-spacing:-.01em;}
+  .hdr__nav{display:flex; align-items:center; gap:30px;}
+  .hdr__nav a{color:var(--tx-mut); text-decoration:none; font-size:14.5px; font-weight:500; transition:color .2s;}
+  .hdr__nav a:hover{color:var(--tx);}
+  .hdr__cta{font-family:var(--label); font-weight:600; font-size:14px; color:#06251A; background:var(--mint); padding:10px 18px; border-radius:11px; text-decoration:none; transition:transform .2s var(--ease), background .2s;}
+  .hdr__cta:hover{transform:translateY(-1px); background:#96ECC1;}
+
+  /* ---------- hero ---------- */
+  .hero{
+    position:relative; min-height:100vh; overflow:hidden;
+    background:
+      radial-gradient(1100px 720px at 70% 36%, rgba(23,138,90,.20), transparent 62%),
+      radial-gradient(820px 620px at 16% 96%, rgba(6,20,15,.7), transparent 70%),
+      linear-gradient(158deg,#0A2018 0%, #0E2A20 52%, #0B2419 100%);
+  }
+  #map{position:absolute; inset:0; width:100%; height:100%; z-index:0; display:block;}
+  .hero__mask{
+    position:absolute; inset:0; z-index:1; pointer-events:none;
+    background:linear-gradient(90deg, rgba(10,32,24,.92) 0%, rgba(10,32,24,.5) 20%, rgba(10,32,24,0) 44%);
+  }
+  .hero__mask::after{
+    content:""; position:absolute; inset:0;
+    background:linear-gradient(0deg, rgba(8,24,17,.98) 0%, rgba(8,24,17,.9) 20%, rgba(8,24,17,.5) 38%, rgba(8,24,17,0) 54%);
+  }
+
+  .wrap{
+    position:relative; z-index:3; max-width:1240px; margin:0 auto;
+    padding:118px 40px 64px; min-height:100vh;
+    display:grid; grid-template-columns:1.04fr .96fr; gap:54px; align-items:center;
+  }
+
+  /* ---------- left column ---------- */
+  .badge{
+    display:inline-flex; align-items:center; gap:9px;
+    padding:7px 15px 7px 12px; border-radius:100px;
+    background:rgba(30,158,99,.13); border:1px solid rgba(127,227,176,.16);
+    color:var(--mint); font-family:var(--label); font-weight:600; font-size:13px; letter-spacing:.005em;
+    margin-bottom:26px;
+  }
+  .badge__dot{width:7px; height:7px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 0 rgba(30,158,99,.5); animation:pip 2.6s var(--ease) infinite;}
+  @keyframes pip{0%{box-shadow:0 0 0 0 rgba(30,158,99,.5)} 70%{box-shadow:0 0 0 7px rgba(30,158,99,0)} 100%{box-shadow:0 0 0 0 rgba(30,158,99,0)}}
+
+  h1{
+    font-family:var(--disp); font-weight:900; letter-spacing:-.025em; line-height:1.02;
+    font-size:clamp(2.35rem, 5.2vw, 4.1rem); color:var(--cream); margin-bottom:22px;
+  }
+  h1 .hl{color:var(--warn-soft);}
+  .sub{
+    font-size:clamp(1rem, 1.25vw, 1.14rem); line-height:1.62; color:var(--tx-mut);
+    max-width:31rem; margin-bottom:34px;
+  }
+  .cta-row{display:flex; flex-wrap:wrap; gap:14px; margin-bottom:26px;}
+  .btn{
+    display:inline-flex; align-items:center; gap:9px;
+    font-family:var(--label); font-weight:600; font-size:15.5px;
+    padding:15px 24px; border-radius:13px; text-decoration:none; cursor:pointer;
+    border:1px solid transparent; transition:transform .2s var(--ease), background .2s, border-color .2s, box-shadow .2s;
+  }
+  .btn svg{transition:transform .25s var(--ease)}
+  .btn:hover svg{transform:translateX(3px)}
+  .btn--primary{background:var(--accent); color:#052318; box-shadow:0 14px 34px rgba(30,158,99,.34);}
+  .btn--primary:hover{background:var(--accent-hover); transform:translateY(-1px); box-shadow:0 18px 40px rgba(30,158,99,.42);}
+  .btn--ghost{background:rgba(255,255,255,.045); color:var(--tx); border-color:rgba(255,255,255,.2);}
+  .btn--ghost:hover{background:rgba(255,255,255,.09); transform:translateY(-1px);}
+  .providers{display:flex; align-items:center; gap:9px; font-size:14.5px;}
+  .providers span{color:var(--tx-faint); font-weight:500;}
+  .providers a{display:inline-flex; align-items:center; gap:6px; color:var(--mint); font-weight:600; text-decoration:none;}
+  .providers a:hover{color:#A6EFC9;}
+
+  /* ---------- right column / scene ---------- */
+  .col-scene{position:relative; width:100%; max-width:540px; margin:0 auto; justify-self:end;}
+  .scene-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; padding:0 6px;}
+  .scene-head span{font-family:var(--label); font-weight:600; font-size:11.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--tx-faint);}
+  .sh-right{display:inline-flex; align-items:center; gap:6px;}
+  .sh-dot{width:6px; height:6px; border-radius:50%; background:var(--accent);}
+  .scene{width:100%; height:auto; display:block; overflow:visible;}
+  .scene text{font-family:var(--label);}
+
+  .kicker{
+    display:inline-flex; align-items:center; gap:9px;
+    margin:6px auto 0; padding:12px 20px; border-radius:14px;
+    background:rgba(9,26,19,.66); border:1px solid rgba(255,255,255,.1);
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    font-size:14.5px; color:var(--tx-mut);
+    position:relative; left:50%; transform:translateX(-50%);
+  }
+  .kicker .k-strong{font-family:var(--disp); font-weight:700; color:var(--warn-soft);}
+  .kicker svg{color:var(--warn-soft); flex:none;}
+
+  /* ---------- SVG animation ---------- */
+  .ring{transform-box:fill-box; transform-origin:center; opacity:0;}
+  .hub-core-glow{transform-box:fill-box; transform-origin:center;}
+  .pkt{fill:#C8FFE4; filter:drop-shadow(0 0 4px rgba(127,227,176,.95)); opacity:0;}
+  .land{transform-box:fill-box; transform-origin:center;}
+  .win{filter:drop-shadow(0 0 5px rgba(244,213,138,.6));}
+
+  /* reveal initial states */
+  .scene .r-scene{opacity:0; transform:translateY(14px); transform-box:view-box; transition:opacity .8s var(--ease), transform .8s var(--ease);}
+  .house{opacity:0; transform:scale(.9); transform-box:fill-box; transform-origin:center bottom; transition:opacity .6s var(--ease), transform .6s var(--ease);}
+  .card{opacity:0; transform:translateY(12px); transform-box:fill-box; transition:opacity .6s var(--ease), transform .6s var(--ease);}
+  .arm-flow{opacity:0;}
+  .fill{transform:scaleX(0); transform-box:fill-box; transform-origin:left center; transition:transform 1.15s var(--ease);}
+
+  /* played states + loops */
+  body.play .r-scene{opacity:1; transform:none;}
+  body.play .houseA{opacity:1; transform:none; transition-delay:.35s;}
+  body.play .houseB{opacity:1; transform:none; transition-delay:.5s;}
+  body.play .cardA{opacity:1; transform:none; transition-delay:.72s;}
+  body.play .cardB{opacity:1; transform:none; transition-delay:.86s;}
+  body.play .arm-flow{opacity:1; transition:opacity .5s .95s; animation:flow 1.25s linear infinite;}
+  body.play .fillA{transform:scaleX(.62); transition-delay:.75s;}
+  body.play .fillB{transform:scaleX(1); transition-delay:.9s;}
+  body.play .ring{animation:ring 3.6s var(--ease) infinite;}
+  body.play .hub-core-glow{animation:hubpulse 3.1s ease-in-out infinite;}
+  body.play .pkt{opacity:1; transition:opacity .4s .95s;}
+  body.play .land{animation:land 1.9s ease-out infinite;}
+
+  @keyframes ring{0%{transform:scale(.42); opacity:.55} 70%{opacity:.1} 100%{transform:scale(1.65); opacity:0}}
+  @keyframes flow{to{stroke-dashoffset:-34}}
+  @keyframes hubpulse{0%,100%{opacity:.55; transform:scale(.96)} 50%{opacity:.9; transform:scale(1.06)}}
+  @keyframes land{0%{transform:scale(.7); opacity:0} 30%{opacity:1} 100%{transform:scale(2.1); opacity:0}}
+
+  /* ---------- reduced motion ---------- */
+  html.rm *{animation:none !important; transition:none !important;}
+  html.rm .r-scene,html.rm .house,html.rm .card{opacity:1 !important; transform:none !important;}
+  html.rm .arm-flow{opacity:.55 !important;}
+  html.rm .fillA{transform:scaleX(.62) !important;}
+  html.rm .fillB{transform:scaleX(1) !important;}
+  html.rm .pkt,html.rm .land{display:none !important;}
+  html.rm .ring{opacity:.14 !important;}
+  html.rm .badge__dot{box-shadow:none !important;}
+
+  /* ---------- responsive ---------- */
+  @media(max-width:980px){
+    .hdr__nav{display:none;}
+    .wrap{grid-template-columns:1fr; gap:38px; padding:104px 26px 56px; align-items:start;}
+    .hero__mask{background:linear-gradient(0deg, rgba(10,32,24,.95) 0%, rgba(10,32,24,.55) 40%, rgba(10,32,24,0) 68%);}
+    .col-scene{justify-self:center; max-width:480px;}
+    .sub{max-width:36rem;}
+  }
+  @media(max-width:540px){
+    .hdr__in{padding:18px 20px;}
+    .hdr__cta{display:none;}
+    .wrap{padding:92px 18px 44px;}
+    .cta-row{gap:11px;}
+    .btn{padding:14px 20px; font-size:15px;}
+    .btn--primary,.btn--ghost{flex:1 1 auto; justify-content:center;}
+    .kicker{font-size:13.5px; padding:11px 15px;}
+  }
+  @media(max-width:380px){
+    h1{font-size:2.05rem;}
+  }
+</style>
+</head>
+<body>
+  <header class="hdr">
+    <div class="hdr__in">
+      <a class="logo" href="#" aria-label="Whollar home">
+        <svg width="34" height="34" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Whollar">
+          <defs><linearGradient id="lm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#178A5A"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs>
+          <rect x="6" y="6" width="108" height="108" rx="32" fill="url(#lm)"/>
+          <path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
+          <circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/>
+        </svg>
+        <span class="logo__word">Whollar</span>
+      </a>
+      <nav class="hdr__nav" aria-label="Primary">
+        <a href="#">How it works</a><a href="#">Why us</a><a href="#">FAQ</a>
+      </nav>
+      <a class="hdr__cta" href="#">Join the First Cohort</a>
+    </div>
+  </header>
+
+  <section class="hero">
+    <canvas id="map" aria-hidden="true"></canvas>
+    <div class="hero__mask" aria-hidden="true"></div>
+
+    <div class="wrap">
+      <!-- LEFT -->
+      <div class="col-text">
+        <span class="badge"><span class="badge__dot"></span>Wholesale buying power that saves you dollars</span>
+        <h1>Stop paying the <span class="hl">loyalty&nbsp;tax.</span></h1>
+        <p class="sub">New customers get the best offers. Loyal ones quietly pay more for the very same service. Whollar pools your whole neighbourhood so providers compete for the group, not just the new sign-ups.</p>
+        <div class="cta-row">
+          <a class="btn btn--primary" href="#">Check if I'm overpaying
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+          </a>
+          <a class="btn btn--ghost" href="#">Join the First Cohort
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+          </a>
+        </div>
+        <div class="providers">
+          <span>For providers</span>
+          <a href="#">Join the network
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <!-- RIGHT / SCENE -->
+      <div class="col-scene">
+        <svg class="scene" viewBox="0 0 560 480" role="img" aria-labelledby="scTitle scDesc" xmlns="http://www.w3.org/2000/svg">
+          <title id="scTitle">Same street, same fibre network, different bills</title>
+          <desc id="scDesc">Two identical homes on the same 1.5 Gbps fibre network. 142 Maple Crescent negotiated its plan to fifty-eight dollars a month. 144 Maple Crescent never asked and pays ninety-four. That is four hundred and thirty-two dollars more a year for the same connection.</desc>
+          <defs>
+            <radialGradient id="glowA" cx="50%" cy="50%" r="50%">
+              <stop offset="0" stop-color="#1E9E63" stop-opacity=".28"/><stop offset="1" stop-color="#1E9E63" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="glowB" cx="50%" cy="50%" r="50%">
+              <stop offset="0" stop-color="#C2643B" stop-opacity=".22"/><stop offset="1" stop-color="#C2643B" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="hubGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0" stop-color="#7FE3B0" stop-opacity=".55"/><stop offset="1" stop-color="#7FE3B0" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="hubCore" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#25A96C"/><stop offset="1" stop-color="#0E2A20"/>
+            </linearGradient>
+            <linearGradient id="wire" x1="280" y1="94" x2="280" y2="220" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stop-color="#7FE3B0" stop-opacity=".5"/><stop offset="1" stop-color="#7FE3B0" stop-opacity=".14"/>
+            </linearGradient>
+            <linearGradient id="cardSurf" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#173D2E"/><stop offset="1" stop-color="#0F2E22"/>
+            </linearGradient>
+            <filter id="cardShadow" x="-30%" y="-25%" width="160%" height="170%">
+              <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#03130C" flood-opacity="0.55"/>
+            </filter>
+          </defs>
+
+          <g class="r-scene">
+            <!-- ambient glow behind each card -->
+            <ellipse cx="146" cy="360" rx="140" ry="118" fill="url(#glowA)"/>
+            <ellipse cx="414" cy="360" rx="140" ry="118" fill="url(#glowB)"/>
+
+            <!-- connection arms: network -> each card -->
+            <path id="armA" class="arm-base" d="M280 94 C 236 150, 190 196, 146 220" fill="none" stroke="url(#wire)" stroke-width="2.4" stroke-linecap="round"/>
+            <path id="armB" class="arm-base" d="M280 94 C 324 150, 370 196, 414 220" fill="none" stroke="url(#wire)" stroke-width="2.4" stroke-linecap="round"/>
+            <path class="arm-flow" d="M280 94 C 236 150, 190 196, 146 220" fill="none" stroke="#7FE3B0" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 12"/>
+            <path class="arm-flow" d="M280 94 C 324 150, 370 196, 414 220" fill="none" stroke="#7FE3B0" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 12"/>
+            <!-- data packets: network -> each home -->
+            <circle class="pkt" r="3"><animateMotion dur="1.9s" begin="1.05s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#armA"/></animateMotion></circle>
+            <circle class="pkt" r="3"><animateMotion dur="1.9s" begin="2.0s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#armA"/></animateMotion></circle>
+            <circle class="pkt" r="3"><animateMotion dur="1.9s" begin="1.35s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#armB"/></animateMotion></circle>
+            <circle class="pkt" r="3"><animateMotion dur="1.9s" begin="2.3s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#armB"/></animateMotion></circle>
+
+            <!-- NETWORK NODE -->
+            <g>
+              <circle class="ring" cx="280" cy="72" r="15" fill="none" stroke="#7FE3B0" stroke-width="1.4"/>
+              <circle class="ring" cx="280" cy="72" r="15" fill="none" stroke="#7FE3B0" stroke-width="1.4" style="animation-delay:1.2s"/>
+              <circle class="ring" cx="280" cy="72" r="15" fill="none" stroke="#7FE3B0" stroke-width="1.4" style="animation-delay:2.4s"/>
+              <circle class="hub-core-glow" cx="280" cy="72" r="25" fill="url(#hubGlow)"/>
+              <circle cx="280" cy="72" r="18" fill="none" stroke="rgba(127,227,176,.16)" stroke-width="1.3"/>
+              <circle cx="280" cy="72" r="15" fill="url(#hubCore)" stroke="rgba(127,227,176,.5)" stroke-width="1.3"/>
+              <g fill="none" stroke="#DFF6EA" stroke-width="1.6" stroke-linecap="round">
+                <path d="M276.5 68 a4.6 4.6 0 0 0 0 8" opacity=".95"/>
+                <path d="M283.5 68 a4.6 4.6 0 0 1 0 8" opacity=".95"/>
+                <path d="M273.5 65 a8 8 0 0 0 0 14" opacity=".55"/>
+                <path d="M286.5 65 a8 8 0 0 1 0 14" opacity=".55"/>
+              </g>
+              <circle cx="280" cy="72" r="2.4" fill="#fff"/>
+            </g>
+
+            <!-- CARD A (negotiated) -->
+            <g class="card cardA">
+              <rect x="24" y="220" width="244" height="234" rx="22" fill="url(#cardSurf)" stroke="rgba(127,227,176,.16)" filter="url(#cardShadow)"/>
+              <rect x="24.8" y="220.8" width="242.4" height="232.4" rx="21.4" fill="none" stroke="rgba(255,255,255,.05)"/>
+              <circle cx="146" cy="220" r="3.4" fill="#1E9E63"/>
+              <rect x="44" y="244" width="36" height="36" rx="10" fill="rgba(30,158,99,.15)" stroke="rgba(30,158,99,.34)" stroke-width="1"/>
+              <g fill="none" stroke="#7FE3B0" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+                <path d="M54 264 L62 255 L70 264"/><path d="M56 264 v7 h12 v-7"/>
+              </g>
+              <text x="92" y="261" font-size="15" font-weight="600" fill="#E7F4EC">142 Maple Cres</text>
+              <rect x="44" y="296" width="112" height="26" rx="13" fill="rgba(30,158,99,.16)" stroke="rgba(30,158,99,.3)" stroke-width="1"/>
+              <circle cx="60" cy="309" r="3" fill="#2FCB86"/>
+              <text x="70" y="313" font-size="12" font-weight="600" fill="#8FE7BB">negotiated</text>
+              <text x="44" y="380" font-family="'Satoshi',sans-serif" font-weight="900" letter-spacing="-.02em" fill="#F4FBF7">
+                <tspan font-size="24" fill="#8FBBA6">$</tspan><tspan class="valA" font-size="56">0</tspan><tspan font-size="16" font-weight="500" fill="#8FBBA6">/mo</tspan>
+              </text>
+              <text x="44" y="410" font-size="11" font-weight="500" letter-spacing=".04em" fill="#6E8B7E">MONTHLY BILL</text>
+              <rect x="44" y="420" width="180" height="8" rx="4" fill="rgba(255,255,255,.08)"/>
+              <rect class="fill fillA" x="44" y="420" width="180" height="8" rx="4" fill="#1E9E63"/>
+            </g>
+
+            <!-- CARD B (never asked) -->
+            <g class="card cardB">
+              <rect x="292" y="220" width="244" height="234" rx="22" fill="url(#cardSurf)" stroke="rgba(194,100,59,.24)" filter="url(#cardShadow)"/>
+              <rect x="292.8" y="220.8" width="242.4" height="232.4" rx="21.4" fill="none" stroke="rgba(255,255,255,.05)"/>
+              <circle cx="414" cy="220" r="3.4" fill="#C2643B"/>
+              <rect x="312" y="244" width="36" height="36" rx="10" fill="rgba(194,100,59,.16)" stroke="rgba(194,100,59,.36)" stroke-width="1"/>
+              <g fill="none" stroke="#E7B393" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+                <path d="M322 264 L330 255 L338 264"/><path d="M324 264 v7 h12 v-7"/>
+              </g>
+              <text x="360" y="261" font-size="15" font-weight="600" fill="#F3E7E0">144 Maple Cres</text>
+              <rect x="312" y="296" width="120" height="26" rx="13" fill="rgba(194,100,59,.18)" stroke="rgba(194,100,59,.34)" stroke-width="1"/>
+              <circle cx="328" cy="309" r="3" fill="#E0895E"/>
+              <text x="338" y="313" font-size="12" font-weight="600" fill="#E7B393">never asked</text>
+              <text x="312" y="380" font-family="'Satoshi',sans-serif" font-weight="900" letter-spacing="-.02em" fill="#F0C3A8">
+                <tspan font-size="24" fill="#C0937C">$</tspan><tspan class="valB" font-size="56">0</tspan><tspan font-size="16" font-weight="500" fill="#C0937C">/mo</tspan>
+              </text>
+              <text x="312" y="410" font-size="11" font-weight="500" letter-spacing=".04em" fill="#9E8474">MONTHLY BILL</text>
+              <rect x="312" y="420" width="180" height="8" rx="4" fill="rgba(255,255,255,.08)"/>
+              <rect class="fill fillB" x="312" y="420" width="180" height="8" rx="4" fill="#C2643B"/>
+            </g>
+          </g>
+        </svg>
+        <div class="kicker">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+          <span>Same street · same plan · one home pays</span> <span class="k-strong">$432 more a year</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+<script>
+const MAP={vbw:1000,vbh:845.7,d:[634.9,807.5,626.9,793.2,642.8,793.2,658.7,793.2,634.9,778.9,650.7,778.9,666.6,778.9,626.9,764.6,642.8,764.6,658.7,764.6,674.5,764.6,690.4,764.6,619,750.3,634.9,750.3,650.7,750.3,666.6,750.3,682.5,750.3,698.3,750.3,595.2,736.1,611.1,736.1,626.9,736.1,642.8,736.1,658.7,736.1,674.5,736.1,690.4,736.1,706.3,736.1,571.4,721.8,587.3,721.8,603.1,721.8,619,721.8,634.9,721.8,650.7,721.8,666.6,721.8,682.5,721.8,698.3,721.8,714.2,721.8,730.1,721.8,745.9,721.8,484.1,707.5,500,707.5,515.9,707.5,547.6,707.5,563.5,707.5,579.3,707.5,595.2,707.5,611.1,707.5,626.9,707.5,642.8,707.5,658.7,707.5,674.5,707.5,690.4,707.5,706.3,707.5,722.1,707.5,738,707.5,753.9,707.5,769.7,707.5,849.1,707.5,381,693.2,396.9,693.2,412.7,693.2,428.6,693.2,460.3,693.2,476.2,693.2,492.1,693.2,507.9,693.2,523.8,693.2,539.7,693.2,555.5,693.2,571.4,693.2,587.3,693.2,603.1,693.2,619,693.2,634.9,693.2,650.7,693.2,666.6,693.2,682.5,693.2,698.3,693.2,714.2,693.2,730.1,693.2,745.9,693.2,761.8,693.2,857,693.2,277.9,678.9,293.7,678.9,309.6,678.9,325.5,678.9,341.3,678.9,357.2,678.9,373.1,678.9,388.9,678.9,404.8,678.9,420.7,678.9,436.5,678.9,452.4,678.9,468.3,678.9,484.1,678.9,500,678.9,515.9,678.9,531.7,678.9,547.6,678.9,563.5,678.9,579.3,678.9,595.2,678.9,611.1,678.9,626.9,678.9,642.8,678.9,658.7,678.9,674.5,678.9,690.4,678.9,706.3,678.9,722.1,678.9,738,678.9,753.9,678.9,769.7,678.9,817.3,678.9,833.2,678.9,864.9,678.9,222.3,664.7,238.2,664.7,254.1,664.7,269.9,664.7,285.8,664.7,301.7,664.7,317.5,664.7,333.4,664.7,349.3,664.7,365.1,664.7,381,664.7,396.9,664.7,412.7,664.7,428.6,664.7,444.5,664.7,460.3,664.7,476.2,664.7,492.1,664.7,507.9,664.7,523.8,664.7,539.7,664.7,555.5,664.7,571.4,664.7,587.3,664.7,603.1,664.7,619,664.7,634.9,664.7,650.7,664.7,666.6,664.7,682.5,664.7,698.3,664.7,714.2,664.7,730.1,664.7,745.9,664.7,761.8,664.7,777.7,664.7,809.4,664.7,825.3,664.7,841.1,664.7,857,664.7,872.9,664.7,166.8,650.4,182.7,650.4,198.5,650.4,214.4,650.4,230.3,650.4,246.1,650.4,262,650.4,277.9,650.4,293.7,650.4,309.6,650.4,325.5,650.4,341.3,650.4,357.2,650.4,373.1,650.4,388.9,650.4,404.8,650.4,420.7,650.4,436.5,650.4,452.4,650.4,468.3,650.4,484.1,650.4,500,650.4,515.9,650.4,531.7,650.4,547.6,650.4,563.5,650.4,579.3,650.4,595.2,650.4,611.1,650.4,626.9,650.4,642.8,650.4,658.7,650.4,674.5,650.4,690.4,650.4,706.3,650.4,722.1,650.4,738,650.4,753.9,650.4,769.7,650.4,785.6,650.4,801.5,650.4,817.3,650.4,833.2,650.4,880.8,650.4,896.7,650.4,127.1,636.1,143,636.1,158.9,636.1,174.7,636.1,190.6,636.1,206.5,636.1,222.3,636.1,238.2,636.1,254.1,636.1,269.9,636.1,285.8,636.1,301.7,636.1,317.5,636.1,333.4,636.1,349.3,636.1,365.1,636.1,381,636.1,396.9,636.1,412.7,636.1,428.6,636.1,444.5,636.1,460.3,636.1,476.2,636.1,492.1,636.1,507.9,636.1,523.8,636.1,539.7,636.1,555.5,636.1,571.4,636.1,587.3,636.1,603.1,636.1,619,636.1,634.9,636.1,650.7,636.1,666.6,636.1,682.5,636.1,698.3,636.1,714.2,636.1,730.1,636.1,745.9,636.1,761.8,636.1,793.5,636.1,809.4,636.1,825.3,636.1,888.7,636.1,904.6,636.1,71.6,621.8,103.3,621.8,119.2,621.8,135.1,621.8,150.9,621.8,166.8,621.8,182.7,621.8,198.5,621.8,214.4,621.8,230.3,621.8,246.1,621.8,262,621.8,277.9,621.8,293.7,621.8,309.6,621.8,325.5,621.8,341.3,621.8,357.2,621.8,373.1,621.8,388.9,621.8,404.8,621.8,420.7,621.8,436.5,621.8,452.4,621.8,468.3,621.8,484.1,621.8,500,621.8,515.9,621.8,531.7,621.8,547.6,621.8,563.5,621.8,579.3,621.8,595.2,621.8,642.8,621.8,658.7,621.8,674.5,621.8,690.4,621.8,706.3,621.8,722.1,621.8,738,621.8,753.9,621.8,769.7,621.8,801.5,621.8,817.3,621.8,63.7,607.5,95.4,607.5,111.3,607.5,127.1,607.5,143,607.5,158.9,607.5,174.7,607.5,190.6,607.5,206.5,607.5,222.3,607.5,238.2,607.5,254.1,607.5,269.9,607.5,285.8,607.5,301.7,607.5,317.5,607.5,333.4,607.5,349.3,607.5,365.1,607.5,381,607.5,396.9,607.5,412.7,607.5,428.6,607.5,444.5,607.5,460.3,607.5,476.2,607.5,492.1,607.5,507.9,607.5,523.8,607.5,539.7,607.5,555.5,607.5,571.4,607.5,587.3,607.5,650.7,607.5,666.6,607.5,682.5,607.5,698.3,607.5,714.2,607.5,730.1,607.5,745.9,607.5,761.8,607.5,777.7,607.5,55.7,593.3,71.6,593.3,87.5,593.3,103.3,593.3,119.2,593.3,135.1,593.3,150.9,593.3,166.8,593.3,182.7,593.3,198.5,593.3,214.4,593.3,230.3,593.3,246.1,593.3,262,593.3,277.9,593.3,293.7,593.3,309.6,593.3,325.5,593.3,341.3,593.3,357.2,593.3,373.1,593.3,388.9,593.3,404.8,593.3,420.7,593.3,436.5,593.3,452.4,593.3,468.3,593.3,484.1,593.3,500,593.3,515.9,593.3,531.7,593.3,547.6,593.3,563.5,593.3,579.3,593.3,642.8,593.3,658.7,593.3,674.5,593.3,690.4,593.3,706.3,593.3,722.1,593.3,738,593.3,753.9,593.3,769.7,593.3,785.6,593.3,896.7,593.3,47.8,579,79.5,579,95.4,579,111.3,579,127.1,579,143,579,158.9,579,174.7,579,190.6,579,206.5,579,222.3,579,238.2,579,254.1,579,269.9,579,285.8,579,301.7,579,317.5,579,333.4,579,349.3,579,365.1,579,381,579,396.9,579,412.7,579,428.6,579,444.5,579,460.3,579,476.2,579,492.1,579,507.9,579,523.8,579,539.7,579,555.5,579,571.4,579,634.9,579,650.7,579,666.6,579,682.5,579,698.3,579,714.2,579,730.1,579,745.9,579,761.8,579,777.7,579,793.5,579,809.4,579,825.3,579,888.7,579,904.6,579,920.5,579,71.6,564.7,87.5,564.7,103.3,564.7,119.2,564.7,135.1,564.7,150.9,564.7,166.8,564.7,182.7,564.7,198.5,564.7,214.4,564.7,230.3,564.7,246.1,564.7,262,564.7,277.9,564.7,293.7,564.7,309.6,564.7,325.5,564.7,341.3,564.7,357.2,564.7,373.1,564.7,388.9,564.7,404.8,564.7,420.7,564.7,436.5,564.7,452.4,564.7,468.3,564.7,484.1,564.7,500,564.7,515.9,564.7,531.7,564.7,547.6,564.7,563.5,564.7,579.3,564.7,626.9,564.7,642.8,564.7,658.7,564.7,674.5,564.7,690.4,564.7,706.3,564.7,722.1,564.7,738,564.7,753.9,564.7,769.7,564.7,785.6,564.7,801.5,564.7,817.3,564.7,833.2,564.7,849.1,564.7,896.7,564.7,912.5,564.7,928.4,564.7,944.3,564.7,960.1,564.7,63.7,550.4,79.5,550.4,95.4,550.4,111.3,550.4,127.1,550.4,143,550.4,158.9,550.4,174.7,550.4,190.6,550.4,206.5,550.4,222.3,550.4,238.2,550.4,254.1,550.4,269.9,550.4,285.8,550.4,301.7,550.4,317.5,550.4,333.4,550.4,349.3,550.4,365.1,550.4,381,550.4,396.9,550.4,412.7,550.4,428.6,550.4,444.5,550.4,460.3,550.4,476.2,550.4,492.1,550.4,507.9,550.4,634.9,550.4,650.7,550.4,666.6,550.4,682.5,550.4,698.3,550.4,714.2,550.4,730.1,550.4,745.9,550.4,761.8,550.4,777.7,550.4,793.5,550.4,809.4,550.4,825.3,550.4,841.1,550.4,857,550.4,888.7,550.4,904.6,550.4,920.5,550.4,936.3,550.4,952.2,550.4,71.6,536.1,87.5,536.1,103.3,536.1,119.2,536.1,135.1,536.1,150.9,536.1,166.8,536.1,182.7,536.1,198.5,536.1,214.4,536.1,230.3,536.1,246.1,536.1,262,536.1,277.9,536.1,293.7,536.1,309.6,536.1,325.5,536.1,341.3,536.1,357.2,536.1,373.1,536.1,388.9,536.1,404.8,536.1,420.7,536.1,436.5,536.1,452.4,536.1,468.3,536.1,484.1,536.1,642.8,536.1,658.7,536.1,674.5,536.1,690.4,536.1,706.3,536.1,722.1,536.1,738,536.1,753.9,536.1,769.7,536.1,785.6,536.1,801.5,536.1,817.3,536.1,833.2,536.1,849.1,536.1,864.9,536.1,896.7,536.1,912.5,536.1,928.4,536.1,63.7,521.9,79.5,521.9,95.4,521.9,111.3,521.9,127.1,521.9,143,521.9,158.9,521.9,174.7,521.9,190.6,521.9,206.5,521.9,222.3,521.9,238.2,521.9,254.1,521.9,269.9,521.9,285.8,521.9,301.7,521.9,317.5,521.9,333.4,521.9,349.3,521.9,365.1,521.9,381,521.9,396.9,521.9,412.7,521.9,428.6,521.9,444.5,521.9,460.3,521.9,650.7,521.9,666.6,521.9,682.5,521.9,698.3,521.9,714.2,521.9,730.1,521.9,745.9,521.9,761.8,521.9,777.7,521.9,793.5,521.9,809.4,521.9,825.3,521.9,841.1,521.9,857,521.9,872.9,521.9,888.7,521.9,71.6,507.6,87.5,507.6,103.3,507.6,119.2,507.6,135.1,507.6,150.9,507.6,166.8,507.6,182.7,507.6,198.5,507.6,214.4,507.6,230.3,507.6,246.1,507.6,262,507.6,277.9,507.6,293.7,507.6,309.6,507.6,325.5,507.6,341.3,507.6,357.2,507.6,373.1,507.6,388.9,507.6,404.8,507.6,420.7,507.6,436.5,507.6,452.4,507.6,642.8,507.6,658.7,507.6,674.5,507.6,690.4,507.6,706.3,507.6,722.1,507.6,738,507.6,753.9,507.6,769.7,507.6,785.6,507.6,801.5,507.6,817.3,507.6,833.2,507.6,849.1,507.6,864.9,507.6,880.8,507.6,31.9,493.3,63.7,493.3,79.5,493.3,95.4,493.3,111.3,493.3,127.1,493.3,143,493.3,158.9,493.3,174.7,493.3,190.6,493.3,206.5,493.3,222.3,493.3,238.2,493.3,254.1,493.3,269.9,493.3,285.8,493.3,301.7,493.3,317.5,493.3,333.4,493.3,349.3,493.3,365.1,493.3,381,493.3,396.9,493.3,412.7,493.3,428.6,493.3,444.5,493.3,634.9,493.3,650.7,493.3,666.6,493.3,682.5,493.3,698.3,493.3,714.2,493.3,730.1,493.3,745.9,493.3,761.8,493.3,777.7,493.3,793.5,493.3,809.4,493.3,825.3,493.3,841.1,493.3,857,493.3,872.9,493.3,71.6,479,87.5,479,103.3,479,119.2,479,135.1,479,150.9,479,166.8,479,182.7,479,198.5,479,214.4,479,230.3,479,246.1,479,262,479,277.9,479,293.7,479,309.6,479,325.5,479,341.3,479,357.2,479,373.1,479,388.9,479,404.8,479,420.7,479,436.5,479,611.1,479,626.9,479,642.8,479,658.7,479,674.5,479,690.4,479,706.3,479,722.1,479,738,479,753.9,479,769.7,479,785.6,479,801.5,479,817.3,479,833.2,479,849.1,479,79.5,464.7,95.4,464.7,111.3,464.7,127.1,464.7,143,464.7,158.9,464.7,174.7,464.7,190.6,464.7,206.5,464.7,222.3,464.7,238.2,464.7,254.1,464.7,269.9,464.7,285.8,464.7,301.7,464.7,317.5,464.7,333.4,464.7,349.3,464.7,365.1,464.7,381,464.7,396.9,464.7,412.7,464.7,428.6,464.7,444.5,464.7,619,464.7,634.9,464.7,650.7,464.7,666.6,464.7,682.5,464.7,698.3,464.7,714.2,464.7,730.1,464.7,745.9,464.7,761.8,464.7,777.7,464.7,87.5,450.5,103.3,450.5,119.2,450.5,135.1,450.5,150.9,450.5,166.8,450.5,182.7,450.5,198.5,450.5,214.4,450.5,230.3,450.5,246.1,450.5,262,450.5,277.9,450.5,293.7,450.5,309.6,450.5,325.5,450.5,341.3,450.5,357.2,450.5,373.1,450.5,388.9,450.5,404.8,450.5,420.7,450.5,436.5,450.5,452.4,450.5,611.1,450.5,626.9,450.5,642.8,450.5,658.7,450.5,674.5,450.5,690.4,450.5,722.1,450.5,738,450.5,753.9,450.5,769.7,450.5,79.5,436.2,95.4,436.2,111.3,436.2,127.1,436.2,143,436.2,158.9,436.2,174.7,436.2,190.6,436.2,206.5,436.2,222.3,436.2,238.2,436.2,254.1,436.2,269.9,436.2,285.8,436.2,301.7,436.2,317.5,436.2,333.4,436.2,349.3,436.2,365.1,436.2,381,436.2,396.9,436.2,412.7,436.2,428.6,436.2,444.5,436.2,460.3,436.2,603.1,436.2,619,436.2,634.9,436.2,650.7,436.2,666.6,436.2,682.5,436.2,730.1,436.2,745.9,436.2,87.5,421.9,103.3,421.9,119.2,421.9,135.1,421.9,150.9,421.9,166.8,421.9,182.7,421.9,198.5,421.9,214.4,421.9,230.3,421.9,246.1,421.9,262,421.9,277.9,421.9,293.7,421.9,309.6,421.9,325.5,421.9,341.3,421.9,357.2,421.9,373.1,421.9,388.9,421.9,404.8,421.9,420.7,421.9,436.5,421.9,452.4,421.9,468.3,421.9,611.1,421.9,626.9,421.9,642.8,421.9,658.7,421.9,674.5,421.9,722.1,421.9,738,421.9,79.5,407.6,95.4,407.6,111.3,407.6,127.1,407.6,143,407.6,158.9,407.6,174.7,407.6,190.6,407.6,206.5,407.6,222.3,407.6,238.2,407.6,254.1,407.6,269.9,407.6,285.8,407.6,301.7,407.6,317.5,407.6,333.4,407.6,349.3,407.6,365.1,407.6,381,407.6,396.9,407.6,412.7,407.6,428.6,407.6,444.5,407.6,460.3,407.6,476.2,407.6,523.8,407.6,634.9,407.6,87.5,393.3,103.3,393.3,119.2,393.3,135.1,393.3,150.9,393.3,166.8,393.3,182.7,393.3,198.5,393.3,214.4,393.3,230.3,393.3,246.1,393.3,262,393.3,277.9,393.3,293.7,393.3,309.6,393.3,325.5,393.3,341.3,393.3,357.2,393.3,373.1,393.3,388.9,393.3,404.8,393.3,420.7,393.3,436.5,393.3,452.4,393.3,468.3,393.3,484.1,393.3,515.9,393.3,531.7,393.3,547.6,393.3,563.5,393.3,79.5,379.1,95.4,379.1,111.3,379.1,127.1,379.1,143,379.1,158.9,379.1,174.7,379.1,190.6,379.1,206.5,379.1,222.3,379.1,238.2,379.1,254.1,379.1,269.9,379.1,285.8,379.1,301.7,379.1,317.5,379.1,333.4,379.1,349.3,379.1,365.1,379.1,381,379.1,396.9,379.1,412.7,379.1,428.6,379.1,444.5,379.1,460.3,379.1,476.2,379.1,492.1,379.1,523.8,379.1,539.7,379.1,650.7,379.1,666.6,379.1,682.5,379.1,55.7,364.8,71.6,364.8,87.5,364.8,103.3,364.8,119.2,364.8,135.1,364.8,150.9,364.8,166.8,364.8,182.7,364.8,198.5,364.8,214.4,364.8,230.3,364.8,246.1,364.8,262,364.8,277.9,364.8,293.7,364.8,309.6,364.8,325.5,364.8,341.3,364.8,357.2,364.8,373.1,364.8,388.9,364.8,404.8,364.8,420.7,364.8,436.5,364.8,452.4,364.8,468.3,364.8,484.1,364.8,500,364.8,515.9,364.8,579.3,364.8,595.2,364.8,626.9,364.8,642.8,364.8,658.7,364.8,690.4,364.8,47.8,350.5,63.7,350.5,79.5,350.5,95.4,350.5,111.3,350.5,127.1,350.5,143,350.5,158.9,350.5,174.7,350.5,190.6,350.5,206.5,350.5,222.3,350.5,238.2,350.5,254.1,350.5,269.9,350.5,285.8,350.5,301.7,350.5,317.5,350.5,333.4,350.5,349.3,350.5,365.1,350.5,381,350.5,396.9,350.5,412.7,350.5,428.6,350.5,444.5,350.5,460.3,350.5,476.2,350.5,492.1,350.5,507.9,350.5,603.1,350.5,619,350.5,634.9,350.5,650.7,350.5,666.6,350.5,682.5,350.5,55.7,336.2,71.6,336.2,87.5,336.2,103.3,336.2,119.2,336.2,135.1,336.2,150.9,336.2,166.8,336.2,182.7,336.2,198.5,336.2,214.4,336.2,230.3,336.2,246.1,336.2,262,336.2,277.9,336.2,293.7,336.2,309.6,336.2,325.5,336.2,341.3,336.2,357.2,336.2,373.1,336.2,388.9,336.2,404.8,336.2,420.7,336.2,436.5,336.2,452.4,336.2,468.3,336.2,484.1,336.2,500,336.2,515.9,336.2,531.7,336.2,611.1,336.2,626.9,336.2,642.8,336.2,658.7,336.2,674.5,336.2,47.8,321.9,63.7,321.9,79.5,321.9,95.4,321.9,111.3,321.9,127.1,321.9,143,321.9,158.9,321.9,174.7,321.9,190.6,321.9,206.5,321.9,222.3,321.9,238.2,321.9,254.1,321.9,269.9,321.9,285.8,321.9,301.7,321.9,317.5,321.9,333.4,321.9,349.3,321.9,365.1,321.9,381,321.9,428.6,321.9,444.5,321.9,460.3,321.9,476.2,321.9,492.1,321.9,507.9,321.9,523.8,321.9,539.7,321.9,619,321.9,634.9,321.9,650.7,321.9,55.7,307.7,71.6,307.7,87.5,307.7,103.3,307.7,119.2,307.7,135.1,307.7,150.9,307.7,166.8,307.7,182.7,307.7,198.5,307.7,214.4,307.7,230.3,307.7,246.1,307.7,262,307.7,277.9,307.7,293.7,307.7,357.2,307.7,452.4,307.7,468.3,307.7,484.1,307.7,515.9,307.7,531.7,307.7,611.1,307.7,626.9,307.7,642.8,307.7,658.7,307.7,674.5,307.7,79.5,293.4,95.4,293.4,111.3,293.4,127.1,293.4,143,293.4,158.9,293.4,174.7,293.4,190.6,293.4,206.5,293.4,222.3,293.4,238.2,293.4,254.1,293.4,269.9,293.4,285.8,293.4,301.7,293.4,333.4,293.4,381,293.4,412.7,293.4,428.6,293.4,460.3,293.4,523.8,293.4,603.1,293.4,619,293.4,634.9,293.4,650.7,293.4,666.6,293.4,682.5,293.4,87.5,279.1,103.3,279.1,119.2,279.1,135.1,279.1,150.9,279.1,166.8,279.1,182.7,279.1,198.5,279.1,214.4,279.1,230.3,279.1,246.1,279.1,262,279.1,277.9,279.1,293.7,279.1,325.5,279.1,341.3,279.1,357.2,279.1,373.1,279.1,388.9,279.1,420.7,279.1,436.5,279.1,452.4,279.1,515.9,279.1,579.3,279.1,595.2,279.1,611.1,279.1,626.9,279.1,642.8,279.1,658.7,279.1,95.4,264.8,111.3,264.8,127.1,264.8,143,264.8,158.9,264.8,174.7,264.8,190.6,264.8,206.5,264.8,222.3,264.8,238.2,264.8,254.1,264.8,269.9,264.8,301.7,264.8,317.5,264.8,333.4,264.8,349.3,264.8,365.1,264.8,381,264.8,444.5,264.8,460.3,264.8,492.1,264.8,507.9,264.8,523.8,264.8,539.7,264.8,555.5,264.8,571.4,264.8,587.3,264.8,603.1,264.8,619,264.8,103.3,250.5,119.2,250.5,135.1,250.5,150.9,250.5,166.8,250.5,182.7,250.5,198.5,250.5,214.4,250.5,230.3,250.5,246.1,250.5,262,250.5,325.5,250.5,341.3,250.5,357.2,250.5,373.1,250.5,420.7,250.5,452.4,250.5,484.1,250.5,500,250.5,515.9,250.5,531.7,250.5,547.6,250.5,563.5,250.5,579.3,250.5,595.2,250.5,611.1,250.5,111.3,236.3,127.1,236.3,143,236.3,158.9,236.3,174.7,236.3,190.6,236.3,206.5,236.3,222.3,236.3,301.7,236.3,317.5,236.3,333.4,236.3,349.3,236.3,365.1,236.3,381,236.3,412.7,236.3,428.6,236.3,444.5,236.3,476.2,236.3,492.1,236.3,507.9,236.3,523.8,236.3,539.7,236.3,555.5,236.3,571.4,236.3,587.3,236.3,135.1,222,150.9,222,166.8,222,182.7,222,198.5,222,214.4,222,277.9,222,309.6,222,325.5,222,341.3,222,357.2,222,373.1,222,420.7,222,452.4,222,484.1,222,500,222,515.9,222,547.6,222,143,207.7,158.9,207.7,269.9,207.7,285.8,207.7,317.5,207.7,412.7,207.7,428.6,207.7,444.5,207.7,460.3,207.7,492.1,207.7,507.9,207.7,523.8,207.7,539.7,207.7,150.9,193.4,277.9,193.4,293.7,193.4,309.6,193.4,325.5,193.4,285.8,179.1,301.7,179.1,317.5,179.1,349.3,179.1,412.7,179.1,460.3,179.1,476.2,179.1,492.1,179.1,507.9,179.1,293.7,164.9,341.3,164.9,357.2,164.9,373.1,164.9,420.7,164.9,452.4,164.9,349.3,150.6,444.5,150.6,476.2,150.6,492.1,150.6,507.9,150.6,309.6,136.3,325.5,136.3,484.1,136.3,500,136.3,333.4,122,412.7,122,460.3,122,492.1,122,507.9,122,404.8,107.7,452.4,107.7,468.3,107.7,484.1,107.7,500,107.7,515.9,107.7,444.5,93.5,460.3,93.5,476.2,93.5,492.1,93.5,507.9,93.5,452.4,79.2,468.3,79.2,484.1,79.2,500,79.2,515.9,79.2,531.7,79.2,460.3,64.9,476.2,64.9,492.1,64.9,507.9,64.9,523.8,64.9,484.1,50.6,500,50.6,515.9,50.6,531.7,50.6,507.9,36.3,523.8,36.3,539.7,36.3],c:{"Vancouver":[92.5,616.9],"Calgary":[211.1,623.4],"Winnipeg":[415.6,678.7],"Toronto":[666.3,774.6],"Ottawa":[708.0,728.1],"Montreal":[735.9,717.8],"Halifax":[871.8,679.1],"StJohns":[969.6,553.3],"Yellowknife":[271.9,405.5],"Iqaluit":[663.3,360.4],"Whitehorse":[86.1,355.3],"Edmonton":[231.4,578.0]}};
+(function(){
+  const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(RM) document.documentElement.classList.add('rm');
+
+  /* ---------- canvas: dotted Canada + network pulses ---------- */
+  const cvs = document.getElementById('map');
+  const ctx = cvs.getContext('2d');
+  let W=0,H=0,DPR=1;
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio||1, 2);
+    const r = cvs.getBoundingClientRect();
+    W = r.width; H = r.height;
+    cvs.width = Math.round(W*DPR); cvs.height = Math.round(H*DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  resize();
+  window.addEventListener('resize', function(){ resize(); drawStatic(); });
+
+  const nodeNames = ['Vancouver','Calgary','Winnipeg','Toronto','Montreal','Halifax','StJohns','Yellowknife','Iqaluit','Whitehorse'];
+
+  function transform(){
+    const mob = W<820;
+    const availW = W*(mob?0.9:0.46);
+    const availH = H*(mob?0.46:0.42);
+    const s = Math.min(availW/MAP.vbw, availH/MAP.vbh);
+    const mw = MAP.vbw*s, mh = MAP.vbh*s;
+    const cx = W*(mob?0.5:0.66), cy = H*(mob?0.28:0.25);
+    return {s, ox:cx-mw/2, oy:cy-mh/2};
+  }
+
+  const d = MAP.d, C = MAP.c;
+
+  function drawStatic(){
+    const tr = transform();
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = '#59C596';
+    ctx.globalAlpha = 0.34;
+    for(let i=0;i<d.length;i+=2){
+      ctx.beginPath(); ctx.arc(tr.ox+d[i]*tr.s, tr.oy+d[i+1]*tr.s, 1.6, 0, 6.28319); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    for(let k=0;k<nodeNames.length;k++){
+      const P=C[nodeNames[k]]; if(!P) continue;
+      const x=tr.ox+P[0]*tr.s, y=tr.oy+P[1]*tr.s;
+      const g=ctx.createRadialGradient(x,y,0,x,y,8);
+      g.addColorStop(0,'rgba(127,227,176,0.26)'); g.addColorStop(1,'rgba(127,227,176,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,8,0,6.28319); ctx.fill();
+      ctx.fillStyle='#B7ECD1'; ctx.beginPath(); ctx.arc(x,y,2.1,0,6.28319); ctx.fill();
+    }
+  }
+  drawStatic();
+
+  /* ---------- reveal + count-up ---------- */
+  document.querySelectorAll('.arm-base').forEach(function(p){
+    const L = p.getTotalLength();
+    p.style.strokeDasharray = L;
+    p.style.strokeDashoffset = L;
+    p.style.transition = 'stroke-dashoffset .9s var(--ease) .15s';
+  });
+  function easeOut(t){return 1-Math.pow(1-t,3);}
+  function countUp(el,to,dur,delay){
+    if(!el) return;
+    setTimeout(function(){
+      const s=performance.now();
+      (function step(n){
+        const p=Math.min((n-s)/dur,1);
+        el.textContent = Math.round(easeOut(p)*to);
+        if(p<1) requestAnimationFrame(step);
+      })(performance.now());
+    }, delay);
+  }
+  function play(){
+    document.body.classList.add('play');
+    document.querySelectorAll('.arm-base').forEach(function(p){ p.style.strokeDashoffset=0; });
+    const vA=document.querySelector('.valA'), vB=document.querySelector('.valB');
+    if(RM){ if(vA)vA.textContent=58; if(vB)vB.textContent=94; }
+    else { countUp(vA,58,1100,480); countUp(vB,94,1250,640); }
+  }
+  function go(){ requestAnimationFrame(function(){ requestAnimationFrame(play); }); }
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(go); setTimeout(go,600); }
+  else { window.addEventListener('load', go); }
+})();
+</script>
+</body>
+</html>
