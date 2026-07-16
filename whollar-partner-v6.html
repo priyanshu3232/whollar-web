@@ -71,7 +71,7 @@ button{font-family:var(--body)}
 
 .route{margin-top:18px}
 .route>span{display:block;font-family:var(--label);font-weight:600;font-size:12.5px;color:var(--teal);margin-bottom:9px}
-.rlist{display:grid;gap:8px}
+.rlist{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .rc{display:flex;align-items:center;gap:11px;text-align:left;background:var(--paper);border:1.5px solid var(--line);border-radius:13px;padding:11px 13px;cursor:pointer;transition:border-color .15s,transform .12s;font-family:var(--body)}
 .rc:hover{border-color:#c6d5cc;transform:translateY(-1px)}
 .rc.on{border-color:var(--accent);background:#F7FCF9}
@@ -92,9 +92,8 @@ button{font-family:var(--body)}
 .jf input:focus,.jf select:focus,.jf textarea:focus{outline:none;border-color:var(--accent)}
 .jf input.err,.jf textarea.err{border-color:var(--warn);animation:shake .3s}
 .namerow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.fmsg{display:none;margin-top:7px;font-size:11.5px;line-height:1.5;color:var(--warn)}
-.fmsg.on{display:block;animation:rise .25s var(--ease)}
-.fmsg.good{color:var(--accent)}
+.fieldrow{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fieldrow .jf{margin-top:0}
 
 /* role-conditional credential block */
 .cred{display:none;margin-top:18px;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:15px 16px 17px}
@@ -135,57 +134,42 @@ button{font-family:var(--body)}
 .shead{text-align:center;max-width:700px;margin:0 auto clamp(28px,4vw,42px)}
 .shead h2{font-size:clamp(26px,3.3vw,37px);font-weight:900}
 .shead p{margin-top:11px;font-size:15px;color:var(--ink-2);line-height:1.6}
+.shead--wide{max-width:900px}
+.shead--wide h2{white-space:nowrap;font-size:clamp(20px,2.7vw,37px)}
+@media (max-width:640px){.shead--wide h2{white-space:normal}}
 
 .flow{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .fs{background:var(--cream);border:1px solid var(--line);border-radius:var(--rf);padding:14px 14px 22px;opacity:0;transform:translateY(12px);transition:opacity .5s var(--ease),transform .5s var(--ease)}
 .fs.vis{opacity:1;transform:none}
-.fviz{border:1px solid var(--line);border-radius:16px;background:var(--paper);padding:6px;margin-bottom:15px}
-.fviz svg{width:100%;height:auto;display:block}
+.fviz{border:1px solid var(--line);border-radius:16px;background:var(--paper);padding:6px;margin-bottom:15px;overflow:hidden}
+.fviz .lot{width:100%;aspect-ratio:2/1}
+#lot2,#lot3{transform:scale(1.28);transform-origin:50% 50%}
 .fs .k{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);letter-spacing:.08em;display:block;padding:0 6px}
 .fs h3{font-size:18px;font-weight:900;margin-top:5px;padding:0 6px}
 .fs p{margin-top:8px;padding:0 6px;font-size:13px;line-height:1.6;color:var(--ink-2)}
 
-/* step animations */
-#s1 .ln{stroke:#DDE4DF;stroke-width:7;stroke-linecap:round}
-#s1 .fill{stroke:#1C9C82;stroke-width:7;stroke-linecap:round;stroke-dasharray:120;stroke-dashoffset:120;transition:stroke-dashoffset .6s var(--ease)}
-#s1 .fill.on{stroke-dashoffset:0}
-#s1 .cur{opacity:0;transition:opacity .25s}
-#s1 .cur.on{opacity:1}
-#s2 .doc{transition:transform .5s var(--ease)}
-#s2 .stamp{opacity:0;transform-box:fill-box;transform-origin:center;transform:scale(1.7) rotate(-12deg);transition:opacity .35s var(--ease),transform .35s var(--ease)}
-#s2 .stamp.on{opacity:1;transform:scale(1) rotate(-8deg)}
-#s2 .glow{opacity:0;transition:opacity .4s}
-#s2 .glow.on{opacity:1}
-#s3 .hs{opacity:0;transform-box:fill-box;transform-origin:50% 100%}
-#s3 .hs.on{animation:hpop .5s var(--ease) forwards}
-@keyframes hpop{0%{opacity:0;transform:translateY(10px) scale(.6)}60%{opacity:1;transform:translateY(-2px) scale(1.06)}100%{opacity:1;transform:none}}
-#s3 .bid{opacity:0;transform-box:fill-box;transform-origin:center;transition:opacity .3s,transform .3s var(--ease);transform:translateY(6px)}
-#s3 .bid.on{opacity:1;transform:none}
-#s3 .win{stroke-dasharray:3 4;animation:flow 3s linear infinite}
-@keyframes flow{to{stroke-dashoffset:-42}}
-
 /* faq */
-.faqwrap{max-width:900px;margin:0 auto;background:var(--paper);border:1px solid var(--line);border-radius:var(--rf);box-shadow:var(--sh-1);padding:clamp(10px,1.6vw,16px) clamp(22px,3vw,32px);opacity:0;transform:translateY(12px);transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.faqwrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:14px;opacity:0;transform:translateY(12px);transition:opacity .5s var(--ease),transform .5s var(--ease)}
 .faqwrap.vis{opacity:1;transform:none}
-.qa{border-bottom:1px solid var(--line)}
-.qa:last-child{border-bottom:none}
-.qa>button{width:100%;display:flex;align-items:center;gap:12px;background:none;border:none;padding:18px 0;cursor:pointer;text-align:left}
-.qa>button b{font-family:var(--disp);font-weight:700;font-size:16.5px;color:var(--teal)}
-.qa>button .pm{margin-left:auto;flex:none;width:24px;height:24px;border-radius:8px;background:var(--mist);color:var(--teal);display:grid;place-items:center;font-weight:700;font-size:15px;transition:transform .2s var(--ease)}
-.qa.open>button .pm{transform:rotate(45deg)}
-.qa .ans{display:none;padding:0 0 18px;font-size:14px;line-height:1.7;color:var(--ink-2);max-width:720px}
-.qa.open .ans{display:block;animation:rise .3s var(--ease)}
+.qa{background:var(--paper);border:1px solid var(--line);border-radius:16px;overflow:hidden;transition:border-color .15s var(--ease),box-shadow .15s var(--ease)}
+.qa:hover{border-color:#d7e4de}
+.qa[data-open="true"]{border-color:#cfe0d8;box-shadow:var(--sh-2)}
+.qa>button{width:100%;display:flex;align-items:center;justify-content:space-between;gap:16px;text-align:left;background:none;border:none;cursor:pointer;padding:20px 22px;font-family:var(--disp);font-weight:700;font-size:16.5px;color:var(--teal);letter-spacing:-.01em}
+.qa>button svg{transition:transform .25s var(--ease);flex:none}
+.qa[data-open="true"]>button svg{transform:rotate(180deg)}
+.qa .ans{max-height:0;overflow:hidden;padding:0 22px;font-size:14px;line-height:1.7;color:var(--ink-2);transition:max-height .35s var(--ease),padding .35s var(--ease)}
+.qa[data-open="true"] .ans{max-height:360px;padding:2px 22px 22px}
 
 
 
 /* lanes */
 .lanes{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px}
 .lane{background:var(--paper);border:1px solid var(--line);border-radius:var(--rf);padding:24px 22px;box-shadow:var(--sh-1)}
-.lane .tile{width:42px;height:42px;border-radius:12px;background:var(--green-tint);display:grid;place-items:center;margin-bottom:13px}
+.lane-head{display:flex;align-items:center;gap:12px}
+.lane .tile{width:42px;height:42px;border-radius:12px;background:var(--green-tint);display:grid;place-items:center;flex:none}
 .lane .tile svg{width:19px;height:19px;stroke:var(--teal-bright);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
-.lane em{font-style:normal;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--ink-3);display:block;margin-bottom:5px}
-.lane b{display:block;font-family:var(--disp);font-weight:900;font-size:18px;color:var(--teal)}
-.lane p{margin-top:8px;font-size:13px;line-height:1.6;color:var(--ink-2)}
+.lane b{font-family:var(--disp);font-weight:900;font-size:18px;color:var(--teal)}
+.lane p{margin-top:12px;font-size:13px;line-height:1.6;color:var(--ink-2)}
 @media (max-width:900px){.lanes{grid-template-columns:1fr}}
 
 .ctarow{display:grid;grid-template-columns:1.35fr 1fr;gap:10px;margin-top:20px}
@@ -202,7 +186,7 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
   .hs-right{padding:12px 0 44px}
   .flow{grid-template-columns:1fr}
 }
-@media (max-width:620px){.namerow{grid-template-columns:1fr}}
+@media (max-width:620px){.namerow{grid-template-columns:1fr}.fieldrow{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}.fs,.faqwrap{opacity:1;transform:none}}
 </style>
 </head>
@@ -263,18 +247,15 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
               <input type="text" id="p-last" placeholder="Last name" autocomplete="family-name" aria-label="Last name">
             </div>
           </div>
-          <div class="jf">
-            <label for="p-company" id="lab-company">Company</label>
-            <input type="text" id="p-company" placeholder="Legal or trading name" autocomplete="organization">
-          </div>
-          <div class="jf">
-            <label for="p-site">Company website</label>
-            <input type="text" id="p-site" placeholder="yourcompany.ca">
-          </div>
-          <div class="jf">
-            <label for="p-email">Work email</label>
-            <input type="email" id="p-email" placeholder="you@yourcompany.ca" autocomplete="email">
-            <p class="fmsg" id="m-email"></p>
+          <div class="fieldrow">
+            <div class="jf">
+              <label for="p-company" id="lab-company">Company</label>
+              <input type="text" id="p-company" placeholder="Legal or trading name" autocomplete="organization">
+            </div>
+            <div class="jf">
+              <label for="p-site">Company website</label>
+              <input type="text" id="p-site" placeholder="yourcompany.ca">
+            </div>
           </div>
           <div class="jf">
             <label for="p-phone">Phone</label>
@@ -395,13 +376,7 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
     <div class="flow">
       <div class="fs" id="f1">
         <div class="fviz">
-          <svg id="s1" viewBox="0 0 300 150" role="img" aria-label="Apply in a minute">
-            <rect x="42" y="20" width="216" height="112" rx="14" fill="#FAF8F3" stroke="#e7ebe6"/>
-            <line class="ln" x1="64" y1="46" x2="196" y2="46"/><line class="fill" id="l1" x1="64" y1="46" x2="196" y2="46"/>
-            <line class="ln" x1="64" y1="72" x2="236" y2="72"/><line class="fill" id="l2" x1="64" y1="72" x2="236" y2="72"/>
-            <line class="ln" x1="64" y1="98" x2="160" y2="98"/><line class="fill" id="l3" x1="64" y1="98" x2="160" y2="98"/>
-            <g class="cur" id="cur"><rect x="196" y="86" width="2" height="24" rx="1" fill="#0E2A20"/></g>
-          </svg>
+          <div class="lot" id="lot1" role="img" aria-label="Apply in a minute"></div>
         </div>
         <span class="k">01</span>
         <h3>Apply</h3>
@@ -410,14 +385,7 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
 
       <div class="fs" id="f2">
         <div class="fviz">
-          <svg id="s2" viewBox="0 0 300 150" role="img" aria-label="We review">
-            <circle class="glow" id="glow" cx="150" cy="76" r="52" fill="#E4F4EC"/>
-            <g class="doc"><rect x="112" y="34" width="76" height="92" rx="9" fill="#fff" stroke="#e7ebe6"/>
-              <line x1="126" y1="56" x2="174" y2="56" stroke="#DDE4DF" stroke-width="5" stroke-linecap="round"/>
-              <line x1="126" y1="72" x2="166" y2="72" stroke="#DDE4DF" stroke-width="5" stroke-linecap="round"/>
-              <line x1="126" y1="88" x2="172" y2="88" stroke="#DDE4DF" stroke-width="5" stroke-linecap="round"/></g>
-            <g class="stamp" id="stamp"><circle cx="186" cy="106" r="21" fill="#1C9C82"/><path d="M177 106l6 6 12-13" stroke="#fff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
-          </svg>
+          <div class="lot" id="lot2" role="img" aria-label="We review"></div>
         </div>
         <span class="k">02</span>
         <h3>We review</h3>
@@ -426,12 +394,7 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
 
       <div class="fs" id="f3">
         <div class="fviz">
-          <svg id="s3" viewBox="0 0 300 150" role="img" aria-label="Bid for the cohort">
-            <line x1="40" y1="124" x2="260" y2="124" stroke="#e7ebe6" stroke-width="1.5"/>
-            <g id="s3-houses"></g>
-            <path class="win" id="win" d="M150 92 V52" stroke="#1C9C82" stroke-width="2" fill="none"/>
-            <g class="bid" id="bid"><rect x="106" y="24" width="88" height="30" rx="9" fill="#0E2A20"/><text x="150" y="44" text-anchor="middle" font-family="General Sans,system-ui" font-size="13" font-weight="600" fill="#7FE3B0">your bid</text></g>
-          </svg>
+          <div class="lot" id="lot3" role="img" aria-label="Bid for the cohort"></div>
         </div>
         <span class="k">03</span>
         <h3>Bid</h3>
@@ -443,27 +406,30 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
 
 <section class="sect sect--paper">
   <div class="wrap">
-    <div class="shead">
+    <div class="shead shead--wide">
       <h2>The way households will be won from here</h2>
       <p>Not a lead list, and not another price comparison page. A channel where demand arrives already decided, already grouped, and timed to the month it can actually move.</p>
     </div>
     <div class="lanes">
       <div class="lane">
-        <span class="tile"><svg viewBox="0 0 24 24"><path d="M3 21V10l9-7 9 7v11"/><path d="M9 21v-6h6v6"/></svg></span>
-        <em>LANE 01</em>
-        <b>Win the street</b>
+        <div class="lane-head">
+          <span class="tile"><svg viewBox="0 0 24 24"><path d="M3 21V10l9-7 9 7v11"/><path d="M9 21v-6h6v6"/></svg></span>
+          <b>Win the street</b>
+        </div>
         <p>Bid for a group of households whose contracts all come up at once. They have already decided to look. You are competing on your offer, not on who called first.</p>
       </div>
       <div class="lane">
-        <span class="tile"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.4-2.9 8.3-7 9.5C7.9 19.3 5 15.4 5 11V6l7-3Z"/></svg></span>
-        <em>LANE 02</em>
-        <b>Defend the ones you have</b>
+        <div class="lane-head">
+          <span class="tile"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.4-2.9 8.3-7 9.5C7.9 19.3 5 15.4 5 11V6l7-3Z"/></svg></span>
+          <b>Defend the ones you have</b>
+        </div>
         <p>Some of those households are already yours, and about to leave. Bid to keep them at a cost you set, before they churn. Losing them costs you a replacement. Keeping them costs you a bid.</p>
       </div>
       <div class="lane">
-        <span class="tile"><svg viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/><path d="M3 20h18"/></svg></span>
-        <em>WHERE THE MONEY COMES FROM</em>
-        <b>Turn retention cost into acquisition</b>
+        <div class="lane-head">
+          <span class="tile"><svg viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/><path d="M3 20h18"/></svg></span>
+          <b>Turn retention cost into acquisition</b>
+        </div>
         <p>Every dollar in a win-back offer is a dollar spent on a customer you already had. Move that budget to the front, spend it on the rate you bid, and the same money that used to rescue one customer now wins a street.</p>
       </div>
     </div>
@@ -475,25 +441,25 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
     <div class="shead">
       <h2>Questions, answered</h2>
     </div>
-    <div class="faqwrap">
-      <div class="qa open">
-        <button type="button"><b>What does it cost to be listed?</b><span class="pm">+</span></button>
+    <div class="faqwrap" data-faqwrap>
+      <div class="qa" data-open="true">
+        <button type="button" aria-expanded="true"><span>What does it cost to be listed?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
         <div class="ans">Applying and being a partner costs nothing. Commercial terms come up once we have spoken and know what you can serve, and they are agreed in writing before anything goes live.</div>
       </div>
-      <div class="qa">
-        <button type="button"><b>Can I bid to keep customers who are already mine?</b><span class="pm">+</span></button>
+      <div class="qa" data-open="false">
+        <button type="button" aria-expanded="false"><span>Can I bid to keep customers who are already mine?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
         <div class="ans">Yes. Cohorts include households from across the market, and defending one you already serve is a legitimate reason to be at the table. It is usually cheaper than replacing them later.</div>
       </div>
-      <div class="qa">
-        <button type="button"><b>I'm a distributor. Can I apply on behalf of a provider?</b><span class="pm">+</span></button>
+      <div class="qa" data-open="false">
+        <button type="button" aria-expanded="false"><span>I'm a distributor. Can I apply on behalf of a provider?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
         <div class="ans">Yes, and you are welcome. The bidding entity is always the registered provider. Beyond that, you run the relationship.</div>
       </div>
-      <div class="qa">
-        <button type="button"><b>Do I have to serve a whole province?</b><span class="pm">+</span></button>
+      <div class="qa" data-open="false">
+        <button type="button" aria-expanded="false"><span>Do I have to serve a whole province?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
         <div class="ans">No. Cohorts are local by design. Tell us where you actually reach and we will only bring you the groups you can serve.</div>
       </div>
-      <div class="qa">
-        <button type="button"><b>How large is a cohort?</b><span class="pm">+</span></button>
+      <div class="qa" data-open="false">
+        <button type="button" aria-expanded="false"><span>How large is a cohort?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
         <div class="ans">It varies by region and by how many households have joined, which is exactly why we ask about your capacity to activate. We will never hand you a group larger than you told us you can take.</div>
       </div>
     </div>
@@ -504,13 +470,13 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
   <div class="wrap"><b style="font-family:var(--disp);color:var(--teal)">Whollar</b> &middot; For providers &middot; Design mock v6, for review.</div>
 </footer>
 
+<script src="js/lottie.min.js"></script>
 <script>
 (function(){
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const S={role:null,provinces:[],tech:[]};
-const PROV=['AB','BC','MB','NB','NL','NS','NT','NU','ON','PE','QC','SK','YT'];
+const PROV=['AB','BC','MB','NB','NL','NS','NT','NU'];
 const TECH=['Fibre / FTTP','Cable (TPIA)','DSL','Fixed wireless','Satellite'];
-const FREE=['gmail.com','yahoo.com','hotmail.com','outlook.com','icloud.com','live.com','aol.com','proton.me','protonmail.com','msn.com','me.com','gmx.com','yandex.com'];
 
 function chips(el,items,key){el.innerHTML=items.map(i=>'<button type="button">'+i+'</button>').join('');
   [...el.children].forEach(b=>b.addEventListener('click',()=>{b.classList.toggle('on');
@@ -532,23 +498,6 @@ $$('#rlist .rc').forEach(b=>b.addEventListener('click',()=>{
   $('.reassure').style.display=other?'none':'block';
 }));
 
-function domainOf(v){return (v||'').toLowerCase().replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0].trim();}
-function checkEmail(){
-  const em=$('#p-email').value.trim().toLowerCase(),msg=$('#m-email');
-  msg.classList.remove('on','good');
-  if(!em.includes('@'))return true;
-  const d=em.split('@')[1]||'';
-  if(FREE.includes(d)){msg.textContent='Please use your work email.';msg.classList.add('on');return false;}
-  const site=domainOf($('#p-site').value);
-  if(site&&d&&(S.role==='provider'||S.role==='sales')){
-    const base=site.split('.').slice(-2).join('.'),ebase=d.split('.').slice(-2).join('.');
-    if(base===ebase){msg.textContent='\u2713 Matches '+site;msg.classList.add('on','good');}
-  }
-  return true;
-}
-$('#p-email').addEventListener('input',checkEmail);
-$('#p-site').addEventListener('input',checkEmail);
-
 function bad(el){el.classList.add('err');el.focus();setTimeout(()=>el.classList.remove('err'),700);return false;}
 $('#p-go').addEventListener('click',()=>{
   if(!S.role){$$('#rlist .rc').forEach(c=>{c.classList.add('err');setTimeout(()=>c.classList.remove('err'),700);});return;}
@@ -556,9 +505,6 @@ $('#p-go').addEventListener('click',()=>{
   if($('#p-last').value.trim().length<2)return bad($('#p-last'));
   if($('#p-company').value.trim().length<2)return bad($('#p-company'));
   if(S.role!=='other'&&$('#p-site').value.trim().length<4)return bad($('#p-site'));
-  const em=$('#p-email').value.trim();
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em))return bad($('#p-email'));
-  if(!checkEmail())return bad($('#p-email'));
   const ph=$('#p-phone').value.replace(/\D/g,''); if(ph.length<10||ph.length>11)return bad($('#p-phone'));
   if(S.role==='provider'){
     if($('#c-legal').value.trim().length<2)return bad($('#c-legal'));
@@ -580,7 +526,7 @@ $('#p-go').addEventListener('click',()=>{
   if(S.role!=='other'&&!S.provinces.length){$('#prov-chips').scrollIntoView({behavior:'smooth',block:'center'});return;}
 
   const payload={role:S.role,firstName:nm,lastName:$('#p-last').value.trim(),company:$('#p-company').value.trim(),
-    website:$('#p-site').value.trim(),email:em,phone:ph,provinces:S.provinces,tech:S.tech,
+    website:$('#p-site').value.trim(),phone:ph,provinces:S.provinces,tech:S.tech,
     legalName:$('#c-legal').value.trim()||$('#s-legal').value.trim()||null,
     providerType:$('#c-type').value||null,
     businessNumber:($('#c-bn').value||$('#s-bn').value||$('#d-bn').value||'').replace(/\D/g,'')||null,
@@ -607,28 +553,12 @@ const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.targ
 $$('.fs,.faqwrap').forEach(el=>io.observe(el));
 
 (function anims(){
-  const hg=$('#s3-houses'); if(!hg)return;
-  const HOUSE='M0 9 L10 0 L20 9 V21 H0 Z';
-  hg.innerHTML=[96,140,184].map(x=>'<g class="hs" transform="translate('+(x-10)+',100)"><path d="'+HOUSE+'" fill="#E4F4EC" stroke="#1C9C82" stroke-width="1.8" stroke-linejoin="round"/><rect x="8" y="13" width="5" height="8" fill="#1C9C82"/></g>').join('');
-  const l=[$('#l1'),$('#l2'),$('#l3')],cur=$('#cur'),stamp=$('#stamp'),glow=$('#glow'),
-        houses=$$('#s3-houses .hs'),bid=$('#bid'),win=$('#win');
-  win.style.opacity=0;
-  function loop(){
-    l.forEach(x=>x.classList.remove('on'));cur.classList.remove('on');
-    stamp.classList.remove('on');glow.classList.remove('on');
-    houses.forEach(h=>h.classList.remove('on'));bid.classList.remove('on');win.style.opacity=0;
-    setTimeout(()=>cur.classList.add('on'),200);
-    l.forEach((x,i)=>setTimeout(()=>x.classList.add('on'),400+i*450));
-    setTimeout(()=>cur.classList.remove('on'),1900);
-    setTimeout(()=>glow.classList.add('on'),1500);
-    setTimeout(()=>stamp.classList.add('on'),2100);
-    houses.forEach((h,i)=>setTimeout(()=>h.classList.add('on'),2600+i*300));
-    setTimeout(()=>{win.style.opacity=1;bid.classList.add('on');},3700);
-    setTimeout(loop,6800);}
-  if(matchMedia('(prefers-reduced-motion: reduce)').matches){
-    l.forEach(x=>x.classList.add('on'));stamp.classList.add('on');glow.classList.add('on');
-    houses.forEach(h=>h.classList.add('on'));bid.classList.add('on');win.style.opacity=1;}
-  else loop();
+  if(typeof lottie==='undefined')return;
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  [['lot1','application-completed.json'],['lot2','job-review.json'],['lot3','bidding.json']].forEach(([id,path])=>{
+    const el=$('#'+id); if(!el)return;
+    lottie.loadAnimation({container:el,renderer:'svg',loop:!reduce,autoplay:!reduce,path});
+  });
 })();
 
 $('#p-call').addEventListener('click',e=>{e.preventDefault();
@@ -636,7 +566,14 @@ $('#p-call').addEventListener('click',e=>{e.preventDefault();
   console.log('[whollar-partner book-a-call placeholder]',{role:S.role||null,ts:new Date().toISOString()});
   $('#p-call').textContent='Calendar coming soon';setTimeout(()=>$('#p-call').textContent='Book a call',1800);});
 
-$$('.qa>button').forEach(b=>b.addEventListener('click',()=>b.closest('.qa').classList.toggle('open')));
+$$('[data-faqwrap] .qa').forEach(item=>{
+  const btn=item.querySelector('button');
+  btn.addEventListener('click',()=>{
+    const wasOpen=item.getAttribute('data-open')==='true';
+    $$('[data-faqwrap] .qa').forEach(other=>{other.setAttribute('data-open','false');other.querySelector('button').setAttribute('aria-expanded','false');});
+    if(!wasOpen){item.setAttribute('data-open','true');btn.setAttribute('aria-expanded','true');}
+  });
+});
 })();
 </script>
 </body>
