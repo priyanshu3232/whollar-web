@@ -35,6 +35,7 @@ button{font-family:var(--body)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
 @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @keyframes shake{0%,100%{transform:none}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+@keyframes wh-twinkle{0%,100%{opacity:.35;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
 .wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}
 
 .whl-nav{position:sticky;top:0;z-index:60;background:rgba(250,248,243,.86);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
@@ -53,7 +54,8 @@ button{font-family:var(--body)}
 .hs-left{background:linear-gradient(160deg,var(--teal-deep),#123B2C 52%,#17553D);color:#fff;position:relative;overflow:hidden;display:flex;align-items:center}
 .hs-left::before{content:"";position:absolute;inset:0;background:radial-gradient(640px 320px at 82% -8%,rgba(127,227,176,.16),transparent 62%),radial-gradient(520px 300px at 0% 112%,rgba(30,158,99,.15),transparent 60%);pointer-events:none}
 .hs-left__mark{position:absolute;right:-70px;bottom:-70px;width:340px;height:340px;opacity:.08;pointer-events:none}
-.hs-left__in{padding:clamp(38px,4.6vw,68px) clamp(26px,4.2vw,60px);position:relative;max-width:640px}
+.hs-left__net{position:absolute;inset:0;width:100%;height:100%;opacity:.45;pointer-events:none;z-index:0}
+.hs-left__in{padding:clamp(38px,4.6vw,68px) clamp(26px,4.2vw,60px);position:relative;z-index:2;max-width:640px}
 .hs-left .whl-eyebrow{color:var(--teal-soft)}
 .hs-left h1{color:#fff;font-weight:900;font-size:clamp(32px,4.1vw,52px);line-height:1.05;text-wrap:balance}
 .hs-left .sub{margin-top:16px;font-size:clamp(15px,1.45vw,17.5px);line-height:1.65;color:rgba(255,255,255,.72);max-width:520px}
@@ -64,35 +66,35 @@ button{font-family:var(--body)}
 .hpt b{display:block;font-family:var(--disp);font-weight:700;font-size:14.5px;color:#fff}
 .hpt span{font-size:12.5px;color:rgba(255,255,255,.6);line-height:1.5}
 
-.hs-right{background:var(--mist);display:flex;align-items:center;justify-content:center;position:relative}
-.form-pane{width:min(520px,100%);padding:clamp(28px,3.4vw,44px) clamp(22px,3vw,36px)}
+.hs-right{background:var(--mist);display:flex;align-items:center;justify-content:flex-start;padding-left:clamp(32px,4vw,60px);position:relative}
+.form-pane{width:min(556px,100%);padding:12px clamp(22px,3vw,36px) 18px}
 .form-pane h3{font-size:21px;font-weight:900}
-.form-pane .fsub{margin-top:6px;font-size:13.5px;color:var(--ink-2);line-height:1.55}
+.form-pane .fsub{margin-top:4px;font-size:13.5px;color:var(--ink-2);line-height:1.55}
 
-.route{margin-top:18px}
-.route>span{display:block;font-family:var(--label);font-weight:600;font-size:12.5px;color:var(--teal);margin-bottom:9px}
-.rlist{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.rc{display:flex;align-items:center;gap:11px;text-align:left;background:var(--paper);border:1.5px solid var(--line);border-radius:13px;padding:11px 13px;cursor:pointer;transition:border-color .15s,transform .12s;font-family:var(--body)}
+.route{margin-top:10px}
+.route>span{display:block;font-family:var(--label);font-weight:600;font-size:12.5px;color:var(--teal);margin-bottom:8px}
+.rlist{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rc{display:flex;align-items:flex-start;gap:11px;text-align:left;background:var(--paper);border:1.5px solid var(--line);border-radius:13px;padding:12px 14px;cursor:pointer;transition:border-color .15s,transform .12s;font-family:var(--body)}
 .rc:hover{border-color:#c6d5cc;transform:translateY(-1px)}
 .rc.on{border-color:var(--accent);background:#F7FCF9}
 .rc.err{border-color:var(--warn);animation:shake .3s}
-.rc .dot{flex:none;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center}
+.rc .dot{flex:none;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;margin-top:2px}
 .rc.on .dot{border-color:var(--accent);background:var(--accent)}
 .rc.on .dot::after{content:"";width:5px;height:5px;border-radius:50%;background:#fff}
 .rc b{display:block;font-family:var(--disp);font-weight:700;font-size:13.5px;color:var(--teal)}
 .rc span{font-size:11.5px;color:var(--ink-3);line-height:1.45;display:block}
 
-.jf{margin-top:14px}
-.jf label{display:block;font-family:var(--label);font-weight:600;font-size:12.5px;color:var(--teal);margin-bottom:7px}
+.jf{margin-top:8px}
+.jf label{display:block;font-family:var(--label);font-weight:600;font-size:12.5px;color:var(--teal);margin-bottom:6px}
 .jf label .opt{font-weight:400;color:var(--ink-3);font-size:11px}
-.jf input,.jf select,.jf textarea{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:12px;color:var(--ink);padding:11px 13px;font-size:14.5px;transition:border-color .15s;appearance:none;font-family:var(--body)}
+.jf input,.jf select,.jf textarea{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:12px;color:var(--ink);padding:9px 13px;font-size:14.5px;transition:border-color .15s;appearance:none;font-family:var(--body)}
 .jf select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%2354625B' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center}
 .jf textarea{resize:vertical;min-height:74px}
 .jf input::placeholder,.jf textarea::placeholder{color:#AEB8B2}
 .jf input:focus,.jf select:focus,.jf textarea:focus{outline:none;border-color:var(--accent)}
 .jf input.err,.jf textarea.err{border-color:var(--warn);animation:shake .3s}
 .namerow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.fieldrow{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fieldrow{margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .fieldrow .jf{margin-top:0}
 
 /* role-conditional credential block */
@@ -104,17 +106,17 @@ button{font-family:var(--body)}
 .cred__s{font-size:11.5px;line-height:1.55;color:var(--ink-3)}
 .cred .jf:first-of-type{margin-top:12px}
 
-.chipgrp{margin-top:16px}
-.chipgrp>span{display:block;font-family:var(--label);font-weight:600;font-size:12.5px;color:var(--teal);margin-bottom:8px}
+.chipgrp{margin-top:8px}
+.chipgrp>span{display:block;font-family:var(--label);font-weight:600;font-size:12.5px;color:var(--teal);margin-bottom:6px}
 .chipgrp .hint{font-weight:400;font-size:11px;color:var(--ink-3)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
-.chips button{font-size:12.5px;font-weight:600;color:var(--ink-2);background:var(--paper);border:1.5px solid var(--line);border-radius:999px;padding:7px 12px;cursor:pointer;transition:all .14s}
+.chips button{font-size:12.5px;font-weight:600;color:var(--ink-2);background:var(--paper);border:1.5px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;transition:all .14s}
 .chips button:hover{border-color:#c6d5cc}
 .chips button.on{background:var(--teal);color:#fff;border-color:var(--teal)}
 
-.go{margin-top:20px;width:100%;background:var(--accent);font-size:15.5px;padding:14px 20px}
+.go{margin-top:20px;width:100%;background:var(--accent);font-size:15.5px;padding:12px 20px}
 .go:hover{background:var(--accent-hover)}
-.reassure{margin-top:12px;text-align:center;font-size:11.5px;line-height:1.6;color:var(--ink-3)}
+.reassure{margin-top:10px;text-align:center;font-size:11.5px;line-height:1.6;color:var(--ink-3)}
 .reassure b{color:var(--ink-2)}
 
 #done{display:none}
@@ -143,7 +145,8 @@ button{font-family:var(--body)}
 .fs.vis{opacity:1;transform:none}
 .fviz{border:1px solid var(--line);border-radius:16px;background:var(--paper);padding:6px;margin-bottom:15px;overflow:hidden}
 .fviz .lot{width:100%;aspect-ratio:2/1}
-#lot2,#lot3{transform:scale(1.28);transform-origin:50% 50%}
+#lot2{transform:scale(1.28);transform-origin:50% 50%}
+#lot3{transform:scale(1.85);transform-origin:50% 50%}
 .fs .k{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);letter-spacing:.08em;display:block;padding:0 6px}
 .fs h3{font-size:18px;font-weight:900;margin-top:5px;padding:0 6px}
 .fs p{margin-top:8px;padding:0 6px;font-size:13px;line-height:1.6;color:var(--ink-2)}
@@ -172,7 +175,7 @@ button{font-family:var(--body)}
 .lane p{margin-top:12px;font-size:13px;line-height:1.6;color:var(--ink-2)}
 @media (max-width:900px){.lanes{grid-template-columns:1fr}}
 
-.ctarow{display:grid;grid-template-columns:1.35fr 1fr;gap:10px;margin-top:20px}
+.ctarow{display:grid;grid-template-columns:1.35fr 1fr;gap:10px;margin-top:10px}
 .ctarow .go{margin-top:0}
 .ghost{background:var(--paper);color:var(--teal);border:1.5px solid var(--line);text-decoration:none}
 .ghost:hover{background:#fff;border-color:#c6d5cc;color:var(--teal)}
@@ -183,7 +186,7 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
 @media (max-width:1020px){
   .split{grid-template-columns:1fr;min-height:0}
   .hs-left{min-height:44vh}
-  .hs-right{padding:12px 0 44px}
+  .hs-right{padding:12px 0 44px;justify-content:center}
   .flow{grid-template-columns:1fr}
 }
 @media (max-width:620px){.namerow{grid-template-columns:1fr}.fieldrow{grid-template-columns:1fr}}
@@ -204,6 +207,32 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
 
 <section class="split">
   <div class="hs-left">
+    <svg class="hs-left__net" viewBox="0 0 560 720" preserveAspectRatio="xMidYMid slice" fill="none" aria-hidden="true">
+      <g stroke="var(--accent)" stroke-width="1" opacity="0.4">
+        <line x1="70" y1="120" x2="230" y2="70"/><line x1="230" y1="70" x2="400" y2="140"/><line x1="400" y1="140" x2="505" y2="60"/>
+        <line x1="70" y1="120" x2="130" y2="300"/><line x1="230" y1="70" x2="320" y2="255"/><line x1="400" y1="140" x2="320" y2="255"/><line x1="505" y1="60" x2="470" y2="330"/>
+        <line x1="130" y1="300" x2="320" y2="255"/><line x1="320" y1="255" x2="470" y2="330"/>
+        <line x1="130" y1="300" x2="60" y2="470"/><line x1="320" y1="255" x2="250" y2="460"/><line x1="470" y1="330" x2="435" y2="515"/>
+        <line x1="60" y1="470" x2="250" y2="460"/><line x1="250" y1="460" x2="435" y2="515"/>
+        <line x1="60" y1="470" x2="150" y2="645"/><line x1="250" y1="460" x2="360" y2="660"/><line x1="435" y1="515" x2="515" y2="600"/>
+        <line x1="150" y1="645" x2="360" y2="660"/><line x1="360" y1="660" x2="515" y2="600"/>
+      </g>
+      <g fill="#6EE7B7">
+        <circle cx="70" cy="120" r="4" style="animation:wh-twinkle 3.4s ease-in-out infinite"/>
+        <circle cx="230" cy="70" r="5" style="animation:wh-twinkle 3.4s ease-in-out infinite .3s"/>
+        <circle cx="400" cy="140" r="4" style="animation:wh-twinkle 3.4s ease-in-out infinite .6s"/>
+        <circle cx="505" cy="60" r="4" style="animation:wh-twinkle 3.4s ease-in-out infinite .9s"/>
+        <circle cx="130" cy="300" r="5" style="animation:wh-twinkle 3.4s ease-in-out infinite 1.2s"/>
+        <circle cx="320" cy="255" r="6" style="animation:wh-twinkle 3.4s ease-in-out infinite 1.5s"/>
+        <circle cx="470" cy="330" r="4" style="animation:wh-twinkle 3.4s ease-in-out infinite 1.8s"/>
+        <circle cx="60" cy="470" r="4" style="animation:wh-twinkle 3.4s ease-in-out infinite 2.1s"/>
+        <circle cx="250" cy="460" r="5" style="animation:wh-twinkle 3.4s ease-in-out infinite .45s"/>
+        <circle cx="435" cy="515" r="4" style="animation:wh-twinkle 3.4s ease-in-out infinite .75s"/>
+        <circle cx="150" cy="645" r="5" style="animation:wh-twinkle 3.4s ease-in-out infinite 1.05s"/>
+        <circle cx="360" cy="660" r="4" style="animation:wh-twinkle 3.4s ease-in-out infinite 1.35s"/>
+        <circle cx="515" cy="600" r="5" style="animation:wh-twinkle 3.4s ease-in-out infinite 1.65s"/>
+      </g>
+    </svg>
     <svg class="hs-left__mark" viewBox="0 0 120 120"><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
     <div class="hs-left__in">
       <span class="whl-eyebrow">Founding partners</span>
@@ -223,14 +252,13 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
 
       <div id="stage1">
         <h3>Become a founding partner</h3>
-        <p class="fsub">One minute. No pricing, no commissions, no contractual commitments at this stage.</p>
 
         <div class="route">
           <span>Which describes you?</span>
           <div class="rlist" id="rlist">
-            <button type="button" class="rc" data-r="provider"><span class="dot"></span><span><b>I work at the provider</b><span>Network, product, operations or exec team.</span></span></button>
+            <button type="button" class="rc" data-r="provider"><span class="dot"></span><span><b>I work at the provider</b><span>Network, product, ops or exec.</span></span></button>
             <button type="button" class="rc" data-r="sales"><span class="dot"></span><span><b>I'm in sales at the provider</b><span>Rep, manager or VP of sales.</span></span></button>
-            <button type="button" class="rc" data-r="distributor"><span class="dot"></span><span><b>I'm a distributor, dealer or agent</b><span>I represent one or more providers.</span></span></button>
+            <button type="button" class="rc" data-r="distributor"><span class="dot"></span><span><b>I'm a distributor or dealer</b><span>I represent providers.</span></span></button>
             <button type="button" class="rc" data-r="other"><span class="dot"></span><span><b>Something else</b><span>Agency, vendor, or just curious.</span></span></button>
           </div>
           <div class="jf spec" id="spec">
@@ -253,19 +281,18 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
               <input type="text" id="p-company" placeholder="Legal or trading name" autocomplete="organization">
             </div>
             <div class="jf">
-              <label for="p-site">Company website</label>
-              <input type="text" id="p-site" placeholder="yourcompany.ca">
+              <label for="p-phone">Phone</label>
+              <input type="tel" id="p-phone" placeholder="(555) 555-0123" autocomplete="tel" inputmode="tel">
             </div>
           </div>
           <div class="jf">
-            <label for="p-phone">Phone</label>
-            <input type="tel" id="p-phone" placeholder="(555) 555-0123" autocomplete="tel" inputmode="tel">
+            <label for="p-email">Email</label>
+            <input type="email" id="p-email" placeholder="you@company.ca" autocomplete="email" inputmode="email">
           </div>
 
           <!-- role-conditional credentials -->
           <div class="cred" id="cred-provider">
             <div class="cred__h"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.4-2.9 8.3-7 9.5C7.9 19.3 5 15.4 5 11V6l7-3Z"/></svg><b>Your provider credentials</b></div>
-            <p class="cred__s">So we can confirm the entity that would bid.</p>
             <div class="jf">
               <label for="c-legal">Registered legal name</label>
               <input type="text" id="c-legal" placeholder="As registered with the CRTC">
@@ -292,7 +319,6 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
 
           <div class="cred" id="cred-sales">
             <div class="cred__h"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.4-2.9 8.3-7 9.5C7.9 19.3 5 15.4 5 11V6l7-3Z"/></svg><b>Your provider credentials</b></div>
-            <p class="cred__s">The account sits with the provider, not the individual, so tell us who signs.</p>
             <div class="jf">
               <label for="s-legal">Registered legal name</label>
               <input type="text" id="s-legal" placeholder="As registered with the CRTC">
@@ -309,7 +335,6 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
 
           <div class="cred" id="cred-dist">
             <div class="cred__h"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.4-2.9 8.3-7 9.5C7.9 19.3 5 15.4 5 11V6l7-3Z"/></svg><b>Who you represent</b></div>
-            <p class="cred__s">Distributors are welcome. The bidding entity is always the registered provider, so we ask for a letter of authorization per brand.</p>
             <div class="jf">
               <label for="d-brands">Providers or brands you represent</label>
               <input type="text" id="d-brands" placeholder="Separate with commas">
@@ -348,11 +373,11 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
           </div>
         </div>
 
+        <label class="terms-check" style="display:flex;align-items:flex-start;gap:9px;margin-top:16px;font-size:12.5px;line-height:1.5;color:var(--ink-2);cursor:pointer;"><input type="checkbox" id="p-terms" style="margin-top:1px;width:16px;height:16px;accent-color:var(--accent);flex:none;cursor:pointer;"><span>I accept all <a href="#" style="color:var(--accent);text-decoration:underline;text-underline-offset:2px;">terms and conditions</a>.</span></label>
         <div class="ctarow">
           <button class="whl-btn go" id="p-go" type="button">Apply as a founding partner</button>
           <a class="whl-btn go ghost" id="p-call" href="#book">Book a call</a>
         </div>
-        <p class="reassure"><b>No pricing, commissions, or contractual commitments.</b> You set your number at bid time, on your own terms.</p>
       </div>
 
       <div id="done">
@@ -378,7 +403,6 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
         <div class="fviz">
           <div class="lot" id="lot1" role="img" aria-label="Apply in a minute"></div>
         </div>
-        <span class="k">01</span>
         <h3>Apply</h3>
         <p>The form on this page. A minute, and nothing binding.</p>
       </div>
@@ -387,7 +411,6 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
         <div class="fviz">
           <div class="lot" id="lot2" role="img" aria-label="We review"></div>
         </div>
-        <span class="k">02</span>
         <h3>We review</h3>
         <p>We confirm you are who you say you are, then talk about what you can serve.</p>
       </div>
@@ -396,7 +419,6 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
         <div class="fviz">
           <div class="lot" id="lot3" role="img" aria-label="Bid for the cohort"></div>
         </div>
-        <span class="k">03</span>
         <h3>Bid</h3>
         <p>You see the group and the renewal window. You price it, or you pass.</p>
       </div>
@@ -495,7 +517,6 @@ $$('#rlist .rc').forEach(b=>b.addEventListener('click',()=>{
   $('#coverage').style.display=other?'none':'block';
   $('#lab-company').textContent=S.role==='distributor'?'Your company (the distributor)':'Company';
   $('#p-go').textContent=other?'Send us a note':'Apply as a founding partner';
-  $('.reassure').style.display=other?'none':'block';
 }));
 
 function bad(el){el.classList.add('err');el.focus();setTimeout(()=>el.classList.remove('err'),700);return false;}
@@ -504,8 +525,8 @@ $('#p-go').addEventListener('click',()=>{
   const nm=$('#p-name').value.trim(); if(nm.length<2)return bad($('#p-name'));
   if($('#p-last').value.trim().length<2)return bad($('#p-last'));
   if($('#p-company').value.trim().length<2)return bad($('#p-company'));
-  if(S.role!=='other'&&$('#p-site').value.trim().length<4)return bad($('#p-site'));
   const ph=$('#p-phone').value.replace(/\D/g,''); if(ph.length<10||ph.length>11)return bad($('#p-phone'));
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test($('#p-email').value.trim()))return bad($('#p-email'));
   if(S.role==='provider'){
     if($('#c-legal').value.trim().length<2)return bad($('#c-legal'));
     if(!$('#c-type').value)return bad($('#c-type'));
@@ -524,9 +545,10 @@ $('#p-go').addEventListener('click',()=>{
     if($('#o-note').value.trim().length<4)return bad($('#o-note'));
   }
   if(S.role!=='other'&&!S.provinces.length){$('#prov-chips').scrollIntoView({behavior:'smooth',block:'center'});return;}
+  if(!$('#p-terms').checked){$('#p-terms').focus();return;}
 
   const payload={role:S.role,firstName:nm,lastName:$('#p-last').value.trim(),company:$('#p-company').value.trim(),
-    website:$('#p-site').value.trim(),phone:ph,provinces:S.provinces,tech:S.tech,
+    email:$('#p-email').value.trim(),phone:ph,provinces:S.provinces,tech:S.tech,
     legalName:$('#c-legal').value.trim()||$('#s-legal').value.trim()||null,
     providerType:$('#c-type').value||null,
     businessNumber:($('#c-bn').value||$('#s-bn').value||$('#d-bn').value||'').replace(/\D/g,'')||null,
@@ -555,7 +577,7 @@ $$('.fs,.faqwrap').forEach(el=>io.observe(el));
 (function anims(){
   if(typeof lottie==='undefined')return;
   const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  [['lot1','application-completed.json'],['lot2','job-review.json'],['lot3','bidding.json']].forEach(([id,path])=>{
+  [['lot1','application-completed.json'],['lot2','job-review.json'],['lot3','bid-animation.json']].forEach(([id,path])=>{
     const el=$('#'+id); if(!el)return;
     lottie.loadAnimation({container:el,renderer:'svg',loop:!reduce,autoplay:!reduce,path});
   });

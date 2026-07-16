@@ -28,7 +28,6 @@
       <b>Whollar</b>
     </a>
     <a class="whl-nav__back" href="../index.html">← Back to home</a>
-    <a class="whl-btn whl-btn--sm whl-btn--go" href="../whollar-bill%20checkup-v6.html">Run the checkup</a>
   </div>
 </nav>
 
@@ -74,6 +73,7 @@
           <label for="j-ref">Referral code or a neighbour's email</label>
           <input type="text" id="j-ref" placeholder="Optional">
         </div>
+        <label class="j-terms" style="display:flex;align-items:flex-start;gap:9px;margin:16px 0 6px;font-size:13px;line-height:1.5;color:#54625B;cursor:pointer;"><input type="checkbox" id="j-terms" style="margin-top:1px;width:16px;height:16px;accent-color:#1E9E63;flex:none;cursor:pointer;"><span>I accept all <a href="#" style="color:#178A5A;text-decoration:underline;text-underline-offset:2px;">terms and conditions</a>.</span></label>
         <button class="whl-btn go" id="j-go" type="button">Become a founding member</button>
         <p class="perksline"><b>Founding perks, locked in for joining now.</b> Early access and first pick on every market we open next.</p>
       </div>
@@ -211,7 +211,7 @@ class Component extends DCLogic {
 
     $('#ref-toggle').addEventListener('click',()=>{const r=$('#refbox');const show=r.style.display==='none';r.style.display=show?'block':'none';if(show)$('#j-ref').focus();});
 
-    $('#j-go').addEventListener('click',()=>{
+    $('#j-go').addEventListener('click',()=>{if(!$('#j-terms').checked){$('#j-terms').focus();return;}
       const nm=$('#j-name').value.trim();
       if(nm.length<2){$('#j-name').classList.add('err');$('#j-name').focus();return;}
       $('#j-name').classList.remove('err');
