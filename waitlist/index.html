@@ -78,6 +78,43 @@
         <p class="perksline"><b>Founding perks, locked in for joining now.</b> Early access and first pick on every market we open next.</p>
       </div>
 
+      <div id="stage2" style="display:none">
+        <h3 id="s2-h">Want it to count for more?</h3>
+        <p class="fsub">Cohorts get bid on when providers can see real demand. Every detail sharpens yours, and all of it is optional.</p>
+        <div class="meter">
+          <div class="mrow"><span>Spot strength</span><b id="m-label">Held</b></div>
+          <div class="segs" id="segs"><i class="f"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+        <div class="j2f">
+          <div><label for="s-prov">Provider</label>
+            <select id="s-prov" data-m><option value="">Choose&hellip;</option><option>Rogers</option><option>Bell</option><option>Telus</option><option>Shaw</option><option>Vid&eacute;otron</option><option>Cogeco</option><option>Eastlink</option><option>SaskTel</option><option>An independent</option><option>Other</option></select></div>
+          <div><label for="s-cost">Monthly charge</label>
+            <input id="s-cost" placeholder="$ / mo" inputmode="decimal" data-m></div>
+          <div><label for="s-spd">Download speed</label>
+            <select id="s-spd" data-m><option value="">Choose&hellip;</option><option>25 or less</option><option>50</option><option>100</option><option>150</option><option>300</option><option>500</option><option>1 Gig</option><option>1.5 Gig+</option><option>Not sure</option></select></div>
+          <div><label for="s-date">Promo ends</label>
+            <input id="s-date" type="date" data-m></div>
+          <div class="full"><label>You'd switch for</label>
+            <div class="thr" id="thr"><button type="button">$10+/mo</button><button type="button">$25+/mo</button><button type="button">Just curious</button></div></div>
+          <div class="full"><label class="jupl" for="s-file">
+            <svg viewBox="0 0 24 24"><path d="M12 16V5"></path><path d="M7 10l5-5 5 5"></path><path d="M4.5 18a4 4 0 0 1 1-7.9A6 6 0 0 1 17 7a5 5 0 0 1 3 9.5"></path></svg>
+            <span>Attach a bill (PDF / photo)</span><em id="s-filename"></em>
+            <input type="file" id="s-file" accept=".pdf,image/*" style="display:none"></label></div>
+          <div class="full"><label>Do you have any of these too? <span class="sopt">tap any, add a count if you like</span></label>
+            <div class="svc" id="svc">
+              <div class="svcrow" data-svc="ott"><button type="button" class="svct"><span class="tk"></span>OTT / streaming channels</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
+              <div class="svcrow" data-svc="tv"><button type="button" class="svct"><span class="tk"></span>TV plan</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
+              <div class="svcrow" data-svc="security"><button type="button" class="svct"><span class="tk"></span>Home security</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
+              <div class="svcrow" data-svc="mobile"><button type="button" class="svct"><span class="tk"></span>Cell phone plans</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
+              <div class="svcrow" data-svc="doorbell"><button type="button" class="svct"><span class="tk"></span>Video doorbells</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
+              <div class="svcrow" data-svc="other"><button type="button" class="svct"><span class="tk"></span>Something else</button><input type="text" class="svcx" placeholder="What is it?"></div>
+            </div>
+          </div>
+        </div>
+        <button class="whl-btn save" id="s-save" type="button">Save my details</button>
+        <button class="skip" id="s-skip" type="button">I'll do this later</button>
+      </div>
+
       <div class="jdone" id="joindone">
         <div class="donehead">
           <span class="chk"><svg sc-camel-view-box="0 0 24 24"><path d="M20 6L9 17l-5-5"></path></svg></span>
@@ -178,6 +215,35 @@
   </div>
 </section>
 
+<div class="wm-ov" id="wmodal" role="dialog" aria-modal="true" aria-labelledby="wm-h">
+  <div class="wm">
+    <button class="wm__x" id="wm-x" aria-label="Close">&times;</button>
+    <div class="wm__top">
+      <div class="wm__badge"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"></path></svg></div>
+      <span class="wm__ey">You're a founding member</span>
+      <h3 id="wm-h">Welcome to the Whollar family</h3>
+      <p id="wm-sub">Let's make pricing transparent. You just joined the households rewriting how internet is bought in Canada.</p>
+    </div>
+    <div class="wm__body">
+      <div class="wm__list">
+        <div class="wm__li"><span class="n">1</span><span><b>Your spot is held</b><span>You're in line for your area's cohort. Every neighbour who joins moves it up.</span></span></div>
+        <div class="wm__li"><span class="n">2</span><span><b>We'll write when it opens</b><span>Providers bid for the whole group. You'll see the winning offer in plain numbers.</span></span></div>
+        <div class="wm__li"><span class="n">3</span><span><b>You decide, always</b><span>Say yes only if it beats what you have. Nothing is automatic.</span></span></div>
+      </div>
+      <div class="wm__cta">
+        <div class="wm__share">
+          <button class="whl-btn" type="button" id="wm-share">Bring your street</button>
+          <div class="wm__sheet" id="wm-sheet">
+            <div class="wm__apps" id="wm-apps"></div>
+            <div class="wm__copy"><input type="text" id="wm-link" readonly><button type="button" id="wm-copy">Copy</button></div>
+          </div>
+        </div>
+        <a class="whl-btn ghost" href="../index.html">Back to main page</a>
+      </div>
+    </div>
+  </div>
+</div>
+
 <footer class="whl-foot">
   <div class="wrap"><b style="font-family:var(--disp);color:var(--teal)">Whollar</b> · Design mock v6, for review. CRTC 2026‑43 in force June 12, 2026. Share link is a placeholder pending domain wiring.</div>
 </footer>
@@ -190,7 +256,7 @@ class Component extends DCLogic {
     const $ = s => root.querySelector(s);
     const $$ = s => [...root.querySelectorAll(s)];
     const FSA={A:'Newfoundland & Labrador',B:'Nova Scotia',C:'PEI',E:'New Brunswick',G:'Quebec',H:'Quebec',J:'Quebec',K:'Ontario',L:'Ontario',M:'Ontario',N:'Ontario',P:'Ontario',R:'Manitoba',S:'Saskatchewan',T:'Alberta',V:'British Columbia',X:'the North',Y:'Yukon'};
-    const S={name:'',last:'',email:'',phone:'',fsa:null};
+    const S={name:'',last:'',email:'',phone:'',fsa:null,details:{}};
 
     if($('#viz2-lottie')&&window.lottie){window.lottie.loadAnimation({container:$('#viz2-lottie'),renderer:'svg',loop:true,autoplay:true,path:(window.__resources&&window.__resources.walletLottie)||'./flying-wallet-money.json'});}
     if($('#viz3-lottie')&&window.lottie){window.lottie.loadAnimation({container:$('#viz3-lottie'),renderer:'svg',loop:true,autoplay:true,path:(window.__resources&&window.__resources.searchLottie)||'./search.json'});}
@@ -234,13 +300,94 @@ class Component extends DCLogic {
       $('#sh-lnk').textContent='whollar.ca/join?fsa='+S.fsa;
       $('#sh-p').textContent='Share your link. Every neighbour in '+S.fsa+' who joins through you strengthens the bid you\u2019ll all get.';
       $('#joinform').style.display='none';
-      $('#joindone').classList.add('on');
+      $('#stage2').style.display='block';
+      openWelcome(nm);
     });
 
     $('#sh-cp').addEventListener('click',()=>{
       const t='https://'+$('#sh-lnk').textContent;
       const done=()=>{$('#sh-cp').textContent='Copied';setTimeout(()=>$('#sh-cp').textContent='Copy',1600);};
       if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(done,done);else done();});
+
+    /* welcome modal */
+    let SHARE_URL='https://whollar.ca/join';
+    const SHARE_TXT='I just joined Whollar so providers bid for our whole street’s internet at once. Join our cohort:';
+    function shareApps(){
+      const u=encodeURIComponent(SHARE_URL),t=encodeURIComponent(SHARE_TXT);
+      return [
+        ['WhatsApp','https://wa.me/?text='+t+'%20'+u,'<path d="M12 2a10 10 0 0 0-8.5 15.2L2 22l4.9-1.4A10 10 0 1 0 12 2Z" fill="#25D366"/><path d="M8.5 7.5c-.3 0-.7.1-1 .5s-1.2 1.2-1.2 2.8 1.2 3.3 1.4 3.5 2.4 3.8 5.9 5.2c2.9 1.1 3.5.9 4.1.9s2-.8 2.3-1.6.3-1.5.2-1.6-.3-.2-.7-.4-2-1-2.3-1.1-.5-.2-.8.2-.9 1.1-1.1 1.3-.4.3-.7.1a8 8 0 0 1-2.4-1.5 9 9 0 0 1-1.6-2c-.2-.3 0-.5.1-.6l.5-.6c.2-.2.2-.4.3-.6s0-.5 0-.6-.8-1.9-1-2.6-.5-.5-.7-.5Z" fill="#fff"/>'],
+        ['Messages','sms:?&body='+t+'%20'+u,'<rect x="2" y="4" width="20" height="14" rx="5" fill="#34C759"/><path d="M7 21l1-3h6a4 4 0 0 0 4-4" fill="#34C759"/><circle cx="8" cy="11" r="1.3" fill="#fff"/><circle cx="12" cy="11" r="1.3" fill="#fff"/><circle cx="16" cy="11" r="1.3" fill="#fff"/>'],
+        ['Email','mailto:?subject='+encodeURIComponent('Join our Whollar cohort')+'&body='+t+'%20'+u,'<rect x="2" y="4" width="20" height="16" rx="3" fill="#54625B"/><path d="M3 6l9 6 9-6" stroke="#fff" stroke-width="1.8" fill="none"/>'],
+        ['Copy','#copy','<rect x="8" y="8" width="12" height="12" rx="2.5" fill="none" stroke="#54625B" stroke-width="1.8"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" fill="none" stroke="#54625B" stroke-width="1.8"/>']
+      ];
+    }
+    function copyModalLink(){const done=()=>{const c=$('#wm-copy');if(c){c.textContent='Copied';setTimeout(()=>c.textContent='Copy',1500);}};
+      if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(SHARE_URL).then(done,done);else done();}
+    function openWelcome(nm){
+      if(S.fsa)SHARE_URL='https://whollar.ca/join?fsa='+S.fsa;
+      $('#wm-link').value=SHARE_URL;
+      if(nm)$('#wm-sub').textContent='Welcome, '+nm+'. Let’s make pricing transparent, together. You just joined the households rewriting how internet is bought in Canada.';
+      const wrap=$('#wm-apps');
+      wrap.innerHTML=shareApps().map(([label,href,ico])=>
+        href==='#copy'
+        ? '<button type="button" class="wm__app" data-copy="1"><svg viewBox="0 0 24 24">'+ico+'</svg><span>'+label+'</span></button>'
+        : '<a class="wm__app" href="'+href+'" target="_blank" rel="noopener"><svg viewBox="0 0 24 24">'+ico+'</svg><span>'+label+'</span></a>'
+      ).join('');
+      wrap.querySelectorAll('[data-copy]').forEach(el=>el.addEventListener('click',copyModalLink));
+      $('#wmodal').classList.add('on');document.body.style.overflow='hidden';
+    }
+    function closeWelcome(){$('#wmodal').classList.remove('on');document.body.style.overflow='';}
+    $('#wm-share').addEventListener('click',()=>$('#wm-sheet').classList.toggle('on'));
+    $('#wm-copy').addEventListener('click',copyModalLink);
+    $('#wm-x').addEventListener('click',closeWelcome);
+    $('#wmodal').addEventListener('click',e=>{if(e.target===$('#wmodal'))closeWelcome();});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#wmodal').classList.contains('on'))closeWelcome();});
+
+    /* add-on form (stage 2) */
+    function filledCount(){
+      let n=0;
+      if($('#s-prov').value)n++;
+      if(parseFloat(($('#s-cost').value||'').replace(/[^0-9.]/g,'')))n++;
+      if($('#s-spd').value)n++;
+      if($('#s-date').value)n++;
+      if($$('#thr button.on').length)n++;
+      if(S.details.file)n++;
+      if($$('#svc .svcrow.on').length)n++;
+      return n;}
+    function meter(){
+      const n=1+filledCount();
+      $$('#segs i').forEach((s,i)=>s.classList.toggle('f',i<n));
+      $('#m-label').textContent=n<=2?'Held':n<=5?'Useful':'Bid‑ready';}
+    $$('[data-m]').forEach(el=>{el.addEventListener('input',meter);el.addEventListener('change',meter);});
+    $$('#thr button').forEach(b=>b.addEventListener('click',()=>{
+      $$('#thr button').forEach(x=>x.classList.remove('on'));b.classList.add('on');meter();}));
+    $$('#svc .svcrow').forEach(row=>{
+      const svct=row.querySelector('.svct'),qb=row.querySelector('.qty b'),
+            minus=row.querySelector('.qm'),plus=row.querySelector('.qp'),xin=row.querySelector('.svcx');
+      svct.addEventListener('click',()=>{row.classList.toggle('on');
+        if(row.classList.contains('on')&&xin)setTimeout(()=>xin.focus(),0);meter();});
+      if(minus)minus.addEventListener('click',()=>{let n=Math.max(1,(+qb.textContent||1)-1);qb.textContent=n;});
+      if(plus)plus.addEventListener('click',()=>{let n=Math.min(99,(+qb.textContent||1)+1);qb.textContent=n;});
+    });
+    function collectServices(){return $$('#svc .svcrow.on').map(row=>{
+      const key=row.dataset.svc,qb=row.querySelector('.qty b'),xin=row.querySelector('.svcx');
+      return {service:key,count:qb?(+qb.textContent||1):null,detail:xin?xin.value.trim()||null:null};});}
+    $('#s-file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;
+      S.details.file=f.name;$('#s-filename').textContent='✓ '+f.name;meter();});
+    function collect(){S.details={provider:$('#s-prov').value,cost:$('#s-cost').value,speed:$('#s-spd').value,
+      promoEnd:$('#s-date').value,threshold:($$('#thr button.on')[0]||{}).textContent||null,
+      file:S.details.file||null,services:collectServices()};}
+    $('#s-save').addEventListener('click',()=>{
+      collect();
+      /* WIRE-UP POINT: POST add-on details {name, email, fsa, ...details} here */
+      console.log('[whollar-join details placeholder]',{firstName:S.name,lastName:S.last,email:S.email,fsa:S.fsa,...S.details});
+      $('#stage2').style.display='none';
+      $('#joindone').classList.add('on');
+    });
+    $('#s-skip').addEventListener('click',()=>{
+      $('#stage2').style.display='none';
+      $('#joindone').classList.add('on');
+    });
 
     (function(){
       const g=$('#v1-houses');if(!g)return;
