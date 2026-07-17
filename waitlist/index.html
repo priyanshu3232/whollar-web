@@ -238,7 +238,7 @@
             <div class="wm__copy"><input type="text" id="wm-link" readonly><button type="button" id="wm-copy">Copy</button></div>
           </div>
         </div>
-        <a class="whl-btn ghost" href="../index.html">Back to main page</a>
+        <button class="whl-btn ghost" type="button" id="wm-continue">Continue</button>
       </div>
     </div>
   </div>
@@ -349,8 +349,18 @@ class Component extends DCLogic {
       $('#wmodal').classList.add('on');document.body.style.overflow='hidden';
     }
     function closeWelcome(){$('#wmodal').classList.remove('on');document.body.style.overflow='';}
+    /* Continue: dismiss the modal and take them to the stage-2 detail form,
+       which is already rendered behind it. */
+    function continueToStage2(){
+      closeWelcome();
+      const s2=$('#stage2');
+      if(!s2)return;
+      s2.style.display='block';
+      setTimeout(()=>s2.scrollIntoView({behavior:'smooth',block:'start'}),80);
+    }
     $('#wm-share').addEventListener('click',()=>$('#wm-sheet').classList.toggle('on'));
     $('#wm-copy').addEventListener('click',copyModalLink);
+    $('#wm-continue').addEventListener('click',continueToStage2);
     $('#wm-x').addEventListener('click',closeWelcome);
     $('#wmodal').addEventListener('click',e=>{if(e.target===$('#wmodal'))closeWelcome();});
     document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#wmodal').classList.contains('on'))closeWelcome();});
