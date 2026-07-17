@@ -7,10 +7,14 @@ Advanced I/O functions:
   waitlist add-on details, bill-checkup waitlist joins, deep-read requests, partner applications)
   and stores them in Catalyst's Data Store (and File Store, for attached bills). It replaces the
   `console.log('[whollar-... placeholder]', ...)` stubs in the site's HTML with real `fetch()` calls.
-- **`billOcr`** — OCRs the bill a household attaches on the checkup tool (via Catalyst's Zia OCR)
-  and calls Claude to extract structured fields (provider, speed, access tech, promo date,
-  amounts), so the checkup form can auto-fill itself instead of making the household retype
-  everything from the bill they just uploaded.
+- **`billOcr`** — reads the bill a household attaches on the checkup tool and extracts structured
+  fields (provider, speed, access tech, promo date, amounts), so the checkup form can auto-fill
+  itself instead of making the household retype everything from the bill they just uploaded.
+  Claude reads the file **directly** — vision for images, native PDF support for PDFs — so there is
+  no separate OCR step. (It originally used Catalyst's Zia OCR; Zia returns `ML_ERROR: Unable to
+  process the request` for every file format on this project's **CA** data center, so the OCR step
+  was removed. Reading the bill directly is also more accurate — the model sees the layout and
+  tables rather than a lossy text dump.)
 
 It does **not** touch the "Become a founding member" form under `Become_a_founding_member_of_Whollar/`
 — that one already submits live to Zoho Forms and was left as-is.
@@ -21,8 +25,8 @@ It does **not** touch the "Become a founding member" form under `Become_a_foundi
 
 - **Project:** `Whollar` (`1258000000014001`), org `hubcart99` (`110003037934`), data center **CA**.
 - **Environment:** deployed to the **Development** environment and end-to-end tested. All five
-  `formSubmit` routes insert correctly, including file uploads to File Store. `billOcr` is deployed
-  but needs `ANTHROPIC_API_KEY` set before the bill auto-fill works (see §5).
+  `formSubmit` routes insert correctly, including file uploads to File Store. `billOcr` extracts
+  all six fields correctly from PNG, JPEG, and PDF bills (`ANTHROPIC_API_KEY` is set in the console).
 - **Live function base URL** (baked into the three HTML pages' `CATALYST_BASE`):
   `https://whollar-110003037934.development.catalystserverless.ca/server/formSubmit`
 - **File Store folder ID** in use: `1258000000015979` (set as `UPLOADS_FOLDER_ID` in `formSubmit/index.js`).
@@ -166,9 +170,18 @@ Both need to agree, or browsers will still block the request.
 
 ## 5. Set the Anthropic API key for `billOcr`
 
-`billOcr` calls the Claude API to turn raw OCR text into structured fields. In the Catalyst
+`billOcr` calls the Claude API to read the bill and return structured fields. In the Catalyst
 console: **your project → `billOcr` function → Environment Variables**, add `ANTHROPIC_API_KEY`
-with your key. Don't put the key in `catalyst-config.json` — that file is committed to the repo.
+with your key (it starts with `sk-ant-`). Don't put the key in `catalyst-config.json` — that file
+is committed to the repo.
+
+> ⚠️ **`catalyst deploy` will silently wipe console env vars if `env_variables` is present in
+> `catalyst-config.json`.** The CLI config is the source of truth: deploying with
+> `"env_variables": {}` **deletes** `ANTHROPIC_API_KEY` from the console, and the next request fails
+> with *"Could not resolve authentication method"* — with no warning at deploy time. For this reason
+> `billOcr/catalyst-config.json` **omits the `env_variables` field entirely** (it is not set to
+> `{}`). Leave it omitted. If you ever add it back, re-add the key in the console after every
+> deploy.
 
 ## 6. Install dependencies and deploy
 
@@ -220,10 +233,20 @@ All routes return `{ ok: true, id }` on success (`id` is the new row's `ROWID`) 
 |---|---|---|
 | POST | `/extract-bill` | Bill checkup tool, "Shortcut: attach your bill" upload |
 
-Returns `{ ok: true, confidence, fields }` on success, where `fields` matches the checkup form's
-`#prov`/`#cost`/`#spd`/`#tech`/`#pdate`/`#disc` values exactly (`null` for anything the model
-wasn't confident about — the form just leaves that field blank), or `{ ok: false, error }` on
-failure.
+Accepts a PDF or an image (`image/jpeg`, `image/png`, `image/gif`, `image/webp`) under the
+multipart field `billFile`. Returns `{ ok: true, fields }` on success, where `fields` matches the
+checkup form's `#prov`/`#cost`/`#spd`/`#tech`/`#pdate`/`#disc` values exactly (`null` for anything
+the model wasn't confident about — the form just leaves that field blank), or `{ ok: false, error }`
+on failure.
+
+Two constraints worth preserving if you edit `BILL_EXTRACTION_TOOL`:
+
+- **The enum values must stay byte-identical to the `<select>` options** in
+  `whollar-bill checkup-v6.html` (`#prov`, `#spd`, `#tech`) — the frontend assigns them straight to
+  `.value`, so any drift silently produces a blank dropdown.
+- **Nullable fields use `anyOf`, not a `["string","null"]` type array.** With `strict: true` the API
+  rejects a `null` member inside an `enum` on a type-array field
+  (`Invalid schema: Enum value None does not match declared type`).
 
 ## Local testing
 
