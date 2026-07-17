@@ -469,6 +469,20 @@ const S={pc:null,prov:'',cost:0,spd:null,tech:'',pdate:null,pmo:0,expired:false,
 const TYP={'25':40,'50':50,'100':55,'150':58,'300':70,'500':75,'1000':85,'1500':88,'0':60}; /* drives state only — never rendered */
 const FSA={A:'Newfoundland & Labrador',B:'Nova Scotia',C:'PEI',E:'New Brunswick',G:'Quebec',H:'Quebec',J:'Quebec',K:'Ontario',L:'Ontario',M:'Ontario',N:'Ontario',P:'Ontario',R:'Manitoba',S:'Saskatchewan',T:'Alberta',V:'British Columbia',X:'the North',Y:'Yukon'};
 
+/* CATALYST SETUP: replace with your deployed function base URL — see catalyst-backend/README.md */
+const CATALYST_BASE='https://whollar-110003037934.development.catalystserverless.ca/server/formSubmit';
+const BILL_OCR_BASE=CATALYST_BASE.replace('/formSubmit','/billOcr');
+function submitForm(path,fields,files){
+  const hasFiles=files&&Object.values(files).some(f=>Array.isArray(f)?f.length:f);
+  const opts=hasFiles?(()=>{const fd=new FormData();
+    Object.entries(fields).forEach(([k,v])=>fd.append(k,typeof v==='object'?JSON.stringify(v):v==null?'':v));
+    Object.entries(files).forEach(([k,f])=>{if(!f)return;(Array.isArray(f)?f:[f]).forEach(file=>fd.append(k,file,file.name));});
+    return{method:'POST',body:fd};})()
+    :{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(fields)};
+  return fetch(CATALYST_BASE+path,opts).then(r=>{if(!r.ok)throw new Error('submit failed: '+r.status);return r.json();})
+    .catch(err=>{console.error('[whollar submit]',path,err);});
+}
+
 /* ---------- screen switch ---------- */
 function screen(n){document.body.dataset.screen=n;
   $('#result-left').style.display=n==2?'block':'none';
@@ -500,20 +514,46 @@ $('#pdate').addEventListener('input',e=>{
 function railJoin(inputEl,rowEl,doneEl){const em=inputEl.value.trim();
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)){inputEl.classList.add('err');inputEl.focus();return false;}
   inputEl.classList.remove('err');S.joined=true;S.email=em;$('#email').value=em;
-  /* WIRE-UP POINT: POST waitlist payload here */
-  console.log('[whollar-waitlist placeholder]',{email:em,via:'rail',...S});
+  submitForm('/bill-checkup-join',{email:em,via:'rail',...S},{billFile:($('#bill-file').files||[])[0]||null});
   rowEl.style.display='none';doneEl.classList.add('on');return true;}
 $('#g-join').addEventListener('click',()=>railJoin($('#g-email'),$('#gerow'),$('#gdone')));
 
 /* attach */
 /* ---------- bill upload (click + drag&drop) ---------- */
 function fmtSize(n){return n<1024?n+' B':n<1048576?(n/1024).toFixed(0)+' KB':(n/1048576).toFixed(1)+' MB';}
+function setFieldValue(el,value){
+  if(value==null||value==='')return;
+  el.value=value;
+  el.dispatchEvent(new Event('input',{bubbles:true}));
+  el.dispatchEvent(new Event('change',{bubbles:true}));
+}
+function autofillFromBill(f){
+  const original=$('#filename').textContent;
+  $('#filename').textContent=original+' — reading your bill…';
+  const fd=new FormData();
+  fd.append('billFile',f);
+  fetch(BILL_OCR_BASE+'/extract-bill',{method:'POST',body:fd})
+    .then(r=>{if(!r.ok)throw new Error('extract-bill failed: '+r.status);return r.json();})
+    .then(data=>{
+      const fields=data&&data.fields;
+      if(!fields)return;
+      setFieldValue($('#prov'),fields.provider);
+      if(fields.monthlyChargeDollars!=null)setFieldValue($('#cost'),fields.monthlyChargeDollars);
+      setFieldValue($('#spd'),fields.downloadSpeedMbps);
+      setFieldValue($('#tech'),fields.accessTechnology);
+      setFieldValue($('#pdate'),fields.promoEndDate);
+      if(fields.discountAmountDollars!=null)setFieldValue($('#disc'),fields.discountAmountDollars);
+    })
+    .catch(err=>console.error('[whollar-bill-ocr]',err))
+    .finally(()=>{$('#filename').textContent=original;});
+}
 function acceptFile(f){
   if(!f)return;
   S.file=f.name;
   $('#filename').textContent=f.name;
   $('#filesize').textContent=fmtSize(f.size);
   $('#filechip').classList.add('on');
+  autofillFromBill(f);
 }
 $('#bill-file').addEventListener('change',e=>acceptFile(e.target.files[0]));
 $('#fileclear').addEventListener('click',e=>{
@@ -551,8 +591,7 @@ $('#deep-send').addEventListener('click',()=>{
   if(!deepFiles.length){$('#deep').classList.add('pulse');setTimeout(()=>$('#deep').classList.remove('pulse'),1200);return;}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)){$('#deep-email').classList.add('err');$('#deep-email').focus();return;}
   $('#deep-email').classList.remove('err');
-  /* WIRE-UP POINT: POST deep-read payload (files, note, email) here */
-  console.log('[whollar-deepread placeholder]',{email:em,files:deepFiles,note:$('#deep-note').value.trim(),...S});
+  submitForm('/deep-read',{email:em,note:$('#deep-note').value.trim(),...S},{files:[...$('#deep-files').files]});
   $('#deep-form').style.display='none';$('#ddone').classList.add('on');});
 
 /* ---------- CTA ---------- */
@@ -564,8 +603,7 @@ $('#check').addEventListener('click',()=>{
   if(S.joined){const em=$('#email').value.trim();
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)){$('#email').classList.add('err');$('#email').focus();return;}
     $('#email').classList.remove('err');
-    /* WIRE-UP POINT: POST waitlist payload here */
-    console.log('[whollar-waitlist placeholder]',{email:em,switchFor:document.querySelector('.qc.on').textContent,...S});
+    submitForm('/bill-checkup-join',{email:em,via:'form',switchFor:document.querySelector('.qc.on').textContent,...S},{billFile:($('#bill-file').files||[])[0]||null});
   }
   renderResults();screen(2);
 });

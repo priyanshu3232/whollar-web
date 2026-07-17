@@ -1,0 +1,38 @@
+{
+  "defaults": {
+    "project": 1,
+    "env": 1
+  },
+  "actives": {
+    "project": 1,
+    "env": 1
+  },
+  "projects": [
+    {
+      "idx": 1,
+      "id": "1258000000014001",
+      "name": "Whollar",
+      "domain": {
+        "id": "120002206274",
+        "name": "whollar-110003037934.development"
+      },
+      "timezone": "America/Vancouver",
+      "env": [
+        {
+          "idx": 1,
+          "id": "110003037934",
+          "name": "Development",
+          "type": 3,
+          "env_status": "Active",
+          "project_details": {
+            "project_name": "Whollar",
+            "id": "1258000000014001",
+            "project_type": "Live"
+          },
+          "is_default": true,
+          "action_required": false
+        }
+      ]
+    }
+  ]
+}

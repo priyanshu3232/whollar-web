@@ -3,3 +3,6 @@ node_modules/
 .backup/
 .claude/settings.local.json
 *.textClipping
+.env
+# Catalyst build artifacts
+catalyst-backend/**/.output/

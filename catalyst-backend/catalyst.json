@@ -1,0 +1,12 @@
+{
+  "functions": {
+    "targets": [
+      "formSubmit",
+      "billOcr"
+    ],
+    "ignore": [
+      ".output"
+    ],
+    "source": "functions"
+  }
+}

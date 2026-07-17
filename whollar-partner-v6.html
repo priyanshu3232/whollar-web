@@ -500,6 +500,14 @@ const S={role:null,provinces:[],tech:[]};
 const PROV=['AB','BC','MB','NB','NL','NS','NT','NU'];
 const TECH=['Fibre / FTTP','Cable (TPIA)','DSL','Fixed wireless','Satellite'];
 
+/* CATALYST SETUP: replace with your deployed function base URL — see catalyst-backend/README.md */
+const CATALYST_BASE='https://whollar-110003037934.development.catalystserverless.ca/server/formSubmit';
+function submitForm(path,fields){
+  return fetch(CATALYST_BASE+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(fields)})
+    .then(r=>{if(!r.ok)throw new Error('submit failed: '+r.status);return r.json();})
+    .catch(err=>{console.error('[whollar submit]',path,err);});
+}
+
 function chips(el,items,key){el.innerHTML=items.map(i=>'<button type="button">'+i+'</button>').join('');
   [...el.children].forEach(b=>b.addEventListener('click',()=>{b.classList.toggle('on');
     S[key]=[...el.children].filter(x=>x.classList.contains('on')).map(x=>x.textContent);}));}
@@ -559,8 +567,7 @@ $('#p-go').addEventListener('click',()=>{
     otherType:$('#o-spec').value.trim()||null,
     note:$('#o-note').value.trim()||null,
     ts:new Date().toISOString()};
-  /* WIRE-UP POINT: POST partner application here */
-  console.log('[whollar-partner placeholder]',payload);
+  submitForm('/partner-application',payload);
 
   $('#d-name').textContent=nm;
   if(S.role==='other'){$('#d-h').textContent='Note received';

@@ -258,6 +258,19 @@ class Component extends DCLogic {
     const FSA={A:'Newfoundland & Labrador',B:'Nova Scotia',C:'PEI',E:'New Brunswick',G:'Quebec',H:'Quebec',J:'Quebec',K:'Ontario',L:'Ontario',M:'Ontario',N:'Ontario',P:'Ontario',R:'Manitoba',S:'Saskatchewan',T:'Alberta',V:'British Columbia',X:'the North',Y:'Yukon'};
     const S={name:'',last:'',email:'',phone:'',fsa:null,details:{}};
 
+    /* CATALYST SETUP: replace with your deployed function base URL — see catalyst-backend/README.md */
+    const CATALYST_BASE='https://whollar-110003037934.development.catalystserverless.ca/server/formSubmit';
+    function submitForm(path,fields,files){
+      const hasFiles=files&&Object.values(files).some(f=>Array.isArray(f)?f.length:f);
+      const opts=hasFiles?(()=>{const fd=new FormData();
+        Object.entries(fields).forEach(([k,v])=>fd.append(k,typeof v==='object'?JSON.stringify(v):v==null?'':v));
+        Object.entries(files).forEach(([k,f])=>{if(!f)return;(Array.isArray(f)?f:[f]).forEach(file=>fd.append(k,file,file.name));});
+        return{method:'POST',body:fd};})()
+        :{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(fields)};
+      return fetch(CATALYST_BASE+path,opts).then(r=>{if(!r.ok)throw new Error('submit failed: '+r.status);return r.json();})
+        .catch(err=>{console.error('[whollar submit]',path,err);});
+    }
+
     if($('#viz2-lottie')&&window.lottie){window.lottie.loadAnimation({container:$('#viz2-lottie'),renderer:'svg',loop:true,autoplay:true,path:(window.__resources&&window.__resources.walletLottie)||'./flying-wallet-money.json'});}
     if($('#viz3-lottie')&&window.lottie){window.lottie.loadAnimation({container:$('#viz3-lottie'),renderer:'svg',loop:true,autoplay:true,path:(window.__resources&&window.__resources.searchLottie)||'./search.json'});}
 
@@ -293,8 +306,7 @@ class Component extends DCLogic {
       if(!S.fsa){$('#j-pc').classList.add('err');$('#j-pc').focus();return;}
       $('#j-pc').classList.remove('err');
       S.name=nm;S.last=ln;S.email=em;S.phone=ph;
-      /* WIRE-UP POINT: POST founding-member signup {name, email, phone, fsa, referral} here */
-      console.log('[whollar-join placeholder]',{firstName:S.name,lastName:S.last,email:S.email,phone:S.phone,fsa:S.fsa,referral:$('#j-ref').value.trim()||null,ts:new Date().toISOString()});
+      submitForm('/waitlist-join',{firstName:S.name,lastName:S.last,email:S.email,phone:S.phone,fsa:S.fsa,referral:$('#j-ref').value.trim()||null,ts:new Date().toISOString()});
       $('#done-h').textContent=nm+", you're in.";
       $('#done-p').textContent='Your spot in the '+S.fsa+' cohort is held. We\u2019ll text the moment bids land.';
       $('#sh-lnk').textContent='whollar.ca/join?fsa='+S.fsa;
@@ -379,8 +391,7 @@ class Component extends DCLogic {
       file:S.details.file||null,services:collectServices()};}
     $('#s-save').addEventListener('click',()=>{
       collect();
-      /* WIRE-UP POINT: POST add-on details {name, email, fsa, ...details} here */
-      console.log('[whollar-join details placeholder]',{firstName:S.name,lastName:S.last,email:S.email,fsa:S.fsa,...S.details});
+      submitForm('/waitlist-details',{firstName:S.name,lastName:S.last,email:S.email,fsa:S.fsa,...S.details},{billFile:$('#s-file').files[0]||null});
       $('#stage2').style.display='none';
       $('#joindone').classList.add('on');
     });

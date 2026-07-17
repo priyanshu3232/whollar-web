@@ -1,0 +1,13 @@
+{
+  "name": "billocr",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Advanced I/O function that OCRs an uploaded internet bill (Catalyst Zia) and extracts structured fields via Claude, for auto-filling the bill checkup form.",
+  "main": "index.js",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.112.1",
+    "express": "^4.19.2",
+    "multer": "^2.0.0",
+    "zcatalyst-sdk-node": "^2.5.0"
+  }
+}

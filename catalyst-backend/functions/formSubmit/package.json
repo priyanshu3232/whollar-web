@@ -1,0 +1,12 @@
+{
+  "name": "formsubmit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Advanced I/O function that receives all Whollar marketing-site form submissions and stores them in Catalyst Data Store / File Store.",
+  "main": "index.js",
+  "dependencies": {
+    "express": "^4.19.2",
+    "multer": "^2.0.0",
+    "zcatalyst-sdk-node": "^2.5.0"
+  }
+}
