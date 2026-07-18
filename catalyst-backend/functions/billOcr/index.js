@@ -14,13 +14,25 @@ const anthropic = new Anthropic(); // reads ANTHROPIC_API_KEY from this function
 
 const ALLOWED_ORIGINS = [
   'https://whollar.ca',
-  'https://www.whollar.ca',
-  'http://localhost:3000'
+  'https://www.whollar.ca'
 ];
+
+// Local development: the marketing pages are plain HTML files, opened either
+// via a dev server on an arbitrary port (Live Server, http.server, …) or
+// straight from disk (Origin: null). CORS is a browser-side gate only — the
+// endpoint is reachable by curl regardless — so allowing these loses nothing.
+const isDevOrigin = (origin) =>
+  origin === 'null' || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+
+// Vercel: the site's production domain and every preview deploy live under
+// *.vercel.app. Allowing the whole suffix keeps preview URLs working without
+// editing this list per deploy; the custom domains above stay canonical.
+const isVercelOrigin = (origin) =>
+  /^https:\/\/[a-z0-9][a-z0-9.-]*\.vercel\.app$/.test(origin);
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+  if (origin && (ALLOWED_ORIGINS.includes(origin) || isDevOrigin(origin) || isVercelOrigin(origin))) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
   }

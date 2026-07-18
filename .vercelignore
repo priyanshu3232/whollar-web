@@ -1,0 +1,10 @@
+# Backend deploys to Zoho Catalyst, not Vercel
+catalyst-backend
+
+# Legacy mocks / working files not part of the live site
+Whollar Landing Page v7.html
+Whollar Provider Landing v7.html
+Join the Waitlist (1).html
+whollar-thankyou.html
+
+node_modules

@@ -1,0 +1,10 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/bill-checkup", "destination": "/whollar-bill%20checkup-v6.html" },
+    { "source": "/partners", "destination": "/whollar-partner-v6.html" }
+  ],
+  "redirects": [
+    { "source": "/join", "destination": "/waitlist/", "permanent": false }
+  ]
+}
