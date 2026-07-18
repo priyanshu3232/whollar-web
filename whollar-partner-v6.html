@@ -190,6 +190,40 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
   .flow{grid-template-columns:1fr}
 }
 @media (max-width:620px){.namerow{grid-template-columns:1fr}.fieldrow{grid-template-columns:1fr}}
+
+/* thank-you popup */
+.ty-ov{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(10,32,24,.55);backdrop-filter:blur(6px);opacity:0;transition:opacity .3s var(--ease)}
+.ty-ov.on{display:flex;opacity:1}
+.ty{position:relative;width:min(400px,92vw);aspect-ratio:1/1;border-radius:var(--rf);overflow:hidden;background:linear-gradient(155deg,var(--teal-deep),#123B2C 55%,#17553D);color:#fff;box-shadow:0 40px 100px -30px rgba(10,32,24,.65);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:36px 34px;transform:translateY(16px) scale(.94);opacity:0;transition:transform .4s var(--ease),opacity .3s var(--ease)}
+.ty-ov.on .ty{transform:none;opacity:1}
+.ty::before{content:"";position:absolute;inset:0;background:radial-gradient(300px 200px at 82% -12%,rgba(127,227,176,.22),transparent 62%),radial-gradient(260px 200px at 6% 112%,rgba(30,158,99,.2),transparent 60%);pointer-events:none}
+.ty::after{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1px);background-size:16px 16px;opacity:.5;pointer-events:none}
+.ty__badge{width:78px;height:78px;position:relative;margin-bottom:22px}
+.ty__badge .ring{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(127,227,176,.35)}
+.ty__badge .ring.pulse{animation:tyring 2.4s var(--ease) infinite}
+@keyframes tyring{0%{transform:scale(1);opacity:.7}70%,100%{transform:scale(1.5);opacity:0}}
+.ty__badge .core{position:absolute;inset:0;border-radius:22px;background:rgba(127,227,176,.16);border:1px solid rgba(127,227,176,.45);display:grid;place-items:center}
+.ty__badge svg{width:38px;height:38px;stroke:var(--teal-soft);stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.ty__badge .heart{stroke-dasharray:60;stroke-dashoffset:60}
+.ty-ov.on .heart{animation:tydraw .7s .35s var(--ease) forwards}
+@keyframes tydraw{to{stroke-dashoffset:0}}
+.ty__ey{position:relative;font-family:var(--label);font-weight:600;font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--teal-soft);margin-bottom:12px}
+.ty h2{position:relative;font-family:var(--disp);font-weight:900;font-size:clamp(24px,4.4vw,30px);line-height:1.12;letter-spacing:-.02em;color:#fff;margin:0;text-wrap:balance}
+.ty h2 em{font-style:normal;color:var(--teal-soft)}
+.ty p{position:relative;margin-top:14px;font-size:14px;line-height:1.6;color:rgba(255,255,255,.72);max-width:280px}
+.ty__x{position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.14);border:none;color:#fff;font-size:18px;cursor:pointer;display:grid;place-items:center;line-height:1;z-index:4;transition:background .15s}
+.ty__x:hover{background:rgba(255,255,255,.26)}
+.ty .spark{position:absolute;width:7px;height:7px;pointer-events:none;opacity:0}
+.ty .spark::before,.ty .spark::after{content:"";position:absolute;background:var(--teal-soft);border-radius:2px}
+.ty .spark::before{left:50%;top:0;width:2px;height:100%;transform:translateX(-50%)}
+.ty .spark::after{top:50%;left:0;height:2px;width:100%;transform:translateY(-50%)}
+.ty-ov.on .spark{animation:tytwinkle 2.6s var(--ease) infinite}
+@keyframes tytwinkle{0%,100%{opacity:0;transform:scale(.4)}50%{opacity:.8;transform:scale(1)}}
+.ty .s1{top:22%;left:16%;animation-delay:.2s!important}
+.ty .s2{top:30%;right:18%;animation-delay:1.1s!important}
+.ty .s3{bottom:26%;left:22%;animation-delay:.7s!important}
+.ty .s4{bottom:20%;right:16%;animation-delay:1.6s!important}
+
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}.fs,.faqwrap{opacity:1;transform:none}}
 </style>
 </head>
@@ -492,6 +526,22 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
   <div class="wrap"><b style="font-family:var(--disp);color:var(--teal)">Whollar</b> &middot; For providers &middot; Design mock v6, for review.</div>
 </footer>
 
+<div class="ty-ov" id="ty-pop" role="dialog" aria-modal="true" aria-labelledby="ty-h">
+  <div class="ty">
+    <button class="ty__x" id="ty-x" aria-label="Close">&times;</button>
+    <span class="spark s1"></span><span class="spark s2"></span><span class="spark s3"></span><span class="spark s4"></span>
+    <div class="ty__badge">
+      <div class="ring"></div><div class="ring pulse"></div>
+      <div class="core">
+        <svg viewBox="0 0 24 24"><path class="heart" d="M12 21s-7.5-4.6-10-9.3C.8 9 1.6 5.7 4.4 4.6 6.5 3.8 8.8 4.6 10 6.3l2 2 2-2c1.2-1.7 3.5-2.5 5.6-1.7 2.8 1.1 3.6 4.4 2.4 7.1C19.5 16.4 12 21 12 21Z"/></svg>
+      </div>
+    </div>
+    <span class="ty__ey">Welcome aboard</span>
+    <h2 id="ty-h">Thank you for being part of the <em>Whollar family</em></h2>
+    <p id="ty-p">You're one of the partners making internet pricing honest. We'll review your application and be in touch soon.</p>
+  </div>
+</div>
+
 <script src="js/lottie.min.js"></script>
 <script>
 (function(){
@@ -503,10 +553,18 @@ const TECH=['Fibre / FTTP','Cable (TPIA)','DSL','Fixed wireless','Satellite'];
 /* CATALYST SETUP: replace with your deployed function base URL — see catalyst-backend/README.md */
 const CATALYST_BASE='https://whollar-110003037934.development.catalystserverless.ca/server/formSubmit';
 function submitForm(path,fields){
-  return fetch(CATALYST_BASE+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(fields)})
+  return fetch(CATALYST_BASE+path,{method:'POST',body:JSON.stringify(fields)}) /* no JSON header: text/plain avoids CORS preflight (gateway swallows OPTIONS) */
     .then(r=>{if(!r.ok)throw new Error('submit failed: '+r.status);return r.json();})
     .catch(err=>{console.error('[whollar submit]',path,err);});
 }
+
+/* thank-you popup */
+const tyOv=$('#ty-pop');
+function showThankYou(msg){if(!tyOv)return;if(msg)$('#ty-p').textContent=msg;tyOv.classList.add('on');document.body.style.overflow='hidden';}
+function closeThankYou(){tyOv.classList.remove('on');document.body.style.overflow='';}
+$('#ty-x').addEventListener('click',closeThankYou);
+tyOv.addEventListener('click',e=>{if(e.target===tyOv)closeThankYou();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&tyOv.classList.contains('on'))closeThankYou();});
 
 function chips(el,items,key){el.innerHTML=items.map(i=>'<button type="button">'+i+'</button>').join('');
   [...el.children].forEach(b=>b.addEventListener('click',()=>{b.classList.toggle('on');
@@ -575,6 +633,7 @@ $('#p-go').addEventListener('click',()=>{
     $('#d-note').textContent='';}
   $('#stage1').style.display='none';$('#done').classList.add('on');
   document.querySelector('.hs-right').scrollIntoView({behavior:'smooth',block:'center'});
+  showThankYou(S.role==='other'?'Thanks for your note. We’ll read it and come back if there’s a fit.':undefined);
 });
 
 /* step animations */

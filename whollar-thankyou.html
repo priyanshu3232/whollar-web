@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thank you — Whollar</title>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&f[]=general-sans@500,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --teal:#0E2A20; --teal-deep:#0A2018; --teal-bright:#178A5A; --teal-soft:#7FE3B0;
+  --accent:#1E9E63; --accent-hover:#178A5A;
+  --cream:#FAF8F3; --paper:#ffffff; --mist:#F6F4EE;
+  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#8A968F; --line:#e7ebe6;
+  --label:'General Sans','Satoshi',system-ui,sans-serif;
+  --disp:'Satoshi',system-ui,sans-serif;
+  --body:'Inter',system-ui,sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
+  --rf:26px;
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--cream);color:var(--ink);font-family:var(--body);-webkit-font-smoothing:antialiased;display:flex;align-items:center;justify-content:center;padding:24px}
+button{font-family:var(--body)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+/* demo trigger */
+.demo{text-align:center}
+.demo h1{font-family:var(--disp);font-weight:900;color:var(--teal);font-size:22px;margin:0 0 6px}
+.demo p{color:var(--ink-2);font-size:14px;margin:0 0 20px}
+.trigger{display:inline-flex;align-items:center;gap:8px;border:none;cursor:pointer;font-weight:600;font-size:15px;color:#fff;background:var(--teal);border-radius:13px;padding:13px 24px;transition:background .18s,transform .18s}
+.trigger:hover{background:var(--teal-deep);transform:translateY(-1px)}
+
+/* overlay */
+.ty-ov{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(10,32,24,.55);backdrop-filter:blur(6px);opacity:0;transition:opacity .3s var(--ease)}
+.ty-ov.on{display:flex;opacity:1}
+
+/* the square box */
+.ty{position:relative;width:min(400px,92vw);aspect-ratio:1/1;border-radius:var(--rf);overflow:hidden;
+  background:linear-gradient(155deg,var(--teal-deep),#123B2C 55%,#17553D);color:#fff;
+  box-shadow:0 40px 100px -30px rgba(10,32,24,.65);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  padding:36px 34px;
+  transform:translateY(16px) scale(.94);opacity:0;transition:transform .4s var(--ease),opacity .3s var(--ease)}
+.ty-ov.on .ty{transform:none;opacity:1}
+.ty::before{content:"";position:absolute;inset:0;background:
+  radial-gradient(300px 200px at 82% -12%,rgba(127,227,176,.22),transparent 62%),
+  radial-gradient(260px 200px at 6% 112%,rgba(30,158,99,.2),transparent 60%);pointer-events:none}
+.ty::after{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1px);background-size:16px 16px;opacity:.5;pointer-events:none}
+
+/* animated ring badge */
+.ty__badge{width:78px;height:78px;position:relative;margin-bottom:22px}
+.ty__badge .ring{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(127,227,176,.35)}
+.ty__badge .ring.pulse{animation:tyring 2.4s var(--ease) infinite}
+@keyframes tyring{0%{transform:scale(1);opacity:.7}70%,100%{transform:scale(1.5);opacity:0}}
+.ty__badge .core{position:absolute;inset:0;border-radius:22px;background:rgba(127,227,176,.16);border:1px solid rgba(127,227,176,.45);display:grid;place-items:center}
+.ty__badge svg{width:38px;height:38px;stroke:var(--teal-soft);stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.ty__badge .heart{stroke-dasharray:60;stroke-dashoffset:60;animation:tydraw .7s .35s var(--ease) forwards}
+@keyframes tydraw{to{stroke-dashoffset:0}}
+
+.ty__ey{position:relative;font-family:var(--label);font-weight:600;font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--teal-soft);margin-bottom:12px}
+.ty h2{position:relative;font-family:var(--disp);font-weight:900;font-size:clamp(24px,4.4vw,30px);line-height:1.12;letter-spacing:-.02em;color:#fff;margin:0;text-wrap:balance}
+.ty h2 em{font-style:normal;color:var(--teal-soft)}
+.ty p{position:relative;margin-top:14px;font-size:14px;line-height:1.6;color:rgba(255,255,255,.72);max-width:280px}
+
+.ty__x{position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.14);border:none;color:#fff;font-size:18px;cursor:pointer;display:grid;place-items:center;line-height:1;z-index:4;transition:background .15s}
+.ty__x:hover{background:rgba(255,255,255,.26)}
+
+/* little sparkles */
+.spark{position:absolute;width:7px;height:7px;pointer-events:none;opacity:0}
+.spark::before,.spark::after{content:"";position:absolute;background:var(--teal-soft);border-radius:2px}
+.spark::before{left:50%;top:0;width:2px;height:100%;transform:translateX(-50%)}
+.spark::after{top:50%;left:0;height:2px;width:100%;transform:translateY(-50%)}
+.ty-ov.on .spark{animation:twinkle 2.6s var(--ease) infinite}
+@keyframes twinkle{0%,100%{opacity:0;transform:scale(.4)}50%{opacity:.8;transform:scale(1)}}
+.s1{top:22%;left:16%;animation-delay:.2s!important}
+.s2{top:30%;right:18%;animation-delay:1.1s!important}
+.s3{bottom:26%;left:22%;animation-delay:.7s!important}
+.s4{bottom:20%;right:16%;animation-delay:1.6s!important}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<div class="demo">
+  <h1>Whollar · thank-you popup</h1>
+  <p>Preview of the square tile.</p>
+  <button class="trigger" id="open">Show the popup</button>
+</div>
+
+<div class="ty-ov" id="ty" role="dialog" aria-modal="true" aria-labelledby="ty-h">
+  <div class="ty">
+    <button class="ty__x" id="ty-x" aria-label="Close">&times;</button>
+    <span class="spark s1"></span><span class="spark s2"></span><span class="spark s3"></span><span class="spark s4"></span>
+    <div class="ty__badge">
+      <div class="ring"></div><div class="ring pulse"></div>
+      <div class="core">
+        <svg viewBox="0 0 24 24"><path class="heart" d="M12 21s-7.5-4.6-10-9.3C.8 9 1.6 5.7 4.4 4.6 6.5 3.8 8.8 4.6 10 6.3l2 2 2-2c1.2-1.7 3.5-2.5 5.6-1.7 2.8 1.1 3.6 4.4 2.4 7.1C19.5 16.4 12 21 12 21Z"/></svg>
+      </div>
+    </div>
+    <span class="ty__ey">Welcome aboard</span>
+    <h2 id="ty-h">Thank you for being part of the <em>Whollar family</em></h2>
+    <p>You're one of the households making internet pricing honest. We'll be in touch soon.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $=s=>document.querySelector(s);
+  const ov=$('#ty');
+  function open(){ov.classList.add('on');document.body.style.overflow='hidden';}
+  function close(){ov.classList.remove('on');document.body.style.overflow='';}
+  $('#open').addEventListener('click',open);
+  $('#ty-x').addEventListener('click',close);
+  ov.addEventListener('click',e=>{if(e.target===ov)close();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&ov.classList.contains('on'))close();});
+})();
+</script>
+</body>
+</html>
