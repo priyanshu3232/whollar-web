@@ -6,3 +6,5 @@ node_modules/
 .env
 # Catalyst build artifacts
 catalyst-backend/**/.output/
+.vercel
+.env*
