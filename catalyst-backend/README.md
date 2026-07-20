@@ -8,7 +8,7 @@ Advanced I/O functions:
   and stores them in Catalyst's Data Store (and File Store, for attached bills). It replaces the
   `console.log('[whollar-... placeholder]', ...)` stubs in the site's HTML with real `fetch()` calls.
 - **`billOcr`** — reads the bill a household attaches on the checkup tool and extracts structured
-  fields (provider, speed, access tech, promo date, amounts), so the checkup form can auto-fill
+  fields (provider, speed, access tech, promo date, amounts, postal code), so the checkup form can auto-fill
   itself instead of making the household retype everything from the bill they just uploaded.
   Claude reads the file **directly** — vision for images, native PDF support for PDFs — so there is
   no separate OCR step. (It originally used Catalyst's Zia OCR; Zia returns `ML_ERROR: Unable to
@@ -65,7 +65,7 @@ the tables. See **Going to production** at the bottom before pointing the live w
 ## 2. Create the Data Store tables
 
 In the Catalyst console: **Cloud Scale → Data Store → Create Table**. Catalyst tables aren't
-defined as code, so create these five tables and columns by hand once. `Text` = up to 10,000
+defined as code, so create these six tables and columns by hand once. `Text` = up to 10,000
 characters, `Var Char` = up to 255. Every column below should allow nulls unless marked required.
 
 ### WaitlistSignups
@@ -143,6 +143,15 @@ characters, `Var Char` = up to 255. Every column below should allow nulls unless
 | LOA | Var Char | |
 | OtherType | Var Char | |
 | Note | Text | |
+| SubmittedAt | DateTime | |
+
+### CalculatorEstimates
+| Column | Type | Notes |
+|---|---|---|
+| PostalCode | Var Char | |
+| FSA | Var Char | |
+| MonthlyBill | Double | |
+| EstimatedAnnualSavings | Double | |
 | SubmittedAt | DateTime | |
 
 ## 3. Create the File Store folder (for bill attachments)
@@ -223,6 +232,7 @@ with it automatically.
 | POST | `/bill-checkup-join` | Bill checkup tool, all "join the waitlist" entry points |
 | POST | `/deep-read` | Bill checkup tool, "send me a deep read" |
 | POST | `/partner-application` | Partner application form |
+| POST | `/calculator-estimate` | Savings calculator, anonymous estimate snapshot |
 
 All routes return `{ ok: true, id }` on success (`id` is the new row's `ROWID`) or
 `{ ok: false, error }` with a 4xx/5xx status on failure.
@@ -236,8 +246,11 @@ All routes return `{ ok: true, id }` on success (`id` is the new row's `ROWID`) 
 Accepts a PDF or an image (`image/jpeg`, `image/png`, `image/gif`, `image/webp`) under the
 multipart field `billFile`. Returns `{ ok: true, fields }` on success, where `fields` matches the
 checkup form's `#prov`/`#cost`/`#spd`/`#tech`/`#pdate`/`#disc` values exactly (`null` for anything
-the model wasn't confident about — the form just leaves that field blank), or `{ ok: false, error }`
-on failure.
+the model wasn't confident about — the form just leaves that field blank), plus `postalCode` — the
+Canadian postal code of the service/billing address on the bill, formatted `A1A 1A1`, `null` if not
+confidently found. Or `{ ok: false, error }` on failure. (The checkup UI no longer asks the
+access-technology question, but `accessTechnology` is still extracted and returned — the frontend
+stores it silently.)
 
 Two constraints worth preserving if you edit `BILL_EXTRACTION_TOOL`:
 

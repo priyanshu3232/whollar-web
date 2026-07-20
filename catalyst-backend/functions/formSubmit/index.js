@@ -307,4 +307,25 @@ app.post('/partner-application', async (req, res) => {
   }
 });
 
+// Savings calculator — anonymous estimate snapshot (postal code + monthly
+// bill → projected annual savings shown to the visitor).
+// Table: CalculatorEstimates
+app.post('/calculator-estimate', async (req, res) => {
+  const b = req.body || {};
+
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const row = await insert(catalystApp, 'CalculatorEstimates', {
+      PostalCode: orNull(str(b.postal).toUpperCase() || null),
+      FSA: orNull(str(b.fsa).toUpperCase() || null),
+      MonthlyBill: toNumber(b.monthlyBill),
+      EstimatedAnnualSavings: toNumber(b.estimatedAnnualSavings),
+      SubmittedAt: catalystNow()
+    });
+    res.status(200).json({ ok: true, id: row.ROWID });
+  } catch (err) {
+    serverError(res, err, 'calculator-estimate');
+  }
+});
+
 module.exports = app;

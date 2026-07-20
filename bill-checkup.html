@@ -316,11 +316,11 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
 <body data-screen="1">
 <nav class="whl-nav">
   <div class="whl-nav__in">
-    <a class="whl-mark" href="index.html">
+    <a class="whl-mark" href="/">
       <svg viewBox="0 0 120 120"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
       <b>Whollar</b>
     </a>
-    <a class="whl-nav__back" href="index.html">&larr; Back to home</a>
+    <a class="whl-nav__back" href="/">&larr; Back to home</a>
     <a class="whl-btn whl-btn--sm" href="waitlist/">Join the waitlist</a>
   </div>
 </nav>
@@ -376,10 +376,6 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
             <label for="spd">Download speed</label>
             <select id="spd"><option value="">Choose&hellip;</option><option value="25">25 or less</option><option value="50">50</option><option value="100">100</option><option value="150">150</option><option value="300">300</option><option value="500">500</option><option value="1000">1 Gig</option><option value="1500">1.5 Gig or faster</option><option value="0">Not sure</option></select>
             <span class="fh">Beside your plan name, e.g. &ldquo;Gigabit 1.5&rdquo;.</span>
-          </div>
-          <div class="f" data-live>
-            <label for="tech">How it reaches your house</label>
-            <select id="tech"><option value="">Choose&hellip;</option><option>Cable (TV coax jack)</option><option>Fibre (thin glass line)</option><option>DSL (old phone line)</option><option>Fixed wireless (5G antenna)</option><option>Satellite (dish)</option><option>Not sure</option></select>
           </div>
           <div class="f" data-live>
             <label for="pdate">When does your promo / discount end?</label>
@@ -559,7 +555,6 @@ $('#pc').addEventListener('input',e=>{
 $('#prov').addEventListener('change',e=>S.prov=e.target.value);
 $('#cost').addEventListener('input',e=>S.cost=parseFloat(e.target.value.replace(/[^0-9.]/g,''))||0);
 $('#spd').addEventListener('change',e=>S.spd=e.target.value||null);
-$('#tech').addEventListener('change',e=>S.tech=e.target.value);
 $('#disc').addEventListener('input',e=>S.disc=parseFloat(e.target.value.replace(/[^0-9.]/g,''))||0);
 $('#pdate').addEventListener('input',e=>{
   S.pdate=e.target.value||null;S.pmo=0;S.expired=false;
@@ -594,10 +589,11 @@ function autofillFromBill(f){
     .then(data=>{
       const fields=data&&data.fields;
       if(!fields)return;
+      setFieldValue($('#pc'),fields.postalCode);
       setFieldValue($('#prov'),fields.provider);
       if(fields.monthlyChargeDollars!=null)setFieldValue($('#cost'),fields.monthlyChargeDollars);
       setFieldValue($('#spd'),fields.downloadSpeedMbps);
-      setFieldValue($('#tech'),fields.accessTechnology);
+      if(fields.accessTechnology)S.tech=fields.accessTechnology; /* question removed from UI; still captured + sent */
       setFieldValue($('#pdate'),fields.promoEndDate);
       if(fields.discountAmountDollars!=null)setFieldValue($('#disc'),fields.discountAmountDollars);
       $('#filename').textContent=original;
@@ -673,18 +669,22 @@ $('#check').addEventListener('click',()=>{
 $('#edit-all').addEventListener('click',()=>screen(1));
 
 /* ---------- signal ---------- */
+const money=n=>'$'+(+n.toFixed(2));
+function effCost(){return S.expired?S.cost:Math.max(0,S.cost-(S.disc||0));} /* what they actually pay today */
+function promoDays(){if(!S.pdate)return null;return (new Date(S.pdate+'T12:00:00')-Date.now())/(1000*60*60*24);}
 const BAR=f=>'<div class="sig__bars">'+[0,1,2,3].map(i=>'<i class="'+(f[i]||'')+' pop"></i>').join('')+'</div>';
 const CTX=()=>{const sp=S.spd&&S.spd!=='0'?(+S.spd>=1000?(+S.spd>=1500?'1.5 Gbps+':'1 Gbps'):S.spd+' Mbps'):null;
-  return ['your complete bill vs the advertised market',sp,S.pc?FSA[S.pc[0]]:null].filter(Boolean).join(' \u00b7 ');};
+  return [S.cost?'you pay '+money(effCost())+'/mo'+(S.disc&&!S.expired?' with promo':''):null,'your complete bill vs the advertised market',sp,S.pc?FSA[S.pc[0]]:null].filter(Boolean).join(' \u00b7 ');};
 const STATES={
 strong:()=>({bars:BAR(['f','f','f','f']),h:'Strong deal',read:'Your complete bill sits ahead of the advertised market for your tier. The play now is <b>keeping it past renewal</b> \u2014 exactly what a pooled bid is for.'}),
 fair:()=>({bars:BAR(['f','f','fa','']),h:'Fair deal',read:'Near the going rate \u2014 not a crisis, not a deal. \u201cNear\u201d is what group bids beat, without you making a single call.'}),
 weak:()=>({bars:BAR(['fw','','','']),cls:'warnbg',h:'Weak deal',read:'Your complete bill runs <b>above the going rate</b> for what you\u2019re getting \u2014 the kind of gap that compounds every month. Your cohort\u2019s bid is built to close it.'}),
-cliff:()=>({bars:'<div class="sig__bars"><i class="f pop"></i><i class="f pop"></i><i class="f pop"></i><i class="f pop"></i><span class="arrow">\u2192</span><i class="fw pop"></i><i></i><i></i><i></i></div>',cls:'warnbg',h:'Cliff ahead',read:'Fine today. Around <b>'+monthName(S.pdate)+'</b> your promo ends and your complete bill jumps \u2014 resets usually land 30\u201360% higher, on autopay. The window to pool is <b>before</b> the jump.'})};
+cliff:()=>({bars:'<div class="sig__bars"><i class="f pop"></i><i class="f pop"></i><i class="f pop"></i><i class="f pop"></i><span class="arrow">\u2192</span><i class="fw pop"></i><i></i><i></i><i></i></div>',cls:'warnbg',h:'Cliff ahead',read:'Even if today\u2019s price looks fine \u2014 your promo ends around <b>'+monthName(S.pdate)+'</b>, within the next two months. That\u2019s the part of your bill nobody explains: the reset lands on autopay, usually 30\u201360% higher'+(S.disc?' (about <b>'+money(S.disc)+'/mo</b> back onto your bill)':'')+'. The window to pool is <b>before</b> the jump.'})};
 function monthName(d){if(!d)return 'renewal';const dt=new Date(d+'T12:00:00');return dt.toLocaleDateString('en-CA',{month:'long',year:'numeric'});}
 function verdict(){
-  if(S.pmo>0)return 'cliff';
-  const r=S.cost/(TYP[S.spd]||60);
+  const d=promoDays();
+  if(d!=null&&d>=0&&d<=60)return 'cliff'; /* promo ends within ~2 months: always warn, whatever the price */
+  const r=effCost()/(TYP[S.spd]||60);
   return r<=0.92?'strong':r<=1.12?'fair':'weak';}
 function setSig(k){const s=STATES[k]();
   $('#sig').className='sig '+(s.cls||'');
@@ -704,9 +704,9 @@ function renderResults(){
   $('#rgrid').innerHTML=
     rv('Cohort',S.pc?S.pc+' \u00b7 '+FSA[S.pc[0]]:'Add postal code','pc',false,'pin')+
     rv('Provider',S.prov?S.prov.split(' (')[0]:'\u2014','prov',false,'bld')+
-    rv('Monthly charge',S.cost?('$'+S.cost+'/mo'):'\u2014','cost',false,'dol')+
+    rv('Monthly charge',S.cost?(S.disc&&!S.expired?money(effCost())+'/mo with promo':'$'+S.cost+'/mo'):'\u2014','cost',false,'dol')+
     rv('Speed',sp,'spd',false,'gau')+
-    rv('Connection',S.tech?S.tech.split(' (')[0]:'\u2014','tech',false,'plg')+
+    (S.tech?rv('Connection',S.tech.split(' (')[0],'tech',false,'plg'):'')+
     rv('Promo',promoVal,'pdate',hot,'cal')+
     (S.disc?rv('Discount','$'+S.disc+'/mo','disc',false,'tag'):'')+
     (S.file?rv('Bill attached','\u2713 '+S.file,'bill-file',false,'clp'):'');

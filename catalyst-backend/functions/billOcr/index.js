@@ -96,6 +96,8 @@ const BILL_EXTRACTION_TOOL = {
             'Fixed wireless (5G antenna)', 'Satellite (dish)', 'Not sure'
           ]
         }),
+        // Still extracted even though the checkup UI no longer asks the
+        // access-technology question — the frontend stores it silently.
         description: 'How the connection reaches the house.'
       },
       promoEndDate: {
@@ -107,11 +109,17 @@ const BILL_EXTRACTION_TOOL = {
       discountAmountDollars: {
         ...nullable({ type: 'number' }),
         description: 'Monthly discount amount in dollars, if shown as its own line item.'
+      },
+      postalCode: {
+        ...nullable({ type: 'string' }),
+        description:
+          'Canadian postal code of the service/billing address on the bill, formatted "A1A 1A1". ' +
+          'Null if not confidently found.'
       }
     },
     required: [
       'provider', 'monthlyChargeDollars', 'downloadSpeedMbps',
-      'accessTechnology', 'promoEndDate', 'discountAmountDollars'
+      'accessTechnology', 'promoEndDate', 'discountAmountDollars', 'postalCode'
     ],
     additionalProperties: false
   }
@@ -176,7 +184,8 @@ async function extractBillFields(file) {
 // Drives the "Shortcut: attach your bill" upload (#bill-file) on the bill
 // checkup tool — Claude reads the bill directly (vision for images, native PDF
 // support for PDFs) and returns fields the frontend drops straight into
-// #prov/#cost/#spd/#tech/#pdate/#disc.
+// #prov/#cost/#spd/#tech/#pdate/#disc, plus postalCode (the bill's
+// service/billing address postal code, "A1A 1A1", null if not found).
 // Frontend must POST multipart/form-data with the file under "billFile".
 app.post('/extract-bill', upload.single('billFile'), async (req, res) => {
   if (!req.file) {
