@@ -34,6 +34,12 @@ jobs:
           npm ci
           node --check index.js
 
+      - name: Check crmSync
+        working-directory: catalyst-backend/functions/crmSync
+        run: |
+          npm ci
+          node --check index.js
+
   # ── Stage 2: deploy to the Development environment ────────
   # Runs ONLY if the test job above passed ("needs: test").
   deploy:
