@@ -1,0 +1,56 @@
+# This file IS the pipeline. GitHub reads any .yml file inside
+# .github/workflows/ and runs it on its own servers (GitHub Actions).
+
+name: Deploy Catalyst functions
+
+# WHEN to run: every push to main that touches the backend.
+# Edits to blog/HTML files won't trigger a function deploy.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "catalyst-backend/**"
+  workflow_dispatch: # also adds a manual "Run workflow" button in the Actions tab
+
+jobs:
+  # ── Stage 1: automated tests ──────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 # download the repo onto the runner
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20 # same Node version as the Catalyst stack
+
+      - name: Check formSubmit
+        working-directory: catalyst-backend/functions/formSubmit
+        run: |
+          npm ci
+          node --check index.js
+
+      - name: Check billOcr
+        working-directory: catalyst-backend/functions/billOcr
+        run: |
+          npm ci
+          node --check index.js
+
+  # ── Stage 2: deploy to the Development environment ────────
+  # Runs ONLY if the test job above passed ("needs: test").
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Catalyst CLI
+        run: npm install -g zcatalyst-cli
+
+      - name: Deploy to Catalyst (Development env)
+        working-directory: catalyst-backend
+        env:
+          # Secret token you store in GitHub — never written in this file
+          CATALYST_TOKEN: ${{ secrets.CATALYST_TOKEN }}
+        run: catalyst deploy
