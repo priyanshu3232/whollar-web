@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Collective switching: what if your street switched at once</title>
+<meta name="description" content="Collective switching pools households by region and renewal date, then providers compete for the group. How it works, and why a street beats a caller.">
+<link rel="canonical" href="https://whollar.ca/blog/collective-switching-internet-canada">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Collective switching: what if your street switched at once">
+<meta property="og:description" content="Collective switching pools households by region and renewal date, then providers compete for the group. How it works, and why a street beats a caller.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "@id": "https://whollar.ca/blog/collective-switching-internet-canada#article",
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://whollar.ca/blog/collective-switching-internet-canada" },
+  "headline": "Collective switching: what if your street switched at once",
+  "description": "Collective switching pools households by region and renewal date, then providers compete for the group. How it works, and why a street beats a caller.",
+  "image": "",
+  "datePublished": "2026-07-20",
+  "dateModified": "2026-07-20",
+  "author": { "@type": "Organization", "name": "Whollar", "url": "https://whollar.ca" },
+  "publisher": { "@type": "Organization", "name": "Whollar", "logo": { "@type": "ImageObject", "url": "https://whollar.ca/logo.png" } },
+  "keywords": ["collective switching", "group buying internet", "reverse auction internet", "collective switching canada"],
+  "articleSection": "How it works",
+  "url": "https://whollar.ca/blog/collective-switching-internet-canada"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is collective switching?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Collective switching is when many households are grouped into one negotiating unit and suppliers compete to win the whole group, usually through a reverse auction. Each member then decides individually whether to accept the winning offer. It has been used at scale in energy markets and is now being applied to internet in Canada."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I have to switch if my cohort gets an offer?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Joining a cohort creates leverage, not obligation. When bids come back you see the winning offer and choose for yourself. If it does not beat what you have, you keep what you have and lose nothing."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it cost anything to join?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Joining a Whollar cohort is free for households. Whollar is paid by providers on success, which is also why the offers have to be genuinely good: the group only moves for a bid worth moving for."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Has this actually worked anywhere?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Collective switching platforms have run group auctions for energy for years, with iChoosr alone reporting more than 1.5 million households switched. Internet is a newer application of the same mechanism, and Canada currently has no established platform doing it, which is the gap Whollar is being built to fill."
+      }
+    }
+  ]
+}
+</script>
+<style>
+  :root{
+    --paper:#FAFAF5; --ink:#0E2A20; --body:#27332C; --muted:#6E7B72;
+    --accent:#12805A; --accent-2:#1E9E63; --wash:#EBF3ED; --line:#E5E4DA; --line-2:#D8D7CC;
+    --read:700px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--body);
+    font-family:'Source Serif 4',Georgia,serif;font-size:20px;line-height:1.72;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  ::selection{background:var(--accent-2);color:#fff}
+  .wrap{max-width:var(--read);margin:0 auto;padding:0 26px}
+  a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(18,128,90,.28)}
+  a:hover{border-bottom-color:var(--accent)}
+  .mast{border-bottom:1px solid var(--line);background:var(--paper);position:sticky;top:0;z-index:20;backdrop-filter:saturate(120%) blur(6px)}
+  .mast .in{max-width:var(--read);margin:0 auto;padding:14px 26px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .brand{display:inline-flex;align-items:center;gap:9px;border:0}
+  .brand svg{width:26px;height:26px;display:block}
+  .brand b{font-family:'Bricolage Grotesque';font-weight:800;font-size:18px;color:var(--ink);letter-spacing:-.02em}
+  .mast .cta{font-family:'Space Mono';font-size:12px;font-weight:700;letter-spacing:.02em;color:#fff;background:var(--accent);padding:8px 14px;border-radius:8px;border:0}
+  .mast .cta:hover{background:var(--ink)}
+  article{padding:46px 0 20px}
+  .eyebrow{font-family:'Space Mono';font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:18px}
+  h1{font-family:'Bricolage Grotesque';font-weight:800;color:var(--ink);font-size:clamp(33px,5.4vw,50px);line-height:1.04;letter-spacing:-.025em;margin:0}
+  .deck{font-size:clamp(19px,2.4vw,23px);color:var(--muted);font-weight:400;margin:20px 0 0;line-height:1.5;font-style:italic}
+  .byline{display:flex;align-items:center;gap:14px;margin:26px 0 0;padding:16px 0 0;border-top:1px solid var(--line);font-family:'Space Mono';font-size:12.5px;color:var(--muted);letter-spacing:.02em;flex-wrap:wrap}
+  .byline .who{color:var(--ink);font-weight:700}
+  .byline .dot{color:var(--line-2)}
+  .draft{color:var(--accent);border:1px solid rgba(18,128,90,.3);border-radius:5px;padding:1px 7px;font-weight:700}
+  .body{padding:8px 0 0}
+  .body p{margin:24px 0}
+  .body p.lead{font-size:22px;line-height:1.6}
+  h2{font-family:'Bricolage Grotesque';font-weight:700;color:var(--ink);font-size:clamp(24px,3.2vw,31px);line-height:1.12;letter-spacing:-.02em;margin:52px 0 0}
+  h2 + p{margin-top:16px}
+  .tldr{margin:34px 0 0;border:1px solid var(--line-2);border-radius:16px;background:#fff;padding:24px 26px 22px}
+  .tldr .lbl{font-family:'Space Mono';font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:14px}
+  .tldr ul{list-style:none;margin:0;padding:0}
+  .tldr li{font-family:'Source Serif 4';font-size:17.5px;line-height:1.5;color:var(--body);padding:8px 0 8px 26px;position:relative;border-bottom:1px solid var(--line)}
+  .tldr li:last-child{border-bottom:0}
+  .tldr li::before{content:"";position:absolute;left:2px;top:16px;width:8px;height:8px;border-radius:2px;background:var(--accent-2)}
+  .tldr li b{color:var(--ink);font-weight:600}
+  .pq{margin:44px 0;padding:6px 0 6px 26px;border-left:3px solid var(--accent-2)}
+  .pq p{font-family:'Bricolage Grotesque';font-weight:600;color:var(--ink);font-size:clamp(23px,3vw,29px);line-height:1.2;letter-spacing:-.02em;margin:0}
+  figure{margin:44px 0;padding:0}
+  .figbox{border:1px solid var(--line-2);border-radius:18px;background:#fff;padding:26px 26px 20px}
+  .figbox svg{width:100%;height:auto;display:block}
+  figcaption{font-family:'Space Mono';font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5}
+  figcaption b{color:var(--ink)}
+  .invite{margin:40px 0 0;border:1px solid var(--line-2);border-radius:18px;background:linear-gradient(180deg,#fff,#F7FAF7);padding:28px 28px 26px}
+  .invite h3{font-family:'Bricolage Grotesque';font-weight:700;color:var(--ink);font-size:23px;letter-spacing:-.02em;margin:0 0 8px}
+  .invite p{margin:0 0 18px;font-size:18px;color:var(--body);line-height:1.55}
+  .invite .row{display:flex;gap:12px;flex-wrap:wrap}
+  .btn{font-family:'Space Mono';font-size:13px;font-weight:700;letter-spacing:.01em;padding:12px 18px;border-radius:10px;border:1px solid var(--accent);text-decoration:none}
+  .btn.solid{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn.solid:hover{background:var(--ink);border-color:var(--ink)}
+  .btn.ghost{background:transparent;color:var(--accent)}
+  .btn.ghost:hover{background:var(--wash)}
+  .fineprint{font-family:'Space Mono';font-size:11.5px;color:var(--muted);margin:14px 0 0;letter-spacing:.01em}
+  .faq{margin:56px 0 0;border-top:1px solid var(--line);padding-top:12px}
+  .faq h2{margin-top:28px}
+  .faq h3{font-family:'Bricolage Grotesque';font-weight:700;color:var(--ink);font-size:20px;letter-spacing:-.01em;margin:30px 0 0}
+  .faq p{margin:10px 0 0;font-size:18px;color:var(--body)}
+  .sources{margin:52px 0 0;border-top:1px solid var(--line);padding-top:22px}
+  .sources .lbl{font-family:'Space Mono';font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:12px}
+  .sources ol{margin:0;padding-left:22px}
+  .sources li{font-family:'Space Mono';font-size:12.5px;color:var(--muted);line-height:1.6;margin:8px 0}
+  .sources li a{color:var(--accent)}
+  .sources li b{color:var(--ink);font-weight:700}
+  .prod{margin:50px 0 0;border:1px dashed var(--line-2);border-radius:14px;background:#fff;padding:20px 22px}
+  .prod .lbl{font-family:'Space Mono';font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:6px}
+  .prod p{font-family:'Space Mono';font-size:12px;color:var(--muted);margin:0 0 12px;line-height:1.6}
+  pre{background:var(--ink);color:#E9EDEA;border-radius:12px;padding:16px 18px;overflow-x:auto;font-family:'Space Mono';font-size:12px;line-height:1.7;margin:0}
+  pre .c{color:#7FA79B}
+  pre .k{color:#8FD9B6}
+  .dwrap{margin:38px 0;border:1px solid var(--line-2);border-radius:16px;overflow:hidden;background:#fff}
+  table.dtable{width:100%;border-collapse:collapse;font-size:16px}
+  .dtable th{font-family:'Space Mono';font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:var(--ink);text-align:left;padding:12px 16px}
+  .dtable td{padding:12px 16px;border-bottom:1px solid var(--line);color:var(--body);vertical-align:top}
+  .dtable tr:last-child td{border-bottom:0}
+  .dtable td b{color:var(--ink);font-weight:600}
+  .dtable td.num{font-family:'Space Mono';font-size:14px;white-space:nowrap;color:var(--ink)}
+  ol.steps{margin:38px 0;padding:0;list-style:none;counter-reset:st;border:1px solid var(--line-2);border-radius:16px;background:#fff;overflow:hidden}
+  ol.steps li{counter-increment:st;padding:16px 20px 16px 66px;position:relative;border-bottom:1px solid var(--line);font-size:17.5px;line-height:1.55}
+  ol.steps li:last-child{border-bottom:0}
+  ol.steps li::before{content:counter(st);position:absolute;left:18px;top:15px;width:30px;height:30px;border-radius:9px;background:var(--wash);color:var(--accent);font-family:'Space Mono';font-weight:700;font-size:14px;display:grid;place-items:center}
+  ol.steps li b{color:var(--ink);font-weight:600}
+  footer{margin-top:56px;border-top:1px solid var(--line);padding:26px 0 60px}
+  footer .in{max-width:var(--read);margin:0 auto;padding:0 26px;font-family:'Space Mono';font-size:12px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+  footer a{color:var(--accent);border:0}
+  @media(max-width:640px){body{font-size:19px}.body p.lead{font-size:20px}}
+</style>
+</head>
+<body>
+
+<div class="mast">
+  <div class="in">
+    <a class="brand" href="https://whollar.ca" aria-label="Whollar home">
+      <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
+      <b>Whollar</b>
+    </a>
+    <a class="cta" href="https://whollar.ca/join">Join the first cohort</a>
+  </div>
+</div>
+
+<div class="wrap">
+  <article>
+    <span class="eyebrow">How it works</span>
+    <h1>What if your whole street switched internet at once?</h1>
+    <p class="deck">One household has no leverage. A thousand households have an auction.</p>
+    <div class="byline">
+      <span class="who">Whollar</span><span class="dot">·</span><span>~5 min read</span>
+    </div>
+
+    <div class="body">
+      <p class="lead">Try a small thought experiment. Every household on your street has internet, and every one of them negotiated it alone.</p>
+
+      <p>Different plans, different promo dates, different prices for the same wires under the same pavement. Each of you, at some point, sat on hold trying to win a discount that your neighbour three doors down already has. Now imagine the alternative: the whole street, up for renewal in the same window, asking providers to compete for all of it at once. That, in one image, is collective switching.</p>
+
+      <div class="tldr">
+        <span class="lbl">The short version</span>
+        <ul>
+          <li><b>Collective switching</b> pools households by region and contract-renewal timing, then invites providers to bid for the group.</li>
+          <li>One household is easy to lose. A cohort of hundreds is a contract worth competing for, so the direction of the negotiation flips.</li>
+          <li>The mechanism runs as a <b>reverse auction</b>: providers bid the price down to win the group, instead of households bidding time to win a discount.</li>
+          <li>Nobody is obligated to accept an offer, and joining a cohort is free for households.</li>
+          <li>The model has already moved more than 1.5 million households in energy markets. Internet is the same shape of problem.</li>
+        </ul>
+      </div>
+
+      <h2>What collective switching is</h2>
+      <p>Collective switching is the practice of grouping many households into one negotiating unit, then letting suppliers compete for the group's business. The group is not a buying club and not a contract: it is aggregated demand, organised around the one thing that makes internet pricing move, which is the moment contracts come up for renewal. Providers submit offers, the group's members see the winning bid, and each household decides for itself whether to take it.</p>
+      <p>The critical detail is who does the work. In the familiar version of saving money on internet, the household does everything: research, calls, hold music, the annual renegotiation. In collective switching, the group’s organiser does it once, on behalf of everyone, and the providers respond to the group.</p>
+
+      <ol class="steps"><li><b>Join, free.</b> A household holds a spot in its regional cohort. No fee, no commitment.</li><li><b>Get pooled.</b> Members are grouped by region and by when their contracts come up for renewal.</li><li><b>Providers bid.</b> A reverse auction runs, and providers compete down to win the whole group.</li><li><b>The offer comes back.</b> Every member sees the winning bid.</li><li><b>Each household chooses.</b> Take it, or keep what you have. Nobody is obligated.</li></ol>
+
+      <h2>Why one household has no leverage</h2>
+      <p>A provider can lose a single household and not feel it. Your monthly bill is a rounding error against their subscriber base, and they know from experience that most people will not actually leave: the Competition Bureau found that five in six Canadian households had not switched providers in a two-year period. So the incentive to offer you their best price, unprompted, is close to zero. The best price is reserved for the moment you credibly threaten to walk, which is why it so often appears only at the cancellation desk.</p>
+
+      <div class="pq"><p>You do not need a better script. You need a bigger table.</p></div>
+
+      <h2>What changes when demand is pooled</h2>
+      <p>Scale changes the arithmetic on the provider's side. A cohort of a few hundred or a few thousand households, all in one region, all genuinely free to move at the same time, is no longer a rounding error. It is a block of recurring revenue that will land somewhere, and the only question is where. At that point providers have a reason to lead with their best number rather than hide it, because a competitor certainly will. The auction runs in reverse: instead of the price climbing until someone pays it, it falls until someone wins it.</p>
+      <p>The savings this produces are not magic. They come from three ordinary places: the acquisition budgets providers already spend to win customers one at a time, <a href="https://whollar.ca/blog/teksavvy-vs-rogers-same-cable">the wholesale gap between infrastructure cost and retail price</a>, and the simple fact that a visible, competitive bid leaves less room for the quiet regular-rate margin that inertia usually protects.</p>
+
+      <h2>Why you are never obligated to accept</h2>
+      <p>A cohort is leverage, not a commitment. When bids come back, each member sees the winning offer and chooses. Take it, or keep what you have. Nothing about joining locks anyone in, and there is no fee to be part of the group. This matters beyond fairness: it is what keeps the bids honest. Providers know the group only moves if the offer is genuinely worth moving for, so the offer has to be.</p>
+
+      <h2>Where Whollar fits</h2>
+      <p>Whollar is the Canadian platform being built to run exactly this: households pooled by region and by when their contracts renew, providers of every kind, incumbents included, invited to bid, members keeping the savings and the choice. The first cohorts are forming now, region by region. The idea is old and simple, which is rather the point. Bargaining power has always been a numbers game. Households have just been playing it one at a time.</p>
+
+<div class="invite">
+        <h3>Your street, finally on the same side of the table.</h3>
+        <p>Holding a spot costs nothing and commits you to nothing, and every neighbour who joins alongside you makes the eventual bid a little stronger. When your region opens, the group negotiates once, so you never have to.</p>
+        <div class="row">
+          <a class="btn solid" href="https://whollar.ca/join">Hold your spot in the first cohort</a>
+          <a class="btn ghost" href="https://whollar.ca/checkup">Run a two-minute checkup</a>
+        </div>
+        <p class="fineprint">Free for households · nothing to buy today · you only act if a bid comes back that you want.</p>
+      </div>
+
+      <figure>
+        <div class="figbox">
+          <svg viewBox="0 0 640 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram: many separate households are grouped into one cohort, and three provider bids compete downward for the cohort.">
+            <text x="40" y="30" font-family="'Bricolage Grotesque',sans-serif" font-size="17" font-weight="700" fill="#0E2A20">Many households. One cohort. Competing bids.</text>
+            <g fill="#8B978F">
+              <circle cx="70" cy="90" r="9"/><circle cx="102" cy="72" r="9"/><circle cx="134" cy="96" r="9"/><circle cx="88" cy="126" r="9"/><circle cx="126" cy="132" r="9"/><circle cx="160" cy="70" r="9"/><circle cx="164" cy="116" r="9"/>
+            </g>
+            <text x="70" y="170" font-family="'Space Mono',monospace" font-size="12" fill="#6E7B72">households, alone</text>
+            <path d="M195 100 h60" stroke="#12805A" stroke-width="3" marker-end="url(#arr)"/>
+            <defs><marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#12805A"/></marker></defs>
+            <rect x="268" y="58" width="130" height="86" rx="14" fill="#EBF3ED" stroke="#1E9E63" stroke-width="2"/>
+            <g fill="#12805A">
+              <circle cx="300" cy="86" r="8"/><circle cx="326" cy="76" r="8"/><circle cx="352" cy="90" r="8"/><circle cx="310" cy="114" r="8"/><circle cx="344" cy="118" r="8"/><circle cx="370" cy="104" r="8"/>
+            </g>
+            <text x="268" y="170" font-family="'Space Mono',monospace" font-size="12" fill="#12805A">one cohort, by region + renewal date</text>
+            <path d="M430 100 h60" stroke="#12805A" stroke-width="3" marker-end="url(#arr)"/>
+            <g font-family="'Space Mono',monospace" font-size="13" font-weight="700">
+              <rect x="510" y="52" width="104" height="30" rx="8" fill="#fff" stroke="#D8D7CC"/><text x="562" y="72" text-anchor="middle" fill="#6E7B72">bid · $72</text>
+              <rect x="510" y="92" width="104" height="30" rx="8" fill="#fff" stroke="#D8D7CC"/><text x="562" y="112" text-anchor="middle" fill="#6E7B72">bid · $64</text>
+              <rect x="510" y="132" width="104" height="30" rx="8" fill="#EBF3ED" stroke="#1E9E63" stroke-width="2"/><text x="562" y="152" text-anchor="middle" fill="#12805A">bid · $55 ✓</text>
+            </g>
+            <text x="510" y="196" font-family="'Space Mono',monospace" font-size="12" fill="#6E7B72">providers compete down</text>
+            <text x="40" y="250" font-family="'Space Mono',monospace" font-size="12" fill="#6E7B72">Bid figures are illustrative. Real prices are the output of a real auction.</text>
+          </svg>
+        </div>
+        <figcaption><b>The mechanism in one line.</b> Pool demand, invite bids, let the price fall. Members keep the savings and the choice.</figcaption>
+      </figure>
+
+      <div class="faq">
+        <h2>Frequently asked questions</h2>
+
+        <h3>What is collective switching?</h3>
+        <p>Collective switching is when many households are grouped into one negotiating unit and suppliers compete to win the whole group, usually through a reverse auction. Each member then decides individually whether to accept the winning offer. It has been used at scale in energy markets and is now being applied to internet in Canada.</p>
+
+        <h3>Do I have to switch if my cohort gets an offer?</h3>
+        <p>No. Joining a cohort creates leverage, not obligation. When bids come back you see the winning offer and choose for yourself. If it does not beat what you have, you keep what you have and lose nothing.</p>
+
+        <h3>Does it cost anything to join?</h3>
+        <p>No. Joining a Whollar cohort is free for households. Whollar is paid by providers on success, which is also why the offers have to be genuinely good: the group only moves for a bid worth moving for.</p>
+
+        <h3>Has this actually worked anywhere?</h3>
+        <p>Yes. Collective switching platforms have run group auctions for energy for years, with iChoosr alone reporting <a href="https://whollar.ca/blog/collective-switching-energy-proof">more than 1.5 million households</a> switched. Internet is a newer application of the same mechanism, and Canada currently has no established platform doing it, which is the gap Whollar is being built to fill.</p>
+      </div>
+
+      <div class="sources">
+        <span class="lbl">Sources</span>
+        <ol>
+          <li><b>Switching inertia</b> (5 in 6 households did not switch in two years): Competition Bureau of Canada. <a href="https://competition-bureau.canada.ca/en/how-we-foster-competition/promotion-and-advocacy/reports-and-studies/market-study-highlights-competition-canadas-broadband-industry">competition-bureau.canada.ca</a></li>
+          <li><b>Collective switching at scale</b> (1.5M+ households, energy): iChoosr. <a href="https://www.ichoosr.com/">ichoosr.com</a></li>
+          <li><b>Wholesale market structure</b>: CRTC, Telecom Regulatory Policy 2024-180. <a href="https://crtc.gc.ca/eng/archive/2024/2024-180.htm">crtc.gc.ca</a></li>
+        </ol>
+      </div>
+
+    </div>
+  </article>
+</div>
+
+<footer>
+  <div class="in">
+    <span>© 2026 Whollar, now forming the first cohorts.</span>
+    <span><a href="https://whollar.ca/join">Join the first cohort</a> · <a href="https://whollar.ca">whollar.ca</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

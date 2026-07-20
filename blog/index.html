@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resources: plain-language reads on internet pricing in Canada · Whollar</title>
+<meta name="description" content="Ten plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
+<link rel="canonical" href="https://whollar.ca/blog/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Resources · Whollar">
+<meta property="og:description" content="Ten plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAFAF5; --card:#FFFEFB; --ink:#0E2A20; --body:#27332C; --muted:#6E7B72;
+    --accent:#12805A; --accent-2:#1E9E63; --wash:#EBF3ED; --line:#E5E4DA; --line-2:#D8D7CC;
+    --r:22px;
+    --sh-1:0 1px 2px rgba(16,40,34,.04),0 8px 24px rgba(16,40,34,.05);
+    --sh-2:0 2px 6px rgba(16,40,34,.06),0 18px 44px rgba(16,40,34,.09);
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--paper);color:var(--body);font-family:'Source Serif 4',Georgia,serif;font-size:18px;line-height:1.6}
+  a{color:var(--accent);text-decoration:none}
+
+  .mast{border-bottom:1px solid var(--line);background:var(--paper);position:sticky;top:0;z-index:20;backdrop-filter:saturate(120%) blur(6px)}
+  .mast .in{max-width:1080px;margin:0 auto;padding:14px 26px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .brand{display:inline-flex;align-items:center;gap:9px}
+  .brand svg{width:30px;height:30px;display:block}
+  .brand b{font-family:'Bricolage Grotesque';font-weight:800;font-size:19px;color:var(--ink);letter-spacing:-.01em}
+  .mast .cta{font-family:'Space Mono';font-size:12px;font-weight:700;letter-spacing:.02em;color:#fff;background:var(--accent);padding:10px 16px;border-radius:10px;white-space:nowrap}
+  .mast .cta:hover{background:var(--accent-2)}
+
+  .hero{max-width:1080px;margin:0 auto;padding:64px 26px 12px}
+  .hero .eyebrow{font-family:'Space Mono';font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:14px}
+  .hero h1{font-family:'Bricolage Grotesque';font-weight:800;font-size:clamp(34px,5.4vw,58px);line-height:1.04;letter-spacing:-.02em;color:var(--ink);margin:0;max-width:16ch}
+  .hero .sub{font-size:clamp(18px,2.2vw,21px);color:var(--muted);font-style:italic;line-height:1.5;margin:18px 0 0;max-width:56ch}
+  .hero .rule{height:1px;background:var(--line);margin:44px 0 0}
+
+  .grid{max-width:1080px;margin:0 auto;padding:40px 26px 30px;display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:22px}
+  .tile{display:flex;flex-direction:column;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:26px 26px 22px;box-shadow:var(--sh-1);transition:transform .25s cubic-bezier(.22,.61,.36,1),box-shadow .25s,border-color .25s}
+  .tile:hover{transform:translateY(-4px);box-shadow:var(--sh-2);border-color:var(--accent-2)}
+  .tile:first-child{grid-column:1/-1;background:linear-gradient(135deg,var(--card) 55%,var(--wash))}
+  .tile:first-child h2{font-size:clamp(24px,3.4vw,34px);max-width:24ch}
+  .tile-top{display:flex;align-items:baseline;gap:12px}
+  .num{font-family:'Space Mono';font-size:12px;font-weight:700;color:var(--line-2)}
+  .tile:hover .num{color:var(--accent-2)}
+  .tile .eyebrow{font-family:'Space Mono';font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+  .tile h2{font-family:'Bricolage Grotesque';font-weight:700;font-size:21px;line-height:1.18;letter-spacing:-.01em;color:var(--ink);margin:0}
+  .tile:hover h2{color:var(--accent)}
+  .tile .deck{font-style:italic;color:var(--muted);font-size:16px;line-height:1.5;margin:0;flex:1}
+  .tile .meta{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:14px;font-family:'Space Mono';font-size:12px;color:var(--muted)}
+  .tile .go{color:var(--accent);font-weight:700}
+  .tile .arr{display:inline-block;transition:transform .25s cubic-bezier(.22,.61,.36,1)}
+  .tile:hover .arr{transform:translateX(4px)}
+
+  footer{margin-top:36px;border-top:1px solid var(--line);padding:26px 0 60px}
+  footer .in{max-width:1080px;margin:0 auto;padding:0 26px;font-family:'Space Mono';font-size:12px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+  footer a{color:var(--accent)}
+
+  @media(max-width:640px){.grid{grid-template-columns:1fr;padding-top:30px}.hero{padding-top:44px}}
+</style>
+</head>
+<body>
+
+<div class="mast">
+  <div class="in">
+    <a class="brand" href="https://whollar.ca" aria-label="Whollar home">
+      <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
+      <b>Whollar</b>
+    </a>
+    <a class="cta" href="https://whollar.ca/join">Join the first cohort</a>
+  </div>
+</div>
+
+<main>
+  <section class="hero">
+    <span class="eyebrow">Resources</span>
+    <h1>Reading the fine print, so you do not have to.</h1>
+    <p class="sub">Ten plain-language reads on internet pricing in Canada: how the bill is built, why the price climbs after the promo, and how collective switching works.</p>
+    <div class="rule"></div>
+  </section>
+
+  <section class="grid" aria-label="Articles">
+      <a class="tile" href="/blog/overpaying-internet-canada">
+        <div class="tile-top">
+          <span class="num">01</span>
+          <span class="eyebrow">Saving money</span>
+        </div>
+        <h2>The $487 problem: why most Canadians overpay for internet and never say a word</h2>
+        <p class="deck">The cheaper plan is already running on the same cables. Here is why almost nobody asks for it, and why that is not your fault.</p>
+        <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
+      </a>
+      <a class="tile" href="/blog/internet-price-increase-promo-cliff">
+        <div class="tile-top">
+          <span class="num">02</span>
+          <span class="eyebrow">Saving money</span>
+        </div>
+        <h2>The promo cliff: why your internet bill quietly climbs after 12 to 24 months</h2>
+        <p class="deck">The number that won you as a customer was never the number you were going to keep paying.</p>
+        <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
+      </a>
+      <a class="tile" href="/blog/collective-switching-internet-canada">
+        <div class="tile-top">
+          <span class="num">03</span>
+          <span class="eyebrow">How it works</span>
+        </div>
+        <h2>What if your whole street switched internet at once?</h2>
+        <p class="deck">One household has no leverage. A thousand households have an auction.</p>
+        <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
+      </a>
+      <a class="tile" href="/blog/teksavvy-vs-rogers-same-cable">
+        <div class="tile-top">
+          <span class="num">04</span>
+          <span class="eyebrow">Saving money</span>
+        </div>
+        <h2>Same cable, half the price: the internet markup hiding in plain sight</h2>
+        <p class="deck">A reseller sells you the incumbent's own line for a fraction of the price. Here is the math.</p>
+        <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
+      </a>
+      <a class="tile" href="/blog/internet-bill-breakdown-canada">
+        <div class="tile-top">
+          <span class="num">05</span>
+          <span class="eyebrow">Explainers</span>
+        </div>
+        <h2>Where your $90 internet bill actually goes</h2>
+        <p class="deck">63 cents of every retail dollar never stays with the company you pay.</p>
+        <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
+      </a>
+      <a class="tile" href="/blog/negotiate-internet-bill-canada">
+        <div class="tile-top">
+          <span class="num">06</span>
+          <span class="eyebrow">Saving money</span>
+        </div>
+        <h2>How to negotiate your internet bill in Canada, and where it quietly fails</h2>
+        <p class="deck">The retention script that works, the leverage that matters, and the ceiling nobody mentions.</p>
+        <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
+      </a>
+      <a class="tile" href="/blog/internet-retention-offer-win-back">
+        <div class="tile-top">
+          <span class="num">07</span>
+          <span class="eyebrow">Explainers</span>
+        </div>
+        <h2>The win-back offer: what the retention desk is really telling you</h2>
+        <p class="deck">The discount only appears when you try to leave. That timing is the whole story.</p>
+        <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
+      </a>
+      <a class="tile" href="/blog/independent-internet-providers-canada">
+        <div class="tile-top">
+          <span class="num">08</span>
+          <span class="eyebrow">Explainers</span>
+        </div>
+        <h2>Independent, incumbent, or flanker: who actually sells you internet in Canada</h2>
+        <p class="deck">Half the different-looking brands on the shelf are owned by the companies you are trying to leave.</p>
+        <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
+      </a>
+      <a class="tile" href="/blog/collective-switching-energy-proof">
+        <div class="tile-top">
+          <span class="num">09</span>
+          <span class="eyebrow">How it works</span>
+        </div>
+        <h2>1.5 million households already did this. It just was not for internet.</h2>
+        <p class="deck">Collective switching is not a theory. It moved energy markets for years. Now, internet.</p>
+        <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
+      </a>
+      <a class="tile" href="/blog/big-three-telecom-canada">
+        <div class="tile-top">
+          <span class="num">10</span>
+          <span class="eyebrow">The market</span>
+        </div>
+        <h2>How three companies came to own most of Canadian internet</h2>
+        <p class="deck">The prices make more sense once you see who owns the pipes.</p>
+        <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
+      </a>
+  </section>
+</main>
+
+<footer>
+  <div class="in">
+    <span>© 2026 Whollar, now forming the first cohorts.</span>
+    <span><a href="https://whollar.ca/join">Join the first cohort</a> · <a href="https://whollar.ca">whollar.ca</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

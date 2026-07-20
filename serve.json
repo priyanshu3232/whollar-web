@@ -1,10 +1,13 @@
 {
   "cleanUrls": true,
-  "rewrites": [
-    { "source": "/bill-checkup", "destination": "/whollar-bill checkup-v6.html" },
-    { "source": "/partners", "destination": "/Whollar Provider Landing v7.html" }
-  ],
   "redirects": [
-    { "source": "/join", "destination": "/waitlist/" }
+    { "source": "/join", "destination": "/waitlist/" },
+    { "source": "/resources", "destination": "/blog/", "type": 301 },
+    { "source": "/checkup", "destination": "/bill-checkup", "type": 301 },
+    { "source": "/whollar-partner-v6", "destination": "/become-a-partner", "type": 301 },
+    { "source": "/whollar-partner-v6.html", "destination": "/become-a-partner", "type": 301 },
+    { "source": "/whollar-bill checkup-v6", "destination": "/bill-checkup", "type": 301 },
+    { "source": "/Whollar Provider Landing v7", "destination": "/partners", "type": 301 },
+    { "source": "/whollar-thankyou", "destination": "/thank-you", "type": 301 }
   ]
 }
