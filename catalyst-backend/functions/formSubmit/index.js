@@ -211,6 +211,26 @@ async function insert(catalystApp, tableName, row) {
   return table.insertRow(row);
 }
 
+// Queue a submission for the CRM sync worker (the crmSync cron function reads
+// CrmSyncQueue and pushes rows into Zoho CRM). Best-effort by design: it must
+// NEVER throw into the request path — the submission is already saved, so a
+// queue miss only delays that one lead's sync, it doesn't fail the user's form.
+async function enqueueCrm(catalystApp, { source, rowId, email, leadType, data }) {
+  try {
+    await catalystApp.datastore().table('CrmSyncQueue').insertRow({
+      Source: source,
+      SourceRowId: rowId != null ? String(rowId) : null,
+      Email: email,
+      LeadType: leadType || 'consumer',
+      Payload: JSON.stringify(data || {}),
+      Status: 'PENDING',
+      Attempts: 0
+    });
+  } catch (err) {
+    console.error(`[formSubmit] CRM enqueue failed for ${source}:`, err);
+  }
+}
+
 /* ------------------------------------------------------------------ *
  * Routes
  * ------------------------------------------------------------------ */
@@ -241,6 +261,10 @@ app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 360
       FSA: fsa,
       ReferralCode: orNull(str(b.referral)),
       SubmittedAt: catalystNow()
+    });
+    await enqueueCrm(catalystApp, {
+      source: 'WaitlistSignups', rowId: row.ROWID, email, leadType: 'consumer',
+      data: { firstName, lastName, phone, fsa, referral: str(b.referral) }
     });
     res.status(200).json({ ok: true, id: row.ROWID });
   } catch (err) {
@@ -273,6 +297,16 @@ app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSe
       BillFileId: orNull(file?.id ?? null),
       BillFileName: orNull(file?.name ?? null),
       SubmittedAt: catalystNow()
+    });
+    await enqueueCrm(catalystApp, {
+      source: 'WaitlistDetails', rowId: row.ROWID, email, leadType: 'consumer',
+      data: {
+        provider: str(b.provider), cost: toNumber(b.cost), speed: str(b.speed),
+        promoEnd: str(b.promoEnd), threshold: str(b.threshold),
+        fsa: str(b.fsa).toUpperCase(),
+        services: Array.isArray(services) ? services.join(', ') : '',
+        billFileName: file?.name ?? null
+      }
     });
     res.status(200).json({ ok: true, id: row.ROWID });
   } catch (err) {
@@ -308,6 +342,17 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
       BillFileName: orNull(file?.name ?? null),
       SubmittedAt: catalystNow()
     });
+    await enqueueCrm(catalystApp, {
+      source: 'BillCheckupSubmissions', rowId: row.ROWID, email, leadType: 'consumer',
+      data: {
+        via: str(b.via) || 'form', postal: str(b.pc).toUpperCase(),
+        provider: str(b.prov), cost: toNumber(b.cost), speed: str(b.spd),
+        tech: str(b.tech), promoEnd: str(b.pdate),
+        monthsToRenewal: b.pmo != null && b.pmo !== '' ? parseInt(b.pmo, 10) : null,
+        discount: toNumber(b.disc), threshold: str(b.switchFor),
+        billFileName: file?.name ?? null
+      }
+    });
     res.status(200).json({ ok: true, id: row.ROWID });
   } catch (err) {
     serverError(res, err, 'bill-checkup-join');
@@ -337,6 +382,14 @@ app.post('/deep-read', limit({ key: 'deep-read', max: 10, windowSec: 3600 }), gu
       FileNames: json(files.map(f => f.name)),
       ContextSnapshot: json(context),
       SubmittedAt: catalystNow()
+    });
+    await enqueueCrm(catalystApp, {
+      source: 'DeepReadRequests', rowId: row.ROWID, email, leadType: 'consumer',
+      data: {
+        note: str(b.note), files: files.map(f => f.name).join(', '),
+        postal: str(b.pc).toUpperCase(), provider: str(b.prov), cost: toNumber(b.cost),
+        speed: str(b.spd), tech: str(b.tech), promoEnd: str(b.pdate), discount: toNumber(b.disc)
+      }
     });
     res.status(200).json({ ok: true, id: row.ROWID });
   } catch (err) {
@@ -383,6 +436,15 @@ app.post('/partner-application', limit({ key: 'partner-application', max: 10, wi
       OtherType: orNull(str(b.otherType)),
       Note: orNull(str(b.note)),
       SubmittedAt: catalystNow()
+    });
+    await enqueueCrm(catalystApp, {
+      source: 'PartnerApplications', rowId: row.ROWID, email, leadType: 'partner',
+      data: {
+        firstName, lastName, company, phone, role,
+        provinces: (Array.isArray(b.provinces) ? b.provinces : []).join(', '),
+        techs: (Array.isArray(b.tech) ? b.tech : []).join(', '),
+        note: str(b.note)
+      }
     });
     res.status(200).json({ ok: true, id: row.ROWID });
   } catch (err) {

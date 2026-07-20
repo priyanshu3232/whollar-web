@@ -1,0 +1,11 @@
+{
+  "name": "crmsync",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cron-invoked worker that drains CrmSyncQueue and pushes Whollar form submissions into Zoho CRM as Leads.",
+  "main": "index.js",
+  "dependencies": {
+    "express": "^4.19.2",
+    "zcatalyst-sdk-node": "^2.5.0"
+  }
+}
