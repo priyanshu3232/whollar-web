@@ -76,9 +76,15 @@ jobs:
           set -o pipefail
           # --org / --project give CI the context a logged-in laptop has locally;
           # -ni fails (instead of silently prompting) when anything is missing.
+          # --dc ca: the project is on the Canadian data center; without it the
+          # CLI refreshes the token against the US accounts server and auth fails.
+          # --only functions: this project deploys functions only (no web client).
           catalyst deploy \
+            --dc ca \
             --org 110003037934 \
             --project 1258000000014001 \
+            --token "$CATALYST_TOKEN" \
+            --only functions \
             -ni 2>&1 | tee deploy.log
           # Backstop: this CLI has exited 0 even on failure (that caused earlier
           # false-green runs). Its error glyph is ✖ — treat any ✖ as a failure.
