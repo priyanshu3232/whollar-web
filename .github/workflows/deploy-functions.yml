@@ -54,9 +54,35 @@ jobs:
       - name: Install Catalyst CLI
         run: npm install -g zcatalyst-cli
 
+      # CI checks out WITHOUT node_modules (gitignored). Catalyst packages each
+      # function's local node_modules on deploy, so install them first or the
+      # functions ship without their dependencies and crash at runtime.
+      - name: Install function dependencies
+        working-directory: catalyst-backend
+        run: |
+          for d in functions/*/; do
+            if [ -f "${d}package.json" ]; then
+              echo "Installing deps for ${d}"
+              (cd "$d" && npm ci --omit=dev)
+            fi
+          done
+
       - name: Deploy to Catalyst (Development env)
         working-directory: catalyst-backend
         env:
           # Secret token you store in GitHub — never written in this file
           CATALYST_TOKEN: ${{ secrets.CATALYST_TOKEN }}
-        run: catalyst deploy
+        run: |
+          set -o pipefail
+          # --org / --project give CI the context a logged-in laptop has locally;
+          # -ni fails (instead of silently prompting) when anything is missing.
+          catalyst deploy \
+            --org 110003037934 \
+            --project 1258000000014001 \
+            -ni 2>&1 | tee deploy.log
+          # Backstop: this CLI has exited 0 even on failure (that caused earlier
+          # false-green runs). Its error glyph is ✖ — treat any ✖ as a failure.
+          if grep -q "✖" deploy.log; then
+            echo "::error::Catalyst deploy reported an error (see log above)"
+            exit 1
+          fi
