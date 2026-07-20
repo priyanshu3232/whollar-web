@@ -20,6 +20,8 @@
     --r:22px;
     --sh-1:0 1px 2px rgba(16,40,34,.04),0 8px 24px rgba(16,40,34,.05);
     --sh-2:0 2px 6px rgba(16,40,34,.06),0 18px 44px rgba(16,40,34,.09);
+    --green:#1B4D3E;      /* wash colour over card imagery */
+    --image-wash:.42;     /* strength of the green wash — tune 0.30–0.55 */
   }
   *{box-sizing:border-box}
   html{-webkit-text-size-adjust:100%}
@@ -41,10 +43,34 @@
   .hero .rule{height:1px;background:var(--line);margin:44px 0 0}
 
   .grid{max-width:1080px;margin:0 auto;padding:40px 26px 30px;display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:22px}
-  .tile{display:flex;flex-direction:column;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:26px 26px 22px;box-shadow:var(--sh-1);transition:transform .25s cubic-bezier(.22,.61,.36,1),box-shadow .25s,border-color .25s}
-  .tile:hover{transform:translateY(-4px);box-shadow:var(--sh-2);border-color:var(--accent-2)}
-  .tile:first-child{grid-column:1/-1;background:linear-gradient(135deg,var(--card) 55%,var(--wash))}
-  .tile:first-child h2{font-size:clamp(24px,3.4vw,34px);max-width:24ch}
+  .tile{display:flex;flex-direction:column;height:100%;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh-1);transition:box-shadow .25s,border-color .25s}
+  .tile:hover{box-shadow:var(--sh-2);border-color:var(--accent-2)}
+  .tile:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+  .tile-media{position:relative;overflow:hidden;isolation:isolate;background:var(--wash);aspect-ratio:3/2;flex:none}
+  .tile-media img{width:100%;height:100%;object-fit:cover;display:block;filter:grayscale(1) contrast(1.03) brightness(1.02);transition:transform 600ms cubic-bezier(.2,.7,.2,1)}
+  .tile-media::after{content:"";position:absolute;inset:0;background:var(--green);mix-blend-mode:multiply;opacity:var(--image-wash);pointer-events:none;transition:opacity 400ms ease}
+  .tile-body{display:flex;flex-direction:column;gap:12px;flex:1 1 auto;padding:24px 26px 20px}
+  @media(hover:hover){
+    .tile:hover .tile-media img{transform:scale(1.045)}
+    .tile:hover .tile-media::after{opacity:calc(var(--image-wash) - .12)}
+  }
+
+  .tile.featured{grid-column:1/-1;display:grid;grid-template-columns:1.1fr .9fr;align-items:stretch;background:linear-gradient(135deg,var(--card) 55%,var(--wash))}
+  .tile.featured h2{font-size:clamp(24px,3.4vw,34px);max-width:24ch}
+  .tile.featured .tile-body{padding:40px 44px;justify-content:center}
+  .tile.featured .tile-media{aspect-ratio:auto;height:100%;min-height:320px}
+  @media(max-width:768px){
+    .tile.featured{grid-template-columns:1fr}
+    .tile.featured .tile-media{order:-1;aspect-ratio:16/9;height:auto;min-height:0}
+    .tile.featured .tile-body{padding:28px 24px}
+  }
+
+  @media(prefers-reduced-motion:reduce){
+    .tile-media img,.tile-media::after{transition:none}
+    .tile:hover .tile-media img{transform:none}
+  }
+
   .tile-top{display:flex;align-items:baseline;gap:12px}
   .num{font-family:'Space Mono';font-size:12px;font-weight:700;color:var(--line-2)}
   .tile:hover .num{color:var(--accent-2)}
@@ -54,8 +80,7 @@
   .tile .deck{font-style:italic;color:var(--muted);font-size:16px;line-height:1.5;margin:0;flex:1}
   .tile .meta{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:14px;font-family:'Space Mono';font-size:12px;color:var(--muted)}
   .tile .go{color:var(--accent);font-weight:700}
-  .tile .arr{display:inline-block;transition:transform .25s cubic-bezier(.22,.61,.36,1)}
-  .tile:hover .arr{transform:translateX(4px)}
+  .tile .arr{display:inline-block}
 
   footer{margin-top:36px;border-top:1px solid var(--line);padding:26px 0 60px}
   footer .in{max-width:1080px;margin:0 auto;padding:0 26px;font-family:'Space Mono';font-size:12px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
@@ -68,7 +93,7 @@
 
 <div class="mast">
   <div class="in">
-    <a class="brand" href="https://whollar.ca" aria-label="Whollar home">
+    <a class="brand" href="#top" aria-label="Back to top">
       <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
       <b>Whollar</b>
     </a>
@@ -85,95 +110,125 @@
   </section>
 
   <section class="grid" aria-label="Articles">
-      <a class="tile" href="/blog/overpaying-internet-canada">
-        <div class="tile-top">
-          <span class="num">01</span>
-          <span class="eyebrow">Saving money</span>
+      <a class="tile featured" href="/blog/overpaying-internet-canada">
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">01</span>
+            <span class="eyebrow">Saving money</span>
+          </div>
+          <h2>The $487 problem: why most Canadians overpay for internet and never say a word</h2>
+          <p class="deck">The cheaper plan is already running on the same cables. Here is why almost nobody asks for it, and why that is not your fault.</p>
+          <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>The $487 problem: why most Canadians overpay for internet and never say a word</h2>
-        <p class="deck">The cheaper plan is already running on the same cables. Here is why almost nobody asks for it, and why that is not your fault.</p>
-        <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
+        <div class="tile-media"><img src="/images/resources/the-487-problem@2x.webp" alt="A man slumped over a desk scattered with banknotes and coins" fetchpriority="high" decoding="async" width="1600" height="1067"></div>
       </a>
       <a class="tile" href="/blog/internet-price-increase-promo-cliff">
-        <div class="tile-top">
-          <span class="num">02</span>
-          <span class="eyebrow">Saving money</span>
+        <div class="tile-media"><img src="/images/resources/promo-cliff.webp" srcset="/images/resources/promo-cliff.webp 800w, /images/resources/promo-cliff@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="Stacks of coins climbing in steps beneath a rising green arrow" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">02</span>
+            <span class="eyebrow">Saving money</span>
+          </div>
+          <h2>The promo cliff: why your internet bill quietly climbs after 12 to 24 months</h2>
+          <p class="deck">The number that won you as a customer was never the number you were going to keep paying.</p>
+          <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>The promo cliff: why your internet bill quietly climbs after 12 to 24 months</h2>
-        <p class="deck">The number that won you as a customer was never the number you were going to keep paying.</p>
-        <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
       </a>
       <a class="tile" href="/blog/collective-switching-internet-canada">
-        <div class="tile-top">
-          <span class="num">03</span>
-          <span class="eyebrow">How it works</span>
+        <div class="tile-media"><img src="/images/resources/whole-street-switch.webp" srcset="/images/resources/whole-street-switch.webp 800w, /images/resources/whole-street-switch@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="A quiet residential street of houses at sunset" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">03</span>
+            <span class="eyebrow">How it works</span>
+          </div>
+          <h2>What if your whole street switched internet at once?</h2>
+          <p class="deck">One household has no leverage. A thousand households have an auction.</p>
+          <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>What if your whole street switched internet at once?</h2>
-        <p class="deck">One household has no leverage. A thousand households have an auction.</p>
-        <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
       </a>
       <a class="tile" href="/blog/teksavvy-vs-rogers-same-cable">
-        <div class="tile-top">
-          <span class="num">04</span>
-          <span class="eyebrow">Saving money</span>
+        <div class="tile-media"><img src="/images/resources/same-cable.webp" srcset="/images/resources/same-cable.webp 800w, /images/resources/same-cable@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="Colourful network cables plugged into the same switch, one unplugged" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">04</span>
+            <span class="eyebrow">Saving money</span>
+          </div>
+          <h2>Same cable, half the price: the internet markup hiding in plain sight</h2>
+          <p class="deck">A reseller sells you the incumbent's own line for a fraction of the price. Here is the math.</p>
+          <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>Same cable, half the price: the internet markup hiding in plain sight</h2>
-        <p class="deck">A reseller sells you the incumbent's own line for a fraction of the price. Here is the math.</p>
-        <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
       </a>
       <a class="tile" href="/blog/internet-bill-breakdown-canada">
-        <div class="tile-top">
-          <span class="num">05</span>
-          <span class="eyebrow">Explainers</span>
+        <div class="tile-media"><img src="/images/resources/where-the-money-goes.webp" srcset="/images/resources/where-the-money-goes.webp 800w, /images/resources/where-the-money-goes@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="Ascending stacks of gold coins beneath a rising arrow" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">05</span>
+            <span class="eyebrow">Explainers</span>
+          </div>
+          <h2>Where your $90 internet bill actually goes</h2>
+          <p class="deck">63 cents of every retail dollar never stays with the company you pay.</p>
+          <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>Where your $90 internet bill actually goes</h2>
-        <p class="deck">63 cents of every retail dollar never stays with the company you pay.</p>
-        <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
       </a>
       <a class="tile" href="/blog/negotiate-internet-bill-canada">
-        <div class="tile-top">
-          <span class="num">06</span>
-          <span class="eyebrow">Saving money</span>
+        <div class="tile-media"><img src="/images/resources/negotiate-your-bill.webp" srcset="/images/resources/negotiate-your-bill.webp 800w, /images/resources/negotiate-your-bill@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="A man mid-conversation on a corded desk phone, gesturing with one hand" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">06</span>
+            <span class="eyebrow">Saving money</span>
+          </div>
+          <h2>How to negotiate your internet bill in Canada, and where it quietly fails</h2>
+          <p class="deck">The retention script that works, the leverage that matters, and the ceiling nobody mentions.</p>
+          <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>How to negotiate your internet bill in Canada, and where it quietly fails</h2>
-        <p class="deck">The retention script that works, the leverage that matters, and the ceiling nobody mentions.</p>
-        <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
       </a>
       <a class="tile" href="/blog/internet-retention-offer-win-back">
-        <div class="tile-top">
-          <span class="num">07</span>
-          <span class="eyebrow">Explainers</span>
+        <div class="tile-media"><img src="/images/resources/win-back-offer.webp" srcset="/images/resources/win-back-offer.webp 800w, /images/resources/win-back-offer@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="A call-centre agent wearing a headset at a bank of monitors" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">07</span>
+            <span class="eyebrow">Explainers</span>
+          </div>
+          <h2>The win-back offer: what the retention desk is really telling you</h2>
+          <p class="deck">The discount only appears when you try to leave. That timing is the whole story.</p>
+          <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>The win-back offer: what the retention desk is really telling you</h2>
-        <p class="deck">The discount only appears when you try to leave. That timing is the whole story.</p>
-        <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
       </a>
       <a class="tile" href="/blog/independent-internet-providers-canada">
-        <div class="tile-top">
-          <span class="num">08</span>
-          <span class="eyebrow">Explainers</span>
+        <div class="tile-media"><img src="/images/resources/who-sells-you-internet.webp" srcset="/images/resources/who-sells-you-internet.webp 800w, /images/resources/who-sells-you-internet@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="A shopper deliberating in front of shelves of near-identical jars" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">08</span>
+            <span class="eyebrow">Explainers</span>
+          </div>
+          <h2>Independent, incumbent, or flanker: who actually sells you internet in Canada</h2>
+          <p class="deck">Half the different-looking brands on the shelf are owned by the companies you are trying to leave.</p>
+          <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>Independent, incumbent, or flanker: who actually sells you internet in Canada</h2>
-        <p class="deck">Half the different-looking brands on the shelf are owned by the companies you are trying to leave.</p>
-        <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
       </a>
       <a class="tile" href="/blog/collective-switching-energy-proof">
-        <div class="tile-top">
-          <span class="num">09</span>
-          <span class="eyebrow">How it works</span>
+        <div class="tile-media"><img src="/images/resources/collective-switching.webp" srcset="/images/resources/collective-switching.webp 800w, /images/resources/collective-switching@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="An electricity pylon with power lines fanning out overhead" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">09</span>
+            <span class="eyebrow">How it works</span>
+          </div>
+          <h2>1.5 million households already did this. It just was not for internet.</h2>
+          <p class="deck">Collective switching is not a theory. It moved energy markets for years. Now, internet.</p>
+          <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>1.5 million households already did this. It just was not for internet.</h2>
-        <p class="deck">Collective switching is not a theory. It moved energy markets for years. Now, internet.</p>
-        <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
       </a>
       <a class="tile" href="/blog/big-three-telecom-canada">
-        <div class="tile-top">
-          <span class="num">10</span>
-          <span class="eyebrow">The market</span>
+        <div class="tile-media"><img src="/images/resources/three-companies.webp" srcset="/images/resources/three-companies.webp 800w, /images/resources/three-companies@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="A telecommunications mast with dish antennas against a clear sky" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">10</span>
+            <span class="eyebrow">The market</span>
+          </div>
+          <h2>How three companies came to own most of Canadian internet</h2>
+          <p class="deck">The prices make more sense once you see who owns the pipes.</p>
+          <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>How three companies came to own most of Canadian internet</h2>
-        <p class="deck">The prices make more sense once you see who owns the pipes.</p>
-        <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
       </a>
   </section>
 </main>

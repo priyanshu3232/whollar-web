@@ -4,6 +4,7 @@ const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
 const Anthropic = require('@anthropic-ai/sdk');
+const catalyst = require('zcatalyst-sdk-node');
 
 const app = express();
 const anthropic = new Anthropic(); // reads ANTHROPIC_API_KEY from this function's env vars
@@ -24,15 +25,28 @@ const ALLOWED_ORIGINS = [
 const isDevOrigin = (origin) =>
   origin === 'null' || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 
-// Vercel: the site's production domain and every preview deploy live under
-// *.vercel.app. Allowing the whole suffix keeps preview URLs working without
-// editing this list per deploy; the custom domains above stay canonical.
+// Vercel: only this project's own production + preview deploys, not the whole
+// *.vercel.app suffix (which would let any attacker-hosted Vercel page drive
+// browser requests at this backend). Preview URLs look like
+// whollar-web-<hash>-<team>.vercel.app / whollar-web-git-<branch>-…
 const isVercelOrigin = (origin) =>
-  /^https:\/\/[a-z0-9][a-z0-9.-]*\.vercel\.app$/.test(origin);
+  /^https:\/\/whollar-web[a-z0-9-]*\.vercel\.app$/.test(origin);
+
+// Dev origins (localhost / Origin:null) are allowed only when this function is
+// NOT running on its production Catalyst domain, so the live prod backend never
+// reflects them. Detection is automatic from the request host — the prod domain
+// is *.catalystserverless.ca without the `.development.` segment — with an
+// optional CATALYST_ENV=production override.
+const isProdRequest = (req) => {
+  if (process.env.CATALYST_ENV === 'production') return true;
+  const host = req.headers.host || '';
+  return /catalystserverless/.test(host) && !/\.development\./.test(host);
+};
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && (ALLOWED_ORIGINS.includes(origin) || isDevOrigin(origin) || isVercelOrigin(origin))) {
+  const allowDev = !isProdRequest(req);
+  if (origin && (ALLOWED_ORIGINS.includes(origin) || (allowDev && isDevOrigin(origin)) || isVercelOrigin(origin))) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
   }
@@ -42,7 +56,83 @@ app.use((req, res, next) => {
   next();
 });
 
-const upload = multer({ dest: '/tmp/whollar-bill-ocr/' });
+/* ------------------------------------------------------------------ *
+ * Abuse controls — distributed rate limiting via Catalyst Cache.
+ * Advanced I/O functions are horizontally scaled with no shared process
+ * memory, so an in-process counter is useless; the Cache default segment
+ * is shared across every instance. Fixed-window counters keyed by route
+ * (+ client IP for per-IP limits). Fails OPEN if the cache is unreachable
+ * — a broken limiter must not take the endpoint down. Because a cache
+ * outage lets requests through, set an account-level spend cap in the
+ * Anthropic console as the hard backstop for this paid endpoint.
+ * ------------------------------------------------------------------ */
+
+const clientIp = (req) =>
+  (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
+  req.socket?.remoteAddress || 'unknown';
+
+async function withinLimit(req, { key, max, windowSec, perIp = true }) {
+  try {
+    const app = catalyst.initialize(req);
+    const seg = app.cache().segment(); // default segment — no console setup needed
+    const window = Math.floor(Date.now() / (windowSec * 1000));
+    const bucket = perIp ? `rl:${key}:${clientIp(req)}:${window}` : `rl:${key}:${window}`;
+    const ttlHours = Math.max(1, Math.ceil(windowSec / 3600));
+
+    let count = 0;
+    try { count = parseInt(await seg.getValue(bucket), 10) || 0; } catch { count = 0; }
+    if (count >= max) return false;
+
+    const next = String(count + 1);
+    try { await seg.put(bucket, next, ttlHours); }
+    catch { try { await seg.update(bucket, next, ttlHours); } catch { /* best effort */ } }
+    return true;
+  } catch {
+    return true; // fail open
+  }
+}
+
+// Express middleware: reject over-limit requests with 429 *before* the body is
+// parsed, so an abusive upload never touches disk or the paid API.
+const limit = (opts) => async (req, res, next) => {
+  if (await withinLimit(req, opts)) return next();
+  res.setHeader('Retry-After', String(opts.windowSec));
+  res.status(429).json({ ok: false, error: 'Too many requests. Please slow down and try again shortly.' });
+};
+
+const ACCEPTED_UPLOAD_TYPES = new Set([
+  'application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'image/webp'
+]);
+
+const rejectUnsupported = (req, file, cb) => {
+  if (ACCEPTED_UPLOAD_TYPES.has((file.mimetype || '').toLowerCase())) return cb(null, true);
+  const err = new Error('UNSUPPORTED_FILE_TYPE');
+  err.code = 'UNSUPPORTED_FILE_TYPE';
+  cb(err);
+};
+
+// Wrap a multer middleware so size/type/count rejections become clean 4xx JSON
+// instead of a 500 or a silently dropped file.
+const guardUpload = (mw) => (req, res, next) => mw(req, res, (err) => {
+  if (!err) return next();
+  const tooBig = err.code === 'LIMIT_FILE_SIZE';
+  const tooMany = err.code === 'LIMIT_FILE_COUNT';
+  const status = tooBig || tooMany ? 413 : 415;
+  const msg = tooBig ? 'File too large.'
+    : tooMany ? 'Too many files.'
+    : 'Unsupported file type. Upload a PDF or an image.';
+  res.status(status).json({ ok: false, error: msg });
+});
+
+// The bill is read fully into memory and base64-encoded for the Claude call,
+// so bound size (15 MB) and count (1) and reject non-PDF/image types before
+// anything touches disk.
+const MAX_BILL_BYTES = 15 * 1024 * 1024;
+const upload = multer({
+  dest: '/tmp/whollar-bill-ocr/',
+  limits: { fileSize: MAX_BILL_BYTES, files: 1 },
+  fileFilter: rejectUnsupported
+});
 
 /* ------------------------------------------------------------------ *
  * Structured extraction — enums here must stay byte-identical to the
@@ -130,8 +220,8 @@ const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp
 // Builds the content block for the uploaded bill. Claude reads the bill
 // directly — images via a vision block, PDFs via a document block — so there
 // is no separate OCR step and no text lost to OCR before extraction.
-function billContentBlock(file) {
-  const data = fs.readFileSync(file.path).toString('base64');
+async function billContentBlock(file) {
+  const data = (await fs.promises.readFile(file.path)).toString('base64');
   const mime = (file.mimetype || '').toLowerCase();
 
   if (mime === 'application/pdf') {
@@ -144,6 +234,7 @@ function billContentBlock(file) {
 }
 
 async function extractBillFields(file) {
+  const billBlock = await billContentBlock(file);
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-5',
     // Sonnet 5 runs adaptive thinking when `thinking` is omitted, and max_tokens
@@ -161,12 +252,12 @@ async function extractBillFields(file) {
       {
         role: 'user',
         content: [
-          billContentBlock(file),
+          billBlock,
           { type: 'text', text: "This is a household's internet bill. Extract the fields." }
         ]
       }
     ]
-  });
+  }, { timeout: 45000, maxRetries: 1 });
 
   if (response.stop_reason === 'refusal') {
     throw new Error('Extraction declined by model safety classifiers.');
@@ -187,21 +278,26 @@ async function extractBillFields(file) {
 // #prov/#cost/#spd/#tech/#pdate/#disc, plus postalCode (the bill's
 // service/billing address postal code, "A1A 1A1", null if not found).
 // Frontend must POST multipart/form-data with the file under "billFile".
-app.post('/extract-bill', upload.single('billFile'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ ok: false, error: 'No file uploaded under field "billFile".' });
-  }
+app.post(
+  '/extract-bill',
+  limit({ key: 'ocr-ip', max: 5, windowSec: 3600, perIp: true }),         // 5 / hour / IP
+  limit({ key: 'ocr-global', max: 800, windowSec: 86400, perIp: false }), // 800 / day total — denial-of-wallet ceiling
+  guardUpload(upload.single('billFile')),
+  async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ ok: false, error: 'No file uploaded under field "billFile".' });
+    }
 
-  try {
-    const fields = await extractBillFields(req.file);
-
-    res.status(200).json({ ok: true, fields });
-  } catch (err) {
-    console.error('[billOcr] /extract-bill failed:', err);
-    res.status(502).json({ ok: false, error: 'Bill extraction failed.' });
-  } finally {
-    fs.unlink(req.file.path, () => {});
+    try {
+      const fields = await extractBillFields(req.file);
+      res.status(200).json({ ok: true, fields });
+    } catch (err) {
+      console.error('[billOcr] /extract-bill failed:', err);
+      res.status(502).json({ ok: false, error: 'Bill extraction failed.' });
+    } finally {
+      fs.unlink(req.file.path, () => {});
+    }
   }
-});
+);
 
 module.exports = app;

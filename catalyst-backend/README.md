@@ -280,6 +280,27 @@ cd catalyst-backend/functions/formSubmit && npm install && catalyst serve
 
 ---
 
+## Abuse controls (rate limiting, upload bounds, CORS)
+
+Both functions ship with abuse controls; two of them need one-time console/env setup.
+
+- **Rate limiting** is distributed via the Catalyst **Cache** (the default segment) — an
+  in-process counter is useless because Advanced I/O functions scale horizontally with no shared
+  memory. Enable the **Cache** component for the project (**Cloud Scale → Cache**) so the limiter
+  can read/write counters; if the cache is unreachable the limiter **fails open** (requests pass)
+  so a cache blip never takes the forms down. Per-route per-IP caps live at the top of each route
+  in `formSubmit/index.js`; `billOcr/extract-bill` has a tight per-IP cap **and** a global daily
+  ceiling (denial-of-wallet protection).
+- **`billOcr` spends money per call.** Because the limiter fails open, set an **account-level spend
+  cap in the Anthropic console** as the hard backstop, and consider fronting the Catalyst domain
+  with a CAPTCHA/Turnstile or a WAF (Cloudflare) so limits apply before the function — and Claude —
+  is invoked.
+- **Upload bounds:** `billOcr` accepts one PDF/image up to 15 MB; `formSubmit` accepts PDF/images
+  up to 20 MB × 5. Other types return `415`; oversize returns `413`.
+- **CORS:** `isVercelOrigin` is pinned to this project's `whollar-web*.vercel.app` deploys, and
+  localhost / `Origin: null` are allowed only off the production Catalyst domain (auto-detected
+  from the request host; force with `CATALYST_ENV=production` in the prod function's env vars).
+
 ## Going to production
 
 Everything above is deployed to the **Development** environment. Catalyst keeps Development and

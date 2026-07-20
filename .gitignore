@@ -8,3 +8,5 @@ node_modules/
 catalyst-backend/**/.output/
 .vercel
 .env*
+# Raw source images (site serves optimized copies from images/resources/)
+Resourcesimages/

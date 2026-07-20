@@ -25,11 +25,23 @@ const ALLOWED_ORIGINS = [
 const isDevOrigin = (origin) =>
   origin === 'null' || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 
-// Vercel: the site's production domain and every preview deploy live under
-// *.vercel.app. Allowing the whole suffix keeps preview URLs working without
-// editing this list per deploy; the custom domains above stay canonical.
+// Vercel: only this project's own production + preview deploys, not the whole
+// *.vercel.app suffix (which would let any attacker-hosted Vercel page drive
+// browser requests at this backend). Preview URLs look like
+// whollar-web-<hash>-<team>.vercel.app / whollar-web-git-<branch>-…
 const isVercelOrigin = (origin) =>
-  /^https:\/\/[a-z0-9][a-z0-9.-]*\.vercel\.app$/.test(origin);
+  /^https:\/\/whollar-web[a-z0-9-]*\.vercel\.app$/.test(origin);
+
+// Dev origins (localhost / Origin:null) are allowed only when this function is
+// NOT running on its production Catalyst domain, so the live prod backend never
+// reflects them. Detection is automatic from the request host — the prod domain
+// is *.catalystserverless.ca without the `.development.` segment — with an
+// optional CATALYST_ENV=production override.
+const isProdRequest = (req) => {
+  if (process.env.CATALYST_ENV === 'production') return true;
+  const host = req.headers.host || '';
+  return /catalystserverless/.test(host) && !/\.development\./.test(host);
+};
 
 // File Store folder ID that uploaded bills / deep-read attachments are
 // saved into. Create a folder in the Catalyst console (File Store →
@@ -43,7 +55,8 @@ const UPLOADS_FOLDER_ID = '1258000000015979';
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && (ALLOWED_ORIGINS.includes(origin) || isDevOrigin(origin) || isVercelOrigin(origin))) {
+  const allowDev = !isProdRequest(req);
+  if (origin && (ALLOWED_ORIGINS.includes(origin) || (allowDev && isDevOrigin(origin)) || isVercelOrigin(origin))) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
   }
@@ -59,12 +72,82 @@ app.use((req, res, next) => {
 // (CORS-safelisted) instead of application/json.
 app.use(express.json({ limit: '1mb', type: ['application/json', 'text/plain'] }));
 
+/* ------------------------------------------------------------------ *
+ * Abuse controls — distributed rate limiting via Catalyst Cache.
+ * Advanced I/O functions are horizontally scaled with no shared process
+ * memory, so an in-process counter is useless; the Cache default segment
+ * is shared across every instance. Fixed-window counters keyed by route
+ * (+ client IP). Fails OPEN if the cache is unreachable — a broken limiter
+ * must not take the forms down.
+ * ------------------------------------------------------------------ */
+
+const clientIp = (req) =>
+  (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
+  req.socket?.remoteAddress || 'unknown';
+
+async function withinLimit(req, { key, max, windowSec, perIp = true }) {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const seg = catalystApp.cache().segment(); // default segment — no console setup needed
+    const window = Math.floor(Date.now() / (windowSec * 1000));
+    const bucket = perIp ? `rl:${key}:${clientIp(req)}:${window}` : `rl:${key}:${window}`;
+    const ttlHours = Math.max(1, Math.ceil(windowSec / 3600));
+
+    let count = 0;
+    try { count = parseInt(await seg.getValue(bucket), 10) || 0; } catch { count = 0; }
+    if (count >= max) return false;
+
+    const next = String(count + 1);
+    try { await seg.put(bucket, next, ttlHours); }
+    catch { try { await seg.update(bucket, next, ttlHours); } catch { /* best effort */ } }
+    return true;
+  } catch {
+    return true; // fail open
+  }
+}
+
+// Express middleware: reject over-limit requests with 429 before the body is
+// parsed, so an abusive upload never touches disk or the Data Store.
+const limit = (opts) => async (req, res, next) => {
+  if (await withinLimit(req, opts)) return next();
+  res.setHeader('Retry-After', String(opts.windowSec));
+  res.status(429).json({ ok: false, error: 'Too many requests. Please slow down and try again shortly.' });
+};
+
+const ACCEPTED_UPLOAD_TYPES = new Set([
+  'application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'image/webp'
+]);
+
+// Reject anything that isn't a bill (PDF/image) server-side — the frontend's
+// accept="…" hint is trivially bypassed, and the File Store must not become
+// free hosting for arbitrary uploads.
+const rejectUnsupported = (req, file, cb) => {
+  if (ACCEPTED_UPLOAD_TYPES.has((file.mimetype || '').toLowerCase())) return cb(null, true);
+  const err = new Error('UNSUPPORTED_FILE_TYPE');
+  err.code = 'UNSUPPORTED_FILE_TYPE';
+  cb(err);
+};
+
+// Wrap a multer middleware so size/type/count rejections become clean 4xx JSON
+// instead of a 500 or a silently dropped file.
+const guardUpload = (mw) => (req, res, next) => mw(req, res, (err) => {
+  if (!err) return next();
+  const tooBig = err.code === 'LIMIT_FILE_SIZE';
+  const tooMany = err.code === 'LIMIT_FILE_COUNT';
+  const status = tooBig || tooMany ? 413 : 415;
+  const msg = tooBig ? 'File too large.'
+    : tooMany ? 'Too many files.'
+    : 'Unsupported file type. Upload a PDF or an image.';
+  res.status(status).json({ ok: false, error: msg });
+});
+
 // Disk storage (not memory): the Catalyst SDK's uploadFile() appends the
 // stream to form-data with no options, so it relies on the stream's `.path`
 // to derive the filename — which only an fs.ReadStream has, not a Buffer.
 const upload = multer({
   dest: '/tmp/whollar-uploads/',
-  limits: { fileSize: 20 * 1024 * 1024, files: 5 }
+  limits: { fileSize: 20 * 1024 * 1024, files: 5 },
+  fileFilter: rejectUnsupported
 });
 
 /* ------------------------------------------------------------------ *
@@ -134,7 +217,7 @@ async function insert(catalystApp, tableName, row) {
 
 // Waitlist — stage 1 (name/email/phone/postal code/referral).
 // Table: WaitlistSignups
-app.post('/waitlist-join', async (req, res) => {
+app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 3600 }), async (req, res) => {
   const b = req.body || {};
   const firstName = str(b.firstName);
   const lastName = str(b.lastName);
@@ -167,7 +250,7 @@ app.post('/waitlist-join', async (req, res) => {
 
 // Waitlist — stage 2 (optional add-on details + optional bill attachment).
 // Table: WaitlistDetails
-app.post('/waitlist-details', upload.single('billFile'), async (req, res) => {
+app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSec: 3600 }), guardUpload(upload.single('billFile')), async (req, res) => {
   const b = req.body || {};
   const email = str(b.email);
   if (!isEmail(email)) return badRequest(res, 'A valid email is required.');
@@ -200,7 +283,7 @@ app.post('/waitlist-details', upload.single('billFile'), async (req, res) => {
 // Bill checkup — every "join the waitlist" entry point on the checkup tool
 // (both the quick-join rails and the main check-button flow feed this).
 // Table: BillCheckupSubmissions
-app.post('/bill-checkup-join', upload.single('billFile'), async (req, res) => {
+app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, windowSec: 3600 }), guardUpload(upload.single('billFile')), async (req, res) => {
   const b = req.body || {};
   const email = str(b.email);
   if (!isEmail(email)) return badRequest(res, 'A valid email is required.');
@@ -233,7 +316,7 @@ app.post('/bill-checkup-join', upload.single('billFile'), async (req, res) => {
 
 // Bill checkup — "deep read" request (attach agreement/more bills + note).
 // Table: DeepReadRequests
-app.post('/deep-read', upload.array('files', 5), async (req, res) => {
+app.post('/deep-read', limit({ key: 'deep-read', max: 10, windowSec: 3600 }), guardUpload(upload.array('files', 5)), async (req, res) => {
   const b = req.body || {};
   const email = str(b.email);
   if (!isEmail(email)) return badRequest(res, 'A valid email is required.');
@@ -263,7 +346,7 @@ app.post('/deep-read', upload.array('files', 5), async (req, res) => {
 
 // Provider / partner application form.
 // Table: PartnerApplications
-app.post('/partner-application', async (req, res) => {
+app.post('/partner-application', limit({ key: 'partner-application', max: 10, windowSec: 3600 }), async (req, res) => {
   const b = req.body || {};
   const role = str(b.role);
   const firstName = str(b.firstName);
@@ -310,7 +393,7 @@ app.post('/partner-application', async (req, res) => {
 // Savings calculator — anonymous estimate snapshot (postal code + monthly
 // bill → projected annual savings shown to the visitor).
 // Table: CalculatorEstimates
-app.post('/calculator-estimate', async (req, res) => {
+app.post('/calculator-estimate', limit({ key: 'calculator-estimate', max: 40, windowSec: 3600 }), async (req, res) => {
   const b = req.body || {};
 
   try {
