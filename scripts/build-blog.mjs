@@ -9,7 +9,9 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-const DOMAIN = 'https://whollar.ca';
+// Canonical host is www — the apex 308-redirects to it, so sitemap/canonical/JSON-LD
+// URLs must all be www or Google chases redirects.
+const DOMAIN = 'https://www.whollar.ca';
 const EM_DASH = '—';
 
 const PUBLISH_DATE = process.argv[2];
@@ -65,6 +67,12 @@ for (const [file, slug] of SLUGS) {
   const url = `${DOMAIN}/blog/${slug}`;
   let html = src;
 
+  // 0. normalize domains: apex → www everywhere (JSON-LD @id/url included),
+  //    then anchor hrefs to root-relative — internal links must never bounce
+  //    through the apex 308.
+  html = html.replace(/https:\/\/whollar\.ca/g, DOMAIN);
+  html = html.replace(/href="https:\/\/www\.whollar\.ca(\/[^"]*)?"/g, (m, path) => `href="${path || '/'}"`);
+
   // 1. prod box out
   html = stripProdBox(html, file);
 
@@ -102,8 +110,8 @@ for (const [file, slug] of SLUGS) {
   if (html.includes('class="prod"')) fail(file, 'prod box survived');
   if (html.includes('Draft')) fail(file, 'Draft string survived');
 
-  // internal cross-links must target known slugs
-  for (const [, target] of html.matchAll(/href="https:\/\/whollar\.ca\/blog\/([a-z0-9-]+)"/g)) {
+  // internal cross-links must target known slugs (root-relative after step 0)
+  for (const [, target] of html.matchAll(/href="\/blog\/([a-z0-9-]+)"/g)) {
     if (!slugSet.has(target)) fail(file, `cross-link to unknown slug: ${target}`);
   }
 
@@ -203,11 +211,11 @@ const indexHtml = `<!DOCTYPE html>
 
 <div class="mast">
   <div class="in">
-    <a class="brand" href="https://whollar.ca" aria-label="Whollar home">
+    <a class="brand" href="/" aria-label="Whollar home">
       <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
       <b>Whollar</b>
     </a>
-    <a class="cta" href="https://whollar.ca/join">Join the first cohort</a>
+    <a class="cta" href="/join">Join the first cohort</a>
   </div>
 </div>
 
@@ -227,7 +235,7 @@ ${tiles}
 <footer>
   <div class="in">
     <span>© 2026 Whollar, now forming the first cohorts.</span>
-    <span><a href="https://whollar.ca/join">Join the first cohort</a> · <a href="https://whollar.ca">whollar.ca</a></span>
+    <span><a href="/join">Join the first cohort</a> · <a href="/">whollar.ca</a></span>
   </div>
 </footer>
 
@@ -240,12 +248,20 @@ console.log('ok  /blog/ (Resources page)');
 
 // ---------- sitemap + robots ----------
 
-const urls = [`${DOMAIN}/blog/`, ...SLUGS.map(([, s]) => `${DOMAIN}/blog/${s}`)];
+// The sitemap covers the whole site, not just the blog — regenerating it must
+// never drop the money/legal pages again. Static entries carry no lastmod (we
+// don't know when they last changed; an invented date is worse than none).
+const STATIC_PAGES = ['/', '/bill-checkup', '/become-a-partner', '/partners', '/waitlist/', '/terms', '/privacy'];
+const entries = [
+  ...STATIC_PAGES.map(p => `  <url><loc>${DOMAIN}${p}</loc></url>`),
+  `  <url><loc>${DOMAIN}/blog/</loc><lastmod>${PUBLISH_DATE}</lastmod></url>`,
+  ...SLUGS.map(([, s]) => `  <url><loc>${DOMAIN}/blog/${s}</loc><lastmod>${PUBLISH_DATE}</lastmod></url>`),
+];
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls.map(u => `  <url><loc>${u}</loc><lastmod>${PUBLISH_DATE}</lastmod></url>`).join('\n')}
+${entries.join('\n')}
 </urlset>
 `;
 writeFileSync('sitemap.xml', sitemap);
 writeFileSync('robots.txt', `User-agent: *\nAllow: /\n\nSitemap: ${DOMAIN}/sitemap.xml\n`);
-console.log(`ok  sitemap.xml (${urls.length} URLs) + robots.txt`);
+console.log(`ok  sitemap.xml (${entries.length} URLs) + robots.txt`);

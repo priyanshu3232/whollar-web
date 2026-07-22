@@ -6,7 +6,7 @@
 
 const BASE = (process.argv[2] || 'http://localhost:4173').replace(/\/$/, '');
 const PUBLISH_DATE = process.argv[3];
-const DOMAIN = 'https://whollar.ca';
+const DOMAIN = 'https://www.whollar.ca'; // canonical host — apex 308s to www
 const EM_DASH = '—';
 
 const SLUGS = [
@@ -65,9 +65,10 @@ for (const slug of SLUGS) {
   check(`${slug}: no "Draft"`, !body.includes('Draft'));
   check(`${slug}: no em dash`, !body.includes(EM_DASH));
 
-  for (const [, target] of body.matchAll(/href="https:\/\/whollar\.ca\/blog\/([a-z0-9-]+)"/g)) {
+  for (const [, target] of body.matchAll(/href="\/blog\/([a-z0-9-]+)"/g)) {
     check(`${slug}: cross-link ${target} known`, SLUGS.includes(target), target);
   }
+  check(`${slug}: no apex-domain links`, !body.includes('href="https://whollar.ca'));
 }
 
 // ---- route resolution (local equivalents of JOIN_ROUTE / CHECKUP_ROUTE) ----
@@ -114,10 +115,13 @@ for (const [route, label] of [['/join', 'JOIN_ROUTE /join'], ['/checkup', 'CHECK
   const { status, body } = await get('/sitemap.xml');
   check('sitemap: 200', status === 200);
   const locs = [...body.matchAll(/<loc>([^<]*)<\/loc>/g)].map(m => m[1]);
-  check('sitemap: exactly 11 URLs', locs.length === 11, `got ${locs.length}`);
+  const STATIC_PAGES = ['/', '/bill-checkup', '/become-a-partner', '/partners', '/waitlist/', '/terms', '/privacy'];
+  check('sitemap: exactly 18 URLs (7 static + blog index + 10 posts)', locs.length === 18, `got ${locs.length}`);
+  for (const p of STATIC_PAGES) check(`sitemap: includes ${p}`, locs.includes(`${DOMAIN}${p}`));
   check('sitemap: includes /blog/', locs.includes(`${DOMAIN}/blog/`));
   for (const slug of SLUGS) check(`sitemap: includes ${slug}`, locs.includes(`${DOMAIN}/blog/${slug}`));
   check('sitemap: excludes /resources', !locs.some(l => l.includes('/resources')));
+  check('sitemap: all www, no apex', locs.every(l => l.startsWith(DOMAIN)));
   check('sitemap: lastmod = publish date', [...body.matchAll(/<lastmod>([^<]*)<\/lastmod>/g)].every(m => m[1] === PUBLISH_DATE));
   check('sitemap: no em dash', !body.includes(EM_DASH));
 

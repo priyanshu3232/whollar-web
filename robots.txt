@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://whollar.ca/sitemap.xml
+Sitemap: https://www.whollar.ca/sitemap.xml
