@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — Whollar</title>
+<meta name="description" content="How Whollar collects, uses, discloses, and protects personal information — in line with PIPEDA, Quebec's Law 25, and CASL.">
+<link rel="canonical" href="/privacy">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Privacy Policy — Whollar">
+<meta property="og:description" content="How Whollar collects, uses, discloses, and protects personal information — in line with PIPEDA, Quebec's Law 25, and CASL.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
+<style>
+  /* Site display font for the shared header/footer (same files the homepage uses) */
+  @font-face{font-family:'Satoshi';font-style:normal;font-weight:500;font-display:swap;src:url("/fonts/satoshi-500.woff2") format('woff2')}
+  @font-face{font-family:'Satoshi';font-style:normal;font-weight:700;font-display:swap;src:url("/fonts/satoshi-700.woff2") format('woff2')}
+  @font-face{font-family:'Satoshi';font-style:normal;font-weight:900;font-display:swap;src:url("/fonts/satoshi-900.woff2") format('woff2')}
+
+  :root{
+    /* legal-page palette */
+    --green:#1B4D3E; --green-deep:#143B30; --cream:#F1ECDF; --cream-2:#EBE5D7;
+    --purple:#534AB7; --gold:#C4A24B; --ink:#22221E; --muted:#6E6E63; --line:#D9D2C2;
+    --measure:70ch;
+    /* site component tokens (header/footer) */
+    --teal:#0E2A20; --teal-deep:#0A2018; --navy-deep:#0A2018;
+    --disp:'Satoshi',system-ui,sans-serif;
+    --body:'Inter',system-ui,sans-serif;
+    --wrap:1340px;
+    --ease:cubic-bezier(.22,.61,.36,1);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{margin:0; background:var(--cream); color:var(--ink);
+    font-family:"Inter",system-ui,sans-serif; font-size:16px; line-height:1.7;
+    -webkit-font-smoothing:antialiased;}
+  a{color:var(--purple); text-decoration:underline; text-underline-offset:2px; text-decoration-thickness:1px}
+  a:hover{color:var(--green)}
+
+  /* ── Site header (shared component) ── */
+  .whl-wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}
+  .whl-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:pointer;font-family:var(--body);font-weight:600;font-size:15px;color:#fff;background:var(--teal);border-radius:13px;padding:13px 22px;text-decoration:none;transition:background .18s,transform .18s,box-shadow .18s;white-space:nowrap}
+  .whl-btn:hover{background:var(--teal-deep);transform:translateY(-1px);color:#fff}
+  .whl-header{position:sticky;top:0;z-index:60;background:rgba(250,248,243,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid #e8ebe7;transition:box-shadow .2s}
+  .whl-header.is-scrolled{box-shadow:0 6px 24px rgba(16,40,34,.07)}
+  .whl-header__in{height:68px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .whl-logo{display:flex;align-items:center;gap:11px;text-decoration:none}
+  .whl-mark{width:32px;height:32px;border-radius:10px;flex:none;display:block}
+  .whl-wordmark{font-family:var(--disp);font-weight:900;font-size:21px;letter-spacing:-.02em;color:var(--teal)}
+  .whl-nav{display:flex;gap:30px;align-items:center}
+  .whl-nav a{text-decoration:none;color:#54625B;font-weight:500;font-size:15px;transition:color .15s}
+  .whl-nav a:hover{color:var(--teal)}
+  .whl-header__cta{display:inline-flex}
+  .whl-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:42px;height:42px;border:1px solid #e7ebe6;border-radius:11px;background:rgba(255,255,255,.6);cursor:pointer;padding:0 11px}
+  .whl-burger span{display:block;height:2px;width:100%;background:#54625B;border-radius:2px;transition:transform .25s var(--ease),opacity .2s}
+  .whl-burger[aria-expanded="true"] span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+  .whl-burger[aria-expanded="true"] span:nth-child(2){opacity:0}
+  .whl-burger[aria-expanded="true"] span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+  .whl-mobnav{display:none;flex-direction:column;gap:4px;padding:10px 24px 18px;border-top:1px solid #e8ebe7;background:rgba(250,248,243,.96);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+  .whl-mobnav a{padding:12px 4px;text-decoration:none;color:#54625B;font-weight:600;font-size:16px;border-radius:8px}
+  .whl-mobnav a:not(.whl-btn):hover{color:var(--teal)}
+  .whl-mobnav .whl-btn{margin-top:8px;justify-content:center}
+  .whl-mobnav.is-open{display:flex}
+  @media(max-width:880px){
+    .whl-nav,.whl-header__cta{display:none}
+    .whl-burger{display:flex}
+  }
+
+  /* ── Site footer (shared component) ── */
+  .whl-footer{background:var(--navy-deep);color:#CFE8D6;padding:0 0 30px;border-top:1px solid rgba(255,255,255,.08);margin-top:4.5rem}
+  .whl-footer .whl-wrap{padding-top:40px}
+  .whl-footer__top{display:flex;flex-wrap:wrap;gap:28px;justify-content:space-between;align-items:flex-start;padding-bottom:30px;border-bottom:1px solid rgba(255,255,255,.12)}
+  .whl-footer__brand{max-width:300px}
+  .whl-footer__brand .row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .whl-footer__brand .mk{width:30px;height:30px;border-radius:9px;flex:none;display:block}
+  .whl-footer__brand .wm{font-family:var(--disp);font-weight:800;font-size:20px;color:#fff}
+  .whl-footer__brand p{font-size:14px;line-height:1.5;color:#9fc1bf;margin:0}
+  .whl-footer__cols{display:flex;gap:48px;flex-wrap:wrap}
+  .whl-footer__col{display:flex;flex-direction:column;gap:11px}
+  .whl-footer__col a{color:#CFE8D6;text-decoration:none;font-size:14.5px}
+  .whl-footer__col a:hover{color:#fff}
+  .whl-footer__col a[aria-current="page"]{color:#fff;font-weight:600;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--gold)}
+  .whl-footer__bottom{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center;padding-top:22px}
+  .whl-footer__bottom span{font-size:13px;color:#8FB39B}
+  .whl-made{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:#CFE8D6;font-weight:600}
+
+  /* ── Legal document ── */
+  .page{max-width:1120px; margin:0 auto; padding:3.2rem 1.5rem 0}
+  .eyebrow{font-size:.72rem; font-weight:600; letter-spacing:.2em; text-transform:uppercase;
+    color:var(--green); display:flex; align-items:center; gap:.6rem;}
+  .eyebrow::after{content:""; height:1px; width:46px; background:var(--gold)}
+  .dochead h1{font-family:"Fraunces",serif; font-weight:500; line-height:1.05;
+    font-size:clamp(2.3rem,5.2vw,3.3rem); margin:.7rem 0 .5rem; color:var(--green-deep);}
+  .meta{color:var(--muted); font-size:.86rem; margin:0 0 1.4rem}
+  .meta b{color:var(--ink); font-weight:600}
+  .intro{max-width:var(--measure); font-size:1.06rem; color:#33332C}
+
+  .layout{max-width:1120px; margin:0 auto; padding:2.4rem 1.5rem 0;
+    display:grid; grid-template-columns:230px minmax(0,1fr); gap:3.2rem; align-items:start;}
+  .toc{position:sticky; top:84px}
+  .toc__title{font-size:.72rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin:0 0 .8rem}
+  .toc ol{list-style:none; margin:0; padding:0; border-left:1px solid var(--line)}
+  .toc a{display:block; text-decoration:none; color:var(--muted); font-size:.82rem; line-height:1.35;
+    padding:.28rem 0 .28rem .9rem; margin-left:-1px; border-left:2px solid transparent; transition:color .15s,border-color .15s}
+  .toc a:hover{color:var(--ink)}
+  .toc a.is-active{color:var(--green-deep); font-weight:600; border-left-color:var(--purple)}
+
+  .content{max-width:var(--measure)}
+  .clause{display:flex; gap:1.1rem; margin:1.9rem 0; scroll-margin-top:92px}
+  .clause:first-of-type{margin-top:.5rem}
+  .clause__num{font-family:"Fraunces",serif; font-weight:600; color:var(--green);
+    font-size:1.25rem; line-height:1.3; flex:none; width:1.8rem; text-align:right}
+  .clause__body{flex:1; min-width:0}
+  .clause__body h2{font-size:1.1rem; font-weight:700; color:var(--ink); margin:.15rem 0 .5rem; line-height:1.3}
+  .clause__body p{margin:.6rem 0}
+  .clause__body ul{margin:.6rem 0; padding-left:1.1rem}
+  .clause__body li{margin:.35rem 0}
+  .clause__body strong{font-weight:600}
+
+  .callout{background:var(--cream-2); border-left:3px solid var(--gold);
+    padding:.9rem 1.1rem; margin:1rem 0; border-radius:0 6px 6px 0; font-size:.96rem}
+  .callout--purple{border-left-color:var(--purple)}
+  .fill{background:#efe7cf; border-bottom:1px dashed #b9a35f; padding:0 .15em; color:#5c4a18; font-style:normal}
+  .snap{background:var(--green); color:var(--cream); border-radius:10px; padding:1.3rem 1.5rem; margin:0 0 1rem}
+  .snap h2{font-family:"Fraunces",serif; font-weight:600; font-size:1.1rem; margin:0 0 .6rem; color:#fff}
+  .snap ul{margin:0; padding-left:1.1rem}
+  .snap li{margin:.35rem 0; font-size:.95rem}
+  .snap a{color:#EBD9A6}
+
+  :focus-visible{outline:2px solid var(--purple); outline-offset:2px; border-radius:2px}
+  .whl-footer :focus-visible,.whl-header :focus-visible{outline-color:var(--gold)}
+
+  @media (max-width:900px){
+    .layout{grid-template-columns:1fr; gap:1.4rem}
+    .toc{position:static; max-height:40vh; overflow:auto; background:var(--cream-2); border:1px solid var(--line); border-radius:8px; padding:1rem 1.1rem}
+    .toc ol{border-left:none}
+    .toc a{padding-left:.4rem}
+  }
+  @media (max-width:560px){
+    .clause{gap:.7rem}
+    .clause__num{width:1.4rem; font-size:1.05rem}
+  }
+</style>
+</head>
+<body>
+
+<header class="whl-header" id="whl-header">
+  <div class="whl-wrap whl-header__in">
+    <a class="whl-logo" href="/" aria-label="Whollar home">
+      <svg class="whl-mark" width="32" height="32" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Whollar">
+        <defs>
+          <linearGradient id="whollarMarkHeader" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#0E2A20"></stop>
+            <stop offset="1" stop-color="#1E9E63"></stop>
+          </linearGradient>
+        </defs>
+        <rect x="6" y="6" width="108" height="108" rx="32" fill="url(#whollarMarkHeader)"></rect>
+        <g>
+          <path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"></path>
+          <circle cx="34" cy="42" r="11" fill="#FFFFFF"></circle>
+          <circle cx="86" cy="42" r="11" fill="#FFFFFF"></circle>
+          <circle cx="60" cy="80" r="11" fill="#FFFFFF"></circle>
+        </g>
+      </svg>
+      <span class="whl-wordmark">Whollar</span>
+    </a>
+    <nav class="whl-nav" aria-label="Primary">
+      <a href="/#how">How it works</a>
+      <a href="/#why">Why us</a>
+      <a href="/#faq">FAQ</a>
+      <a href="/blog/">Resources</a>
+      <a href="mailto:hello@whollar.ca">Contact</a>
+    </nav>
+    <a class="whl-btn whl-header__cta" href="/waitlist/">Join the First Cohort</a>
+    <button class="whl-burger" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="whl-mobnav" data-burger>
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+  <nav class="whl-mobnav" id="whl-mobnav" aria-label="Mobile" data-mobnav>
+    <a href="/#how" data-mobnav-link>How it works</a>
+    <a href="/#why" data-mobnav-link>Why us</a>
+    <a href="/#faq" data-mobnav-link>FAQ</a>
+    <a href="/blog/" data-mobnav-link>Resources</a>
+    <a href="mailto:hello@whollar.ca" data-mobnav-link>Contact</a>
+    <a class="whl-btn" href="/waitlist/" data-mobnav-link>Join the First Cohort</a>
+  </nav>
+</header>
+
+<main id="top" class="page">
+  <div class="dochead">
+    <div class="eyebrow">Legal</div>
+    <h1>Privacy Policy</h1>
+    <p class="meta">Effective <b><span class="fill">[date]</span></b> · Last updated <b><span class="fill">[date]</span></b></p>
+    <p class="intro">This Privacy Policy explains how Whollar <span class="fill">[Inc./Ltd.]</span> (“Whollar,” “we,” “us”) collects, uses, discloses, and protects personal information when you use whollar.ca, providers.whollar.ca, and our services (the “Service”). We handle personal information in line with Canada’s Personal Information Protection and Electronic Documents Act (PIPEDA), Quebec’s Law 25, and Canada’s Anti-Spam Legislation (CASL).</p>
+  </div>
+</main>
+
+<div class="layout">
+  <nav class="toc" aria-label="On this page">
+    <div class="toc__title">On this page</div>
+    <ol>
+      <li><a href="#s1">1. The short version</a></li>
+      <li><a href="#s2">2. Who’s responsible</a></li>
+      <li><a href="#s3">3. What we collect</a></li>
+      <li><a href="#s4">4. How we use it</a></li>
+      <li><a href="#s5">5. Automated bill processing</a></li>
+      <li><a href="#s6">6. Marketing &amp; CASL consent</a></li>
+      <li><a href="#s7">7. When we share</a></li>
+      <li><a href="#s8">8. Where it’s processed</a></li>
+      <li><a href="#s9">9. Consent</a></li>
+      <li><a href="#s10">10. Your rights</a></li>
+      <li><a href="#s11">11. How long we keep it</a></li>
+      <li><a href="#s12">12. How we protect it</a></li>
+      <li><a href="#s13">13. Cookies</a></li>
+      <li><a href="#s14">14. Links to other sites</a></li>
+      <li><a href="#s15">15. Children</a></li>
+      <li><a href="#s16">16. Changes</a></li>
+      <li><a href="#s17">17. Contact us</a></li>
+    </ol>
+  </nav>
+
+  <article class="content">
+
+    <section class="clause" id="s1">
+      <div class="clause__num">1</div>
+      <div class="clause__body">
+        <h2>The short version</h2>
+        <div class="snap">
+          <h2>Privacy at a glance</h2>
+          <ul>
+            <li>Whollar is free for you, and we <strong>don’t sell your personal information</strong>.</li>
+            <li>We collect what we need to check if you’re overpaying, group you into a cohort, and help you switch — if you choose to.</li>
+            <li>You’re in control: you can access your information, correct it, withdraw consent, and ask us to delete it.</li>
+            <li>We use automated tools to read the bills you upload; <strong>you</strong> always decide whether to switch.</li>
+          </ul>
+        </div>
+        <p>The sections below explain each of these in full.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s2">
+      <div class="clause__num">2</div>
+      <div class="clause__body">
+        <h2>Who’s responsible for your information</h2>
+        <p>Whollar is responsible for the personal information in our care. Our Privacy Officer handles questions and requests — contact <span class="fill">[privacy@whollar.ca]</span>.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s3">
+      <div class="clause__num">3</div>
+      <div class="clause__body">
+        <h2>What we collect</h2>
+        <p>We collect only what we need to run the Service:</p>
+        <ul>
+          <li><strong>Identity &amp; contact:</strong> your name, email address, and (if you provide it) phone number.</li>
+          <li><strong>Location &amp; serviceability:</strong> your service address and/or postal code, so we can tell which Providers and offers are available to you and place you in the right cohort.</li>
+          <li><strong>Your internet bill:</strong> the bill you upload and the details we extract from it — such as your current provider, plan name, speed, monthly cost, contract or promotional end dates, and the service address on the bill.</li>
+          <li><strong>Usage &amp; device:</strong> how you use the Service, collected through cookies and analytics (see Cookies).</li>
+        </ul>
+        <div class="callout"><strong>What we don’t collect:</strong> We don’t need or ask for your Social Insurance Number, or your banking or account passwords, to use the core Service. Please don’t send these to us.</div>
+      </div>
+    </section>
+
+    <section class="clause" id="s4">
+      <div class="clause__num">4</div>
+      <div class="clause__body">
+        <h2>How we use your information</h2>
+        <p>We use your information to:</p>
+        <ul>
+          <li>assess whether you may be overpaying and estimate potential savings;</li>
+          <li>group your household into a regional cohort and run reverse-bid auctions with Providers;</li>
+          <li>present offers to you and, if you accept one, help complete your switch;</li>
+          <li>provide support, keep the Service secure, and meet legal obligations; and</li>
+          <li>with your consent, send you information about Whollar and relevant offers.</li>
+        </ul>
+        <p>We rely on your consent, and on the other bases the law permits, to do these things.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s5">
+      <div class="clause__num">5</div>
+      <div class="clause__body">
+        <h2>Automated processing of your bill</h2>
+        <p>When you upload a bill, we use automated extraction (including machine-learning tools) to read it and pull out the details listed above, so you don’t have to type them in. This speeds things up and reduces error. <strong>We don’t make decisions that have a legal or similarly significant effect on you by automated means alone</strong> — you decide whether to accept any offer and whether to switch. You can ask us about this processing, or ask for a person to review, using the contact details below.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s6">
+      <div class="clause__num">6</div>
+      <div class="clause__body">
+        <h2>Marketing and your CASL consent</h2>
+        <p>We’ll only send you commercial electronic messages (such as promotional emails) if you’ve given consent, and every message includes an easy way to unsubscribe. You can withdraw consent at any time. We’ll still send you messages needed to run a service you’ve asked for — such as auction results or account notices.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s7">
+      <div class="clause__num">7</div>
+      <div class="clause__body">
+        <h2>When we share your information</h2>
+        <p>We don’t sell your personal information. We share it only as follows:</p>
+        <ul>
+          <li><strong>Service providers:</strong> We use trusted providers — including Zoho (Zoho Catalyst for our backend and Zoho CRM as our system of record) — to host and process information on our behalf, under contracts that require them to protect it and use it only for us.</li>
+          <li><strong>Providers in an auction:</strong> To let Providers bid for a cohort, we share cohort information in aggregated or de-identified form wherever possible. We share the personal details a Provider needs to onboard you <strong>only after you choose that Provider’s offer</strong>.</li>
+          <li><strong>Legal &amp; safety:</strong> We may disclose information where required by law, to enforce our Terms, or to protect people’s safety.</li>
+          <li><strong>Business transfers:</strong> If Whollar is involved in a merger, financing, or sale, information may be transferred as part of that, subject to this Policy.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="clause" id="s8">
+      <div class="clause__num">8</div>
+      <div class="clause__body">
+        <h2>Where your information is processed</h2>
+        <p>Your information is processed and stored using our service providers’ infrastructure. We aim to keep personal information within Canada. Where information is stored or processed outside your province or outside Canada, it may be subject to the laws of that jurisdiction, and we take steps to ensure it’s protected to a comparable standard.</p>
+        <div class="callout callout--purple">Before publishing: confirm and state the specific Zoho data-residency region here (e.g. a Canadian data centre). Naming where data is stored — and flagging any transfer outside Quebec/Canada — is a required disclosure under Law 25, and matches the residency verification you’d already flagged as a priority.</div>
+      </div>
+    </section>
+
+    <section class="clause" id="s9">
+      <div class="clause__num">9</div>
+      <div class="clause__body">
+        <h2>Consent</h2>
+        <p>By using the Service and providing your information, you consent to the collection, use, and disclosure of your personal information as described in this Policy. Where required, we’ll ask for your express consent (for example, before sending marketing messages). You can withdraw consent at any time, subject to legal or contractual limits — though some withdrawals may mean we can no longer provide part of the Service.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s10">
+      <div class="clause__num">10</div>
+      <div class="clause__body">
+        <h2>Your rights</h2>
+        <p>Depending on where you live, and under PIPEDA and Law 25, you can:</p>
+        <ul>
+          <li>access the personal information we hold about you, and ask how it’s been used and shared;</li>
+          <li>ask us to correct information that’s inaccurate or incomplete;</li>
+          <li>withdraw your consent;</li>
+          <li>ask us to delete your information or stop processing it; and</li>
+          <li>receive certain information you provided in a structured, commonly used technological format (data portability).</li>
+        </ul>
+        <p>To make a request, contact our Privacy Officer at <span class="fill">[privacy@whollar.ca]</span>. We’ll respond within the timeframes the law requires. If you’re not satisfied, you can contact the Office of the Privacy Commissioner of Canada, or, in Quebec, the Commission d’accès à l’information du Québec.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s11">
+      <div class="clause__num">11</div>
+      <div class="clause__body">
+        <h2>How long we keep your information</h2>
+        <p>We keep personal information only as long as we need it for the purposes in this Policy, or as the law requires, and then we securely delete or anonymize it. You can ask us to delete your information sooner (see Your rights).</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s12">
+      <div class="clause__num">12</div>
+      <div class="clause__body">
+        <h2>How we protect your information</h2>
+        <p>We use appropriate physical, technical, and organizational safeguards to protect your information against loss, theft, and unauthorized access, use, or disclosure. Bills you upload are transmitted over a secure connection, and access is limited to what’s needed to run the Service. No system is perfectly secure, but we work to keep your information safe — and to notify you and the relevant authorities if a breach creates a risk of serious harm, as the law requires.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s13">
+      <div class="clause__num">13</div>
+      <div class="clause__body">
+        <h2>Cookies</h2>
+        <p>We use cookies and similar technologies to run the Service, remember your preferences, and understand how the Service is used so we can improve it. Most browsers let you refuse or delete cookies; if you do, some parts of the Service may not work as well. We use analytics data in aggregate to see which pages are useful.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s14">
+      <div class="clause__num">14</div>
+      <div class="clause__body">
+        <h2>Links to other sites</h2>
+        <p>Our Service may link to other websites, including Providers’. We’re not responsible for their privacy practices. Review their policies before sharing information with them.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s15">
+      <div class="clause__num">15</div>
+      <div class="clause__body">
+        <h2>Children</h2>
+        <p>The Service isn’t directed to, or intended for, anyone under the age of majority in their province or territory, and we don’t knowingly collect their information.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s16">
+      <div class="clause__num">16</div>
+      <div class="clause__body">
+        <h2>Changes to this Policy</h2>
+        <p>We may update this Policy from time to time. We’ll post the updated version here and change the “Last updated” date. Significant changes will be communicated where appropriate.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s17">
+      <div class="clause__num">17</div>
+      <div class="clause__body">
+        <h2>Contact us</h2>
+        <p>Questions, concerns, or requests about your privacy? Contact our Privacy Officer:</p>
+        <p>Whollar <span class="fill">[Inc./Ltd.]</span> — Privacy Officer<br>
+        <span class="fill">[privacy@whollar.ca]</span><br>
+        <span class="fill">[Mailing address]</span></p>
+      </div>
+    </section>
+
+  </article>
+</div>
+
+<footer class="whl-footer">
+  <div class="whl-wrap">
+    <div class="whl-footer__top">
+      <div class="whl-footer__brand">
+        <div class="row"><svg class="mk" width="30" height="30" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Whollar">
+          <defs>
+            <linearGradient id="whollarMarkFooter" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stop-color="#0E2A20"></stop>
+              <stop offset="1" stop-color="#1E9E63"></stop>
+            </linearGradient>
+          </defs>
+          <rect x="6" y="6" width="108" height="108" rx="32" fill="url(#whollarMarkFooter)"></rect>
+          <g>
+            <path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"></path>
+            <circle cx="34" cy="42" r="11" fill="#FFFFFF"></circle>
+            <circle cx="86" cy="42" r="11" fill="#FFFFFF"></circle>
+            <circle cx="60" cy="80" r="11" fill="#FFFFFF"></circle>
+          </g>
+        </svg><span class="wm">Whollar</span></div>
+        <p>Wholesale buying power that saves you dollars</p>
+      </div>
+      <div class="whl-footer__cols">
+        <div class="whl-footer__col"><a href="/#how">How it works</a><a href="/#why">Why us</a><a href="/#faq">FAQ</a></div>
+        <div class="whl-footer__col"><a href="/blog/">Resources</a><a href="mailto:hello@whollar.ca">Contact</a><a href="/privacy" aria-current="page">Privacy</a><a href="/terms">Terms</a><a href="/disclosures">Disclosures</a><a href="/become-a-partner">For providers</a></div>
+      </div>
+    </div>
+    <div class="whl-footer__bottom">
+      <span>© 2026 Whollar, now forming the first cohorts.</span>
+      <span class="whl-made">Made in Canada
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="#1E9E63" aria-hidden="true"><path d="M12 2l1.6 4.3 4.4-1.2-2 4 3.5 2.4-4 1.3.6 4.4-3.7-2.2L12 22l-.4-3.3-3.7 2.2.6-4.4-4-1.3L4 9.1l-2-4 4.4 1.2z"></path></svg>
+      </span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  (function(){
+    /* sticky header shadow */
+    var header = document.querySelector('.whl-header');
+    function onScroll(){ if(header) header.classList.toggle('is-scrolled', window.scrollY > 8); }
+    window.addEventListener('scroll', onScroll, {passive:true}); onScroll();
+
+    /* mobile nav toggle */
+    var burger = document.querySelector('[data-burger]');
+    var mobnav = document.querySelector('[data-mobnav]');
+    if(burger && mobnav){
+      function setNav(open){
+        mobnav.classList.toggle('is-open', open);
+        burger.setAttribute('aria-expanded', open ? 'true':'false');
+        burger.setAttribute('aria-label', open ? 'Close menu':'Open menu');
+      }
+      burger.addEventListener('click', function(){ setNav(!mobnav.classList.contains('is-open')); });
+      mobnav.querySelectorAll('[data-mobnav-link]').forEach(function(a){ a.addEventListener('click', function(){ setNav(false); }); });
+      window.addEventListener('resize', function(){ if(window.innerWidth > 880) setNav(false); });
+    }
+
+    /* "On this page" scroll-spy */
+    var links = Array.prototype.slice.call(document.querySelectorAll('.toc a[href^="#"]'));
+    var map = {};
+    links.forEach(function(l){ var id=l.getAttribute('href').slice(1); map[id]=l; });
+    var targets = Object.keys(map).map(function(id){ return document.getElementById(id); }).filter(Boolean);
+    if(!('IntersectionObserver' in window) || !targets.length) return;
+    var current=null;
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){
+          if(current) current.classList.remove('is-active');
+          var l=map[e.target.id];
+          if(l){ l.classList.add('is-active'); current=l; }
+        }
+      });
+    },{rootMargin:'-90px 0px -70% 0px', threshold:0});
+    targets.forEach(function(t){ io.observe(t); });
+  })();
+</script>
+</body>
+</html>

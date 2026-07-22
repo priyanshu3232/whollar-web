@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terms of Service — Whollar</title>
+<meta name="description" content="The Terms of Service that govern your use of Whollar's websites and collective-switching service.">
+<link rel="canonical" href="/terms">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Terms of Service — Whollar">
+<meta property="og:description" content="The Terms of Service that govern your use of Whollar's websites and collective-switching service.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
+<style>
+  /* Site display font for the shared header/footer (same files the homepage uses) */
+  @font-face{font-family:'Satoshi';font-style:normal;font-weight:500;font-display:swap;src:url("/fonts/satoshi-500.woff2") format('woff2')}
+  @font-face{font-family:'Satoshi';font-style:normal;font-weight:700;font-display:swap;src:url("/fonts/satoshi-700.woff2") format('woff2')}
+  @font-face{font-family:'Satoshi';font-style:normal;font-weight:900;font-display:swap;src:url("/fonts/satoshi-900.woff2") format('woff2')}
+
+  :root{
+    /* legal-page palette */
+    --green:#1B4D3E; --green-deep:#143B30; --cream:#F1ECDF; --cream-2:#EBE5D7;
+    --purple:#534AB7; --gold:#C4A24B; --ink:#22221E; --muted:#6E6E63; --line:#D9D2C2;
+    --measure:90ch;
+    /* site component tokens (header/footer) */
+    --teal:#0E2A20; --teal-deep:#0A2018; --navy-deep:#0A2018;
+    --disp:'Satoshi',system-ui,sans-serif;
+    --body:'Inter',system-ui,sans-serif;
+    --wrap:1340px;
+    --ease:cubic-bezier(.22,.61,.36,1);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{
+    margin:0; background:var(--cream); color:var(--ink);
+    font-family:"Inter",system-ui,sans-serif; font-size:16px; line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--purple); text-decoration:underline; text-underline-offset:2px; text-decoration-thickness:1px}
+  a:hover{color:var(--green)}
+
+  /* ── Site header (shared component) ── */
+  .whl-wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}
+  .whl-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:pointer;font-family:var(--body);font-weight:600;font-size:15px;color:#fff;background:var(--teal);border-radius:13px;padding:13px 22px;text-decoration:none;transition:background .18s,transform .18s,box-shadow .18s;white-space:nowrap}
+  .whl-btn:hover{background:var(--teal-deep);transform:translateY(-1px);color:#fff}
+  .whl-header{position:sticky;top:0;z-index:60;background:rgba(250,248,243,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid #e8ebe7;transition:box-shadow .2s}
+  .whl-header.is-scrolled{box-shadow:0 6px 24px rgba(16,40,34,.07)}
+  .whl-header__in{height:68px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .whl-logo{display:flex;align-items:center;gap:11px;text-decoration:none}
+  .whl-mark{width:32px;height:32px;border-radius:10px;flex:none;display:block}
+  .whl-wordmark{font-family:var(--disp);font-weight:900;font-size:21px;letter-spacing:-.02em;color:var(--teal)}
+  .whl-nav{display:flex;gap:30px;align-items:center}
+  .whl-nav a{text-decoration:none;color:#54625B;font-weight:500;font-size:15px;transition:color .15s}
+  .whl-nav a:hover{color:var(--teal)}
+  .whl-header__cta{display:inline-flex}
+  .whl-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:42px;height:42px;border:1px solid #e7ebe6;border-radius:11px;background:rgba(255,255,255,.6);cursor:pointer;padding:0 11px}
+  .whl-burger span{display:block;height:2px;width:100%;background:#54625B;border-radius:2px;transition:transform .25s var(--ease),opacity .2s}
+  .whl-burger[aria-expanded="true"] span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+  .whl-burger[aria-expanded="true"] span:nth-child(2){opacity:0}
+  .whl-burger[aria-expanded="true"] span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+  .whl-mobnav{display:none;flex-direction:column;gap:4px;padding:10px 24px 18px;border-top:1px solid #e8ebe7;background:rgba(250,248,243,.96);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+  .whl-mobnav a{padding:12px 4px;text-decoration:none;color:#54625B;font-weight:600;font-size:16px;border-radius:8px}
+  .whl-mobnav a:not(.whl-btn):hover{color:var(--teal)}
+  .whl-mobnav .whl-btn{margin-top:8px;justify-content:center}
+  .whl-mobnav.is-open{display:flex}
+  @media(max-width:880px){
+    .whl-nav,.whl-header__cta{display:none}
+    .whl-burger{display:flex}
+  }
+
+  /* ── Site footer (shared component) ── */
+  .whl-footer{background:var(--navy-deep);color:#CFE8D6;padding:0 0 30px;border-top:1px solid rgba(255,255,255,.08);margin-top:4.5rem}
+  .whl-footer .whl-wrap{padding-top:40px}
+  .whl-footer__top{display:flex;flex-wrap:wrap;gap:28px;justify-content:space-between;align-items:flex-start;padding-bottom:30px;border-bottom:1px solid rgba(255,255,255,.12)}
+  .whl-footer__brand{max-width:300px}
+  .whl-footer__brand .row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .whl-footer__brand .mk{width:30px;height:30px;border-radius:9px;flex:none;display:block}
+  .whl-footer__brand .wm{font-family:var(--disp);font-weight:800;font-size:20px;color:#fff}
+  .whl-footer__brand p{font-size:14px;line-height:1.5;color:#9fc1bf;margin:0}
+  .whl-footer__cols{display:flex;gap:48px;flex-wrap:wrap}
+  .whl-footer__col{display:flex;flex-direction:column;gap:11px}
+  .whl-footer__col a{color:#CFE8D6;text-decoration:none;font-size:14.5px}
+  .whl-footer__col a:hover{color:#fff}
+  .whl-footer__col a[aria-current="page"]{color:#fff;font-weight:600;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--gold)}
+  .whl-footer__bottom{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center;padding-top:22px}
+  .whl-footer__bottom span{font-size:13px;color:#8FB39B}
+  .whl-made{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:#CFE8D6;font-weight:600}
+
+  /* ── Legal document — compact fine-print ── */
+  .page{max-width:1120px; margin:0 auto; padding:2rem 1.5rem 0}
+  .page,.layout{font-size:13px; line-height:1.55}
+  .eyebrow{font-size:.62rem; font-weight:600; letter-spacing:.2em; text-transform:uppercase;
+    color:var(--green); display:flex; align-items:center; gap:.6rem;}
+  .eyebrow::after{content:""; height:1px; width:46px; background:var(--gold)}
+  .dochead h1{font-family:"Fraunces",serif; font-weight:500; line-height:1.05;
+    font-size:clamp(1.55rem,3.4vw,2.1rem); margin:.5rem 0 .35rem; color:var(--green-deep);}
+  .meta{color:var(--muted); font-size:11.5px; margin:0 0 1rem}
+  .meta b{color:var(--ink); font-weight:600}
+  .intro{max-width:var(--measure); font-size:13.5px; color:#33332C}
+
+  .layout{max-width:1120px; margin:0 auto; padding:1.2rem 1.5rem 0}
+
+  .content{max-width:var(--measure)}
+  .sect{font-family:"Fraunces",serif; color:var(--green-deep); font-weight:600;
+    font-size:15px; margin:1.7rem 0 .25rem; padding-top:1rem; border-top:1px solid var(--line);
+    scroll-margin-top:92px}
+  .sect:first-of-type{border-top:none; padding-top:0; margin-top:.4rem}
+  .sect__note{color:var(--muted); font-size:12px; margin:.1rem 0 .9rem}
+  .clause{display:flex; gap:.8rem; margin:1rem 0; scroll-margin-top:92px}
+  .clause__num{font-family:"Fraunces",serif; font-weight:600; color:var(--green);
+    font-size:13px; line-height:1.45; flex:none; width:1.4rem; text-align:right}
+  .clause__body{flex:1; min-width:0}
+  .clause__body h2{font-size:13px; font-weight:700; color:var(--ink); margin:.1rem 0 .3rem;
+    line-height:1.3}
+  .clause__body p{margin:.4rem 0}
+  .clause__body ul{margin:.4rem 0; padding-left:1rem}
+  .clause__body li{margin:.2rem 0}
+  .clause__body strong{font-weight:600}
+
+  .callout{background:var(--cream-2); border-left:3px solid var(--gold);
+    padding:.6rem .8rem; margin:.7rem 0; border-radius:0 6px 6px 0; font-size:12px}
+
+  :focus-visible{outline:2px solid var(--purple); outline-offset:2px; border-radius:2px}
+  .whl-footer :focus-visible,.whl-header :focus-visible{outline-color:var(--gold)}
+
+  @media (max-width:560px){
+    .clause{gap:.6rem}
+    .clause__num{width:1.2rem}
+  }
+</style>
+</head>
+<body>
+
+<header class="whl-header" id="whl-header">
+  <div class="whl-wrap whl-header__in">
+    <a class="whl-logo" href="/" aria-label="Whollar home">
+      <svg class="whl-mark" width="32" height="32" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Whollar">
+        <defs>
+          <linearGradient id="whollarMarkHeader" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#0E2A20"></stop>
+            <stop offset="1" stop-color="#1E9E63"></stop>
+          </linearGradient>
+        </defs>
+        <rect x="6" y="6" width="108" height="108" rx="32" fill="url(#whollarMarkHeader)"></rect>
+        <g>
+          <path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"></path>
+          <circle cx="34" cy="42" r="11" fill="#FFFFFF"></circle>
+          <circle cx="86" cy="42" r="11" fill="#FFFFFF"></circle>
+          <circle cx="60" cy="80" r="11" fill="#FFFFFF"></circle>
+        </g>
+      </svg>
+      <span class="whl-wordmark">Whollar</span>
+    </a>
+    <nav class="whl-nav" aria-label="Primary">
+      <a href="/#how">How it works</a>
+      <a href="/#why">Why us</a>
+      <a href="/#faq">FAQ</a>
+      <a href="/blog/">Resources</a>
+      <a href="mailto:hello@whollar.ca">Contact</a>
+    </nav>
+    <a class="whl-btn whl-header__cta" href="/waitlist/">Join the First Cohort</a>
+    <button class="whl-burger" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="whl-mobnav" data-burger>
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+  <nav class="whl-mobnav" id="whl-mobnav" aria-label="Mobile" data-mobnav>
+    <a href="/#how" data-mobnav-link>How it works</a>
+    <a href="/#why" data-mobnav-link>Why us</a>
+    <a href="/#faq" data-mobnav-link>FAQ</a>
+    <a href="/blog/" data-mobnav-link>Resources</a>
+    <a href="mailto:hello@whollar.ca" data-mobnav-link>Contact</a>
+    <a class="whl-btn" href="/waitlist/" data-mobnav-link>Join the First Cohort</a>
+  </nav>
+</header>
+
+<main id="top" class="page">
+  <div class="dochead">
+    <div class="eyebrow">Legal</div>
+    <h1>Terms of Service</h1>
+    <p class="meta">Effective <b>July 22, 2026</b> · Last updated <b>July 22, 2026</b></p>
+    <p class="intro">These Terms of Use (“Terms”) govern your access to and use of Whollar’s websites, including whollar.ca and providers.whollar.ca, and the services offered through them (together, the “Service”), operated by Whollar (“Whollar,” “we,” “us”). By using the Service, you agree to these Terms. If you don’t agree, please don’t use the Service.</p>
+  </div>
+</main>
+
+<div class="layout">
+  <article class="content">
+
+    <h2 class="sect" id="sectionA">Section A — Applies to everyone who uses the Service</h2>
+
+    <section class="clause" id="s1">
+      <div class="clause__num">1</div>
+      <div class="clause__body">
+        <h2>About these Terms</h2>
+        <p>Your use of the Service is conditioned on accepting these Terms. If you browse the Service without an account, Section A applies to you. If you create an account or join a cohort (a “Member”), Section A and Section B both apply. We may also have separate written agreements with providers and partners; those are in addition to these Terms and don’t replace them.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s2">
+      <div class="clause__num">2</div>
+      <div class="clause__body">
+        <h2>What Whollar is — and what it isn’t</h2>
+        <p>Whollar helps households in Canada pay less for home internet by grouping them into regional cohorts and inviting internet service providers and wholesale distributors (“Providers”) to compete for that group’s business through a sealed reverse-bid auction.</p>
+        <div class="callout">
+          <ul>
+            <li><strong>Whollar is not an internet service provider, a reseller, or a reseller’s agent.</strong> We don’t sell internet service.</li>
+            <li><strong>Whollar is not affiliated with, endorsed by, or acting on behalf of any Provider.</strong></li>
+            <li><strong>Any offer you see is the Provider’s offer.</strong> If you accept one, your service contract is between you and that Provider — not Whollar. Their pricing, terms, and service quality are their responsibility.</li>
+            <li><strong>Whollar is free for Members.</strong> We’re paid by Providers, and only when a switch is completed. Joining a cohort or accepting an offer never costs you anything (see our <a href="/disclosures">Disclosures</a>).</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="clause" id="s3">
+      <div class="clause__num">3</div>
+      <div class="clause__body">
+        <h2>Changes to these Terms and the Service</h2>
+        <p>We may change the Service and these Terms at any time. Changes take effect when posted. We’ll update the “Last updated” date above, and for material changes we’ll take reasonable steps to let Members know. Continuing to use the Service after changes are posted means you accept them.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s4">
+      <div class="clause__num">4</div>
+      <div class="clause__body">
+        <h2>Who can use the Service</h2>
+        <p>To use the Service you must be a resident of Canada and old enough to enter a binding contract in your province or territory. The Service isn’t intended for anyone under the age of majority. You may join on behalf of your own household only.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s5">
+      <div class="clause__num">5</div>
+      <div class="clause__body">
+        <h2>Estimates and information are not advice</h2>
+        <p>Our overpayment check, savings estimator, cohort results, and educational resources are general information based on what you tell us and on publicly available data. They aren’t a guarantee, and they aren’t financial, legal, or other professional advice. Actual availability, pricing, and savings depend on Providers’ offers and your own circumstances. Decide what’s right for you, and consult an appropriate advisor if you need one.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s6">
+      <div class="clause__num">6</div>
+      <div class="clause__body">
+        <h2>Acceptable use</h2>
+        <p>You agree not to:</p>
+        <ul>
+          <li>use the Service for any unlawful purpose or in breach of these Terms;</li>
+          <li>interfere with, overload, or disrupt the Service or its infrastructure;</li>
+          <li>access the Service by automated means, or scrape, harvest, or systematically retrieve data or email addresses from it, without our written permission;</li>
+          <li>attempt to reverse engineer, copy, or resell any part of the Service;</li>
+          <li>submit content or information that is false, that you don’t have the right to submit, or that infringes anyone’s rights; or</li>
+          <li>impersonate any person or misrepresent your affiliation with anyone.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="clause" id="s7">
+      <div class="clause__num">7</div>
+      <div class="clause__body">
+        <h2>Intellectual property</h2>
+        <p>The Service — including its text, design, layout, graphics, and the Whollar name and logo — is owned by Whollar or its licensors and is protected by Canadian and international law. You may view and print pages for your own personal, non-commercial use, keeping all notices intact. You may not otherwise copy, modify, distribute, publish, frame, or create derivative works from the Service without our written permission. We respect others’ intellectual property and expect the same; contact us at <a href="mailto:hello@whollar.ca">hello@whollar.ca</a> with any concerns.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s8">
+      <div class="clause__num">8</div>
+      <div class="clause__body">
+        <h2>Providers’ offers and third-party sites</h2>
+        <p>Offers, links, and materials from Providers or other third parties are their responsibility, not ours. Before accepting any Provider offer, review that Provider’s own contract, pricing, and policies. We don’t control and aren’t responsible for third-party sites or services, and you use them at your own risk.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s9">
+      <div class="clause__num">9</div>
+      <div class="clause__body">
+        <h2>No warranties</h2>
+        <p>The Service is provided “as is” and “as available,” without warranties of any kind, express or implied, including implied warranties of merchantability, fitness for a particular purpose, accuracy, and non-infringement, all of which we disclaim to the extent the law allows. We don’t warrant that the Service will be uninterrupted, error-free, or secure, that any auction will run in your area, or that any Provider offer will be made or will save you money.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s10">
+      <div class="clause__num">10</div>
+      <div class="clause__body">
+        <h2>Limitation of liability</h2>
+        <p>To the extent permitted by law, Whollar and its directors, officers, employees, and suppliers won’t be liable for any indirect, incidental, special, consequential, or punitive damages, or for any lost savings, arising out of or relating to your use of the Service — even if we’ve been told such damages are possible. Some jurisdictions don’t allow certain limitations, so parts of this may not apply to you.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s11">
+      <div class="clause__num">11</div>
+      <div class="clause__body">
+        <h2>Indemnity</h2>
+        <p>You agree to indemnify and hold Whollar and its representatives harmless from any claims and costs (including reasonable legal fees) arising from your misuse of the Service or your breach of these Terms.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s12">
+      <div class="clause__num">12</div>
+      <div class="clause__body">
+        <h2>Resolving disputes</h2>
+        <p>Except where we seek to protect our confidential information or intellectual property, any dispute relating to these Terms or the Service will be resolved by binding arbitration under the <i>Arbitration Act, 1991</i> (Ontario), on an individual (non-class) basis, seated in Toronto, Ontario. Nothing here prevents you from bringing a matter before a regulator, or a small claims court where the law allows.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s13">
+      <div class="clause__num">13</div>
+      <div class="clause__body">
+        <h2>Governing law</h2>
+        <p>These Terms are governed by the laws of the Province of Ontario and the federal laws of Canada that apply there, without regard to conflict-of-laws rules.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s14">
+      <div class="clause__num">14</div>
+      <div class="clause__body">
+        <h2>Contact</h2>
+        <p>Questions about these Terms? Email us at <a href="mailto:hello@whollar.ca">hello@whollar.ca</a>.</p>
+      </div>
+    </section>
+
+    <h2 class="sect" id="sectionB">Section B — Applies to registered Members</h2>
+    <p class="sect__note">A “Member” is anyone who creates a Whollar account or submits a bill to join a cohort.</p>
+
+    <section class="clause" id="s15">
+      <div class="clause__num">15</div>
+      <div class="clause__body">
+        <h2>Your account</h2>
+        <p>You’ll register with an email address as your login. Choose a strong, private password. Keep your login details confidential, give us accurate information, and keep it current. Tell us promptly at <a href="mailto:hello@whollar.ca">hello@whollar.ca</a> if you suspect any unauthorized use of your account. You’re responsible for activity under your account.</p>
+        <div class="callout">We will never ask for your Social Insurance Number or your banking passwords to use the core Service.</div>
+      </div>
+    </section>
+
+    <section class="clause" id="s16">
+      <div class="clause__num">16</div>
+      <div class="clause__body">
+        <h2>Joining a cohort</h2>
+        <p>When you join a cohort, you authorize us to include your service profile — the details needed to describe your household’s internet situation (such as your area, current plan, speed, and price) — in a cohort so Providers can bid to serve that group. You’re never obligated to accept any offer. Accepting an offer is your choice, and it forms a contract between you and the Provider, not with Whollar.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s17">
+      <div class="clause__num">17</div>
+      <div class="clause__body">
+        <h2>Your bill and other submissions</h2>
+        <p>To assess whether you’re overpaying and to build your cohort, you may upload your internet bill. You confirm you have the right to submit it. You grant Whollar permission to process the bill and the information in it <strong>solely to provide and improve the Service</strong>, as described in our <a href="/privacy">Privacy Policy</a> — nothing more. Our Privacy Policy forms part of these Terms. Please don’t upload documents you don’t have the right to share, and feel free to redact anything unrelated to your internet service.</p>
+      </div>
+    </section>
+
+    <section class="clause" id="s18">
+      <div class="clause__num">18</div>
+      <div class="clause__body">
+        <h2>Ending your membership</h2>
+        <p>You can stop using the Service and ask us to close your account and delete your information at any time by contacting <a href="mailto:hello@whollar.ca">hello@whollar.ca</a>, subject to the retention and rights sections of our Privacy Policy. We may suspend or close accounts that breach these Terms or that we reasonably believe involve fraudulent or unlawful activity.</p>
+      </div>
+    </section>
+
+  </article>
+</div>
+
+<footer class="whl-footer">
+  <div class="whl-wrap">
+    <div class="whl-footer__top">
+      <div class="whl-footer__brand">
+        <div class="row"><svg class="mk" width="30" height="30" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Whollar">
+          <defs>
+            <linearGradient id="whollarMarkFooter" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stop-color="#0E2A20"></stop>
+              <stop offset="1" stop-color="#1E9E63"></stop>
+            </linearGradient>
+          </defs>
+          <rect x="6" y="6" width="108" height="108" rx="32" fill="url(#whollarMarkFooter)"></rect>
+          <g>
+            <path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"></path>
+            <circle cx="34" cy="42" r="11" fill="#FFFFFF"></circle>
+            <circle cx="86" cy="42" r="11" fill="#FFFFFF"></circle>
+            <circle cx="60" cy="80" r="11" fill="#FFFFFF"></circle>
+          </g>
+        </svg><span class="wm">Whollar</span></div>
+        <p>Wholesale buying power that saves you dollars</p>
+      </div>
+      <div class="whl-footer__cols">
+        <div class="whl-footer__col"><a href="/#how">How it works</a><a href="/#why">Why us</a><a href="/#faq">FAQ</a></div>
+        <div class="whl-footer__col"><a href="/blog/">Resources</a><a href="mailto:hello@whollar.ca">Contact</a><a href="/privacy">Privacy</a><a href="/terms" aria-current="page">Terms</a><a href="/disclosures">Disclosures</a><a href="/become-a-partner">For providers</a></div>
+      </div>
+    </div>
+    <div class="whl-footer__bottom">
+      <span>© 2026 Whollar, now forming the first cohorts.</span>
+      <span class="whl-made">Made in Canada
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="#1E9E63" aria-hidden="true"><path d="M12 2l1.6 4.3 4.4-1.2-2 4 3.5 2.4-4 1.3.6 4.4-3.7-2.2L12 22l-.4-3.3-3.7 2.2.6-4.4-4-1.3L4 9.1l-2-4 4.4 1.2z"></path></svg>
+      </span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  (function(){
+    /* sticky header shadow */
+    var header = document.querySelector('.whl-header');
+    function onScroll(){ if(header) header.classList.toggle('is-scrolled', window.scrollY > 8); }
+    window.addEventListener('scroll', onScroll, {passive:true}); onScroll();
+
+    /* mobile nav toggle */
+    var burger = document.querySelector('[data-burger]');
+    var mobnav = document.querySelector('[data-mobnav]');
+    if(burger && mobnav){
+      function setNav(open){
+        mobnav.classList.toggle('is-open', open);
+        burger.setAttribute('aria-expanded', open ? 'true':'false');
+        burger.setAttribute('aria-label', open ? 'Close menu':'Open menu');
+      }
+      burger.addEventListener('click', function(){ setNav(!mobnav.classList.contains('is-open')); });
+      mobnav.querySelectorAll('[data-mobnav-link]').forEach(function(a){ a.addEventListener('click', function(){ setNav(false); }); });
+      window.addEventListener('resize', function(){ if(window.innerWidth > 880) setNav(false); });
+    }
+  })();
+</script>
+</body>
+</html>

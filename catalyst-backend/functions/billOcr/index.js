@@ -186,19 +186,26 @@ const BILL_EXTRACTION_TOOL = {
             'Fixed wireless (5G antenna)', 'Satellite (dish)', 'Not sure'
           ]
         }),
-        // Still extracted even though the checkup UI no longer asks the
-        // access-technology question — the frontend stores it silently.
         description: 'How the connection reaches the house.'
       },
       promoEndDate: {
         ...nullable({ type: 'string' }),
         description:
-          "ISO 8601 date (YYYY-MM-DD) the promo/discount ends, from a line like 'Savings ... ends " +
-          "May 21/26'. Null if there is no promo or no end date shown."
+          "ISO 8601 date (YYYY-MM-DD) the time-limited promotional discount ends, from a line " +
+          "like 'Savings ... ends May 21/26'. Null if there is no promo or no end date shown. " +
+          "Bundle, autopay and loyalty discounts are not promos — never infer an end date from them."
       },
       discountAmountDollars: {
         ...nullable({ type: 'number' }),
-        description: 'Monthly discount amount in dollars, if shown as its own line item.'
+        // Feeds the "jump" math on the frontend (regular price = charge + this),
+        // so it must only ever hold credits that disappear when a promo ends.
+        description:
+          'Monthly PROMOTIONAL discount in dollars — only time-limited promo/savings credits ' +
+          'that expire, e.g. a "Savings", "Promotional credit" or "12-month discount" line. ' +
+          'Sum them if there are several. EXCLUDE discounts not tied to a promo period: ' +
+          'bundle / multi-service discounts, autopay or pre-authorized payment discounts, ' +
+          'loyalty, employee or accessibility discounts, and one-time credits or adjustments. ' +
+          'Null if the only discounts on the bill are of the excluded kinds.'
       },
       postalCode: {
         ...nullable({ type: 'string' }),
@@ -245,7 +252,10 @@ async function extractBillFields(file) {
     system:
       'You extract structured billing fields from Canadian home-internet bills. ' +
       'If a field is ambiguous, missing, or you are not confident, return null for that field ' +
-      'rather than guessing — a wrong auto-filled value is worse than an empty form field.',
+      'rather than guessing — a wrong auto-filled value is worse than an empty form field. ' +
+      'Treat discounts carefully: only time-limited promotional credits count as the discount ' +
+      'and promo end date. Bundle/multi-service, autopay, loyalty and one-time credits are ' +
+      'permanent or unrelated to a promo period — leave them out of both fields entirely.',
     tools: [BILL_EXTRACTION_TOOL],
     tool_choice: { type: 'tool', name: 'extract_bill_fields' },
     messages: [
@@ -280,7 +290,7 @@ async function extractBillFields(file) {
 // Frontend must POST multipart/form-data with the file under "billFile".
 app.post(
   '/extract-bill',
-  limit({ key: 'ocr-ip', max: 5, windowSec: 3600, perIp: true }),         // 5 / hour / IP
+  limit({ key: 'ocr-ip', max: 15, windowSec: 3600, perIp: true }),        // 15 / hour / IP — every attempt counts (even 4xx rejects), so leave room for retries
   limit({ key: 'ocr-global', max: 800, windowSec: 86400, perIp: false }), // 800 / day total — denial-of-wallet ceiling
   guardUpload(upload.single('billFile')),
   async (req, res) => {

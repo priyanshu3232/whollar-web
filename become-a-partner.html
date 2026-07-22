@@ -6,10 +6,13 @@
 <title>Become a founding partner — Whollar</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="preconnect" href="https://api.fontshare.com">
+<link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&f[]=general-sans@500,600&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&f[]=general-sans@500,600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&f[]=general-sans@500,600&display=swap" rel="stylesheet"></noscript>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
 <style>
 :root{
   --teal:#0E2A20; --teal-deep:#0A2018; --teal-bright:#178A5A; --teal-soft:#7FE3B0;
@@ -226,6 +229,10 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
 
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}.fs,.faqwrap{opacity:1;transform:none}}
 </style>
+<script type="speculationrules">
+{"prefetch":[{"where":{"or":[{"href_matches":"/bill-checkup"},{"href_matches":"/blog/*"}]},"eagerness":"moderate"}],"prerender":[{"urls":["/waitlist/"],"eagerness":"moderate"}]}
+</script>
+<link rel="prefetch" href="/waitlist/">
 </head>
 <body>
 <nav class="whl-nav">
@@ -407,7 +414,7 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
           </div>
         </div>
 
-        <label class="terms-check" style="display:flex;align-items:flex-start;gap:9px;margin-top:16px;font-size:12.5px;line-height:1.5;color:var(--ink-2);cursor:pointer;"><input type="checkbox" id="p-terms" style="margin-top:1px;width:16px;height:16px;accent-color:var(--accent);flex:none;cursor:pointer;"><span>I accept all <a href="#" style="color:var(--accent);text-decoration:underline;text-underline-offset:2px;">terms and conditions</a>.</span></label>
+        <label class="terms-check" style="display:flex;align-items:flex-start;gap:9px;margin-top:16px;font-size:12.5px;line-height:1.5;color:var(--ink-2);cursor:pointer;"><input type="checkbox" id="p-terms" style="margin-top:1px;width:16px;height:16px;accent-color:var(--accent);flex:none;cursor:pointer;"><span>I accept all <a href="/terms" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;text-underline-offset:2px;">terms and conditions</a>.</span></label>
         <div class="ctarow">
           <button class="whl-btn go" id="p-go" type="button">Apply as a founding partner</button>
           <a class="whl-btn go ghost" id="p-call" href="#book">Book a call</a>

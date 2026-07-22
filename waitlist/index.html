@@ -1,30 +1,25 @@
 <!DOCTYPE html>
-<html><head>
+<html lang="en-CA"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
-
-
-<script src="js/dc-runtime.js"></script>
+<title>Join the waitlist — Whollar</title>
+<meta name="description" content="Hold your spot in your neighbourhood's cohort. Whollar gets providers to bid for whole streets at once, so everyone gets the group price.">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-</head>
-<body>
-<x-dc>
-<helmet>
 <link rel="preconnect" href="https://api.fontshare.com">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<script src="js/lottie.min.js"></script>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
-<link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&amp;f[]=general-sans@500,600&amp;display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&amp;f[]=general-sans@500,600&amp;display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&amp;f[]=general-sans@500,600&amp;display=swap" rel="stylesheet"></noscript>
 <link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/style.css">
-</helmet>
+<script src="js/lottie.min.js" defer></script>
+</head>
+<body>
 
 <div class="whl">
 <nav class="whl-nav">
   <div class="whl-nav__in">
     <a class="whl-mark" href="#top">
-      <svg sc-camel-view-box="0 0 120 120"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" sc-camel-gradient-units="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"></stop><stop offset="1" stop-color="#1E9E63"></stop></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"></rect><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"></path><circle cx="34" cy="42" r="11" fill="#fff"></circle><circle cx="86" cy="42" r="11" fill="#fff"></circle><circle cx="60" cy="80" r="11" fill="#fff"></circle></svg>
+      <svg viewBox="0 0 120 120"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"></stop><stop offset="1" stop-color="#1E9E63"></stop></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"></rect><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"></path><circle cx="34" cy="42" r="11" fill="#fff"></circle><circle cx="86" cy="42" r="11" fill="#fff"></circle><circle cx="60" cy="80" r="11" fill="#fff"></circle></svg>
       <b>Whollar</b>
     </a>
     <a class="whl-nav__back" href="/">← Back to home</a>
@@ -34,7 +29,7 @@
 <section class="split">
   <div class="hs-left">
     <canvas class="hs-net" id="hs-net" aria-hidden="true"></canvas>
-    <svg class="hs-left__mark" sc-camel-view-box="0 0 120 120"><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="34" cy="42" r="11" fill="#fff"></circle><circle cx="86" cy="42" r="11" fill="#fff"></circle><circle cx="60" cy="80" r="11" fill="#fff"></circle></svg>
+    <svg class="hs-left__mark" viewBox="0 0 120 120"><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="34" cy="42" r="11" fill="#fff"></circle><circle cx="86" cy="42" r="11" fill="#fff"></circle><circle cx="60" cy="80" r="11" fill="#fff"></circle></svg>
     <div class="hs-left__in">
       <span class="whl-eyebrow">Founding members</span>
       <h1>Become a founding member of Whollar.</h1>
@@ -73,7 +68,7 @@
           <label for="j-ref">Referral code or a neighbour's email</label>
           <input type="text" id="j-ref" placeholder="Optional">
         </div>
-        <label class="j-terms" style="display:flex;align-items:flex-start;gap:9px;margin:16px 0 6px;font-size:13px;line-height:1.5;color:#54625B;cursor:pointer;"><input type="checkbox" id="j-terms" style="margin-top:1px;width:16px;height:16px;accent-color:#1E9E63;flex:none;cursor:pointer;"><span>I accept all <a href="#" style="color:#178A5A;text-decoration:underline;text-underline-offset:2px;">terms and conditions</a>.</span></label>
+        <label class="j-terms" style="display:flex;align-items:flex-start;gap:9px;margin:16px 0 6px;font-size:13px;line-height:1.5;color:#54625B;cursor:pointer;"><input type="checkbox" id="j-terms" style="margin-top:1px;width:16px;height:16px;accent-color:#1E9E63;flex:none;cursor:pointer;"><span>I accept all <a href="/terms" target="_blank" rel="noopener noreferrer" style="color:#178A5A;text-decoration:underline;text-underline-offset:2px;">terms and conditions</a>.</span></label>
         <button class="whl-btn go" id="j-go" type="button">Become a founding member</button>
         <p class="perksline"><b>Founding perks, locked in for joining now.</b> Early access and first pick on every market we open next.</p>
       </div>
@@ -117,7 +112,7 @@
 
       <div class="jdone" id="joindone">
         <div class="donehead">
-          <span class="chk"><svg sc-camel-view-box="0 0 24 24"><path d="M20 6L9 17l-5-5"></path></svg></span>
+          <span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"></path></svg></span>
           <div>
             <h3 id="done-h">You're in.</h3>
             <p id="done-p">Your spot is held. We'll text the moment bids land in your area.</p>
@@ -181,9 +176,9 @@
       <h2>You'll always hear it first</h2>
     </div>
     <div class="stay3">
-      <div class="s3card"><div class="s3head"><span class="ntile"><svg sc-camel-view-box="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1.6" fill="currentColor" stroke="none"></circle></svg></span><b>Launches &amp; updates</b></div><p>New markets, new tools. Founding members hear it first, region by region.</p></div>
-      <div class="s3card"><div class="s3head"><span class="ntile"><svg sc-camel-view-box="0 0 24 24"><path d="M12 3 3 8l9 5 9-5-9-5Z"></path><path d="M7 10.5V17c0 1.6 2.2 3 5 3s5-1.4 5-3v-6.5"></path></svg></span><b>Regulator &amp; market watch</b></div><p>CRTC rulings, price moves and competitor plays, decoded in plain language.</p></div>
-      <div class="s3card"><div class="s3head"><span class="ntile"><svg sc-camel-view-box="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14Z"></path><path d="M9 8h7M9 11.5h5"></path></svg></span><b>Guides that take you forward</b></div><p>Reading a bill, timing a switch, knowing your rights. Our writing, minus the jargon.</p></div>
+      <div class="s3card"><div class="s3head"><span class="ntile"><svg viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1.6" fill="currentColor" stroke="none"></circle></svg></span><b>Launches &amp; updates</b></div><p>New markets, new tools. Founding members hear it first, region by region.</p></div>
+      <div class="s3card"><div class="s3head"><span class="ntile"><svg viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5-9-5Z"></path><path d="M7 10.5V17c0 1.6 2.2 3 5 3s5-1.4 5-3v-6.5"></path></svg></span><b>Regulator &amp; market watch</b></div><p>CRTC rulings, price moves and competitor plays, decoded in plain language.</p></div>
+      <div class="s3card"><div class="s3head"><span class="ntile"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14Z"></path><path d="M9 8h7M9 11.5h5"></path></svg></span><b>Guides that take you forward</b></div><p>Reading a bill, timing a switch, knowing your rights. Our writing, minus the jargon.</p></div>
     </div>
   </div>
 </section>
@@ -196,19 +191,19 @@
     </div>
     <div class="faqwrap">
       <div class="qa open">
-        <button type="button"><b>What happens after I join?</b><span class="pm"><svg sc-camel-view-box="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></span></button>
+        <button type="button"><b>What happens after I join?</b><span class="pm"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></span></button>
         <div class="ans">When enough neighbours are in, your area's cohort opens and providers bid for the whole group. You'll see the winning offer in plain numbers. Say yes only if it's better than what you have.</div>
       </div>
       <div class="qa">
-        <button type="button"><b>Am I committing to switch?</b><span class="pm"><svg sc-camel-view-box="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></span></button>
+        <button type="button"><b>Am I committing to switch?</b><span class="pm"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></span></button>
         <div class="ans">No. Joining holds a spot and adds weight to your area's cohort. Whatever offer comes back, the decision stays with you.</div>
       </div>
       <div class="qa">
-        <button type="button"><b>What about my current contract?</b><span class="pm"><svg sc-camel-view-box="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></span></button>
+        <button type="button"><b>What about my current contract?</b><span class="pm"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></span></button>
         <div class="ans">Since June 12, 2026, providers can't charge activation, change or cancellation fees on internet plans (CRTC 2026‑43). Cohorts are also timed to renewal windows, so most members move when their promo was ending anyway.</div>
       </div>
       <div class="qa">
-        <button type="button"><b>When does my area open?</b><span class="pm"><svg sc-camel-view-box="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></span></button>
+        <button type="button"><b>When does my area open?</b><span class="pm"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></span></button>
         <div class="ans">Regions open in order of demand. Your postal code puts you in line, and every neighbour who joins moves your area up.</div>
       </div>
     </div>
@@ -264,11 +259,9 @@
   <div class="wrap"><b style="font-family:var(--disp);color:var(--teal)">Whollar</b> · Design mock v6, for review. CRTC 2026‑43 in force June 12, 2026. Share link is a placeholder pending domain wiring.</div>
 </footer>
 </div>
-</x-dc>
-<script type="text/x-dc" data-dc-script="">
-class Component extends DCLogic {
-  componentDidMount(){
-    const root = this.base || document;
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+    const root = document;
     const $ = s => root.querySelector(s);
     const $$ = s => [...root.querySelectorAll(s)];
     const FSA={A:'Newfoundland & Labrador',B:'Nova Scotia',C:'PEI',E:'New Brunswick',G:'Quebec',H:'Quebec',J:'Quebec',K:'Ontario',L:'Ontario',M:'Ontario',N:'Ontario',P:'Ontario',R:'Manitoba',S:'Saskatchewan',T:'Alberta',V:'British Columbia',X:'the North',Y:'Yukon'};
@@ -545,9 +538,7 @@ class Component extends DCLogic {
       const ro=new ResizeObserver(()=>{build();if(reduce){cancelAnimationFrame(raf);frame();cancelAnimationFrame(raf);}});
       ro.observe(host);
     })();
-  }
-  renderVals(){ return {}; }
-}
+});
 </script>
 
 
