@@ -6,10 +6,12 @@
   <title>Whollar, Verified, switch-ready demand for internet providers</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0E2A20; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+    body { background: #FAF8F3; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
     #__bundler_loading { position: fixed; bottom: 20px; right: 20px; font: 13px/1.4 -apple-system, BlinkMacSystemFont, sans-serif; color: #666; background: #fff; padding: 8px 14px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.12); z-index: 10000; }
-    #__bundler_thumbnail { position: fixed; inset: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #0E2A20; z-index: 9999; }
-    #__bundler_thumbnail svg { width: 100%; height: 100%; object-fit: contain; }
+    #__bundler_thumbnail { position: fixed; inset: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #FAF8F3; z-index: 9999; }
+    #__bundler_thumbnail svg { width: 88px; height: 88px; animation: __splash_pulse 1.6s ease-in-out infinite; }
+    @keyframes __splash_pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(0.95); } }
+    @media (prefers-reduced-motion: reduce) { #__bundler_thumbnail svg { animation: none; } }
     #__bundler_placeholder { color: #999; font-size: 14px; }
   </style>
   <noscript>
@@ -21,17 +23,21 @@
 </head>
 <body>
   <div id="__bundler_thumbnail">
-    <svg sc-camel-view-box="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
-      <rect width="1200" height="800" fill="#0E2A20"></rect>
-      <rect x="490" y="300" width="220" height="220" rx="66" fill="url(#g)"></rect>
-      <path d="M528 384h144M528 384l72 104M672 384l-72 104" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"></path>
-      <circle cx="528" cy="384" r="26" fill="#FFFFFF"></circle>
-      <circle cx="672" cy="384" r="26" fill="#FFFFFF"></circle>
-      <circle cx="600" cy="488" r="26" fill="#FFFFFF"></circle>
-      <defs><linearGradient id="g" x1="490" y1="300" x2="710" y2="520" sc-camel-gradient-units="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"></stop><stop offset="1" stop-color="#1E9E63"></stop></linearGradient></defs>
+    <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Whollar">
+      <defs>
+        <linearGradient id="__splash_mark" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#0E2A20"></stop>
+          <stop offset="1" stop-color="#1E9E63"></stop>
+        </linearGradient>
+      </defs>
+      <rect x="6" y="6" width="108" height="108" rx="32" fill="url(#__splash_mark)"></rect>
+      <path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"></path>
+      <circle cx="34" cy="42" r="11" fill="#FFFFFF"></circle>
+      <circle cx="86" cy="42" r="11" fill="#FFFFFF"></circle>
+      <circle cx="60" cy="80" r="11" fill="#FFFFFF"></circle>
     </svg>
   </div>
-  <div id="__bundler_loading">Unpacking...</div>
+  <div id="__bundler_loading">Loading…</div>
 
   <script>
     
@@ -80,7 +86,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     let template = JSON.parse(templateEl.textContent);
 
     const uuids = Object.keys(manifest);
-    setStatus('Unpacking ' + uuids.length + ' assets...');
+    setStatus('Loading…');
 
     const blobUrls = {};
     const resourceBlobs = {};
@@ -143,7 +149,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     // consumers read these Blobs directly. Survives the swap like the error sink.
     window.__resourceBlobs = resourceBlobs;
 
-    setStatus('Rendering...');
+    setStatus('Almost ready…');
     for (const uuid of uuids) template = template.split(uuid).join(blobUrls[uuid]);
 
     // Strip integrity + crossorigin — blob URLs from a file:// document inherit
