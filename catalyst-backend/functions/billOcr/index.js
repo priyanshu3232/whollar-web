@@ -14,6 +14,8 @@ const anthropic = new Anthropic(); // reads ANTHROPIC_API_KEY from this function
  * ------------------------------------------------------------------ */
 
 const ALLOWED_ORIGINS = [
+  'https://whollar.com',
+  'https://www.whollar.com',
   'https://whollar.ca',
   'https://www.whollar.ca'
 ];

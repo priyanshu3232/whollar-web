@@ -14,6 +14,8 @@ const app = express();
 // Domains allowed to call this function from a browser. Add every host
 // the site is actually served from (apex + www + local dev if needed).
 const ALLOWED_ORIGINS = [
+  'https://whollar.com',
+  'https://www.whollar.com',
   'https://whollar.ca',
   'https://www.whollar.ca'
 ];
