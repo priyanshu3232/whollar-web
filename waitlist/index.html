@@ -276,8 +276,22 @@ document.addEventListener('DOMContentLoaded',function(){
         Object.entries(files).forEach(([k,f])=>{if(!f)return;(Array.isArray(f)?f:[f]).forEach(file=>fd.append(k,file,file.name));});
         return{method:'POST',body:fd};})()
         :{method:'POST',body:JSON.stringify(fields)}; /* no JSON header: text/plain avoids CORS preflight (gateway swallows OPTIONS) */
-      return fetch(CATALYST_BASE+path,opts).then(r=>{if(!r.ok)throw new Error('submit failed: '+r.status);return r.json();})
-        .catch(err=>{console.error('[whollar submit]',path,err);});
+      return fetch(CATALYST_BASE+path,opts).then(r=>{
+        if(!r.ok){const e=new Error('submit failed: '+r.status);e.status=r.status;throw e;}
+        return r.json();});
+    }
+    /* a failed submit must never masquerade as success — surface it and let the user retry */
+    function submitErr(anchor,err){
+      console.error('[whollar submit]',err);
+      let el=anchor.parentNode.querySelector('.suberr');
+      if(!el){el=document.createElement('p');el.className='suberr';el.style.cssText='margin:10px 0 0;font-size:13px;font-weight:600;color:#C2643B';anchor.parentNode.insertBefore(el,anchor.nextSibling);}
+      el.textContent=err&&err.status===429?'Too many attempts from your network right now — please try again in a little while.'
+        :'We couldn’t reach our servers, so this wasn’t saved — please check your connection and try again.';
+    }
+    function clearErr(anchor){const el=anchor.parentNode.querySelector('.suberr');if(el)el.remove();}
+    function busy(btn,on,label){
+      if(on){btn.dataset.label=btn.textContent;btn.disabled=true;btn.style.opacity='.6';btn.textContent=label;}
+      else{btn.disabled=false;btn.style.opacity='';if(btn.dataset.label)btn.textContent=btn.dataset.label;}
     }
 
     if($('#viz2-lottie')&&window.lottie){window.lottie.loadAnimation({container:$('#viz2-lottie'),renderer:'svg',loop:true,autoplay:true,path:(window.__resources&&window.__resources.walletLottie)||'./flying-wallet-money.json'});}
@@ -299,7 +313,7 @@ document.addEventListener('DOMContentLoaded',function(){
 
     $('#ref-toggle').addEventListener('click',()=>{const r=$('#refbox');const show=r.style.display==='none';r.style.display=show?'block':'none';if(show)$('#j-ref').focus();});
 
-    $('#j-go').addEventListener('click',()=>{if(!$('#j-terms').checked){$('#j-terms').focus();return;}
+    $('#j-go').addEventListener('click',async()=>{if(!$('#j-terms').checked){$('#j-terms').focus();return;}
       const nm=$('#j-name').value.trim();
       if(nm.length<2){$('#j-name').classList.add('err');$('#j-name').focus();return;}
       $('#j-name').classList.remove('err');
@@ -315,7 +329,11 @@ document.addEventListener('DOMContentLoaded',function(){
       if(!S.fsa){$('#j-pc').classList.add('err');$('#j-pc').focus();return;}
       $('#j-pc').classList.remove('err');
       S.name=nm;S.last=ln;S.email=em;S.phone=ph;
-      submitForm('/waitlist-join',{firstName:S.name,lastName:S.last,email:S.email,phone:S.phone,fsa:S.fsa,referral:$('#j-ref').value.trim()||null,ts:new Date().toISOString()});
+      const btn=$('#j-go');clearErr(btn);busy(btn,true,'Joining…');
+      try{
+        await submitForm('/waitlist-join',{firstName:S.name,lastName:S.last,email:S.email,phone:S.phone,fsa:S.fsa,referral:$('#j-ref').value.trim()||null,ts:new Date().toISOString()});
+      }catch(err){busy(btn,false);submitErr(btn,err);return;}
+      busy(btn,false);
       $('#done-h').textContent=nm+", you're in.";
       $('#done-p').textContent='Your spot in the '+S.fsa+' cohort is held. We\u2019ll text the moment bids land.';
       $('#sh-lnk').textContent='whollar.ca/join?fsa='+S.fsa;
@@ -411,14 +429,26 @@ document.addEventListener('DOMContentLoaded',function(){
     function collectServices(){return $$('#svc .svcrow.on').map(row=>{
       const key=row.dataset.svc,qb=row.querySelector('.qty b'),xin=row.querySelector('.svcx');
       return {service:key,count:qb?(+qb.textContent||1):null,detail:xin?xin.value.trim()||null:null};});}
+    /* only attach what the backend will actually store — a rejected file must not cost the submission */
+    const OKFILE=new Set(['application/pdf','image/jpeg','image/png','image/gif','image/webp']);
     $('#s-file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;
+      const t=(f.type||'').toLowerCase();
+      if((f.type&&!OKFILE.has(t))||f.size>20*1024*1024){
+        e.target.value='';S.details.file=null;
+        $('#s-filename').textContent=f.size>20*1024*1024?'That file is over 20 MB — please attach a smaller one':'We can’t take that type — a PDF, JPG, PNG, WebP or GIF works';
+        setTimeout(()=>{if(!S.details.file)$('#s-filename').textContent='';},6000);
+        return;}
       S.details.file=f.name;$('#s-filename').textContent='✓ '+f.name;meter();});
     function collect(){S.details={provider:$('#s-prov').value,cost:$('#s-cost').value,speed:$('#s-spd').value,
       promoEnd:$('#s-date').value,threshold:($$('#thr button.on')[0]||{}).textContent||null,
       file:S.details.file||null,services:collectServices()};}
-    $('#s-save').addEventListener('click',()=>{
+    $('#s-save').addEventListener('click',async()=>{
       collect();
-      submitForm('/waitlist-details',{firstName:S.name,lastName:S.last,email:S.email,fsa:S.fsa,...S.details},{billFile:$('#s-file').files[0]||null});
+      const btn=$('#s-save');clearErr(btn);busy(btn,true,'Saving…');
+      try{
+        await submitForm('/waitlist-details',{firstName:S.name,lastName:S.last,email:S.email,fsa:S.fsa,...S.details},{billFile:$('#s-file').files[0]||null});
+      }catch(err){busy(btn,false);submitErr(btn,err);return;}
+      busy(btn,false);
       $('#stage2').style.display='none';
       $('#joindone').classList.add('on');
       showThankYou();

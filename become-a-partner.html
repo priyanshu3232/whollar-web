@@ -407,10 +407,6 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
               <span>Where do you serve? <span class="hint">select all that apply</span></span>
               <div class="chips" id="prov-chips"></div>
             </div>
-            <div class="chipgrp">
-              <span>How does it reach the home?</span>
-              <div class="chips" id="tech-chips"></div>
-            </div>
           </div>
         </div>
 
@@ -553,16 +549,28 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
 <script>
 (function(){
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-const S={role:null,provinces:[],tech:[]};
-const PROV=['AB','BC','MB','NB','NL','NS','NT','NU'];
-const TECH=['Fibre / FTTP','Cable (TPIA)','DSL','Fixed wireless','Satellite'];
+const S={role:null,provinces:[]};
+const PROV=['AB','BC','MB','NB','NL','NS','NT','NU','ON','PE','QC','SK','YT'];
 
 /* CATALYST SETUP: replace with your deployed function base URL — see catalyst-backend/README.md */
 const CATALYST_BASE='https://whollar-110003037934.development.catalystserverless.ca/server/formSubmit';
 function submitForm(path,fields){
   return fetch(CATALYST_BASE+path,{method:'POST',body:JSON.stringify(fields)}) /* no JSON header: text/plain avoids CORS preflight (gateway swallows OPTIONS) */
-    .then(r=>{if(!r.ok)throw new Error('submit failed: '+r.status);return r.json();})
-    .catch(err=>{console.error('[whollar submit]',path,err);});
+    .then(r=>{if(!r.ok){const e=new Error('submit failed: '+r.status);e.status=r.status;throw e;}return r.json();});
+}
+/* a failed submit must never masquerade as success — surface it and let the user retry */
+function submitErr(anchor,err){
+  console.error('[whollar submit]',err);
+  const row=anchor.closest('.ctarow')||anchor.parentNode;
+  let el=row.parentNode.querySelector('.suberr');
+  if(!el){el=document.createElement('p');el.className='suberr';el.style.cssText='margin:10px 0 0;font-size:13px;font-weight:600;color:#C2643B';row.parentNode.insertBefore(el,row.nextSibling);}
+  el.textContent=err&&err.status===429?'Too many attempts from your network right now — please try again in a little while.'
+    :'We couldn’t reach our servers, so your application wasn’t sent — please check your connection and try again.';
+}
+function clearErr(anchor){const row=anchor.closest('.ctarow')||anchor.parentNode;const el=row.parentNode.querySelector('.suberr');if(el)el.remove();}
+function busy(btn,on,label){
+  if(on){btn.dataset.label=btn.textContent;btn.disabled=true;btn.style.opacity='.6';btn.textContent=label;}
+  else{btn.disabled=false;btn.style.opacity='';if(btn.dataset.label)btn.textContent=btn.dataset.label;}
 }
 
 /* thank-you popup */
@@ -577,7 +585,6 @@ function chips(el,items,key){el.innerHTML=items.map(i=>'<button type="button">'+
   [...el.children].forEach(b=>b.addEventListener('click',()=>{b.classList.toggle('on');
     S[key]=[...el.children].filter(x=>x.classList.contains('on')).map(x=>x.textContent);}));}
 chips($('#prov-chips'),PROV,'provinces');
-chips($('#tech-chips'),TECH,'tech');
 
 const CREDS={provider:'#cred-provider',sales:'#cred-sales',distributor:'#cred-dist',other:'#cred-other'};
 $$('#rlist .rc').forEach(b=>b.addEventListener('click',()=>{
@@ -593,7 +600,7 @@ $$('#rlist .rc').forEach(b=>b.addEventListener('click',()=>{
 }));
 
 function bad(el){el.classList.add('err');el.focus();setTimeout(()=>el.classList.remove('err'),700);return false;}
-$('#p-go').addEventListener('click',()=>{
+$('#p-go').addEventListener('click',async()=>{
   if(!S.role){$$('#rlist .rc').forEach(c=>{c.classList.add('err');setTimeout(()=>c.classList.remove('err'),700);});return;}
   const nm=$('#p-name').value.trim(); if(nm.length<2)return bad($('#p-name'));
   if($('#p-last').value.trim().length<2)return bad($('#p-last'));
@@ -621,7 +628,7 @@ $('#p-go').addEventListener('click',()=>{
   if(!$('#p-terms').checked){$('#p-terms').focus();return;}
 
   const payload={role:S.role,firstName:nm,lastName:$('#p-last').value.trim(),company:$('#p-company').value.trim(),
-    email:$('#p-email').value.trim(),phone:ph,provinces:S.provinces,tech:S.tech,
+    email:$('#p-email').value.trim(),phone:ph,provinces:S.provinces,
     legalName:$('#c-legal').value.trim()||$('#s-legal').value.trim()||null,
     providerType:$('#c-type').value||null,
     businessNumber:($('#c-bn').value||$('#s-bn').value||$('#d-bn').value||'').replace(/\D/g,'')||null,
@@ -632,7 +639,10 @@ $('#p-go').addEventListener('click',()=>{
     otherType:$('#o-spec').value.trim()||null,
     note:$('#o-note').value.trim()||null,
     ts:new Date().toISOString()};
-  submitForm('/partner-application',payload);
+  const btn=$('#p-go');clearErr(btn);busy(btn,true,'Sending…');
+  try{await submitForm('/partner-application',payload);}
+  catch(err){busy(btn,false);submitErr(btn,err);return;}
+  busy(btn,false);
 
   $('#d-name').textContent=nm;
   if(S.role==='other'){$('#d-h').textContent='Note received';

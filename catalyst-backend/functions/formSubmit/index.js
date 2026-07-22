@@ -143,6 +143,29 @@ const guardUpload = (mw) => (req, res, next) => mw(req, res, (err) => {
   res.status(status).json({ ok: false, error: msg });
 });
 
+// Single-file convenience attachments (/waitlist-details, /bill-checkup-join):
+// the bill is a nice-to-have, the lead is not. A rejected file must not sink
+// the submission — swallow the multer error, note why, and save the row bare.
+// (The frontend appends text fields before the file, so req.body is already
+// fully populated when a file-level rejection aborts the multipart parse.)
+const tolerantUpload = (mw) => (req, res, next) => mw(req, res, (err) => {
+  if (!err) return next();
+  req.fileRejected = err.code === 'LIMIT_FILE_SIZE' ? 'too large'
+    : err.code === 'UNSUPPORTED_FILE_TYPE' ? 'unsupported type'
+    : err.code === 'LIMIT_FILE_COUNT' ? 'too many files'
+    : 'upload error';
+  console.error(`[formSubmit] attachment dropped (${req.fileRejected}) on ${req.path}`);
+  req.file = undefined;
+  next();
+});
+
+// Remove multer temp files when a request is rejected before the route runs
+// its own storeFile/finally cleanup (validation 400s) — /tmp on a warm
+// instance must not accumulate orphans.
+const discardUpload = (req) => {
+  [req.file, ...(req.files || [])].filter(Boolean).forEach(f => fs.unlink(f.path, () => {}));
+};
+
 // Disk storage (not memory): the Catalyst SDK's uploadFile() appends the
 // stream to form-data with no options, so it relies on the stream's `.path`
 // to derive the filename — which only an fs.ReadStream has, not a Buffer.
@@ -276,10 +299,10 @@ app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 360
 
 // Waitlist — stage 2 (optional add-on details + optional bill attachment).
 // Table: WaitlistDetails
-app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSec: 3600 }), guardUpload(upload.single('billFile')), async (req, res) => {
+app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSec: 3600 }), tolerantUpload(upload.single('billFile')), async (req, res) => {
   const b = req.body || {};
   const email = str(b.email);
-  if (!isEmail(email)) return badRequest(res, 'A valid email is required.');
+  if (!isEmail(email)) { discardUpload(req); return badRequest(res, 'A valid email is required.'); }
 
   let services = [];
   try { services = b.services ? JSON.parse(b.services) : []; } catch { services = []; }
@@ -297,7 +320,7 @@ app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSe
       SwitchThreshold: orNull(str(b.threshold)),
       Services: json(services),
       BillFileId: orNull(file?.id ?? null),
-      BillFileName: orNull(file?.name ?? null),
+      BillFileName: orNull(file?.name ?? (req.fileRejected ? `[rejected: ${req.fileRejected}]` : null)),
       SubmittedAt: catalystNow()
     });
     await enqueueCrm(catalystApp, {
@@ -307,7 +330,7 @@ app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSe
         promoEnd: str(b.promoEnd), threshold: str(b.threshold),
         fsa: str(b.fsa).toUpperCase(),
         services: Array.isArray(services) ? services.join(', ') : '',
-        billFileName: file?.name ?? null
+        billFileName: file?.name ?? (req.fileRejected ? `[rejected: ${req.fileRejected}]` : null)
       }
     });
     res.status(200).json({ ok: true, id: row.ROWID });
@@ -319,10 +342,10 @@ app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSe
 // Bill checkup — every "join the waitlist" entry point on the checkup tool
 // (both the quick-join rails and the main check-button flow feed this).
 // Table: BillCheckupSubmissions
-app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, windowSec: 3600 }), guardUpload(upload.single('billFile')), async (req, res) => {
+app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, windowSec: 3600 }), tolerantUpload(upload.single('billFile')), async (req, res) => {
   const b = req.body || {};
   const email = str(b.email);
-  if (!isEmail(email)) return badRequest(res, 'A valid email is required.');
+  if (!isEmail(email)) { discardUpload(req); return badRequest(res, 'A valid email is required.'); }
 
   try {
     const catalystApp = catalyst.initialize(req);
@@ -341,7 +364,7 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
       DiscountAmount: toNumber(b.disc),
       SwitchThreshold: orNull(str(b.switchFor)),
       BillFileId: orNull(file?.id ?? null),
-      BillFileName: orNull(file?.name ?? null),
+      BillFileName: orNull(file?.name ?? (req.fileRejected ? `[rejected: ${req.fileRejected}]` : null)),
       SubmittedAt: catalystNow()
     });
     await enqueueCrm(catalystApp, {
@@ -352,7 +375,7 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
         tech: str(b.tech), promoEnd: str(b.pdate),
         monthsToRenewal: b.pmo != null && b.pmo !== '' ? parseInt(b.pmo, 10) : null,
         discount: toNumber(b.disc), threshold: str(b.switchFor),
-        billFileName: file?.name ?? null
+        billFileName: file?.name ?? (req.fileRejected ? `[rejected: ${req.fileRejected}]` : null)
       }
     });
     res.status(200).json({ ok: true, id: row.ROWID });
@@ -366,7 +389,7 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
 app.post('/deep-read', limit({ key: 'deep-read', max: 10, windowSec: 3600 }), guardUpload(upload.array('files', 5)), async (req, res) => {
   const b = req.body || {};
   const email = str(b.email);
-  if (!isEmail(email)) return badRequest(res, 'A valid email is required.');
+  if (!isEmail(email)) { discardUpload(req); return badRequest(res, 'A valid email is required.'); }
   if (!req.files || !req.files.length) return badRequest(res, 'At least one file is required.');
 
   try {

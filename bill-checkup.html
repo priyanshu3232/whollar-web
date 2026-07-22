@@ -535,8 +535,25 @@ function submitForm(path,fields,files){
     Object.entries(files).forEach(([k,f])=>{if(!f)return;(Array.isArray(f)?f:[f]).forEach(file=>fd.append(k,file,file.name));});
     return{method:'POST',body:fd};})()
     :{method:'POST',body:JSON.stringify(fields)}; /* no JSON header: text/plain avoids CORS preflight (gateway swallows OPTIONS) */
-  return fetch(CATALYST_BASE+path,opts).then(r=>{if(!r.ok)throw new Error('submit failed: '+r.status);return r.json();})
-    .catch(err=>{console.error('[whollar submit]',path,err);});
+  return fetch(CATALYST_BASE+path,opts).then(r=>{
+    if(!r.ok){const e=new Error('submit failed: '+r.status);e.status=r.status;throw e;}
+    return r.json();});
+}
+/* a failed submit must never masquerade as success — surface it and let the user retry.
+   dark=true renders the message legibly on the dark join cards. */
+function submitErr(anchor,err,dark){
+  console.error('[whollar submit]',err);
+  const row=anchor.closest('.gerow,.drow,.cta-row')||anchor.parentNode;
+  let el=row.parentNode.querySelector('.suberr');
+  if(!el){el=document.createElement('p');el.className='suberr';row.parentNode.insertBefore(el,row.nextSibling);}
+  el.style.cssText='margin:10px 0 0;font-size:13px;font-weight:600;position:relative;color:'+(dark?'#FFC9A8':'var(--warn)');
+  el.textContent=err&&err.status===429?'Too many attempts from your network right now — please try again in a little while.'
+    :'We couldn’t reach our servers, so this wasn’t saved — please check your connection and try again.';
+}
+function clearErr(anchor){const row=anchor.closest('.gerow,.drow,.cta-row')||anchor.parentNode;const el=row.parentNode.querySelector('.suberr');if(el)el.remove();}
+function busy(btn,on,label){
+  if(on){btn.dataset.label=btn.textContent;btn.disabled=true;btn.style.opacity='.6';btn.textContent=label;}
+  else{btn.disabled=false;btn.style.opacity='';if(btn.dataset.label)btn.textContent=btn.dataset.label;}
 }
 
 /* thank-you popup */
@@ -575,10 +592,14 @@ $('#pdate').addEventListener('input',e=>{
 });
 
 /* rail quick-join (syncs with form checkbox state) */
-function railJoin(inputEl,rowEl,doneEl){const em=inputEl.value.trim();
+async function railJoin(inputEl,rowEl,doneEl){const em=inputEl.value.trim();
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)){inputEl.classList.add('err');inputEl.focus();return false;}
-  inputEl.classList.remove('err');S.joined=true;S.email=em;$('#email').value=em;
-  submitForm('/bill-checkup-join',{email:em,via:'rail',...S},{billFile:($('#bill-file').files||[])[0]||null});
+  inputEl.classList.remove('err');
+  const btn=rowEl.querySelector('button');clearErr(btn);busy(btn,true,'…');
+  try{await submitForm('/bill-checkup-join',{email:em,via:'rail',...S},{billFile:($('#bill-file').files||[])[0]||null});}
+  catch(err){busy(btn,false);submitErr(btn,err,true);return false;}
+  busy(btn,false);
+  S.joined=true;S.email=em;$('#email').value=em;
   rowEl.style.display='none';doneEl.classList.add('on');showThankYou();return true;}
 $('#g-join').addEventListener('click',()=>railJoin($('#g-email'),$('#gerow'),$('#gdone')));
 
@@ -621,16 +642,39 @@ function autofillFromBill(f){
     });
 }
 const OCR_TYPES=new Set(['application/pdf','image/jpeg','image/png','image/gif','image/webp']);
+const MAX_ATTACH=20*1024*1024;      /* formSubmit's multer cap */
+const MAX_OCR_PDF=15*1024*1024;     /* billOcr's multer cap */
+const MAX_OCR_IMAGE=7*1024*1024;    /* Claude API caps images at 10 MB base64 ≈ 7.5 MB raw */
+function flashUploadMsg(msg){
+  const el=uploadZone.querySelector('.upload__copy span');
+  if(!el.dataset.orig)el.dataset.orig=el.textContent;
+  el.textContent=msg;el.style.color='var(--warn)';
+  setTimeout(()=>{el.textContent=el.dataset.orig;el.style.color='';},7000);
+}
 function acceptFile(f){
   if(!f)return;
+  const type=(f.type||'').toLowerCase();
+  /* reject at the door what the backend would refuse anyway — a bad attachment
+     must never ride along and sink the whole submission */
+  if(f.type&&!OCR_TYPES.has(type)){
+    $('#bill-file').value='';
+    flashUploadMsg('We can’t take that file type — a PDF, JPG, PNG, WebP or GIF works.');
+    return;
+  }
+  if(f.size>MAX_ATTACH){
+    $('#bill-file').value='';
+    flashUploadMsg('That file is over 20 MB — a photo of the first page works too.');
+    return;
+  }
   S.file=f.name;
   $('#filename').textContent=f.name;
   $('#filesize').textContent=fmtSize(f.size);
   $('#filechip').classList.add('on');
-  /* skip the OCR call (it would 415 and burn rate-limit budget) for types the
-     reader can't take — the file still attaches and is sent with the form */
-  if(f.type&&!OCR_TYPES.has(f.type.toLowerCase())){
-    $('#filename').textContent=f.name+' — we can’t auto-read this type; a PDF, JPG or PNG works best';
+  /* too big to auto-read (but fine to attach): skip the OCR call rather than
+     burn rate-limit budget on a request the reader will refuse */
+  const ocrCap=type==='application/pdf'?MAX_OCR_PDF:MAX_OCR_IMAGE;
+  if(f.size>ocrCap){
+    $('#filename').textContent=f.name+' — too large to auto-read, please fill in below (still attached)';
     setTimeout(()=>{$('#filename').textContent=f.name;},8000);
     return;
   }
@@ -665,30 +709,58 @@ $$('.qc').forEach(c=>c.addEventListener('click',()=>{$$('.qc').forEach(x=>x.clas
 /* deep read mini-form */
 let deepFiles=[];
 $('#deep-files').addEventListener('change',e=>{
-  deepFiles=[...e.target.files].map(f=>f.name);
-  $('#dchips').innerHTML=deepFiles.map(n=>'<span>'+n+'</span>').join('');});
-$('#deep-send').addEventListener('click',()=>{
+  const files=[...e.target.files];
+  /* mirror the backend's limits up front: 5 files max, 20 MB each, PDF/image only —
+     one bad file would otherwise get the whole request rejected */
+  let msg=null;
+  if(files.length>5)msg='Five files max — please pick your most recent bills.';
+  else{
+    const badType=files.find(f=>f.type&&!OCR_TYPES.has(f.type.toLowerCase()));
+    const badSize=files.find(f=>f.size>MAX_ATTACH);
+    if(badType)msg='We can’t take “'+badType.name+'” — PDFs and photos (JPG, PNG, WebP, GIF) work.';
+    else if(badSize)msg='“'+badSize.name+'” is over 20 MB — a photo of each page works too.';
+  }
+  if(msg){
+    e.target.value='';deepFiles=[];
+    $('#dchips').textContent='';
+    const el=document.createElement('span');el.style.color='var(--warn)';el.style.borderColor='var(--warn)';el.style.background='var(--warn-soft)';el.textContent=msg;
+    $('#dchips').appendChild(el);
+    setTimeout(()=>{if(!deepFiles.length)$('#dchips').textContent='';},7000);
+    return;
+  }
+  deepFiles=files.map(f=>f.name);
+  $('#dchips').textContent='';
+  deepFiles.forEach(n=>{const s=document.createElement('span');s.textContent=n;$('#dchips').appendChild(s);});});
+$('#deep-send').addEventListener('click',async()=>{
   const em=$('#deep-email').value.trim();
   if(!deepFiles.length){$('#deep').classList.add('pulse');setTimeout(()=>$('#deep').classList.remove('pulse'),1200);return;}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)){$('#deep-email').classList.add('err');$('#deep-email').focus();return;}
   $('#deep-email').classList.remove('err');
-  submitForm('/deep-read',{email:em,note:$('#deep-note').value.trim(),...S},{files:[...$('#deep-files').files]});
+  const btn=$('#deep-send');clearErr(btn);busy(btn,true,'Sending…');
+  try{await submitForm('/deep-read',{email:em,note:$('#deep-note').value.trim(),...S},{files:[...$('#deep-files').files]});}
+  catch(err){busy(btn,false);submitErr(btn,err);return;}
+  busy(btn,false);
   $('#deep-form').style.display='none';$('#ddone').classList.add('on');
   showThankYou('Your bills are in. We’ll do the deep read and email your results shortly.');});
 
 /* ---------- CTA ---------- */
-$('#check').addEventListener('click',()=>{
+$('#check').addEventListener('click',async()=>{
   let bad=null;
   if(!(S.cost>=15)){bad=$('#cost');}
   else if(!S.spd){bad=$('#spd');}
   if(bad){const f=bad.closest('.f');f.classList.add('err');bad.focus();return;}
+  let joinErr=null;
   if(S.joined){const em=$('#email').value.trim();
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)){$('#email').classList.add('err');$('#email').focus();return;}
     $('#email').classList.remove('err');
-    submitForm('/bill-checkup-join',{email:em,via:'form',switchFor:document.querySelector('.qc.on').textContent,...S},{billFile:($('#bill-file').files||[])[0]||null});
+    const btn=$('#check');clearErr(btn);busy(btn,true,'Checking…');
+    try{await submitForm('/bill-checkup-join',{email:em,via:'form',switchFor:document.querySelector('.qc.on').textContent,...S},{billFile:($('#bill-file').files||[])[0]||null});}
+    catch(err){joinErr=err;S.joined=false;} /* never hold the results hostage — show them, surface the miss on the join card */
+    busy($('#check'),false);
   }
   renderResults();screen(2);
-  if(S.joined)showThankYou();
+  if(joinErr)submitErr($('#j2-join'),joinErr,true);
+  else if(S.joined)showThankYou();
 });
 $('#edit-all').addEventListener('click',()=>screen(1));
 
@@ -739,7 +811,7 @@ function renderResults(){
   const j2=$('#join2');
   if(S.joined){j2.innerHTML='<h3>&#10003; You\u2019re on the '+(S.pc?S.pc+' ':'')+'waitlist</h3><p>We\u2019ll write the moment your cohort opens &mdash; and you\u2019ll be first to hear where Whollar goes next.</p>';}
   else{j2.innerHTML='<h3>'+(S.pc?'Put the '+S.pc+' cohort to work':'Get your number, the easy way')+'</h3><p>Join to shrink your bill &mdash; and to build a market where prices finally have to explain themselves. Internet first; more to come.</p><div class="gerow" id="j2row"><input type="email" id="j2-email" placeholder="you@example.com" aria-label="Email to join"><button class="whl-btn" type="button" id="j2-join">Join</button></div><div class="gdone" id="j2done">&#10003;&nbsp; You\u2019re in &mdash; we\u2019ll write when your cohort opens.</div>';
-    $('#j2-join').addEventListener('click',()=>{if(railJoin($('#j2-email'),$('#j2row'),$('#j2done')))setSig(verdict());});
+    $('#j2-join').addEventListener('click',()=>{railJoin($('#j2-email'),$('#j2row'),$('#j2done')).then(ok=>{if(ok)setSig(verdict());});});
     if(S.email)$('#j2-email').value=S.email;}
   if(S.email)$('#deep-email').value=$('#deep-email').value||S.email;
 }
