@@ -118,6 +118,10 @@
   .figbox svg{width:100%;height:auto;display:block}
   figcaption{font-family:'Space Mono';font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5}
   figcaption b{color:var(--ink)}
+  .checkline{margin:36px 0;border:1px solid var(--line-2);border-left:3px solid var(--accent-2);border-radius:14px;background:var(--wash);padding:20px 22px;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+  .checkline p{margin:0 0 0;font-size:17px;line-height:1.5;color:var(--body);flex:1 1 320px}
+  .checkline p b{color:var(--ink)}
+  .checkline .btn{white-space:nowrap}
   .invite{margin:40px 0 0;border:1px solid var(--line-2);border-radius:18px;background:linear-gradient(180deg,#fff,#F7FAF7);padding:28px 28px 26px}
   .invite h3{font-family:'Bricolage Grotesque';font-weight:700;color:var(--ink);font-size:23px;letter-spacing:-.02em;margin:0 0 8px}
   .invite p{margin:0 0 18px;font-size:18px;color:var(--body);line-height:1.55}
@@ -202,19 +206,24 @@
       </div>
 
       <h2>The anatomy of a 100 Mbps internet bill</h2>
-      <p>Standardise on an ordinary 100 Mbps connection from a wholesale-based provider and follow the dollar. The largest share, roughly 63 cents, is the regulated wholesale fee for access to the incumbent's last-mile network: the cable or fibre physically reaching your home. About 17 cents covers the modem, provisioning, and network operations that turn raw access into a working service. Around 12 cents pays for the humans and systems that answer your calls and issue your bills. The final 8 cents, roughly, is the reseller's gross margin, out of which comes marketing, overhead, and any profit.</p>
+      <p>Standardise on an ordinary 100 Mbps connection from a wholesale-based provider and follow the dollar. The largest share, roughly 63 cents, is the <a href="https://crtc.gc.ca/eng/archive/2024/2024-180.htm" target="_blank" rel="noopener noreferrer">regulated wholesale fee</a> for access to the incumbent's last-mile network: the cable or fibre physically reaching your home. About 17 cents covers the modem, provisioning, and network operations that turn raw access into a working service. Around 12 cents pays for the humans and systems that answer your calls and issue your bills. The final 8 cents, roughly, is the reseller's gross margin, out of which comes marketing, overhead, and any profit.</p>
       <p>These proportions are a compiled industry breakdown from our market research rather than any single company's audited statement, and individual providers vary. But the shape is the story, and the shape is stable: the bill is mostly the wire.</p>
 
       <div class="dwrap"><table class="dtable"><thead><tr><th>('n', 'Share')</th><th>Where it goes</th></tr></thead><tbody><tr><td class="num">63%</td><td>Wholesale network access: rent paid to the infrastructure owner</td></tr><tr><td class="num">17%</td><td>Equipment, provisioning, and network operations</td></tr><tr><td class="num">12%</td><td>Customer support and billing</td></tr><tr><td class="num">8%</td><td>The reseller’s entire gross margin</td></tr></tbody></table></div>
 
       <div class="pq"><p>Your internet bill is mostly rent on a wire. Everything else is negotiation.</p></div>
 
+      <div class="checkline">
+        <p><b>Now read your own bill.</b> Two minutes tells you how much of yours is wire, and how much is room.</p>
+        <a class="btn solid" href="https://whollar.ca/checkup">Check if I'm overpaying</a>
+      </div>
+
       <h2>Why the biggest slice explains the prices</h2>
-      <p>The 63% wholesale floor explains why independent providers' prices cluster where they do: they can only compete inside the 37 cents that is not network rent, and most of that is real cost. It also explains why they can still undercut incumbents so sharply. The incumbent's retail arm pays no wholesale fee to itself, so its regular rate contains room that a reseller's price structurally cannot, and inertia is what lets that room go unclaimed. When you see a big-provider regular rate of $75 to $90 beside a reseller at $36 on the same line, you are looking at that room, priced.</p>
+      <p>The 63% wholesale floor explains why independent providers' prices cluster where they do: they can only compete inside the 37 cents that is not network rent, and most of that is real cost. It also explains why they can still undercut incumbents so sharply. The incumbent's retail arm pays no wholesale fee to itself, so its regular rate contains room that a reseller's price structurally cannot, and inertia is what lets that room go unclaimed. When you see a big-provider regular rate of $75 to $90 beside <a href="https://www.plangenius.ca/internet/best-internet-providers/" target="_blank" rel="noopener noreferrer">a reseller at $36 on the same line</a>, you are looking at that room, priced.</p>
 
       <h2>Where the negotiable room actually sits</h2>
       <p>Follow the logic one step further and the negotiating map draws itself. The wholesale layer is regulated: not negotiable by you. The reseller's 8 cents is thin: squeezing it harder is not where meaningful savings live. The room is in the incumbent regular-rate margin and in the acquisition budgets every provider spends to win customers, which is exactly the money that surfaces as <a href="https://whollar.ca/blog/internet-price-increase-promo-cliff">promo rates</a>, <a href="https://whollar.ca/blog/internet-retention-offer-win-back">win-back offers</a>, and retention discounts the moment a customer becomes contestable.</p>
-      <p>Which is why the single most effective thing a household can do is become contestable on purpose: know your renewal date, know the same-line alternative, and be genuinely willing to move.</p>
+      <p>Which is why the single most effective thing a household can do is <a href="https://whollar.ca/blog/negotiate-internet-bill-canada">become contestable on purpose</a>: know your renewal date, know the same-line alternative, and be genuinely willing to move.</p>
 
       <h2>What this means for how you shop</h2>
       <p>Three practical rules fall out of the anatomy. Compare 24-month totals, never advertised monthly rates, because the promo is acquisition spend with an expiry. Treat <a href="https://whollar.ca/blog/teksavvy-vs-rogers-same-cable">same-line resellers</a> as the honest benchmark for what your connection costs without the brand premium. And remember that the one layer of the bill you cannot negotiate alone, the structure itself, is negotiable in aggregate: a pooled cohort makes providers bid their acquisition budget openly instead of spending it one doorstep at a time. That is the layer Whollar works on.</p>
@@ -223,8 +232,8 @@
         <h3>Now read your own bill the same way.</h3>
         <p>The checkup takes two minutes and tells you whether there is room in your bill worth acting on. And when your region's cohort opens, the structural layer, the one no single caller can move, gets negotiated for the whole group at once.</p>
         <div class="row">
-          <a class="btn solid" href="https://whollar.ca/join">Hold your spot in the first cohort</a>
-          <a class="btn ghost" href="https://whollar.ca/checkup">Run a two-minute checkup</a>
+          <a class="btn solid" href="https://whollar.ca/checkup">Check if I'm overpaying</a>
+          <a class="btn ghost" href="https://whollar.ca/join">Hold your spot in the first cohort</a>
         </div>
         <p class="fineprint">Free for households · nothing to buy today · you only act if a bid comes back that you want.</p>
       </div>
@@ -270,15 +279,6 @@
 
         <h3>Is a cheaper bill just worse internet?</h3>
         <p>Not at the line level. A reseller on the incumbent's cable delivers the same physical connection at the same speed tier. Differences are in plan selection, equipment, policies, and support quality, which vary company by company rather than tracking price.</p>
-      </div>
-
-      <div class="sources">
-        <span class="lbl">Sources</span>
-        <ol>
-          <li><b>The 63 / 17 / 12 / 8 breakdown</b>: compiled industry analysis of wholesale-based reseller economics, Whollar market research, 2026. Cross-referenced against regulated wholesale rate structure: CRTC. <a href="https://crtc.gc.ca/eng/archive/2024/2024-180.htm">crtc.gc.ca</a></li>
-          <li><b>Retail price points</b> ($35.95 reseller entry vs ~$75 to $90 incumbent regular rates): PlanGenius. <a href="https://www.plangenius.ca/internet/best-internet-providers/">plangenius.ca</a></li>
-          <li><b>Wholesale competition context</b> (about 1 in 6 households on wholesale-based service): Competition Bureau of Canada. <a href="https://competition-bureau.canada.ca/en/how-we-foster-competition/promotion-and-advocacy/reports-and-studies/market-study-highlights-competition-canadas-broadband-industry">competition-bureau.canada.ca</a></li>
-        </ol>
       </div>
 
 <div class="prod">

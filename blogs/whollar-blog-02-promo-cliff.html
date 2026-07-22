@@ -118,6 +118,10 @@
   .figbox svg{width:100%;height:auto;display:block}
   figcaption{font-family:'Space Mono';font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5}
   figcaption b{color:var(--ink)}
+  .checkline{margin:36px 0;border:1px solid var(--line-2);border-left:3px solid var(--accent-2);border-radius:14px;background:var(--wash);padding:20px 22px;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+  .checkline p{margin:0 0 0;font-size:17px;line-height:1.5;color:var(--body);flex:1 1 320px}
+  .checkline p b{color:var(--ink)}
+  .checkline .btn{white-space:nowrap}
   .invite{margin:40px 0 0;border:1px solid var(--line-2);border-radius:18px;background:linear-gradient(180deg,#fff,#F7FAF7);padding:28px 28px 26px}
   .invite h3{font-family:'Bricolage Grotesque';font-weight:700;color:var(--ink);font-size:23px;letter-spacing:-.02em;margin:0 0 8px}
   .invite p{margin:0 0 18px;font-size:18px;color:var(--body);line-height:1.55}
@@ -194,7 +198,7 @@
         <span class="lbl">The short version</span>
         <ul>
           <li>The <b>promo cliff</b> is the scheduled jump when an introductory internet rate expires, typically after 12 to 24 months.</li>
-          <li>It is a pricing model, not an accident: providers win customers on a low rate and rely on inertia once it resets.</li>
+          <li>It is a pricing model, not an accident: providers win customers on a low rate and <a href="https://competition-bureau.canada.ca/en/how-we-foster-competition/promotion-and-advocacy/reports-and-studies/market-study-highlights-competition-canadas-broadband-industry" target="_blank" rel="noopener noreferrer">rely on inertia</a> once it resets.</li>
           <li>NotchUp's negotiation data documents the pattern: a plan advertised at $49.99 becoming $89.99 after month 12.</li>
           <li>Your bill usually names the date. The line that says "savings" or "promotional credit" has an expiry attached.</li>
           <li>That expiry date is your leverage window, and it is the moment a pooled cohort has the most power too.</li>
@@ -203,13 +207,18 @@
 
       <h2>Why the internet price increase is scheduled, not accidental</h2>
       <p>The increase is scheduled because the discount was never a price. It was an acquisition cost. Providers compete hard for new customers, so the advertised rate is set low enough to win the signup, with a defined term attached: usually 12 months, sometimes 24. When the term ends, the plan reverts to its regular rate, and the regular rate was doing the real work all along.</p>
-      <p>NotchUp, a service that has run more than 14,000 Canadian telecom negotiations, documents the shape of it plainly: a plan advertised at $49.99 that becomes $89.99 after twelve months. The number that won the customer is not the number they end up paying. And because the reset arrives quietly, on autopay, in a month like any other, most households absorb it without ever quite registering that it happened.</p>
+      <p><a href="https://notchup.app/learn/how-to-negotiate-phone-bill-canada/" target="_blank" rel="noopener noreferrer">NotchUp</a>, a service that has run more than 14,000 Canadian telecom negotiations, documents the shape of it plainly: a plan advertised at $49.99 that becomes $89.99 after twelve months. The number that won the customer is not the number they end up paying. And because the reset arrives quietly, on autopay, in a month like any other, most households absorb it without ever quite registering that it happened.</p>
 
       <div class="pq"><p>The discount was never a price. It was the cost of acquiring you.</p></div>
 
       <h2>How to spot your own cliff before it lands</h2>
       <p>Your bill usually tells you, in small print. Look for a line called "promotional credit", "savings", "discount", or a bundle credit with a duration beside it. Somewhere near it is a date, or a phrase like "for 12 months". That date is your cliff. If the bill does not show it, your original order confirmation email does, and the provider's account page usually lists the term under your plan details.</p>
-      <p>Two other tells are worth knowing. If your bill has been creeping up by small amounts, a few dollars at a time, that is ordinary rate drift and it is separate from the cliff, which arrives as one distinct step. And if you have been a customer for more than two years without ever renegotiating, you are almost certainly past your cliff already, paying the full regular rate that the promo once masked.</p>
+      <p>Two other tells are worth knowing. If your bill has been creeping up by small amounts, a few dollars at a time, that is ordinary rate drift and it is separate from the cliff, which arrives as one distinct step. And if you have been a customer for more than two years without ever renegotiating, you are almost certainly past your cliff already, paying <a href="https://whollar.ca/blog/overpaying-internet-canada">the full regular rate that the promo once masked</a>.</p>
+
+      <div class="checkline">
+        <p><b>Find your cliff date.</b> The check tells you whether you're ahead of the cliff, on it, or already past it.</p>
+        <a class="btn solid" href="https://whollar.ca/checkup">Check if I'm overpaying</a>
+      </div>
 
       <h2>What the reset actually costs over a contract</h2>
       <p>The honest way to compare internet plans is not the advertised monthly rate but the 24-month total. Take the documented example: twelve months at $49.99 and twelve at $89.99 comes to about $1,680 over two years, an effective rate of roughly $70 a month. The $49.99 on the banner was true for exactly half the story. Any plan you are offered deserves the same arithmetic before you judge it, because the cliff is where the real price hides.</p>
@@ -217,7 +226,7 @@
       <div class="dwrap"><table class="dtable"><thead><tr><th>Period</th><th>Rate</th><th>('n', 'Cost')</th></tr></thead><tbody><tr><td>Months 1 to 12</td><td class="num">$49.99 / mo</td><td class="num">$599.88</td></tr><tr><td>Months 13 to 24</td><td class="num">$89.99 / mo</td><td class="num">$1,079.88</td></tr><tr><td><b>24-month total</b></td><td></td><td class="num">$1,679.76</td></tr><tr><td><b>Effective monthly rate</b></td><td></td><td class="num">≈ $70</td></tr></tbody></table></div>
 
       <h2>What you can do about it, alone</h2>
-      <p>The standard advice is real: call before the cliff, not after. A contract approaching its end is the one moment a <a href="https://whollar.ca/blog/internet-retention-offer-win-back">retention agent</a> has genuine room to move, because you are cheap to keep and expensive to reacquire. Ask for the current new-customer rate, name a competitor's price, and be genuinely willing to switch. It works often enough to be worth an hour of your year.</p>
+      <p>The standard advice is real: <a href="https://whollar.ca/blog/negotiate-internet-bill-canada">call before the cliff</a>, not after. A contract approaching its end is the one moment a <a href="https://whollar.ca/blog/internet-retention-offer-win-back">retention agent</a> has genuine room to move, because you are cheap to keep and expensive to reacquire. Ask for the current new-customer rate, name a competitor's price, and be genuinely willing to switch. It works often enough to be worth an hour of your year.</p>
       <p>But notice what the fix amounts to: a recurring appointment to argue with a call centre, every 12 to 24 months, forever, with your leverage resetting to zero each time. The cliff is a system, and the phone call is a patch.</p>
 
       <div class="pq"><p>The cliff is a system. The phone call is a patch.</p></div>
@@ -230,8 +239,8 @@
         <h3>Find your date. That date is your leverage.</h3>
         <p>Pull up your bill and look for the credit with an expiry. Whenever it lands, that is when your side of the table gets strong, and it is stronger still with your neighbours beside you. The first cohorts are forming now, region by region, timed to exactly these windows.</p>
         <div class="row">
-          <a class="btn solid" href="https://whollar.ca/join">Hold your spot in the first cohort</a>
-          <a class="btn ghost" href="https://whollar.ca/checkup">Run a two-minute checkup</a>
+          <a class="btn solid" href="https://whollar.ca/checkup">Check if I'm overpaying</a>
+          <a class="btn ghost" href="https://whollar.ca/join">Hold your spot in the first cohort</a>
         </div>
         <p class="fineprint">Free for households · nothing to buy today · you only act if a bid comes back that you want.</p>
       </div>
@@ -275,15 +284,6 @@
 
         <h3>What happens if I just do nothing?</h3>
         <p>The plan continues at the regular rate, and you keep paying it until you act. Nothing else changes about the service. Over a few years the gap between the promo rate and the regular rate typically adds up to hundreds of dollars for an identical connection.</p>
-      </div>
-
-      <div class="sources">
-        <span class="lbl">Sources</span>
-        <ol>
-          <li><b>Promo reset pattern</b> ($49.99 to $89.99 after 12 months; drawn from 14,000+ Canadian telecom negotiations): NotchUp. <a href="https://notchup.app/learn/how-to-negotiate-phone-bill-canada/">notchup.app</a></li>
-          <li><b>Switching behaviour and inertia</b> (5 in 6 households had not switched providers in two years): Competition Bureau of Canada. <a href="https://competition-bureau.canada.ca/en/how-we-foster-competition/promotion-and-advocacy/reports-and-studies/market-study-highlights-competition-canadas-broadband-industry">competition-bureau.canada.ca</a></li>
-          <li><b>Market structure and wholesale framework</b>: CRTC, Telecom Regulatory Policy 2024-180. <a href="https://crtc.gc.ca/eng/archive/2024/2024-180.htm">crtc.gc.ca</a></li>
-        </ol>
       </div>
 
       <div class="prod">

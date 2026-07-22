@@ -118,6 +118,10 @@
   .figbox svg{width:100%;height:auto;display:block}
   figcaption{font-family:'Space Mono';font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5}
   figcaption b{color:var(--ink)}
+  .checkline{margin:36px 0;border:1px solid var(--line-2);border-left:3px solid var(--accent-2);border-radius:14px;background:var(--wash);padding:20px 22px;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+  .checkline p{margin:0 0 0;font-size:17px;line-height:1.5;color:var(--body);flex:1 1 320px}
+  .checkline p b{color:var(--ink)}
+  .checkline .btn{white-space:nowrap}
   .invite{margin:40px 0 0;border:1px solid var(--line-2);border-radius:18px;background:linear-gradient(180deg,#fff,#F7FAF7);padding:28px 28px 26px}
   .invite h3{font-family:'Bricolage Grotesque';font-weight:700;color:var(--ink);font-size:23px;letter-spacing:-.02em;margin:0 0 8px}
   .invite p{margin:0 0 18px;font-size:18px;color:var(--body);line-height:1.55}
@@ -202,22 +206,27 @@
       </div>
 
       <h2>The two-layer market behind the price</h2>
-      <p>Canadian internet runs in two layers. A handful of companies own the physical last mile: Bell, Rogers, Telus, and the regional incumbents built the cable and fibre, and it would be wasteful to duplicate it. To keep that ownership from becoming absolute pricing power, the CRTC requires the owners to sell access to those networks at regulated wholesale rates. Independent providers like TekSavvy buy that access and retail it under their own brand, on the exact same lines.</p>
-      <p>So when TekSavvy sells you internet in Rogers territory, your data travels Rogers' cable either way. The difference is entirely in who bills you, supports you, and sets the retail margin on top of the regulated wholesale cost.</p>
+      <p>Canadian internet runs in two layers. A handful of companies own the physical last mile: Bell, Rogers, Telus, and the regional incumbents built the cable and fibre, and it would be wasteful to duplicate it. To keep that ownership from becoming absolute pricing power, the CRTC requires the owners to sell access to those networks at <a href="https://crtc.gc.ca/eng/archive/2024/2024-180.htm" target="_blank" rel="noopener noreferrer">regulated wholesale rates</a>. <a href="https://whollar.ca/blog/independent-internet-providers-canada">Independent providers like TekSavvy</a> buy that access and retail it under their own brand, on the exact same lines.</p>
+      <p>So when TekSavvy sells you internet in Rogers territory, your data travels Rogers' cable either way. The difference is entirely in who bills you, supports you, and sets <a href="https://whollar.ca/blog/internet-bill-breakdown-canada">the retail margin on top of the regulated wholesale cost</a>.</p>
 
       <h2>TekSavvy vs Rogers on the same line, in real numbers</h2>
-      <p>The gap in practice: TekSavvy's entry cable plan for 100 Mbps is $35.95 a month, while a comparable Rogers plan typically runs around $75. Roughly $40 a month, roughly $480 a year, for the same speed over the same infrastructure. The exact figures shift with promotions and regions, and the incumbent's promo rate can narrow the gap for 12 to 24 months, but the regular-rate comparison is where the honest arithmetic lives, because <a href="https://whollar.ca/blog/internet-price-increase-promo-cliff">the promo expires</a> and the regular rate is what you keep paying.</p>
+      <p>The gap in practice: TekSavvy's entry cable plan for 100 Mbps is <a href="https://www.plangenius.ca/internet/best-internet-providers/" target="_blank" rel="noopener noreferrer">$35.95 a month</a>, while a comparable Rogers plan typically runs around $75. Roughly $40 a month, roughly $480 a year, for the same speed over the same infrastructure. The exact figures shift with promotions and regions, and the incumbent's promo rate can narrow the gap for 12 to 24 months, but the regular-rate comparison is where the honest arithmetic lives, because <a href="https://whollar.ca/blog/internet-price-increase-promo-cliff">the promo expires</a> and the regular rate is what you keep paying.</p>
 
       <div class="dwrap"><table class="dtable"><thead><tr><th></th><th>Big-provider plan</th><th>Same line, resold</th></tr></thead><tbody><tr><td><b>Monthly price, regular</b></td><td class="num">~$75</td><td class="num">$35.95</td></tr><tr><td><b>Network</b></td><td>the incumbent’s cable</td><td>the same cable</td></tr><tr><td><b>Speed tier</b></td><td class="num">100 Mbps</td><td class="num">100 Mbps</td></tr><tr><td><b>Cost over 12 months</b></td><td class="num">~$900</td><td class="num">~$431</td></tr><tr><td><b>What differs</b></td><td>brand, bundles, plan range</td><td>price, terms; support varies by company</td></tr></tbody></table></div>
 
       <div class="pq"><p>The wire is the same. The bill does not have to be.</p></div>
+
+      <div class="checkline">
+        <p><b>Your line has a number like this too.</b> See where your bill sits against the same-cable price at your address.</p>
+        <a class="btn solid" href="https://whollar.ca/checkup">Check if I'm overpaying</a>
+      </div>
 
       <h2>What you trade, and what you do not</h2>
       <p>Be fair to the incumbent side of the ledger. With a large provider you may get bundling discounts across mobile and TV, a bigger retail and support apparatus, and, in some cases, plan tiers a wholesale-based provider cannot match. With an independent you typically get a lower flat price, no-nonsense terms, and support quality that varies by company: some independents win awards for it, and it is worth reading recent reviews for the one you are considering.</p>
       <p>What you do not trade is the connection itself. Speed and reliability at the line level come from the underlying network, which is the same network. Outages on the physical plant hit both companies' customers alike, because it is one plant.</p>
 
       <h2>Why the gap survives</h2>
-      <p>A $480-a-year difference on identical infrastructure should not be stable, and yet it is. It survives on inertia: the Competition Bureau found five in six Canadian households had not switched providers in two years, and NotchUp's negotiation data suggests 73% have never even asked their current provider for a better rate. The gap is not a secret. It is simply invisible to anyone who never looks, and the pricing model quietly depends on most people never looking.</p>
+      <p>A $480-a-year difference on identical infrastructure should not be stable, and yet it is. It survives on inertia: the Competition Bureau found <a href="https://competition-bureau.canada.ca/en/how-we-foster-competition/promotion-and-advocacy/reports-and-studies/market-study-highlights-competition-canadas-broadband-industry" target="_blank" rel="noopener noreferrer">five in six Canadian households had not switched providers in two years</a>, and <a href="https://notchup.app/learn/how-to-negotiate-phone-bill-canada/" target="_blank" rel="noopener noreferrer">NotchUp's negotiation data</a> suggests <a href="https://whollar.ca/blog/overpaying-internet-canada">73% have never even asked</a> their current provider for a better rate. The gap is not a secret. It is simply invisible to anyone who never looks, and the pricing model quietly depends on most people never looking.</p>
 
       <h2>The bigger version of the same gap</h2>
       <p>One household crossing the gap saves one bill. A cohort of households, pooled by region and renewal date, turns the same wholesale economics into an auction: providers of every kind, independents and incumbents alike, bidding to win the group. That is what Whollar is being built to run, and it is why this comparison matters beyond TekSavvy and Rogers specifically. The gap is the market's slack. <a href="https://whollar.ca/blog/collective-switching-internet-canada">Collective switching</a> is a way to claim it systematically instead of one phone call at a time.</p>
@@ -226,8 +235,8 @@
         <h3>See what your own line really costs.</h3>
         <p>The checkup takes two minutes and reads your bill the way this article does: same wire, honest arithmetic. And when your region's cohort opens, providers compete for the group, so the gap works in your favour by default.</p>
         <div class="row">
-          <a class="btn solid" href="https://whollar.ca/join">Hold your spot in the first cohort</a>
-          <a class="btn ghost" href="https://whollar.ca/checkup">Run a two-minute checkup</a>
+          <a class="btn solid" href="https://whollar.ca/checkup">Check if I'm overpaying</a>
+          <a class="btn ghost" href="https://whollar.ca/join">Hold your spot in the first cohort</a>
         </div>
         <p class="fineprint">Free for households · nothing to buy today · you only act if a bid comes back that you want.</p>
       </div>
@@ -271,15 +280,6 @@
 
         <h3>Why doesn't everyone just switch, then?</h3>
         <p>Mostly inertia and unfamiliarity. Five in six Canadian households did not switch providers over a two-year period, and most people simply have not heard that the same cable is sold at two prices. The gap persists because looking at it is rare, not because it is hard to cross.</p>
-      </div>
-
-      <div class="sources">
-        <span class="lbl">Sources</span>
-        <ol>
-          <li><b>TekSavvy pricing</b> ($35.95 entry cable, 100 Mbps) and comparable incumbent rates: PlanGenius. <a href="https://www.plangenius.ca/internet/best-internet-providers/">plangenius.ca</a></li>
-          <li><b>Wholesale access framework</b>: CRTC, Telecom Regulatory Policy 2024-180. <a href="https://crtc.gc.ca/eng/archive/2024/2024-180.htm">crtc.gc.ca</a></li>
-          <li><b>Switching and negotiation behaviour</b>: Competition Bureau of Canada (<a href="https://competition-bureau.canada.ca/en/how-we-foster-competition/promotion-and-advocacy/reports-and-studies/market-study-highlights-competition-canadas-broadband-industry">market study</a>) and NotchUp (73% never asked). <a href="https://notchup.app/learn/how-to-negotiate-phone-bill-canada/">notchup.app</a></li>
-        </ol>
       </div>
 
 <div class="prod">

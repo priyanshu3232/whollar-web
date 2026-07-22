@@ -150,6 +150,10 @@
 
   /* the turn / CTA block */
   .turn{margin:16px 0 0}
+  .checkline{margin:36px 0;border:1px solid var(--line-2);border-left:3px solid var(--accent-2);border-radius:14px;background:var(--wash);padding:20px 22px;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+  .checkline p{margin:0 0 0;font-size:17px;line-height:1.5;color:var(--body);flex:1 1 320px}
+  .checkline p b{color:var(--ink)}
+  .checkline .btn{white-space:nowrap}
   .invite{margin:40px 0 0;border:1px solid var(--line-2);border-radius:18px;background:linear-gradient(180deg,#fff, #F7FAF7);padding:28px 28px 26px}
   .invite h3{font-family:'Bricolage Grotesque';font-weight:700;color:var(--ink);font-size:23px;letter-spacing:-.02em;margin:0 0 8px}
   .invite p{margin:0 0 18px;font-size:18px;color:var(--body);line-height:1.55}
@@ -231,7 +235,7 @@
     <div class="body">
       <p class="lead">Two numbers explain most of how Canadians buy internet.</p>
 
-      <p>The first is $487. That is roughly what the average household overpays for telecom every year, according to NotchUp's dataset of more than 14,000 Canadian negotiations. The second is 73%: the share of households that have never once asked their provider for a better deal.</p>
+      <p>The first is $487. That is roughly what the average household overpays for telecom every year, according to <a href="https://notchup.app/learn/how-to-negotiate-phone-bill-canada/" target="_blank" rel="noopener noreferrer">NotchUp's dataset of more than 14,000 Canadian negotiations</a>. The second is 73%: the share of households that have never once asked their provider for a better deal.</p>
 
       <p>Hold them side by side and something odd comes into focus. A whole country quietly paying more than it needs to, for a service that often runs on the very same cable as the cheaper plan next door, and almost nobody picking up the phone. It is tempting to call that carelessness. It is not. It is design.</p>
 
@@ -247,8 +251,8 @@
       </div>
 
       <h2>The cheaper plan is not hypothetical. It is on your street.</h2>
-      <p>Start with the part that surprises people most: the better deal usually already exists, often on the identical wire running into your home. A household paying around $75 a month for 100 Mbps from a big provider is frequently living beside the same 100 Mbps, resold over the same cable, for closer to $36. Same speed, same infrastructure, roughly $40 a month apart.</p>
-      <p>That is possible because Canada's internet market runs in two layers. A small number of companies own the physical network, the fibre and cable in the ground. Everyone else rents access to that network at regulated rates and resells it. So what we casually call "switching providers" is often nothing more than changing whose name is on the bill for the exact same connection. The wire does not know who you pay.</p>
+      <p>Start with the part that surprises people most: the better deal usually already exists, often on the identical wire running into your home. A household paying around $75 a month for 100 Mbps from a big provider is frequently living beside <a href="https://whollar.ca/blog/teksavvy-vs-rogers-same-cable">the same 100 Mbps, resold over the same cable</a>, for <a href="https://www.plangenius.ca/internet/best-internet-providers/" target="_blank" rel="noopener noreferrer">closer to $36</a>. Same speed, same infrastructure, roughly $40 a month apart.</p>
+      <p>That is possible because Canada's internet market <a href="https://whollar.ca/blog/big-three-telecom-canada">runs in two layers</a>. A small number of companies own the physical network, the fibre and cable in the ground. Everyone else <a href="https://competition-bureau.canada.ca/en/how-we-foster-competition/promotion-and-advocacy/reports-and-studies/market-study-highlights-competition-canadas-broadband-industry" target="_blank" rel="noopener noreferrer">rents access to that network at regulated rates</a> and resells it. So what we casually call "switching providers" is often nothing more than changing whose name is on the bill for the exact same connection. The wire does not know who you pay.</p>
 
       <figure>
         <div class="figbox">
@@ -278,7 +282,7 @@
             <text x="320" y="149" text-anchor="middle" font-family="'Space Mono',monospace" font-size="12" fill="#12805A">≈ $480 a year</text>
           </svg>
         </div>
-        <figcaption><b>The gap is not technical.</b> A 100 Mbps plan on a big provider often sits beside the same 100 Mbps, resold over the same cable, for roughly $40 a month less. Figures are typical ranges, not universal. Sources below.</figcaption>
+        <figcaption><b>The gap is not technical.</b> A 100 Mbps plan on a big provider often sits beside the same 100 Mbps, resold over the same cable, for roughly $40 a month less. Figures are typical ranges, not universal.</figcaption>
       </figure>
 
       <h2>Why so many Canadians overpay for internet and never ask</h2>
@@ -299,6 +303,11 @@
 
       <p>That is the loyalty tax, and almost everyone is paying some version of it.</p>
 
+      <div class="checkline">
+        <p><b>Is your household one of the 73%?</b> The two-minute check reads your plan against your street's real market rate.</p>
+        <a class="btn solid" href="https://whollar.ca/checkup">Check if I'm overpaying</a>
+      </div>
+
       <h2>Calling works. It just does not stay working.</h2>
       <p>To be fair, there is a real answer that costs nothing but time: <a href="https://whollar.ca/blog/negotiate-internet-bill-canada">call and negotiate</a>. People do it every day, and it works. The leverage that moves a retention agent is genuine, a contract that has expired, a specific competitor's price in hand, and a real willingness to walk away.</p>
       <p>But there is a catch nobody puts on the brochure. Whatever you win resets. The new rate lasts 12 to 24 months, then the price climbs back toward where it started, and you are on hold again next year, beginning from zero. Negotiation is a good tool. It is just a tool you have to keep picking up, by yourself, for as long as you have internet.</p>
@@ -313,8 +322,8 @@
         <h3>You were never bad with money.</h3>
         <p>You were on the default, in a market that quietly counts on you staying there. The first cohorts are forming now, region by region. Holding a spot costs nothing and commits you to nothing, and every neighbour who joins alongside you makes the eventual bid a little stronger: the same street, finally on the same side of the table.</p>
         <div class="row">
-          <a class="btn solid" href="https://whollar.ca/join">Hold your spot in the first cohort</a>
-          <a class="btn ghost" href="https://whollar.ca/checkup">Run a two-minute checkup</a>
+          <a class="btn solid" href="https://whollar.ca/checkup">Check if I'm overpaying</a>
+          <a class="btn ghost" href="https://whollar.ca/join">Hold your spot in the first cohort</a>
         </div>
         <p class="fineprint">Free for households · nothing to buy today · you only act if a bid comes back that you want.</p>
       </div>
@@ -336,15 +345,6 @@
 
         <h3>Does it cost anything to join Whollar?</h3>
         <p>No. For households, joining is free, and holding a spot in a forming cohort commits you to nothing. You only ever act if a bid comes back that you actually want to take.</p>
-      </div>
-
-      <div class="sources">
-        <span class="lbl">Sources</span>
-        <ol>
-          <li><b>Overpayment and negotiation data</b> ($487/year, 73% never ask, 14,000+ negotiations): NotchUp. <a href="https://notchup.app/learn/how-to-negotiate-phone-bill-canada/">notchup.app</a></li>
-          <li><b>Switching behaviour</b> (5 in 6 households had not switched providers in two years) and wholesale competition: Competition Bureau of Canada. <a href="https://competition-bureau.canada.ca/en/how-we-foster-competition/promotion-and-advocacy/reports-and-studies/market-study-highlights-competition-canadas-broadband-industry">competition-bureau.canada.ca</a></li>
-          <li><b>Same-cable resale pricing</b> (~$36 vs ~$75 for 100 Mbps): PlanGenius. <a href="https://www.plangenius.ca/internet/best-internet-providers/">plangenius.ca</a></li>
-        </ol>
       </div>
 
       <div class="prod">
