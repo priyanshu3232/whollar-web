@@ -112,6 +112,9 @@ button{font-family:var(--body)}
 .otp-meta a{font-weight:600;cursor:pointer}
 .otp-meta a.dim{color:var(--ink-3);cursor:default;pointer-events:none}
 
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--teal);color:#fff;font-size:13.5px;font-weight:600;border-radius:12px;padding:11px 18px;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:70}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
 .rv{opacity:0;transform:translateY(12px);animation:rise .7s var(--ease) forwards}
 .rv.d1{animation-delay:.06s}.rv.d2{animation-delay:.14s}.rv.d3{animation-delay:.22s}
 @keyframes rise{to{opacity:1;transform:none}}
@@ -167,6 +170,11 @@ button{font-family:var(--body)}
 
         <div class="divider">or use your email</div>
 
+        <div class="field" id="fname-f">
+          <label for="fname">First name</label>
+          <input id="fname" type="text" autocomplete="given-name" placeholder="Your first name">
+        </div>
+
         <div class="field" id="email-f">
           <label for="email">Email</label>
           <input id="email" type="email" autocomplete="email" inputmode="email" placeholder="you@email.com">
@@ -208,6 +216,8 @@ button{font-family:var(--body)}
   </main>
 </div>
 
+<div class="toast" id="toast" role="status"></div>
+
 <script>
 /* forming animation: houses light up in a rolling wave (illustrative, no counts) */
 (function(){
@@ -240,7 +250,20 @@ function setMode(m){
     : 'New to Whollar? <a onclick="setMode(\'signup\')">Create an account</a>';
 }
 
-function mock(label){ alert(label+'\n\n(Mock screen · wire this to your auth provider.)'); }
+function toast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(toast._x);
+  toast._x=setTimeout(function(){t.classList.remove('show')},2400);
+}
+function mock(label){ toast('Sign-in is front end only in this build.'); }
+
+function tidy(s){ return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase(); }
+function firstNameFrom(email, given){
+  if (given && given.trim()) return tidy(given.trim());
+  var local = (String(email).split('@')[0] || '').split(/[._\-+0-9]/)[0] || '';
+  return local ? tidy(local) : '';
+}
 
 function sendCode(){
   var em=document.getElementById('email'), ef=document.getElementById('email-f');
@@ -248,11 +271,10 @@ function sendCode(){
   document.getElementById('email-err').style.display=ok?'none':'block';
   ef.classList.toggle('err',!ok);
   if(!ok){ em.focus(); return; }
-  document.getElementById('echo-email').textContent=em.value.trim();
-  document.getElementById('entry').classList.add('hidden');
-  document.getElementById('code').classList.remove('hidden');
-  startCountdown();
-  var first=document.querySelector('#otp input'); if(first) first.focus();
+  var email=em.value.trim();
+  var member={ firstName: firstNameFrom(email, document.getElementById('fname').value), email: email };
+  try{ localStorage.setItem('whollar.member', JSON.stringify(member)); }catch(err){}
+  location.href='/dashboard';
 }
 function backToEmail(){
   document.getElementById('code').classList.add('hidden');
