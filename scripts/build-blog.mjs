@@ -94,6 +94,15 @@ for (const [file, slug] of SLUGS) {
   if (!descTag) fail(file, 'meta description not found');
   html = html.replace(descTag[0], `${descTag[0]}\n<link rel="canonical" href="${url}">`);
 
+  // 4b. device-router include after the viewport meta — articles are mapped to
+  // /MobileVersion/blog/<slug> counterparts, so phones must be routed off them.
+  const routerTag = '<script src="/js/device-router.js"></script>';
+  if (!html.includes(routerTag)) {
+    const viewport = html.match(/<meta name="viewport"[^>]*>/);
+    if (!viewport) fail(file, 'viewport meta not found');
+    html = html.replace(viewport[0], `${viewport[0]}\n${routerTag}`);
+  }
+
   // Verification gates
   const ldBlocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
   if (ldBlocks.length !== 2) fail(file, `expected 2 JSON-LD blocks, found ${ldBlocks.length}`);
@@ -153,6 +162,7 @@ const indexHtml = `<!DOCTYPE html>
 </script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="/js/device-router.js"></script>
 <title>Resources: plain-language reads on internet pricing in Canada · Whollar</title>
 <meta name="description" content="Ten plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
 <link rel="canonical" href="${DOMAIN}/blog/">
@@ -272,3 +282,8 @@ ${entries.join('\n')}
 writeFileSync('sitemap.xml', sitemap);
 writeFileSync('robots.txt', `User-agent: *\nAllow: /\n\nSitemap: ${DOMAIN}/sitemap.xml\n`);
 console.log(`ok  sitemap.xml (${entries.length} URLs) + robots.txt`);
+
+// ---------- Mobile article copies ----------
+// Regenerate MobileVersion/blog/<slug>.html from the freshly written articles
+// so the mobile namespace never drifts from a restamp/republish.
+await import('./build-mobile-blog.mjs');
