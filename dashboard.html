@@ -327,11 +327,29 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .miniprog i{display:block;height:100%;background:var(--accent);border-radius:4px}
 
 /* ---------- other views ---------- */
-.klist{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:13px}
-.kcard{background:#fff;border:1px solid var(--line);border-radius:16px;padding:17px;display:block;transition:box-shadow .2s,transform .15s}
-.kcard:hover{box-shadow:0 10px 24px rgba(26,37,32,.09);transform:translateY(-2px);text-decoration:none}
-.kcard b{font-family:var(--disp);font-size:15px;font-weight:700;color:var(--ink);display:block;line-height:1.35}
-.kcard small{font-family:var(--mono);font-size:11px;color:var(--sub);display:block;margin-top:8px}
+.klist{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.ktile{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 1px 2px rgba(26,37,32,.04),0 8px 24px rgba(26,37,32,.05);transition:box-shadow .25s,border-color .25s,transform .15s}
+.ktile:hover{box-shadow:0 10px 26px rgba(26,37,32,.1);border-color:var(--accent);transform:translateY(-2px)}
+.ktile-media{display:block;position:relative;overflow:hidden;isolation:isolate;background:var(--mint);aspect-ratio:3/2;flex:none}
+.ktile-media img{width:100%;height:100%;object-fit:cover;display:block;filter:grayscale(1) contrast(1.03) brightness(1.02);transition:transform 600ms cubic-bezier(.2,.7,.2,1)}
+.ktile-media::after{content:"";position:absolute;inset:0;background:#1B4D3E;mix-blend-mode:multiply;opacity:.42;pointer-events:none;transition:opacity 400ms ease}
+@media(hover:hover){
+  .ktile:hover .ktile-media img{transform:scale(1.045)}
+  .ktile:hover .ktile-media::after{opacity:.3}
+}
+.ktile-body{display:flex;flex-direction:column;gap:10px;flex:1;padding:18px 20px 16px}
+.ktile-top{display:flex;align-items:baseline;gap:10px}
+.knum{font-family:var(--mono);font-size:11.5px;font-weight:700;color:var(--sub);opacity:.55}
+.ktile:hover .knum{color:var(--accent-deep);opacity:1}
+.ktile-body b{font-family:var(--disp);font-weight:700;font-size:16.5px;line-height:1.25;color:var(--ink)}
+.ktile:hover .ktile-body b{color:var(--accent-deep)}
+.kdeck{font-size:13.5px;color:var(--sub);line-height:1.5;flex:1}
+.kmeta{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--line);padding-top:12px;font-family:var(--mono);font-size:11.5px;color:var(--sub)}
+.kmeta .go{color:var(--accent-deep);font-weight:700}
+@media(prefers-reduced-motion:reduce){
+  .ktile-media img,.ktile-media::after{transition:none}
+  .ktile:hover .ktile-media img{transform:none}
+}
 .empty{text-align:center;padding:clamp(34px,6vw,60px) 20px}
 .empty svg{width:74px;height:74px;margin-bottom:14px}
 .empty h3{font-size:20px;font-weight:750;margin-bottom:6px}
@@ -1117,8 +1135,29 @@ function thumb(i){return '<svg viewBox="0 0 48 48" aria-hidden="true"><rect widt
 $('#reads').innerHTML=BLOGS.slice(0,3).map(function(b,i){
   return '<li><a href="/blog/'+b[2]+'"><span class="rthumb">'+thumb(i)+'</span><span class="rtxt">'+esc(b[0])+'<small>'+b[1]+'</small></span></a></li>'
 }).join('');
+/* resources tiles: image, category, deck, read time, alt (from /blog/ index, same order as BLOGS) */
+var KMETA=[
+  ['the-487-problem','Saving money','The cheaper plan is already running on the same cables. Here is why almost nobody asks for it, and why that is not your fault.','~6 min read','A man slumped over a desk scattered with banknotes and coins'],
+  ['promo-cliff','Saving money','The number that won you as a customer was never the number you were going to keep paying.','~5 min read','Stacks of coins climbing in steps beneath a rising green arrow'],
+  ['whole-street-switch','How it works','One household has no leverage. A thousand households have an auction.','~5 min read','A quiet residential street of houses at sunset'],
+  ['same-cable','Saving money','A reseller sells you the incumbent’s own line for a fraction of the price. Here is the math.','~5 min read','Colourful network cables plugged into the same switch, one unplugged'],
+  ['where-the-money-goes','Explainers','63 cents of every retail dollar never stays with the company you pay.','~5 min read','Ascending stacks of gold coins beneath a rising arrow'],
+  ['negotiate-your-bill','Saving money','The retention script that works, the leverage that matters, and the ceiling nobody mentions.','~6 min read','A man mid-conversation on a corded desk phone, gesturing with one hand'],
+  ['win-back-offer','Explainers','The discount only appears when you try to leave. That timing is the whole story.','~5 min read','A call-centre agent wearing a headset at a bank of monitors'],
+  ['who-sells-you-internet','Explainers','Half the different-looking brands on the shelf are owned by the companies you are trying to leave.','~6 min read','A shopper deliberating in front of shelves of near-identical jars'],
+  ['collective-switching','How it works','Collective switching is not a theory. It moved energy markets for years. Now, internet.','~5 min read','An electricity pylon with power lines fanning out overhead'],
+  ['three-companies','The market','The prices make more sense once you see who owns the pipes.','~6 min read','A telecommunications mast with dish antennas against a clear sky']
+];
 $('#klist').innerHTML=BLOGS.map(function(b,i){
-  return '<a class="kcard" href="/blog/'+b[2]+'"><span class="kthumb">'+thumb(i)+'</span><span class="ktxt"><b>'+esc(b[0])+'</b><small>'+b[1]+' read</small></span></a>'
+  var m=KMETA[i], n=(i<9?'0':'')+(i+1), img='/images/resources/'+m[0];
+  return '<a class="ktile" href="/blog/'+b[2]+'">'
+  +'<span class="ktile-media"><img src="'+img+'.webp" srcset="'+img+'.webp 800w, '+img+'@2x.webp 1600w" sizes="(max-width:640px) 100vw, (max-width:1024px) 50vw, 33vw" alt="'+esc(m[4])+'" loading="lazy" decoding="async" width="800" height="533"></span>'
+  +'<span class="ktile-body">'
+  +'<span class="ktile-top"><span class="knum">'+n+'</span><span class="eyebrow">'+esc(m[1])+'</span></span>'
+  +'<b>'+esc(b[0])+'</b>'
+  +'<span class="kdeck">'+esc(m[2])+'</span>'
+  +'<span class="kmeta"><span>'+esc(m[3])+'</span><span class="go">Read the article &rarr;</span></span>'
+  +'</span></a>'
 }).join('');
 
 /* ---------- demo controls: only with ?demo=1 ---------- */
