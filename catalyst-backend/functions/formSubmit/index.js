@@ -116,8 +116,14 @@ const limit = (opts) => async (req, res, next) => {
   res.status(429).json({ ok: false, error: 'Too many requests. Please slow down and try again shortly.' });
 };
 
+// HEIC/HEIF is the iPhone camera default, so it is the single most likely
+// upload from the households this site is for. The bill reader cannot parse it
+// (the Claude vision API takes JPEG/PNG/GIF/WebP only, which is why billOcr's
+// list is shorter), but there is no reason to refuse to STORE it — a person
+// can open it later. Accept it here; the frontend skips the OCR call for it.
 const ACCEPTED_UPLOAD_TYPES = new Set([
-  'application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'image/webp'
+  'application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+  'image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence'
 ]);
 
 // Reject anything that isn't a bill (PDF/image) server-side — the frontend's
@@ -180,7 +186,9 @@ const upload = multer({
  * ------------------------------------------------------------------ */
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const isEmail = v => typeof v === 'string' && EMAIL_RE.test(v.trim());
+// Keep byte-identical to WHOLLAR.EMAIL_RE in js/whollar-core.js. The pages used
+// to carry a looser variant that accepted "a@b.c" and produced a 400 here.
+const isEmail = v => typeof v === 'string' && v.length <= 254 && EMAIL_RE.test(v.trim());
 const str = v => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v));
 const orNull = v => (v === '' || v == null ? null : v);
 const digits = v => str(v).replace(/\D/g, '');
@@ -191,6 +199,67 @@ const toNumber = v => {
 const json = v => JSON.stringify(v ?? null);
 // Catalyst DateTime columns expect "YYYY-MM-DD HH:MM:SS" (UTC), not ISO 8601.
 const catalystNow = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+/* ------------------------------------------------------------------ *
+ * Canonical formats
+ * ------------------------------------------------------------------
+ * One concept, one shape. Before this, a postal code reached the CRM in four
+ * different forms depending on the route — "M5V 3A8" from the calculator, the
+ * bare FSA "M5V" from the checkup, and (within the same deep-read handler)
+ * both an uppercased and a raw-case copy of the same value. That silently
+ * fragments the dataset: you cannot join estimates to checkups on geography.
+ * ------------------------------------------------------------------ */
+
+// Canada Post never uses D, F, I, O, Q, U anywhere, nor W or Z as the first
+// letter. Same rule as WHOLLAR.parsePostal on the frontend.
+const PC_RE = /^[ABCEGHJKLMNPRSTVXY]\d[ABCEGHJKLMNPRSTVWXYZ]\d[ABCEGHJKLMNPRSTVWXYZ]\d$/;
+const FSA_RE = /^[ABCEGHJKLMNPRSTVXY]\d[ABCEGHJKLMNPRSTVWXYZ]$/;
+
+// Always "A1A 1A1" (full) or "A1A" (FSA only), uppercase, single space.
+// Returns { fsa, full } with nulls when the input isn't a real Canadian code.
+function normalizePostal(v) {
+  const s = str(v).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const fsa = s.slice(0, 3);
+  if (!FSA_RE.test(fsa)) return { fsa: null, full: null };
+  const full = s.length === 6 && PC_RE.test(s) ? `${fsa} ${s.slice(3)}` : null;
+  return { fsa, full };
+}
+
+// E.164 for Canada. "5551234567" and "15551234567" are the same subscriber but
+// were stored as two different strings, so the CRM saw two people.
+function normalizePhone(v) {
+  const d = digits(v);
+  if (d.length === 10) return `+1${d}`;
+  if (d.length === 11 && d.startsWith('1')) return `+${d}`;
+  return null;
+}
+
+// Lowercased email is the join key everywhere. Zoho's
+// (Email:equals:…) search is not reliably case-insensitive, so
+// Genie@x.com and genie@x.com would otherwise create two Leads.
+const emailKey = v => str(v).toLowerCase();
+
+/* CASL: consent must be provable — what was agreed, when, and where. The
+ * frontend sends these; they travel in the CRM payload (which is a free-form
+ * JSON column) rather than as new Data Store columns, because adding a column
+ * that does not exist in the console makes insertRow fail outright.
+ * To persist them as first-class columns, create them in the Catalyst console
+ * and add them to the row objects below. */
+function consentFrom(b, req) {
+  const granted = str(b.consentGranted) === 'true' || b.consentGranted === true;
+  if (!granted) return { consentGranted: false };
+  return {
+    consentGranted: true,
+    consentKind: str(b.consentKind) || null,
+    consentText: str(b.consentText).slice(0, 500) || null,
+    // Trust the server clock, not the browser's, for the record of when.
+    consentAt: new Date().toISOString(),
+    consentClientAt: str(b.consentAt) || null,
+    consentSource: str(b.consentSource) || null,
+    // CASL guidance is to keep the requesting IP as part of the consent record.
+    consentIp: clientIp(req)
+  };
+}
 
 function badRequest(res, message) {
   return res.status(400).json({ ok: false, error: message });
@@ -267,14 +336,15 @@ app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 360
   const firstName = str(b.firstName);
   const lastName = str(b.lastName);
   const email = str(b.email);
-  const phone = digits(b.phone);
-  const fsa = str(b.fsa).toUpperCase();
+  const phone = normalizePhone(b.phone);
+  const postal = normalizePostal(b.fsa || b.postalFull);
 
   if (firstName.length < 2) return badRequest(res, 'firstName is required.');
   if (lastName.length < 2) return badRequest(res, 'lastName is required.');
   if (!isEmail(email)) return badRequest(res, 'A valid email is required.');
-  if (phone.length < 10 || phone.length > 11) return badRequest(res, 'A valid phone number is required.');
-  if (!fsa) return badRequest(res, 'fsa is required.');
+  if (!phone) return badRequest(res, 'A valid 10-digit Canadian phone number is required.');
+  // Was `if (!fsa)` — any non-empty string passed, so "ZZZ" was accepted.
+  if (!postal.fsa) return badRequest(res, 'A valid Canadian postal code is required.');
 
   try {
     const catalystApp = catalyst.initialize(req);
@@ -282,14 +352,23 @@ app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 360
       FirstName: firstName,
       LastName: lastName,
       Email: email,
-      Phone: phone,
-      FSA: fsa,
+      // Digits only: the Phone column predates E.164 normalisation, so keep the
+      // stored shape stable and send the canonical form to the CRM.
+      Phone: digits(b.phone),
+      FSA: postal.fsa,
       ReferralCode: orNull(str(b.referral)),
       SubmittedAt: catalystNow()
     });
     await enqueueCrm(catalystApp, {
       source: 'WaitlistSignups', rowId: row.ROWID, email, leadType: 'consumer',
-      data: { firstName, lastName, phone, fsa, referral: str(b.referral) }
+      data: {
+        firstName, lastName, phone,
+        emailKey: emailKey(email),
+        fsa: postal.fsa, postal: postal.full,
+        province: str(b.province) || null, provinceCode: str(b.provinceCode) || null,
+        referral: str(b.referral),
+        ...consentFrom(b, req)
+      }
     });
     res.status(200).json({ ok: true, id: row.ROWID });
   } catch (err) {
@@ -310,9 +389,10 @@ app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSe
   try {
     const catalystApp = catalyst.initialize(req);
     const file = await storeFile(catalystApp, req.file);
+    const postal = normalizePostal(b.fsa || b.postalFull);
     const row = await insert(catalystApp, 'WaitlistDetails', {
       Email: email,
-      FSA: orNull(str(b.fsa).toUpperCase() || null),
+      FSA: postal.fsa,
       Provider: orNull(str(b.provider)),
       MonthlyCost: toNumber(b.cost),
       DownloadSpeed: orNull(str(b.speed)),
@@ -326,14 +406,20 @@ app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSe
     await enqueueCrm(catalystApp, {
       source: 'WaitlistDetails', rowId: row.ROWID, email, leadType: 'consumer',
       data: {
+        emailKey: emailKey(email),
         provider: str(b.provider), cost: toNumber(b.cost), speed: str(b.speed),
         promoEnd: str(b.promoEnd), threshold: str(b.threshold),
-        fsa: str(b.fsa).toUpperCase(),
+        fsa: postal.fsa, postal: postal.full,
+        province: str(b.province) || null, provinceCode: str(b.provinceCode) || null,
         services: Array.isArray(services) ? services.join(', ') : '',
-        billFileName: file?.name ?? (req.fileRejected ? `[rejected: ${req.fileRejected}]` : null)
+        billFileName: file?.name ?? (req.fileRejected ? `[rejected: ${req.fileRejected}]` : null),
+        ...consentFrom(b, req)
       }
     });
-    res.status(200).json({ ok: true, id: row.ROWID });
+    // Tell the caller the lead saved but the attachment did not, so the page can
+    // say so. Previously the row stored "[rejected: too large]" and the visitor
+    // saw an unqualified success.
+    res.status(200).json({ ok: true, id: row.ROWID, fileRejected: req.fileRejected || null });
   } catch (err) {
     serverError(res, err, 'waitlist-details');
   }
@@ -350,10 +436,11 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
   try {
     const catalystApp = catalyst.initialize(req);
     const file = await storeFile(catalystApp, req.file);
+    const postal = normalizePostal(b.pc || b.postalFull);
     const row = await insert(catalystApp, 'BillCheckupSubmissions', {
       Email: email,
       Via: orNull(str(b.via)) || 'form',
-      PostalFSA: orNull(str(b.pc).toUpperCase() || null),
+      PostalFSA: postal.fsa,
       Provider: orNull(str(b.prov)),
       MonthlyCost: toNumber(b.cost),
       DownloadSpeed: orNull(str(b.spd)),
@@ -370,15 +457,27 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
     await enqueueCrm(catalystApp, {
       source: 'BillCheckupSubmissions', rowId: row.ROWID, email, leadType: 'consumer',
       data: {
-        via: str(b.via) || 'form', postal: str(b.pc).toUpperCase(),
+        emailKey: emailKey(email),
+        via: str(b.via) || 'form',
+        fsa: postal.fsa, postal: postal.full,
+        province: str(b.province) || null, provinceCode: str(b.provinceCode) || null,
         provider: str(b.prov), cost: toNumber(b.cost), speed: str(b.spd),
         tech: str(b.tech), promoEnd: str(b.pdate),
         monthsToRenewal: b.pmo != null && b.pmo !== '' ? parseInt(b.pmo, 10) : null,
         discount: toNumber(b.disc), threshold: str(b.switchFor),
-        billFileName: file?.name ?? (req.fileRejected ? `[rejected: ${req.fileRejected}]` : null)
+        // What the visitor was actually shown. Without these, sales sees the
+        // gross charge and has no idea which of the four verdicts appeared on
+        // screen — the number the conversation has to start from.
+        effectiveCost: toNumber(b.effectiveCost),
+        verdict: str(b.verdict) || null,
+        verdictReason: str(b.verdictReason) || null,
+        benchmarkScope: str(b.benchmarkScope) || null,
+        benchmarkPrice: toNumber(b.benchmarkPrice),
+        billFileName: file?.name ?? (req.fileRejected ? `[rejected: ${req.fileRejected}]` : null),
+        ...consentFrom(b, req)
       }
     });
-    res.status(200).json({ ok: true, id: row.ROWID });
+    res.status(200).json({ ok: true, id: row.ROWID, fileRejected: req.fileRejected || null });
   } catch (err) {
     serverError(res, err, 'bill-checkup-join');
   }
@@ -395,10 +494,17 @@ app.post('/deep-read', limit({ key: 'deep-read', max: 10, windowSec: 3600 }), gu
   try {
     const catalystApp = catalyst.initialize(req);
     const files = await storeFiles(catalystApp, req.files);
+    // One postal shape. This block used to store `pc` in whatever case the
+    // browser sent while the CRM payload below uppercased the same value —
+    // two spellings of one field, written by one handler.
+    const postal = normalizePostal(b.pc || b.postalFull);
     const context = {
-      pc: orNull(str(b.pc)), prov: orNull(str(b.prov)), cost: toNumber(b.cost),
+      fsa: postal.fsa, postal: postal.full,
+      province: orNull(str(b.province)), provinceCode: orNull(str(b.provinceCode)),
+      prov: orNull(str(b.prov)), cost: toNumber(b.cost),
       spd: orNull(str(b.spd)), tech: orNull(str(b.tech)), pdate: orNull(str(b.pdate)),
-      disc: toNumber(b.disc)
+      disc: toNumber(b.disc), effectiveCost: toNumber(b.effectiveCost),
+      verdict: orNull(str(b.verdict))
     };
     const row = await insert(catalystApp, 'DeepReadRequests', {
       Email: email,
@@ -411,9 +517,14 @@ app.post('/deep-read', limit({ key: 'deep-read', max: 10, windowSec: 3600 }), gu
     await enqueueCrm(catalystApp, {
       source: 'DeepReadRequests', rowId: row.ROWID, email, leadType: 'consumer',
       data: {
+        emailKey: emailKey(email),
         note: str(b.note), files: files.map(f => f.name).join(', '),
-        postal: str(b.pc).toUpperCase(), provider: str(b.prov), cost: toNumber(b.cost),
-        speed: str(b.spd), tech: str(b.tech), promoEnd: str(b.pdate), discount: toNumber(b.disc)
+        fsa: postal.fsa, postal: postal.full,
+        province: str(b.province) || null, provinceCode: str(b.provinceCode) || null,
+        provider: str(b.prov), cost: toNumber(b.cost),
+        speed: str(b.spd), tech: str(b.tech), promoEnd: str(b.pdate), discount: toNumber(b.disc),
+        effectiveCost: toNumber(b.effectiveCost), verdict: str(b.verdict) || null,
+        ...consentFrom(b, req)
       }
     });
     res.status(200).json({ ok: true, id: row.ROWID });
@@ -431,14 +542,14 @@ app.post('/partner-application', limit({ key: 'partner-application', max: 10, wi
   const lastName = str(b.lastName);
   const company = str(b.company);
   const email = str(b.email);
-  const phone = digits(b.phone);
+  const phone = normalizePhone(b.phone);
 
   if (!role) return badRequest(res, 'role is required.');
   if (firstName.length < 2) return badRequest(res, 'firstName is required.');
   if (lastName.length < 2) return badRequest(res, 'lastName is required.');
   if (company.length < 2) return badRequest(res, 'company is required.');
   if (!isEmail(email)) return badRequest(res, 'A valid email is required.');
-  if (phone.length < 10 || phone.length > 11) return badRequest(res, 'A valid phone number is required.');
+  if (!phone) return badRequest(res, 'A valid 10-digit Canadian phone number is required.');
 
   try {
     const catalystApp = catalyst.initialize(req);
@@ -448,7 +559,9 @@ app.post('/partner-application', limit({ key: 'partner-application', max: 10, wi
       LastName: lastName,
       Company: company,
       Email: email,
-      Phone: phone,
+      // Digits only: keep the existing column shape stable; the canonical
+      // E.164 form goes to the CRM below.
+      Phone: digits(b.phone),
       Provinces: json(Array.isArray(b.provinces) ? b.provinces : []),
       AccessTech: json(Array.isArray(b.tech) ? b.tech : []),
       LegalName: orNull(str(b.legalName)),
@@ -466,9 +579,11 @@ app.post('/partner-application', limit({ key: 'partner-application', max: 10, wi
       source: 'PartnerApplications', rowId: row.ROWID, email, leadType: 'partner',
       data: {
         firstName, lastName, company, phone, role,
+        emailKey: emailKey(email),
         provinces: (Array.isArray(b.provinces) ? b.provinces : []).join(', '),
         techs: (Array.isArray(b.tech) ? b.tech : []).join(', '),
-        note: str(b.note)
+        note: str(b.note),
+        ...consentFrom(b, req)
       }
     });
     res.status(200).json({ ok: true, id: row.ROWID });
@@ -483,13 +598,31 @@ app.post('/partner-application', limit({ key: 'partner-application', max: 10, wi
 app.post('/calculator-estimate', limit({ key: 'calculator-estimate', max: 40, windowSec: 3600 }), async (req, res) => {
   const b = req.body || {};
 
+  // This was the one route with no input validation at all — it accepted any
+  // body, so a junk postal code or an arbitrary "savings" number went straight
+  // into the table. The per-IP rate limit was the only gate.
+  const postal = normalizePostal(b.postal || b.fsa);
+  if (!postal.fsa) return badRequest(res, 'A valid Canadian postal code is required.');
+
+  const monthlyBill = toNumber(b.monthlyBill);
+  if (monthlyBill == null || monthlyBill < 15 || monthlyBill > 500) {
+    return badRequest(res, 'monthlyBill must be between 15 and 500.');
+  }
+  const savings = toNumber(b.estimatedAnnualSavings);
+  // Bounded by what the widget can actually produce: 12 × 500 × 21% ≈ 1260.
+  if (savings == null || savings < 0 || savings > 2000) {
+    return badRequest(res, 'estimatedAnnualSavings is out of range.');
+  }
+
   try {
     const catalystApp = catalyst.initialize(req);
     const row = await insert(catalystApp, 'CalculatorEstimates', {
-      PostalCode: orNull(str(b.postal).toUpperCase() || null),
-      FSA: orNull(str(b.fsa).toUpperCase() || null),
-      MonthlyBill: toNumber(b.monthlyBill),
-      EstimatedAnnualSavings: toNumber(b.estimatedAnnualSavings),
+      // "A1A 1A1" when the full code is present, otherwise null — never a
+      // half-normalised mix of spaced and unspaced values.
+      PostalCode: postal.full,
+      FSA: postal.fsa,
+      MonthlyBill: monthlyBill,
+      EstimatedAnnualSavings: savings,
       SubmittedAt: catalystNow()
     });
     res.status(200).json({ ok: true, id: row.ROWID });

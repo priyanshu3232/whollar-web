@@ -107,7 +107,11 @@ async function callCrm(ctx, doRequest) {
 }
 
 async function findLeadByEmail(ctx, email) {
-  const criteria = encodeURIComponent(`(Email:equals:${email})`);
+  // Lowercased so Genie@x.com and genie@x.com resolve to one lead rather than
+  // two. Parentheses and commas are the criteria syntax's own delimiters, so
+  // strip them from the value before interpolating.
+  const safe = String(email || '').toLowerCase().replace(/[(),]/g, '');
+  const criteria = encodeURIComponent(`(Email:equals:${safe})`);
   const resp = await callCrm(ctx, (token, apiDomain) =>
     fetch(`${apiDomain}/crm/v8/Leads/search?criteria=${criteria}`, { headers: authHeaders(token) }));
   if (resp.status === 204) return null;              // 204 = no match
@@ -116,15 +120,49 @@ async function findLeadByEmail(ctx, email) {
   return data?.data?.[0]?.id || null;
 }
 
-async function insertLead(ctx, fields) {
+// Zoho rejects a picklist value that is not already defined on the field, with
+// INVALID_DATA naming the offending field. Lead_Source and Rating are picklists
+// by default, and this worker writes five Lead_Source labels (plus a " [dev]"
+// suffix outside production) — if those options do not exist in the console,
+// EVERY insert fails, retries six times, lands on FAILED, and the leads are
+// silently lost. Rather than lose them, drop the offending field and retry
+// once: an imperfectly tagged lead in the CRM beats no lead at all.
+const PICKLIST_FIELDS = ['Lead_Source', 'Rating'];
+
+function offendingPicklist(data) {
+  const rec = data?.data?.[0];
+  if (rec?.code !== 'INVALID_DATA') return null;
+  const api = rec?.details?.api_name;
+  return PICKLIST_FIELDS.includes(api) ? api : null;
+}
+
+async function postLead(ctx, fields) {
   const resp = await callCrm(ctx, (token, apiDomain) =>
     fetch(`${apiDomain}/crm/v8/Leads`, {
       method: 'POST', headers: authHeaders(token), body: JSON.stringify({ data: [fields] })
     }));
-  const data = await resp.json();
-  const rec = data?.data?.[0];
+  return resp.json();
+}
+
+async function insertLead(ctx, fields) {
+  let payload = { ...fields };
+  let data = await postLead(ctx, payload);
+  let rec = data?.data?.[0];
+
+  const dropped = [];
+  // At most one retry per picklist field, so a broken config can't loop.
+  for (let i = 0; i < PICKLIST_FIELDS.length && rec?.code !== 'SUCCESS'; i++) {
+    const bad = offendingPicklist(data);
+    if (!bad || !(bad in payload)) break;
+    console.error(`[crmSync] "${payload[bad]}" is not a valid ${bad} picklist option — dropping it and retrying. Add it in the Zoho console to keep the tag.`);
+    delete payload[bad];
+    dropped.push(bad);
+    data = await postLead(ctx, payload);
+    rec = data?.data?.[0];
+  }
+
   if (rec?.code !== 'SUCCESS') throw new Error(`lead insert failed: ${JSON.stringify(data)}`);
-  return rec.details.id;
+  return { id: rec.details.id, dropped };
 }
 
 async function updateLead(ctx, leadId, fields) {
@@ -198,22 +236,46 @@ function updateFields(source, data) {
   return fields;
 }
 
-function noteFor(source, email, data, isProd) {
+function noteFor(source, email, data, isProd, dropped) {
   const meta = SOURCE_META[source] || { label: source };
   const devTag = isProd ? '' : '[DEV] ';
   const lines = [];
   if (meta.hot) lines.push('⚠ DEEP READ REQUESTED — high intent');
+
   const add = (k, v) => { if (v !== undefined && v !== null && v !== '') lines.push(`${k}: ${v}`); };
+  const money = v => (v === undefined || v === null || v === '' ? null : `$${Number(v).toFixed(2)}`);
+
+  // What the visitor was actually shown. The note used to carry only the gross
+  // charge, so a rep opening the lead saw "$90" while the screen had said
+  // "$60/mo with promo" — two different numbers for the same household.
+  if (data.verdict) {
+    const VERDICT = {
+      strong: 'STRONG — already below the reference price',
+      fair: 'FAIR — near the reference price',
+      weak: 'WEAK — above the reference price',
+      cliff: 'CLIFF — promo ends within 60 days',
+      unknown: 'NOT SCORED'
+    };
+    add('Result shown', VERDICT[data.verdict] || data.verdict);
+    if (data.verdict === 'unknown' && data.verdictReason) add('Not scored because', data.verdictReason);
+    if (data.benchmarkScope) {
+      add('Compared against', `${money(data.benchmarkPrice) || '—'} (${data.benchmarkScope} reference, indicative only)`);
+    }
+  }
+
   add('Provider', data.provider);
-  add('Monthly cost', data.cost);
+  add('Monthly charge (before discount)', money(data.cost));
+  add('Effective monthly cost (what they pay today)', money(data.effectiveCost));
   add('Download speed', data.speed);
   add('Access tech', data.tech);
   add('Promo end', data.promoEnd);
   add('Months to renewal', data.monthsToRenewal);
-  add('Discount', data.discount);
+  add('Discount', money(data.discount));
   add('Switch threshold', data.threshold);
-  add('FSA', data.fsa);
+  // One geography block, in one format: "A1A 1A1" plus the FSA and province.
   add('Postal code', data.postal);
+  add('FSA', data.fsa);
+  add('Province', data.provinceCode ? `${data.province || ''} (${data.provinceCode})`.trim() : data.province);
   add('Referral code', data.referral);
   add('Role', data.role);
   add('Provinces', data.provinces);
@@ -223,6 +285,27 @@ function noteFor(source, email, data, isProd) {
   add('Attachments', data.files);
   add('Bill file', data.billFileName);
   add('Via', data.via);
+
+  // CASL: the consent record has to be retrievable per contact, so it lives on
+  // the lead rather than only in the Data Store row.
+  if (data.consentGranted) {
+    lines.push('');
+    lines.push('— Consent —');
+    add('Granted at (server)', data.consentAt);
+    add('Consent type', data.consentKind);
+    add('Source page', data.consentSource);
+    add('IP', data.consentIp);
+    add('Wording shown', data.consentText);
+  } else if (data.consentGranted === false) {
+    lines.push('');
+    lines.push('— Consent: NOT granted. Do not send commercial email to this address. —');
+  }
+
+  if (dropped && dropped.length) {
+    lines.push('');
+    lines.push(`⚠ ${dropped.join(', ')} could not be set: the value is not an option on that picklist in Zoho. Add it in Setup → Fields to restore the tag.`);
+  }
+
   return {
     title: `${devTag}Whollar ${meta.label} — ${email}`.trim(),
     content: lines.length ? lines.join('\n') : `Submission via ${meta.label}.`
@@ -236,13 +319,16 @@ async function syncJob(ctx, job, isProd) {
   const data = safeParse(job.Payload);
 
   let leadId = await findLeadByEmail(ctx, email);
+  let dropped = [];
   if (leadId) {
     const upd = updateFields(job.Source, data);
     if (Object.keys(upd).length) await updateLead(ctx, leadId, upd);
   } else {
-    leadId = await insertLead(ctx, insertFields(job.Source, email, data, isProd));
+    const created = await insertLead(ctx, insertFields(job.Source, email, data, isProd));
+    leadId = created.id;
+    dropped = created.dropped;
   }
-  const note = noteFor(job.Source, email, data, isProd);
+  const note = noteFor(job.Source, email, data, isProd, dropped);
   await addNote(ctx, leadId, note.title, note.content);
   return leadId;
 }

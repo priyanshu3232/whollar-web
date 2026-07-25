@@ -4,6 +4,49 @@ How leads flow from the website into Zoho CRM, and the one-time console setup
 needed to turn it on. The code is already deployed by the pipeline; the steps
 below are the parts only you can do in the Catalyst / CRM consoles.
 
+> ## ⚠ Open items that only console access can fix
+>
+> These came out of the July 2026 audit. The code changes are in; these are
+> the parts that cannot be done from the repository.
+>
+> **1. There is no production Catalyst environment.** `.catalystrc` declares
+> exactly one environment — id `110003037934`, type 3, **Development** — and
+> `.github/workflows/deploy-functions.yml` deploys to it by name. Every form on
+> the live site therefore writes to a development Data Store. Create the
+> production environment, then change `CATALYST_HOST` in
+> [`js/whollar-core.js`](../js/whollar-core.js) (one line, used by every page)
+> and the `--project` / env args in the deploy workflow.
+>
+> **2. Confirm the cron job exists and `CRM_SYNC_ENABLED=true`.** With the
+> switch off, `crmSync` returns `{ok:true, skipped:true}` and the queue grows
+> forever without erroring. Check with:
+> `SELECT COUNT(ROWID) FROM CrmSyncQueue WHERE Status = 'PENDING'`
+>
+> **3. Pre-create the `Lead_Source` picklist options** (Setup → Customization →
+> Modules → Leads → Lead_Source). Zoho rejects a picklist value that is not
+> already defined, so a missing option used to fail every insert, retry six
+> times, and land the lead on `FAILED` — silent total lead loss. `crmSync` now
+> drops the offending field and retries so the lead still lands, but the
+> attribution is lost until these exist:
+> `Whollar Waitlist`, `Whollar Waitlist Details`, `Whollar Bill Checkup`,
+> `Whollar Deep Read`, `Whollar Partner Application` — plus the same five with
+> a ` [dev]` suffix while `CRM_ENVIRONMENT` is not `production`.
+> Also confirm `Rating` accepts `Hot` (it does by default).
+>
+> **4. Set a File Store retention policy.** Uploaded bills contain a name,
+> service address and account number. Nothing in this repo deletes them. Decide
+> a retention window and enforce it in the console (PIPEDA / Quebec Law 25).
+>
+> **5. Optional Data Store columns.** Consent and verdict data currently ride
+> in the `CrmSyncQueue.Payload` JSON and reach the CRM Note, but are not
+> columns on the source tables — adding a column that does not exist in the
+> console makes `insertRow` fail outright, so the code deliberately does not
+> write them. To persist them as first-class fields, create these and add them
+> to the row objects in `functions/formSubmit/index.js`:
+> `ConsentGranted` (boolean), `ConsentText` (text), `ConsentAt` (datetime),
+> `ConsentSource` (text), `Verdict` (text), `EffectiveCost` (double),
+> `PostalCode` (text), `ProvinceCode` (text).
+
 ## How it works
 
 ```
