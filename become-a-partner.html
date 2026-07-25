@@ -7,11 +7,18 @@
         t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
         y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
     })(window, document, "clarity", "script", "xrkpgls1yj");
+    /* This form collects names, work emails, phone numbers and business
+       numbers. Clarity records session replays, so mask text content by
+       default (PIPEDA / Quebec Law 25). */
+    window.clarity('set','mask','true');
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="/js/device-router.js"></script>
+<script src="/js/whollar-core.js"></script>
 <title>Become a founding partner — Whollar</title>
+<meta name="description" content="Apply to join Whollar as an internet provider, sales partner or distributor. Bid for whole neighbourhood cohorts instead of buying single leads.">
+<link rel="canonical" href="https://www.whollar.ca/become-a-partner">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="preconnect" href="https://api.fontshare.com">
 <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
@@ -26,8 +33,8 @@
   --teal:#0E2A20; --teal-deep:#0A2018; --teal-bright:#178A5A; --teal-soft:#7FE3B0;
   --accent:#1E9E63; --accent-hover:#178A5A;
   --cream:#FAF8F3; --paper:#ffffff; --mist:#F6F4EE;
-  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#8A968F; --line:#e7ebe6;
-  --warn:#C2643B; --green-tint:#E4F4EC;
+  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#5F6B64; /* was #8A968F (2.6-3.1:1) — carries real body copy at 11-12.5px; darkened to clear WCAG AA 4.5:1 on cream, white, mist, green-tint and warn-soft */ --line:#e7ebe6;
+  --warn:#C2643B; --warn-text:#A34F2B; /* --warn stays for borders/strokes (decorative). Text must use --warn-text: #C2643B is only 3.4-3.8:1 on these backgrounds. */ --green-tint:#E4F4EC;
   --label:'General Sans','Satoshi',system-ui,sans-serif;
   --disp:'Satoshi',system-ui,sans-serif;
   --body:'Inter',system-ui,sans-serif;
@@ -88,7 +95,7 @@ button{font-family:var(--body)}
 .rc{display:flex;align-items:flex-start;gap:11px;text-align:left;background:var(--paper);border:1.5px solid var(--line);border-radius:13px;padding:12px 14px;cursor:pointer;transition:border-color .15s,transform .12s;font-family:var(--body)}
 .rc:hover{border-color:#c6d5cc;transform:translateY(-1px)}
 .rc.on{border-color:var(--accent);background:#F7FCF9}
-.rc.err{border-color:var(--warn);animation:shake .3s}
+.rc.err{border-color:var(--warn-text);animation:shake .3s}
 .rc .dot{flex:none;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;margin-top:2px}
 .rc.on .dot{border-color:var(--accent);background:var(--accent)}
 .rc.on .dot::after{content:"";width:5px;height:5px;border-radius:50%;background:#fff}
@@ -103,7 +110,7 @@ button{font-family:var(--body)}
 .jf textarea{resize:vertical;min-height:74px}
 .jf input::placeholder,.jf textarea::placeholder{color:#AEB8B2}
 .jf input:focus,.jf select:focus,.jf textarea:focus{outline:none;border-color:var(--accent)}
-.jf input.err,.jf textarea.err{border-color:var(--warn);animation:shake .3s}
+.jf input.err,.jf textarea.err{border-color:var(--warn-text);animation:shake .3s}
 .namerow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .fieldrow{margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .fieldrow .jf{margin-top:0}
@@ -418,7 +425,8 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
           </div>
         </div>
 
-        <label class="terms-check" style="display:flex;align-items:flex-start;gap:9px;margin-top:16px;font-size:12.5px;line-height:1.5;color:var(--ink-2);cursor:pointer;"><input type="checkbox" id="p-terms" style="margin-top:1px;width:16px;height:16px;accent-color:var(--accent);flex:none;cursor:pointer;"><span>I accept all <a href="/terms" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;text-underline-offset:2px;">terms and conditions</a>.</span></label>
+        <label class="terms-check" style="display:flex;align-items:flex-start;gap:9px;margin-top:16px;font-size:12.5px;line-height:1.5;color:var(--ink-2);cursor:pointer;"><input type="checkbox" id="p-terms" style="margin-top:1px;width:16px;height:16px;accent-color:var(--accent);flex:none;cursor:pointer;"><span>I accept the <a href="/terms" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;text-underline-offset:2px;">Partner Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;text-underline-offset:2px;">Privacy&nbsp;Policy</a>, and agree to be contacted about this application.</span></label>
+        <p class="whl-fielderr" id="p-terms-err" role="alert" style="display:none;margin:6px 0 0;font-size:12px;font-weight:600;color:var(--warn-text,#A34F2B)"></p>
         <div class="ctarow">
           <button class="whl-btn go" id="p-go" type="button">Apply as a founding partner</button>
           <a class="whl-btn go ghost" id="p-call" href="#book">Book a call</a>
@@ -560,26 +568,22 @@ const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const S={role:null,provinces:[]};
 const PROV=['AB','BC','MB','NB','NL','NS','NT','NU','ON','PE','QC','SK','YT'];
 
-/* CATALYST SETUP: replace with your deployed function base URL — see catalyst-backend/README.md */
-const CATALYST_BASE='https://whollar-110003037934.development.catalystserverless.ca/server/formSubmit';
-function submitForm(path,fields){
-  return fetch(CATALYST_BASE+path,{method:'POST',body:JSON.stringify(fields)}) /* no JSON header: text/plain avoids CORS preflight (gateway swallows OPTIONS) */
-    .then(r=>{if(!r.ok){const e=new Error('submit failed: '+r.status);e.status=r.status;throw e;}return r.json();});
-}
+/* Endpoint, validators and transport all come from /js/whollar-core.js. This
+   page previously carried its own looser email regex ([^@\s]+$), which
+   accepted "a@b.c" — input the server then rejected with a 400 the visitor
+   could do nothing about. */
+const W=window.WHOLLAR;
+const submitForm=(path,fields)=>W.submitForm(path,fields);
+const busy=(btn,on,label)=>W.busy(btn,on,label);
 /* a failed submit must never masquerade as success — surface it and let the user retry */
 function submitErr(anchor,err){
   console.error('[whollar submit]',err);
   const row=anchor.closest('.ctarow')||anchor.parentNode;
   let el=row.parentNode.querySelector('.suberr');
-  if(!el){el=document.createElement('p');el.className='suberr';el.style.cssText='margin:10px 0 0;font-size:13px;font-weight:600;color:#C2643B';row.parentNode.insertBefore(el,row.nextSibling);}
-  el.textContent=err&&err.status===429?'Too many attempts from your network right now — please try again in a little while.'
-    :'We couldn’t reach our servers, so your application wasn’t sent — please check your connection and try again.';
+  if(!el){el=document.createElement('p');el.className='suberr';el.setAttribute('role','alert');el.style.cssText='margin:10px 0 0;font-size:13px;font-weight:600;color:var(--warn-text,#A34F2B)';row.parentNode.insertBefore(el,row.nextSibling);}
+  el.textContent=W.submitErrorMessage(err);
 }
 function clearErr(anchor){const row=anchor.closest('.ctarow')||anchor.parentNode;const el=row.parentNode.querySelector('.suberr');if(el)el.remove();}
-function busy(btn,on,label){
-  if(on){btn.dataset.label=btn.textContent;btn.disabled=true;btn.style.opacity='.6';btn.textContent=label;}
-  else{btn.disabled=false;btn.style.opacity='';if(btn.dataset.label)btn.textContent=btn.dataset.label;}
-}
 
 /* thank-you popup */
 const tyOv=$('#ty-pop');
@@ -607,14 +611,18 @@ $$('#rlist .rc').forEach(b=>b.addEventListener('click',()=>{
   $('#p-go').textContent=other?'Send us a note':'Apply as a founding partner';
 }));
 
-function bad(el){el.classList.add('err');el.focus();setTimeout(()=>el.classList.remove('err'),700);return false;}
+/* Errors are now announced and tied to the input, not just a red border that
+   fades after 700ms with no message. */
+function bad(el,msg){W.fieldError(el,msg||'Please check this field.');return false;}
 $('#p-go').addEventListener('click',async()=>{
-  if(!S.role){$$('#rlist .rc').forEach(c=>{c.classList.add('err');setTimeout(()=>c.classList.remove('err'),700);});return;}
-  const nm=$('#p-name').value.trim(); if(nm.length<2)return bad($('#p-name'));
-  if($('#p-last').value.trim().length<2)return bad($('#p-last'));
-  if($('#p-company').value.trim().length<2)return bad($('#p-company'));
-  const ph=$('#p-phone').value.replace(/\D/g,''); if(ph.length<10||ph.length>11)return bad($('#p-phone'));
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test($('#p-email').value.trim()))return bad($('#p-email'));
+  if(!S.role){$$('#rlist .rc').forEach(c=>{c.classList.add('err');setTimeout(()=>c.classList.remove('err'),700);});$('#rlist').scrollIntoView({behavior:'smooth',block:'center'});return;}
+  const nm=$('#p-name').value.trim(); if(nm.length<2)return bad($('#p-name'),'Enter your first name.');
+  if($('#p-last').value.trim().length<2)return bad($('#p-last'),'Enter your last name.');
+  if($('#p-company').value.trim().length<2)return bad($('#p-company'),'Enter your company name.');
+  const ph=$('#p-phone').value.replace(/\D/g,''); if(ph.length<10||ph.length>11)return bad($('#p-phone'),'Enter a 10-digit phone number, e.g. (555) 555-0123.');
+  /* Same rule as the server's EMAIL_RE — the old regex here accepted a
+     one-character TLD the backend then rejected. */
+  if(!W.isEmail($('#p-email').value.trim()))return bad($('#p-email'),'Enter a valid work email, e.g. you@company.ca.');
   if(S.role==='provider'){
     if($('#c-legal').value.trim().length<2)return bad($('#c-legal'));
     if(!$('#c-type').value)return bad($('#c-type'));
@@ -633,10 +641,19 @@ $('#p-go').addEventListener('click',async()=>{
     if($('#o-note').value.trim().length<4)return bad($('#o-note'));
   }
   if(S.role!=='other'&&!S.provinces.length){$('#prov-chips').scrollIntoView({behavior:'smooth',block:'center'});return;}
-  if(!$('#p-terms').checked){$('#p-terms').focus();return;}
+  if(!$('#p-terms').checked){
+    $('#p-terms').focus();
+    const err=$('#p-terms-err');
+    if(err){err.textContent='Please accept the Terms and Privacy Policy to submit your application.';err.style.display='block';}
+    return;
+  }
+  if($('#p-terms-err'))$('#p-terms-err').style.display='none';
 
   const payload={role:S.role,firstName:nm,lastName:$('#p-last').value.trim(),company:$('#p-company').value.trim(),
     email:$('#p-email').value.trim(),phone:ph,provinces:S.provinces,
+    /* Consent is transmitted and stored, not just used to gate the button.
+       CASL requires it to be provable: wording, timestamp and source page. */
+    ...W.consentPayload('partner',true),
     legalName:$('#c-legal').value.trim()||$('#s-legal').value.trim()||null,
     providerType:$('#c-type').value||null,
     businessNumber:($('#c-bn').value||$('#s-bn').value||$('#d-bn').value||'').replace(/\D/g,'')||null,
@@ -647,7 +664,10 @@ $('#p-go').addEventListener('click',async()=>{
     otherType:$('#o-spec').value.trim()||null,
     note:$('#o-note').value.trim()||null,
     ts:new Date().toISOString()};
-  const btn=$('#p-go');clearErr(btn);busy(btn,true,'Sending…');
+  const btn=$('#p-go');clearErr(btn);
+  /* busy() returns false when this button is already in flight — the
+     double-tap guard that stops a second application being filed. */
+  if(busy(btn,true,'Sending…')===false)return;
   try{await submitForm('/partner-application',payload);}
   catch(err){busy(btn,false);submitErr(btn,err);return;}
   busy(btn,false);
@@ -676,7 +696,6 @@ $$('.fs,.faqwrap').forEach(el=>io.observe(el));
 
 $('#p-call').addEventListener('click',e=>{e.preventDefault();
   /* WIRE-UP POINT: replace with your scheduling link, e.g. window.open('https://cal.com/whollar','_blank') */
-  console.log('[whollar-partner book-a-call placeholder]',{role:S.role||null,ts:new Date().toISOString()});
   $('#p-call').textContent='Calendar coming soon';setTimeout(()=>$('#p-call').textContent='Book a call',1800);});
 
 $$('[data-faqwrap] .qa').forEach(item=>{

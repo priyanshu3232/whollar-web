@@ -1,0 +1,40 @@
+/* ===== Whollar mobile version =====
+   Breakpoint MUST match BREAKPOINT in js/device-router.js (768). It was 720,
+   so viewports 721-768px were routed to this page and then rendered with the
+   desktop layout — a confirmed unstyled band on iPad portrait and on small
+   laptop windows. */
+@media (max-width:768px){
+  body{font-size:15px}
+  .wrap{padding:0 18px}
+  .whl-nav__in{padding:10px 18px;gap:10px}
+  .whl-mark svg{width:28px;height:28px}
+  .whl-mark b{font-size:17px}
+  .whl-nav__tag{display:none}
+  .whl-nav__back{font-size:13px}
+  .split{min-height:0}
+  .hs-left{min-height:0}
+  .hs-left__in{padding:38px 22px 42px}
+  .hs-left h1{font-size:29px;line-height:1.08}
+  .hs-left .sub{font-size:14.5px;margin-top:13px}
+  .hpts{margin-top:22px;gap:15px}
+  .hs-left__mark{width:200px;height:200px;right:-55px;bottom:-55px}
+  .hs-right{padding:6px 0 40px}
+  .form-pane{padding:24px 18px 28px}
+  .rlist{grid-template-columns:1fr}
+  .jf input,.jf select,.jf textarea{font-size:16px;padding:11px 13px}
+  .namerow,.fieldrow{grid-template-columns:1fr}
+  .chips button{padding:8px 13px}
+  .go{padding:15px 20px;font-size:15.5px}
+  .ctarow{grid-template-columns:1fr}
+  .sect{padding:50px 0}
+  .shead{margin-bottom:24px}
+  .shead h2{font-size:24px}
+  .shead--wide h2{white-space:normal;font-size:24px}
+  .lanes{gap:14px}
+  .lane{padding:20px 18px}
+  .faqwrap{gap:11px}
+  .qa>button{padding:17px 18px;font-size:15px}
+  .qa .ans{padding:0 18px;font-size:13.5px}
+  .qa[data-open="true"] .ans{padding:2px 18px 18px}
+  footer{padding:20px 0 34px}
+}

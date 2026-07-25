@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Whollar · Member dashboard v8 (prototype)</title>
+<title>Your Whollar dashboard</title>
+<!-- Signed-in surface running on demo data with a client-side-only guard.
+     Nothing here should be indexed. -->
+<meta name="robots" content="noindex,nofollow">
 <meta name="description" content="Whollar member dashboard prototype: your cohort, your promo cliff, your offers. Demo data.">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="preconnect" href="https://api.fontshare.com">
@@ -780,10 +783,31 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 var $=function(s,c){return (c||document).querySelector(s)};
 var $$=function(s,c){return Array.prototype.slice.call((c||document).querySelectorAll(s))};
 
-/* ---------- member boot: front-end guard only, not security ---------- */
+/* ---------- member boot: front-end guard only, not security ----------
+   This checks a localStorage key. Anyone can set that key from a console, so
+   it keeps honest visitors on the right page and nothing more — it is not an
+   authorisation boundary. When real auth ships, the gate belongs in a Catalyst
+   function that this page calls, not here. */
 var MEMBER=null;
 try{MEMBER=JSON.parse(localStorage.getItem('whollar.member'))}catch(err){MEMBER=null}
-if(!MEMBER||typeof MEMBER!=='object'||!MEMBER.email){location.replace('/whollar-login-consumer');return}
+if(!MEMBER||typeof MEMBER!=='object'||!MEMBER.email){
+  /* Carry where they were trying to go so sign-in returns them here instead of
+     dumping them on a generic landing page. Read back with a same-origin check
+     in whollar-login-consumer.html. */
+  location.replace('/whollar-login-consumer?next='+encodeURIComponent(location.pathname+location.search));
+  return;
+}
+
+/* The guard above runs once, at parse time. A back-button restore from the
+   bfcache does NOT re-run it, so after signing out the browser would happily
+   repaint the fully rendered dashboard. Force a reload on a persisted restore
+   so the guard runs again. */
+window.addEventListener('pageshow',function(e){
+  if(!e.persisted)return;
+  var still=null;
+  try{still=JSON.parse(localStorage.getItem('whollar.member'))}catch(err){still=null}
+  if(!still||!still.email)location.reload();
+});
 var FIRST=String(MEMBER.firstName||'').trim();
 var LAST=String(MEMBER.lastName||'').trim();
 var INITIALS=FIRST?((FIRST.charAt(0)+(LAST?LAST.charAt(0):FIRST.charAt(1)||'')).toUpperCase()):'W';

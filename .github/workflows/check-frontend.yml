@@ -1,0 +1,54 @@
+# Frontend consistency gate.
+#
+# The single biggest structural risk in this repo is that the desktop and
+# mobile builds of the same page are separate files. They had already drifted
+# in ways nobody noticed — the mobile estimator CTA pointed at the wrong page,
+# mobile had no login link weeks after logins shipped, and every em dash in
+# mobile copy had become a comma. Nothing failed, because nothing was checking.
+#
+# This workflow makes that class of drift a build error.
+
+name: Check frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**.html"
+      - "js/**"
+      - "scripts/**"
+      - "MobileVersion/**"
+  pull_request:
+    paths:
+      - "**.html"
+      - "js/**"
+      - "scripts/**"
+      - "MobileVersion/**"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Fails when a MobileVersion page no longer matches what its desktop
+      # source + CSS overlay would generate — i.e. someone edited one side only.
+      - name: Mobile pages are in sync with their desktop sources
+        run: node scripts/build-mobile-pages.mjs --check
+
+      # The shared module every form and the scoring engine now depend on.
+      - name: Shared core parses
+        run: node --check js/whollar-core.js
+
+      - name: Device router parses
+        run: node --check js/device-router.js
+
+      # Catches an unclosed brace or a stray character inside any inline
+      # <script>, including the ones inside the self-unpacking bundle pages,
+      # where a syntax error blanks the whole page.
+      - name: Inline page scripts parse
+        run: node scripts/check-inline-scripts.mjs

@@ -60,6 +60,11 @@
   ],
   "redirects": [
     {
+      "source": "/disclosures",
+      "destination": "/terms",
+      "permanent": false
+    },
+    {
       "source": "/join",
       "destination": "/waitlist/",
       "permanent": false

@@ -7,10 +7,17 @@
         t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
         y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
     })(window, document, "clarity", "script", "xrkpgls1yj");
+    /* Clarity records session replays and this page has an email field in it.
+       Mask text content by default (PIPEDA / Quebec Law 25). */
+    window.clarity('set','mask','true');
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="/js/whollar-core.js"></script>
 <title>Sign in · Whollar</title>
+<!-- No server-side authentication exists yet (see the notice in the form).
+     Keep this page out of the index until it does. -->
+<meta name="robots" content="noindex,nofollow">
 <link rel="preconnect" href="https://api.fontshare.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,8 +28,8 @@
   --teal:#0E2A20; --teal-deep:#0A2018; --teal-bright:#178A5A; --teal-soft:#7FE3B0;
   --accent:#1E9E63; --accent-hover:#178A5A;
   --cream:#FAF8F3; --paper:#ffffff; --mist:#F6F4EE;
-  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#8A968F; --line:#e7ebe6; --line-2:#dfe3dd;
-  --warn:#C2643B; --warn-soft:#F7E7DD; --green-tint:#E4F4EC;
+  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#5F6B64; /* was #8A968F (2.6-3.1:1) — carries real body copy at 11-12.5px; darkened to clear WCAG AA 4.5:1 on cream, white, mist, green-tint and warn-soft */ --line:#e7ebe6; --line-2:#dfe3dd;
+  --warn:#C2643B; --warn-text:#A34F2B; /* --warn stays for borders/strokes (decorative). Text must use --warn-text: #C2643B is only 3.4-3.8:1 on these backgrounds. */ --warn-soft:#F7E7DD; --green-tint:#E4F4EC;
   --label:'General Sans','Satoshi',system-ui,sans-serif;
   --disp:'Satoshi',system-ui,sans-serif;
   --body:'Inter',system-ui,sans-serif;
@@ -72,7 +79,13 @@ button{font-family:var(--body)}
 .switchtop{position:absolute;top:26px;right:30px;font-size:13.5px;color:var(--ink-2)}
 .switchtop a{font-weight:600}
 .card{width:100%;max-width:404px;background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:34px 34px 30px;box-shadow:0 2px 6px rgba(16,40,34,.05),0 22px 50px rgba(16,40,34,.08)}
-@media(max-width:520px){.card{padding:26px 22px 24px}}
+@media(max-width:520px){
+  .card{padding:26px 22px 24px}
+  /* iOS Safari zooms the whole page when a focused input is under 16px. The
+     fields here were 15px, so tapping Email jumped the layout on every
+     iPhone. */
+  .field input{font-size:16px}
+}
 .card h2{font-size:26px;color:var(--teal);letter-spacing:-.025em}
 .card .fsub{margin-top:7px;font-size:14px;color:var(--ink-2);line-height:1.5;margin-bottom:22px}
 
@@ -91,8 +104,18 @@ button{font-family:var(--body)}
 .field input{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;font-size:15px;font-family:var(--body);color:var(--ink);background:#fff;transition:border-color .15s,box-shadow .15s}
 .field input::placeholder{color:var(--ink-3)}
 .field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(30,158,99,.14)}
-.field.err input{border-color:var(--warn);background:#FDF6F2}
-.err-inline{display:none;color:var(--warn);font-size:12.5px;margin:-8px 0 14px;font-weight:500}
+.field.err input{border-color:var(--warn-text);background:#FDF6F2}
+.err-inline{display:none;color:var(--warn-text);font-size:12.5px;margin:-8px 0 14px;font-weight:500}
+
+/* Preview notice — states plainly that no authentication exists behind this
+   form. Remove together with the mock sign-in when real auth ships. */
+.preview-note{background:var(--warn-soft);border:1px solid #E8C7AE;color:#7A3A19;font-size:12.5px;line-height:1.5;border-radius:12px;padding:10px 13px;margin:0 0 18px}
+.preview-note b{font-weight:700}
+
+/* Link-styled buttons: these were <a onclick> with no href, which made them
+   unreachable by keyboard and invisible to screen readers. */
+.linkbtn{background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--accent-hover);cursor:pointer;text-decoration:none}
+.linkbtn:hover{text-decoration:underline}
 
 .submit{width:100%;border:none;cursor:pointer;background:var(--accent);color:#fff;font-weight:700;font-size:15.5px;border-radius:13px;padding:14px;transition:background .18s,transform .15s;font-family:var(--body)}
 .submit:hover{background:var(--accent-hover);transform:translateY(-1px)}
@@ -102,15 +125,6 @@ button{font-family:var(--body)}
 .foot-switch a{font-weight:600;cursor:pointer}
 .hidden{display:none!important}
 
-/* OTP */
-.sentto{font-size:13.5px;color:var(--ink-2);margin-bottom:16px}
-.sentto b{color:var(--ink)}
-.otp{display:flex;gap:9px;margin-bottom:8px;justify-content:space-between}
-.otp input{width:100%;aspect-ratio:1/1;text-align:center;font-family:var(--disp);font-weight:700;font-size:22px;color:var(--teal);border:1.5px solid var(--line);border-radius:12px;background:#fff;transition:border-color .15s,box-shadow .15s}
-.otp input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(30,158,99,.14)}
-.otp-meta{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--ink-2);margin:6px 0 20px}
-.otp-meta a{font-weight:600;cursor:pointer}
-.otp-meta a.dim{color:var(--ink-3);cursor:default;pointer-events:none}
 
 .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--teal);color:#fff;font-size:13.5px;font-weight:600;border-radius:12px;padding:11px 18px;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:70}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -157,6 +171,13 @@ button{font-family:var(--body)}
         <h2 id="entry-h">Welcome back</h2>
         <p class="fsub" id="entry-sub">Sign in to pick up where your region left off.</p>
 
+        <!-- There is no authentication behind this form: no password, no
+             emailed code, no server. It stores your email in this browser and
+             opens a preview of the member dashboard. Saying so is the only
+             honest option while that is true — remove this notice in the same
+             change that wires up a real auth backend. -->
+        <p class="preview-note" role="note"><b>Preview.</b> Accounts aren’t live yet — this opens a preview of the member dashboard in this browser only. Nothing is sent to us and no account is created.</p>
+
         <div class="soc">
           <button type="button" class="g" onclick="mock('Google')">
             <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z"/></svg>
@@ -170,46 +191,34 @@ button{font-family:var(--body)}
 
         <div class="divider">or use your email</div>
 
+        <!-- A real <form>: the button and the Enter key now run the same code
+             path. Previously there was no form element and Enter did nothing. -->
+        <form id="entry-form" novalidate>
         <div class="field" id="fname-f">
           <label for="fname">First name</label>
-          <input id="fname" type="text" autocomplete="given-name" placeholder="Your first name">
+          <input id="fname" type="text" autocomplete="given-name" placeholder="Your first name" maxlength="60">
         </div>
 
         <div class="field" id="email-f">
           <label for="email">Email</label>
-          <input id="email" type="email" autocomplete="email" inputmode="email" placeholder="you@email.com">
-          <div class="err-inline" id="email-err" style="display:none">Enter a valid email address.</div>
+          <input id="email" type="email" autocomplete="email" inputmode="email" placeholder="you@email.com" maxlength="254" aria-describedby="email-err">
+          <div class="err-inline" id="email-err" role="alert" style="display:none">Enter a valid email address.</div>
         </div>
 
         <div class="field hidden" id="postal-f">
           <label for="postal">Postal code</label>
-          <input id="postal" type="text" autocomplete="postal-code" placeholder="K1A 0B1" maxlength="7" style="text-transform:uppercase">
+          <input id="postal" type="text" autocomplete="postal-code" placeholder="K1A 0B1" maxlength="7" spellcheck="false" autocapitalize="characters" aria-describedby="postal-err">
+          <div class="err-inline" id="postal-err" role="alert" style="display:none">Enter a valid Canadian postal code.</div>
         </div>
 
-        <button class="submit" onclick="sendCode()" id="entry-cta">Email me a code</button>
-        <p class="legal">By continuing you agree to Whollar's <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.</p>
+        <button class="submit" type="submit" id="entry-cta">Email me a code</button>
+        </form>
+        <p class="legal">By continuing you agree to Whollar's <a href="/terms" target="_blank" rel="noopener noreferrer">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</p>
 
-        <p class="foot-switch" id="entry-switch">New to Whollar? <a onclick="setMode('signup')">Create an account</a></p>
-      </section>
-
-      <!-- OTP -->
-      <section id="code" class="hidden">
-        <h2>Enter your code</h2>
-        <p class="sentto">We sent a 6-digit code to <b id="echo-email">you@email.com</b>.</p>
-        <div class="otp" id="otp">
-          <input inputmode="numeric" maxlength="1" aria-label="digit 1">
-          <input inputmode="numeric" maxlength="1" aria-label="digit 2">
-          <input inputmode="numeric" maxlength="1" aria-label="digit 3">
-          <input inputmode="numeric" maxlength="1" aria-label="digit 4">
-          <input inputmode="numeric" maxlength="1" aria-label="digit 5">
-          <input inputmode="numeric" maxlength="1" aria-label="digit 6">
-        </div>
-        <div class="err-inline" id="otp-err">That code did not match. Check it and try again.</div>
-        <div class="otp-meta">
-          <span>Didn't get it? <a id="resend" class="dim" onclick="resend()">Resend in <span id="cd">30</span>s</a></span>
-          <a onclick="backToEmail()">Change email</a>
-        </div>
-        <button class="submit" onclick="verify()" id="verify-cta">Verify and sign in</button>
+        <!-- was <a onclick=…> with no href: unreachable by keyboard and
+             invisible to screen readers, so sign-up could not be opened at all
+             without a mouse. -->
+        <p class="foot-switch" id="entry-switch">New to Whollar? <button type="button" class="linkbtn" data-mode="signup">Create an account</button></p>
       </section>
 
     </div>
@@ -233,7 +242,8 @@ button{font-family:var(--body)}
   wrap.innerHTML=html;
 })();
 
-var mode='signin', cdTimer=null;
+var W=window.WHOLLAR;
+var mode='signin';
 
 function setMode(m){
   mode=m;
@@ -243,12 +253,16 @@ function setMode(m){
   document.getElementById('g-label').textContent=signup?'Sign up with Google':'Continue with Google';
   document.getElementById('a-label').textContent=signup?'Sign up with Apple':'Continue with Apple';
   document.getElementById('postal-f').classList.toggle('hidden',!signup);
-  document.getElementById('entry-cta').textContent='Email me a code';
-  document.getElementById('verify-cta').textContent=signup?'Verify and join':'Verify and sign in';
+  document.getElementById('entry-cta').textContent=signup?'Create my account':'Continue';
   document.getElementById('entry-switch').innerHTML=signup
-    ? 'Already a member? <a onclick="setMode(\'signin\')">Sign in</a>'
-    : 'New to Whollar? <a onclick="setMode(\'signup\')">Create an account</a>';
+    ? 'Already a member? <button type="button" class="linkbtn" data-mode="signin">Sign in</button>'
+    : 'New to Whollar? <button type="button" class="linkbtn" data-mode="signup">Create an account</button>';
 }
+/* Delegated so the handler survives the innerHTML swap above. */
+document.addEventListener('click',function(e){
+  var b=e.target.closest&&e.target.closest('.linkbtn[data-mode]');
+  if(b)setMode(b.dataset.mode);
+});
 
 function toast(msg){
   var t=document.getElementById('toast');
@@ -256,7 +270,10 @@ function toast(msg){
   clearTimeout(toast._x);
   toast._x=setTimeout(function(){t.classList.remove('show')},2400);
 }
-function mock(label){ toast('Sign-in is front end only in this build.'); }
+/* No OAuth provider is wired up behind these buttons. Name the button that
+   was pressed and point at the path that does work, instead of a vague
+   "front end only" string. */
+function mock(label){ toast(label + ' sign-in isn\u2019t connected yet \u2014 use your email below.'); }
 
 function tidy(s){ return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase(); }
 function firstNameFrom(email, given){
@@ -265,62 +282,81 @@ function firstNameFrom(email, given){
   return local ? tidy(local) : '';
 }
 
-function sendCode(){
-  var em=document.getElementById('email'), ef=document.getElementById('email-f');
-  var ok=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em.value.trim());
-  document.getElementById('email-err').style.display=ok?'none':'block';
-  ef.classList.toggle('err',!ok);
-  if(!ok){ em.focus(); return; }
-  var email=em.value.trim();
-  var member={ firstName: firstNameFrom(email, document.getElementById('fname').value), email: email };
-  try{ localStorage.setItem('whollar.member', JSON.stringify(member)); }catch(err){}
-  location.href='/dashboard';
-}
-function backToEmail(){
-  document.getElementById('code').classList.add('hidden');
-  document.getElementById('entry').classList.remove('hidden');
-  document.getElementById('otp-err').style.display='none';
-  document.getElementById('email').focus();
-}
-function startCountdown(){
-  var n=30, a=document.getElementById('resend'), cd=document.getElementById('cd');
-  a.classList.add('dim'); cd.textContent=n;
-  clearInterval(cdTimer);
-  cdTimer=setInterval(function(){
-    n--; cd.textContent=n;
-    if(n<=0){ clearInterval(cdTimer); a.classList.remove('dim'); a.textContent='Resend code'; }
-  },1000);
-}
-function resend(){ startCountdown(); document.getElementById('otp-err').style.display='none'; }
-function verify(){
-  var vals=Array.prototype.map.call(document.querySelectorAll('#otp input'),function(i){return i.value.trim();});
-  if(!vals.every(function(v){return v.length===1;})){
-    document.getElementById('otp-err').textContent='Enter all six digits.';
-    document.getElementById('otp-err').style.display='block'; return;
-  }
-  document.getElementById('otp-err').style.display='none';
-  mock(mode==='signup'?'Account created · region K1A':'Signed in');
+/* Where to land after "signing in". Only ever a same-origin path — validating
+   this is what stops ?next= becoming an open redirect the moment it exists. */
+function nextTarget(){
+  var raw=new URLSearchParams(location.search).get('next');
+  if(!raw) return '/dashboard';
+  try{
+    var u=new URL(raw, location.origin);
+    if(u.origin!==location.origin) return '/dashboard';
+    if(!/^\/[^/\\]/.test(u.pathname)) return '/dashboard'; /* reject //evil.com and \\evil.com */
+    return u.pathname+u.search+u.hash;
+  }catch(e){ return '/dashboard'; }
 }
 
-/* OTP input behaviour */
+/* Already signed in? Don't strand the visitor on a form they don't need. */
 (function(){
-  var inputs=document.querySelectorAll('#otp input');
-  inputs.forEach(function(inp,idx){
-    inp.addEventListener('input',function(){
-      this.value=this.value.replace(/[^0-9]/g,'').slice(0,1);
-      if(this.value && idx<inputs.length-1) inputs[idx+1].focus();
-    });
-    inp.addEventListener('keydown',function(e){
-      if(e.key==='Backspace' && !this.value && idx>0) inputs[idx-1].focus();
-    });
-    inp.addEventListener('paste',function(e){
-      e.preventDefault();
-      var d=(e.clipboardData.getData('text')||'').replace(/[^0-9]/g,'').slice(0,6).split('');
-      d.forEach(function(ch,i){ if(inputs[i]) inputs[i].value=ch; });
-      inputs[Math.min(d.length,inputs.length-1)].focus();
-    });
-  });
+  try{
+    var m=JSON.parse(localStorage.getItem('whollar.member'));
+    if(m&&m.email) location.replace(nextTarget());
+  }catch(e){}
 })();
+
+/* Postal code: uppercase + space as you type, validated against the real
+   Canadian character sets. In sign-up mode it is what places you in a cohort,
+   so it is now read and stored — previously the field was collected and then
+   discarded by every code path. */
+var postalEl=document.getElementById('postal');
+postalEl.addEventListener('input',function(){
+  var atEnd=this.selectionStart===this.value.length;
+  this.value=W.formatPostal(this.value);
+  if(atEnd)try{this.setSelectionRange(this.value.length,this.value.length);}catch(e){}
+  if(W.parsePostal(this.value)){
+    document.getElementById('postal-err').style.display='none';
+    document.getElementById('postal-f').classList.remove('err');
+  }
+});
+
+document.getElementById('entry-form').addEventListener('submit',function(e){
+  e.preventDefault();
+  var btn=document.getElementById('entry-cta');
+  var em=document.getElementById('email'), ef=document.getElementById('email-f');
+
+  /* Same rule the server uses — this page previously accepted "a@b.c". */
+  var ok=W.isEmail(em.value);
+  document.getElementById('email-err').style.display=ok?'none':'block';
+  ef.classList.toggle('err',!ok);
+  em.setAttribute('aria-invalid', ok?'false':'true');
+  if(!ok){ em.focus(); return; }
+
+  var postal=null;
+  if(mode==='signup'){
+    postal=W.parsePostal(postalEl.value);
+    var pf=document.getElementById('postal-f'), pe=document.getElementById('postal-err');
+    if(!postal){ pe.style.display='block'; pf.classList.add('err'); postalEl.setAttribute('aria-invalid','true'); postalEl.focus(); return; }
+    pe.style.display='none'; pf.classList.remove('err'); postalEl.setAttribute('aria-invalid','false');
+  }
+
+  /* Guards the mobile double-tap. Harmless today (no network call), but this
+     is the line that stops two accounts being created once it is wired up. */
+  if(W.busy(btn,true,'One moment…')===false) return;
+
+  var email=em.value.trim();
+  var member={
+    firstName: firstNameFrom(email, document.getElementById('fname').value),
+    email: email,
+    /* Stored lowercase so a later CRM lookup can't treat Genie@x.com and
+       genie@x.com as two people. */
+    emailKey: email.toLowerCase(),
+    fsa: postal?postal.fsa:null,
+    postal: postal?postal.full:null,
+    province: postal?postal.province:null,
+    provinceCode: postal?postal.provinceCode:null
+  };
+  try{ localStorage.setItem('whollar.member', JSON.stringify(member)); }catch(err){}
+  location.href=nextTarget();
+});
 </script>
 </body>
 </html>

@@ -8,4 +8,32 @@ Join the Waitlist (1).html
 # Blog drafts not published yet
 blogs
 
+# Second, UNGUARDED copy of the member dashboard. dashboard.html has a
+# front-end member check; this prototype has none, so deploying it publishes
+# the signed-in surface at /whollar-member-dashboard-v8 to anyone with the URL.
+whollar-member-dashboard-v8.html
+
+# Self-contained page snapshots for sharing/offline use. They are copies of the
+# live pages that do NOT receive fixes (their own README says edits don't flow
+# either way) and they still POST to the live Catalyst backend. Shipping them
+# put a third, stale copy of the checkup on the site.
+standalone-pages
+
+# Build inputs, not site assets: the mobile CSS overlays consumed by
+# scripts/build-mobile-pages.mjs.
+MobileVersion/overlays
+
+# Working files no live page references (verified against every page,
+# including the decoded bundle templates).
+# NOTE: *.lottie and retail.jpg are deliberately NOT listed — partners.html,
+# provider-mobile and the waitlist builds still reference them.
+.backup
+Become_a_founding_member_of_Whollar
+Resourcesimages
+*.csv
+*.textClipping
+Next (1).mp4
+flyer.jpg
+megan_rexazin_conde-store-4156934_1920.png
+
 node_modules

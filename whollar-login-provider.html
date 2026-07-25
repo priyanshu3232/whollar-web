@@ -9,6 +9,15 @@
     })(window, document, "clarity", "script", "xrkpgls1yj");
 </script>
 <meta charset="UTF-8">
+<script type="text/javascript">
+    /* Clarity records session replays and this page has email + password
+       fields. Mask text content by default (PIPEDA / Quebec Law 25). */
+    if(window.clarity) window.clarity('set','mask','true');
+</script>
+<script src="/js/whollar-core.js"></script>
+<!-- No server-side authentication exists yet (see the notice in the form).
+     Keep this page out of the index until it does. -->
+<meta name="robots" content="noindex,nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Partner sign in · Whollar</title>
 <link rel="preconnect" href="https://api.fontshare.com">
@@ -21,8 +30,8 @@
   --teal:#0E2A20; --teal-deep:#0A2018; --teal-bright:#178A5A; --teal-soft:#7FE3B0;
   --accent:#1E9E63; --accent-hover:#178A5A;
   --cream:#FAF8F3; --paper:#ffffff; --mist:#F6F4EE;
-  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#8A968F; --line:#e7ebe6; --line-2:#dfe3dd;
-  --warn:#C2643B; --warn-soft:#F7E7DD; --green-tint:#E4F4EC;
+  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#5F6B64; /* was #8A968F (2.6-3.1:1) — carries real body copy at 11-12.5px; darkened to clear WCAG AA 4.5:1 on cream, white, mist, green-tint and warn-soft */ --line:#e7ebe6; --line-2:#dfe3dd;
+  --warn:#C2643B; --warn-text:#A34F2B; /* --warn stays for borders/strokes (decorative). Text must use --warn-text: #C2643B is only 3.4-3.8:1 on these backgrounds. */ --warn-soft:#F7E7DD; --green-tint:#E4F4EC;
   --label:'General Sans','Satoshi',system-ui,sans-serif;
   --disp:'Satoshi',system-ui,sans-serif;
   --body:'Inter',system-ui,sans-serif;
@@ -88,12 +97,17 @@ button{font-family:var(--body)}
 .field input{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;font-size:15px;font-family:var(--body);color:var(--ink);background:#fff;transition:border-color .15s,box-shadow .15s}
 .field input::placeholder{color:var(--ink-3)}
 .field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(30,158,99,.14)}
-.field.err input{border-color:var(--warn);background:#FDF6F2}
+.field.err input{border-color:var(--warn-text);background:#FDF6F2}
 .peek{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--ink-3);font-family:var(--label);font-weight:600;font-size:12px;padding:6px 8px;border-radius:8px}
 .peek:hover{color:var(--ink-2);background:var(--mist)}
 .rowline{display:flex;justify-content:flex-end;margin:-2px 0 18px}
 .rowline .forgot{font-size:13px;font-weight:600}
-.err-inline{display:none;color:var(--warn);font-size:12.5px;margin:-8px 0 14px;font-weight:500}
+/* Preview notice — states plainly that no authentication exists behind this
+   form. Remove together with the mock sign-in when real auth ships. */
+.preview-note{background:var(--warn-soft,#F7E7DD);border:1px solid #E8C7AE;color:#7A3A19;font-size:12.5px;line-height:1.5;border-radius:12px;padding:10px 13px;margin:0 0 18px}
+.preview-note b{font-weight:700}
+.preview-note a{color:#7A3A19;text-decoration:underline}
+.err-inline{display:none;color:var(--warn-text);font-size:12.5px;margin:-8px 0 14px;font-weight:500}
 
 .submit{width:100%;border:none;cursor:pointer;background:var(--accent);color:#fff;font-weight:700;font-size:15.5px;border-radius:13px;padding:14px;transition:background .18s,transform .15s;font-family:var(--body)}
 .submit:hover{background:var(--accent-hover);transform:translateY(-1px)}
@@ -184,9 +198,15 @@ button{font-family:var(--body)}
         <h2>Partner sign in</h2>
         <p class="fsub">Access your cohort dashboard with your work email.</p>
 
+        <!-- There is no authentication backend behind this form. Before this
+             change signIn() had no success branch at all: a valid email plus a
+             ticked checkbox always rendered "Check your email or password",
+             so no partner could ever get in and the error blamed them for it. -->
+        <p class="preview-note" role="note"><b>Preview.</b> Partner accounts aren’t live yet. <a href="/become-a-partner">Apply to become a partner</a> and we’ll email you when your dashboard is ready.</p>
+
         <div class="field" id="si-email-f">
           <label for="si-email">Work email</label>
-          <input id="si-email" type="email" autocomplete="email" inputmode="email" placeholder="you@provider.ca">
+          <input id="si-email" type="email" autocomplete="email" inputmode="email" placeholder="you@provider.ca" maxlength="254" aria-describedby="si-error">
         </div>
         <div class="field">
           <label for="si-pass">Password</label>
@@ -195,11 +215,14 @@ button{font-family:var(--body)}
             <button type="button" class="peek" onclick="peek('si-pass',this)">Show</button>
           </div>
         </div>
-        <div class="rowline"><a class="forgot" href="#" onclick="mock('Reset link sent to your work email');return false;">Forgot password?</a></div>
-        <div class="err-inline" id="si-error">Check your email or password and try again.</div>
+        <!-- There is no password-reset flow: no token, no expiry, no email.
+             The old handler popped "Reset link sent to your work email",
+             which was simply untrue. Point at a channel that reaches a human. -->
+        <div class="rowline"><a class="forgot" href="mailto:hello@whollar.ca?subject=Partner%20account%20access">Trouble signing in?</a></div>
+        <div class="err-inline" id="si-error" role="alert">Check your email or password and try again.</div>
 
-        <label class="tc"><input type="checkbox" id="tc"><span>I agree to Whollar's <a href="#">Partner Terms</a> and <a href="#">Privacy Policy</a>.</span></label>
-        <div class="err-inline" id="tc-err">Please accept the terms to continue.</div>
+        <label class="tc"><input type="checkbox" id="tc"><span>I agree to Whollar's <a href="/terms" target="_blank" rel="noopener noreferrer">Partner Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</span></label>
+        <div class="err-inline" id="tc-err" role="alert">Please accept the terms to continue.</div>
         <button class="submit" onclick="signIn()">Sign in</button>
 
         <p class="foot-switch">New provider? <a onclick="show('signup')">Create a partner account</a></p>
@@ -222,7 +245,7 @@ button{font-family:var(--body)}
           <div class="field" id="su-email-f">
             <label for="su-email">Work email</label>
             <input id="su-email" type="email" autocomplete="email" inputmode="email" placeholder="you@provider.ca">
-            <div class="err-inline" id="su-email-err" style="display:none">Enter a valid work email.</div>
+            <div class="err-inline" id="su-email-err" role="alert" style="display:none">Enter a valid work email.</div>
           </div>
           <button class="submit" onclick="sendCode()">Send verification code</button>
           <p class="foot-switch">Already a partner? <a onclick="show('signin')">Sign in</a></p>
@@ -240,7 +263,7 @@ button{font-family:var(--body)}
             <input inputmode="numeric" maxlength="1" aria-label="digit 5">
             <input inputmode="numeric" maxlength="1" aria-label="digit 6">
           </div>
-          <div class="err-inline" id="otp-err">That code did not match. Check it and try again.</div>
+          <div class="err-inline" id="otp-err" role="alert">That code did not match. Check it and try again.</div>
           <div class="otp-meta">
             <span>Didn't get it? <a id="resend" class="dim" onclick="resend()">Resend in <span id="cd">30</span>s</a></span>
             <a onclick="editEmail()">Change email</a>
@@ -267,7 +290,7 @@ button{font-family:var(--body)}
             </div>
           </div>
           <button class="submit" onclick="mock('Partner account created · routing to your dashboard')">Create account</button>
-          <p class="legal">By creating an account you agree to Whollar's <a href="#">Partner Terms</a> and <a href="#">Privacy Policy</a>.</p>
+          <p class="legal">By creating an account you agree to Whollar's <a href="/terms" target="_blank" rel="noopener noreferrer">Partner Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</p>
         </div>
       </section>
 
@@ -290,12 +313,20 @@ function mock(label){ alert(label + '\n\n(Mock screen · wire this to your auth 
 
 function signIn(){
   var em=document.getElementById('si-email'), ef=document.getElementById('si-email-f');
-  var ok=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em.value.trim());
+  /* Same rule the server uses. The old regex here accepted a one-character
+     TLD ("a@b.c") that the backend rejects. */
+  var ok=window.WHOLLAR.isEmail(em.value);
   ef.classList.toggle('err',!ok);
-  if(!ok){ em.focus(); document.getElementById('si-error').style.display='none'; return; }
-  if(!document.getElementById('tc').checked){ document.getElementById('tc-err').style.display='block'; return; }
+  em.setAttribute('aria-invalid', ok?'false':'true');
+  var err=document.getElementById('si-error');
+  if(!ok){ err.textContent='Enter a valid work email address.'; err.style.display='block'; em.focus(); return; }
+  if(!document.getElementById('tc').checked){ document.getElementById('tc-err').style.display='block'; document.getElementById('tc').focus(); return; }
   document.getElementById('tc-err').style.display='none';
-  document.getElementById('si-error').style.display='block';
+  /* Partner auth is not built. Previously this rendered "Check your email or
+     password and try again" — a dead end that told the partner they had got
+     their own credentials wrong. Point them at the path that does work. */
+  err.textContent='Partner sign-in isn’t live yet. Apply at /become-a-partner and we’ll email you when your dashboard is ready.';
+  err.style.display='block';
 }
 
 /* ---- signup step control ---- */
@@ -313,8 +344,9 @@ function goStep(n){
 var cdTimer=null;
 function sendCode(){
   var em=document.getElementById('su-email'), ef=document.getElementById('su-email-f');
-  var ok=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em.value.trim());
+  var ok=window.WHOLLAR.isEmail(em.value);
   document.getElementById('su-email-err').style.display= ok?'none':'block';
+  em.setAttribute('aria-invalid', ok?'false':'true');
   ef.classList.toggle('err',!ok);
   if(!ok){ em.focus(); return; }
   document.getElementById('echo-email').textContent=em.value.trim();
