@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "xrkpgls1yj");
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in · Whollar</title>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&f[]=general-sans@500,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --teal:#0E2A20; --teal-deep:#0A2018; --teal-bright:#178A5A; --teal-soft:#7FE3B0;
+  --accent:#1E9E63; --accent-hover:#178A5A;
+  --cream:#FAF8F3; --paper:#ffffff; --mist:#F6F4EE;
+  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#8A968F; --line:#e7ebe6; --line-2:#dfe3dd;
+  --warn:#C2643B; --warn-soft:#F7E7DD; --green-tint:#E4F4EC;
+  --label:'General Sans','Satoshi',system-ui,sans-serif;
+  --disp:'Satoshi',system-ui,sans-serif;
+  --body:'Inter',system-ui,sans-serif;
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--disp);color:var(--teal);letter-spacing:-.02em;margin:0;font-weight:900}
+p{margin:0}
+a{color:var(--accent-hover);text-decoration:none}
+a:hover{text-decoration:underline}
+button{font-family:var(--body)}
+::selection{background:var(--accent);color:#fff}
+:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px;border-radius:8px}
+
+.shell{min-height:100vh;display:grid;grid-template-columns:1.02fr 1fr}
+@media(max-width:900px){.shell{grid-template-columns:1fr}}
+
+/* ---------- brand panel ---------- */
+.brand{background:linear-gradient(158deg,var(--teal-deep) 0%,#123B2C 54%,#17553D 100%);color:#fff;position:relative;overflow:hidden;display:flex;flex-direction:column;padding:38px 46px 44px}
+@media(max-width:900px){.brand{padding:26px 26px 30px}}
+.brand::after{content:"";position:absolute;right:-160px;top:-120px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(127,227,176,.16),transparent 62%);pointer-events:none}
+.mark{display:flex;align-items:center;gap:10px;position:relative;z-index:2}
+.mark svg{width:34px;height:34px;flex:none;display:block}
+.mark b{font-family:var(--disp);font-weight:900;font-size:21px;color:#fff;letter-spacing:-.02em}
+.brand__mid{margin-top:auto;margin-bottom:auto;position:relative;z-index:2;padding:34px 0}
+.eyebrow{font-family:var(--label);font-weight:600;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--teal-soft);margin-bottom:16px}
+.brand h1{color:#fff;font-size:clamp(30px,3.4vw,42px);line-height:1.04;letter-spacing:-.03em;max-width:14ch}
+.brand h1 em{font-style:normal;color:var(--teal-soft)}
+.brand__sub{margin-top:16px;color:#CFE2D5;font-size:16px;line-height:1.55;max-width:40ch}
+
+/* forming module (no counts, mechanic only) */
+.forming{margin-top:34px;background:rgba(255,255,255,.06);border:1px solid rgba(127,227,176,.22);border-radius:18px;padding:18px 20px;max-width:400px;backdrop-filter:blur(2px)}
+.forming__top{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px}
+.forming__label{font-family:var(--label);font-weight:600;font-size:13px;color:#fff;letter-spacing:.02em}
+.forming__tag{font-family:var(--label);font-weight:600;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#0E2A20;background:var(--teal-soft);padding:4px 9px;border-radius:20px}
+.houses{display:flex;gap:7px;align-items:flex-end;margin-bottom:13px}
+.houses svg{width:100%;height:auto;display:block}
+.houses .body{fill:transparent;stroke:rgba(255,255,255,.30);stroke-width:1.4;animation:hfill 5.4s var(--ease) infinite}
+.houses .win{fill:rgba(255,255,255,.22)}
+@keyframes hfill{0%,6%{fill:transparent;stroke:rgba(255,255,255,.30)}24%,80%{fill:#1E9E63;stroke:#7FE3B0}100%{fill:transparent;stroke:rgba(255,255,255,.30)}}
+.forming__cap{font-size:12.5px;color:#B9D3C2;line-height:1.5}
+@media(prefers-reduced-motion:reduce){.houses .body{animation:none;fill:#1E9E63;stroke:#7FE3B0}}
+
+/* ---------- form panel ---------- */
+.form-pane{background:var(--mist);display:flex;align-items:center;justify-content:center;padding:40px 28px;position:relative}
+.switchtop{position:absolute;top:26px;right:30px;font-size:13.5px;color:var(--ink-2)}
+.switchtop a{font-weight:600}
+.card{width:100%;max-width:404px;background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:34px 34px 30px;box-shadow:0 2px 6px rgba(16,40,34,.05),0 22px 50px rgba(16,40,34,.08)}
+@media(max-width:520px){.card{padding:26px 22px 24px}}
+.card h2{font-size:26px;color:var(--teal);letter-spacing:-.025em}
+.card .fsub{margin-top:7px;font-size:14px;color:var(--ink-2);line-height:1.5;margin-bottom:22px}
+
+.soc{display:flex;flex-direction:column;gap:10px}
+.soc button{display:flex;align-items:center;justify-content:center;gap:11px;width:100%;border-radius:13px;padding:13px 16px;font-size:14.5px;font-weight:600;cursor:pointer;transition:transform .12s,box-shadow .15s,background .15s;border:1.5px solid var(--line)}
+.soc button:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(16,40,34,.08)}
+.soc .g{background:#fff;color:#2B3A33}
+.soc .a{background:#111;color:#fff;border-color:#111}
+.soc svg{width:18px;height:18px;flex:none}
+
+.divider{display:flex;align-items:center;gap:12px;margin:20px 0 18px;color:var(--ink-3);font-size:12px;font-family:var(--label);font-weight:600;letter-spacing:.06em}
+.divider::before,.divider::after{content:"";height:1px;background:var(--line);flex:1}
+
+.field{margin-bottom:14px}
+.field label{display:block;font-family:var(--label);font-weight:600;font-size:12.5px;color:var(--ink);margin-bottom:7px}
+.field input{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;font-size:15px;font-family:var(--body);color:var(--ink);background:#fff;transition:border-color .15s,box-shadow .15s}
+.field input::placeholder{color:var(--ink-3)}
+.field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(30,158,99,.14)}
+.field.err input{border-color:var(--warn);background:#FDF6F2}
+.err-inline{display:none;color:var(--warn);font-size:12.5px;margin:-8px 0 14px;font-weight:500}
+
+.submit{width:100%;border:none;cursor:pointer;background:var(--accent);color:#fff;font-weight:700;font-size:15.5px;border-radius:13px;padding:14px;transition:background .18s,transform .15s;font-family:var(--body)}
+.submit:hover{background:var(--accent-hover);transform:translateY(-1px)}
+.legal{margin-top:18px;font-size:11.5px;color:var(--ink-3);line-height:1.5;text-align:center}
+.legal a{color:var(--ink-2);text-decoration:underline}
+.foot-switch{margin-top:20px;text-align:center;font-size:14px;color:var(--ink-2)}
+.foot-switch a{font-weight:600;cursor:pointer}
+.hidden{display:none!important}
+
+/* OTP */
+.sentto{font-size:13.5px;color:var(--ink-2);margin-bottom:16px}
+.sentto b{color:var(--ink)}
+.otp{display:flex;gap:9px;margin-bottom:8px;justify-content:space-between}
+.otp input{width:100%;aspect-ratio:1/1;text-align:center;font-family:var(--disp);font-weight:700;font-size:22px;color:var(--teal);border:1.5px solid var(--line);border-radius:12px;background:#fff;transition:border-color .15s,box-shadow .15s}
+.otp input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(30,158,99,.14)}
+.otp-meta{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--ink-2);margin:6px 0 20px}
+.otp-meta a{font-weight:600;cursor:pointer}
+.otp-meta a.dim{color:var(--ink-3);cursor:default;pointer-events:none}
+
+.rv{opacity:0;transform:translateY(12px);animation:rise .7s var(--ease) forwards}
+.rv.d1{animation-delay:.06s}.rv.d2{animation-delay:.14s}.rv.d3{animation-delay:.22s}
+@keyframes rise{to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;animation:none}.bar i{transition:none}}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- BRAND PANEL -->
+  <aside class="brand">
+    <div class="mark rv">
+      <svg viewBox="0 0 120 120" aria-label="Whollar"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
+      <b>Whollar</b>
+    </div>
+    <div class="brand__mid">
+      <div class="eyebrow rv d1">For households</div>
+      <h1 class="rv d1">Your street, <em>one bill lighter.</em></h1>
+      <p class="brand__sub rv d2">Sign in to see your cohort, watch your region fill, and get the offer when providers bid for it.</p>
+
+      <div class="forming rv d3">
+        <div class="forming__top">
+          <span class="forming__label">Join your neighbourhood cohort</span>
+          <span class="forming__tag">Forming</span>
+        </div>
+        <div class="houses" id="houses"></div>
+        <p class="forming__cap">Neighbours pool by region and renewal date. Providers bid for the cohort when that window opens.</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- FORM PANEL -->
+  <main class="form-pane">
+    <div class="switchtop">A provider? <a href="/whollar-login-provider">Partner sign in &rarr;</a></div>
+
+    <div class="card rv d2">
+
+      <!-- EMAIL ENTRY -->
+      <section id="entry">
+        <h2 id="entry-h">Welcome back</h2>
+        <p class="fsub" id="entry-sub">Sign in to pick up where your region left off.</p>
+
+        <div class="soc">
+          <button type="button" class="g" onclick="mock('Google')">
+            <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z"/></svg>
+            <span id="g-label">Continue with Google</span>
+          </button>
+          <button type="button" class="a" onclick="mock('Apple')">
+            <svg viewBox="0 0 24 24" fill="#fff"><path d="M17.05 12.54c-.02-2.05 1.68-3.03 1.75-3.08-.95-1.4-2.44-1.59-2.97-1.61-1.27-.13-2.47.74-3.11.74-.64 0-1.63-.72-2.68-.7-1.38.02-2.65.8-3.36 2.03-1.43 2.48-.37 6.16 1.03 8.18.68.98 1.5 2.09 2.56 2.05 1.03-.04 1.42-.66 2.66-.66 1.24 0 1.59.66 2.68.64 1.1-.02 1.8-1 2.48-1.99.78-1.14 1.1-2.24 1.12-2.3-.02-.01-2.15-.83-2.17-3.28ZM15.02 6.3c.56-.68.94-1.62.84-2.56-.81.03-1.79.54-2.37 1.22-.52.6-.98 1.56-.86 2.48.9.07 1.83-.46 2.39-1.14Z"/></svg>
+            <span id="a-label">Continue with Apple</span>
+          </button>
+        </div>
+
+        <div class="divider">or use your email</div>
+
+        <div class="field" id="email-f">
+          <label for="email">Email</label>
+          <input id="email" type="email" autocomplete="email" inputmode="email" placeholder="you@email.com">
+          <div class="err-inline" id="email-err" style="display:none">Enter a valid email address.</div>
+        </div>
+
+        <div class="field hidden" id="postal-f">
+          <label for="postal">Postal code</label>
+          <input id="postal" type="text" autocomplete="postal-code" placeholder="K1A 0B1" maxlength="7" style="text-transform:uppercase">
+        </div>
+
+        <button class="submit" onclick="sendCode()" id="entry-cta">Email me a code</button>
+        <p class="legal">By continuing you agree to Whollar's <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.</p>
+
+        <p class="foot-switch" id="entry-switch">New to Whollar? <a onclick="setMode('signup')">Create an account</a></p>
+      </section>
+
+      <!-- OTP -->
+      <section id="code" class="hidden">
+        <h2>Enter your code</h2>
+        <p class="sentto">We sent a 6-digit code to <b id="echo-email">you@email.com</b>.</p>
+        <div class="otp" id="otp">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 1">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 2">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 3">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 4">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 5">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 6">
+        </div>
+        <div class="err-inline" id="otp-err">That code did not match. Check it and try again.</div>
+        <div class="otp-meta">
+          <span>Didn't get it? <a id="resend" class="dim" onclick="resend()">Resend in <span id="cd">30</span>s</a></span>
+          <a onclick="backToEmail()">Change email</a>
+        </div>
+        <button class="submit" onclick="verify()" id="verify-cta">Verify and sign in</button>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script>
+/* forming animation: houses light up in a rolling wave (illustrative, no counts) */
+(function(){
+  var n=12, wrap=document.getElementById('houses'), html='';
+  for(var i=0;i<n;i++){
+    html+='<svg viewBox="0 0 20 26" aria-hidden="true">'
+      +'<path class="body" style="animation-delay:'+(i*0.28).toFixed(2)+'s" d="M2 11 10 4l8 7v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" stroke-linejoin="round"/>'
+      +'<rect class="win" x="8.4" y="16" width="3.2" height="7" rx=".4"/>'
+      +'<rect class="win" x="4.6" y="12.4" width="2.6" height="2.6" rx=".3"/>'
+      +'<rect class="win" x="12.8" y="12.4" width="2.6" height="2.6" rx=".3"/>'
+      +'</svg>';
+  }
+  wrap.innerHTML=html;
+})();
+
+var mode='signin', cdTimer=null;
+
+function setMode(m){
+  mode=m;
+  var signup=(m==='signup');
+  document.getElementById('entry-h').textContent=signup?'Join your region':'Welcome back';
+  document.getElementById('entry-sub').textContent=signup?'Your postal code holds your spot and adds weight to your cohort.':'Sign in to pick up where your region left off.';
+  document.getElementById('g-label').textContent=signup?'Sign up with Google':'Continue with Google';
+  document.getElementById('a-label').textContent=signup?'Sign up with Apple':'Continue with Apple';
+  document.getElementById('postal-f').classList.toggle('hidden',!signup);
+  document.getElementById('entry-cta').textContent='Email me a code';
+  document.getElementById('verify-cta').textContent=signup?'Verify and join':'Verify and sign in';
+  document.getElementById('entry-switch').innerHTML=signup
+    ? 'Already a member? <a onclick="setMode(\'signin\')">Sign in</a>'
+    : 'New to Whollar? <a onclick="setMode(\'signup\')">Create an account</a>';
+}
+
+function mock(label){ alert(label+'\n\n(Mock screen · wire this to your auth provider.)'); }
+
+function sendCode(){
+  var em=document.getElementById('email'), ef=document.getElementById('email-f');
+  var ok=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em.value.trim());
+  document.getElementById('email-err').style.display=ok?'none':'block';
+  ef.classList.toggle('err',!ok);
+  if(!ok){ em.focus(); return; }
+  document.getElementById('echo-email').textContent=em.value.trim();
+  document.getElementById('entry').classList.add('hidden');
+  document.getElementById('code').classList.remove('hidden');
+  startCountdown();
+  var first=document.querySelector('#otp input'); if(first) first.focus();
+}
+function backToEmail(){
+  document.getElementById('code').classList.add('hidden');
+  document.getElementById('entry').classList.remove('hidden');
+  document.getElementById('otp-err').style.display='none';
+  document.getElementById('email').focus();
+}
+function startCountdown(){
+  var n=30, a=document.getElementById('resend'), cd=document.getElementById('cd');
+  a.classList.add('dim'); cd.textContent=n;
+  clearInterval(cdTimer);
+  cdTimer=setInterval(function(){
+    n--; cd.textContent=n;
+    if(n<=0){ clearInterval(cdTimer); a.classList.remove('dim'); a.textContent='Resend code'; }
+  },1000);
+}
+function resend(){ startCountdown(); document.getElementById('otp-err').style.display='none'; }
+function verify(){
+  var vals=Array.prototype.map.call(document.querySelectorAll('#otp input'),function(i){return i.value.trim();});
+  if(!vals.every(function(v){return v.length===1;})){
+    document.getElementById('otp-err').textContent='Enter all six digits.';
+    document.getElementById('otp-err').style.display='block'; return;
+  }
+  document.getElementById('otp-err').style.display='none';
+  mock(mode==='signup'?'Account created · region K1A':'Signed in');
+}
+
+/* OTP input behaviour */
+(function(){
+  var inputs=document.querySelectorAll('#otp input');
+  inputs.forEach(function(inp,idx){
+    inp.addEventListener('input',function(){
+      this.value=this.value.replace(/[^0-9]/g,'').slice(0,1);
+      if(this.value && idx<inputs.length-1) inputs[idx+1].focus();
+    });
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Backspace' && !this.value && idx>0) inputs[idx-1].focus();
+    });
+    inp.addEventListener('paste',function(e){
+      e.preventDefault();
+      var d=(e.clipboardData.getData('text')||'').replace(/[^0-9]/g,'').slice(0,6).split('');
+      d.forEach(function(ch,i){ if(inputs[i]) inputs[i].value=ch; });
+      inputs[Math.min(d.length,inputs.length-1)].focus();
+    });
+  });
+})();
+</script>
+</body>
+</html>
