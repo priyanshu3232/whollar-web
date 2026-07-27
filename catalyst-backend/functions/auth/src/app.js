@@ -21,6 +21,9 @@
 const express = require('express');
 const crypto = require('node:crypto');
 
+const datastore = require('./lib/datastore');
+const { verify: verifySchema } = require('./lib/schema');
+
 function buildApp(cfg) {
   const app = express();
   app.disable('x-powered-by');
@@ -69,6 +72,60 @@ function buildApp(cfg) {
       features: cfg.FEATURES,
     });
   });
+
+  /**
+   * Schema + request-shape diagnostics. NON-PRODUCTION ONLY — in production
+   * this route does not exist at all, and falls through to the 404 below.
+   *
+   * Two questions it answers, both of which are otherwise guesswork:
+   *
+   *   1. Do the hand-created Data Store tables match what the code expects?
+   *      Catalyst has no DDL API, so the tables are clicked in by hand and a
+   *      mistyped column fails at runtime rather than at deploy. Checking by
+   *      eye across ten tables and sixty columns is exactly the job a machine
+   *      should do once.
+   *
+   *   2. What actually survives the Vercel proxy hop? `Origin` is the whole
+   *      CSRF defence and the client IP feeds `ip_hash` and rate limiting; if
+   *      the proxy drops or rewrites either, the design has to change. Better
+   *      to learn that here than from a security control that silently never
+   *      fires.
+   *
+   * It reports shapes and names only. The Origin value is echoed because it is
+   * our own domain and the exact string is the point; the client IP is reduced
+   * to a family and a boolean, because that one is personal data.
+   */
+  if (!cfg.IS_PRODUCTION) {
+    router.get('/health/diagnostics', async (req, res) => {
+      res.setHeader('Cache-Control', 'no-store');
+
+      const fwd = String(req.headers['x-forwarded-for'] || '');
+      const hops = fwd ? fwd.split(',').map((s) => s.trim()).filter(Boolean) : [];
+      const ip = req.ip || '';
+
+      const request = {
+        origin: req.headers.origin || null,
+        referer_present: Boolean(req.headers.referer),
+        sec_fetch_site: req.headers['sec-fetch-site'] || null,
+        forwarded_hops: hops.length,
+        client_ip_present: Boolean(ip),
+        client_ip_family: ip.includes(':') ? 'ipv6' : (ip ? 'ipv4' : null),
+        via_vercel: Boolean(req.headers['x-vercel-id'] || req.headers['x-vercel-forwarded-for']),
+        proxy_headers_seen: Object.keys(req.headers)
+          .filter((h) => /^(x-forwarded|x-vercel|x-real-ip|forwarded|cf-)/.test(h))
+          .sort(),
+      };
+
+      let schema;
+      try {
+        schema = await verifySchema(datastore.app(req));
+      } catch (err) {
+        schema = { ok: false, error: String((err && err.message) || err).slice(0, 200) };
+      }
+
+      res.status(200).json({ service: 'auth', request_id: req.id, request, schema });
+    });
+  }
 
   // Both mounts share one router instance. The 404 fallback must live on the
   // app, not the router — a catch-all inside the router would be reached via
