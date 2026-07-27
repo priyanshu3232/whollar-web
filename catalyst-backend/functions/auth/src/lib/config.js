@@ -69,9 +69,19 @@ const v = {
     return { value: raw };
   },
 
-  /** Comma-separated origin allowlist -> frozen array of origins. */
+  /**
+   * Origin allowlist -> frozen array of origins.
+   *
+   * Separator is comma, whitespace or semicolon, in any mix. That leniency is
+   * not aesthetic: the Catalyst console validates environment-variable input
+   * itself, and which punctuation it will accept is neither documented nor
+   * stable. Accepting all three means a console that rejects one separator
+   * never forces a code change — and `https://a.ca https://b.ca` is a legal
+   * value here. An origin can never itself contain any of the three, so this
+   * cannot merge two entries by accident.
+   */
   origins: (raw) => {
-    const parts = raw.split(',').map((s) => s.trim()).filter(Boolean);
+    const parts = raw.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
     if (!parts.length) return { error: 'must list at least one origin' };
     const bad = [];
     const out = [];
@@ -86,7 +96,15 @@ const v = {
     return { value: Object.freeze([...new Set(out)]) };
   },
 
-  /** base64 secret decoding to >= 32 bytes. */
+  /**
+   * High-entropy secret: must decode to >= 32 bytes, i.e. 256 bits.
+   *
+   * The decode is base64, but hex passes too (64 hex chars decode as base64 to
+   * 48 bytes) and hex is what the setup doc now recommends — the Catalyst
+   * console rejects some punctuation in values, and base64's '+', '/' and '='
+   * are prime candidates. Either encoding is fine: the pepper is used as an
+   * opaque string, so this check is an entropy floor, not a format contract.
+   */
   pepper: (raw) => {
     let buf;
     try { buf = Buffer.from(raw, 'base64'); } catch { return { error: 'is not valid base64' }; }
