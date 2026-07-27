@@ -198,11 +198,11 @@ button{font-family:var(--body)}
         <h2>Partner sign in</h2>
         <p class="fsub">Access your cohort dashboard with your work email.</p>
 
-        <!-- There is no authentication backend behind this form. Before this
-             change signIn() had no success branch at all: a valid email plus a
-             ticked checkbox always rendered "Check your email or password",
-             so no partner could ever get in and the error blamed them for it. -->
-        <p class="preview-note" role="note"><b>Preview.</b> Partner accounts aren’t live yet. <a href="/become-a-partner">Apply to become a partner</a> and we’ll email you when your dashboard is ready.</p>
+        <!-- There is no authentication backend behind this form: signing in
+             writes a localStorage record and opens the partner console, which
+             runs on demo data. Say so rather than implying credentials were
+             checked against anything. -->
+        <p class="preview-note" role="note"><b>Preview.</b> Partner accounts aren’t verified yet — signing in opens the console on demo cohorts, not your real ones. <a href="/become-a-partner">Apply to become a partner</a> to get your live account.</p>
 
         <div class="field" id="si-email-f">
           <label for="si-email">Work email</label>
@@ -282,14 +282,24 @@ button{font-family:var(--body)}
             <button type="button" class="rc" onclick="pickRole(this)"><span class="dot"></span><span><b>Distributor</b><small>Pricing and lead integration</small></span></button>
             <button type="button" class="rc" onclick="pickRole(this)"><span class="dot"></span><span><b>Other</b><small>We'll route you after review</small></span></button>
           </div>
-          <div class="field" style="margin-top:16px">
+          <div class="err-inline" id="role-err" role="alert">Choose the role that fits you.</div>
+          <!-- The console heads every screen with the company name, so it has
+               to be collected. Deriving it from the email domain guessed
+               "Bell" for anyone at a reseller. -->
+          <div class="field" id="su-org-f" style="margin-top:16px">
+            <label for="su-org">Company name</label>
+            <input id="su-org" type="text" autocomplete="organization" placeholder="Northline Internet" maxlength="80">
+            <div class="err-inline" id="su-org-err" role="alert" style="display:none">Enter the company you bid for.</div>
+          </div>
+          <div class="field">
             <label for="su-pass">Create a password</label>
             <div class="inwrap">
               <input id="su-pass" type="password" autocomplete="new-password" placeholder="At least 10 characters">
               <button type="button" class="peek" onclick="peek('su-pass',this)">Show</button>
             </div>
+            <div class="err-inline" id="su-pass-err" role="alert" style="display:none">Use at least 10 characters.</div>
           </div>
-          <button class="submit" onclick="mock('Partner account created · routing to your dashboard')">Create account</button>
+          <button class="submit" onclick="createAccount()">Create account</button>
           <p class="legal">By creating an account you agree to Whollar's <a href="/terms" target="_blank" rel="noopener noreferrer">Partner Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</p>
         </div>
       </section>
@@ -299,6 +309,34 @@ button{font-family:var(--body)}
 </div>
 
 <script>
+var W=window.WHOLLAR;
+
+/* Where a partner lands once "signed in". /provider-dashboard is the default;
+   anything carried in ?next= is validated same-origin before it is followed. */
+function nextTarget(){
+  return W.safeNext(new URLSearchParams(location.search).get('next'), '/provider-dashboard');
+}
+
+/* Already signed in? Don't strand a partner on a form they don't need. */
+(function(){
+  if(W.partner.read()) location.replace(nextTarget());
+})();
+
+/* One shape for the partner record, written by both paths so the console never
+   has to cope with two. emailKey is lowercased so a later CRM lookup can't
+   treat Sam@x.ca and sam@x.ca as two accounts. */
+function startSession(email, opts){
+  opts=opts||{};
+  W.partner.write({
+    firstName: W.firstNameFrom(email, opts.firstName),
+    email: email,
+    emailKey: email.toLowerCase(),
+    org: (opts.org||'').trim()||null,
+    role: opts.role||null
+  });
+  location.href=nextTarget();
+}
+
 function show(which){
   document.getElementById('signin').classList.toggle('hidden', which!=='signin');
   document.getElementById('signup').classList.toggle('hidden', which!=='signup');
@@ -309,24 +347,56 @@ function peek(id,btn){
   if(el.type==='password'){el.type='text';btn.textContent='Hide';}
   else{el.type='password';btn.textContent='Show';}
 }
-function mock(label){ alert(label + '\n\n(Mock screen · wire this to your auth provider.)'); }
-
 function signIn(){
   var em=document.getElementById('si-email'), ef=document.getElementById('si-email-f');
   /* Same rule the server uses. The old regex here accepted a one-character
      TLD ("a@b.c") that the backend rejects. */
-  var ok=window.WHOLLAR.isEmail(em.value);
+  var ok=W.isEmail(em.value);
   ef.classList.toggle('err',!ok);
   em.setAttribute('aria-invalid', ok?'false':'true');
   var err=document.getElementById('si-error');
   if(!ok){ err.textContent='Enter a valid work email address.'; err.style.display='block'; em.focus(); return; }
+
+  /* No password is verified against anything, but accepting an empty one and
+     opening the console would teach partners the field is decorative. */
+  var pw=document.getElementById('si-pass');
+  if(!pw.value){ err.textContent='Enter your password.'; err.style.display='block'; pw.focus(); return; }
+  err.style.display='none';
+
   if(!document.getElementById('tc').checked){ document.getElementById('tc-err').style.display='block'; document.getElementById('tc').focus(); return; }
   document.getElementById('tc-err').style.display='none';
-  /* Partner auth is not built. Previously this rendered "Check your email or
-     password and try again" — a dead end that told the partner they had got
-     their own credentials wrong. Point them at the path that does work. */
-  err.textContent='Partner sign-in isn’t live yet. Apply at /become-a-partner and we’ll email you when your dashboard is ready.';
-  err.style.display='block';
+
+  /* Sign-in has no company field to read, so the console falls back to the
+     email domain until an account edit or a real backend supplies the name. */
+  startSession(em.value.trim(), {});
+}
+
+/* Sign-up step 3. This used to alert() "routing to your dashboard" and route
+   nowhere: no record was written, so the console would have bounced them
+   straight back here. */
+function createAccount(){
+  var roleEl=document.querySelector('.rc.on');
+  var roleErr=document.getElementById('role-err');
+  roleErr.style.display=roleEl?'none':'block';
+  if(!roleEl){ return; }
+
+  var org=document.getElementById('su-org'), orgf=document.getElementById('su-org-f');
+  var orgOk=org.value.trim().length>1;
+  document.getElementById('su-org-err').style.display=orgOk?'none':'block';
+  orgf.classList.toggle('err',!orgOk);
+  org.setAttribute('aria-invalid', orgOk?'false':'true');
+  if(!orgOk){ org.focus(); return; }
+
+  var pw=document.getElementById('su-pass');
+  var pwOk=pw.value.length>=10;
+  document.getElementById('su-pass-err').style.display=pwOk?'none':'block';
+  pw.setAttribute('aria-invalid', pwOk?'false':'true');
+  if(!pwOk){ pw.focus(); return; }
+
+  startSession(document.getElementById('su-email').value.trim(), {
+    org: org.value,
+    role: roleEl.querySelector('b').textContent
+  });
 }
 
 /* ---- signup step control ---- */
@@ -377,6 +447,7 @@ function verify(){
 function pickRole(el){
   document.querySelectorAll('.rc').forEach(function(r){r.classList.remove('on');});
   el.classList.add('on');
+  document.getElementById('role-err').style.display='none';
 }
 
 /* OTP input behaviour */

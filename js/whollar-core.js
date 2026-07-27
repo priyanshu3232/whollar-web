@@ -612,4 +612,101 @@
       try { sessionStorage.removeItem('whollar.draft.' + key); } catch (e) { /* ignore */ }
     }
   };
+
+  /* ================================================================== *
+   * 11. SIGNED-IN RECORDS (household member, partner staff)
+   * ------------------------------------------------------------------
+   * Two independent sessions, two keys. 'whollar.member' is written by the
+   * consumer sign-in and read by /dashboard, which derives the promo-cliff
+   * countdown from it. 'whollar.partner' is written by the partner sign-in
+   * and read by /provider-dashboard.
+   *
+   * They must NOT share a key: a household signing in would otherwise open
+   * the partner console (competitor pricing, cohort internals) and a partner
+   * would land on a member dashboard with no bill.
+   *
+   * patch() is deliberately a no-op for signed-out visitors: the public
+   * bill checkup must never create a member record as a side effect of
+   * someone running the numbers.
+   *
+   * ⚠ NOT AUTHORISATION. Anyone can write either key from a console. These
+   * records keep honest visitors on the right page; the real gate belongs in
+   * a Catalyst function once partner/member auth ships.
+   * ================================================================== */
+
+  function sessionStore(key) {
+    return {
+      KEY: key,
+      read: function () {
+        try {
+          var r = JSON.parse(localStorage.getItem(key));
+          return r && typeof r === 'object' && r.email ? r : null;
+        } catch (e) { return null; }
+      },
+      write: function (record) {
+        if (!record || typeof record !== 'object' || !record.email) return null;
+        try { localStorage.setItem(key, JSON.stringify(record)); } catch (e) { return null; }
+        return record;
+      },
+      patch: function (fields) {
+        var r = this.read();
+        if (!r || !fields || typeof fields !== 'object') return null;
+        Object.keys(fields).forEach(function (k) { r[k] = fields[k]; });
+        try { localStorage.setItem(key, JSON.stringify(r)); } catch (e) { return null; }
+        return r;
+      },
+      clear: function () {
+        try { localStorage.removeItem(key); } catch (e) { /* private mode */ }
+      }
+    };
+  }
+
+  W.MEMBER_KEY = 'whollar.member';
+  W.PARTNER_KEY = 'whollar.partner';
+
+  W.member = sessionStore(W.MEMBER_KEY);
+  W.partner = sessionStore(W.PARTNER_KEY);
+
+  /* ================================================================== *
+   * 12. POST-SIGN-IN REDIRECT TARGET
+   * ------------------------------------------------------------------
+   * Both sign-in pages carry the page the visitor was trying to reach in
+   * ?next=. Validating it here is what stops that parameter becoming an
+   * open redirect: only a same-origin path is ever returned, and //evil.com
+   * and \\evil.com are rejected before they can be treated as one.
+   * ================================================================== */
+
+  W.safeNext = function (raw, fallback) {
+    if (!raw) return fallback;
+    try {
+      var u = new URL(raw, location.origin);
+      if (u.origin !== location.origin) return fallback;
+      if (!/^\/[^/\\]/.test(u.pathname)) return fallback;
+      return u.pathname + u.search + u.hash;
+    } catch (e) { return fallback; }
+  };
+
+  /* Display helpers shared by the two signed-in surfaces: a name and an
+     avatar monogram have to be derived somewhere, and both dashboards were
+     deriving them differently. */
+  W.titleCase = function (s) {
+    return String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1).toLowerCase();
+  };
+
+  /* "sam.kaur@northline.ca" → "Sam". A given name always wins over the guess. */
+  W.firstNameFrom = function (email, given) {
+    if (given && given.trim()) return W.titleCase(given.trim());
+    var local = (String(email).split('@')[0] || '').split(/[._\-+0-9]/)[0] || '';
+    return local ? W.titleCase(local) : '';
+  };
+
+  /* Monogram for an avatar chip: initials of the first two words. A single word
+     gives a single letter on purpose — two letters of "Northline" is "NO",
+     which reads as the word rather than as initials. Never empty. */
+  W.monogram = function (text) {
+    var words = String(text || '').trim().split(/[\s.\-_]+/).filter(Boolean);
+    if (!words.length) return 'W';
+    if (words.length === 1) return words[0].charAt(0).toUpperCase();
+    return (words[0].charAt(0) + words[1].charAt(0)).toUpperCase();
+  };
 })(window);

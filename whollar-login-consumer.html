@@ -275,32 +275,16 @@ function toast(msg){
    "front end only" string. */
 function mock(label){ toast(label + ' sign-in isn\u2019t connected yet \u2014 use your email below.'); }
 
-function tidy(s){ return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase(); }
-function firstNameFrom(email, given){
-  if (given && given.trim()) return tidy(given.trim());
-  var local = (String(email).split('@')[0] || '').split(/[._\-+0-9]/)[0] || '';
-  return local ? tidy(local) : '';
-}
-
-/* Where to land after "signing in". Only ever a same-origin path — validating
-   this is what stops ?next= becoming an open redirect the moment it exists. */
+/* Name derivation and the ?next= same-origin check live in the shared core:
+   the partner sign-in needs both, and two copies of an open-redirect guard is
+   one copy that gets fixed. */
 function nextTarget(){
-  var raw=new URLSearchParams(location.search).get('next');
-  if(!raw) return '/dashboard';
-  try{
-    var u=new URL(raw, location.origin);
-    if(u.origin!==location.origin) return '/dashboard';
-    if(!/^\/[^/\\]/.test(u.pathname)) return '/dashboard'; /* reject //evil.com and \\evil.com */
-    return u.pathname+u.search+u.hash;
-  }catch(e){ return '/dashboard'; }
+  return W.safeNext(new URLSearchParams(location.search).get('next'), '/dashboard');
 }
 
 /* Already signed in? Don't strand the visitor on a form they don't need. */
 (function(){
-  try{
-    var m=JSON.parse(localStorage.getItem('whollar.member'));
-    if(m&&m.email) location.replace(nextTarget());
-  }catch(e){}
+  if(W.member.read()) location.replace(nextTarget());
 })();
 
 /* Postal code: uppercase + space as you type, validated against the real
@@ -344,7 +328,7 @@ document.getElementById('entry-form').addEventListener('submit',function(e){
 
   var email=em.value.trim();
   var member={
-    firstName: firstNameFrom(email, document.getElementById('fname').value),
+    firstName: W.firstNameFrom(email, document.getElementById('fname').value),
     email: email,
     /* Stored lowercase so a later CRM lookup can't treat Genie@x.com and
        genie@x.com as two people. */
@@ -354,7 +338,7 @@ document.getElementById('entry-form').addEventListener('submit',function(e){
     province: postal?postal.province:null,
     provinceCode: postal?postal.provinceCode:null
   };
-  try{ localStorage.setItem('whollar.member', JSON.stringify(member)); }catch(err){}
+  W.member.write(member);
   location.href=nextTarget();
 });
 </script>
