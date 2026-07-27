@@ -1,0 +1,1290 @@
+<!doctype html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Whollar · Partner console v3 (prototype)</title>
+<!-- Signed-in surface running on demo data behind a client-side-only guard.
+     Nothing here should be indexed. -->
+<meta name="robots" content="noindex,nofollow">
+<meta name="description" content="Whollar partner console prototype: activation, bid desk, sealed bids, acquisition, completion-based billing. Demo data.">
+<script src="/js/whollar-core.js"></script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='18' y1='14' x2='102' y2='106' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%230E2A20'/%3E%3Cstop offset='1' stop-color='%231E9E63'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='6' y='6' width='108' height='108' rx='32' fill='url(%23g)'/%3E%3Cpath d='M34 42h52M34 42l26 38M86 42l-26 38' stroke='%23fff' stroke-width='5' stroke-linecap='round' stroke-linejoin='round' opacity='.85'/%3E%3Ccircle cx='34' cy='42' r='11' fill='%23fff'/%3E%3Ccircle cx='86' cy='42' r='11' fill='%23fff'/%3E%3Ccircle cx='60' cy='80' r='11' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#17211B; --forest:#12372B; --forest2:#1E5741; --gold:#C29B3C; --gold-deep:#A8842B;
+  --gold-soft:#F5EAD2; --tint:#E3EDE6; --tintb:#CBDCCE; --paper:#F1EDE2; --card:#FCFAF5;
+  --line:#E1DBCB; --sub:#5B655C; --win:#1E5741; --lose:#8C4622; --lose-soft:#F2E3D6;
+  --disp:'Bricolage Grotesque',system-ui,sans-serif; --body:'Inter',system-ui,sans-serif;
+  --mono:'Space Mono',ui-monospace,monospace; --panew:264px; --panec:78px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--body);background:var(--paper);color:var(--ink);font-size:14.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+a{color:var(--forest2);text-decoration:none}
+:focus-visible{outline:2.5px solid var(--gold);outline-offset:2px;border-radius:8px}
+h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
+.mono{font-family:var(--mono)}
+
+/* frame */
+.app{display:grid;grid-template-columns:var(--panew) 1fr;min-height:100vh;transition:grid-template-columns .28s ease}
+.app.collapsed{grid-template-columns:var(--panec) 1fr}
+.pane{background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow:hidden}
+.pane__top{display:flex;align-items:center;gap:10px;padding:18px 18px 8px}
+.pane__top svg{width:36px;height:36px;flex:none}
+.pane__top b{font-family:var(--disp);font-weight:800;font-size:20px;white-space:nowrap}
+.roompill{margin:0 18px 10px;align-self:flex-start;font-size:11.5px;font-weight:700;color:var(--gold-deep);background:var(--gold-soft);border:1px solid #E8D6A8;border-radius:999px;padding:3px 11px;white-space:nowrap}
+.pnav{display:flex;flex-direction:column;gap:4px;padding:4px 12px;flex:1}
+.pnav button{display:flex;align-items:center;gap:12px;padding:10px 13px;border-radius:12px;font-size:14px;font-weight:600;color:#3A453E;text-align:left;white-space:nowrap;transition:background .15s}
+.pnav button svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.pnav button:hover{background:#EDE8DB}
+.pnav button.on{background:var(--tint);color:var(--forest2);box-shadow:inset 3px 0 0 var(--gold)}
+.pane__prof{display:flex;align-items:center;gap:10px;margin:8px 12px 14px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--card);text-align:left;transition:background .15s}
+.pane__prof:hover{background:#EDE8DB}
+.pane__prof.on{background:var(--tint);border-color:var(--tintb)}
+.ava2{width:34px;height:34px;border-radius:10px;background:linear-gradient(140deg,var(--forest),var(--forest2));color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700;font-family:var(--disp);flex:none}
+.pp{flex:1;min-width:0}
+.pp b{display:block;font-size:13.5px;font-family:var(--disp);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp small{font-size:11px;color:var(--gold-deep);font-weight:700}
+.chev{width:15px;height:15px;stroke:#949E95;fill:none;stroke-width:2;flex:none}
+.app.collapsed .pane__top b,.app.collapsed .pnav button span,.app.collapsed .roompill{display:none}
+.app.collapsed .pnav button{justify-content:center;padding:11px 0}
+.app.collapsed .pane__prof{justify-content:center;padding:10px 0;border:0;background:none;margin:8px 6px 12px}
+.app.collapsed .pane__prof .pp,.app.collapsed .pane__prof .chev{display:none}
+.overlay{display:none}
+.top{display:flex;align-items:center;gap:16px;padding:13px clamp(16px,3vw,30px);background:rgba(241,237,226,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30}
+.burger{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:#3A453E}
+.burger:hover{background:#EDE8DB}
+.burger svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.greet{font-family:var(--disp);font-weight:800;font-size:clamp(16px,2.1vw,20px);white-space:nowrap}
+.greet small{display:block;font-family:var(--body);font-weight:600;font-size:11.5px;color:var(--sub)}
+.search{flex:1;max-width:480px;margin-left:auto;position:relative;min-width:0}
+.search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:16px;height:16px;stroke:#949E95;fill:none;stroke-width:2;stroke-linecap:round}
+.search input{width:100%;min-width:0;font:inherit;font-size:13.5px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:9px 14px 9px 38px}
+.search input:focus{outline:none;border-color:var(--gold)}
+.ava{width:38px;height:38px;border-radius:50%;background:linear-gradient(140deg,var(--forest),var(--forest2));color:#fff;display:grid;place-items:center;font-size:13px;font-weight:700;font-family:var(--disp);flex:none}
+.main{min-width:0}
+.content{padding:clamp(18px,2.6vw,28px);max-width:1200px;width:100%;margin:0 auto}
+.view{display:none}
+.view.on{display:block}
+.vhead{margin-bottom:16px}
+.vhead h2{font-size:clamp(21px,2.7vw,26px);font-weight:800}
+.vhead p{color:var(--sub);font-size:13.5px;margin-top:2px}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.view.on .card{animation:rise .45s ease both}
+
+/* cards */
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:clamp(16px,2.3vw,22px);box-shadow:0 1px 2px rgba(23,33,27,.04),0 8px 24px rgba(23,33,27,.05)}
+.eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--forest2)}
+.eyebrow.gld{color:var(--gold-deep)}
+.card h3{font-size:16.5px;font-weight:750;margin:2px 0 4px}
+.cardnote{font-size:13px;color:var(--sub)}
+.grid2{display:grid;grid-template-columns:1.62fr 1fr;gap:18px;align-items:start}
+.grid2>*{min-width:0}
+.aside{display:flex;flex-direction:column;gap:16px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:18px}
+.mt{padding:16px 18px}
+.mt .n{font-family:var(--mono);font-size:clamp(23px,3vw,30px);font-weight:700;line-height:1.05;display:block;margin:4px 0 2px}
+.mt .n em{font-style:normal;font-size:13px;color:var(--sub)}
+.mt .l{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--sub)}
+.mt .s{font-size:12px;color:var(--sub)}
+.mt.hero{background:var(--forest);border-color:var(--forest);color:#EAF2EC}
+.mt.hero .l,.mt.hero .s,.mt.hero .n em{color:#BFD6C6}
+.mt.hero .n{color:#fff}
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--gold);color:#231A05;font-weight:700;font-size:13.5px;border-radius:11px;padding:10px 17px;transition:background .2s,transform .12s;box-shadow:0 2px 8px rgba(194,155,60,.3)}
+.btn:hover{background:var(--gold-deep);color:#fff}
+.btn:active{transform:translateY(1px)}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid #C9C3B2;box-shadow:none}
+.btn.ghost:hover{background:#EDE8DB}
+.btn.forest{background:var(--forest);color:#fff;box-shadow:none}
+.btn.forest:hover{background:#0D2A20}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.tlink{font-size:13px;font-weight:650;color:var(--forest2)}
+.fnote{font-size:12px;color:var(--sub);margin-top:9px}
+
+/* activation checklist */
+.tasks{margin-top:12px;display:flex;flex-direction:column}
+.task{display:flex;align-items:center;gap:13px;padding:12px 4px;border-bottom:1px dashed var(--line)}
+.task:last-child{border-bottom:0}
+.task i{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;flex:none;border:2.5px solid var(--line);color:#949E95;background:#fff}
+.task.dn i{background:var(--forest2);border-color:var(--forest2);color:#fff}
+.task .tt{flex:1;min-width:0}
+.task .tt b{display:block;font-size:14px}
+.task .tt small{font-size:12px;color:var(--sub)}
+.task.dn .tt b{color:var(--sub);text-decoration:line-through;text-decoration-thickness:1.5px}
+.task .tlink{white-space:nowrap}
+.pbar{height:8px;background:#E7E2D3;border-radius:5px;overflow:hidden;margin-top:12px}
+.pbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--forest2),var(--gold));border-radius:5px;transition:width .5s ease}
+.pline{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-top:6px}
+.pline b{font-family:var(--mono);color:var(--ink)}
+
+/* how it works */
+.how{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.how .h{display:flex;gap:12px;align-items:flex-start;font-size:13px;color:#3A453E}
+.how .h i{width:24px;height:24px;flex:none;border-radius:8px;background:var(--tint);color:var(--forest2);display:grid;place-items:center;font-family:var(--mono);font-size:12px;font-weight:700}
+.how .h b{color:var(--ink)}
+
+/* agenda */
+.agenda{display:flex;flex-direction:column}
+.ag{display:flex;gap:13px;align-items:center;padding:11px 2px;border-bottom:1px dashed var(--line)}
+.ag:last-child{border-bottom:0}
+.ag .d{width:46px;flex:none;text-align:center;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:5px 0}
+.ag .d b{display:block;font-family:var(--mono);font-size:15px;line-height:1.1}
+.ag .d span{font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--sub)}
+.ag .d.today{background:var(--gold-soft);border-color:#E8D6A8}
+.ag .d.today b{color:var(--gold-deep)}
+.ag .t{flex:1;min-width:0;font-size:13px}
+.ag .t b{display:block;font-size:13.5px}
+.ag .t small{color:var(--sub);font-size:12px}
+.ag .cdchip{margin-left:auto}
+.cdchip{font-family:var(--mono);font-size:11.5px;color:var(--gold-deep);background:var(--gold-soft);border:1px solid #E8D6A8;border-radius:8px;padding:4px 9px;white-space:nowrap}
+
+/* bid desk table */
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--sub);text-align:left;padding:9px 10px;border-bottom:1.5px solid var(--line);white-space:nowrap}
+.tbl td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tbody tr:hover td{background:#F6F2E7}
+.tbl .num{font-family:var(--mono);white-space:nowrap}
+.twrap{overflow-x:auto}
+.rg{font-family:var(--disp);font-weight:750;font-size:14px;white-space:nowrap}
+.rg small{display:block;font-family:var(--body);font-weight:500;font-size:11.5px;color:var(--sub)}
+.minirail{display:flex;align-items:center;gap:0;min-width:118px}
+.mr{width:9px;height:9px;border-radius:50%;background:#fff;border:2px solid var(--line);flex:none}
+.mrl{flex:1;height:2px;background:var(--line);min-width:8px}
+.mr.past{background:var(--forest2);border-color:var(--forest2)}
+.mrl.past{background:var(--forest2)}
+.mr.now{border-color:var(--gold);background:var(--gold-soft);box-shadow:0 0 0 3px rgba(194,155,60,.2)}
+.stlbl{font-size:10.5px;font-weight:700;color:var(--sub);margin-top:5px;letter-spacing:.03em}
+.stlbl.hot{color:var(--gold-deep)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;border-radius:999px;padding:4px 11px;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.sealed{background:var(--forest);color:#EAF2EC}
+.pill.won{background:var(--tint);color:var(--win)}
+.pill.lost{background:var(--lose-soft);color:var(--lose)}
+.pill.pending{background:var(--gold-soft);color:var(--gold-deep)}
+.pill.paid{background:var(--tint);color:var(--win)}
+.pill.due{background:var(--gold-soft);color:var(--gold-deep)}
+.closecell{font-family:var(--mono);font-size:12px;white-space:nowrap}
+.closecell.hot{color:var(--gold-deep);font-weight:700}
+
+/* bid ticket drawer */
+.dwr{display:none}
+tr.exp + tr.dwr{display:table-row}
+.dwr>td{background:#F8F5EC;padding:0;border-bottom:1.5px solid var(--line)}
+.dgrid{display:grid;grid-template-columns:1.1fr 1fr;gap:0}
+.dgrid>*{min-width:0;padding:18px 20px}
+.brief{border-right:1px solid var(--line)}
+.dh{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--sub);margin-bottom:10px}
+.dl{display:flex;flex-direction:column}
+.dl .r{display:flex;gap:12px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.dl .r:last-child{border-bottom:0}
+.dl .r span{width:130px;flex:none;color:var(--sub);font-size:12px}
+.dl .r b{font-family:var(--mono);font-weight:700;font-size:12.5px}
+.mixin{flex:1;display:flex;gap:4px;align-items:center;min-width:0}
+.mixin i{height:8px;border-radius:4px;background:var(--forest2);display:block}
+.mixin i:nth-child(2){opacity:.65}
+.mixin i:nth-child(3){opacity:.35}
+.mixin em{font-style:normal;font-family:var(--mono);font-size:10.5px;color:var(--sub);white-space:nowrap;margin-left:4px}
+.tkt .steps{display:flex;gap:8px;margin-bottom:12px}
+.tkt .steps span{font-size:11px;font-weight:700;color:var(--sub)}
+.tkt .steps span.on{color:var(--gold-deep)}
+.tkt .steps i{flex:1;height:2px;background:var(--line);align-self:center}
+.bidform label{font-size:11.5px;font-weight:700;color:var(--sub);display:block;margin:9px 0 4px}
+.bidform input[type=number],.bidform select{width:100%;font-family:var(--mono);font-size:13.5px;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:8px 11px}
+.bidform input:focus,.bidform select:focus{outline:none;border-color:var(--gold)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pk{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}
+.pk label{display:inline-flex;align-items:center;gap:7px;border:1.5px solid var(--line);border-radius:999px;padding:5px 12px;font-size:11.5px;font-weight:600;color:#3A453E;margin:0;cursor:pointer;background:#fff}
+.pk input{accent-color:var(--forest2)}
+.range{display:flex;align-items:center;gap:10px;margin-top:4px}
+.range input{flex:1;accent-color:var(--gold)}
+.range b{font-family:var(--mono);font-size:13px;width:44px;text-align:right}
+.tsum{margin-top:14px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:11px 14px;font-family:var(--mono);font-size:12.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tsum b{color:var(--forest)}
+.scn{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}
+.scn th{font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--sub);text-align:right;padding:5px 7px;border-bottom:1px solid var(--line)}
+.scn th:first-child,.scn td:first-child{text-align:left}
+.scn td{font-family:var(--mono);text-align:right;padding:6px 7px;border-bottom:1px dashed var(--line)}
+.scn tr:last-child td{border-bottom:0}
+.consent{display:flex;gap:10px;align-items:flex-start;font-size:12px;color:#3A453E;margin:13px 0 10px;max-width:60ch}
+.consent input{width:16px;height:16px;accent-color:var(--gold);margin-top:2px;flex:none}
+.receipt{background:var(--tint);border:1px solid var(--tintb);border-radius:12px;padding:13px 15px;font-size:13px;color:#173D2E}
+.receipt b{font-family:var(--mono)}
+
+/* empty states + ghost */
+.empty{text-align:center;padding:clamp(30px,5vw,52px) 20px}
+.empty svg{width:64px;height:64px;margin-bottom:12px}
+.empty h3{font-size:19px;font-weight:750;margin-bottom:6px}
+.empty p{color:var(--sub);font-size:13.5px;max-width:48ch;margin:0 auto 16px}
+.ghostwrap{position:relative;margin-top:14px}
+.ghostwrap>.ghost{opacity:.22;filter:grayscale(.3);pointer-events:none}
+.ghostlbl{position:absolute;inset:0;display:grid;place-items:center}
+.ghostlbl span{background:var(--card);border:1.5px dashed #C9C3B2;border-radius:999px;padding:7px 16px;font-size:12px;font-weight:700;color:var(--sub)}
+
+/* charts */
+.chart svg{width:100%;height:auto;display:block}
+.bar{fill:var(--forest2);opacity:.85}
+.bar.now{fill:var(--gold)}
+.axis{font-family:var(--mono);font-size:9px;fill:#949E95}
+.bval{font-family:var(--mono);font-size:9.5px;fill:var(--forest);font-weight:700}
+.funnel{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}
+.fstep{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 12px;text-align:center}
+.fstep b{display:block;font-family:var(--mono);font-size:18px}
+.fstep span{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--sub)}
+.fstep.hot{background:var(--tint);border-color:var(--tintb)}
+.fstep.hot b{color:var(--win)}
+
+/* coverage table */
+.covdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--forest2);margin-right:7px}
+.covdot.pend{background:var(--gold)}
+.addrow td{background:#F8F5EC}
+.addrow input{width:100%;font:inherit;font-size:13px;background:#fff;border:1.5px solid var(--line);border-radius:9px;padding:8px 11px}
+.addrow input:focus{outline:none;border-color:var(--gold)}
+
+/* feed, toggles, account */
+.feed ul{list-style:none;display:flex;flex-direction:column}
+.feed li{position:relative;padding:0 0 12px 20px;font-size:13px;color:#3A453E}
+.feed li::before{content:"";position:absolute;left:4px;top:7px;width:8px;height:8px;border-radius:50%;background:var(--gold)}
+.feed li::after{content:"";position:absolute;left:7.5px;top:17px;bottom:-2px;width:1.5px;background:var(--line)}
+.feed li:last-child::after{display:none}
+.feed .when{font-family:var(--mono);font-size:10.5px;color:var(--sub);display:block}
+.tog{display:flex;align-items:center;gap:11px;padding:8px 0;font-size:13px;color:#3A453E;cursor:pointer;position:relative}
+.tog input{position:absolute;opacity:0;pointer-events:none}
+.tog i{width:36px;height:21px;border-radius:999px;background:#D9D2BF;position:relative;flex:none;transition:background .2s}
+.tog i::after{content:"";position:absolute;top:3px;left:3px;width:15px;height:15px;border-radius:50%;background:#FCFAF5;transition:left .2s;box-shadow:0 1px 3px rgba(23,33,27,.25)}
+.tog input:checked + i{background:var(--forest2)}
+.tog input:checked + i::after{left:18px}
+.pi{list-style:none;margin-top:10px;display:flex;flex-direction:column}
+.pi li{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line);font-size:13.5px}
+.pi span{color:var(--sub);width:104px;flex:none;font-size:12.5px}
+.pi b{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pi .tlink{margin-left:auto}
+
+/* toast, controls */
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--forest);color:#fff;font-size:13px;font-weight:600;border-radius:12px;padding:11px 18px;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:70}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.ctl-t{position:fixed;right:20px;bottom:20px;z-index:60;background:var(--forest);color:#fff;font-weight:650;font-size:13px;border-radius:999px;padding:11px 18px;box-shadow:0 8px 24px rgba(18,55,43,.3)}
+.ctl{position:fixed;right:20px;bottom:70px;z-index:60;width:262px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 16px 40px rgba(18,55,43,.18);display:none}
+.ctl.open{display:block}
+.ctl h5{font-family:var(--disp);font-size:13.5px;margin-bottom:2px}
+.ctl .demo{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gold-deep);background:var(--gold-soft);border-radius:6px;padding:2px 7px;display:inline-block;margin-bottom:10px}
+.ctl label{font-size:12px;font-weight:700;color:var(--sub);display:block;margin-bottom:4px}
+.ctl .seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px}
+.ctl .seg button{font-size:12px;font-weight:600;border:1.5px solid var(--line);border-radius:8px;padding:6px 4px;color:#3A453E}
+.ctl .seg button.on{background:var(--tint);border-color:var(--forest2);color:var(--forest2)}
+.ctl input{width:100%;font-family:var(--mono);font-size:14px;border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:10px}
+.ctl input:focus{outline:none;border-color:var(--gold)}
+.ctl .cbtn{display:block;width:100%;text-align:left;font-size:12.5px;font-weight:600;border:1.5px solid var(--line);border-radius:8px;padding:7px 10px;margin-bottom:8px;color:#3A453E}
+.ctl .cbtn:hover{background:#EDE8DB}
+.ctl .rst{font-size:12px;color:var(--sub);font-weight:600;text-decoration:underline}
+
+.drop{position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 14px 34px rgba(18,55,43,.14);display:none;z-index:40;overflow:hidden}
+.drop.open{display:block}
+.drop button{display:flex;width:100%;text-align:left;gap:10px;align-items:center;padding:10px 14px;font-size:13px;border-bottom:1px dashed var(--line)}
+.drop button:last-child{border-bottom:0}
+.drop button:hover{background:#F6F2E7}
+.drop .st{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--sub)}
+.ag{cursor:pointer}
+.ag:hover .t b{color:var(--forest2)}
+.planhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.plan{max-width:780px}
+.pl{position:relative;padding:0 0 20px 36px}
+.pl::before{content:"";position:absolute;left:11px;top:24px;bottom:-2px;width:2px;background:var(--line)}
+.pl:last-child::before{display:none}
+.pl i{position:absolute;left:0;top:1px;width:23px;height:23px;border-radius:50%;border:2.5px solid var(--line);background:#fff;display:grid;place-items:center;font-size:10.5px;font-weight:800;color:#949E95;font-family:var(--mono)}
+.pl.dn i{background:var(--forest2);border-color:var(--forest2);color:#fff}
+.pl.now i{border-color:var(--gold);background:var(--gold-soft);color:var(--gold-deep)}
+.pl b{display:block;font-size:14.5px;font-family:var(--disp)}
+.pl.now b{color:var(--gold-deep)}
+.pl .pd{font-family:var(--mono);font-size:11px;color:var(--sub)}
+.pl p{font-size:12.5px;color:var(--sub);margin-top:2px;max-width:58ch}
+.covsvc{font-size:12px;color:var(--sub)}
+.covedit td{background:#F8F5EC}
+.cechips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.cechips button{border:1.5px solid var(--line);border-radius:999px;padding:5px 11px;font-size:11.5px;font-weight:600;background:#fff;color:#3A453E}
+.cechips button.on{background:var(--tint);border-color:var(--forest2);color:var(--forest2)}
+.ceform{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;max-width:560px}
+.ceform label{font-size:11px;font-weight:700;color:var(--sub);display:block;margin-bottom:4px}
+.ceform select{width:100%;font:inherit;font-size:13px;background:#fff;border:1.5px solid var(--line);border-radius:9px;padding:8px 10px}
+.locked td{opacity:.55}
+.lockedtag{font-size:11px;font-weight:700;color:var(--gold-deep)}
+@media (max-width:940px){
+  .app,.app.collapsed{grid-template-columns:1fr}
+  .pane{position:fixed;left:0;top:0;bottom:0;width:min(78vw,300px);z-index:80;transform:translateX(-102%);transition:transform .28s ease;box-shadow:14px 0 40px rgba(18,55,43,.18)}
+  .app.paneopen .pane{transform:translateX(0)}
+  .app.collapsed .pane__top b,.app.collapsed .pnav button span,.app.collapsed .roompill{display:initial}
+  .app.collapsed .pnav button{justify-content:flex-start;padding:10px 13px}
+  .app.collapsed .pane__prof{justify-content:flex-start;padding:10px 12px;border:1px solid var(--line);background:var(--card);margin:8px 12px 14px}
+  .app.collapsed .pane__prof .pp,.app.collapsed .pane__prof .chev{display:initial}
+  .overlay{display:block;position:fixed;inset:0;background:rgba(18,55,43,.4);z-index:75;opacity:0;pointer-events:none;transition:opacity .25s}
+  .app.paneopen .overlay{opacity:1;pointer-events:auto}
+  .greet{display:none}
+  .grid2{grid-template-columns:1fr}
+  .dgrid{grid-template-columns:1fr}
+  .brief{border-right:0;border-bottom:1px solid var(--line)}
+  .funnel{grid-template-columns:repeat(2,1fr)}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <aside class="pane" aria-label="Navigation">
+    <div class="pane__top">
+      <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
+      <b>Whollar</b>
+    </div>
+    <span class="roompill">Partner console</span>
+    <nav class="pnav" id="pnav">
+      <button type="button" data-view="overview" class="on"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/></svg><span>Overview</span></button>
+      <button type="button" data-view="desk"><svg viewBox="0 0 24 24"><path d="M13 3 5 13h6l-1 8 8-10h-6Z"/></svg><span>Bid desk</span></button>
+      <button type="button" data-view="bids"><svg viewBox="0 0 24 24"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2Z"/><path d="M9 8h6M9 12h6"/></svg><span>My bids</span></button>
+      <button type="button" data-view="acq"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg><span>Acquisition</span></button>
+      <button type="button" data-view="billing"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M7 15h4"/></svg><span>Billing</span></button>
+      <button type="button" data-view="coverage"><svg viewBox="0 0 24 24"><path d="m9 20-6-2V4l6 2 6-2 6 2v14l-6-2-6 2Z"/><path d="M9 6v14M15 4v14"/></svg><span>Coverage</span></button>
+    </nav>
+    <button class="pane__prof" type="button" data-nav="account" id="paneprof" aria-label="Account">
+      <!-- Every name, monogram and email on this page is written by paintPartner()
+           from the signed-in record. The text below is only what shows if that
+           script never runs. -->
+      <span class="ava2" id="orgmono">W</span>
+      <span class="pp"><b id="pp-org">Your company</b><small id="pp-role">Partner</small></span>
+      <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+    </button>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+
+  <div class="main">
+    <header class="top">
+      <button class="burger" id="burger" type="button" aria-label="Toggle navigation pane" aria-expanded="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <span class="greet" id="greet">Good morning<small id="greetsub">Southwestern Ontario</small></span>
+      <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search campaigns and regions" aria-label="Search campaigns" autocomplete="off"><div class="drop" id="qdrop"></div></div>
+      <button class="ava" type="button" data-nav="account" aria-label="Account" id="usermono">W</button>
+    </header>
+
+    <div class="content">
+
+      <!-- ============ overview ============ -->
+      <section class="view on" data-v="overview">
+        <div id="ov-day1">
+          <div class="vhead"><h2>Let's get you to your first cohort.</h2><p id="ov-sub"></p></div>
+          <div class="grid2">
+            <div>
+              <section class="card" aria-label="Activation">
+                <span class="eyebrow gld">Getting started</span>
+                <h3>Four steps to your first sealed bid</h3>
+                <div class="tasks" id="tasks"></div>
+                <div class="pbar"><i id="pfill"></i></div>
+                <div class="pline"><span>Setup progress</span><b id="plabel">1 of 4</b></div>
+              </section>
+              <section class="card" style="margin-top:16px" aria-label="This week">
+                <span class="eyebrow">This week</span>
+                <h3>Auction calendar</h3>
+                <div class="agenda" id="agenda1"></div>
+              </section>
+            </div>
+            <aside class="aside">
+              <section class="card" aria-label="How auctions work">
+                <span class="eyebrow">How auctions work</span>
+                <h3>Three rules, no surprises</h3>
+                <div class="how">
+                  <div class="h"><i>1</i><span><b>Sealed.</b> One best number by the deadline.</span></div>
+                  <div class="h"><i>2</i><span><b>Binding until the deadline.</b> Improve any time before close; no withdrawals after sealing.</span></div>
+                  <div class="h"><i>3</i><span><b>Pay on completion.</b> Confirmed households set your volume tiers; the invoice is live connections only.</span></div>
+                </div>
+              </section>
+              <section class="card" aria-label="Closing soon">
+                <span class="eyebrow gld" id="cs-eb">Closing today</span>
+                <h3 id="cs-title"></h3>
+                <p class="cardnote" id="cs-line"></p>
+                <button class="btn" type="button" data-nav="desk" style="margin-top:12px">Open the bid desk</button>
+              </section>
+            </aside>
+          </div>
+        </div>
+
+        <div id="ov-motion" style="display:none">
+          <div class="tiles">
+            <div class="card mt hero"><span class="l">Households acquired &middot; July</span><span class="n">24</span><span class="s">completed switches this month</span></div>
+            <div class="card mt"><span class="l">Acquisition cost</span><span class="n" id="m-cac">$95<em>/household</em></span><span class="s">vs $300 to $600 typical replacement cost</span></div>
+            <div class="card mt"><span class="l">Win rate</span><span class="n">3 of 6</span><span class="s">auctions won, all time</span></div>
+            <div class="card mt"><span class="l">Open in your coverage</span><span class="n">3</span><span class="s">auctions accepting bids now</span></div>
+          </div>
+          <div class="grid2">
+            <div>
+              <section class="card" aria-label="Monthly acquisition">
+                <span class="eyebrow">Monthly acquisition</span>
+                <h3>Completed switches, last 12 months</h3>
+                <div class="chart" id="chart-months"></div>
+                <p class="fnote">Gold bar is the current month, still accruing. A switch counts when the household's new connection is live.</p>
+              </section>
+              <section class="card" style="margin-top:16px" aria-label="Your funnel">
+                <span class="eyebrow">All time</span>
+                <h3>From coverage to completed</h3>
+                <div class="funnel" id="funnel"></div>
+                <p class="fnote">Confirmed households set your volume tiers. Completed switches are what you're invoiced for.</p>
+              </section>
+            </div>
+            <aside class="aside">
+              <section class="card" aria-label="This week">
+                <span class="eyebrow">This week</span>
+                <h3>Auction calendar</h3>
+                <div class="agenda" id="agenda2"></div>
+              </section>
+              <section class="card feed" aria-label="Activity">
+                <span class="eyebrow">Activity</span>
+                <ul id="feed"></ul>
+              </section>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ bid desk ============ -->
+      <section class="view" data-v="desk">
+        <div class="vhead"><h2>Bid desk</h2><p>Every auction in your coverage, its stage, and its clock.</p></div>
+        <section class="card" style="padding-top:14px">
+          <div class="twrap">
+          <table class="tbl" aria-label="Open auctions">
+            <thead><tr><th>Cohort</th><th class="num">Households</th><th>Stage</th><th>Window</th><th>Your bid</th><th></th></tr></thead>
+            <tbody id="deskrows"></tbody>
+          </table>
+          </div>
+          <p class="fnote">You see an auction because it sits inside your declared coverage.</p>
+        </section>
+        <section class="card" style="margin-top:16px" aria-label="Planned campaigns">
+          <span class="eyebrow">Planned in your coverage</span>
+          <h3>Coming cohorts</h3>
+          <div class="twrap">
+          <table class="tbl">
+            <thead><tr><th>Cohort</th><th class="num">Expected bidding</th><th>Status</th><th></th></tr></thead>
+            <tbody id="planrows"></tbody>
+          </table>
+          </div>
+          <p class="fnote">Expected dates are estimates; they firm up the day a cohort locks and is announced.</p>
+        </section>
+      </section>
+
+      <!-- ============ campaign plan ============ -->
+      <section class="view" data-v="plan">
+        <div class="vhead"><button class="tlink" type="button" data-nav="desk">&larr; Bid desk</button></div>
+        <div id="plan-body"></div>
+      </section>
+
+      <!-- ============ my bids ============ -->
+      <section class="view" data-v="bids">
+        <div class="vhead"><h2>My bids</h2><p>Every bid on record, with what it turned into.</p></div>
+        <section class="card" id="bidscard"></section>
+      </section>
+
+      <!-- ============ acquisition ============ -->
+      <section class="view" data-v="acq">
+        <div class="vhead"><h2>Acquisition</h2><p>What the auctions deliver, month by month and region by region.</p></div>
+        <div id="acqbody"></div>
+      </section>
+
+      <!-- ============ billing ============ -->
+      <section class="view" data-v="billing">
+        <div class="vhead"><h2>Billing</h2><p>Households, not leads: a success fee when a switch completes, and only then.</p></div>
+        <div class="grid2">
+          <div>
+            <section class="card" aria-label="How billing works">
+              <span class="eyebrow">The model</span>
+              <h3>Pay per delivered household</h3>
+              <p class="cardnote">Confirmed counts set your volume tiers and sharpen your bids. The invoice line is the completed switch: a live connection at the cohort rate. Fees accrue at completion and invoice monthly, with a 14 day reconciliation window.</p>
+              <div class="receipt" style="margin-top:12px" id="b-cycle"></div>
+            </section>
+            <section class="card" style="margin-top:16px" aria-label="Invoices" id="invcard"></section>
+          </div>
+          <aside class="aside">
+            <section class="card" aria-label="Payment method" id="paycard"></section>
+            <section class="card" aria-label="Reconciliation">
+              <span class="eyebrow">Reconciliation</span>
+              <h3>Dispute a line, keep it simple</h3>
+              <p class="cardnote">Every invoice line names a completion date and an anonymized household reference. Flag any line within 14 days and it holds out of the total until resolved.</p>
+            </section>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ============ coverage ============ -->
+      <section class="view" data-v="coverage">
+        <div class="vhead"><h2>Coverage</h2><p>Declare where you want to bid and what you can render there. Your declarations decide which auctions reach your desk.</p></div>
+        <div class="grid2">
+          <section class="card" style="padding-top:14px" aria-label="Your regions">
+            <div class="twrap">
+            <table class="tbl">
+              <thead><tr><th>Region</th><th>Status</th><th>Services declared</th><th class="num">Open</th><th></th></tr></thead>
+              <tbody id="covrows"></tbody>
+            </table>
+            </div>
+            <p class="fnote">State the areas you want to bid in and the services you can render there. New regions verify against serviceability before auctions appear.</p>
+          </section>
+          <aside class="aside">
+            <section class="card" aria-label="Auction alerts">
+              <span class="eyebrow">Auction alerts</span>
+              <h3>When cohorts move</h3>
+              <label class="tog"><input type="checkbox" checked><i></i><span>New cohort forming in my coverage</span></label>
+              <label class="tog"><input type="checkbox" checked><i></i><span>Bidding opens</span></label>
+              <label class="tog"><input type="checkbox" checked><i></i><span>Closing in 24 hours and I haven't bid</span></label>
+              <label class="tog"><input type="checkbox"><i></i><span>Results, win or lose</span></label>
+            </section>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ============ account ============ -->
+      <section class="view" data-v="account">
+        <div class="vhead"><h2>Account</h2><p id="acct-sub">Your company</p></div>
+        <div class="grid2">
+          <section class="card" aria-label="Organization">
+            <span class="eyebrow">Organization</span>
+            <ul class="pi">
+              <li><span>Legal name</span><b id="acct-org">Your company</b><button class="tlink" type="button" data-edit="org">Edit</button></li>
+              <!-- The account email, not a demo address: a partner who cannot
+                   see which login they are in cannot tell two accounts apart. -->
+              <li><span>Sign-in email</span><b id="acct-email">&mdash;</b><button class="tlink" type="button" data-edit="bemail">Edit</button></li>
+              <li><span>Bid authority</span><b id="acct-auth">&mdash;</b><button class="tlink" type="button" data-edit="auth">Edit</button></li>
+              <li><span>Team</span><b id="acct-team">&mdash;</b><button class="tlink" type="button" data-edit="team">Manage</button></li>
+            </ul>
+            <button class="tlink" type="button" id="signout" style="margin-top:12px">Sign out</button>
+          </section>
+          <aside class="aside">
+            <section class="card" aria-label="Service capability">
+              <span class="eyebrow">Service capability</span>
+              <h3>What you can render</h3>
+              <ul class="pi">
+                <li><span>Technologies</span><b>Fibre &middot; Cable &middot; Fixed wireless</b></li>
+                <li><span>Top speed</span><b>1 Gig</b></li>
+                <li><span>Install lead</span><b>5 to 10 business days</b></li>
+                <li><span>Regions</span><b id="capregs"></b><button class="tlink" type="button" data-nav="coverage">Manage</button></li>
+              </ul>
+            </section>
+            <section class="card" aria-label="Your Whollar contact">
+              <span class="eyebrow">Your Whollar contact</span>
+              <h3>A person, not a queue</h3>
+              <p class="cardnote">Auction briefs, coverage verification, invoice questions. Weekdays, usually within the hour.</p>
+              <button class="tlink" type="button" id="c-mail">Email us &rarr;</button>
+            </section>
+          </aside>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+<button class="ctl-t" type="button" id="ctl-toggle" aria-expanded="false" aria-controls="ctl">Prototype controls</button>
+<div class="ctl" id="ctl" aria-label="Prototype controls">
+  <h5>Prototype controls</h5>
+  <span class="demo">Demo data</span>
+  <label>Partner stage</label>
+  <div class="seg" id="stageseg">
+    <button type="button" data-stage="day1" class="on">Day one</button>
+    <button type="button" data-stage="motion">In motion</button>
+  </div>
+  <label for="cfg-fee">Success fee ($ per completed switch)</label>
+  <input id="cfg-fee" type="number" min="0" step="5" value="95" inputmode="numeric">
+  <button class="cbtn" type="button" id="t3h">Advance clock +3 hours</button>
+  <button class="cbtn" type="button" id="t7d">Advance clock +7 days</button>
+  <button class="rst" type="button" id="rst">Reset demo</button>
+</div>
+
+<script>
+(function(){
+"use strict";
+var $=function(s,c){return (c||document).querySelector(s)};
+var $$=function(s,c){return Array.prototype.slice.call((c||document).querySelectorAll(s))};
+var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var mobile=function(){return window.innerWidth<=940};
+var W=window.WHOLLAR;
+
+/* ---------- partner boot: front-end guard only, not security ----------
+   This reads a localStorage key written by whollar-login-provider.html.
+   Anyone can set that key from a console, so it keeps honest visitors on the
+   right page and nothing more. The real gate belongs in a Catalyst function
+   this page calls, not here — the console shows competitor-adjacent cohort
+   internals, so that matters more here than on the member dashboard.
+
+   Deliberately a different key from 'whollar.member': a household session
+   must not open the partner console. */
+var PARTNER=W.partner.read();
+if(!PARTNER){
+  /* Carry where they were heading so sign-in returns them here rather than
+     dropping them on the console root. Read back through W.safeNext. */
+  location.replace('/whollar-login-provider?next='+encodeURIComponent(location.pathname+location.search));
+  return;
+}
+
+/* The guard above runs once, at parse time. A back-button restore from the
+   bfcache does NOT re-run it, so after signing out the browser would happily
+   repaint the fully rendered console. */
+window.addEventListener('pageshow',function(e){
+  if(e.persisted&&!W.partner.read())location.reload();
+});
+/* Signed out in another tab — don't leave a live console behind. */
+window.addEventListener('storage',function(e){
+  if((!e.key||e.key===W.PARTNER_KEY)&&!W.partner.read())location.reload();
+});
+
+var FIRST=String(PARTNER.firstName||'').trim();
+/* Sign-in collects no company name, so fall back to the email domain:
+   sam@northline.ca → "Northline". Better than heading every screen with a
+   placeholder that belongs to someone else. */
+function orgFromEmail(email){
+  var host=String(email||'').split('@')[1]||'';
+  var label=host.split('.')[0]||'';
+  return label?W.titleCase(label):'';
+}
+var ORG=String(PARTNER.org||'').trim()||orgFromEmail(PARTNER.email)||'Your company';
+var ROLE=String(PARTNER.role||'').trim()||'Partner';
+var CONTACT=FIRST?(FIRST+' '+(PARTNER.lastName?String(PARTNER.lastName).charAt(0)+'.':'')).trim():'Partner';
+function signOut(){
+  W.partner.clear();
+  location.replace('/whollar-login-provider');
+}
+
+/* ---------- virtual clock ---------- */
+var H=3600e3, D=86400e3, NOW0=Date.now(), NOWOFF=0;
+function now(){return NOW0+NOWOFF}
+function snap(days,hour){var d=new Date(NOW0+days*D);d.setHours(hour,0,0,0);return d.getTime()}
+
+/* ---------- state ---------- */
+var S={stage:'day1',fee:95,bids:{},tasks:{cov:1,pay:0,brief:0,bid:0},planOpen:null};
+
+/* ---------- campaigns: one source, stages computed ---------- */
+var CAMPAIGNS=[
+ {id:'kw',region:'Kingston West',sub:'Autumn cohort',cov:'Kingston',hh:64,conf:41,
+  t:{announce:snap(-21,9),open:snap(-14,9),close:NOW0+2*H+14*60e3+9e3,offers:snap(2,9),decide:snap(9,17),sw:snap(23,9),rec:snap(37,9)},
+  speed:[['1 Gig',24],['500 Mbps',61],['Under 500',15]],renew:'Oct to Nov',
+  intent:[['$25+/mo',33],['$10+/mo',49],['Curious',18]],last:'$58/mo \u00b7 1 Gig'},
+ {id:'le',region:'London East',sub:'Autumn cohort',cov:'London East',hh:112,conf:68,
+  t:{announce:snap(-11,9),open:snap(-4,9),close:snap(18,17),offers:snap(25,9),decide:snap(32,17),sw:snap(46,9),rec:snap(60,9)},
+  speed:[['1 Gig',31],['500 Mbps',58],['Under 500',11]],renew:'Oct to Dec',
+  intent:[['$25+/mo',38],['$10+/mo',44],['Curious',18]],last:'$57/mo \u00b7 500 Mbps'},
+ {id:'wc',region:'Windsor Core',sub:'Winter cohort',cov:'Windsor',hh:87,conf:52,
+  t:{announce:snap(-3,9),open:snap(14,9),close:snap(28,17),offers:snap(35,9),decide:snap(42,17),sw:snap(56,9),rec:snap(70,9)},
+  speed:[['1 Gig',28],['500 Mbps',55],['Under 500',17]],renew:'Jan to Feb',
+  intent:[['$25+/mo',36],['$10+/mo',45],['Curious',19]],last:'$54/mo \u00b7 500 Mbps'},
+ {id:'hm',region:'Hamilton Mountain',sub:'Winter cohort',cov:'Hamilton',hh:58,conf:34,
+  t:{announce:snap(-2,9),open:snap(5,9),close:snap(19,17),offers:snap(26,9),decide:snap(33,17),sw:snap(47,9),rec:snap(61,9)},
+  speed:[['1 Gig',26],['500 Mbps',57],['Under 500',17]],renew:'Jan to Mar',
+  intent:[['$25+/mo',31],['$10+/mo',47],['Curious',22]],last:'No prior bid here'},
+ {id:'ln',region:'London North',sub:'Winter cohort',cov:'London North',hh:100,planned:1,expected:snap(45,9),note:'Cohort forming: 61 of 100 households'},
+ {id:'ck',region:'Chatham-Kent',sub:'First cohort',cov:'Chatham-Kent',hh:100,planned:1,expected:snap(75,9),note:'Waitlist growing; opens when the cohort locks'}
+];
+var STAGES=['Announced','Open','Closing','Offers out','Decided'];
+function stageOf(c){
+  if(c.planned)return -1;
+  var n=now(),t=c.t;
+  if(n>=t.decide)return 4;
+  if(n>=t.close)return 3;
+  if(t.close-n<=24*H)return 2;
+  if(n>=t.open)return 1;
+  return 0;
+}
+var HBIDS=[
+ {cohort:'London East \u00b7 Spring 2026',placed:'Mar 12, 2026',bid:'$57/mo \u00b7 500 Mbps \u00b7 24 mo',result:'won',conf:74,comp:62},
+ {cohort:'Windsor Core \u00b7 Winter 2026',placed:'Jan 8, 2026',bid:'$54/mo \u00b7 500 Mbps \u00b7 24 mo',result:'won',conf:45,comp:41},
+ {cohort:'Kingston West \u00b7 Fall 2025',placed:'Oct 3, 2025',bid:'$58/mo \u00b7 1 Gig \u00b7 24 mo',result:'won',conf:14,comp:13},
+ {cohort:'Hamilton Mountain \u00b7 Spring 2026',placed:'Apr 2, 2026',bid:'$59/mo \u00b7 500 Mbps \u00b7 24 mo',result:'lost'},
+ {cohort:'London North \u00b7 Winter 2026',placed:'Feb 1, 2026',bid:'$61/mo \u00b7 1 Gig \u00b7 24 mo',result:'lost'},
+ {cohort:'Sarnia \u00b7 Fall 2025',placed:'Sep 20, 2025',bid:'$60/mo \u00b7 500 Mbps \u00b7 12 mo',result:'lost'}
+];
+var MONTHS=[['Aug 25',0],['Sep 25',0],['Oct 25',4],['Nov 25',6],['Dec 25',3],['Jan 26',9],['Feb 26',14],['Mar 26',11],['Apr 26',19],['May 26',16],['Jun 26',10],['Jul 26',24]];
+var COVER=[
+ {r:'London East',st:'active',tech:['Fibre','Cable'],speed:'1 Gig',lead:'5 business days'},
+ {r:'London North',st:'active',tech:['Fibre'],speed:'1 Gig',lead:'5 business days'},
+ {r:'Windsor',st:'active',tech:['Cable'],speed:'1 Gig',lead:'7 business days'},
+ {r:'Kingston',st:'active',tech:['Fibre','Cable'],speed:'1 Gig',lead:'5 business days'},
+ {r:'Chatham-Kent',st:'active',tech:['Fixed wireless'],speed:'500 Mbps',lead:'10 business days'},
+ {r:'Sarnia',st:'active',tech:['Cable'],speed:'500 Mbps',lead:'7 business days'},
+ {r:'Hamilton',st:'verifying',tech:['Fibre'],speed:'1 Gig',lead:'5 business days'}
+];
+var TECHS=['Fibre','Cable','DSL','Fixed wireless'];
+
+/* ---------- helpers ---------- */
+function money(v){return '$'+v.toLocaleString('en-CA')}
+function toast(m){var t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toast._x);toast._x=setTimeout(function(){t.classList.remove('show')},2400)}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+var MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtD(ts){var d=new Date(ts);return MN[d.getMonth()]+' '+d.getDate()}
+function fmtT(ts){var d=new Date(ts);var h=d.getHours(),m=d.getMinutes();var ap=h>=12?'PM':'AM';h=h%12||12;return h+(m?':'+(m<10?'0':'')+m:'')+' '+ap}
+function sameDay(a,b){var x=new Date(a),y=new Date(b);return x.getFullYear()===y.getFullYear()&&x.getMonth()===y.getMonth()&&x.getDate()===y.getDate()}
+function cdFmt(ms){if(ms<0)ms=0;var t=Math.floor(ms/1000),h=Math.floor(t/3600),m=Math.floor(t%3600/60),s=t%60;var p=function(n){return (n<10?'0':'')+n};return p(h)+':'+p(m)+':'+p(s)}
+function covOf(name){for(var i=0;i<COVER.length;i++)if(COVER[i].r===name)return COVER[i];return null}
+function ref(c){return 'WB-'+(1000+(c.hh*37)%8999)}
+
+/* ---------- nav ---------- */
+var app=$('#app');
+function nav(v){
+  $$('.view').forEach(function(x){x.classList.toggle('on',x.getAttribute('data-v')===v)});
+  $$('#pnav button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-view')===v)});
+  $('#paneprof').classList.toggle('on',v==='account');
+  if(mobile())app.classList.remove('paneopen');
+  window.scrollTo(0,0);
+}
+$('#pnav').addEventListener('click',function(e){var b=e.target.closest('button');if(b)nav(b.getAttribute('data-view'))});
+document.addEventListener('click',function(e){var t=e.target.closest('[data-nav]');if(t)nav(t.getAttribute('data-nav'))});
+$('#burger').addEventListener('click',function(){
+  if(mobile())app.classList.toggle('paneopen'); else app.classList.toggle('collapsed');
+  this.setAttribute('aria-expanded',app.classList.contains('collapsed')?'false':'true');
+});
+$('#overlay').addEventListener('click',function(){app.classList.remove('paneopen')});
+/* ---------- write the signed-in partner into every named spot ----------
+   The console shipped with "Sam", "SK" and "Northline Internet" hardcoded in
+   five places, so every partner saw someone else's name above their own
+   cohorts. One function owns all of them now. */
+function paintPartner(){
+  var h=new Date().getHours();
+  var g=h<12?'Good morning':(h<17?'Good afternoon':'Good evening');
+  $('#greet').childNodes[0].nodeValue=FIRST?(g+', '+FIRST):g;
+  /* Region stays demo data, like the cohorts it describes. */
+  $('#greetsub').textContent=ORG+' · Southwestern Ontario';
+  $('#orgmono').textContent=W.monogram(ORG);
+  $('#usermono').textContent=FIRST?W.monogram(FIRST+' '+(PARTNER.lastName||'')):W.monogram(ORG);
+  $('#pp-org').textContent=ORG;
+  $('#pp-role').textContent=ROLE;
+  $('#acct-sub').textContent=ORG+' · '+ROLE;
+  $('#acct-org').textContent=ORG;
+  $('#acct-email').textContent=PARTNER.email;
+  $('#acct-auth').textContent=CONTACT+' · '+ROLE;
+  /* Team is a single seat until invites exist — listing a second name invented
+     a colleague. */
+  $('#acct-team').textContent=CONTACT+' · only seat so far';
+}
+paintPartner();
+
+/* ---------- activation ---------- */
+var TASKDEFS=[
+ ['cov','Coverage declared','Six regions with services on file, one verifying','coverage','Review'],
+ ['pay','Add a payment method','Nothing bills until a switch completes, but be ready','billing','Add'],
+ ['brief','Review your first auction brief','Open the closest deadline on the bid desk','desk','Open'],
+ ['bid','Place your first sealed bid','Sealed, binding, improvable until close','desk','Bid']
+];
+function renderTasks(){
+  var done=0;
+  $('#tasks').innerHTML=TASKDEFS.map(function(t){
+    var dn=S.tasks[t[0]];if(dn)done++;
+    return '<div class="task'+(dn?' dn':'')+'"><i>'+(dn?'\u2713':'')+'</i><span class="tt"><b>'+t[1]+'</b><small>'+t[2]+'</small></span>'
+      +(dn?'':'<button class="tlink" type="button" data-nav="'+t[3]+'">'+t[4]+' &rarr;</button>')+'</div>';
+  }).join('');
+  $('#pfill').style.width=(done/4*100)+'%';
+  $('#plabel').textContent=done===4?'4 of 4 \u00b7 you\u2019re live':done+' of 4';
+}
+
+/* ---------- derived lists ---------- */
+function deskList(){
+  return CAMPAIGNS.filter(function(c){return !c.planned&&covOf(c.cov)}).sort(function(a,b){return a.t.close-b.t.close});
+}
+function plannedList(){
+  return CAMPAIGNS.filter(function(c){return c.planned&&covOf(c.cov)}).sort(function(a,b){return a.expected-b.expected});
+}
+function nextClosing(){
+  var open=deskList().filter(function(c){var s=stageOf(c);return (s===1||s===2)&&covOf(c.cov).st==='active'});
+  return open.length?open[0]:null;
+}
+
+/* ---------- overview dynamic bits ---------- */
+function renderOverviewBits(){
+  var open=deskList().filter(function(c){var s=stageOf(c);return (s===1||s===2)&&covOf(c.cov).st==='active'});
+  var nx=nextClosing();
+  var closingToday=nx&&sameDay(nx.t.close,now());
+  $('#ov-sub').textContent=open.length
+    ? open.length+(open.length===1?' auction is':' auctions are')+' open in your footprint right now'+(closingToday?', one closes today.':'.')
+    : 'Nothing is open for bids right now. The calendar below shows what is coming.';
+  if(nx){
+    $('#cs-eb').textContent=closingToday?'Closing today':'Closing next';
+    $('#cs-title').textContent=nx.region+' \u00b7 '+nx.hh+' households';
+    $('#cs-line').innerHTML=(nx.t.close-now()<=24*H)
+      ? 'Sealed bidding closes in <span class="cdchip" data-until="'+nx.t.close+'">'+cdFmt(nx.t.close-now())+'</span>'
+      : 'Sealed bidding closes '+fmtD(nx.t.close)+' at '+fmtT(nx.t.close)+'.';
+  }else{
+    $('#cs-eb').textContent='Up next';
+    $('#cs-title').textContent='Nothing closing right now';
+    $('#cs-line').textContent='The next window opens soon; it\u2019s on your calendar below.';
+  }
+}
+
+/* ---------- agenda (derived, clickable) ---------- */
+function agendaEvents(){
+  var evs=[];
+  deskList().forEach(function(c){
+    if(covOf(c.cov).st!=='active')return;
+    evs.push({t:c.t.open,cid:c.id,b:c.region+' \u00b7 bidding opens',s:c.hh+' households \u00b7 '+c.sub});
+    evs.push({t:c.t.close,cid:c.id,b:c.region+' \u00b7 bids close',s:'Improve your bid until this moment'});
+    evs.push({t:c.t.offers,cid:c.id,b:c.region+' \u00b7 offers out to households',s:'Households compare and decide'});
+    evs.push({t:c.t.decide,cid:c.id,b:c.region+' \u00b7 decision deadline',s:'Results follow the same day'});
+  });
+  var n=now();
+  return evs.filter(function(e){return e.t>n-12*H}).sort(function(a,b){return a.t-b.t}).slice(0,5);
+}
+function renderAgenda(elId){
+  var n=now();
+  $(elId).innerHTML=agendaEvents().map(function(e){
+    var d=new Date(e.t),today=sameDay(e.t,n),soon=e.t-n>0&&e.t-n<=24*H;
+    return '<div class="ag" role="button" tabindex="0" data-plan="'+e.cid+'"><span class="d'+(today?' today':'')+'"><b>'+d.getDate()+'</b><span>'+MN[d.getMonth()]+'</span></span>'
+      +'<span class="t"><b>'+e.b+'</b><small>'+e.s+'</small></span>'
+      +(soon?'<span class="cdchip" data-until="'+e.t+'">'+cdFmt(e.t-n)+'</span>':'<span class="mono" style="margin-left:auto;font-size:11px;color:var(--sub)">'+fmtT(e.t)+'</span>')+'</div>';
+  }).join('')||'<p class="cardnote">Nothing scheduled in the next while.</p>';
+}
+
+/* ---------- campaign plan view ---------- */
+function openPlan(cid){
+  S.planOpen=cid;renderPlan();nav('plan');
+}
+function renderPlan(){
+  var c=CAMPAIGNS.filter(function(x){return x.id===S.planOpen})[0];
+  if(!c){$('#plan-body').innerHTML='';return}
+  var n=now();
+  if(c.planned){
+    $('#plan-body').innerHTML='<div class="planhead"><div><h2 style="font-family:var(--disp);font-size:23px">'+c.region+' \u00b7 '+c.sub+'</h2>'
+     +'<p class="cardnote">'+c.note+'</p></div>'
+     +'<button class="btn ghost" type="button" data-ics="'+c.id+'" style="margin-left:auto">Add to calendar</button></div>'
+     +'<section class="card plan"><span class="eyebrow">Expected plan</span>'
+     +'<div style="margin-top:12px"><div class="pl now"><i>1</i><b>Bidding expected to open</b><span class="pd">'+fmtD(c.expected)+' \u00b7 expected, firms up when the cohort locks</span><p>You\u2019ll get the full brief and dates the day it\u2019s announced.</p></div></div></section>';
+    return;
+  }
+  var st=stageOf(c);
+  var mine=S.bids[c.id];
+  var ms=[
+   ['Announced to partners',c.t.announce,'The cohort locked and the brief was fixed. Coverage-matched partners were notified.'],
+   ['Bidding opens',c.t.open,'Sealed bids accepted from this moment.'],
+   ['Bidding closes',c.t.close,'Your number is final at this moment. Improve it any time before.'],
+   ['Offers out to households',c.t.offers,'The winning offer goes to every household in the cohort, individually.'],
+   ['Household decision deadline',c.t.decide,'Confirmations lock. You\u2019ll see your confirmed count the same day.'],
+   ['Switching window',c.t.sw,'Installs and transfers run. Each live connection becomes a completion.'],
+   ['Completion reconciliation',c.t.rec,'Final counts settle; the invoice cycle closes 14 days later.']
+  ];
+  var nextIdx=-1;
+  for(var i=0;i<ms.length;i++){if(ms[i][1]>n){nextIdx=i;break}}
+  var rows=ms.map(function(m,i){
+    var cls=m[1]<=n?'dn':(i===nextIdx?'now':'');
+    return '<div class="pl '+cls+'"><i>'+(m[1]<=n?'\u2713':(i+1))+'</i><b>'+m[0]+'</b><span class="pd">'+fmtD(m[1])+' \u00b7 '+fmtT(m[1])+'</span><p>'+m[2]+'</p></div>';
+  }).join('');
+  var act=(st===1||st===2)
+    ? (mine?'<span class="pill sealed">Sealed \u00b7 $'+mine.price+' \u00b7 '+ref(c)+'</span>':'<button class="btn" type="button" data-godesk="'+c.id+'">Review and bid</button>')
+    : (st>=4&&mine?'<span class="pill won">Won \u00b7 '+c.conf+' confirmed</span>':'<span class="pill '+(st===3?'pending':'paid')+'">'+STAGES[st]+'</span>');
+  $('#plan-body').innerHTML='<div class="planhead">'
+   +'<div><h2 style="font-family:var(--disp);font-size:23px">'+c.region+' \u00b7 '+c.sub+'</h2>'
+   +'<p class="cardnote mono">'+c.hh+' households \u00b7 renewal window '+c.renew+'</p></div>'
+   +'<span style="margin-left:auto"></span>'+act
+   +'<button class="btn ghost" type="button" data-ics="'+c.id+'">Add to calendar</button></div>'
+   +'<section class="card plan"><span class="eyebrow">The whole plan</span><div style="margin-top:12px">'+rows+'</div>'
+   +'<p class="fnote">Every date here is the same source your alerts and calendar feed run on. If a date moves, everything moves with it.</p></section>';
+}
+document.addEventListener('click',function(e){
+  var p=e.target.closest('[data-plan]');
+  if(p){openPlan(p.getAttribute('data-plan'));return}
+  var g=e.target.closest('[data-godesk]');
+  if(g){nav('desk');expandRow(g.getAttribute('data-godesk'));return}
+  var ic=e.target.closest('[data-ics]');
+  if(ic){dlICS(ic.getAttribute('data-ics'));return}
+});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Enter'&&e.target.closest&&e.target.closest('.ag'))openPlan(e.target.closest('.ag').getAttribute('data-plan'));
+});
+
+/* ---------- ICS ---------- */
+function icsStamp(ts){return new Date(ts).toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'')}
+function dlICS(cid){
+  var c=CAMPAIGNS.filter(function(x){return x.id===cid})[0];if(!c)return;
+  var evs=c.planned
+    ? [{t:c.expected,s:'Whollar \u00b7 '+c.region+' \u00b7 bidding expected to open',tent:1}]
+    : [{t:c.t.open,s:'Whollar \u00b7 '+c.region+' \u00b7 bidding opens'},
+       {t:c.t.close,s:'Whollar \u00b7 '+c.region+' \u00b7 bids close'},
+       {t:c.t.offers,s:'Whollar \u00b7 '+c.region+' \u00b7 offers out'},
+       {t:c.t.decide,s:'Whollar \u00b7 '+c.region+' \u00b7 decision deadline'}];
+  var L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Whollar//Partner console//EN'];
+  evs.forEach(function(e,i){
+    L.push('BEGIN:VEVENT','UID:'+cid+'-'+i+'@whollar','DTSTAMP:'+icsStamp(now()),'DTSTART:'+icsStamp(e.t),'DTEND:'+icsStamp(e.t+3600e3),'SUMMARY:'+e.s);
+    if(e.tent)L.push('STATUS:TENTATIVE');
+    L.push('END:VEVENT');
+  });
+  L.push('END:VCALENDAR');
+  var blob=new Blob([L.join('\r\n')],{type:'text/calendar'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='whollar-'+cid+'-campaign.ics';
+  document.body.appendChild(a);a.click();a.remove();
+  toast('Calendar file downloaded. A live subscribe feed ships with the real build.');
+}
+
+/* ---------- search ---------- */
+var qEl=$('#q'),drop=$('#qdrop');
+function searchList(v){
+  v=v.toLowerCase();
+  return CAMPAIGNS.filter(function(c){return covOf(c.cov)&&(c.region.toLowerCase().indexOf(v)>-1||c.sub.toLowerCase().indexOf(v)>-1)}).slice(0,6);
+}
+qEl.addEventListener('input',function(){
+  var v=this.value.trim();
+  if(v.length<2){drop.classList.remove('open');return}
+  var m=searchList(v);
+  drop.innerHTML=m.map(function(c){
+    var s=c.planned?'Planned':STAGES[stageOf(c)];
+    return '<button type="button" data-plan="'+c.id+'"><span>'+esc(c.region)+' \u00b7 '+esc(c.sub)+'</span><span class="st">'+s+'</span></button>';
+  }).join('')||'<button type="button" disabled><span>No campaigns match</span></button>';
+  drop.classList.add('open');
+});
+qEl.addEventListener('keydown',function(e){
+  if(e.key==='Enter'){e.preventDefault();var m=searchList(this.value.trim());if(m.length){openPlan(m[0].id);drop.classList.remove('open');this.blur()}}
+  if(e.key==='Escape'){drop.classList.remove('open')}
+});
+document.addEventListener('click',function(e){if(!e.target.closest('.search'))drop.classList.remove('open')});
+
+/* ---------- bid desk ---------- */
+function railHTML(stage,hot){
+  var out='<div class="minirail">';
+  for(var i=0;i<5;i++){
+    out+='<span class="mr'+(i<stage?' past':(i===stage?' now':''))+'"></span>';
+    if(i<4)out+='<span class="mrl'+(i<stage?' past':'')+'"></span>';
+  }
+  return out+'</div><div class="stlbl'+(hot?' hot':'')+'">'+STAGES[stage]+'</div>';
+}
+function briefHTML(a){
+  function mix(arr){
+    var tot=arr.reduce(function(t,x){return t+x[1]},0);
+    var bars=arr.map(function(x){return '<i style="width:'+Math.round(x[1]/tot*88)+'px"></i>'}).join('');
+    var lab=arr.map(function(x){return x[0]+' '+x[1]+'%'}).join(' \u00b7 ');
+    return '<span class="mixin">'+bars+'<em>'+lab+'</em></span>';
+  }
+  return '<div class="brief"><div class="dh">The auction brief</div><div class="dl">'
+   +'<div class="r"><span>Households</span><b>'+a.hh+'</b></div>'
+   +'<div class="r"><span>Renewal window</span><b>'+a.renew+'</b></div>'
+   +'<div class="r"><span>Speed demand</span>'+mix(a.speed)+'</div>'
+   +'<div class="r"><span>Stated intent</span>'+mix(a.intent)+'</div>'
+   +'<div class="r"><span>Your comparable</span><b>'+a.last+'</b></div>'
+   +'</div><p class="fnote">Aggregates only.</p></div>';
+}
+function ticketHTML(a){
+  var st=stageOf(a),mine=S.bids[a.id];
+  if(st>=4&&mine)return '<div class="tkt"><div class="dh">Result</div><div class="receipt"><b>Won.</b> '+a.conf+' households confirmed on your offer. Switching runs to '+fmtD(a.t.sw)+'; completions land in Acquisition and bill in Billing as connections go live.</div></div>';
+  if(st===3)return '<div class="tkt"><div class="dh">Bids closed</div><div class="receipt">'+(mine?'<b>Your bid is in:</b> $'+mine.price+'/mo \u00b7 '+ref(a)+'. ':'')+'Offers are out to households; confirmations lock '+fmtD(a.t.decide)+'.</div></div>';
+  if(mine)return '<div class="tkt"><div class="dh">Your sealed bid</div>'
+   +'<div class="receipt"><b>Sealed \u00b7 $'+mine.price+'/mo</b> \u00b7 '+ref(a)+' \u00b7 placed today.<br>Improvable until close on '+fmtD(a.t.close)+'. No withdrawals.</div>'
+   +'<button class="btn ghost" type="button" data-improve="'+a.id+'" style="margin-top:12px">Improve bid</button></div>';
+  return '<div class="tkt"><div class="steps"><span class="on">1 &middot; Set terms</span><i></i><span>2 &middot; Seal</span></div>'
+   +'<div class="bidform" data-bid="'+a.id+'">'
+   +'<div class="two"><div><label>Price per month ($)</label><input type="number" class="bprice" value="56" min="1" step="0.5"></div>'
+   +'<div><label>Speed offered</label><select class="bspeed"><option>500 Mbps</option><option>1 Gig</option></select></div></div>'
+   +'<div class="two"><div><label>Term</label><select class="bterm"><option value="24">24 months</option><option value="12">12 months</option><option value="0">No term</option></select></div>'
+   +'<div><label>Your completion assumption</label><div class="range"><input type="range" class="bcompl" min="50" max="100" value="85"><b class="bcomplv">85%</b></div></div></div>'
+   +'<label>Included</label><div class="pk"><label><input type="checkbox" checked> Install</label><label><input type="checkbox"> Modem</label><label><input type="checkbox"> Better price at 80+ confirmed</label></div>'
+   +'<div class="tsum">Your sealed bid: <b>$56/mo \u00b7 500 Mbps \u00b7 24 mo</b></div>'
+   +'<table class="scn"><thead><tr><th>Confirmed</th><th>Monthly rev.</th><th>Term rev.</th><th>Success fees</th></tr></thead><tbody class="scnbody"></tbody></table>'
+   +'<p class="fnote">Scenarios use your inputs and your completion assumption. Confirmation is decided by households, not projected by us.</p>'
+   +'<label class="consent"><input type="checkbox" class="bconsent"><span>I understand this bid is sealed and binding until the offer deadline. I can improve it before close; I cannot withdraw it.</span></label>'
+   +'<button class="btn" type="button" disabled data-place="'+a.id+'">Place sealed bid</button>'
+   +'</div></div>';
+}
+function renderDesk(){
+  $('#deskrows').innerHTML=deskList().map(function(a){
+    var cov=covOf(a.cov),locked=cov.st!=='active',st=stageOf(a),mine=S.bids[a.id];
+    var hot=st===2;
+    var yours=mine
+      ?(st>=4?'<span class="pill won">Won \u00b7 '+a.conf+' confirmed</span>':'<span class="pill sealed">Sealed \u00b7 $'+mine.price+'</span>')
+      :'<span class="mono" style="color:#949E95">\u00b7</span>';
+    var win=st<=0?'Opens '+fmtD(a.t.open)
+      :(st<=2?'Closes '+fmtD(a.t.close)+(a.t.close-now()<=24*H?' \u00b7 <span data-until="'+a.t.close+'">'+cdFmt(a.t.close-now())+'</span>':'')
+      :(st===3?'Decides '+fmtD(a.t.decide):'Closed '+fmtD(a.t.decide)));
+    var act=locked?'<span class="lockedtag">Verifies with '+esc(a.cov)+' coverage</span>'
+      :st<=0?'<button class="btn ghost" type="button" data-notify="'+a.id+'">Notify me</button>'
+      :(st===1||st===2)?'<button class="btn'+(mine?' ghost':'')+'" type="button" data-open="'+a.id+'">'+(mine?'View':'Review and bid')+'</button>'
+      :'<button class="btn ghost" type="button" data-open="'+a.id+'">View</button>';
+    return '<tr data-row="'+a.id+'"'+(locked?' class="locked"':'')+'>'
+      +'<td><button class="rg" type="button" data-plan="'+a.id+'" style="text-align:left">'+a.region+'<small>'+a.sub+'</small></button></td>'
+      +'<td class="num">'+a.hh+'</td>'
+      +'<td>'+railHTML(st,hot)+'</td>'
+      +'<td><span class="closecell'+(hot?' hot':'')+'">'+win+'</span></td>'
+      +'<td>'+yours+'</td><td style="text-align:right">'+act+'</td></tr>'
+      +'<tr class="dwr" data-dwr="'+a.id+'"><td colspan="6"><div class="dgrid">'+briefHTML(a)+ticketHTML(a)+'</div></td></tr>';
+  }).join('');
+}
+function renderPlanned(){
+  $('#planrows').innerHTML=plannedList().map(function(c){
+    return '<tr><td><button class="rg" type="button" data-plan="'+c.id+'" style="text-align:left;font-size:13.5px">'+c.region+'<small>'+c.sub+'</small></button></td>'
+     +'<td class="num">'+fmtD(c.expected)+' \u00b7 expected</td>'
+     +'<td style="font-size:12.5px;color:var(--sub)">'+c.note+'</td>'
+     +'<td style="text-align:right;white-space:nowrap"><button class="tlink" type="button" data-ics="'+c.id+'">Add to calendar</button> &nbsp; <button class="tlink" type="button" data-notify="'+c.id+'">Notify me</button></td></tr>';
+  }).join('');
+}
+function expandRow(id){
+  $$('tr[data-row]').forEach(function(r){r.classList.remove('exp')});
+  var row=$('tr[data-row="'+id+'"]');
+  if(row){row.classList.add('exp');
+    var c=CAMPAIGNS.filter(function(x){return x.id===id})[0];
+    var form=$('tr[data-dwr="'+id+'"] .bidform');
+    if(form)scnCalc(form,c);
+    if(!S.tasks.brief){S.tasks.brief=1;renderTasks();toast('First brief reviewed. One step left: seal a bid.')}
+  }
+}
+function scnCalc(form,a){
+  var p=parseFloat($('.bprice',form).value)||0;
+  var term=parseInt($('.bterm',form).value,10);
+  var cr=parseInt($('.bcompl',form).value,10)/100;
+  $('.bcomplv',form).textContent=Math.round(cr*100)+'%';
+  var sp=$('.bspeed',form).value;
+  var sEl=$('.tsum',form);
+  if(sEl)sEl.innerHTML='Your sealed bid: <b>$'+p+'/mo \u00b7 '+sp+' \u00b7 '+(term?term+' mo':'no term')+'</b>';
+  $('.scnbody',form).innerHTML=[0.6,0.8,1].map(function(f){
+    var conf=Math.round(a.hh*f), comp=Math.round(conf*cr), mrev=Math.round(comp*p);
+    var trev=term?mrev*term:mrev*12;
+    return '<tr><td>'+conf+' ('+Math.round(f*100)+'%)</td><td>'+money(mrev)+'</td><td>'+money(trev)+(term?'':' /yr')+'</td><td>'+money(comp*S.fee)+'</td></tr>';
+  }).join('');
+}
+document.addEventListener('click',function(e){
+  var o=e.target.closest('[data-open]');
+  if(o){
+    var id=o.getAttribute('data-open');
+    var row=$('tr[data-row="'+id+'"]');
+    if(row.classList.contains('exp')){row.classList.remove('exp')}else{expandRow(id)}
+    return;
+  }
+  var imp=e.target.closest('[data-improve]');
+  if(imp){var id2=imp.getAttribute('data-improve');delete S.bids[id2];renderDesk();expandRow(id2);return}
+  if(e.target.closest('[data-notify]')){toast('Noted. We\u2019ll email you the moment it moves.');return}
+  var pl=e.target.closest('[data-place]');
+  if(pl){
+    var cid=pl.getAttribute('data-place');
+    var form=pl.closest('.bidform');
+    var price=$('.bprice',form).value;
+    pl.disabled=true;pl.textContent='Sealing your bid\u2026';
+    setTimeout(function(){
+      S.bids[cid]={price:price,at:now()};
+      if(!S.tasks.bid){S.tasks.bid=1;renderTasks();}
+      toast('Sealed bid placed: $'+price+'/mo. Improvable until close.');
+      renderDesk();renderBids();expandRowKeep(cid);
+    },reduce?350:900);
+  }
+});
+function expandRowKeep(id){var row=$('tr[data-row="'+id+'"]');if(row)row.classList.add('exp')}
+document.addEventListener('input',function(e){
+  var form=e.target.closest('.bidform');
+  if(form){
+    var a=CAMPAIGNS.filter(function(x){return x.id===form.getAttribute('data-bid')})[0];
+    scnCalc(form,a);
+  }
+});
+document.addEventListener('change',function(e){
+  if(e.target.classList&&e.target.classList.contains('bconsent')){
+    var b=$('[data-place]',e.target.closest('.bidform'));
+    if(b&&b.textContent.indexOf('Sealing')<0)b.disabled=!e.target.checked;
+  }
+  if(e.target.closest('.tog'))toast('Preference saved.');
+});
+
+/* ---------- my bids ---------- */
+function liveRows(){
+  return Object.keys(S.bids).map(function(cid){
+    var c=CAMPAIGNS.filter(function(x){return x.id===cid})[0];
+    var st=stageOf(c);
+    return '<tr><td>'+c.region+' \u00b7 '+c.sub+'</td><td class="num">Today</td><td class="num">$'+S.bids[cid].price+'/mo \u00b7 sealed</td><td>'
+      +(st>=4?'<span class="pill won">Won</span>':'<span class="pill pending">Pending</span>')
+      +'</td><td class="num">'+(st>=4?c.conf:'\u00b7')+'</td><td class="num">\u00b7</td><td class="num">\u00b7</td></tr>';
+  }).join('');
+}
+function renderBids(){
+  var live=liveRows();
+  var tblHead='<div class="twrap"><table class="tbl"><thead><tr><th>Cohort</th><th>Placed</th><th>Your bid</th><th>Result</th><th class="num">Confirmed</th><th class="num">Completed</th><th class="num">Fees to date</th></tr></thead><tbody>';
+  var foot='</tbody></table></div><p class="fnote">Confirmed is households who placed a deposit on your offer. Completed is live connections, the only column that bills.</p>';
+  if(S.stage==='day1'){
+    if(!live){
+      $('#bidscard').innerHTML='<div class="empty">'
+       +'<svg viewBox="0 0 80 80" fill="none"><circle cx="40" cy="40" r="33" stroke="#CBDCCE" stroke-width="3"/><path d="M40 24v16l11 7" stroke="#C29B3C" stroke-width="3.5" stroke-linecap="round"/></svg>'
+       +'<h3>Your first bid lands here</h3>'
+       +'<p>Every bid you place sits on this record with everything it turns into: result, confirmed households, completed switches, fees.</p>'
+       +'<button class="btn" type="button" data-nav="desk">Open the bid desk</button></div>';
+      return;
+    }
+    $('#bidscard').innerHTML='<span class="eyebrow">Record</span>'+tblHead+live+foot;
+    return;
+  }
+  var rows=live+HBIDS.map(function(b){
+    return '<tr><td>'+b.cohort+'</td><td class="num">'+b.placed+'</td><td class="num">'+b.bid+'</td><td>'
+      +(b.result==='won'?'<span class="pill won">Won</span>':'<span class="pill lost">Not selected</span>')
+      +'</td><td class="num">'+(b.conf||'\u00b7')+'</td><td class="num">'+(b.comp||'\u00b7')+'</td><td class="num">'
+      +(b.comp?money(b.comp*S.fee):'\u00b7')+'</td></tr>';
+  }).join('');
+  $('#bidscard').innerHTML='<div style="display:flex;align-items:center;gap:12px;margin-bottom:6px"><span class="eyebrow">Record</span><button class="tlink" type="button" id="csv" style="margin-left:auto">Export CSV &rarr;</button></div>'+tblHead+rows+foot;
+  var c=$('#csv');
+  if(c)c.addEventListener('click',function(){
+    var head='Cohort,Placed,Bid,Result,Confirmed,Completed,Fees\n';
+    var lines=HBIDS.map(function(b){return [b.cohort,b.placed,b.bid,b.result,b.conf||'',b.comp||'',b.comp?b.comp*S.fee:''].join(',')}).join('\n');
+    var blob=new Blob([head+lines],{type:'text/csv'});
+    var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='northline-whollar-bids.csv';
+    document.body.appendChild(a);a.click();a.remove();toast('Bid record exported.');
+  });
+}
+
+/* ---------- acquisition + billing (stage-aware) ---------- */
+function barChart(){
+  var W=560,Hh=190,pad=26,bw=32,gap=(W-pad*2-bw*12)/11;
+  var max=Math.max.apply(null,MONTHS.map(function(m){return m[1]}))||1;
+  var out='<svg viewBox="0 0 '+W+' '+Hh+'" role="img" aria-label="Completed switches by month">';
+  MONTHS.forEach(function(m,i){
+    var h=Math.round((Hh-58)*m[1]/max), x=pad+i*(bw+gap), y=Hh-34-h;
+    out+='<rect class="bar'+(i===MONTHS.length-1?' now':'')+'" x="'+x+'" y="'+y+'" width="'+bw+'" height="'+Math.max(h,2)+'" rx="5"><title>'+m[0]+': '+m[1]+'</title></rect>';
+    if(m[1]>0)out+='<text class="bval" x="'+(x+bw/2)+'" y="'+(y-6)+'" text-anchor="middle">'+m[1]+'</text>';
+    out+='<text class="axis" x="'+(x+bw/2)+'" y="'+(Hh-16)+'" text-anchor="middle">'+m[0].split(' ')[0]+'</text>';
+  });
+  return out+'</svg>';
+}
+function renderMotionCharts(){
+  $('#chart-months').innerHTML=barChart();
+  var steps=[['In coverage',9],['Bid',6],['Won',3],['Confirmed',133],['Completed',116]];
+  $('#funnel').innerHTML=steps.map(function(s,i){return '<div class="fstep'+(i===4?' hot':'')+'"><b>'+s[1]+'</b><span>'+s[0]+'</span></div>'}).join('');
+  $('#feed').innerHTML=[['Today','Invoice cycle accruing: 24 completions so far in July'],['Jul 15','London East \u00b7 Autumn opened for sealed bids'],['Jul 8','3 switches completed in Windsor Core']].map(function(f){return '<li><span class="when">'+esc(f[0])+'</span>'+esc(f[1])+'</li>'}).join('');
+}
+function renderAcq(){
+  if(S.stage==='day1'){
+    $('#acqbody').innerHTML='<section class="card"><div class="empty" style="padding-bottom:8px">'
+     +'<h3>This page builds itself from your first completed switch</h3>'
+     +'<p>Once a household you won goes live, it lands here the same day: month by month, region by region, and reconciled to the invoice line it creates.</p></div>'
+     +'<div class="ghostwrap"><div class="chart ghost">'+barChart()+'</div><div class="ghostlbl"><span>Sample \u00b7 not your data</span></div></div></section>';
+    return;
+  }
+  $('#acqbody').innerHTML='<div class="tiles">'
+   +'<div class="card mt"><span class="l">This month</span><span class="n">24</span><span class="s">completed switches</span></div>'
+   +'<div class="card mt"><span class="l">Last 3 months</span><span class="n">50</span><span class="s">completed switches</span></div>'
+   +'<div class="card mt"><span class="l">All time</span><span class="n">116</span><span class="s">households acquired</span></div>'
+   +'<div class="card mt"><span class="l">Completion rate</span><span class="n">87%</span><span class="s">completed of confirmed</span></div></div>'
+   +'<div class="grid2"><section class="card"><span class="eyebrow">Trend</span><h3>Completed switches by month</h3><div class="chart">'+barChart()+'</div></section>'
+   +'<section class="card"><span class="eyebrow">By region</span><h3>Where they came from</h3><div class="twrap"><table class="tbl"><thead><tr><th>Region</th><th class="num">Won</th><th class="num">Completed</th></tr></thead><tbody>'
+   +'<tr><td>London East</td><td class="num">1</td><td class="num">62</td></tr>'
+   +'<tr><td>Windsor Core</td><td class="num">1</td><td class="num">41</td></tr>'
+   +'<tr><td>Kingston West</td><td class="num">1</td><td class="num">13</td></tr>'
+   +'</tbody></table></div><p class="fnote">Every completed switch maps to one invoice line in Billing. Same numbers, same source.</p></section></div>';
+}
+function renderBilling(){
+  if(S.stage==='day1'){
+    $('#b-cycle').innerHTML='<b>Current cycle:</b> nothing owed. Your first invoice generates from your first completed switch, at '+money(S.fee)+' per household.';
+    $('#invcard').innerHTML='<span class="eyebrow">Invoices</span><div class="empty" style="padding:26px 20px 14px"><h3 style="font-size:16.5px">No invoices yet, by design</h3><p>Bids are free. Winning is free. Confirmed households are free. The first line item is the first live connection.</p></div>';
+  }else{
+    $('#b-cycle').innerHTML='<b>Current cycle, July:</b> <span class="mono">24 completed \u00b7 '+money(S.fee)+' each \u00b7 '+money(24*S.fee)+' accruing</span>';
+    var inv=[['July 2026',24,'due'],['June 2026',10,'paid'],['May 2026',16,'paid'],['April 2026',19,'paid'],['March 2026',11,'paid']];
+    $('#invcard').innerHTML='<span class="eyebrow">Invoices</span><div class="twrap"><table class="tbl"><thead><tr><th>Period</th><th class="num">Completed</th><th class="num">Fee</th><th class="num">Total</th><th>Status</th><th></th></tr></thead><tbody>'
+     +inv.map(function(r){return '<tr><td>'+r[0]+'</td><td class="num">'+r[1]+'</td><td class="num">'+money(S.fee)+'</td><td class="num">'+money(r[1]*S.fee)+'</td><td>'+(r[2]==='paid'?'<span class="pill paid">Paid</span>':'<span class="pill due">Accruing</span>')+'</td><td><button class="tlink" type="button" data-pdf>PDF</button></td></tr>'}).join('')
+     +'</tbody></table></div>';
+  }
+  $('#paycard').innerHTML=S.tasks.pay
+   ?'<span class="eyebrow">Payment method</span><h3>Corporate card on file</h3><p class="cardnote mono">&bull;&bull;&bull;&bull; 4189 &middot; expires 04/28</p><button class="tlink" type="button" data-payu>Update method &rarr;</button>'
+   :'<span class="eyebrow">Payment method</span><h3>Nothing on file yet</h3><p class="cardnote">Add one now so your first completion bills cleanly. Nothing is charged until then.</p><button class="btn forest" type="button" id="payadd" style="margin-top:12px">Add payment method</button>';
+}
+document.addEventListener('click',function(e){
+  if(e.target.closest('#payadd')){S.tasks.pay=1;renderTasks();renderBilling();toast('Payment method saved. Nothing bills until a completion.');return}
+  if(e.target.closest('[data-payu]'))toast('Prototype: payment methods land with billing.');
+  if(e.target.closest('[data-pdf]'))toast('Prototype: invoice PDF lands with billing.');
+  if(e.target.closest('[data-edit]'))toast('Prototype: editing lands with accounts.');
+  if(e.target.closest('#signout')){signOut();return}
+  if(e.target.closest('#c-mail'))toast('Prototype: opens your mail app.');
+});
+
+/* ---------- coverage: declared areas + services ---------- */
+var covEdit=null;
+function svcStr(c){return c.tech.join(' \u00b7 ')+' \u00b7 up to '+c.speed}
+function renderCov(){
+  var rows=COVER.map(function(c,i){
+    var openN=deskList().filter(function(a){return a.cov===c.r&&(stageOf(a)===1||stageOf(a)===2)}).length;
+    var nx=plannedList().filter(function(a){return a.cov===c.r})[0];
+    var main='<tr><td><span class="rg" style="font-size:13.5px">'+esc(c.r)+'</span></td>'
+     +'<td><span class="covdot'+(c.st==='active'?'':' pend')+'"></span>'+(c.st==='active'?'Active':'Verifying')+'</td>'
+     +'<td class="covsvc">'+esc(svcStr(c))+'</td>'
+     +'<td class="num">'+(openN||'\u00b7')+'</td>'
+     +'<td style="white-space:nowrap"><button class="tlink" type="button" data-covedit="'+i+'">Edit services</button></td></tr>';
+    if(covEdit===i){
+      main+='<tr class="covedit"><td colspan="5"><div class="dh">Services in '+esc(c.r)+'</div>'
+       +'<div class="cechips" data-ce="'+i+'">'+TECHS.map(function(t){return '<button type="button" data-t="'+t+'" class="'+(c.tech.indexOf(t)>-1?'on':'')+'">'+t+'</button>'}).join('')+'</div>'
+       +'<div class="ceform"><div><label>Top speed offered</label><select id="ce-speed"><option'+(c.speed==='500 Mbps'?' selected':'')+'>500 Mbps</option><option'+(c.speed==='1 Gig'?' selected':'')+'>1 Gig</option><option'+(c.speed==='2.5 Gig'?' selected':'')+'>2.5 Gig</option></select></div>'
+       +'<div><label>Install lead time</label><select id="ce-lead"><option'+(c.lead==='5 business days'?' selected':'')+'>5 business days</option><option'+(c.lead==='7 business days'?' selected':'')+'>7 business days</option><option'+(c.lead==='10 business days'?' selected':'')+'>10 business days</option></select></div>'
+       +'<div><button class="btn forest" type="button" data-covsave="'+i+'">Save</button></div></div></td></tr>';
+    }
+    return main;
+  }).join('');
+  rows+='<tr class="addrow"><td colspan="2"><input id="regin" type="text" placeholder="Add a region you want to bid in" aria-label="Add a region"></td>'
+   +'<td><div class="cechips" id="addtech" style="margin:0">'+TECHS.map(function(t){return '<button type="button" data-t="'+t+'">'+t+'</button>'}).join('')+'</div></td>'
+   +'<td><select id="addspeed" style="width:100%;font:inherit;font-size:12.5px;border:1.5px solid var(--line);border-radius:9px;padding:7px 9px;background:#fff"><option>500 Mbps</option><option>1 Gig</option><option>2.5 Gig</option></select></td>'
+   +'<td><button class="btn forest" type="button" id="regadd" style="width:100%;justify-content:center">Declare</button></td></tr>';
+  $('#covrows').innerHTML=rows;
+  var cr=$('#capregs');if(cr)cr.textContent=COVER.filter(function(c){return c.st==='active'}).length+' active \u00b7 '+COVER.filter(function(c){return c.st!=='active'}).length+' verifying';
+}
+document.addEventListener('click',function(e){
+  var ed=e.target.closest('[data-covedit]');
+  if(ed){var i=+ed.getAttribute('data-covedit');covEdit=covEdit===i?null:i;renderCov();return}
+  var ch=e.target.closest('.cechips button');
+  if(ch){ch.classList.toggle('on');return}
+  var sv=e.target.closest('[data-covsave]');
+  if(sv){
+    var i2=+sv.getAttribute('data-covsave');
+    var techs=$$('.cechips[data-ce="'+i2+'"] button.on').map(function(b){return b.getAttribute('data-t')});
+    if(!techs.length){toast('Pick at least one technology.');return}
+    COVER[i2].tech=techs;COVER[i2].speed=$('#ce-speed').value;COVER[i2].lead=$('#ce-lead').value;
+    covEdit=null;renderCov();toast('Services updated for '+COVER[i2].r+'.');
+    return;
+  }
+  if(e.target.closest('#regadd')){
+    var v=$('#regin').value.trim();if(!v)return;
+    var techs2=$$('#addtech button.on').map(function(b){return b.getAttribute('data-t')});
+    if(!techs2.length){toast('Pick at least one technology you serve there.');return}
+    COVER.push({r:v,st:'verifying',tech:techs2,speed:$('#addspeed').value,lead:'To confirm'});
+    renderCov();renderDesk();
+    toast(v+' declared with '+techs2.join(', ')+'. Verifying serviceability.');
+  }
+});
+
+/* ---------- stage toggle ---------- */
+function setStage(st){
+  S.stage=st;
+  $$('#stageseg button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-stage')===st)});
+  $('#ov-day1').style.display=st==='day1'?'':'none';
+  $('#ov-motion').style.display=st==='motion'?'':'none';
+  if(st==='motion')renderMotionCharts();
+  renderBids();renderAcq();renderBilling();
+}
+$('#stageseg').addEventListener('click',function(e){
+  var b=e.target.closest('button');if(b)setStage(b.getAttribute('data-stage'));
+});
+
+/* ---------- time controls + tick ---------- */
+function renderAll(){
+  renderOverviewBits();renderAgenda('#agenda1');renderAgenda('#agenda2');
+  renderDesk();renderPlanned();renderBids();renderCov();
+  if(S.planOpen)renderPlan();
+}
+var lastSig='';
+function sig(){return deskList().map(function(c){return c.id+stageOf(c)}).join('|')}
+function tick(){
+  var n=now();
+  $$('[data-until]').forEach(function(el){
+    var u=+el.getAttribute('data-until');
+    el.textContent=cdFmt(u-n);
+  });
+  var s2=sig();
+  if(s2!==lastSig){lastSig=s2;renderAll()}
+}
+$('#t3h').addEventListener('click',function(){NOWOFF+=3*H;lastSig=sig();renderAll();toast('Clock moved 3 hours. Everything recomputed from the same timestamps.')});
+$('#t7d').addEventListener('click',function(){NOWOFF+=7*D;lastSig=sig();renderAll();toast('Clock moved 7 days. Stages, calendar, and results all follow.')});
+if(!reduce)setInterval(tick,1000);
+
+/* ---------- misc controls ---------- */
+$('#ctl-toggle').addEventListener('click',function(){
+  var open=$('#ctl').classList.toggle('open');
+  this.setAttribute('aria-expanded',open?'true':'false');
+});
+$('#cfg-fee').addEventListener('input',function(){
+  var v=parseFloat(this.value);if(isNaN(v)||v<0)v=0;S.fee=v;renderBilling();
+});
+$('#rst').addEventListener('click',function(){
+  NOWOFF=0;S.stage='day1';S.fee=95;S.bids={};S.tasks={cov:1,pay:0,brief:0,bid:0};S.planOpen=null;covEdit=null;
+  $('#cfg-fee').value=95;setStage('day1');renderTasks();lastSig=sig();renderAll();toast('Demo reset.');
+});
+
+/* ---------- boot ---------- */
+renderTasks();lastSig=sig();renderAll();renderBilling();renderAcq();
+})();
+
+</script>
+</body>
+</html>

@@ -3,7 +3,8 @@
     "targets": [
       "formSubmit",
       "billOcr",
-      "crmSync"
+      "crmSync",
+      "auth"
     ],
     "ignore": [
       ".output"

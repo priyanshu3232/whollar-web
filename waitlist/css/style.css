@@ -279,3 +279,9 @@
 .ty .s2{top:30%;right:18%;animation-delay:1.1s!important}
 .ty .s3{bottom:26%;left:22%;animation-delay:.7s!important}
 .ty .s4{bottom:20%;right:16%;animation-delay:1.6s!important}
+
+/* Field-level errors. WHOLLAR.fieldError wires role="alert" + aria-describedby
+   so a failed field is announced, not just outlined in red.
+   #A34F2B clears WCAG AA (4.7:1) on the cream and white backgrounds here;
+   the previous #C2643B was 3.8:1. */
+.whl-fielderr{margin:6px 0 0;font-size:12px;font-weight:600;color:#A34F2B;line-height:1.45}

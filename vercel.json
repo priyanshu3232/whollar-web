@@ -56,9 +56,33 @@
           "value": "public, max-age=86400, stale-while-revalidate=604800"
         }
       ]
+    },
+    {
+      "source": "/api/auth/(.*)",
+      "headers": [
+        {
+          "key": "x-vercel-enable-rewrite-caching",
+          "value": "0"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/auth/:path*",
+      "destination": "https://whollar-110003037934.development.catalystserverless.ca/server/auth/:path*"
     }
   ],
   "redirects": [
+    {
+      "source": "/disclosures",
+      "destination": "/terms",
+      "permanent": false
+    },
     {
       "source": "/join",
       "destination": "/waitlist/",

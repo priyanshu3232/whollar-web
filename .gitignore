@@ -10,3 +10,5 @@ catalyst-backend/**/.output/
 .env*
 # Raw source images (site serves optimized copies from images/resources/)
 Resourcesimages/
+# SEO report exports (endl.io downloads, not site source)
+endl.io_*.csv

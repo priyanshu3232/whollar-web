@@ -9,6 +9,15 @@
     })(window, document, "clarity", "script", "xrkpgls1yj");
 </script>
 <meta charset="UTF-8">
+<script type="text/javascript">
+    /* Clarity records session replays and this page has email + password
+       fields. Mask text content by default (PIPEDA / Quebec Law 25). */
+    if(window.clarity) window.clarity('set','mask','true');
+</script>
+<script src="/js/whollar-core.js"></script>
+<!-- No server-side authentication exists yet (see the notice in the form).
+     Keep this page out of the index until it does. -->
+<meta name="robots" content="noindex,nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Partner sign in · Whollar</title>
 <link rel="preconnect" href="https://api.fontshare.com">
@@ -18,12 +27,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --forest:#123D29; --forest-deep:#0B2A1B; --forest-2:#1C5A3C; --forest-3:#2A7350;
-  --forest-soft:#BCE0C9;
-  --gold:#C89B3C; --gold-2:#E1C169; --gold-deep:#9A7217; --gold-soft:#F2E7C4; --gold-wash:#FAF3DF;
-  --cream:#F5F2E9; --paper:#ffffff; --mist:#F1EEE2;
-  --ink:#26302B; --ink-2:#586158; --ink-3:#8B938B; --line:#e5e2d5; --line-2:#d9d5c4;
-  --warn:#C2643B;
+  --teal:#0E2A20; --teal-deep:#0A2018; --teal-bright:#178A5A; --teal-soft:#7FE3B0;
+  --accent:#1E9E63; --accent-hover:#178A5A;
+  --cream:#FAF8F3; --paper:#ffffff; --mist:#F6F4EE;
+  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#5F6B64; /* was #8A968F (2.6-3.1:1) — carries real body copy at 11-12.5px; darkened to clear WCAG AA 4.5:1 on cream, white, mist, green-tint and warn-soft */ --line:#e7ebe6; --line-2:#dfe3dd;
+  --warn:#C2643B; --warn-text:#A34F2B; /* --warn stays for borders/strokes (decorative). Text must use --warn-text: #C2643B is only 3.4-3.8:1 on these backgrounds. */ --warn-soft:#F7E7DD; --green-tint:#E4F4EC;
   --label:'General Sans','Satoshi',system-ui,sans-serif;
   --disp:'Satoshi',system-ui,sans-serif;
   --body:'Inter',system-ui,sans-serif;
@@ -31,56 +39,56 @@
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
-h1,h2,h3{font-family:var(--disp);color:var(--forest);letter-spacing:-.02em;margin:0;font-weight:900}
+h1,h2,h3{font-family:var(--disp);color:var(--teal);letter-spacing:-.02em;margin:0;font-weight:900}
 p{margin:0}
-a{color:var(--gold-deep);text-decoration:none}
+a{color:var(--accent-hover);text-decoration:none}
 a:hover{text-decoration:underline}
 button{font-family:var(--body)}
-::selection{background:var(--gold);color:var(--forest-deep)}
-:focus-visible{outline:2.5px solid var(--gold);outline-offset:2px;border-radius:8px}
+::selection{background:var(--accent);color:#fff}
+:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px;border-radius:8px}
 
 .shell{min-height:100vh;display:grid;grid-template-columns:1.02fr 1fr}
 @media(max-width:900px){.shell{grid-template-columns:1fr}}
 
 /* ---------- brand panel ---------- */
-.brand{background:linear-gradient(158deg,var(--forest-deep) 0%,#123D29 52%,#0E3624 100%);color:#fff;position:relative;overflow:hidden;display:flex;flex-direction:column;padding:38px 46px 44px}
+.brand{background:linear-gradient(158deg,var(--teal-deep) 0%,#123B2C 54%,#17553D 100%);color:#fff;position:relative;overflow:hidden;display:flex;flex-direction:column;padding:38px 46px 44px}
 @media(max-width:900px){.brand{padding:26px 26px 30px}}
-.brand::after{content:"";position:absolute;right:-150px;bottom:-140px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,rgba(200,155,60,.16),transparent 62%);pointer-events:none}
+.brand::after{content:"";position:absolute;right:-150px;bottom:-140px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,rgba(127,227,176,.16),transparent 62%);pointer-events:none}
 .mark{display:flex;align-items:center;gap:9px;position:relative;z-index:2}
 .mark b{font-family:var(--disp);font-weight:900;font-size:21px;color:#fff;letter-spacing:-.02em}
 .mark svg{width:34px;height:34px;flex:none;display:block}
-.mark .tag{margin-left:6px;font-family:var(--label);font-weight:600;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-2);border-left:1px solid rgba(255,255,255,.18);padding-left:11px}
+.mark .tag{margin-left:6px;font-family:var(--label);font-weight:600;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal-soft);border-left:1px solid rgba(255,255,255,.18);padding-left:11px}
 .brand__mid{margin-top:auto;margin-bottom:auto;position:relative;z-index:2;padding:34px 0}
-.eyebrow{font-family:var(--label);font-weight:600;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-2);margin-bottom:16px}
+.eyebrow{font-family:var(--label);font-weight:600;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--teal-soft);margin-bottom:16px}
 .brand h1{color:#fff;font-size:clamp(29px,3.3vw,41px);line-height:1.05;letter-spacing:-.03em;max-width:15ch}
-.brand h1 em{font-style:normal;color:var(--gold-2)}
-.brand__sub{margin-top:16px;color:#CBD9CF;font-size:16px;line-height:1.55;max-width:42ch}
+.brand h1 em{font-style:normal;color:var(--teal-soft)}
+.brand__sub{margin-top:16px;color:#CFE2D5;font-size:16px;line-height:1.55;max-width:42ch}
 
 /* cohort schematic */
-.coh{margin-top:32px;background:rgba(255,255,255,.055);border:1px solid rgba(200,155,60,.28);border-radius:16px;padding:16px 18px;max-width:420px}
-.coh__row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;color:#CBD9CF}
+.coh{margin-top:32px;background:rgba(255,255,255,.055);border:1px solid rgba(127,227,176,.22);border-radius:16px;padding:16px 18px;max-width:420px}
+.coh__row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;color:#CFE2D5}
 .coh__row:last-child{border-bottom:none}
 .coh__row .rg{font-family:var(--label);font-weight:600;color:#fff;display:flex;align-items:center;gap:9px;flex:none}
 .coh__row .fillbar{flex:1;height:6px;border-radius:6px;background:rgba(255,255,255,.12);overflow:hidden;margin:0 14px}
-.coh__row .fillbar b{display:block;height:100%;width:18%;border-radius:6px;background:linear-gradient(90deg,var(--gold),var(--gold-2));animation:barfill 4.4s var(--ease) infinite}
+.coh__row .fillbar b{display:block;height:100%;width:18%;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--teal-soft));animation:barfill 4.4s var(--ease) infinite}
 .coh__row .st{flex:none}
 @keyframes barfill{0%{width:8%}46%{width:80%}72%{width:80%}100%{width:8%}}
 @media(prefers-reduced-motion:reduce){.coh__row .fillbar b{animation:none;width:62%}}
-.coh__row .rg i{font-family:var(--disp);font-weight:900;font-style:normal;color:var(--forest-deep);background:var(--gold-2);border-radius:6px;font-size:11px;padding:2px 7px;letter-spacing:.02em}
+.coh__row .rg i{font-family:var(--disp);font-weight:900;font-style:normal;color:var(--teal-deep);background:var(--teal-soft);border-radius:6px;font-size:11px;padding:2px 7px;letter-spacing:.02em}
 .coh__row .st{font-family:var(--label);font-weight:600;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:20px}
-.st.live{background:var(--gold);color:var(--forest-deep)}
-.st.form{background:rgba(188,224,201,.16);color:var(--forest-soft)}
+.st.live{background:var(--teal-soft);color:var(--teal-deep)}
+.st.form{background:rgba(127,227,176,.16);color:var(--teal-soft)}
 .trust{margin-top:28px;display:flex;flex-direction:column;gap:11px;position:relative;z-index:2}
-.trust span{display:flex;align-items:center;gap:9px;font-size:14px;color:#CBD9CF}
-.trust svg{width:16px;height:16px;stroke:var(--gold-2);stroke-width:2.3;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.trust span{display:flex;align-items:center;gap:9px;font-size:14px;color:#CFE2D5}
+.trust svg{width:16px;height:16px;stroke:var(--teal-soft);stroke-width:2.3;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:none}
 
 /* ---------- form panel ---------- */
 .form-pane{background:var(--mist);display:flex;align-items:center;justify-content:center;padding:40px 28px;position:relative}
 .switchtop{position:absolute;top:26px;right:30px;font-size:13.5px;color:var(--ink-2)}
 .switchtop a{font-weight:600}
-.card{width:100%;max-width:412px;background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:34px 34px 30px;box-shadow:0 2px 6px rgba(18,61,41,.05),0 22px 50px rgba(18,61,41,.09)}
+.card{width:100%;max-width:412px;background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:34px 34px 30px;box-shadow:0 2px 6px rgba(16,40,34,.05),0 22px 50px rgba(16,40,34,.08)}
 @media(max-width:520px){.card{padding:26px 22px 24px}}
-.card h2{font-size:25px;color:var(--forest);letter-spacing:-.025em}
+.card h2{font-size:25px;color:var(--teal);letter-spacing:-.025em}
 .card .fsub{margin-top:7px;font-size:14px;color:var(--ink-2);line-height:1.5;margin-bottom:22px}
 
 .field{margin-bottom:14px}
@@ -88,25 +96,30 @@ button{font-family:var(--body)}
 .inwrap{position:relative}
 .field input{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;font-size:15px;font-family:var(--body);color:var(--ink);background:#fff;transition:border-color .15s,box-shadow .15s}
 .field input::placeholder{color:var(--ink-3)}
-.field input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(200,155,60,.16)}
-.field.err input{border-color:var(--warn);background:#FDF6F2}
+.field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(30,158,99,.14)}
+.field.err input{border-color:var(--warn-text);background:#FDF6F2}
 .peek{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--ink-3);font-family:var(--label);font-weight:600;font-size:12px;padding:6px 8px;border-radius:8px}
 .peek:hover{color:var(--ink-2);background:var(--mist)}
 .rowline{display:flex;justify-content:flex-end;margin:-2px 0 18px}
 .rowline .forgot{font-size:13px;font-weight:600}
-.err-inline{display:none;color:var(--warn);font-size:12.5px;margin:-8px 0 14px;font-weight:500}
+/* Preview notice — states plainly that no authentication exists behind this
+   form. Remove together with the mock sign-in when real auth ships. */
+.preview-note{background:var(--warn-soft,#F7E7DD);border:1px solid #E8C7AE;color:#7A3A19;font-size:12.5px;line-height:1.5;border-radius:12px;padding:10px 13px;margin:0 0 18px}
+.preview-note b{font-weight:700}
+.preview-note a{color:#7A3A19;text-decoration:underline}
+.err-inline{display:none;color:var(--warn-text);font-size:12.5px;margin:-8px 0 14px;font-weight:500}
 
-.submit{width:100%;border:none;cursor:pointer;background:var(--gold);color:var(--forest-deep);font-weight:700;font-size:15.5px;border-radius:13px;padding:14px;transition:background .18s,transform .15s;font-family:var(--body)}
-.submit:hover{background:var(--gold-2);transform:translateY(-1px)}
+.submit{width:100%;border:none;cursor:pointer;background:var(--accent);color:#fff;font-weight:700;font-size:15.5px;border-radius:13px;padding:14px;transition:background .18s,transform .15s;font-family:var(--body)}
+.submit:hover{background:var(--accent-hover);transform:translateY(-1px)}
 .submit.ghost{background:transparent;color:var(--ink-2);border:1.5px solid var(--line);margin-top:10px}
 .submit.ghost:hover{background:var(--mist);color:var(--ink)}
 .legal{margin-top:18px;font-size:11.5px;color:var(--ink-3);line-height:1.5;text-align:center}
 .tc{display:flex;align-items:flex-start;gap:10px;margin:2px 0 14px;font-size:12.5px;color:var(--ink-2);line-height:1.45;cursor:pointer}
 .tc input{appearance:none;-webkit-appearance:none;flex:none;width:18px;height:18px;border:1.5px solid var(--line-2);border-radius:6px;background:#fff;cursor:pointer;position:relative;margin-top:1px;transition:background .15s,border-color .15s}
-.tc input:checked{background:var(--gold);border-color:var(--gold)}
-.tc input:checked::after{content:"";position:absolute;left:5px;top:1px;width:5px;height:9px;border:solid var(--forest-deep);border-width:0 2px 2px 0;transform:rotate(45deg)}
-.tc input:focus-visible{outline:2.5px solid var(--gold);outline-offset:2px}
-.tc a{color:var(--gold-deep);font-weight:600;text-decoration:underline}
+.tc input:checked{background:var(--accent);border-color:var(--accent)}
+.tc input:checked::after{content:"";position:absolute;left:5px;top:1px;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.tc input:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px}
+.tc a{color:var(--accent-hover);font-weight:600;text-decoration:underline}
 .legal a{color:var(--ink-2);text-decoration:underline}
 .foot-switch{margin-top:20px;text-align:center;font-size:14px;color:var(--ink-2)}
 .foot-switch a{font-weight:600;cursor:pointer}
@@ -116,16 +129,16 @@ button{font-family:var(--body)}
 .stepper{display:flex;align-items:center;gap:0;margin:2px 0 22px}
 .stepper .s{display:flex;align-items:center;gap:8px;font-family:var(--label);font-weight:600;font-size:12px;color:var(--ink-3)}
 .stepper .s .n{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--mist);border:1.5px solid var(--line-2);font-size:12px;color:var(--ink-3);transition:all .2s}
-.stepper .s.on .n{background:var(--gold);border-color:var(--gold);color:var(--forest-deep)}
-.stepper .s.done .n{background:var(--forest-2);border-color:var(--forest-2);color:#fff}
-.stepper .s.on{color:var(--forest)}
+.stepper .s.on .n{background:var(--accent);border-color:var(--accent);color:#fff}
+.stepper .s.done .n{background:var(--teal-bright);border-color:var(--teal-bright);color:#fff}
+.stepper .s.on{color:var(--teal)}
 .stepper .line{flex:1;height:1.5px;background:var(--line-2);margin:0 10px}
-.stepper .line.done{background:var(--forest-2)}
+.stepper .line.done{background:var(--teal-bright)}
 
 /* OTP */
 .otp{display:flex;gap:9px;margin-bottom:8px;justify-content:space-between}
-.otp input{width:100%;aspect-ratio:1/1;text-align:center;font-family:var(--disp);font-weight:700;font-size:22px;color:var(--forest);border:1.5px solid var(--line);border-radius:12px;background:#fff;transition:border-color .15s,box-shadow .15s}
-.otp input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(200,155,60,.16)}
+.otp input{width:100%;aspect-ratio:1/1;text-align:center;font-family:var(--disp);font-weight:700;font-size:22px;color:var(--teal);border:1.5px solid var(--line);border-radius:12px;background:#fff;transition:border-color .15s,box-shadow .15s}
+.otp input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(30,158,99,.14)}
 .otp-meta{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--ink-2);margin-bottom:20px}
 .otp-meta a{font-weight:600;cursor:pointer}
 .otp-meta a.dim{color:var(--ink-3);cursor:default;pointer-events:none}
@@ -133,13 +146,13 @@ button{font-family:var(--body)}
 .sentto b{color:var(--ink)}
 
 /* role routing */
-.route>span{display:block;font-family:var(--label);font-weight:600;font-size:12.5px;color:var(--forest);margin-bottom:9px}
+.route>span{display:block;font-family:var(--label);font-weight:600;font-size:12.5px;color:var(--teal);margin-bottom:9px}
 .rc{display:flex;align-items:center;gap:11px;text-align:left;width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;cursor:pointer;transition:border-color .15s,background .15s,transform .12s;font-family:var(--body);margin-bottom:9px}
 .rc:hover{transform:translateY(-1px)}
-.rc.on{border-color:var(--gold);background:var(--gold-wash)}
+.rc.on{border-color:var(--accent);background:var(--green-tint)}
 .rc .dot{flex:none;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line-2);display:grid;place-items:center}
-.rc.on .dot{border-color:var(--gold);background:var(--gold)}
-.rc.on .dot::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--forest-deep)}
+.rc.on .dot{border-color:var(--accent);background:var(--accent)}
+.rc.on .dot::after{content:"";width:6px;height:6px;border-radius:50%;background:#fff}
 .rc b{display:block;font-size:14px;color:var(--ink);font-weight:600}
 .rc small{display:block;font-size:11.5px;color:var(--ink-3);margin-top:1px}
 
@@ -185,9 +198,15 @@ button{font-family:var(--body)}
         <h2>Partner sign in</h2>
         <p class="fsub">Access your cohort dashboard with your work email.</p>
 
+        <!-- There is no authentication backend behind this form: signing in
+             writes a localStorage record and opens the partner console, which
+             runs on demo data. Say so rather than implying credentials were
+             checked against anything. -->
+        <p class="preview-note" role="note"><b>Preview.</b> Partner accounts aren’t verified yet — signing in opens the console on demo cohorts, not your real ones. <a href="/become-a-partner">Apply to become a partner</a> to get your live account.</p>
+
         <div class="field" id="si-email-f">
           <label for="si-email">Work email</label>
-          <input id="si-email" type="email" autocomplete="email" inputmode="email" placeholder="you@provider.ca">
+          <input id="si-email" type="email" autocomplete="email" inputmode="email" placeholder="you@provider.ca" maxlength="254" aria-describedby="si-error">
         </div>
         <div class="field">
           <label for="si-pass">Password</label>
@@ -196,11 +215,14 @@ button{font-family:var(--body)}
             <button type="button" class="peek" onclick="peek('si-pass',this)">Show</button>
           </div>
         </div>
-        <div class="rowline"><a class="forgot" href="#" onclick="mock('Reset link sent to your work email');return false;">Forgot password?</a></div>
-        <div class="err-inline" id="si-error">Check your email or password and try again.</div>
+        <!-- There is no password-reset flow: no token, no expiry, no email.
+             The old handler popped "Reset link sent to your work email",
+             which was simply untrue. Point at a channel that reaches a human. -->
+        <div class="rowline"><a class="forgot" href="mailto:hello@whollar.ca?subject=Partner%20account%20access">Trouble signing in?</a></div>
+        <div class="err-inline" id="si-error" role="alert">Check your email or password and try again.</div>
 
-        <label class="tc"><input type="checkbox" id="tc"><span>I agree to Whollar's <a href="#">Partner Terms</a> and <a href="#">Privacy Policy</a>.</span></label>
-        <div class="err-inline" id="tc-err">Please accept the terms to continue.</div>
+        <label class="tc"><input type="checkbox" id="tc"><span>I agree to Whollar's <a href="/terms" target="_blank" rel="noopener noreferrer">Partner Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</span></label>
+        <div class="err-inline" id="tc-err" role="alert">Please accept the terms to continue.</div>
         <button class="submit" onclick="signIn()">Sign in</button>
 
         <p class="foot-switch">New provider? <a onclick="show('signup')">Create a partner account</a></p>
@@ -223,7 +245,7 @@ button{font-family:var(--body)}
           <div class="field" id="su-email-f">
             <label for="su-email">Work email</label>
             <input id="su-email" type="email" autocomplete="email" inputmode="email" placeholder="you@provider.ca">
-            <div class="err-inline" id="su-email-err" style="display:none">Enter a valid work email.</div>
+            <div class="err-inline" id="su-email-err" role="alert" style="display:none">Enter a valid work email.</div>
           </div>
           <button class="submit" onclick="sendCode()">Send verification code</button>
           <p class="foot-switch">Already a partner? <a onclick="show('signin')">Sign in</a></p>
@@ -241,7 +263,7 @@ button{font-family:var(--body)}
             <input inputmode="numeric" maxlength="1" aria-label="digit 5">
             <input inputmode="numeric" maxlength="1" aria-label="digit 6">
           </div>
-          <div class="err-inline" id="otp-err">That code did not match. Check it and try again.</div>
+          <div class="err-inline" id="otp-err" role="alert">That code did not match. Check it and try again.</div>
           <div class="otp-meta">
             <span>Didn't get it? <a id="resend" class="dim" onclick="resend()">Resend in <span id="cd">30</span>s</a></span>
             <a onclick="editEmail()">Change email</a>
@@ -260,15 +282,25 @@ button{font-family:var(--body)}
             <button type="button" class="rc" onclick="pickRole(this)"><span class="dot"></span><span><b>Distributor</b><small>Pricing and lead integration</small></span></button>
             <button type="button" class="rc" onclick="pickRole(this)"><span class="dot"></span><span><b>Other</b><small>We'll route you after review</small></span></button>
           </div>
-          <div class="field" style="margin-top:16px">
+          <div class="err-inline" id="role-err" role="alert">Choose the role that fits you.</div>
+          <!-- The console heads every screen with the company name, so it has
+               to be collected. Deriving it from the email domain guessed
+               "Bell" for anyone at a reseller. -->
+          <div class="field" id="su-org-f" style="margin-top:16px">
+            <label for="su-org">Company name</label>
+            <input id="su-org" type="text" autocomplete="organization" placeholder="Northline Internet" maxlength="80">
+            <div class="err-inline" id="su-org-err" role="alert" style="display:none">Enter the company you bid for.</div>
+          </div>
+          <div class="field">
             <label for="su-pass">Create a password</label>
             <div class="inwrap">
               <input id="su-pass" type="password" autocomplete="new-password" placeholder="At least 10 characters">
               <button type="button" class="peek" onclick="peek('su-pass',this)">Show</button>
             </div>
+            <div class="err-inline" id="su-pass-err" role="alert" style="display:none">Use at least 10 characters.</div>
           </div>
-          <button class="submit" onclick="mock('Partner account created · routing to your dashboard')">Create account</button>
-          <p class="legal">By creating an account you agree to Whollar's <a href="#">Partner Terms</a> and <a href="#">Privacy Policy</a>.</p>
+          <button class="submit" onclick="createAccount()">Create account</button>
+          <p class="legal">By creating an account you agree to Whollar's <a href="/terms" target="_blank" rel="noopener noreferrer">Partner Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</p>
         </div>
       </section>
 
@@ -277,6 +309,34 @@ button{font-family:var(--body)}
 </div>
 
 <script>
+var W=window.WHOLLAR;
+
+/* Where a partner lands once "signed in". /provider-dashboard is the default;
+   anything carried in ?next= is validated same-origin before it is followed. */
+function nextTarget(){
+  return W.safeNext(new URLSearchParams(location.search).get('next'), '/provider-dashboard');
+}
+
+/* Already signed in? Don't strand a partner on a form they don't need. */
+(function(){
+  if(W.partner.read()) location.replace(nextTarget());
+})();
+
+/* One shape for the partner record, written by both paths so the console never
+   has to cope with two. emailKey is lowercased so a later CRM lookup can't
+   treat Sam@x.ca and sam@x.ca as two accounts. */
+function startSession(email, opts){
+  opts=opts||{};
+  W.partner.write({
+    firstName: W.firstNameFrom(email, opts.firstName),
+    email: email,
+    emailKey: email.toLowerCase(),
+    org: (opts.org||'').trim()||null,
+    role: opts.role||null
+  });
+  location.href=nextTarget();
+}
+
 function show(which){
   document.getElementById('signin').classList.toggle('hidden', which!=='signin');
   document.getElementById('signup').classList.toggle('hidden', which!=='signup');
@@ -287,16 +347,56 @@ function peek(id,btn){
   if(el.type==='password'){el.type='text';btn.textContent='Hide';}
   else{el.type='password';btn.textContent='Show';}
 }
-function mock(label){ alert(label + '\n\n(Mock screen · wire this to your auth provider.)'); }
-
 function signIn(){
   var em=document.getElementById('si-email'), ef=document.getElementById('si-email-f');
-  var ok=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em.value.trim());
+  /* Same rule the server uses. The old regex here accepted a one-character
+     TLD ("a@b.c") that the backend rejects. */
+  var ok=W.isEmail(em.value);
   ef.classList.toggle('err',!ok);
-  if(!ok){ em.focus(); document.getElementById('si-error').style.display='none'; return; }
-  if(!document.getElementById('tc').checked){ document.getElementById('tc-err').style.display='block'; return; }
+  em.setAttribute('aria-invalid', ok?'false':'true');
+  var err=document.getElementById('si-error');
+  if(!ok){ err.textContent='Enter a valid work email address.'; err.style.display='block'; em.focus(); return; }
+
+  /* No password is verified against anything, but accepting an empty one and
+     opening the console would teach partners the field is decorative. */
+  var pw=document.getElementById('si-pass');
+  if(!pw.value){ err.textContent='Enter your password.'; err.style.display='block'; pw.focus(); return; }
+  err.style.display='none';
+
+  if(!document.getElementById('tc').checked){ document.getElementById('tc-err').style.display='block'; document.getElementById('tc').focus(); return; }
   document.getElementById('tc-err').style.display='none';
-  document.getElementById('si-error').style.display='block';
+
+  /* Sign-in has no company field to read, so the console falls back to the
+     email domain until an account edit or a real backend supplies the name. */
+  startSession(em.value.trim(), {});
+}
+
+/* Sign-up step 3. This used to alert() "routing to your dashboard" and route
+   nowhere: no record was written, so the console would have bounced them
+   straight back here. */
+function createAccount(){
+  var roleEl=document.querySelector('.rc.on');
+  var roleErr=document.getElementById('role-err');
+  roleErr.style.display=roleEl?'none':'block';
+  if(!roleEl){ return; }
+
+  var org=document.getElementById('su-org'), orgf=document.getElementById('su-org-f');
+  var orgOk=org.value.trim().length>1;
+  document.getElementById('su-org-err').style.display=orgOk?'none':'block';
+  orgf.classList.toggle('err',!orgOk);
+  org.setAttribute('aria-invalid', orgOk?'false':'true');
+  if(!orgOk){ org.focus(); return; }
+
+  var pw=document.getElementById('su-pass');
+  var pwOk=pw.value.length>=10;
+  document.getElementById('su-pass-err').style.display=pwOk?'none':'block';
+  pw.setAttribute('aria-invalid', pwOk?'false':'true');
+  if(!pwOk){ pw.focus(); return; }
+
+  startSession(document.getElementById('su-email').value.trim(), {
+    org: org.value,
+    role: roleEl.querySelector('b').textContent
+  });
 }
 
 /* ---- signup step control ---- */
@@ -314,8 +414,9 @@ function goStep(n){
 var cdTimer=null;
 function sendCode(){
   var em=document.getElementById('su-email'), ef=document.getElementById('su-email-f');
-  var ok=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em.value.trim());
+  var ok=window.WHOLLAR.isEmail(em.value);
   document.getElementById('su-email-err').style.display= ok?'none':'block';
+  em.setAttribute('aria-invalid', ok?'false':'true');
   ef.classList.toggle('err',!ok);
   if(!ok){ em.focus(); return; }
   document.getElementById('echo-email').textContent=em.value.trim();
@@ -346,6 +447,7 @@ function verify(){
 function pickRole(el){
   document.querySelectorAll('.rc').forEach(function(r){r.classList.remove('on');});
   el.classList.add('on');
+  document.getElementById('role-err').style.display='none';
 }
 
 /* OTP input behaviour */

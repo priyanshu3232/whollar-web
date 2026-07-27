@@ -9,7 +9,12 @@
         t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
         y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
     })(window, document, "clarity", "script", "xrkpgls1yj");
+    /* This form collects a name, email, phone, postal code and optionally a
+       bill. Clarity records session replays, so mask text content by default
+       (PIPEDA / Quebec Law 25). */
+    window.clarity('set','mask','true');
 </script>
+<script src="/js/whollar-core.js"></script>
 <title>Join the waitlist, Whollar</title>
 <meta name="description" content="Hold your spot in your neighbourhood's cohort. Whollar gets providers to bid for whole streets at once, so everyone gets the group price.">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDEyMCAxMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJXaG9sbGFyIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0id2hvbGxhck1hcmsiIHgxPSIxOCIgeTE9IjE0IiB4Mj0iMTAyIiB5Mj0iMTA2IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzBFMkEyMCI+PC9zdG9wPgogICAgICA8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMxRTlFNjMiPjwvc3RvcD4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxyZWN0IHg9IjYiIHk9IjYiIHdpZHRoPSIxMDgiIGhlaWdodD0iMTA4IiByeD0iMzIiIGZpbGw9InVybCgjd2hvbGxhck1hcmspIj48L3JlY3Q+CiAgPGc+CiAgICA8cGF0aCBkPSJNMzQgNDJoNTJNMzQgNDJsMjYgMzhNODYgNDJsLTI2IDM4IiBzdHJva2U9IiNGRkZGRkYiIHN0cm9rZS13aWR0aD0iNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIwLjg1Ij48L3BhdGg+CiAgICA8Y2lyY2xlIGN4PSIzNCIgY3k9IjQyIiByPSIxMSIgZmlsbD0iI0ZGRkZGRiI+PC9jaXJjbGU+CiAgICA8Y2lyY2xlIGN4PSI4NiIgY3k9IjQyIiByPSIxMSIgZmlsbD0iI0ZGRkZGRiI+PC9jaXJjbGU+CiAgICA8Y2lyY2xlIGN4PSI2MCIgY3k9IjgwIiByPSIxMSIgZmlsbD0iI0ZGRkZGRiI+PC9jaXJjbGU+CiAgPC9nPgo8L3N2Zz4K">
@@ -18,6 +23,8 @@
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&amp;f[]=general-sans@500,600&amp;display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&amp;f[]=general-sans@500,600&amp;display=swap" rel="stylesheet"></noscript>
 <style>
+.whl-fielderr{margin:6px 0 0;font-size:12px;font-weight:600;color:#A34F2B;line-height:1.45}
+
 /* cyrillic-ext */
 @font-face {
   font-family: 'Inter';
@@ -615,7 +622,7 @@
           <label for="j-ref">Referral code or a neighbour's email</label>
           <input type="text" id="j-ref" placeholder="Optional">
         </div>
-        <label class="j-terms" style="display:flex;align-items:flex-start;gap:9px;margin:16px 0 6px;font-size:13px;line-height:1.5;color:#54625B;cursor:pointer;"><input type="checkbox" id="j-terms" style="margin-top:1px;width:16px;height:16px;accent-color:#1E9E63;flex:none;cursor:pointer;"><span>I accept all <a href="/terms" target="_blank" rel="noopener noreferrer" style="color:#178A5A;text-decoration:underline;text-underline-offset:2px;">terms and conditions</a>.</span></label>
+        <label class="j-terms" style="display:flex;align-items:flex-start;gap:9px;margin:16px 0 6px;font-size:13px;line-height:1.5;color:#54625B;cursor:pointer;"><input type="checkbox" id="j-terms" style="margin-top:1px;width:16px;height:16px;accent-color:#1E9E63;flex:none;cursor:pointer;"><span>I accept the <a href="/terms" target="_blank" rel="noopener noreferrer" style="color:#178A5A;text-decoration:underline;text-underline-offset:2px;">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style="color:#178A5A;text-decoration:underline;text-underline-offset:2px;">Privacy&nbsp;Policy</a>, and agree to receive email about my cohort and offers. I can unsubscribe at any time.</span></label>
         <button class="whl-btn go" id="j-go" type="button">Become a founding member</button>
         <p class="perksline"><b>Founding perks, locked in for joining now.</b> Early access and first pick on every market we open next.</p>
       </div>
@@ -812,34 +819,26 @@ document.addEventListener('DOMContentLoaded',function(){
     const $ = s => root.querySelector(s);
     const $$ = s => [...root.querySelectorAll(s)];
     const FSA={A:'Newfoundland & Labrador',B:'Nova Scotia',C:'PEI',E:'New Brunswick',G:'Quebec',H:'Quebec',J:'Quebec',K:'Ontario',L:'Ontario',M:'Ontario',N:'Ontario',P:'Ontario',R:'Manitoba',S:'Saskatchewan',T:'Alberta',V:'British Columbia',X:'the North',Y:'Yukon'};
-    const S={name:'',last:'',email:'',phone:'',fsa:null,details:{}};
+    const S={name:'',last:'',email:'',phone:'',fsa:null,postalFull:null,province:null,provinceCode:null,details:{}};
 
-    /* CATALYST SETUP: replace with your deployed function base URL, see catalyst-backend/README.md */
-    const CATALYST_BASE='https://whollar-110003037934.development.catalystserverless.ca/server/formSubmit';
-    function submitForm(path,fields,files){
-      const hasFiles=files&&Object.values(files).some(f=>Array.isArray(f)?f.length:f);
-      const opts=hasFiles?(()=>{const fd=new FormData();
-        Object.entries(fields).forEach(([k,v])=>fd.append(k,typeof v==='object'?JSON.stringify(v):v==null?'':v));
-        Object.entries(files).forEach(([k,f])=>{if(!f)return;(Array.isArray(f)?f:[f]).forEach(file=>fd.append(k,file,file.name));});
-        return{method:'POST',body:fd};})()
-        :{method:'POST',body:JSON.stringify(fields)}; /* no JSON header: text/plain avoids CORS preflight (gateway swallows OPTIONS) */
-      return fetch(CATALYST_BASE+path,opts).then(r=>{
-        if(!r.ok){const e=new Error('submit failed: '+r.status);e.status=r.status;throw e;}
-        return r.json();});
-    }
+    /* Endpoint, validators and transport all come from /js/whollar-core.js.
+       This page used to carry its own copies; so did five others, and they had
+       already drifted apart. */
+    const W=window.WHOLLAR;
+    const submitForm=(path,fields,files)=>W.submitForm(path,fields,files);
+    const busy=(btn,on,label)=>W.busy(btn,on,label);
     /* a failed submit must never masquerade as success, surface it and let the user retry */
     function submitErr(anchor,err){
       console.error('[whollar submit]',err);
       let el=anchor.parentNode.querySelector('.suberr');
-      if(!el){el=document.createElement('p');el.className='suberr';el.style.cssText='margin:10px 0 0;font-size:13px;font-weight:600;color:#C2643B';anchor.parentNode.insertBefore(el,anchor.nextSibling);}
-      el.textContent=err&&err.status===429?'Too many attempts from your network right now, please try again in a little while.'
+      if(!el){el=document.createElement('p');el.className='suberr';el.setAttribute('role','alert');el.style.cssText='margin:10px 0 0;font-size:13px;font-weight:600;color:#A34F2B';anchor.parentNode.insertBefore(el,anchor.nextSibling);}
+      el.textContent=W.submitErrorMessage(err);
+      if(0)el.textContent=err&&err.status===429?'Too many attempts from your network right now, please try again in a little while.'
         :'We couldn’t reach our servers, so this wasn’t saved, please check your connection and try again.';
     }
     function clearErr(anchor){const el=anchor.parentNode.querySelector('.suberr');if(el)el.remove();}
-    function busy(btn,on,label){
-      if(on){btn.dataset.label=btn.textContent;btn.disabled=true;btn.style.opacity='.6';btn.textContent=label;}
-      else{btn.disabled=false;btn.style.opacity='';if(btn.dataset.label)btn.textContent=btn.dataset.label;}
-    }
+    /* busy() now comes from whollar-core.js and returns false when the button
+       is already in flight — the double-tap guard. */
 
     if($('#viz2-lottie')&&window.lottie){window.lottie.loadAnimation({container:$('#viz2-lottie'),renderer:'svg',loop:true,autoplay:true,animationData:__WALLET_LOTTIE});}
     if($('#viz3-lottie')&&window.lottie){window.lottie.loadAnimation({container:$('#viz3-lottie'),renderer:'svg',loop:true,autoplay:true,animationData:__SEARCH_LOTTIE});}
@@ -851,34 +850,43 @@ document.addEventListener('DOMContentLoaded',function(){
     if(q.get('email')&&$('#j-email'))$('#j-email').value=q.get('email');
     if(q.get('fsa')&&$('#j-pc'))$('#j-pc').value=q.get('fsa');
 
-    function parsePC(){const el=$('#j-pc');const v=el.value.toUpperCase();el.value=v;
-      const m=v.replace(/\s/g,'').match(/^([A-Z])\d[A-Z]/);
-      if(m&&FSA[m[1]]){S.fsa=v.replace(/\s/g,'').slice(0,3);
-        $('#j-okc').textContent='\u2713 '+FSA[m[1]]+' \u00b7 the '+S.fsa+' cohort';$('#j-okc').classList.add('on');}
-      else{S.fsa=null;$('#j-okc').classList.remove('on');}}
+    /* The old check only tested the FIRST letter against a province table, so
+       "K1D 0B1" passed — D never appears in a Canadian postal code. */
+    function parsePC(){const el=$('#j-pc');
+      const caretAtEnd=el.selectionStart===el.value.length;
+      el.value=W.formatPostal(el.value);
+      if(caretAtEnd)try{el.setSelectionRange(el.value.length,el.value.length);}catch(e){}
+      const p=W.parsePostal(el.value);
+      if(p){S.fsa=p.fsa;S.postalFull=p.full;S.province=p.province;S.provinceCode=p.provinceCode;
+        $('#j-okc').textContent='\u2713 '+p.province+' \u00b7 the '+p.fsa+' cohort';$('#j-okc').classList.add('on');
+        W.clearFieldError(el);}
+      else{S.fsa=null;S.postalFull=null;S.province=null;S.provinceCode=null;$('#j-okc').classList.remove('on');}}
     if($('#j-pc')){$('#j-pc').addEventListener('input',parsePC);if($('#j-pc').value)parsePC();}
 
     $('#ref-toggle').addEventListener('click',()=>{const r=$('#refbox');const show=r.style.display==='none';r.style.display=show?'block':'none';if(show)$('#j-ref').focus();});
 
     $('#j-go').addEventListener('click',async()=>{if(!$('#j-terms').checked){$('#j-terms').focus();return;}
       const nm=$('#j-name').value.trim();
-      if(nm.length<2){$('#j-name').classList.add('err');$('#j-name').focus();return;}
-      $('#j-name').classList.remove('err');
+      if(nm.length<2){W.fieldError($('#j-name'),'Enter your first name.');return;}
+      W.clearFieldError($('#j-name'));
       const ln=$('#j-last').value.trim();
-      if(ln.length<2){$('#j-last').classList.add('err');$('#j-last').focus();return;}
-      $('#j-last').classList.remove('err');
+      if(ln.length<2){W.fieldError($('#j-last'),'Enter your last name.');return;}
+      W.clearFieldError($('#j-last'));
       const em=$('#j-email').value.trim();
-      if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)){$('#j-email').classList.add('err');$('#j-email').focus();return;}
-      $('#j-email').classList.remove('err');
+      if(!W.isEmail(em)){W.fieldError($('#j-email'),'Enter a valid email address, e.g. you@example.com.');return;}
+      W.clearFieldError($('#j-email'));
       const ph=$('#j-phone').value.replace(/\D/g,'');
-      if(ph.length<10||ph.length>11){$('#j-phone').classList.add('err');$('#j-phone').focus();return;}
-      $('#j-phone').classList.remove('err');
-      if(!S.fsa){$('#j-pc').classList.add('err');$('#j-pc').focus();return;}
-      $('#j-pc').classList.remove('err');
+      if(ph.length<10||ph.length>11){W.fieldError($('#j-phone'),'Enter a 10-digit phone number, e.g. (555) 555-0123.');return;}
+      W.clearFieldError($('#j-phone'));
+      if(!S.fsa){W.fieldError($('#j-pc'),'Enter a valid Canadian postal code — that is what places you in a cohort.');return;}
+      W.clearFieldError($('#j-pc'));
       S.name=nm;S.last=ln;S.email=em;S.phone=ph;
-      const btn=$('#j-go');clearErr(btn);busy(btn,true,'Joining…');
+      const btn=$('#j-go');clearErr(btn);
+      if(busy(btn,true,'Joining…')===false)return;
       try{
-        await submitForm('/waitlist-join',{firstName:S.name,lastName:S.last,email:S.email,phone:S.phone,fsa:S.fsa,referral:$('#j-ref').value.trim()||null,ts:new Date().toISOString()});
+        /* Consent is transmitted and stored, not merely used to enable the
+           button. CASL requires it to be provable: wording, time and source. */
+        await submitForm('/waitlist-join',{firstName:S.name,lastName:S.last,email:S.email,phone:S.phone,fsa:S.fsa,postalFull:S.postalFull||'',province:S.province||'',provinceCode:S.provinceCode||'',referral:$('#j-ref').value.trim()||null,ts:new Date().toISOString(),...W.consentPayload('waitlist',true)});
       }catch(err){busy(btn,false);submitErr(btn,err);return;}
       busy(btn,false);
       $('#done-h').textContent=nm+", you're in.";
@@ -977,23 +985,28 @@ document.addEventListener('DOMContentLoaded',function(){
       const key=row.dataset.svc,qb=row.querySelector('.qty b'),xin=row.querySelector('.svcx');
       return {service:key,count:qb?(+qb.textContent||1):null,detail:xin?xin.value.trim()||null:null};});}
     /* only attach what the backend will actually store, a rejected file must not cost the submission */
-    const OKFILE=new Set(['application/pdf','image/jpeg','image/png','image/gif','image/webp']);
     $('#s-file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;
-      const t=(f.type||'').toLowerCase();
-      if((f.type&&!OKFILE.has(t))||f.size>20*1024*1024){
+      /* Same checkUpload() the checkup page uses. HEIC (the iPhone camera
+         default) is storable but not machine-readable, so it attaches with a
+         note instead of being refused. */
+      const chk=W.checkUpload(f);
+      if(!chk.ok){
         e.target.value='';S.details.file=null;
-        $('#s-filename').textContent=f.size>20*1024*1024?'That file is over 20 MB, please attach a smaller one':'We can’t take that type, a PDF, JPG, PNG, WebP or GIF works';
-        setTimeout(()=>{if(!S.details.file)$('#s-filename').textContent='';},6000);
+        $('#s-filename').textContent=chk.message;
+        setTimeout(()=>{if(!S.details.file)$('#s-filename').textContent='';},8000);
         return;}
-      S.details.file=f.name;$('#s-filename').textContent='✓ '+f.name;meter();});
+      S.details.file=f.name;
+      $('#s-filename').textContent=chk.code==='heic'?('✓ '+f.name+' (HEIC — we’ll open it by hand)'):('✓ '+f.name);
+      meter();});
     function collect(){S.details={provider:$('#s-prov').value,cost:$('#s-cost').value,speed:$('#s-spd').value,
       promoEnd:$('#s-date').value,threshold:($$('#thr button.on')[0]||{}).textContent||null,
       file:S.details.file||null,services:collectServices()};}
     $('#s-save').addEventListener('click',async()=>{
       collect();
-      const btn=$('#s-save');clearErr(btn);busy(btn,true,'Saving…');
+      const btn=$('#s-save');clearErr(btn);
+      if(busy(btn,true,'Saving…')===false)return;
       try{
-        await submitForm('/waitlist-details',{firstName:S.name,lastName:S.last,email:S.email,fsa:S.fsa,...S.details},{billFile:$('#s-file').files[0]||null});
+        await submitForm('/waitlist-details',{firstName:S.name,lastName:S.last,email:S.email,fsa:S.fsa,postalFull:S.postalFull||'',province:S.province||'',provinceCode:S.provinceCode||'',...S.details},{billFile:$('#s-file').files[0]||null});
       }catch(err){busy(btn,false);submitErr(btn,err);return;}
       busy(btn,false);
       $('#stage2').style.display='none';
