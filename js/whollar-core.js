@@ -751,7 +751,188 @@
   W.partner = sessionStore(W.PARTNER_KEY);
 
   /* ================================================================== *
-   * 12. POST-SIGN-IN REDIRECT TARGET
+   * 12. SERVER SESSION (the authority behind section 11)
+   * ------------------------------------------------------------------
+   * Section 11 keeps a record in localStorage. This section is what makes
+   * that record true: an HttpOnly session cookie set by the auth function,
+   * which script cannot read, forge or extend.
+   *
+   * The two have to be reconciled somewhere, because a sign-in that
+   * completes on the SERVER — Google, and the emailed code — hands the
+   * browser a cookie and writes nothing to localStorage. A page that trusts
+   * the local record alone would bounce a genuinely signed-in visitor back
+   * to the form they just finished. adopt() closes that gap: ask the server
+   * who this is, then write the local record from the answer.
+   *
+   * Failure is deliberately quiet. If the function is down or the /api/auth
+   * rewrite is misconfigured, read() resolves to signed-out instead of
+   * rejecting, so a page degrades to its local record rather than throwing
+   * inside a boot path and rendering nothing at all.
+   * ================================================================== */
+
+  /**
+   * POST JSON to the auth function and unwrap its one error shape.
+   *
+   * A JSON body would normally trigger a CORS preflight, and the Catalyst
+   * gateway answers preflight itself without CORS headers — which is why the
+   * lead and OCR endpoints stay form-encoded. It is safe HERE and only here
+   * because /api/auth is a same-origin Vercel rewrite, so no preflight is
+   * issued at all. Point this at the Catalyst host directly and it breaks.
+   *
+   * Rejects with an Error carrying `.code` (VALIDATION_ERROR, RATE_LIMITED,
+   * UNAUTHENTICATED …) so a caller can react to the kind of failure, and
+   * `.message` already written for a human — errors.js composes those on the
+   * assumption they will be shown verbatim, so pages should show them rather
+   * than substituting their own guess at what went wrong.
+   */
+  function authPost(path, body) {
+    return fetch(W.AUTH_API + path, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function (r) {
+      return r.json().catch(function () { return null; }).then(function (b) {
+        if (r.ok) return b || {};
+        var e = new Error((b && b.error && b.error.message) ||
+          'Something went wrong. Please try again.');
+        e.code = (b && b.error && b.error.code) || 'SERVER_ERROR';
+        e.status = r.status;
+        throw e;
+      });
+    }, function () {
+      /* Transport-level failure: offline, DNS, the rewrite misconfigured. The
+         message has to be about the connection, not about the code they typed. */
+      var e = new Error('We couldn’t reach Whollar. Check your connection and try again.');
+      e.code = 'NETWORK';
+      throw e;
+    });
+  }
+
+  W.session = {
+
+    /* Never rejects. -> { authenticated, user } ; user is null when signed out. */
+    read: function () {
+      return fetch(W.AUTH_API + '/session', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      }).then(function (r) {
+        return r.ok ? r.json() : null;
+      }).then(function (b) {
+        return {
+          authenticated: Boolean(b && b.authenticated && b.user),
+          user: (b && b.user) || null
+        };
+      }).catch(function () {
+        return { authenticated: false, user: null };
+      });
+    },
+
+    /**
+     * Reconcile the cookie into the local record.
+     * Resolves with the record when a session exists, null when it does not.
+     *
+     * `expect` is the user type the CALLING PAGE serves — 'member' or
+     * 'provider'. Pass it. A partner session is not a member session, and a
+     * page that treats "some session exists" as "the right session exists"
+     * ping-pongs: the consumer sign-in would adopt the partner's session, send
+     * them to /dashboard, which finds no member record and sends them back,
+     * forever. On a mismatch this resolves null and writes nothing.
+     *
+     * A member session writes the member key and a partner session the partner
+     * key, never the other way round — section 11 explains what crossing them
+     * would open up.
+     *
+     * Fields the session payload has never carried (postal code, province) are
+     * preserved from the existing local record, but ONLY when it belongs to the
+     * same person: on a shared device the previous record is someone else's,
+     * and merging their postal code in would put this visitor in the wrong
+     * cohort.
+     */
+    adopt: function (expect) {
+      return W.session.read().then(function (s) {
+        if (!s.authenticated) return null;
+        if (expect && s.user.userType !== expect) return null;
+
+        var store = s.user.userType === 'member' ? W.member : W.partner;
+        var email = String(s.user.email || '');
+        if (!email) return null;
+        var emailKey = email.toLowerCase();
+
+        var prior = store.read() || {};
+        var keep = (prior.emailKey === emailKey) ? prior : {};
+
+        return store.write({
+          firstName: s.user.firstName || W.firstNameFrom(email, keep.firstName),
+          email: email,
+          emailKey: emailKey,
+          fsa: keep.fsa || null,
+          postal: keep.postal || null,
+          province: keep.province || null,
+          provinceCode: keep.provinceCode || null
+        });
+      });
+    },
+
+    /**
+     * Ask for an emailed code. -> { ok, ttlMinutes, dev? }
+     *
+     * REJECTS on failure, unlike read() above. The difference is deliberate:
+     * read() runs in boot paths where "we couldn't tell" has to degrade to
+     * "signed out", but these two run from a button the visitor just pressed,
+     * and a swallowed failure there is a form that silently does nothing.
+     *
+     * The server answers 200 with the same body whether or not an account
+     * exists — do not add anything here that treats those cases differently,
+     * it is the whole reason the endpoint is not an enumeration oracle.
+     *
+     * `dev.code` comes back ONLY in non-production with no mail provider
+     * configured (routes/otp.js decides; two conditions, not one). It is the
+     * intended way to exercise this flow before ZeptoMail is verified.
+     */
+    otpStart: function (email) {
+      return authPost('/otp/start', { email: email });
+    },
+
+    /**
+     * Check the code and take the session the server hands back.
+     * -> { ok, created, user, expiresAt }
+     *
+     * `firstName` is passed through so the account is created with it in the
+     * same request — collecting a name on the form and then writing it only
+     * to localStorage is how the server ends up not knowing who anyone is.
+     */
+    otpVerify: function (o) {
+      return authPost('/otp/verify', {
+        email: o.email,
+        code: o.code,
+        firstName: o.firstName || null,
+        marketing: Boolean(o.marketing)
+      });
+    },
+
+    /**
+     * Sign out on the server first, then locally.
+     *
+     * Clearing only localStorage is not a sign-out: the cookie survives, and
+     * the next page load would adopt() it and sign the visitor straight back
+     * in. The local clear happens either way — a failed request must not
+     * leave someone looking at a dashboard they pressed "sign out" on.
+     */
+    end: function (which) {
+      var store = which === 'partner' ? W.partner : W.member;
+      return fetch(W.AUTH_API + '/logout', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      }).catch(function () { /* offline; the local clear below still has to run */ })
+        .then(function () { store.clear(); });
+    }
+  };
+
+  /* ================================================================== *
+   * 13. POST-SIGN-IN REDIRECT TARGET
    * ------------------------------------------------------------------
    * Both sign-in pages carry the page the visitor was trying to reach in
    * ?next=. Validating it here is what stops that parameter becoming an

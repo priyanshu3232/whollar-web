@@ -15,8 +15,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="/js/whollar-core.js"></script>
 <title>Sign in · Whollar</title>
-<!-- No server-side authentication exists yet (see the notice in the form).
-     Keep this page out of the index until it does. -->
+<!-- Both sign-in paths on this page are real now (Google, and the emailed
+     code). The noindex stays until the flow has been run end-to-end against
+     created tables — indexing a sign-in page that 500s is worse than not
+     indexing it at all. Remove once /health reports the schema verified. -->
 <meta name="robots" content="noindex,nofollow">
 <link rel="preconnect" href="https://api.fontshare.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -107,10 +109,22 @@ button{font-family:var(--body)}
 .field.err input{border-color:var(--warn-text);background:#FDF6F2}
 .err-inline{display:none;color:var(--warn-text);font-size:12.5px;margin:-8px 0 14px;font-weight:500}
 
-/* Preview notice — states plainly that no authentication exists behind this
-   form. Remove together with the mock sign-in when real auth ships. */
+/* Dev-only affordance: the auth function returns the code in its response
+   when no mail provider is configured, so the flow is testable before the
+   ZeptoMail domain is verified. Styled as a notice, not as chrome — it must
+   look like something that is not supposed to be there. */
 .preview-note{background:var(--warn-soft);border:1px solid #E8C7AE;color:#7A3A19;font-size:12.5px;line-height:1.5;border-radius:12px;padding:10px 13px;margin:0 0 18px}
 .preview-note b{font-weight:700}
+
+/* ---------- code entry (step 2) ---------- */
+.sentto{font-size:14px;color:var(--ink-2);line-height:1.5;margin:7px 0 20px}
+.sentto b{color:var(--ink);font-weight:600;word-break:break-all}
+.otp{display:flex;gap:9px;margin-bottom:8px;justify-content:space-between}
+.otp input{width:100%;aspect-ratio:1/1;text-align:center;font-family:var(--disp);font-weight:700;font-size:22px;color:var(--teal);border:1.5px solid var(--line);border-radius:12px;background:#fff;transition:border-color .15s,box-shadow .15s;padding:0;min-width:0}
+.otp input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(30,158,99,.14)}
+.otp.err input{border-color:var(--warn-text);background:#FDF6F2}
+.otp-meta{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px;color:var(--ink-2);margin-bottom:20px}
+.otp-meta .linkbtn:disabled{color:var(--ink-3);cursor:default;text-decoration:none}
 
 /* Link-styled buttons: these were <a onclick> with no href, which made them
    unreachable by keyboard and invisible to screen readers. */
@@ -171,15 +185,8 @@ button{font-family:var(--body)}
         <h2 id="entry-h">Welcome back</h2>
         <p class="fsub" id="entry-sub">Sign in to pick up where your region left off.</p>
 
-        <!-- There is no authentication behind this form: no password, no
-             emailed code, no server. It stores your email in this browser and
-             opens a preview of the member dashboard. Saying so is the only
-             honest option while that is true — remove this notice in the same
-             change that wires up a real auth backend. -->
-        <p class="preview-note" role="note"><b>Preview.</b> Accounts aren’t live yet — this opens a preview of the member dashboard in this browser only. Nothing is sent to us and no account is created.</p>
-
         <div class="soc">
-          <button type="button" class="g" onclick="mock('Google')">
+          <button type="button" class="g" onclick="oauthStart('google')">
             <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z"/></svg>
             <span id="g-label">Continue with Google</span>
           </button>
@@ -211,6 +218,10 @@ button{font-family:var(--body)}
           <div class="err-inline" id="postal-err" role="alert" style="display:none">Enter a valid Canadian postal code.</div>
         </div>
 
+        <!-- Form-level, for what the SERVER says: rate limits and outages
+             belong to the whole submission, not to the email field. -->
+        <div class="err-inline" id="entry-err" role="alert" style="display:none"></div>
+
         <button class="submit" type="submit" id="entry-cta">Email me a code</button>
         </form>
         <p class="legal">By continuing you agree to Whollar's <a href="/terms" target="_blank" rel="noopener noreferrer">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</p>
@@ -219,6 +230,35 @@ button{font-family:var(--body)}
              invisible to screen readers, so sign-up could not be opened at all
              without a mouse. -->
         <p class="foot-switch" id="entry-switch">New to Whollar? <button type="button" class="linkbtn" data-mode="signup">Create an account</button></p>
+      </section>
+
+      <!-- CODE ENTRY -->
+      <section id="codestep" class="hidden">
+        <h2>Check your email</h2>
+        <p class="sentto">We sent a 6-digit code to <b id="echo-email"></b>. It expires in <span id="ttl">10</span> minutes.</p>
+
+        <!-- Shown only when the server reports it sent nothing (no mail
+             provider configured). Never reachable in production. -->
+        <p class="preview-note hidden" id="devcode" role="note"></p>
+
+        <form id="code-form" novalidate>
+        <div class="otp" id="otp">
+          <input inputmode="numeric" autocomplete="one-time-code" maxlength="1" aria-label="digit 1">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 2">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 3">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 4">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 5">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 6">
+        </div>
+        <div class="err-inline" id="otp-err" role="alert" style="display:none"></div>
+
+        <div class="otp-meta">
+          <span>Didn't get it? <button type="button" class="linkbtn" id="resend" disabled>Resend in 30s</button></span>
+          <button type="button" class="linkbtn" id="editemail">Change email</button>
+        </div>
+
+        <button class="submit" type="submit" id="verify-cta">Verify and continue</button>
+        </form>
       </section>
 
     </div>
@@ -270,10 +310,40 @@ function toast(msg){
   clearTimeout(toast._x);
   toast._x=setTimeout(function(){t.classList.remove('show')},2400);
 }
-/* No OAuth provider is wired up behind these buttons. Name the button that
-   was pressed and point at the path that does work, instead of a vague
-   "front end only" string. */
-function mock(label){ toast(label + ' sign-in isn\u2019t connected yet \u2014 use your email below.'); }
+/* Apple is not wired up yet (its config group ships in a later phase). Name the
+   button that was pressed and point at the path that does work, instead of a
+   vague "front end only" string. */
+function mock(label){ toast(label + ' sign-in isn\u2019t connected yet \u2014 use Google, or your email below.'); }
+
+/* A real navigation, deliberately not a fetch: /google/start answers with a 302
+   to Google's consent screen, and only a top-level navigation can follow that.
+   Where to land afterwards travels as ?next=, which the server stores against
+   the flow and re-validates \u2014 it is never read back from Google's callback. */
+function oauthStart(provider){
+  location.href = W.AUTH_API + '/' + provider + '/start?next=' + encodeURIComponent(nextTarget());
+}
+
+/* A failed sign-in comes back here as ?error=CODE rather than a JSON page,
+   because the visitor is mid-navigation in a browser and a JSON body would be
+   a dead end with no way back. Codes are set in routes/google.js. */
+var OAUTH_ERRORS={
+  google_cancelled:'Google sign-in was cancelled. Try again, or use your email below.',
+  google_unverified:'Google hasn\u2019t verified that account\u2019s email address, so we can\u2019t sign you in with it. Use your email below instead.',
+  google_failed:'Google sign-in didn\u2019t complete. Please try again.',
+  google_unavailable:'Google sign-in isn\u2019t available right now. Use your email below.',
+  account_disabled:'That account isn\u2019t active. Email hello@whollar.ca and we\u2019ll sort it out.',
+  expired:'That sign-in attempt expired. Please try again.'
+};
+(function(){
+  var code=new URLSearchParams(location.search).get('error');
+  if(!code)return;
+  toast(OAUTH_ERRORS[code]||'Sign-in didn\u2019t complete. Please try again.');
+  /* Strip it from the URL: a reload should not replay the message, and the
+     address bar should not carry it into a bookmark or a shared link. */
+  var u=new URL(location.href);
+  u.searchParams.delete('error');
+  history.replaceState(null,'',u.pathname+u.search+u.hash);
+})();
 
 /* Name derivation and the ?next= same-origin check live in the shared core:
    the partner sign-in needs both, and two copies of an open-redirect guard is
@@ -282,9 +352,14 @@ function nextTarget(){
   return W.safeNext(new URLSearchParams(location.search).get('next'), '/dashboard');
 }
 
-/* Already signed in? Don't strand the visitor on a form they don't need. */
+/* Already signed in? Don't strand the visitor on a form they don't need.
+   The local record answers instantly when it exists. When it doesn't, that is
+   not proof of being signed out: a Google sign-in completes on the server and
+   leaves a cookie with nothing in localStorage, and /dashboard bounces such a
+   visitor here. Ask the server before deciding they need to sign in again. */
 (function(){
-  if(W.member.read()) location.replace(nextTarget());
+  if(W.member.read()){ location.replace(nextTarget()); return; }
+  W.session.adopt('member').then(function(rec){ if(rec) location.replace(nextTarget()); });
 })();
 
 /* Postal code: uppercase + space as you type, validated against the real
@@ -302,10 +377,90 @@ postalEl.addEventListener('input',function(){
   }
 });
 
+/* ------------------------------------------------------------------ *
+ * Emailed-code sign-in
+ *
+ * Two steps against two endpoints. /otp/start answers 200 for any valid
+ * address whether or not an account exists, and /otp/verify creates the
+ * account on first success — so there is no separate sign-up path here, and
+ * the Sign in / Create account toggle above stays purely a copy decision.
+ * Nothing below may branch on which mode is showing, or it would leak the
+ * very distinction the server refuses to make.
+ * ------------------------------------------------------------------ */
+
+/* What the code step needs to finish, captured at step 1. Held here rather
+   than re-read from the inputs at verify time: the address that gets verified
+   must be the one the code was sent to, and those fields are still sitting in
+   the DOM, editable, behind the step swap. */
+var pending=null;
+
+function showStep(which){
+  document.getElementById('entry').classList.toggle('hidden', which!=='entry');
+  document.getElementById('codestep').classList.toggle('hidden', which!=='code');
+}
+
+function otpInputs(){ return Array.prototype.slice.call(document.querySelectorAll('#otp input')); }
+function readCode(){ return otpInputs().map(function(i){return i.value.replace(/\D/g,'');}).join(''); }
+function fillCode(code){
+  var boxes=otpInputs();
+  String(code).replace(/\D/g,'').slice(0,6).split('').forEach(function(ch,i){ if(boxes[i]) boxes[i].value=ch; });
+}
+function clearCode(){ otpInputs().forEach(function(i){ i.value=''; }); }
+
+function showOtpErr(msg){
+  var el=document.getElementById('otp-err');
+  el.textContent=msg; el.style.display='block';
+  document.getElementById('otp').classList.add('err');
+}
+function clearOtpErr(){
+  document.getElementById('otp-err').style.display='none';
+  document.getElementById('otp').classList.remove('err');
+}
+
+var cdTimer=null;
+function startCountdown(){
+  var n=30, b=document.getElementById('resend');
+  clearInterval(cdTimer);
+  b.disabled=true; b.textContent='Resend in '+n+'s';
+  cdTimer=setInterval(function(){
+    n--;
+    if(n<=0){ clearInterval(cdTimer); b.disabled=false; b.textContent='Resend code'; return; }
+    b.textContent='Resend in '+n+'s';
+  },1000);
+}
+
+/* The server hands the code back in its response ONLY when it is not
+   production AND no mail provider is configured — i.e. when it sent nothing.
+   Showing it is what makes the flow testable before the sending domain is
+   verified; textContent rather than innerHTML because this is server-supplied
+   text going into the page. */
+function showDevCode(dev){
+  var el=document.getElementById('devcode');
+  if(!dev||!dev.code){ el.classList.add('hidden'); return; }
+  el.textContent='No mail provider is configured, so nothing was sent. Your code is '+dev.code+'.';
+  el.classList.remove('hidden');
+  fillCode(dev.code);
+}
+
+function openCodeStep(r){
+  document.getElementById('echo-email').textContent=pending.email;
+  document.getElementById('ttl').textContent=(r&&r.ttlMinutes)||10;
+  clearOtpErr();
+  clearCode();
+  showDevCode(r&&r.dev);
+  showStep('code');
+  startCountdown();
+  var boxes=otpInputs();
+  for(var i=0;i<boxes.length;i++){ if(!boxes[i].value){ boxes[i].focus(); return; } }
+  boxes[boxes.length-1].focus();
+}
+
 document.getElementById('entry-form').addEventListener('submit',function(e){
   e.preventDefault();
   var btn=document.getElementById('entry-cta');
   var em=document.getElementById('email'), ef=document.getElementById('email-f');
+  var formErr=document.getElementById('entry-err');
+  formErr.style.display='none';
 
   /* Same rule the server uses — this page previously accepted "a@b.c". */
   var ok=W.isEmail(em.value);
@@ -322,25 +477,134 @@ document.getElementById('entry-form').addEventListener('submit',function(e){
     pe.style.display='none'; pf.classList.remove('err'); postalEl.setAttribute('aria-invalid','false');
   }
 
-  /* Guards the mobile double-tap. Harmless today (no network call), but this
-     is the line that stops two accounts being created once it is wired up. */
-  if(W.busy(btn,true,'One moment…')===false) return;
+  /* Guards the mobile double-tap: this is now a network call, and two of them
+     mean two challenges issued and two of the five hourly sends burnt. */
+  if(W.busy(btn,true,'Sending…')===false) return;
 
   var email=em.value.trim();
-  var member={
-    firstName: W.firstNameFrom(email, document.getElementById('fname').value),
+  pending={
     email: email,
-    /* Stored lowercase so a later CRM lookup can't treat Genie@x.com and
-       genie@x.com as two people. */
-    emailKey: email.toLowerCase(),
-    fsa: postal?postal.fsa:null,
-    postal: postal?postal.full:null,
-    province: postal?postal.province:null,
-    provinceCode: postal?postal.provinceCode:null
+    /* Only what they actually typed. `firstNameFrom` can derive "Genie" from
+       genie@… for display, but a guess is not a name, and the server should
+       not store one as though the visitor had given it. */
+    firstName: document.getElementById('fname').value.trim() || null,
+    postal: postal
   };
-  W.member.write(member);
-  location.href=nextTarget();
+
+  W.session.otpStart(email).then(function(r){
+    W.busy(btn,false);
+    openCodeStep(r);
+  },function(err){
+    W.busy(btn,false);
+    formErr.textContent=err.message;
+    formErr.style.display='block';
+    if(err.code==='VALIDATION_ERROR'){ ef.classList.add('err'); em.focus(); }
+  });
 });
+
+document.getElementById('resend').addEventListener('click',function(){
+  var b=this;
+  if(b.disabled||!pending) return;
+  b.disabled=true; b.textContent='Sending…';
+  clearOtpErr();
+  W.session.otpStart(pending.email).then(function(r){
+    clearCode();
+    showDevCode(r&&r.dev);
+    startCountdown();
+    otpInputs()[0].focus();
+  },function(err){
+    /* Most likely the per-address hourly limit. Say what the server said and
+       leave the button enabled so they can try once the window rolls over. */
+    b.disabled=false; b.textContent='Resend code';
+    showOtpErr(err.message);
+  });
+});
+
+document.getElementById('editemail').addEventListener('click',function(){
+  clearInterval(cdTimer);
+  clearCode(); clearOtpErr();
+  showStep('entry');
+  document.getElementById('email').focus();
+});
+
+/* Guards auto-submit (below) against re-sending a code the server has already
+   rejected: each challenge allows five attempts, and spending them on the same
+   six digits is how someone gets locked out without ever seeing a new code. */
+var lastTried=null;
+
+document.getElementById('code-form').addEventListener('submit',function(e){
+  e.preventDefault();
+  var btn=document.getElementById('verify-cta');
+  var code=readCode();
+
+  if(code.length!==6){ showOtpErr('Enter all six digits.'); return; }
+  clearOtpErr();
+  if(W.busy(btn,true,'Verifying…')===false) return;
+  lastTried=code;
+
+  W.session.otpVerify({ email:pending.email, code:code, firstName:pending.firstName })
+    .then(function(r){
+      /* Written from the server's answer, not from the form: the cookie is the
+         session and this record only makes first paint fast. The postal fields
+         are the one exception — nothing server-side stores them yet, so they
+         carry over from the sign-up form. */
+      var user=r.user||{};
+      var email=user.email||pending.email;
+      W.member.write({
+        firstName: W.firstNameFrom(email, user.firstName||pending.firstName),
+        email: email,
+        /* Stored lowercase so a later CRM lookup can't treat Genie@x.com and
+           genie@x.com as two people. */
+        emailKey: email.toLowerCase(),
+        fsa: pending.postal?pending.postal.fsa:null,
+        postal: pending.postal?pending.postal.full:null,
+        province: pending.postal?pending.postal.province:null,
+        provinceCode: pending.postal?pending.postal.provinceCode:null
+      });
+      /* Deliberately still "busy": the navigation is starting, and re-enabling
+         the button here only offers a second submission during the handover. */
+      location.href=nextTarget();
+    },function(err){
+      W.busy(btn,false);
+      showOtpErr(err.message);
+      clearCode();
+      otpInputs()[0].focus();
+    });
+});
+
+/* OTP box behaviour: advance on entry, retreat on backspace, spread a paste
+   across all six. */
+(function(){
+  var inputs=otpInputs();
+  inputs.forEach(function(inp,idx){
+    inp.addEventListener('input',function(){
+      this.value=this.value.replace(/\D/g,'').slice(0,1);
+      if(this.value && idx<inputs.length-1) inputs[idx+1].focus();
+      maybeAutoSubmit();
+    });
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Backspace' && !this.value && idx>0) inputs[idx-1].focus();
+    });
+    inp.addEventListener('paste',function(e){
+      e.preventDefault();
+      var d=((e.clipboardData||window.clipboardData).getData('text')||'').replace(/\D/g,'').slice(0,6).split('');
+      if(!d.length) return;
+      d.forEach(function(ch,i){ if(inputs[i]) inputs[i].value=ch; });
+      inputs[Math.min(d.length,inputs.length-1)].focus();
+      maybeAutoSubmit();
+    });
+  });
+
+  /* Six digits is an unambiguous "I'm done" — waiting for a button press after
+     an autofilled or pasted code is a step nobody wants. Only ever fires once
+     per distinct code, so a rejected one sits there until it is changed. */
+  function maybeAutoSubmit(){
+    var code=readCode();
+    if(code.length===6 && code!==lastTried){
+      document.getElementById('code-form').dispatchEvent(new Event('submit',{cancelable:true}));
+    }
+  }
+})();
 </script>
 </body>
 </html>

@@ -9,6 +9,11 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="description" content="Whollar member dashboard prototype: your cohort, your promo cliff, your offers. Demo data.">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<!-- Loaded for WHOLLAR.session: this page has to be able to ask the server who
+     the visitor is, because a Google sign-in lands here with a cookie and an
+     empty localStorage. Synchronous and in the head so the guard at the foot of
+     the body can rely on it. -->
+<script src="/js/whollar-core.js"></script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -820,13 +825,32 @@ var $$=function(s,c){return Array.prototype.slice.call((c||document).querySelect
    it keeps honest visitors on the right page and nothing more — it is not an
    authorisation boundary. When real auth ships, the gate belongs in a Catalyst
    function that this page calls, not here. */
+var W=window.WHOLLAR;
+/* Carry where they were trying to go so sign-in returns them here instead of
+   dumping them on a generic landing page. Read back with a same-origin check
+   in whollar-login-consumer.html. */
+function toSignIn(){
+  location.replace('/whollar-login-consumer?next='+encodeURIComponent(location.pathname+location.search));
+}
+
 var MEMBER=null;
 try{MEMBER=JSON.parse(localStorage.getItem('whollar.member'))}catch(err){MEMBER=null}
 if(!MEMBER||typeof MEMBER!=='object'||!MEMBER.email){
-  /* Carry where they were trying to go so sign-in returns them here instead of
-     dumping them on a generic landing page. Read back with a same-origin check
-     in whollar-login-consumer.html. */
-  location.replace('/whollar-login-consumer?next='+encodeURIComponent(location.pathname+location.search));
+  /* An empty local record is NOT proof of being signed out. Google sign-in
+     finishes on the server: it sets the session cookie and redirects straight
+     here, having written nothing to localStorage. Bouncing on the local check
+     alone would send someone who just signed in back to the sign-in form.
+
+     So ask the server — with the page hidden, because the demo dashboard must
+     not flash up at a visitor who turns out to be signed out after all. */
+  if(!W||!W.session){toSignIn();return;}
+  document.documentElement.style.visibility='hidden';
+  W.session.adopt('member').then(function(rec){
+    /* Reload rather than carry on: the guard runs at parse time and every
+       declaration below it has already been skipped by this return. */
+    if(rec){location.reload();return;}
+    toSignIn();
+  },toSignIn);
   return;
 }
 
@@ -845,8 +869,15 @@ var LAST=String(MEMBER.lastName||'').trim();
 var INITIALS=FIRST?((FIRST.charAt(0)+(LAST?LAST.charAt(0):FIRST.charAt(1)||'')).toUpperCase()):'W';
 var DISPNAME=FIRST?(LAST?FIRST+' '+LAST.charAt(0)+'.':FIRST):'Member';
 function signOut(){
+  /* End the server session, not just the local record. Clearing localStorage
+     alone leaves the cookie alive, and the guard above would adopt() it on the
+     next visit and sign the visitor straight back in — a sign-out button that
+     doesn't sign you out. W.session.end() clears the local record itself, and
+     does so even if the request fails. */
+  var done=function(){location.replace('/whollar-login-consumer')};
+  if(W&&W.session){W.session.end('member').then(done,done);return;}
   try{localStorage.removeItem('whollar.member')}catch(err){}
-  location.replace('/whollar-login-consumer');
+  done();
 }
 var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 var mobile=function(){return window.innerWidth<=920};

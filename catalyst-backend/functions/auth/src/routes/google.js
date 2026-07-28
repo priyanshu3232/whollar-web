@@ -12,7 +12,7 @@
  * match, not weaker.
  */
 
-const { wrap, AppError, notImplemented } = require('../lib/errors');
+const { wrap } = require('../lib/errors');
 const oidc = require('../lib/oidc');
 const users = require('../lib/users');
 const sessions = require('../lib/sessions');
@@ -39,7 +39,15 @@ function fail(res, cfg, reason) {
 
 function mount(router, cfg) {
   router.get('/google/start', wrap(async (req, res) => {
-    if (!cfg.FEATURES.google) throw notImplemented('google');
+    /**
+     * Unconfigured is answered with a redirect, not the 501 the other feature
+     * groups use. Both of these routes are top-level browser navigations, so a
+     * JSON body would strand the visitor on a raw error page with no way back —
+     * the same reason `fail()` exists below. The login page renders this code
+     * as "Google sign-in isn't available right now" and its email form is still
+     * there underneath.
+     */
+    if (!cfg.FEATURES.google) return fail(res, cfg, 'google_unavailable');
 
     await ratelimit.enforce(req.catalyst, req, {
       key: 'google.start.ip', max: 30, windowSec: 3600,
@@ -68,7 +76,9 @@ function mount(router, cfg) {
   }));
 
   router.get('/google/callback', wrap(async (req, res) => {
-    if (!cfg.FEATURES.google) throw notImplemented('google');
+    // Same reasoning as /google/start: a navigation, so a redirect. Reaching
+    // here with the group switched off means it was turned off mid-flow.
+    if (!cfg.FEATURES.google) return fail(res, cfg, 'google_unavailable');
 
     // Google reports user-side refusals here rather than by not calling back.
     if (req.query.error) {
