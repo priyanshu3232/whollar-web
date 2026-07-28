@@ -93,8 +93,18 @@ function buildApp(cfg) {
       env: cfg.NODE_ENV,
       features: cfg.FEATURES,
       // Reported rather than inferred: "why did no email arrive" should be
-      // answerable from outside without reading the logs.
+      // answerable from outside without reading the logs. The endpoint is
+      // included because ZeptoMail is regional and pointing a Canadian-DC
+      // token at the US host fails as "Invalid API Token", which sends you
+      // hunting for a bad token rather than a wrong hostname.
       mail_transport: mailer.transportName(cfg),
+      mail_endpoint: cfg.FEATURES.mail ? (cfg.ZEPTOMAIL_API_BASE || null) : null,
+      // The From address is public — it appears in the header of every message
+      // we send. Surfacing it turns "does this match the verified domain?" from
+      // a console hunt into one curl, and a mismatch there is rejected on every
+      // send with an error that does not mention the domain.
+      mail_from: cfg.FEATURES.mail ? (cfg.ZEPTOMAIL_FROM || null)
+        : (cfg.FEATURES.smtp ? (cfg.SMTP_FROM || null) : null),
     });
   });
 
@@ -290,6 +300,36 @@ function mountDevRoutes(router, cfg) {
       dev: true,
       user: sessions.publicUser(user),
       expiresAt: created.expiresAt,
+    });
+  }));
+
+  /**
+   * The tail of the audit log.
+   *
+   * Exists because /otp/start deliberately answers identically whether the mail
+   * went out or the provider rejected it — that symmetry is what stops the
+   * endpoint being used to probe which addresses have accounts, but it also
+   * means a total delivery failure looks exactly like success from outside.
+   * The `delivered` flag recorded on each otp.start event is the only place
+   * that distinction survives.
+   *
+   * Non-production only: these rows carry email addresses.
+   */
+  router.get('/dev/events', wrap(async (req, res) => {
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+    const rows = await datastore.query(
+      req.catalyst, audit.TABLE,
+      `SELECT CREATEDTIME, event_type, outcome, email_normalized, detail ` +
+      `FROM ${audit.TABLE} ORDER BY CREATEDTIME DESC LIMIT ${limit}`
+    );
+    res.status(200).json({
+      events: rows.map((r) => ({
+        at: r.CREATEDTIME,
+        type: r.event_type,
+        outcome: r.outcome,
+        email: r.email_normalized,
+        detail: (() => { try { return JSON.parse(r.detail); } catch { return r.detail; } })(),
+      })),
     });
   }));
 

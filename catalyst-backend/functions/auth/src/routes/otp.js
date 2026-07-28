@@ -61,21 +61,25 @@ function mount(router, cfg) {
 
     const message = mailer.otpEmail({ code, purpose: 'login', ttlMinutes });
     let delivered = false;
+    let sendError = null;
     try {
       const result = await mailer.send(cfg, { to: email, ...message });
       delivered = Boolean(result.delivered);
     } catch (err) {
-      // Logged, not surfaced. A provider outage should not tell the caller
-      // whether this particular address was accepted for delivery.
+      // Not surfaced to the caller: a provider outage must not reveal whether
+      // this particular address was accepted for delivery. But it IS recorded,
+      // because /otp/start answers identically either way — so without this the
+      // difference between "sent" and "the provider rejected everything" exists
+      // nowhere a person will look.
+      sendError = String((err && err.message) || err).slice(0, 300);
       console.error(JSON.stringify({
-        req_id: req.id, level: 'error', message: 'otp mail send failed',
-        detail: String((err && err.message) || err).slice(0, 200),
+        req_id: req.id, level: 'error', message: 'otp mail send failed', detail: sendError,
       }));
     }
 
     audit.recordAsync(req.catalyst, req, {
       type: 'otp.start', outcome: 'success', email,
-      detail: { delivered, transport: mailer.transportName(cfg) },
+      detail: { delivered, transport: mailer.transportName(cfg), send_error: sendError },
     });
 
     const body = { ok: true, ttlMinutes };
