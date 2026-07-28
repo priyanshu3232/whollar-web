@@ -155,15 +155,43 @@ const BOOT = {
   CODE_PEPPER:     { check: v.pepper, secret: true },
   IP_PEPPER:       { check: v.pepper, secret: true },
 
+  // Applies to every mail transport, so it lives here rather than inside one
+  // provider's group — a reply to a no-reply address should reach a human
+  // rather than hard-bounce, whichever way the mail went out.
+  MAIL_REPLY_TO:   { check: v.nonEmpty, fallback: 'hello@whollar.ca' },
+
   SESSION_TTL_MEMBER_DAYS:   { check: v.int(1, 365), fallback: '30' },
   SESSION_TTL_PARTNER_HOURS: { check: v.int(1, 168), fallback: '12' },
 };
 
 // All-or-nothing feature bundles.
 const GROUPS = {
-  // Needed from Phase 3 (OTP email) and Phase 5 (password reset).
-  // Unset -> mailer falls back to the `log` transport, which is what makes the
-  // login flow testable before a sending domain is verified.
+  /**
+   * SMTP relay — the transport that needs no DNS work at all.
+   *
+   * Sending through the mailbox provider that the domain's SPF already
+   * authorizes means there is nothing to verify: no DKIM record to add, no
+   * domain-verification wait. It is second choice on deliverability, so `mail`
+   * (ZeptoMail) wins when both are set — but it is first choice on being
+   * available today, and a login system that cannot send a code is not a login
+   * system.
+   *
+   * Use a domain whose reputation is not your business mail's. Sending login
+   * codes through the same mailbox host that carries your customer
+   * correspondence means one spam complaint can throttle both.
+   */
+  smtp: {
+    SMTP_USER: { check: v.nonEmpty, secret: true },
+    SMTP_PASS: { check: v.nonEmpty, secret: true },
+    SMTP_FROM: { check: v.nonEmpty },
+    SMTP_HOST: { check: v.nonEmpty, fallback: 'smtp.ionos.com' },
+    // 587 + STARTTLS rather than 465 + implicit TLS: it is the submission port
+    // RFC 6409 specifies, and the one least likely to be blocked outbound.
+    SMTP_PORT: { check: v.int(1, 65535), fallback: '587' },
+  },
+
+  // Unset -> mailer falls back to SMTP, then to the `log` transport, which is
+  // what makes the login flow testable before any provider exists.
   mail: {
     ZEPTOMAIL_TOKEN: { check: v.nonEmpty, secret: true },
     ZEPTOMAIL_FROM:  { check: v.nonEmpty },
@@ -172,8 +200,6 @@ const GROUPS = {
     // endpoint. Defaulted rather than required so it does not, on its own,
     // count as "the operator configured mail".
     ZEPTOMAIL_API_BASE: { check: v.baseUrl, fallback: 'https://api.zeptomail.com' },
-    // A reply to a no-reply address should reach a human, not hard-bounce.
-    MAIL_REPLY_TO:      { check: v.nonEmpty, fallback: 'hello@whollar.ca' },
   },
   // Needed from Phase 3 — signup writes versioned consent rows.
   consents: {

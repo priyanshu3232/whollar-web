@@ -80,13 +80,72 @@ async function sendViaZeptoMail(cfg, message) {
   return { ok: true, transport: 'zeptomail', delivered: true };
 }
 
-/** Which transport is active. Exposed so /health can report it honestly. */
-const transportName = (cfg) => (cfg.FEATURES && cfg.FEATURES.mail ? 'zeptomail' : 'log');
+/**
+ * SMTP relay, via the mailbox provider the domain's SPF already authorizes.
+ *
+ * The connection is created per send rather than pooled. In a serverless
+ * function a pooled connection outlives nothing useful — the container may be
+ * frozen between invocations, and a socket held across that comes back dead.
+ * Reconnecting costs a round trip; a stale pool costs a failed login.
+ */
+async function sendViaSmtp(cfg, message) {
+  const nodemailer = require('nodemailer');
+
+  const transporter = nodemailer.createTransport({
+    host: cfg.SMTP_HOST,
+    port: cfg.SMTP_PORT,
+    // 587 is STARTTLS: connect in the clear, then upgrade. `secure: true` here
+    // would attempt implicit TLS on a port that does not speak it and hang
+    // until timeout.
+    secure: cfg.SMTP_PORT === 465,
+    requireTLS: cfg.SMTP_PORT !== 465,
+    auth: { user: cfg.SMTP_USER, pass: cfg.SMTP_PASS },
+    // Bounded, because the caller is a person waiting on a login form. Failing
+    // in 10s and telling them to retry beats a 2-minute hang.
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+  });
+
+  try {
+    await transporter.sendMail({
+      from: { address: cfg.SMTP_FROM, name: 'Whollar' },
+      to: message.to,
+      subject: message.subject,
+      text: message.text,
+      html: message.html,
+      replyTo: cfg.MAIL_REPLY_TO || undefined,
+    });
+    return { ok: true, transport: 'smtp', delivered: true };
+  } finally {
+    // Not optional: an open connection can keep the invocation alive to its
+    // timeout after the response has already been sent.
+    try { transporter.close(); } catch { /* ignore */ }
+  }
+}
+
+/**
+ * Which transport is active. Exposed so /health can report it honestly —
+ * "why did no email arrive" should be answerable without reading logs.
+ *
+ * Order is deliberate. ZeptoMail is a transactional service with real
+ * deliverability handling, so it wins when configured. SMTP needs no DNS work
+ * and is therefore what makes email possible before a domain is verified.
+ * `log` is the floor, so the flow is always testable.
+ */
+function transportName(cfg) {
+  const f = cfg.FEATURES || {};
+  if (f.mail) return 'zeptomail';
+  if (f.smtp) return 'smtp';
+  return 'log';
+}
 
 async function send(cfg, message) {
-  return transportName(cfg) === 'zeptomail'
-    ? sendViaZeptoMail(cfg, message)
-    : sendViaLog(cfg, message);
+  switch (transportName(cfg)) {
+    case 'zeptomail': return sendViaZeptoMail(cfg, message);
+    case 'smtp': return sendViaSmtp(cfg, message);
+    default: return sendViaLog(cfg, message);
+  }
 }
 
 /* ------------------------------------------------------------------ *
