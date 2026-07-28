@@ -26,6 +26,7 @@ const mailer = require('./lib/mailer');
 const { verify: verifySchema } = require('./lib/schema');
 const { errorHandler, wrap, AppError } = require('./lib/errors');
 const otpRoutes = require('./routes/otp');
+const passwordRoutes = require('./routes/password');
 const googleRoutes = require('./routes/google');
 
 function buildApp(cfg) {
@@ -144,6 +145,7 @@ function buildApp(cfg) {
   }));
 
   otpRoutes.mount(router, cfg);
+  passwordRoutes.mount(router, cfg);
   googleRoutes.mount(router, cfg);
 
   if (!cfg.IS_PRODUCTION) {

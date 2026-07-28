@@ -65,6 +65,18 @@
 #j-pc{text-transform:uppercase;letter-spacing:.05em;font-weight:600}
 .okc{display:none;margin-top:8px;font-size:12.5px;font-weight:600;color:var(--accent)}
 .okc.on{display:block;animation:rise .3s var(--ease)}
+.pwhint{display:block;margin-top:7px;font-size:11.5px;line-height:1.5;color:var(--ink-3)}
+
+/* Code-entry step. Shown after /signup accepts the form; the account exists at
+   that point but stays inert until the code proves the address. */
+.otp{display:flex;gap:8px;margin-top:16px;justify-content:space-between}
+.otp input{width:100%;min-width:0;aspect-ratio:1/1;padding:0;text-align:center;font-family:var(--disp);font-weight:700;font-size:21px;color:var(--teal);background:var(--paper);border:1.5px solid var(--line);border-radius:12px;transition:border-color .15s}
+.otp input:focus{outline:none;border-color:var(--accent)}
+.otp.err input{border-color:var(--warn)}
+.otp-meta{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;font-size:12.5px;color:var(--ink-2)}
+.otp-meta button{background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.otp-meta button:disabled{color:var(--ink-3);cursor:default;text-decoration:none}
+.devcode{margin-top:14px;padding:10px 13px;border-radius:12px;font-size:12.5px;line-height:1.5;background:#F7E7DD;border:1px solid #E8C7AE;color:#7A3A19}
 .reflink{display:block;margin-top:14px;background:none;border:none;padding:0;color:var(--accent);font-size:12.5px;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .reflink:hover{color:var(--teal)}
 .go{margin-top:20px;width:100%;background:var(--accent);font-size:15.5px;padding:15px 20px}

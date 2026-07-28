@@ -68,13 +68,24 @@ The person. One row per human, regardless of how many ways they sign in.
 | `email_normalized` | Var Char | 255 | ✅ | ✅ | ✅ | lowercase + trim only. Dots and `+tags` preserved. |
 | `email_display` | Var Char | 255 | | ✅ | ✅ | exactly as the user typed it |
 | `first_name` | Var Char | 100 | | | ✅ | collected at signup only |
+| `last_name` | Var Char | 100 | | | ✅ | |
 | `user_type` | Var Char | 16 | | ✅ | | `member` \| `provider` |
 | `status` | Var Char | 16 | | ✅ | | `active` \| `pending` \| `disabled` |
+| `postal_code` | Var Char | 10 | | | ✅ | full code, `K1A 0B1` |
+| `fsa` | Var Char | 3 | | | | first three characters — what a cohort is keyed on |
+| `province_code` | Var Char | 2 | | | | `ON`, `BC`, … |
+| `phone` | Var Char | 32 | | | ✅ | for the "bids landed" text |
+| `referral_code` | Var Char | 64 | | | | the code they arrived with, not the one they own |
 | `last_login_at` | DateTime | — | | | | |
 | `crm_contact_id` | Var Char | 64 | | | | written back by `crm-sync`; null until then |
 
 The unique constraint on `email_normalized` is the one that matters — it is the
 race guard for concurrent signup (§6.4 step 6). Do not skip it.
+
+`fsa` duplicates the first three characters of `postal_code` on purpose. Cohorts
+are formed by FSA, Catalyst has no computed columns, and ZCQL cannot index an
+expression — so the alternative is scanning every row and slicing in code, which
+runs into the 300-row query ceiling well before it runs into anything else.
 
 ## 2. `auth_identities`
 

@@ -913,6 +913,57 @@
     },
 
     /**
+     * Create an account. -> { ok, ttlMinutes, dev? }
+     *
+     * Answers identically whether or not the address already has an account —
+     * the owner is told by email instead. Nothing here may branch on the
+     * response to guess which happened; that symmetry is the only thing
+     * stopping the signup form being used to ask who has an account.
+     *
+     * The account exists after this call but is inert until `signupVerify`:
+     * `status` is 'pending' and the password opens nothing.
+     *
+     * Re-posting for an address still pending is also the resend — it replaces
+     * the password with the same one and issues a fresh code.
+     */
+    signup: function (o) {
+      return authPost('/signup', {
+        email: o.email,
+        password: o.password,
+        firstName: o.firstName || null,
+        lastName: o.lastName || null,
+        phone: o.phone || null,
+        postalCode: o.postalCode || null,
+        provinceCode: o.provinceCode || null,
+        referralCode: o.referralCode || null,
+        marketing: Boolean(o.marketing)
+      });
+    },
+
+    /**
+     * Prove the address and take the session. -> { ok, created, user, expiresAt }
+     *
+     * Authenticates with the emailed code alone — the password set at signup is
+     * deliberately not re-sent, so no page needs to hold it between the two
+     * requests.
+     */
+    signupVerify: function (o) {
+      return authPost('/signup/verify', { email: o.email, code: o.code });
+    },
+
+    /**
+     * Sign in with a password. -> { ok, user, expiresAt }
+     *
+     * A rejected call carries `.code === 'EMAIL_UNVERIFIED'` when the password
+     * was RIGHT but the address was never confirmed; the server has re-sent a
+     * code, and the caller should show the code step rather than an error.
+     * Branch on that code, never on the message text.
+     */
+    login: function (o) {
+      return authPost('/login', { email: o.email, password: o.password });
+    },
+
+    /**
      * Sign out on the server first, then locally.
      *
      * Clearing only localStorage is not a sign-out: the cookie survives, and

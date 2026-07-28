@@ -16,6 +16,10 @@ const CODES = Object.freeze({
   VALIDATION_ERROR: 400,
   UNAUTHENTICATED:  401,
   FORBIDDEN:        403,
+  // Its own code rather than a plain FORBIDDEN because the client has to act on
+  // it — showing the code-entry step instead of a dead error — and branching on
+  // a message string is how that breaks the first time the copy is reworded.
+  EMAIL_UNVERIFIED: 403,
   NOT_FOUND:        404,
   CONFLICT:         409,
   RATE_LIMITED:     429,

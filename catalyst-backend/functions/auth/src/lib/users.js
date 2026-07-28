@@ -16,7 +16,43 @@ const USERS = 'users';
 const IDENTITIES = 'auth_identities';
 
 const USER_COLUMNS = ['ROWID', 'user_id', 'email_normalized', 'email_display',
-  'first_name', 'user_type', 'status', 'crm_contact_id'];
+  'first_name', 'last_name', 'user_type', 'status',
+  'postal_code', 'fsa', 'province_code', 'phone', 'referral_code',
+  'crm_contact_id'];
+
+/**
+ * The signup fields that are not identity — everything the waitlist form
+ * collects beyond an email and a password.
+ *
+ * Trimmed and length-capped here rather than at the route, so every path that
+ * creates a user gets the same treatment. A value longer than its column does
+ * not error on insert; Catalyst truncates it, which is how a postal code
+ * quietly becomes a prefix of itself.
+ */
+function profileFrom(input = {}) {
+  const cap = (v, n) => {
+    const s = String(v == null ? '' : v).trim();
+    return s ? s.slice(0, n) : null;
+  };
+  // Upper-cased here and not merely in the browser. These are compared against
+  // each other later — an FSA from one row against a postal code from another —
+  // and a mix of `K1A` and `k1a` in one column turns every such comparison into
+  // a silent miss.
+  const upper = (v, n) => { const s = cap(v, n); return s ? s.toUpperCase() : null; };
+
+  const postal = upper(input.postalCode, 10);
+  return {
+    last_name: cap(input.lastName, 100),
+    postal_code: postal,
+    // Derived here, never trusted from the client: the FSA decides which cohort
+    // someone lands in, and a caller that could set it independently of the
+    // postal code could put themselves in any region they liked.
+    fsa: postal ? postal.replace(/\s+/g, '').slice(0, 3) : null,
+    province_code: upper(input.provinceCode, 2),
+    phone: cap(input.phone, 32),
+    referral_code: cap(input.referralCode, 64),
+  };
+}
 
 /**
  * Lowercase and trim. Nothing else.
@@ -64,7 +100,9 @@ const findById = (catalystApp, userId) =>
  * insert without the constraint would produce two accounts for one person, and
  * the second would be the one nobody can sign into.
  */
-async function findOrCreate(catalystApp, { email, firstName, userType = 'member', status = 'active' }) {
+async function findOrCreate(catalystApp, {
+  email, firstName, userType = 'member', status = 'active', profile,
+}) {
   const normalized = normalizeEmail(email);
 
   const existing = await findByEmail(catalystApp, normalized);
@@ -79,6 +117,7 @@ async function findOrCreate(catalystApp, { email, firstName, userType = 'member'
       first_name: firstNameFrom(normalized, firstName),
       user_type: userType,
       status,
+      ...profileFrom(profile),
       last_login_at: null,
       crm_contact_id: null,
     });
@@ -136,6 +175,36 @@ async function findByIdentity(catalystApp, provider, providerUid) {
   return row ? findById(catalystApp, row.user_id) : null;
 }
 
+/**
+ * Overwrite the profile fields on an existing row.
+ *
+ * Only used while an account is still `pending`: someone repeating an
+ * unfinished signup may well be correcting the postal code they got wrong the
+ * first time, and keeping the original would place them in the wrong cohort
+ * with no way to say so. Once an account is active this must not be called —
+ * changing a verified member's region belongs behind an authenticated profile
+ * endpoint, not behind an unauthenticated signup form.
+ */
+async function updateProfile(catalystApp, user, { firstName, profile }) {
+  const fields = { ROWID: user.ROWID, ...profileFrom(profile) };
+  const first = firstNameFrom(user.email_normalized, firstName);
+  if (first) fields.first_name = first;
+  await datastore.updateRow(catalystApp, USERS, fields);
+  return { ...user, ...fields };
+}
+
+/**
+ * Move an account between statuses.
+ *
+ * NOT best-effort, unlike `touchLastLogin` below: this is what turns a pending
+ * signup into a usable account, and a silently dropped write there leaves
+ * someone who verified their email still unable to sign in.
+ */
+async function setStatus(catalystApp, user, status) {
+  await datastore.updateRow(catalystApp, USERS, { ROWID: user.ROWID, status });
+  return { ...user, status };
+}
+
 /** Best-effort — a missing last_login_at is not worth failing a login over. */
 async function touchLastLogin(catalystApp, user) {
   try {
@@ -147,7 +216,7 @@ async function touchLastLogin(catalystApp, user) {
 
 module.exports = {
   USERS, IDENTITIES, USER_COLUMNS,
-  normalizeEmail, isEmail, firstNameFrom,
+  normalizeEmail, isEmail, firstNameFrom, profileFrom,
   findByEmail, findById, findOrCreate,
-  linkIdentity, findByIdentity, touchLastLogin,
+  linkIdentity, findByIdentity, touchLastLogin, setStatus, updateProfile,
 };

@@ -180,19 +180,26 @@ button{font-family:var(--body)}
 
     <div class="card rv d2">
 
-      <!-- EMAIL ENTRY -->
+      <!-- EMAIL ENTRY
+
+           Sign-in only. Creating an account happens on /waitlist/, which
+           collects the postal code, phone and consent that place someone in a
+           cohort — none of which this page asks for, and all of which a new
+           member needs. "Create an account" below is therefore a link out, not
+           a mode toggle: a signed-up-here account would be a member with no
+           region, which is a member the marketplace cannot do anything with. -->
       <section id="entry">
-        <h2 id="entry-h">Welcome back</h2>
-        <p class="fsub" id="entry-sub">Sign in to pick up where your region left off.</p>
+        <h2>Welcome back</h2>
+        <p class="fsub">Sign in to pick up where your region left off.</p>
 
         <div class="soc">
           <button type="button" class="g" onclick="oauthStart('google')">
             <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z"/></svg>
-            <span id="g-label">Continue with Google</span>
+            <span>Continue with Google</span>
           </button>
           <button type="button" class="a" onclick="mock('Apple')">
             <svg viewBox="0 0 24 24" fill="#fff"><path d="M17.05 12.54c-.02-2.05 1.68-3.03 1.75-3.08-.95-1.4-2.44-1.59-2.97-1.61-1.27-.13-2.47.74-3.11.74-.64 0-1.63-.72-2.68-.7-1.38.02-2.65.8-3.36 2.03-1.43 2.48-.37 6.16 1.03 8.18.68.98 1.5 2.09 2.56 2.05 1.03-.04 1.42-.66 2.66-.66 1.24 0 1.59.66 2.68.64 1.1-.02 1.8-1 2.48-1.99.78-1.14 1.1-2.24 1.12-2.3-.02-.01-2.15-.83-2.17-3.28ZM15.02 6.3c.56-.68.94-1.62.84-2.56-.81.03-1.79.54-2.37 1.22-.52.6-.98 1.56-.86 2.48.9.07 1.83-.46 2.39-1.14Z"/></svg>
-            <span id="a-label">Continue with Apple</span>
+            <span>Continue with Apple</span>
           </button>
         </div>
 
@@ -212,12 +219,6 @@ button{font-family:var(--body)}
           <div class="err-inline" id="email-err" role="alert" style="display:none">Enter a valid email address.</div>
         </div>
 
-        <div class="field hidden" id="postal-f">
-          <label for="postal">Postal code</label>
-          <input id="postal" type="text" autocomplete="postal-code" placeholder="K1A 0B1" maxlength="7" spellcheck="false" autocapitalize="characters" aria-describedby="postal-err">
-          <div class="err-inline" id="postal-err" role="alert" style="display:none">Enter a valid Canadian postal code.</div>
-        </div>
-
         <!-- Form-level, for what the SERVER says: rate limits and outages
              belong to the whole submission, not to the email field. -->
         <div class="err-inline" id="entry-err" role="alert" style="display:none"></div>
@@ -226,10 +227,11 @@ button{font-family:var(--body)}
         </form>
         <p class="legal">By continuing you agree to Whollar's <a href="/terms" target="_blank" rel="noopener noreferrer">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</p>
 
-        <!-- was <a onclick=…> with no href: unreachable by keyboard and
-             invisible to screen readers, so sign-up could not be opened at all
-             without a mouse. -->
-        <p class="foot-switch" id="entry-switch">New to Whollar? <button type="button" class="linkbtn" data-mode="signup">Create an account</button></p>
+        <!-- A real link, not a button that swaps this form into a sign-up:
+             account creation lives on /waitlist/. Being an <a href> also means
+             middle-click, "open in new tab" and keyboard access all work, none
+             of which the previous <button onclick> supported. -->
+        <p class="foot-switch">New to Whollar? <a href="/waitlist/">Create an account</a></p>
       </section>
 
       <!-- CODE ENTRY -->
@@ -283,26 +285,6 @@ button{font-family:var(--body)}
 })();
 
 var W=window.WHOLLAR;
-var mode='signin';
-
-function setMode(m){
-  mode=m;
-  var signup=(m==='signup');
-  document.getElementById('entry-h').textContent=signup?'Join your region':'Welcome back';
-  document.getElementById('entry-sub').textContent=signup?'Your postal code holds your spot and adds weight to your cohort.':'Sign in to pick up where your region left off.';
-  document.getElementById('g-label').textContent=signup?'Sign up with Google':'Continue with Google';
-  document.getElementById('a-label').textContent=signup?'Sign up with Apple':'Continue with Apple';
-  document.getElementById('postal-f').classList.toggle('hidden',!signup);
-  document.getElementById('entry-cta').textContent=signup?'Create my account':'Continue';
-  document.getElementById('entry-switch').innerHTML=signup
-    ? 'Already a member? <button type="button" class="linkbtn" data-mode="signin">Sign in</button>'
-    : 'New to Whollar? <button type="button" class="linkbtn" data-mode="signup">Create an account</button>';
-}
-/* Delegated so the handler survives the innerHTML swap above. */
-document.addEventListener('click',function(e){
-  var b=e.target.closest&&e.target.closest('.linkbtn[data-mode]');
-  if(b)setMode(b.dataset.mode);
-});
 
 function toast(msg){
   var t=document.getElementById('toast');
@@ -362,30 +344,16 @@ function nextTarget(){
   W.session.adopt('member').then(function(rec){ if(rec) location.replace(nextTarget()); });
 })();
 
-/* Postal code: uppercase + space as you type, validated against the real
-   Canadian character sets. In sign-up mode it is what places you in a cohort,
-   so it is now read and stored — previously the field was collected and then
-   discarded by every code path. */
-var postalEl=document.getElementById('postal');
-postalEl.addEventListener('input',function(){
-  var atEnd=this.selectionStart===this.value.length;
-  this.value=W.formatPostal(this.value);
-  if(atEnd)try{this.setSelectionRange(this.value.length,this.value.length);}catch(e){}
-  if(W.parsePostal(this.value)){
-    document.getElementById('postal-err').style.display='none';
-    document.getElementById('postal-f').classList.remove('err');
-  }
-});
-
 /* ------------------------------------------------------------------ *
  * Emailed-code sign-in
  *
  * Two steps against two endpoints. /otp/start answers 200 for any valid
- * address whether or not an account exists, and /otp/verify creates the
- * account on first success — so there is no separate sign-up path here, and
- * the Sign in / Create account toggle above stays purely a copy decision.
- * Nothing below may branch on which mode is showing, or it would leak the
- * very distinction the server refuses to make.
+ * address whether or not an account exists, and /otp/verify creates one on
+ * first success — so somebody who has never signed up can still complete this
+ * flow. That is deliberate on the server's part (it is what stops the pair
+ * being an account-enumeration oracle) and nothing here may branch on it.
+ * They just land in /dashboard without a cohort, and /waitlist/ is where the
+ * page points anyone who says they are new.
  * ------------------------------------------------------------------ */
 
 /* What the code step needs to finish, captured at step 1. Held here rather
@@ -469,14 +437,6 @@ document.getElementById('entry-form').addEventListener('submit',function(e){
   em.setAttribute('aria-invalid', ok?'false':'true');
   if(!ok){ em.focus(); return; }
 
-  var postal=null;
-  if(mode==='signup'){
-    postal=W.parsePostal(postalEl.value);
-    var pf=document.getElementById('postal-f'), pe=document.getElementById('postal-err');
-    if(!postal){ pe.style.display='block'; pf.classList.add('err'); postalEl.setAttribute('aria-invalid','true'); postalEl.focus(); return; }
-    pe.style.display='none'; pf.classList.remove('err'); postalEl.setAttribute('aria-invalid','false');
-  }
-
   /* Guards the mobile double-tap: this is now a network call, and two of them
      mean two challenges issued and two of the five hourly sends burnt. */
   if(W.busy(btn,true,'Sending…')===false) return;
@@ -487,8 +447,7 @@ document.getElementById('entry-form').addEventListener('submit',function(e){
     /* Only what they actually typed. `firstNameFrom` can derive "Genie" from
        genie@… for display, but a guess is not a name, and the server should
        not store one as though the visitor had given it. */
-    firstName: document.getElementById('fname').value.trim() || null,
-    postal: postal
+    firstName: document.getElementById('fname').value.trim() || null
   };
 
   W.session.otpStart(email).then(function(r){
@@ -543,27 +502,26 @@ document.getElementById('code-form').addEventListener('submit',function(e){
   lastTried=code;
 
   W.session.otpVerify({ email:pending.email, code:code, firstName:pending.firstName })
-    .then(function(r){
-      /* Written from the server's answer, not from the form: the cookie is the
-         session and this record only makes first paint fast. The postal fields
-         are the one exception — nothing server-side stores them yet, so they
-         carry over from the sign-up form. */
-      var user=r.user||{};
-      var email=user.email||pending.email;
-      W.member.write({
-        firstName: W.firstNameFrom(email, user.firstName||pending.firstName),
-        email: email,
-        /* Stored lowercase so a later CRM lookup can't treat Genie@x.com and
-           genie@x.com as two people. */
-        emailKey: email.toLowerCase(),
-        fsa: pending.postal?pending.postal.fsa:null,
-        postal: pending.postal?pending.postal.full:null,
-        province: pending.postal?pending.postal.province:null,
-        provinceCode: pending.postal?pending.postal.provinceCode:null
+    .then(function(){
+      /* Reconciled through adopt() rather than written from the response here.
+         It costs one extra request and buys the merge rule living in exactly
+         one place: which store a user type writes to, and which fields survive
+         from a previous record on a shared device. Duplicating that inline is
+         how the two copies drift.
+
+         adopt() resolving null means verify succeeded but no session came
+         back — the cookie did not stick. Redirecting then would bounce off
+         /dashboard straight back to here, so say so instead of looping. */
+      return W.session.adopt('member').then(function(rec){
+        if(!rec){
+          W.busy(btn,false);
+          showOtpErr('You’re verified, but we couldn’t keep you signed in. Check that cookies are enabled and try again.');
+          return;
+        }
+        /* Deliberately still "busy": the navigation is starting, and
+           re-enabling the button only offers a second submission mid-handover. */
+        location.href=nextTarget();
       });
-      /* Deliberately still "busy": the navigation is starting, and re-enabling
-         the button here only offers a second submission during the handover. */
-      location.href=nextTarget();
     },function(err){
       W.busy(btn,false);
       showOtpErr(err.message);

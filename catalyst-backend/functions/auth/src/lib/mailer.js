@@ -244,4 +244,52 @@ function otpEmail({ code, purpose, ttlMinutes }) {
   };
 }
 
-module.exports = { send, transportName, otpEmail, escapeHtml, DEFAULT_API_BASE };
+/**
+ * Sent when somebody tries to sign up with an address that already has an
+ * active account.
+ *
+ * This email is the reason `POST /signup` can answer identically in both cases.
+ * The alternative — telling the browser "that address is taken" — turns the
+ * signup form into an account-enumeration oracle, which is exactly what the
+ * emailed-code routes were built to avoid. The person who owns the address
+ * learns what happened; the person who typed it into the form does not.
+ *
+ * It deliberately carries NO code and NO link that grants anything. If the
+ * attempt came from an attacker, the owner needs to know without that attempt
+ * having produced a credential of any kind.
+ */
+function existingAccountEmail({ appBaseUrl }) {
+  const url = String(appBaseUrl || '').replace(/\/+$/, '');
+  const signIn = `${url}/whollar-login-consumer`;
+
+  const text = [
+    'Someone just tried to create a Whollar account with this email address.',
+    '',
+    'You already have one, so we did not create a second — and nothing about your',
+    'account has changed. Your password is untouched.',
+    '',
+    `If that was you, sign in instead: ${signIn}`,
+    '',
+    'If it was not you, you can ignore this. Nobody can get into your account from',
+    'a signup attempt, and we have not sent them any code or link.',
+    '',
+    'Whollar will never phone, text or email you to ask for your password.',
+  ].join('\n');
+
+  const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#F4F6F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102822">
+  <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#fff;border-radius:14px;padding:32px">
+    <tr><td>
+      <p style="margin:0 0 18px;font-size:15px;line-height:1.5">Someone just tried to create a Whollar account with this email address.</p>
+      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">You already have one, so we didn't create a second — and nothing about your account has changed. Your password is untouched.</p>
+      <p style="margin:0 0 18px;font-size:15px;line-height:1.5"><a href="${escapeHtml(signIn)}" style="color:#178A5A">Sign in instead</a></p>
+      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">If it wasn't you, you can ignore this. Nobody can get into your account from a signup attempt, and we haven't sent them any code or link.</p>
+      <p style="margin:0;font-size:13px;line-height:1.5;color:#6B7C77;border-top:1px solid #E3E8E6;padding-top:16px">Whollar will never phone, text or email you to ask for your password.</p>
+    </td></tr>
+  </table></body></html>`;
+
+  return { subject: 'You already have a Whollar account', text, html };
+}
+
+module.exports = {
+  send, transportName, otpEmail, existingAccountEmail, escapeHtml, DEFAULT_API_BASE,
+};

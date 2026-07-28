@@ -35,8 +35,18 @@ const TABLES = Object.freeze({
     email_normalized: 'varchar(255) unique required', // race guard for concurrent signup
     email_display:    'varchar(255) required',
     first_name:       'varchar(100)',
+    last_name:        'varchar(100)',
     user_type:        'varchar(16) required',
     status:           'varchar(16) required',
+    // Cohort placement. `fsa` is the first three characters of the postal code
+    // and is what a cohort is actually keyed on, so it is stored separately
+    // rather than re-derived on every query — Catalyst has no computed columns
+    // and no way to index an expression.
+    postal_code:      'varchar(10)',
+    fsa:              'varchar(3)',
+    province_code:    'varchar(2)',
+    phone:            'varchar(32)',
+    referral_code:    'varchar(64)',
     last_login_at:    'datetime',
     crm_contact_id:   'varchar(64)',
   },
