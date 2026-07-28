@@ -23,11 +23,12 @@ const cookies = require('./lib/cookies');
 const csrf = require('./lib/csrf');
 const audit = require('./lib/audit');
 const mailer = require('./lib/mailer');
-const { verify: verifySchema } = require('./lib/schema');
+const { verify: verifySchema, TABLE_NAMES } = require('./lib/schema');
 const { errorHandler, wrap, AppError } = require('./lib/errors');
 const otpRoutes = require('./routes/otp');
 const passwordRoutes = require('./routes/password');
 const googleRoutes = require('./routes/google');
+const providerRoutes = require('./routes/provider');
 
 function buildApp(cfg) {
   const app = express();
@@ -147,6 +148,7 @@ function buildApp(cfg) {
   otpRoutes.mount(router, cfg);
   passwordRoutes.mount(router, cfg);
   googleRoutes.mount(router, cfg);
+  providerRoutes.mount(router, cfg);
 
   if (!cfg.IS_PRODUCTION) {
     mountDevRoutes(router, cfg);
@@ -209,8 +211,10 @@ function mountDevRoutes(router, cfg) {
     // ceiling can be probed without a redeploy per attempt.
     const CAP = Math.min(Math.max(parseInt(req.query.cap, 10) || 200, 1), 1000);
     const counts = {};
-    for (const table of ['users', 'sessions', 'auth_events', 'auth_challenges',
-      'auth_identities', 'consents']) {
+    // Every table the schema declares, not a hand-kept subset — a list that has
+    // to be extended by hand is a list that silently stops covering the table
+    // you most need to look at.
+    for (const table of TABLE_NAMES) {
       try {
         const rows = await datastore.query(
           req.catalyst, table, `SELECT ROWID FROM ${table} LIMIT ${CAP}`
