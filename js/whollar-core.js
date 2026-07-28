@@ -41,6 +41,22 @@
   W.API = W.CATALYST_HOST + '/server/formSubmit';
   W.OCR_API = W.CATALYST_HOST + '/server/billOcr';
 
+  /* The auth function is reached SAME-ORIGIN, through the /api/auth rewrite in
+     vercel.json — not on W.CATALYST_HOST like the two above. That is not a
+     style choice, it is what makes session cookies possible at all:
+     catalystserverless.ca cannot set a cookie for whollar.ca, and a third-party
+     cookie would be blocked by Safari ITP anyway. Proxying through Vercel makes
+     the browser see one origin, so the cookie is plain first-party.
+
+     Being same-origin also means: no CORS, no preflight, no `credentials`
+     juggling, and `connect-src 'self'` in the CSP already covers it.
+
+     Catalyst Domain Mappings — which would let api.whollar.ca front the
+     function directly and remove the proxy hop — are PRODUCTION-ONLY, and this
+     project has no production environment yet. When one exists, this becomes
+     'https://api.whollar.ca/auth' and the rewrite in vercel.json is deleted. */
+  W.AUTH_API = '/api/auth';
+
   /* ================================================================== *
    * 2. VALIDATORS
    * ================================================================== */
@@ -236,73 +252,126 @@
   /* ================================================================== *
    * 4. BENCHMARK
    * ------------------------------------------------------------------
-   * ⚠ READ THIS BEFORE CHANGING ANY USER-FACING COMPARISON COPY.
+   * The reference prices come from "Whollar Pricing Model.xlsx" (6,803
+   * advertised Canadian home-internet plans), aggregated at build time into
+   * js/whollar-benchmarks.js by scripts/build-benchmarks.mjs. That file must
+   * be loaded BEFORE this one; if it is missing, benchmarkFor() returns null
+   * and every result renders the "not enough to score" state rather than
+   * inventing a number.
    *
-   * These are advertised-price reference points for a national entry-level
-   * plan at each download tier. They are EDITORIAL ESTIMATES. They are not
-   * sampled, not per-province, and not derived from provider minimums.
-   * There is no benchmark dataset in this repository.
+   * Lookup is a cascade from most to least specific. The first level that has
+   * data wins, and the level that answered travels with the result so the UI
+   * can say what the comparison was actually against:
    *
-   * Because of that, every comparison this file produces is explicitly
-   * labelled `scope: 'national'`, and the UI must say "national" — never
-   * "your province" or "your market". When a real per-province dataset
-   * exists, populate PROVINCE_TIER_PRICE and the scope flips to 'province'
-   * automatically with no other code change.
+   *   A  province + provider + connection type + speed tier
+   *   B  province + connection type + speed tier      ← drops the provider
+   *   C  connection type + speed tier                 ← drops the province
+   *   D  province + provider + speed tier             (no tech; excl. satellite)
+   *   E  province + speed tier                        (excl. satellite)
+   *   F  speed tier                                   (excl. satellite)
    *
-   * benchmarkFor() returns null rather than guessing. A null benchmark must
-   * render an "unknown" state, never a confident verdict.
+   * Dropping the provider first is the specified behaviour: four of the eight
+   * named providers on the form (Rogers, Shaw, Eastlink, SaskTel) have no rows
+   * in the dataset at all, so level B is the common path for them.
    * ================================================================== */
 
-  var NATIONAL_TIER_PRICE = {
-    '25': 40, '50': 50, '100': 55, '150': 58,
-    '300': 70, '500': 75, '1000': 85, '1500': 88
+  /* Bucket a raw Mbps figure to one of the eight tiers the form offers. Used
+     for values that don't come from the <select> (e.g. bill OCR). */
+  W.speedTier = function (mbps) {
+    var v = Number(mbps);
+    if (!isFinite(v) || v <= 0) return null;
+    var tiers = W.SPEED_TIERS || [], edges = W.SPEED_EDGES || [];
+    for (var i = 0; i < edges.length; i++) if (v < edges[i]) return tiers[i];
+    return tiers[tiers.length - 1] || null;
   };
 
-  /* Shape: { ON: { '500': 72, … }, QC: { … } }. Empty until real data lands.
-     A tier present here wins over the national number for that province. */
-  var PROVINCE_TIER_PRICE = {};
+  /* input: { provinceCode, provider, tech, speed }
+     - provider / tech are the raw <option> values from #prov / #tech
+     - speed is the #spd value ('25'…'1500', or '0' meaning "not sure")
+     returns { price, sample, level, scope, tier, … } or null.
 
-  /* speed is the <select> value: '25'…'1500', or '0' meaning "not sure".
-     '0' is NOT a tier — it used to map to an invented $60 benchmark and
-     produced a confident verdict for a user who had just told us they did
-     not know their speed. It now returns null. */
-  W.benchmarkFor = function (provinceCode, speed) {
-    if (speed == null || speed === '' || speed === '0') return null;
-    var key = String(speed);
-    var prov = provinceCode && PROVINCE_TIER_PRICE[provinceCode];
-    if (prov && prov[key] != null) {
-      return { price: prov[key], scope: 'province', provinceCode: provinceCode, tier: key };
-    }
-    if (NATIONAL_TIER_PRICE[key] != null) {
-      return { price: NATIONAL_TIER_PRICE[key], scope: 'national', provinceCode: null, tier: key };
+     '0' is not a tier. It used to map to an invented $60 benchmark and produce
+     a confident verdict for someone who had just said they didn't know their
+     speed; it returns null instead. */
+  W.benchmarkFor = function (input) {
+    var table = W.BENCHMARKS;
+    if (!table) return null;
+
+    var opts = input || {};
+    var tier = W.speedTier(opts.speed === '0' ? null : opts.speed);
+    if (!tier) return null;
+
+    var pv = opts.provinceCode || null;
+    var grp = opts.provider ? (W.PROVIDER_GROUPS || {})[opts.provider] || null : null;
+    var tech = opts.tech ? (W.TECH_GROUPS || {})[opts.tech] || null : null;
+
+    /* Ordered most specific → least. Each entry: [key, level, scope]. */
+    var chain = [];
+    if (pv && grp && tech) chain.push([['A', pv, grp, tech, tier].join('|'), 'A', 'province-provider-tech']);
+    if (pv && tech) chain.push([['B', pv, tech, tier].join('|'), 'B', 'province-tech']);
+    if (tech) chain.push([['C', tech, tier].join('|'), 'C', 'national-tech']);
+    if (pv && grp) chain.push([['D', pv, grp, tier].join('|'), 'D', 'province-provider']);
+    if (pv) chain.push([['E', pv, tier].join('|'), 'E', 'province']);
+    chain.push([['F', tier].join('|'), 'F', 'national']);
+
+    for (var i = 0; i < chain.length; i++) {
+      var hit = table[chain[i][0]];
+      if (hit && hit[0] > 0) {
+        return {
+          price: hit[0],
+          sample: hit[1],
+          level: chain[i][1],
+          scope: chain[i][2],
+          tier: tier,
+          provinceCode: chain[i][1] === 'C' || chain[i][1] === 'F' ? null : pv,
+          providerGroup: (chain[i][1] === 'A' || chain[i][1] === 'D') ? grp : null,
+          techGroup: (chain[i][1] === 'A' || chain[i][1] === 'B' || chain[i][1] === 'C') ? tech : null,
+          /* True when we had to drop the provider the household actually named
+             — the fallback the spec calls for, worth surfacing. */
+          providerFellBack: !!grp && chain[i][1] !== 'A' && chain[i][1] !== 'D'
+        };
+      }
     }
     return null;
   };
 
-  /* Northern internet pricing bears no relation to the national average
-     (satellite/microwave backhaul, no cable overbuild). Scoring a territory
-     household against a southern reference is the least supportable
-     comparison this engine can make, so it is flagged rather than hidden. */
+  /* Northern internet pricing bears no relation to the southern market
+     (satellite/microwave backhaul, no cable overbuild), and the dataset holds
+     only 138 territory rows. A territory household scored against a national
+     fallback is the least supportable comparison this engine can make, so it
+     is flagged rather than hidden. */
   W.TERRITORIES = ['NU', 'NT', 'YT'];
   W.isTerritory = function (provinceCode) {
     return W.TERRITORIES.indexOf(provinceCode) > -1;
   };
 
-  W.hasProvinceBenchmarks = function () {
-    for (var k in PROVINCE_TIER_PRICE) if (Object.prototype.hasOwnProperty.call(PROVINCE_TIER_PRICE, k)) return true;
-    return false;
-  };
-
   /* ================================================================== *
    * 5. SCORING
    * ------------------------------------------------------------------
-   * Boundaries are inclusive-lower: r <= 0.92 strong, r <= 1.12 fair,
-   * else weak. Verified deterministic at every tier — no float flip.
+   * Customer amount = the monthly charge before any promo, minus the promo
+   * discount. Compared against the benchmark price:
+   *
+   *   customer >  1.20 × benchmark   → weak
+   *   customer <  0.95 × benchmark   → strong
+   *   otherwise (inclusive both ends) → fair
+   *
+   * Both comparisons are STRICT, so a customer sitting exactly on 0.95× or
+   * exactly on 1.20× is "fair". That is deliberate: the band is defined as
+   * everything between the two lines, and the lines belong to it.
    * ================================================================== */
 
-  W.STRONG_MAX = 0.92;
-  W.FAIR_MAX = 1.12;
+  W.STRONG_BELOW = 0.95;  /* strictly below this multiple of the benchmark */
+  W.WEAK_ABOVE = 1.20;    /* strictly above this multiple of the benchmark */
   W.CLIFF_DAYS = 60;
+
+  /* Binary floating point cannot represent 0.95 exactly, so a customer sitting
+     precisely on the line computes as 0.949999999999999845 and would be graded
+     "strong" when the rule says "fair". That is not hypothetical: it happens
+     for 21 of the 184 distinct benchmark prices in the current dataset.
+     A tolerance of 1e-9 is ~1/10,000,000 of a cent on a $100 bill — far too
+     small to reclassify any real amount, and large enough to absorb the
+     representation error. */
+  var RATIO_EPSILON = 1e-9;
 
   /* What the household actually pays today. Clamped at zero, and a discount
      that meets or exceeds the charge is flagged as contradictory rather than
@@ -316,8 +385,9 @@
     return { value: charge - disc, contradictory: false };
   };
 
-  /* input: { cost, discount, speed, promoEnd, promoExpired, provinceCode }
-     returns: { state, ratio, benchmark, effective, reason }
+  /* input: { cost, discount, speed, tech, provider, promoEnd, promoExpired,
+              provinceCode }
+     returns: { state, ratio, benchmark, effective, days, reason, caveat }
        state ∈ 'cliff' | 'strong' | 'fair' | 'weak' | 'unknown'
        reason (only when 'unknown') ∈ 'no-cost' | 'no-speed' | 'no-benchmark'
                                     | 'discount-exceeds-charge' */
@@ -328,31 +398,44 @@
     /* Cliff is date-driven and does not need a benchmark, so it is checked
        first — a household with an unknown speed can still be warned. */
     if (days !== null && days >= 0 && days <= W.CLIFF_DAYS) {
-      return { state: 'cliff', ratio: null, benchmark: null, effective: eff.value, days: days, reason: null };
+      return { state: 'cliff', ratio: null, benchmark: null, effective: eff.value, days: days, reason: null, caveat: null };
     }
 
     if (!(Number(input.cost) > 0)) {
-      return { state: 'unknown', ratio: null, benchmark: null, effective: null, days: days, reason: 'no-cost' };
+      return { state: 'unknown', ratio: null, benchmark: null, effective: null, days: days, reason: 'no-cost', caveat: null };
     }
     if (eff.contradictory) {
-      return { state: 'unknown', ratio: null, benchmark: null, effective: eff.value, days: days, reason: 'discount-exceeds-charge' };
+      return { state: 'unknown', ratio: null, benchmark: null, effective: eff.value, days: days, reason: 'discount-exceeds-charge', caveat: null };
     }
     if (input.speed == null || input.speed === '' || input.speed === '0') {
-      return { state: 'unknown', ratio: null, benchmark: null, effective: eff.value, days: days, reason: 'no-speed' };
+      return { state: 'unknown', ratio: null, benchmark: null, effective: eff.value, days: days, reason: 'no-speed', caveat: null };
     }
 
-    var bench = W.benchmarkFor(input.provinceCode, input.speed);
+    var bench = W.benchmarkFor({
+      provinceCode: input.provinceCode,
+      provider: input.provider,
+      tech: input.tech,
+      speed: input.speed
+    });
     if (!bench || !(bench.price > 0)) {
-      return { state: 'unknown', ratio: null, benchmark: null, effective: eff.value, days: days, reason: 'no-benchmark' };
+      return { state: 'unknown', ratio: null, benchmark: null, effective: eff.value, days: days, reason: 'no-benchmark', caveat: null };
     }
 
+    /* Strictly outside the band, per the rule above — landing exactly on a
+       line is "fair". The epsilon keeps that true in floating point. */
     var r = eff.value / bench.price;
-    var state = r <= W.STRONG_MAX ? 'strong' : (r <= W.FAIR_MAX ? 'fair' : 'weak');
+    var state = r > W.WEAK_ABOVE + RATIO_EPSILON ? 'weak'
+      : (r < W.STRONG_BELOW - RATIO_EPSILON ? 'strong' : 'fair');
+
+    /* Flags for comparisons that are materially weaker than the verdict looks,
+       so the UI can qualify rather than state flat. */
+    var caveat = null;
+    if (W.isTerritory(input.provinceCode) && bench.level !== 'A' && bench.level !== 'B') caveat = 'territory';
+    else if (bench.sample < 3) caveat = 'thin-sample';
+
     return {
-      state: state, ratio: r, benchmark: bench, effective: eff.value, days: days, reason: null,
-      /* Set when the comparison is materially weaker than it looks, so the UI
-         can qualify the verdict instead of stating it flat. */
-      caveat: (bench.scope === 'national' && W.isTerritory(input.provinceCode)) ? 'territory' : null
+      state: state, ratio: r, benchmark: bench, effective: eff.value,
+      days: days, reason: null, caveat: caveat
     };
   };
 

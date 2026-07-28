@@ -473,6 +473,13 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
         verdictReason: str(b.verdictReason) || null,
         benchmarkScope: str(b.benchmarkScope) || null,
         benchmarkPrice: toNumber(b.benchmarkPrice),
+        // Which level of the fallback cascade answered, how many advertised
+        // plans stood behind it, and whether the comparison was flagged as
+        // thin. Without these a rep cannot tell an exact provider match from a
+        // national average that happened to land on the same verdict.
+        benchmarkLevel: str(b.benchmarkLevel) || null,
+        benchmarkSample: toNumber(b.benchmarkSample),
+        benchmarkCaveat: str(b.benchmarkCaveat) || null,
         billFileName: file?.name ?? (req.fileRejected ? `[rejected: ${req.fileRejected}]` : null),
         ...consentFrom(b, req)
       }
