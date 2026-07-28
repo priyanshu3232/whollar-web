@@ -47,6 +47,20 @@ async function sendViaLog(cfg, message) {
   return { ok: true, transport: 'log', delivered: false };
 }
 
+/**
+ * ZeptoMail's auth scheme is `Zoho-enczapikey <token>`, not Bearer, and the
+ * console presents the value inconsistently — sometimes with the prefix
+ * included, sometimes as the bare key. Pasting the wrong one produces a 401
+ * with no hint as to which half is missing.
+ *
+ * So normalise instead of documenting: accept either form, and also tolerate
+ * `Bearer ` being pasted in front by muscle memory.
+ */
+function zeptoAuthHeader(raw) {
+  const token = String(raw || '').trim().replace(/^Bearer\s+/i, '');
+  return /^Zoho-enczapikey\s/i.test(token) ? token : `Zoho-enczapikey ${token}`;
+}
+
 async function sendViaZeptoMail(cfg, message) {
   const base = (cfg.ZEPTOMAIL_API_BASE || DEFAULT_API_BASE).replace(/\/+$/, '');
 
@@ -62,9 +76,7 @@ async function sendViaZeptoMail(cfg, message) {
   const res = await fetch(`${base}/v1.1/email`, {
     method: 'POST',
     headers: {
-      // ZeptoMail's scheme, not Bearer. The token already carries its own
-      // prefix, so it is passed through verbatim rather than re-prefixed.
-      Authorization: cfg.ZEPTOMAIL_TOKEN,
+      Authorization: zeptoAuthHeader(cfg.ZEPTOMAIL_TOKEN),
       'Content-Type': 'application/json',
       Accept: 'application/json',
     },
@@ -140,12 +152,44 @@ function transportName(cfg) {
   return 'log';
 }
 
+/**
+ * Send, falling through to the next configured transport on failure.
+ *
+ * A provider outage on this path is not a degraded experience, it is a locked
+ * door: a member with no code cannot sign in at all. So if both ZeptoMail and
+ * SMTP are configured, a ZeptoMail failure retries over SMTP rather than
+ * surfacing. Keeping the SMTP credentials set after migrating is therefore
+ * worth doing, not leftover clutter.
+ *
+ * It deliberately does NOT fall back to `log` when a real transport exists and
+ * fails. Logging the code and reporting success would look like delivery while
+ * the user's inbox stayed empty — the failure has to stay visible.
+ */
 async function send(cfg, message) {
-  switch (transportName(cfg)) {
-    case 'zeptomail': return sendViaZeptoMail(cfg, message);
-    case 'smtp': return sendViaSmtp(cfg, message);
-    default: return sendViaLog(cfg, message);
+  const f = cfg.FEATURES || {};
+  const chain = [];
+  if (f.mail) chain.push(['zeptomail', sendViaZeptoMail]);
+  if (f.smtp) chain.push(['smtp', sendViaSmtp]);
+  if (!chain.length) return sendViaLog(cfg, message);
+
+  let lastErr;
+  for (let i = 0; i < chain.length; i++) {
+    const [name, fn] = chain[i];
+    try {
+      return await fn(cfg, message);
+    } catch (err) {
+      lastErr = err;
+      const next = chain[i + 1];
+      console.error(JSON.stringify({
+        level: 'error',
+        message: 'mail transport failed',
+        transport: name,
+        falling_back_to: next ? next[0] : null,
+        detail: String((err && err.message) || err).slice(0, 200),
+      }));
+    }
   }
+  throw lastErr;
 }
 
 /* ------------------------------------------------------------------ *
