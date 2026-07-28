@@ -162,9 +162,18 @@ const BOOT = {
 // All-or-nothing feature bundles.
 const GROUPS = {
   // Needed from Phase 3 (OTP email) and Phase 5 (password reset).
+  // Unset -> mailer falls back to the `log` transport, which is what makes the
+  // login flow testable before a sending domain is verified.
   mail: {
     ZEPTOMAIL_TOKEN: { check: v.nonEmpty, secret: true },
     ZEPTOMAIL_FROM:  { check: v.nonEmpty },
+    // Regional. This project is on Zoho's Canadian DC (see the crm group), and
+    // hard-coding the US host would route Canadian addresses through a US
+    // endpoint. Defaulted rather than required so it does not, on its own,
+    // count as "the operator configured mail".
+    ZEPTOMAIL_API_BASE: { check: v.baseUrl, fallback: 'https://api.zeptomail.com' },
+    // A reply to a no-reply address should reach a human, not hard-bounce.
+    MAIL_REPLY_TO:      { check: v.nonEmpty, fallback: 'hello@whollar.ca' },
   },
   // Needed from Phase 3 — signup writes versioned consent rows.
   consents: {

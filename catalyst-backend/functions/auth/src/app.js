@@ -22,8 +22,10 @@ const sessions = require('./lib/sessions');
 const cookies = require('./lib/cookies');
 const csrf = require('./lib/csrf');
 const audit = require('./lib/audit');
+const mailer = require('./lib/mailer');
 const { verify: verifySchema } = require('./lib/schema');
 const { errorHandler, wrap, AppError } = require('./lib/errors');
+const otpRoutes = require('./routes/otp');
 
 function buildApp(cfg) {
   const app = express();
@@ -84,11 +86,14 @@ function buildApp(cfg) {
     res.status(200).json({
       status: 'ok',
       service: 'auth',
-      phase: 2,
+      phase: 3,
       request_id: req.id,
       node: process.versions.node,
       env: cfg.NODE_ENV,
       features: cfg.FEATURES,
+      // Reported rather than inferred: "why did no email arrive" should be
+      // answerable from outside without reading the logs.
+      mail_transport: mailer.transportName(cfg),
     });
   });
 
@@ -126,6 +131,8 @@ function buildApp(cfg) {
     cookies.clear(req, res);
     res.status(200).json({ ok: true });
   }));
+
+  otpRoutes.mount(router, cfg);
 
   if (!cfg.IS_PRODUCTION) {
     mountDevRoutes(router, cfg);
@@ -188,7 +195,8 @@ function mountDevRoutes(router, cfg) {
     // ceiling can be probed without a redeploy per attempt.
     const CAP = Math.min(Math.max(parseInt(req.query.cap, 10) || 200, 1), 1000);
     const counts = {};
-    for (const table of ['users', 'sessions', 'auth_events', 'auth_challenges']) {
+    for (const table of ['users', 'sessions', 'auth_events', 'auth_challenges',
+      'auth_identities', 'consents']) {
       try {
         const rows = await datastore.query(
           req.catalyst, table, `SELECT ROWID FROM ${table} LIMIT ${CAP}`
