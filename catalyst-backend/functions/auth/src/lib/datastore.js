@@ -114,10 +114,51 @@ function ident(name) {
  * 3. Queries
  * ------------------------------------------------------------------ */
 
+/**
+ * ZCQL refuses any query whose LIMIT exceeds 300 — and it refuses with a 400,
+ * rather than quietly returning the first 300. Verified against the live
+ * environment: `LIMIT 500` errors with "ZCQL CANNOT HAVE MORE THAN 300 ROWS in
+ * LIMIT", `LIMIT 300` succeeds.
+ *
+ * The dangerous version of this is the query with NO limit, which does not
+ * error — it just stops at the ceiling. Anything that must see every matching
+ * row has to paginate, or it will silently do a partial job. `queryAll` exists
+ * so that is not left to each call site to remember.
+ */
+const MAX_ROWS = 300;
+
 /** Run ZCQL and unwrap `[{ Table: {...} }]` into `[{...}]`. */
 async function query(catalystApp, table, sql) {
   const rows = await catalystApp.zcql().executeZCQLQuery(sql);
   return (rows || []).map((r) => r[table] || r);
+}
+
+/**
+ * Every row matching `where`, paginated past the 300-row ceiling.
+ *
+ * Pages by ROWID rather than by OFFSET. Offset paging over a table being
+ * written to concurrently skips rows when earlier pages shift underneath it;
+ * a strictly increasing cursor cannot. `guard` bounds the loop so a malformed
+ * predicate degrades into a capped read instead of an infinite one.
+ */
+async function queryAll(catalystApp, table, columns, where, { pageSize = MAX_ROWS, maxPages = 50 } = {}) {
+  const t = ident(table);
+  const cols = ['ROWID', ...columns.filter((c) => c !== 'ROWID')].map(ident).join(', ');
+  const out = [];
+  let cursor = null;
+
+  for (let page = 0; page < maxPages; page++) {
+    const cursorClause = cursor ? ` AND ROWID > ${lit(cursor)}` : '';
+    const rows = await query(
+      catalystApp, t,
+      `SELECT ${cols} FROM ${t} WHERE ${where}${cursorClause} ORDER BY ROWID LIMIT ${pageSize}`
+    );
+    if (!rows.length) break;
+    out.push(...rows);
+    cursor = rows[rows.length - 1].ROWID;
+    if (rows.length < pageSize) break;
+  }
+  return out;
 }
 
 /**
@@ -176,5 +217,6 @@ module.exports = {
   app,
   toDb, nowDb, inMsDb, fromDb, isExpired,
   lit, ident,
-  query, findBy, insertRow, updateRow, deleteRow, takeOnce,
+  query, queryAll, findBy, insertRow, updateRow, deleteRow, takeOnce,
+  MAX_ROWS,
 };
