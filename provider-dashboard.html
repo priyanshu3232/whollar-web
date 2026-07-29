@@ -821,6 +821,30 @@ W.session.providerMe().then(function(r){
   $('#review-note').hidden=(r.approved===true);
 },function(){ /* offline or not a partner session: leave the fallbacks */ });
 
+/* ---------- live household counts ----------
+   The desk's numbers are demo seeds until the campaign service answers. The
+   member dashboard writes joins through the same service, so every household
+   that joins a cohort over there is one more in these columns — counts only,
+   never who they are. `live:false` (membership table not provisioned yet)
+   changes nothing: the seeds ARE the server's numbers in that case. */
+var CAMPMAP={kw:'kingston-west',le:'london-east',wc:'windsor-core',hm:'hamilton-mountain',ln:'london-north',ck:'chatham-kent'};
+W.session.providerCampaigns().then(function(r){
+  if(!r||!r.live)return;
+  var by={};(r.campaigns||[]).forEach(function(c){by[c.id]=c});
+  var moved=false;
+  CAMPAIGNS.forEach(function(c){
+    var s=by[CAMPMAP[c.id]];if(!s)return;
+    if(typeof s.households==='number'&&s.households!==c.hh){c.hh=s.households;moved=true}
+    if(c.planned&&typeof s.members==='number'){
+      c.note=s.kind==='waitlist'
+        ?(s.members+' households on the waitlist; opens when the cohort locks')
+        :('Cohort forming: '+s.members+' of '+(s.target||100)+' households');
+    }
+  });
+  renderDesk();renderPlanned();renderOverviewBits();renderBids();
+  if(moved)toast('Cohort counts updated: households joined since your last look.');
+});
+
 /* ---------- activation ---------- */
 var TASKDEFS=[
  ['cov','Coverage declared','Six regions with services on file, one verifying','coverage','Review'],

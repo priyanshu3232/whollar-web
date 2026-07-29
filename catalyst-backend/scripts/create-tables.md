@@ -250,6 +250,32 @@ A bill is a household's private pricing detail, so treat the whole row the way
 `users.postal_code` is treated: consider the PII validator on `provider`,
 `monthly_cost` and `promo_end_date` if per-row access logging is wanted here too.
 
+## 12. `campaign_members`
+
+The bridge between the member dashboard and the partner console. One row per
+(campaign, member) relationship: joining a forming cohort, sitting on a
+region's waitlist, or just asking to be told when it opens. The partner
+console only ever reads **counts** from this table — no member identity
+crosses to providers.
+
+Written by `POST /campaigns/join|leave|notify`, read by `GET /campaigns`
+(member) and `GET /provider/campaigns` (partner). The campaign catalog itself
+is code (`routes/campaigns.js`), not a table — only membership lives here.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `membership_key` | Var Char | 130 | ✅ | ✅ | | **derived**: `` `${campaign_id}:${user_id}` `` — the composite unique, flattened like `auth_identities.provider_key` |
+| `campaign_id` | Var Char | 64 | | ✅ | | catalog slug, e.g. `london-east` |
+| `user_id` | Var Char | 64 | | ✅ | | FK to `users.user_id` (logical) |
+| `status` | Var Char | 16 | | ✅ | | `joined` \| `waitlist` \| `alert` |
+| `fsa` | Var Char | 3 | | | | snapshot of `users.fsa` at join time |
+| `joined_at` | DateTime | — | | ✅ | | |
+
+Until this table exists, `GET /campaigns` and `GET /provider/campaigns` answer
+with `live: false` and the seed demo counts — the dashboards keep working —
+and the join/notify POSTs return a clear "not available right now" error.
+Creating the table is what switches the whole feature live; no redeploy needed.
+
 ---
 
 ## Verify
@@ -270,6 +296,7 @@ SELECT ROWID FROM provider_orgs LIMIT 1;
 SELECT ROWID FROM provider_users LIMIT 1;
 SELECT ROWID FROM auth_events LIMIT 1;
 SELECT ROWID FROM member_bills LIMIT 1;
+SELECT ROWID FROM campaign_members LIMIT 1;
 ```
 
 Then one that exercises the column names the hot path depends on:

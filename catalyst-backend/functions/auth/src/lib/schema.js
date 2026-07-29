@@ -145,6 +145,22 @@ const TABLES = Object.freeze({
     source:           'varchar(32) required',
     updated_at:       'datetime required',
   },
+  campaign_members: {
+    // One row per (campaign, member) relationship, whatever its strength:
+    // 'joined' a forming cohort, 'waitlist' for a region still gathering, or
+    // 'alert' (the bell — "text me the day it opens"). The pair is flattened
+    // into one unique column because Catalyst's unique constraint is
+    // per-column, same as auth_identities.provider_key.
+    membership_key: 'varchar(130) unique required', // `${campaign_id}:${user_id}`
+    campaign_id:    'varchar(64) required',
+    user_id:        'varchar(64) required',
+    status:         'varchar(16) required',
+    // Snapshot of users.fsa at join time — cohorts are keyed on FSA, and the
+    // clustering job should see where the member was when they joined, not
+    // where they moved later.
+    fsa:            'varchar(3)',
+    joined_at:      'datetime required',
+  },
   auth_events: {
     event_type:       'varchar(64) required',
     user_id:          'varchar(64)',

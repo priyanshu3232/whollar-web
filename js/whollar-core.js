@@ -1019,6 +1019,58 @@
     syncBill: syncMemberBill,
 
     /**
+     * The campaigns near the signed-in member: live counts plus their own
+     * standing in each (`you`: 'joined' | 'waitlist' | 'alert' | null).
+     * Never rejects — this runs in the dashboard's boot path, where a missing
+     * endpoint or a flaky network must degrade to the page's built-in demo
+     * data, not to a blank section. Resolves { live, campaigns } or null.
+     * `live:false` means the server answered but counts are seed baselines
+     * (the membership table isn't provisioned yet).
+     */
+    campaignsList: function () {
+      return fetch(W.AUTH_API + '/campaigns', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      }).then(function (r) {
+        return r.ok ? r.json().catch(function () { return null; }) : null;
+      }).then(function (b) {
+        return (b && b.ok && b.campaigns) ? b : null;
+      }).catch(function () {
+        return null;
+      });
+    },
+
+    /**
+     * Join a forming cohort or a region's waitlist / leave one / ask for the
+     * opening-day text. Button paths, so these REJECT on failure with the
+     * server's message — show it, the copy is written to be shown. Each
+     * resolves { ok, campaign } with the campaign's updated counts.
+     */
+    campaignJoin: function (id) { return authPost('/campaigns/join', { campaign: id }); },
+    campaignLeave: function (id) { return authPost('/campaigns/leave', { campaign: id }); },
+    campaignNotify: function (id) { return authPost('/campaigns/notify', { campaign: id }); },
+
+    /**
+     * The partner console's view of the same campaigns: counts only, no
+     * member identity. Never rejects — resolves { live, campaigns } or null,
+     * and the console keeps its demo numbers on null.
+     */
+    providerCampaigns: function () {
+      return fetch(W.AUTH_API + '/provider/campaigns', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      }).then(function (r) {
+        return r.ok ? r.json().catch(function () { return null; }) : null;
+      }).then(function (b) {
+        return (b && b.ok && b.campaigns) ? b : null;
+      }).catch(function () {
+        return null;
+      });
+    },
+
+    /**
      * Ask for an emailed code. -> { ok, ttlMinutes, dev? }
      *
      * REJECTS on failure, unlike read() above. The difference is deliberate:

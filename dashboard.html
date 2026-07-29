@@ -335,7 +335,7 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .crow{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:14px}
 .cc{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s,transform .15s;position:relative;text-align:left}
 .cc:hover{box-shadow:0 10px 26px rgba(26,37,32,.1);transform:translateY(-2px)}
-.cc__art{height:104px;position:relative;background:var(--mint);overflow:hidden}
+.cc__art{height:104px;flex:none;position:relative;background:var(--mint);overflow:hidden}
 .cc__art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .cc__art::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(26,37,32,.34) 0,rgba(26,37,32,.08) 46%,rgba(26,37,32,0) 72%);pointer-events:none}
 .badge{position:absolute;top:10px;left:10px;z-index:1;font-size:11px;font-weight:700;background:#fff;border-radius:999px;padding:5px 11px;box-shadow:0 3px 10px rgba(26,37,32,.12)}
@@ -349,7 +349,7 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .cc__b b{font-family:var(--disp);font-size:15.5px;font-weight:750;display:block}
 .cc__b .m{font-size:12.5px;color:var(--sub);margin-top:3px}
 .cc__b .mono{font-size:11.5px;color:var(--accent-deep);margin-top:7px;display:block}
-.miniprog{height:6px;background:#E7E2D3;border-radius:4px;margin-top:9px;overflow:hidden}
+.miniprog{display:block;height:6px;background:#E7E2D3;border-radius:4px;margin-top:9px;overflow:hidden}
 .miniprog i{display:block;height:100%;background:var(--accent);border-radius:4px}
 
 /* ---------- other views ---------- */
@@ -424,6 +424,34 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 @media (prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important}
 }
+/* ================= campaign cards: actions ================= */
+.ccact{display:flex;align-items:center;gap:10px;margin-top:10px;min-height:0}
+.ccact:empty{display:none}
+.ccbtn{font-size:12.5px;font-weight:700;background:var(--accent);color:#fff;border-radius:999px;padding:7px 14px;transition:background .15s,transform .12s}
+.ccbtn:hover{background:var(--accent-deep);transform:translateY(-1px)}
+.ccbtn.ghost{background:var(--mint);color:var(--accent-deep)}
+.ccbtn[disabled]{opacity:.55;cursor:default;transform:none}
+.ccleave{font-size:12px;color:var(--sub);text-decoration:underline;text-underline-offset:2px}
+.ccleave:hover{color:var(--ink)}
+
+/* ================= regions sheet ================= */
+.rsheet{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:18px;background:rgba(10,32,24,.45)}
+.rsheet[hidden]{display:none}
+.rsheet__panel{background:#fff;border-radius:20px;max-width:660px;width:100%;max-height:min(86vh,760px);overflow:auto;padding:26px 26px 20px;position:relative;box-shadow:0 30px 80px rgba(10,32,24,.35)}
+.rsheet__x{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;background:#F1EEE5;display:grid;place-items:center;font-size:18px;line-height:1}
+.rsheet__x:hover{background:#E7E2D3}
+.rsteps{list-style:none;display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 18px}
+.rsteps li{font-family:var(--mono);font-size:11.5px;background:var(--mint);color:var(--accent-deep);border-radius:999px;padding:5px 10px}
+.rrow{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--line)}
+.rrow>span:first-child{min-width:0}
+.rrow b{font-family:var(--disp);font-size:15.5px;display:block}
+.rrow .sub{display:block;font-size:12.5px;color:var(--sub)}
+.rrow .cnt{margin-left:auto;text-align:right;font-family:var(--mono);font-size:12px;color:var(--sub);white-space:nowrap}
+.rrow .act{flex:none;text-align:right;min-width:130px}
+.rtag{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:3px 10px;background:#F1EEE5;color:#54625B;margin-top:3px}
+.rtag.live{background:var(--mint);color:var(--accent-deep)}
+.rtag.prov{background:var(--terra-soft);color:#8C4622}
+@media (max-width:560px){.rrow{flex-wrap:wrap}.rrow .cnt{margin-left:0;width:100%;text-align:left;order:3}}
 </style>
 </head>
 <body>
@@ -640,28 +668,28 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
         <!-- region row -->
         <div class="rowhead"><h3>Campaigns near you</h3><button class="all" type="button" id="viewall">How regions open &rarr;</button></div>
         <div class="crow">
-          <div class="cc">
-            <span class="badge live" id="regbadge">Your cohort &middot; Forming</span>
+          <div class="cc" data-camp="london-east">
+            <span class="badge live">Your cohort &middot; Forming</span>
             <span class="cc__art"><img src="/images/regions/region-london-east.webp" srcset="/images/regions/region-london-east.webp 1x, /images/regions/region-london-east@2x.webp 2x" alt="Red-brick terraced homes on a tree-lined residential street" width="300" height="130" loading="lazy" decoding="async"></span>
-            <span class="cc__b"><b>London East</b><span class="m">Autumn cohort &middot; closes Sep 12</span><span class="miniprog"><i style="width:61%"></i></span><span class="mono" id="regmono">61 of 100 households</span></span>
+            <span class="cc__b"><b>London East</b><span class="m">Autumn cohort &middot; closes Sep 12</span><span class="miniprog"><i style="width:61%"></i></span><span class="mono" data-cmono>61 of 100 households</span><span class="ccact" data-cact></span></span>
           </div>
-          <div class="cc">
+          <div class="cc" data-camp="london-north">
             <span class="badge soon">Opens after this round</span>
-            <button class="bell" type="button" data-bell="London North" aria-label="Notify me when London North opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>
+            <button class="bell" type="button" data-campbell="london-north" aria-label="Notify me when London North opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>
             <span class="cc__art"><img src="/images/regions/region-london-north.webp" srcset="/images/regions/region-london-north.webp 1x, /images/regions/region-london-north@2x.webp 2x" alt="Quiet suburban street of detached houses under an open sky" width="300" height="130" loading="lazy" decoding="async"></span>
-            <span class="cc__b"><b>London North</b><span class="m">Next opening in your city</span><span class="mono">We'll text you the day it opens</span></span>
+            <span class="cc__b"><b>London North</b><span class="m">Next opening in your city</span><span class="mono" data-cmono>We'll text you the day it opens</span></span>
           </div>
-          <div class="cc">
+          <div class="cc" data-camp="chatham-kent">
             <span class="badge soon">Waitlist forming</span>
-            <button class="bell" type="button" data-bell="Chatham-Kent" aria-label="Notify me when Chatham-Kent opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>
+            <button class="bell" type="button" data-campbell="chatham-kent" aria-label="Notify me when Chatham-Kent opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>
             <span class="cc__art"><img src="/images/regions/region-chatham-kent.webp" srcset="/images/regions/region-chatham-kent.webp 1x, /images/regions/region-chatham-kent@2x.webp 2x" alt="Brick bungalow with a covered porch behind a blossoming tree" width="300" height="130" loading="lazy" decoding="async"></span>
-            <span class="cc__b"><b>Chatham-Kent</b><span class="m">Neighbours are gathering</span><span class="mono">Invite yours to speed it up</span></span>
+            <span class="cc__b"><b>Chatham-Kent</b><span class="m">Neighbours are gathering</span><span class="mono" data-cmono>Invite yours to speed it up</span><span class="ccact" data-cact></span></span>
           </div>
-          <div class="cc">
+          <div class="cc" data-camp="windsor-core">
             <span class="badge soon">Waitlist forming</span>
-            <button class="bell" type="button" data-bell="Windsor" aria-label="Notify me when Windsor opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>
+            <button class="bell" type="button" data-campbell="windsor-core" aria-label="Notify me when Windsor opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>
             <span class="cc__art"><img src="/images/regions/region-windsor.webp" srcset="/images/regions/region-windsor.webp 1x, /images/regions/region-windsor@2x.webp 2x" alt="Cars parked along a shaded street of single-storey homes" width="300" height="130" loading="lazy" decoding="async"></span>
-            <span class="cc__b"><b>Windsor</b><span class="m">Neighbours are gathering</span><span class="mono">One launch per region</span></span>
+            <span class="cc__b"><b>Windsor</b><span class="m">Neighbours are gathering</span><span class="mono" data-cmono>One launch per region</span><span class="ccact" data-cact></span></span>
           </div>
         </div>
       </section>
@@ -802,6 +830,19 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
   </div>
 </div>
 
+<!-- ======== regions sheet: every campaign, and how one opens ======== -->
+<div class="rsheet" id="regionsheet" hidden role="dialog" aria-modal="true" aria-labelledby="rs-title">
+  <div class="rsheet__panel">
+    <button class="rsheet__x" type="button" id="rs-close" aria-label="Close">&times;</button>
+    <span class="eyebrow">One launch per region</span>
+    <h3 id="rs-title">How regions open</h3>
+    <p class="cardnote">A region opens when enough neighbours are in. First a waitlist gathers, then a cohort forms toward its target, then it locks and providers bid on everyone at once. Joining a forming cohort is free and never binding until it locks.</p>
+    <ol class="rsteps"><li>Waitlist</li><li>Forming</li><li>Locked</li><li>Bidding</li><li>Offers in</li><li>Switching</li></ol>
+    <div id="rlist"></div>
+    <p class="fnote" id="rs-note">Demo counts until the campaign service connects.</p>
+  </div>
+</div>
+
 <div class="toast" id="toast" role="status"></div>
 <button class="ctl-t" type="button" id="ctl-toggle" aria-expanded="false" aria-controls="ctl">Prototype controls</button>
 <div class="ctl" id="ctl" aria-label="Prototype controls">
@@ -900,7 +941,24 @@ var FEED={
   done:[['Oct 8','Install complete'],['Oct 9','Deposit credited to your first bill']]
 };
 var PILL={forming:'Forming',locked:'Locked',bidding:'Bidding live',offers:'Offers in',confirm:'Confirm',switching:'Switching',done:'Switched'};
-var TL={forming:'close',locked:'close',bidding:'bid',offers:'offer',confirm:'offer',switching:'switch',done:'switch'};var BLOGS=[
+var TL={forming:'close',locked:'close',bidding:'bid',offers:'offer',confirm:'offer',switching:'switch',done:'switch'};
+
+/* ---------- campaigns: the surface shared with providers ----------
+   Seeded with the numbers the cards always showed, then overwritten by
+   GET /api/auth/campaigns when the service answers. Joining writes through
+   W.session, which is what moves the household counts on the partner
+   console's bid desk — one more member here is one more household there.
+   When the server can't be reached, joins still work as a local demo. */
+var CAMPS=[
+ {id:'london-east',region:'London East',sub:'Autumn cohort',kind:'forming',target:100,members:61,households:112,joinable:true,you:'joined'},
+ {id:'london-north',region:'London North',sub:'Winter cohort',kind:'planned',target:100,members:61,households:100,joinable:true,you:null},
+ {id:'chatham-kent',region:'Chatham-Kent',sub:'First cohort',kind:'waitlist',target:100,members:37,households:100,joinable:true,you:null},
+ {id:'windsor-core',region:'Windsor',sub:'Winter cohort',kind:'waitlist',target:100,members:52,households:87,joinable:true,you:null},
+ {id:'kingston-west',region:'Kingston West',sub:'Autumn cohort',kind:'auction',target:null,members:64,households:64,joinable:false,you:null},
+ {id:'hamilton-mountain',region:'Hamilton Mountain',sub:'Winter cohort',kind:'auction',target:null,members:58,households:58,joinable:false,you:null}
+];
+var CAMPLIVE=false;
+var BLOGS=[
   ['The $487 problem: why most Canadians overpay for internet and never say a word','5 min','overpaying-internet-canada'],
   ['The promo cliff: why your internet bill quietly climbs after 12 to 24 months','6 min','internet-price-increase-promo-cliff'],
   ['What if your whole street switched internet at once?','4 min','collective-switching-internet-canada'],
@@ -1223,8 +1281,7 @@ function render(){
   for(var i=0;i<=idx;i++){(FEED[STATES[i]]||[]).forEach(function(f){items.push(f)})}
   EXTRA.forEach(function(f){items.push(f)});
   $('#feed').innerHTML=items.map(function(f){return '<li><span class="when">'+esc(f[0])+'</span>'+esc(f[1])+'</li>'}).reverse().join('');
-  var badge=$('#regbadge');if(badge)badge.textContent='Your cohort \u00b7 '+(S.sub==='stayed'?'Staying put':PILL[S.state]);
-  var rm=$('#regmono');if(rm)rm.textContent=S.state==='forming'?(S.cohort.have+' of '+S.cohort.need+' households'):(S.cohort.locked+' households, '+PILL[S.state].toLowerCase());
+  paintCampaigns();
   $$('#sts button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-goto')===S.state)});
 }
 function go(state){
@@ -1272,7 +1329,126 @@ $('#ratego').addEventListener('click',function(){
   $('#ratecard').innerHTML='<span class="eyebrow">One minute, once</span><h3>Noted, thank you</h3><p class="cardnote">Your rating stays private and is never shown to bidding providers. It helps us see which providers actually keep households happy, by region.</p>';
 });
 $('#reddit').addEventListener('click',function(){toast('Prototype: this will open the member subreddit.')});
-$('#viewall').addEventListener('click',function(){toast('One launch per region: a city opens when enough neighbours are in.')});
+/* ---------- campaigns: cards, sheet, joins ---------- */
+function campById(id){for(var i=0;i<CAMPS.length;i++)if(CAMPS[i].id===id)return CAMPS[i];return null}
+function applyCampaign(sc){
+  var c=sc&&campById(sc.id);if(!c)return;
+  if(typeof sc.members==='number')c.members=sc.members;
+  if(typeof sc.households==='number')c.households=sc.households;
+  if(sc.target)c.target=sc.target;
+  if(sc.you!==undefined)c.you=sc.you;
+}
+/* One cohort drives the hero panel; keep it and the London East card telling
+   the same story, whichever one a change lands in first. */
+function syncCohortFromCamps(){
+  var le=campById('london-east');
+  S.cohort.have=le.members;S.cohort.need=le.target;S.cohort.locked=le.households;
+  FEED.forming[1]=['Today',le.members+' of '+le.target+' households in'];
+}
+function paintCampaigns(){
+  CAMPS.forEach(function(c){
+    var card=$('[data-camp="'+c.id+'"]');if(!card)return;
+    var badge=$('.badge',card),mono=$('[data-cmono]',card),act=$('[data-cact]',card),prog=$('.miniprog i',card),bell=$('[data-campbell]',card);
+    if(bell)bell.classList.toggle('on',Boolean(c.you));
+    if(c.kind==='forming'){
+      var joined=c.you==='joined';
+      if(badge)badge.textContent=joined?('Your cohort · '+(S.sub==='stayed'?'Staying put':PILL[S.state])):'Forming · open to join';
+      if(mono)mono.textContent=(joined&&S.state!=='forming')?(S.cohort.locked+' households, '+PILL[S.state].toLowerCase()):(c.members+' of '+c.target+' households');
+      if(prog)prog.style.width=Math.min(100,Math.round(c.members/c.target*100))+'%';
+      if(act)act.innerHTML=joined
+        ?(S.state==='forming'?'<button class="ccleave" type="button" data-leave="'+c.id+'">Leave this cohort</button>':'')
+        :'<button class="ccbtn" type="button" data-join="'+c.id+'">Join this cohort</button>';
+    }else if(c.kind==='waitlist'){
+      if(mono)mono.textContent=c.you==='waitlist'?('You’re on the list · '+c.members+' waiting'):(c.members+' households waiting');
+      if(act)act.innerHTML=c.you==='waitlist'
+        ?'<button class="ccleave" type="button" data-leave="'+c.id+'">Leave the waitlist</button>'
+        :'<button class="ccbtn ghost" type="button" data-join="'+c.id+'">Join the waitlist</button>';
+    }else if(c.kind==='planned'){
+      if(mono)mono.textContent=c.you?'You’re on the opening-day list':'We’ll text you the day it opens';
+    }
+  });
+}
+var SHEET=$('#regionsheet');
+function renderSheet(){
+  var tag=function(c){
+    if(c.kind==='auction')return '<span class="rtag prov">With providers now</span>';
+    if(c.kind==='forming')return '<span class="rtag live">Cohort forming</span>';
+    if(c.kind==='planned')return '<span class="rtag">Opens after this round</span>';
+    return '<span class="rtag">Waitlist forming</span>';
+  };
+  $('#rlist').innerHTML=CAMPS.map(function(c){
+    var cnt=c.kind==='auction'?(c.households+' households · bidding'):(c.members+' of '+c.target+' households');
+    var act='';
+    if(c.joinable){
+      act=c.you==='joined'?'<button class="ccleave" type="button" data-leave="'+c.id+'">You’re in · leave</button>'
+        :c.you==='waitlist'?'<button class="ccleave" type="button" data-leave="'+c.id+'">On the list · leave</button>'
+        :'<button class="ccbtn'+(c.kind==='forming'?'':' ghost')+'" type="button" data-join="'+c.id+'">'+(c.kind==='forming'?'Join this cohort':'Join the waitlist')+'</button>';
+    }
+    return '<div class="rrow"><span><b>'+esc(c.region)+'</b><span class="sub">'+esc(c.sub)+'</span>'+tag(c)+'</span><span class="cnt">'+cnt+'</span><span class="act">'+act+'</span></div>';
+  }).join('');
+  $('#rs-note').textContent=CAMPLIVE
+    ?'Live counts. Providers watching these regions see them move as neighbours join.'
+    :'Demo counts until the campaign service connects.';
+}
+function renderSheetIfOpen(){if(SHEET&&!SHEET.hidden)renderSheet()}
+function openSheet(){renderSheet();SHEET.hidden=false}
+function closeSheet(){SHEET.hidden=true}
+$('#viewall').addEventListener('click',openSheet);
+$('#rs-close').addEventListener('click',closeSheet);
+SHEET.addEventListener('click',function(e){if(e.target===SHEET)closeSheet()});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!SHEET.hidden)closeSheet()});
+function campRepaint(){syncCohortFromCamps();render();renderSheetIfOpen()}
+/* The endpoint not existing yet (404) or being unreachable degrades to the
+   local demo rather than a dead button; a real refusal shows its message. */
+function offlineish(err){return !err||err.code==='NETWORK'||err.status===404}
+function doJoin(id,btn){
+  var c=campById(id);if(!c||!c.joinable)return;
+  if(c.you==='joined'||c.you==='waitlist')return;
+  if(btn){btn.disabled=true;btn.textContent=c.kind==='forming'?'Joining…':'Adding you…'}
+  var localApply=function(){c.you=c.kind==='forming'?'joined':'waitlist';c.members++;c.households++};
+  var doneToast=function(){
+    toast(c.kind==='forming'
+      ?('You’re in. '+c.region+' is at '+c.members+' of '+c.target+' households.')
+      :('You’re on the '+c.region+' list — '+c.members+' households waiting.'));
+  };
+  W.session.campaignJoin(id).then(function(r){
+    if(r&&r.campaign)applyCampaign(r.campaign);else localApply();
+    campRepaint();doneToast();
+  },function(err){
+    if(offlineish(err)){localApply();campRepaint();doneToast();return}
+    campRepaint();toast(err.message||'That didn’t save. Please try again.');
+  });
+}
+function doLeave(id){
+  var c=campById(id);if(!c)return;
+  var was=c.you;
+  var localApply=function(){if(was==='joined'||was==='waitlist'){c.members=Math.max(0,c.members-1);c.households=Math.max(0,c.households-1)}c.you=null};
+  W.session.campaignLeave(id).then(function(r){
+    if(r&&r.campaign)applyCampaign(r.campaign);else localApply();
+    campRepaint();toast('Done — you’ve left '+c.region+'. Rejoin any time before it locks.');
+  },function(err){
+    if(offlineish(err)){localApply();campRepaint();toast('Done — you’ve left '+c.region+'.');return}
+    toast(err.message||'That didn’t save. Please try again.');
+  });
+}
+document.addEventListener('click',function(e){
+  var j=e.target.closest('[data-join]');
+  if(j){doJoin(j.getAttribute('data-join'),j);return}
+  var l=e.target.closest('[data-leave]');
+  if(l){doLeave(l.getAttribute('data-leave'));return}
+  var b=e.target.closest('[data-campbell]');
+  if(b){
+    var id=b.getAttribute('data-campbell'),c=campById(id);
+    /* Optimistic: the bell is a promise about the future, so it can read as
+       set immediately; the server call just makes it durable. */
+    if(c&&!c.you)c.you='alert';
+    paintCampaigns();
+    toast('Noted. We’ll text you the day '+(c?c.region:'it')+' opens.');
+    W.session.campaignNotify(id).then(function(r){
+      if(r&&r.campaign){applyCampaign(r.campaign);paintCampaigns();}
+    },function(){});
+  }
+});
 $('#c-text').addEventListener('click',function(){toast('Prototype: opens your messages.')});
 $('#c-mail').addEventListener('click',function(){toast('Prototype: opens your mail app.')});
 document.addEventListener('click',function(e){
@@ -1407,6 +1583,22 @@ if(W&&W.session&&W.session.syncBill){
     paintCliff();
     paintBill();
     render();
+  });
+}
+
+/* ---------- server sync: campaigns ----------
+   Same shape as the bill sync: ask, and quietly keep the seeded demo numbers
+   on any failure. When the server answers, its counts and this member's own
+   standing (joined / waitlisted / bell set) replace the seeds — including
+   "not joined yet", which turns the London East card into an invitation. */
+if(W&&W.session&&W.session.campaignsList){
+  W.session.campaignsList().then(function(r){
+    if(!r)return;
+    CAMPLIVE=Boolean(r.live);
+    (r.campaigns||[]).forEach(applyCampaign);
+    syncCohortFromCamps();
+    render();
+    renderSheetIfOpen();
   });
 }
 })();
