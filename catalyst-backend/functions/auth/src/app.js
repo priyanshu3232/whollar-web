@@ -31,6 +31,18 @@ const resetRoutes = require('./routes/reset');
 const googleRoutes = require('./routes/google');
 const providerRoutes = require('./routes/provider');
 
+/**
+ * Strip anything address-shaped out of a provider error before it is returned.
+ *
+ * ZeptoMail rejections quote the offending recipient back in the response body,
+ * and that body is what lands in `send_error`. The diagnostic value is in the
+ * status and the reason ("domain not verified"), never in who it was for.
+ */
+function redactEmails(text) {
+  if (!text) return null;
+  return String(text).replace(/[^\s<>"']+@[^\s<>"']+/g, '[redacted]');
+}
+
 function buildApp(cfg) {
   const app = express();
   app.disable('x-powered-by');
@@ -110,6 +122,68 @@ function buildApp(cfg) {
         : (cfg.FEATURES.smtp ? (cfg.SMTP_FROM || null) : null),
     });
   });
+
+  /**
+   * Did the last codes actually go out?
+   *
+   * Every send-bearing route answers identically whether the provider accepted
+   * the mail or rejected it — that symmetry is what stops /signup and /otp/start
+   * being used to probe which addresses have accounts. The cost is that a total
+   * delivery outage looks exactly like success from outside, and the only place
+   * the distinction survives is the `delivered` flag on the audit row.
+   *
+   * This is the replacement for the old /dev/events, which answered the same
+   * question by returning the rows wholesale — including the email column. It
+   * reports delivery OUTCOMES only: no address is selected from the table, and
+   * the provider's error string is redacted before it is returned, because a
+   * rejection body routinely echoes the recipient back (see mailer.js). That is
+   * what makes this safe to leave mounted outside dev, which matters because
+   * "is mail working?" is a production question.
+   */
+  router.get('/health/mail', wrap(async (req, res) => {
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+
+    // Deliberately no email_normalized: what is never read cannot leak.
+    const rows = await datastore.query(
+      req.catalyst, audit.TABLE,
+      `SELECT CREATEDTIME, event_type, outcome, detail FROM ${audit.TABLE} ` +
+      `ORDER BY CREATEDTIME DESC LIMIT ${limit}`
+    );
+
+    const events = [];
+    let delivered = 0;
+    let failed = 0;
+
+    for (const row of rows) {
+      let detail;
+      try { detail = JSON.parse(row.detail); } catch { detail = null; }
+      // Only rows that actually carry a send outcome; `delivered` is the marker.
+      if (!detail || typeof detail.delivered !== 'boolean') continue;
+
+      if (detail.delivered) delivered += 1; else failed += 1;
+
+      events.push({
+        at: row.CREATEDTIME,
+        type: row.event_type,
+        outcome: row.outcome,
+        delivered: detail.delivered,
+        transport: detail.transport || null,
+        send_error: redactEmails(detail.send_error),
+      });
+    }
+
+    res.status(200).json({
+      service: 'auth',
+      request_id: req.id,
+      transport: mailer.transportName(cfg),
+      mail_from: cfg.FEATURES.mail ? (cfg.ZEPTOMAIL_FROM || null)
+        : (cfg.FEATURES.smtp ? (cfg.SMTP_FROM || null) : null),
+      scanned: rows.length,
+      delivered,
+      failed,
+      events,
+    });
+  }));
 
   /**
    * Who am I?
