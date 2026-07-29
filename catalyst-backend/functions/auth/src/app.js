@@ -90,7 +90,7 @@ function buildApp(cfg) {
     res.status(200).json({
       status: 'ok',
       service: 'auth',
-      phase: 3,
+      phase: 5,
       request_id: req.id,
       node: process.versions.node,
       env: cfg.NODE_ENV,
@@ -243,101 +243,6 @@ function mountDevRoutes(router, cfg) {
       authenticated: Boolean(req.auth),
       counts,
       schema,
-    });
-  }));
-
-  /**
-   * Mint a session without a login flow.
-   *
-   * Phase 3 has not shipped, so there is no way to obtain a session yet — which
-   * would leave the whole of Phase 2 untestable until the phase after it lands.
-   * This route closes that gap and exercises precisely the code path the real
-   * OTP verify will call: find-or-create the user, then `sessions.create`.
-   *
-   * Gated on NODE_ENV. It is the single most dangerous route in this codebase
-   * if it ever reaches production, so it does not merely refuse there — it is
-   * never registered.
-   */
-  router.post('/dev/session', wrap(async (req, res) => {
-    const email = String((req.body && req.body.email) || '').trim().toLowerCase();
-    const userType = (req.body && req.body.userType) === 'provider' ? 'provider' : 'member';
-
-    if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) {
-      throw new AppError('VALIDATION_ERROR', 'A valid email is required.');
-    }
-
-    let user = await datastore.findBy(
-      req.catalyst, sessions.USERS, 'email_normalized', email, sessions.USER_COLUMNS
-    );
-
-    if (!user) {
-      const userId = crypto.randomUUID();
-      await datastore.insertRow(req.catalyst, sessions.USERS, {
-        user_id: userId,
-        email_normalized: email,
-        email_display: String((req.body && req.body.email) || '').trim(),
-        first_name: (req.body && req.body.firstName) || null,
-        user_type: userType,
-        status: 'active',
-        last_login_at: datastore.nowDb(),
-        crm_contact_id: null,
-      });
-      user = await datastore.findBy(
-        req.catalyst, sessions.USERS, 'user_id', userId, sessions.USER_COLUMNS
-      );
-    } else {
-      await datastore.updateRow(req.catalyst, sessions.USERS, {
-        ROWID: user.ROWID, last_login_at: datastore.nowDb(),
-      });
-    }
-
-    const created = await sessions.create(req.catalyst, req, res, {
-      userId: user.user_id, userType: user.user_type,
-    });
-
-    await audit.record(req.catalyst, req, {
-      type: 'dev.session.create',
-      outcome: 'success',
-      userId: user.user_id,
-      email: user.email_normalized,
-      detail: { user_type: user.user_type },
-    });
-
-    res.status(200).json({
-      ok: true,
-      dev: true,
-      user: sessions.publicUser(user),
-      expiresAt: created.expiresAt,
-    });
-  }));
-
-  /**
-   * The tail of the audit log.
-   *
-   * Exists because /otp/start deliberately answers identically whether the mail
-   * went out or the provider rejected it — that symmetry is what stops the
-   * endpoint being used to probe which addresses have accounts, but it also
-   * means a total delivery failure looks exactly like success from outside.
-   * The `delivered` flag recorded on each otp.start event is the only place
-   * that distinction survives.
-   *
-   * Non-production only: these rows carry email addresses.
-   */
-  router.get('/dev/events', wrap(async (req, res) => {
-    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
-    const rows = await datastore.query(
-      req.catalyst, audit.TABLE,
-      `SELECT CREATEDTIME, event_type, outcome, email_normalized, detail ` +
-      `FROM ${audit.TABLE} ORDER BY CREATEDTIME DESC LIMIT ${limit}`
-    );
-    res.status(200).json({
-      events: rows.map((r) => ({
-        at: r.CREATEDTIME,
-        type: r.event_type,
-        outcome: r.outcome,
-        email: r.email_normalized,
-        detail: (() => { try { return JSON.parse(r.detail); } catch { return r.detail; } })(),
-      })),
     });
   }));
 
