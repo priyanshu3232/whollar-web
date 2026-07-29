@@ -263,6 +263,12 @@ tr.exp + tr.dwr{display:table-row}
 .pi b{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pi .tlink{margin-left:auto}
 
+/* under-review banner */
+.review-note{margin:clamp(18px,2.6vw,28px) auto 0;max-width:1200px;width:calc(100% - 2*clamp(18px,2.6vw,28px));background:var(--gold-soft);border:1px solid var(--gold);color:var(--gold-deep);font-size:13px;line-height:1.55;border-radius:12px;padding:11px 15px}
+.review-note b{color:inherit}
+.review-note a{color:inherit;text-decoration:underline}
+.review-note[hidden]{display:none}
+
 /* toast, controls */
 .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--forest);color:#fff;font-size:13px;font-weight:600;border-radius:12px;padding:11px 18px;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:70}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -365,6 +371,18 @@ tr.exp + tr.dwr{display:table-row}
       <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search campaigns and regions" aria-label="Search campaigns" autocomplete="off"><div class="drop" id="qdrop"></div></div>
       <button class="ava" type="button" data-nav="account" aria-label="Account" id="usermono">W</button>
     </header>
+
+    <!-- Approval is a human decision (provider_orgs.approval_status), separate
+         from the email verification that signed this partner in. Until it is
+         made the console has to say so — a partner who cannot tell "signed in"
+         from "approved" would reasonably assume the bids below are live.
+         Hidden by default and revealed by the /provider/me answer, so the
+         approved majority never see a flash of it. -->
+    <div class="review-note" id="review-note" role="status" hidden>
+      <b>Your partner application is under review.</b>
+      You're signed in, and we're reviewing your company before bidding opens.
+      We'll email you when it's approved — questions to <a href="mailto:hello@whollar.ca">hello@whollar.ca</a>.
+    </div>
 
     <div class="content">
 
@@ -607,17 +625,30 @@ var W=window.WHOLLAR;
 /* ---------- partner boot: front-end guard only, not security ----------
    This reads a localStorage key written by whollar-login-provider.html.
    Anyone can set that key from a console, so it keeps honest visitors on the
-   right page and nothing more. The real gate belongs in a Catalyst function
-   this page calls, not here — the console shows competitor-adjacent cohort
-   internals, so that matters more here than on the member dashboard.
+   right page and nothing more. The data shown is demo data either way; the
+   real numbers arrive through session-gated Catalyst calls, which is where
+   the actual authorisation lives.
 
    Deliberately a different key from 'whollar.member': a household session
    must not open the partner console. */
+/* Carry where they were heading so sign-in returns them here rather than
+   dropping them on the console root. Read back through W.safeNext. */
+function toSignIn(){
+  location.replace('/whollar-login-provider?next='+encodeURIComponent(location.pathname+location.search));
+}
 var PARTNER=W.partner.read();
 if(!PARTNER){
-  /* Carry where they were heading so sign-in returns them here rather than
-     dropping them on the console root. Read back through W.safeNext. */
-  location.replace('/whollar-login-provider?next='+encodeURIComponent(location.pathname+location.search));
+  /* An empty local record is NOT proof of being signed out. A verify that
+     completed in another tab sets the session cookie and writes nothing to
+     THIS tab's boot — so ask the server, with the page hidden, because the
+     console must not flash up at a visitor who turns out to be signed out. */
+  document.documentElement.style.visibility='hidden';
+  W.session.adopt('provider').then(function(rec){
+    /* Reload rather than carry on: the guard runs at parse time and every
+       declaration below it has already been skipped by this return. */
+    if(rec){location.reload();return;}
+    toSignIn();
+  },toSignIn);
   return;
 }
 
@@ -645,8 +676,13 @@ var ORG=String(PARTNER.org||'').trim()||orgFromEmail(PARTNER.email)||'Your compa
 var ROLE=String(PARTNER.role||'').trim()||'Partner';
 var CONTACT=FIRST?(FIRST+' '+(PARTNER.lastName?String(PARTNER.lastName).charAt(0)+'.':'')).trim():'Partner';
 function signOut(){
-  W.partner.clear();
-  location.replace('/whollar-login-provider');
+  /* End the server session, not just the local record. Clearing localStorage
+     alone leaves the cookie alive, and the guard above would adopt() it on
+     the next visit and sign the visitor straight back in — a sign-out button
+     that doesn't sign you out. W.session.end() clears the local record
+     itself, and does so even if the request fails. */
+  var done=function(){location.replace('/whollar-login-provider')};
+  W.session.end('partner').then(done,done);
 }
 
 /* ---------- virtual clock ---------- */
@@ -759,6 +795,27 @@ function paintPartner(){
   $('#acct-team').textContent=CONTACT+' · only seat so far';
 }
 paintPartner();
+
+/* ---------- the server's answer beats every guess above ----------
+   The local record has no org in it (adopt() writes only the person), so the
+   headings start from the email-domain guess and are repainted when
+   /provider/me answers with the company name as typed at signup and the
+   role the server assigned. This is also the only place the approval state
+   arrives: `approved` is false until a human approves the company, and the
+   banner above the content is what tells the partner that plainly. A failed
+   call changes nothing — the guessed headings stay, the banner stays hidden,
+   and the session guard has already decided who may be here at all. */
+W.session.providerMe().then(function(r){
+  if(!r||!r.ok)return;
+  if(r.org&&r.org.orgName)ORG=String(r.org.orgName);
+  if(r.org&&r.org.role)ROLE=W.titleCase(String(r.org.role));
+  if(r.user&&r.user.firstName){
+    FIRST=String(r.user.firstName).trim();
+    CONTACT=FIRST||'Partner';
+  }
+  paintPartner();
+  $('#review-note').hidden=(r.approved===true);
+},function(){ /* offline or not a partner session: leave the fallbacks */ });
 
 /* ---------- activation ---------- */
 var TASKDEFS=[

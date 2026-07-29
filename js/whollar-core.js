@@ -1019,6 +1019,87 @@
     },
 
     /**
+     * Register a partner. -> { ok, ttlMinutes, dev? }
+     *
+     * Same opacity contract as signup() above — the response never says
+     * whether the address already had an account. The ONE exception the
+     * server makes is a free-mailbox address (gmail, outlook …): that comes
+     * back as a VALIDATION_ERROR telling them to use their work email,
+     * because the email domain is what the partner org is derived from.
+     * Show that message on the email field, not as a generic failure.
+     *
+     * Everything the account needs travels in this single request — the
+     * code that follows only proves the address, it carries no fields.
+     */
+    providerSignup: function (o) {
+      return authPost('/provider/signup', {
+        email: o.email,
+        password: o.password,
+        firstName: o.firstName || null,
+        lastName: o.lastName || null,
+        phone: o.phone || null,
+        orgName: o.orgName || null
+      });
+    },
+
+    /**
+     * Prove the address and take the session. -> { ok, user, org, approved }
+     *
+     * `approved` is the org's approval, decided by a human, and is FALSE for
+     * a brand-new company. The session is real either way — an unapproved
+     * partner lands on a "we're reviewing your application" state, not a
+     * login form that rejects them. Every surface showing real data must
+     * check `approved`, not just "signed in".
+     */
+    providerSignupVerify: function (o) {
+      return authPost('/provider/signup/verify', {
+        email: o.email,
+        code: o.code,
+        marketing: Boolean(o.marketing)
+      });
+    },
+
+    /**
+     * Partner sign-in. -> { ok, user, org, approved }
+     *
+     * One opaque message for every failure — including a correct password on
+     * a never-verified address. Unlike the member login there is no
+     * EMAIL_UNVERIFIED branch to recover into a code step; the caller shows
+     * the message and stops.
+     */
+    providerLogin: function (o) {
+      return authPost('/provider/login', { email: o.email, password: o.password });
+    },
+
+    /**
+     * What the signed-in partner may see about themselves.
+     * -> { ok, user, org, approved } ; rejects when not a partner session.
+     *
+     * This is where a page gets the real org name and approval state —
+     * deriving either from the email address is a guess the server does not
+     * have to make.
+     */
+    providerMe: function () {
+      return fetch(W.AUTH_API + '/provider/me', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      }).then(function (r) {
+        return r.json().catch(function () { return null; }).then(function (b) {
+          if (r.ok) return b || {};
+          var e = new Error((b && b.error && b.error.message) || 'Please sign in again.');
+          e.code = (b && b.error && b.error.code) || 'SERVER_ERROR';
+          e.status = r.status;
+          throw e;
+        });
+      }, function () {
+        var e = new Error('We couldn’t reach Whollar. Check your connection and try again.');
+        e.code = 'NETWORK';
+        throw e;
+      });
+    },
+
+    /**
      * Sign out on the server first, then locally.
      *
      * Clearing only localStorage is not a sign-out: the cookie survives, and
