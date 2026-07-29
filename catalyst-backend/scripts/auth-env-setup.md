@@ -130,9 +130,74 @@ half-configured OAuth client is the failure mode that eats a day of debugging.
 
 | Variable | Notes |
 |---|---|
-| `GOOGLE_CLIENT_ID` | |
-| `GOOGLE_CLIENT_SECRET` | secret |
+| `GOOGLE_CLIENT_ID` | ends `.apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET` | secret; starts `GOCSPX-` |
 | `GOOGLE_REDIRECT_URI` | `https://www.whollar.ca/api/auth/google/callback` — must match the Google console entry byte for byte |
+
+#### Getting those three values
+
+In the [Google Cloud console](https://console.cloud.google.com/), with a project
+selected (create one — the name is internal and users never see it):
+
+**1. APIs & Services → OAuth consent screen.** User type **External**. Fill in
+the app name (this IS shown on the consent screen — use `Whollar`), a user
+support email, and a developer contact email. Under *Authorized domains* add
+`whollar.ca`.
+
+**2. Scopes: add none.** The flow asks for `openid email profile`, which Google
+classes as non-sensitive. That is the whole reason this needs no Google review:
+sensitive and restricted scopes require a verification process that takes weeks,
+and none of them are used here.
+
+**3. Publish it.** While the consent screen is in *Testing*, only addresses on
+the test-user list can sign in and their sessions expire after seven days.
+Press **Publish app**. Because every scope is non-sensitive, this takes effect
+immediately — there is no review to wait for.
+
+**4. Credentials → Create credentials → OAuth client ID.**
+Application type **Web application**.
+
+- **Authorized redirect URIs** — add exactly one:
+  `https://www.whollar.ca/api/auth/google/callback`
+  Google matches this string exactly. A trailing slash, `http`, or the apex
+  without `www` is a different URI and fails with `redirect_uri_mismatch`.
+- **Authorized JavaScript origins** — leave empty. That field is for browser-side
+  flows using Google's JS library. This is a server-side authorization-code flow;
+  the browser never talks to Google's APIs directly, so it needs no origin.
+
+The client ID and secret are shown on save. The secret is retrievable later, but
+treat it as write-once and store it somewhere you trust.
+
+Note that the redirect URI points at **`www.whollar.ca`, not at Catalyst.** Google
+sends the browser back to our own domain, and the `/api/auth` rewrite in
+`vercel.json` proxies it to the function — which is what lets the function set a
+first-party session cookie. Pointing Google straight at
+`…catalystserverless.ca` would work as an OAuth flow and then fail to log
+anybody in, because the cookie it set would belong to the wrong domain.
+
+#### Then
+
+Set the three variables in the Catalyst console (**re-read the Console quirks
+above** — type the Keys by hand) and redeploy the `auth` function. Confirm with:
+
+```
+curl -s https://www.whollar.ca/api/auth/health | python3 -m json.tool
+```
+
+`features.google` must be `true`. If it is `false`, all three variables are
+unset; if the function 503s instead, one of them is set and another is missing —
+a half-configured group deliberately refuses to boot, and `/health` names the
+absentees.
+
+#### Testing it
+
+Sign-in is a full-page navigation, so it cannot be exercised with `curl` — the
+flow only completes in a browser, on the live domain, because that is the only
+place the registered redirect URI resolves. Open `/whollar-login-consumer` and
+press **Continue with Google**. A success lands on `/dashboard` signed in; a
+failure comes back to the login page as `?error=<code>` with a readable message
+and the email form still available. `GET /api/auth/dev/events` shows what the
+server recorded, including the reason behind a `google_failed`.
 
 ### Phase 6 — `crm`
 

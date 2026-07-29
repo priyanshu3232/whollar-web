@@ -18,6 +18,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="/js/device-router.js"></script>
+<script src="/js/whollar-benchmarks.js"></script>
 <script src="/js/whollar-core.js"></script>
 <title>Check if you're overpaying for internet — Whollar</title>
 <meta name="description" content="Enter your internet bill and speed to see how your price compares to the national advertised range for your tier — and when your promo discount ends.">
@@ -738,7 +739,7 @@ $('#g-join').addEventListener('click',()=>railJoin($('#g-email'),$('#gerow'),$('
    Postal is always the uppercase FSA plus the full code when we have it; the
    verdict travels with the lead so sales sees the number the user saw. */
 function leadPayload(){
-  const sc=W.score({cost:S.cost,discount:S.disc,speed:S.spd,promoEnd:S.pdate,promoExpired:S.expired,provinceCode:S.provinceCode});
+  const sc=W.score({cost:S.cost,discount:S.disc,speed:S.spd,tech:S.tech,provider:S.prov,promoEnd:S.pdate,promoExpired:S.expired,provinceCode:S.provinceCode});
   const eff=W.effectiveCost({cost:S.cost,discount:S.disc,promoExpired:S.expired});
   return {
     pc:S.pc||'',postalFull:S.pcFull||'',province:S.province||'',provinceCode:S.provinceCode||'',
@@ -748,6 +749,9 @@ function leadPayload(){
     verdict:sc.state,verdictReason:sc.reason||'',
     benchmarkScope:sc.benchmark?sc.benchmark.scope:'',
     benchmarkPrice:sc.benchmark?sc.benchmark.price:'',
+    benchmarkLevel:sc.benchmark?sc.benchmark.level:'',
+    benchmarkSample:sc.benchmark?sc.benchmark.sample:'',
+    benchmarkCaveat:sc.caveat||'',
     file:S.file||''
   };
 }
@@ -931,6 +935,7 @@ $('#checkup-form').addEventListener('submit',async e=>{
     catch(err){joinErr=err;S.joined=false;} /* never hold the results hostage — show them, surface the miss on the join card */
     busy($('#check'),false);
   }
+  rememberBill();
   renderResults();screen(2);
   if(joinErr)submitErr($('#j2-join'),joinErr,true);
   else if(S.joined){
@@ -940,28 +945,53 @@ $('#checkup-form').addEventListener('submit',async e=>{
 });
 $('#edit-all').addEventListener('click',()=>screen(1));
 
+/* A completed checkup is where the promo end date comes from, so hand it to
+   the signed-in member's record: the dashboard's cliff gauge counts down from
+   exactly this date. W.member.patch is a no-op when nobody is signed in, so a
+   public visitor running the numbers leaves nothing behind. */
+function rememberBill(){
+  if(!S.pdate)return;
+  W.member.patch({bill:{
+    promoEnd:S.pdate,
+    promoExpired:!!S.expired,
+    provider:S.prov||null,
+    monthly:S.cost||null,
+    speed:S.spd||null,
+    source:'bill-checkup'
+  }});
+}
+
 /* ---------- signal ----------
    Scoring lives in whollar-core.js. The important change is that a missing
    speed, a missing benchmark or a contradictory discount now produce an
    explicit "unknown" state instead of a confident Strong/Fair/Weak verdict
    built on an invented number.
 
-   COPY RULE: the benchmark is a NATIONAL advertised reference per speed tier.
-   It is not per-province and not sampled from provider minimums. Nothing here
-   may imply otherwise \u2014 say "national advertised range", never "your market".
-   When WHOLLAR has real per-province data, score().benchmark.scope becomes
-   'province' and scopeLabel() upgrades the wording automatically. */
+   COPY RULE: never describe the comparison more precisely than the level that
+   actually answered. scopeLabel() reads score().benchmark.level and says only
+   what that level supports \u2014 if the household's provider had no rows and we
+   dropped to the province average, the copy says so. */
 const money=n=>W.money(n);
 const monthName=d=>W.monthName(d);
 function currentScore(){
-  return W.score({cost:S.cost,discount:S.disc,speed:S.spd,promoEnd:S.pdate,promoExpired:S.expired,provinceCode:S.provinceCode});
+  return W.score({cost:S.cost,discount:S.disc,speed:S.spd,tech:S.tech,provider:S.prov,promoEnd:S.pdate,promoExpired:S.expired,provinceCode:S.provinceCode});
 }
 function effCost(){return W.effectiveCost({cost:S.cost,discount:S.disc,promoExpired:S.expired}).value;}
 const BAR=f=>'<div class="sig__bars">'+[0,1,2,3].map(i=>'<i class="'+(f[i]||'')+' pop"></i>').join('')+'</div>';
+const techWord=()=>({'Cable (TV coax jack)':'cable','Fibre (thin glass line)':'fibre','Satellite (dish)':'satellite'})[S.tech]||'';
+/* One phrase per cascade level. Ordered exactly like the lookup in
+   whollar-core.js so a change there is obvious here. */
 function scopeLabel(sc){
-  return sc.benchmark&&sc.benchmark.scope==='province'
-    ? 'the advertised range in '+(S.province||'your province')
-    : 'the national advertised range';
+  const b=sc&&sc.benchmark; if(!b)return 'the advertised market';
+  const prov=S.province||'your province', t=techWord();
+  switch(b.level){
+    case 'A': return 'what '+(S.prov||'your provider').split(' (')[0]+' advertises for '+t+' at your speed in '+prov;
+    case 'B': return 'the advertised '+t+' price at your speed in '+prov;
+    case 'C': return 'the national advertised '+t+' price at your speed';
+    case 'D': return 'what '+(S.prov||'your provider').split(' (')[0]+' advertises at your speed in '+prov;
+    case 'E': return 'the advertised price at your speed in '+prov;
+    default:  return 'the national advertised price at your speed';
+  }
 }
 function speedLabel(){
   if(!S.spd||S.spd==='0')return null;
@@ -969,15 +999,15 @@ function speedLabel(){
 }
 const CTX=sc=>[
   S.cost?'you pay '+money(effCost())+'/mo'+(S.disc&&!S.expired?' with promo':''):null,
-  sc&&sc.benchmark?'your complete bill vs '+scopeLabel(sc):null,
+  sc&&sc.benchmark?'vs '+money(sc.benchmark.price)+'/mo advertised':null,
   speedLabel(),
   S.province||null
 ].filter(Boolean).join(' \u00b7 ');
 
 const STATES={
-strong:sc=>({bars:BAR(['f','f','f','f']),h:'Strong deal',read:'Your complete bill sits below '+scopeLabel(sc)+' for your speed tier. The play now is <b>keeping it past renewal</b> \u2014 exactly what a pooled bid is for.'}),
-fair:sc=>({bars:BAR(['f','f','fa','']),h:'Fair deal',read:'Close to '+scopeLabel(sc)+' for your tier \u2014 not a crisis, not a deal. \u201cClose\u201d is what group bids beat, without you making a single call.'}),
-weak:sc=>({bars:BAR(['fw','','','']),cls:'warnbg',h:'Weak deal',read:'Your complete bill runs <b>above '+scopeLabel(sc)+'</b> for what you\u2019re getting \u2014 the kind of gap that compounds every month. Your cohort\u2019s bid is built to close it.'}),
+strong:sc=>({bars:BAR(['f','f','f','f']),h:'Strong deal',read:'At <b>'+money(effCost())+'/mo</b> you sit more than 5% below '+scopeLabel(sc)+' (<b>'+money(sc.benchmark.price)+'/mo</b>). The play now is <b>keeping it past renewal</b> \u2014 exactly what a pooled bid is for.'}),
+fair:sc=>({bars:BAR(['f','f','fa','']),h:'Fair deal',read:'Your <b>'+money(effCost())+'/mo</b> is within reach of '+scopeLabel(sc)+' (<b>'+money(sc.benchmark.price)+'/mo</b>) \u2014 not a crisis, not a deal. \u201cClose\u201d is what group bids beat, without you making a single call.'}),
+weak:sc=>({bars:BAR(['fw','','','']),cls:'warnbg',h:'Weak deal',read:'You pay <b>'+money(effCost())+'/mo</b> against '+scopeLabel(sc)+' of <b>'+money(sc.benchmark.price)+'/mo</b> \u2014 more than 20% over, a gap of about <b>'+money(Math.max(0,effCost()-sc.benchmark.price))+'/mo</b> that compounds every month. Your cohort\u2019s bid is built to close it.'}),
 cliff:sc=>({bars:'<div class="sig__bars"><i class="f pop"></i><i class="f pop"></i><i class="f pop"></i><i class="f pop"></i><span class="arrow">\u2192</span><i class="fw pop"></i><i></i><i></i><i></i></div>',cls:'warnbg',h:'Cliff ahead',read:'Whatever today\u2019s price looks like \u2014 your promo ends around <b>'+monthName(S.pdate)+'</b>, within the next two months. That\u2019s the part of your bill nobody explains: the reset lands on autopay, usually 30\u201360% higher'+(S.disc?' (about <b>'+money(S.disc)+'/mo</b> back onto your bill)':'')+'. The window to pool is <b>before</b> the jump.'}),
 /* Honest fallback. Previously: "Not sure" speed silently scored against an
    invented $60 benchmark, and a discount larger than the charge scored as
@@ -986,7 +1016,7 @@ unknown:sc=>{
   const why={
     'no-speed':'We can\u2019t compare your price without your <b>download speed</b> \u2014 the same $85 is a great deal at 1 Gbps and a poor one at 50 Mbps. Add your speed above and we\u2019ll score it.',
     'no-cost':'Add your <b>monthly charge</b> above and we\u2019ll compare it.',
-    'no-benchmark':'We don\u2019t hold an advertised reference price for that speed tier yet, so we won\u2019t guess at a verdict.',
+    'no-benchmark':'We don\u2019t hold advertised plans for that combination yet, so we won\u2019t guess at a verdict.',
     'discount-exceeds-charge':'Your <b>discount</b> is the same as or larger than your <b>monthly charge</b>, so the two numbers can\u2019t both be right. The charge should be the price <i>before</i> the discount \u2014 fix either one and we\u2019ll score it.'
   }[sc.reason]||'We don\u2019t have enough of your bill to score it yet.';
   return {bars:BAR(['fa','','','']),h:'Not enough to score',read:why+'<br><br>Your cohort still forms on your postal code and renewal date, so joining works either way.'};
@@ -1000,12 +1030,14 @@ function setSig(k,sc){
   $('#sig').className='sig '+(s.cls||'');
   $('#sig').innerHTML='<div class="sig__label">Your deal signal</div>'+s.bars+'<h3>'+s.h+'</h3><p class="read">'+s.read+'</p>'
     +(ctx?'<p class="ctx">'+W.escapeHtml(ctx)+'</p>':'')
-    /* The reference is editorial, not a sampled dataset. Saying so is the
-       difference between a comparison and a claim we cannot support. */
-    +(sc.benchmark?'<p class="ctx" style="opacity:.8">Compared with a typical advertised entry price for this tier in Canada. Indicative, not a quote.</p>':'')
-    /* Territories are scored against a southern reference, which is barely a
+    /* Provenance: how many real advertised plans stand behind the number, and
+       whether we had to widen the comparison to find them. */
+    +(sc.benchmark?'<p class="ctx" style="opacity:.8">Based on <b>'+sc.benchmark.sample+'</b> advertised plan'+(sc.benchmark.sample===1?'':'s')+' from our Canadian pricing set'+(W.BENCH_META?' (updated '+W.BENCH_META.builtOn+')':'')+'. Advertised prices, not a quote.</p>':'')
+    +(sc.benchmark&&sc.benchmark.providerFellBack?'<p class="ctx" style="opacity:.8">We don’t hold advertised plans for '+W.escapeHtml((S.prov||'your provider').split(' (')[0])+' at this tier, so this compares you against every provider we do have in your area.</p>':'')
+    /* Territories fall back to a southern reference, which is barely a
        comparison at all. Say so rather than letting the verdict stand bare. */
-    +(sc.caveat==='territory'?'<p class="ctx" style="opacity:.8"><b>Note:</b> northern pricing works differently from the rest of Canada, so treat this comparison as rough. Your cohort still forms on your postal code.</p>':'')
+    +(sc.caveat==='territory'?'<p class="ctx" style="opacity:.8"><b>Note:</b> northern pricing works differently from the rest of Canada and we hold few northern plans, so treat this as rough. Your cohort still forms on your postal code.</p>':'')
+    +(sc.caveat==='thin-sample'?'<p class="ctx" style="opacity:.8"><b>Note:</b> only a couple of advertised plans match your exact combination, so this comparison is thinner than usual.</p>':'')
     +(S.joined?'<span class="joined">&#10003; You\u2019re on the '+W.escapeHtml(S.pc?S.pc+' ':'')+'waitlist</span>':'');
 }
 

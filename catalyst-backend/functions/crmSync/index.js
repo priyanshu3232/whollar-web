@@ -258,8 +258,19 @@ function noteFor(source, email, data, isProd, dropped) {
     };
     add('Result shown', VERDICT[data.verdict] || data.verdict);
     if (data.verdict === 'unknown' && data.verdictReason) add('Not scored because', data.verdictReason);
-    if (data.benchmarkScope) {
-      add('Compared against', `${money(data.benchmarkPrice) || '—'} (${data.benchmarkScope} reference, indicative only)`);
+    if (data.benchmarkPrice) {
+      const LEVEL = {
+        A: 'their provider, connection type, speed and province',
+        B: 'connection type, speed and province (provider not in our set)',
+        C: 'connection type and speed, national',
+        D: 'their provider, speed and province',
+        E: 'speed and province',
+        F: 'speed only, national'
+      };
+      add('Compared against', `${money(data.benchmarkPrice)}/mo advertised`);
+      add('Match basis', LEVEL[data.benchmarkLevel] || data.benchmarkScope || '—');
+      add('Plans behind that figure', data.benchmarkSample);
+      if (data.benchmarkCaveat) add('⚠ Comparison caveat', data.benchmarkCaveat);
     }
   }
 

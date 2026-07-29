@@ -54,7 +54,7 @@
     <div class="form-pane">
 
       <div id="joinform">
-        <h3>Hold your spot</h3>
+        <h3>Create your account</h3>
         <p class="fsub">Whollar is free to join for households. One short form and you're in.</p>
         <div class="jf">
           <label for="j-name">What should we call you?</label>
@@ -66,6 +66,11 @@
         <div class="jf">
           <label for="j-email">Email</label>
           <input type="email" id="j-email" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="jf">
+          <label for="j-pw">Password</label>
+          <input type="password" id="j-pw" placeholder="At least 10 characters" autocomplete="new-password" maxlength="128" aria-describedby="j-pw-hint">
+          <span class="pwhint" id="j-pw-hint">At least 10 characters. A phrase you'll remember beats a short jumble.</span>
         </div>
         <div class="jf">
           <label for="j-phone">A number to text when bids land</label>
@@ -84,6 +89,34 @@
         <label class="j-terms" style="display:flex;align-items:flex-start;gap:9px;margin:16px 0 6px;font-size:13px;line-height:1.5;color:#54625B;cursor:pointer;"><input type="checkbox" id="j-terms" style="margin-top:1px;width:16px;height:16px;accent-color:#1E9E63;flex:none;cursor:pointer;"><span>I accept the <a href="/terms" target="_blank" rel="noopener noreferrer" style="color:#178A5A;text-decoration:underline;text-underline-offset:2px;">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style="color:#178A5A;text-decoration:underline;text-underline-offset:2px;">Privacy&nbsp;Policy</a>, and agree to receive email about my cohort and offers. I can unsubscribe at any time.</span></label>
         <button class="whl-btn go" id="j-go" type="button">Become a founding member</button>
         <p class="perksline"><b>Founding perks, locked in for joining now.</b> Early access and first pick on every market we open next.</p>
+      </div>
+
+      <!-- CODE ENTRY
+
+           The account was created by /signup, but sits in `status: pending`
+           until this code is checked — a password alone opens nothing. That is
+           what stops someone registering an address they don't control. -->
+      <div id="codestep" style="display:none">
+        <h3>Check your email</h3>
+        <p class="fsub">We sent a 6-digit code to <b id="j-echo"></b>. It expires in <span id="j-ttl">10</span> minutes.</p>
+
+        <p class="devcode" id="j-devcode" style="display:none" role="note"></p>
+
+        <div class="otp" id="j-otp">
+          <input inputmode="numeric" autocomplete="one-time-code" maxlength="1" aria-label="digit 1">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 2">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 3">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 4">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 5">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 6">
+        </div>
+
+        <div class="otp-meta">
+          <span>Didn't get it? <button type="button" id="j-resend" disabled>Resend in 30s</button></span>
+          <button type="button" id="j-back">Change details</button>
+        </div>
+
+        <button class="whl-btn go" id="j-verify" type="button">Verify and continue</button>
       </div>
 
       <div id="stage2" style="display:none">
@@ -339,23 +372,132 @@ document.addEventListener('DOMContentLoaded',function(){
       W.clearFieldError($('#j-phone'));
       if(!S.fsa){W.fieldError($('#j-pc'),'Enter a valid Canadian postal code — that is what places you in a cohort.');return;}
       W.clearFieldError($('#j-pc'));
-      S.name=nm;S.last=ln;S.email=em;S.phone=ph;
+      const pw=$('#j-pw').value;
+      if(pw.length<10){W.fieldError($('#j-pw'),'Use at least 10 characters. A phrase you’ll remember beats a short jumble.');return;}
+      if(pw.trim().toLowerCase()===em.toLowerCase()){W.fieldError($('#j-pw'),'Your password can’t be your email address.');return;}
+      W.clearFieldError($('#j-pw'));
+      S.name=nm;S.last=ln;S.email=em;S.phone=ph;S.pw=pw;
       const btn=$('#j-go');clearErr(btn);
       if(busy(btn,true,'Joining…')===false)return;
       try{
-        /* Consent is transmitted and stored, not merely used to enable the
-           button. CASL requires it to be provable: wording, time and source. */
-        await submitForm('/waitlist-join',{firstName:S.name,lastName:S.last,email:S.email,phone:S.phone,fsa:S.fsa,postalFull:S.postalFull||'',province:S.province||'',provinceCode:S.provinceCode||'',referral:$('#j-ref').value.trim()||null,ts:new Date().toISOString(),...W.consentPayload('waitlist',true)});
+        /* Creates the account in `status: pending` and emails a code. Consent
+           travels with it and the server writes a `consents` row inside the
+           same request that creates the account — CASL needs it provable, and
+           consent recorded "shortly after" is consent you cannot prove came
+           first. The checkbox wording covers cohort and offer email, so it is
+           the marketing consent. */
+        const r=await W.session.signup({
+          email:em,password:pw,firstName:nm,lastName:ln,phone:ph,
+          postalCode:S.postalFull||'',provinceCode:S.provinceCode||'',
+          referralCode:$('#j-ref').value.trim()||null,marketing:true
+        });
+        busy(btn,false);
+        openCodeStep(r);
       }catch(err){busy(btn,false);submitErr(btn,err);return;}
-      busy(btn,false);
-      $('#done-h').textContent=nm+", you're in.";
-      $('#done-p').textContent='Your spot in the '+S.fsa+' cohort is held. We\u2019ll text the moment bids land.';
-      $('#sh-lnk').textContent='whollar.ca/join?fsa='+S.fsa;
-      $('#sh-p').textContent='Share your link. Every neighbour in '+S.fsa+' who joins through you strengthens the bid you\u2019ll all get.';
-      $('#joinform').style.display='none';
-      $('#stage2').style.display='block';
-      openWelcome(nm);
     });
+
+    /* ---- code step ---------------------------------------------------- */
+
+    const otpBoxes=()=>Array.prototype.slice.call(document.querySelectorAll('#j-otp input'));
+    const readCode=()=>otpBoxes().map(i=>i.value.replace(/\D/g,'')).join('');
+    const clearCode=()=>otpBoxes().forEach(i=>{i.value='';});
+    function fillCode(c){const b=otpBoxes();String(c).replace(/\D/g,'').slice(0,6).split('').forEach((ch,i)=>{if(b[i])b[i].value=ch;});}
+
+    let cdTimer=null,lastTried=null;
+    function startCountdown(){
+      let n=30;const b=$('#j-resend');
+      clearInterval(cdTimer);b.disabled=true;b.textContent='Resend in '+n+'s';
+      cdTimer=setInterval(()=>{n--;if(n<=0){clearInterval(cdTimer);b.disabled=false;b.textContent='Resend code';return;}b.textContent='Resend in '+n+'s';},1000);
+    }
+    /* The server returns the code only when it is not production AND no mail
+       provider is configured — i.e. when it sent nothing. */
+    function showDevCode(dev){
+      const el=$('#j-devcode');
+      if(!dev||!dev.code){el.style.display='none';return;}
+      el.textContent='No mail provider is configured, so nothing was sent. Your code is '+dev.code+'.';
+      el.style.display='block';fillCode(dev.code);
+    }
+    function openCodeStep(r){
+      $('#j-echo').textContent=S.email;
+      $('#j-ttl').textContent=(r&&r.ttlMinutes)||10;
+      clearCode();lastTried=null;
+      $('#j-otp').classList.remove('err');
+      showDevCode(r&&r.dev);
+      $('#joinform').style.display='none';
+      $('#codestep').style.display='block';
+      startCountdown();
+      const b=otpBoxes();(b.filter(i=>!i.value)[0]||b[b.length-1]).focus();
+    }
+
+    $('#j-back').addEventListener('click',()=>{
+      clearInterval(cdTimer);clearCode();
+      $('#codestep').style.display='none';
+      $('#joinform').style.display='block';
+      $('#j-email').focus();
+    });
+
+    $('#j-resend').addEventListener('click',async function(){
+      if(this.disabled)return;
+      this.disabled=true;this.textContent='Sending…';
+      clearErr($('#j-verify'));
+      try{
+        /* Re-posting /signup is the resend: for an account still pending it
+           replaces the password with the same one and issues a fresh code.
+           There is no separate resend endpoint, so this path cannot be used to
+           make the server send mail outside a full, rate-limited signup. */
+        const r=await W.session.signup({
+          email:S.email,password:S.pw,firstName:S.name,lastName:S.last,
+          phone:S.phone,postalCode:S.postalFull||'',provinceCode:S.provinceCode||'',
+          referralCode:$('#j-ref').value.trim()||null,marketing:true
+        });
+        clearCode();lastTried=null;showDevCode(r&&r.dev);startCountdown();otpBoxes()[0].focus();
+      }catch(err){this.disabled=false;this.textContent='Resend code';submitErr($('#j-verify'),err);}
+    });
+
+    async function verifyCode(){
+      const btn=$('#j-verify');
+      const code=readCode();
+      if(code.length!==6){$('#j-otp').classList.add('err');submitErr(btn,new Error('Enter all six digits.'));return;}
+      $('#j-otp').classList.remove('err');clearErr(btn);
+      if(busy(btn,true,'Verifying…')===false)return;
+      lastTried=code;
+      try{
+        /* marketing travels with the verify, not the signup: the server writes
+           the consent rows when the account becomes real. */
+        await W.session.signupVerify({email:S.email,code:code,marketing:true});
+      }catch(err){
+        busy(btn,false);$('#j-otp').classList.add('err');
+        submitErr(btn,err);clearCode();otpBoxes()[0].focus();return;
+      }
+      /* Reconciled through adopt() so the local record is written from the
+         server's answer by the same rule every other page uses. Null means the
+         cookie did not stick, and /dashboard would bounce straight back. */
+      const rec=await W.session.adopt('member');
+      if(!rec){busy(btn,false);submitErr(btn,new Error('You’re verified, but we couldn’t keep you signed in. Check that cookies are enabled and try again.'));return;}
+      location.href='/dashboard';
+    }
+    $('#j-verify').addEventListener('click',verifyCode);
+
+    otpBoxes().forEach((inp,idx,all)=>{
+      inp.addEventListener('input',function(){
+        this.value=this.value.replace(/\D/g,'').slice(0,1);
+        if(this.value&&idx<all.length-1)all[idx+1].focus();
+        maybeAuto();
+      });
+      inp.addEventListener('keydown',function(e){
+        if(e.key==='Backspace'&&!this.value&&idx>0)all[idx-1].focus();
+      });
+      inp.addEventListener('paste',function(e){
+        e.preventDefault();
+        const d=((e.clipboardData||window.clipboardData).getData('text')||'').replace(/\D/g,'').slice(0,6).split('');
+        if(!d.length)return;
+        d.forEach((ch,i)=>{if(all[i])all[i].value=ch;});
+        all[Math.min(d.length,all.length-1)].focus();maybeAuto();
+      });
+    });
+    /* Fires once per distinct code: a rejected one sits until it is changed,
+       so autofill cannot spend the five allowed attempts on one wrong guess. */
+    function maybeAuto(){const c=readCode();if(c.length===6&&c!==lastTried)verifyCode();}
 
     $('#sh-cp').addEventListener('click',()=>{
       const t='https://'+$('#sh-lnk').textContent;

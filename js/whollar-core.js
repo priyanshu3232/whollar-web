@@ -41,6 +41,22 @@
   W.API = W.CATALYST_HOST + '/server/formSubmit';
   W.OCR_API = W.CATALYST_HOST + '/server/billOcr';
 
+  /* The auth function is reached SAME-ORIGIN, through the /api/auth rewrite in
+     vercel.json — not on W.CATALYST_HOST like the two above. That is not a
+     style choice, it is what makes session cookies possible at all:
+     catalystserverless.ca cannot set a cookie for whollar.ca, and a third-party
+     cookie would be blocked by Safari ITP anyway. Proxying through Vercel makes
+     the browser see one origin, so the cookie is plain first-party.
+
+     Being same-origin also means: no CORS, no preflight, no `credentials`
+     juggling, and `connect-src 'self'` in the CSP already covers it.
+
+     Catalyst Domain Mappings — which would let api.whollar.ca front the
+     function directly and remove the proxy hop — are PRODUCTION-ONLY, and this
+     project has no production environment yet. When one exists, this becomes
+     'https://api.whollar.ca/auth' and the rewrite in vercel.json is deleted. */
+  W.AUTH_API = '/api/auth';
+
   /* ================================================================== *
    * 2. VALIDATORS
    * ================================================================== */
@@ -236,73 +252,126 @@
   /* ================================================================== *
    * 4. BENCHMARK
    * ------------------------------------------------------------------
-   * ⚠ READ THIS BEFORE CHANGING ANY USER-FACING COMPARISON COPY.
+   * The reference prices come from "Whollar Pricing Model.xlsx" (6,803
+   * advertised Canadian home-internet plans), aggregated at build time into
+   * js/whollar-benchmarks.js by scripts/build-benchmarks.mjs. That file must
+   * be loaded BEFORE this one; if it is missing, benchmarkFor() returns null
+   * and every result renders the "not enough to score" state rather than
+   * inventing a number.
    *
-   * These are advertised-price reference points for a national entry-level
-   * plan at each download tier. They are EDITORIAL ESTIMATES. They are not
-   * sampled, not per-province, and not derived from provider minimums.
-   * There is no benchmark dataset in this repository.
+   * Lookup is a cascade from most to least specific. The first level that has
+   * data wins, and the level that answered travels with the result so the UI
+   * can say what the comparison was actually against:
    *
-   * Because of that, every comparison this file produces is explicitly
-   * labelled `scope: 'national'`, and the UI must say "national" — never
-   * "your province" or "your market". When a real per-province dataset
-   * exists, populate PROVINCE_TIER_PRICE and the scope flips to 'province'
-   * automatically with no other code change.
+   *   A  province + provider + connection type + speed tier
+   *   B  province + connection type + speed tier      ← drops the provider
+   *   C  connection type + speed tier                 ← drops the province
+   *   D  province + provider + speed tier             (no tech; excl. satellite)
+   *   E  province + speed tier                        (excl. satellite)
+   *   F  speed tier                                   (excl. satellite)
    *
-   * benchmarkFor() returns null rather than guessing. A null benchmark must
-   * render an "unknown" state, never a confident verdict.
+   * Dropping the provider first is the specified behaviour: four of the eight
+   * named providers on the form (Rogers, Shaw, Eastlink, SaskTel) have no rows
+   * in the dataset at all, so level B is the common path for them.
    * ================================================================== */
 
-  var NATIONAL_TIER_PRICE = {
-    '25': 40, '50': 50, '100': 55, '150': 58,
-    '300': 70, '500': 75, '1000': 85, '1500': 88
+  /* Bucket a raw Mbps figure to one of the eight tiers the form offers. Used
+     for values that don't come from the <select> (e.g. bill OCR). */
+  W.speedTier = function (mbps) {
+    var v = Number(mbps);
+    if (!isFinite(v) || v <= 0) return null;
+    var tiers = W.SPEED_TIERS || [], edges = W.SPEED_EDGES || [];
+    for (var i = 0; i < edges.length; i++) if (v < edges[i]) return tiers[i];
+    return tiers[tiers.length - 1] || null;
   };
 
-  /* Shape: { ON: { '500': 72, … }, QC: { … } }. Empty until real data lands.
-     A tier present here wins over the national number for that province. */
-  var PROVINCE_TIER_PRICE = {};
+  /* input: { provinceCode, provider, tech, speed }
+     - provider / tech are the raw <option> values from #prov / #tech
+     - speed is the #spd value ('25'…'1500', or '0' meaning "not sure")
+     returns { price, sample, level, scope, tier, … } or null.
 
-  /* speed is the <select> value: '25'…'1500', or '0' meaning "not sure".
-     '0' is NOT a tier — it used to map to an invented $60 benchmark and
-     produced a confident verdict for a user who had just told us they did
-     not know their speed. It now returns null. */
-  W.benchmarkFor = function (provinceCode, speed) {
-    if (speed == null || speed === '' || speed === '0') return null;
-    var key = String(speed);
-    var prov = provinceCode && PROVINCE_TIER_PRICE[provinceCode];
-    if (prov && prov[key] != null) {
-      return { price: prov[key], scope: 'province', provinceCode: provinceCode, tier: key };
-    }
-    if (NATIONAL_TIER_PRICE[key] != null) {
-      return { price: NATIONAL_TIER_PRICE[key], scope: 'national', provinceCode: null, tier: key };
+     '0' is not a tier. It used to map to an invented $60 benchmark and produce
+     a confident verdict for someone who had just said they didn't know their
+     speed; it returns null instead. */
+  W.benchmarkFor = function (input) {
+    var table = W.BENCHMARKS;
+    if (!table) return null;
+
+    var opts = input || {};
+    var tier = W.speedTier(opts.speed === '0' ? null : opts.speed);
+    if (!tier) return null;
+
+    var pv = opts.provinceCode || null;
+    var grp = opts.provider ? (W.PROVIDER_GROUPS || {})[opts.provider] || null : null;
+    var tech = opts.tech ? (W.TECH_GROUPS || {})[opts.tech] || null : null;
+
+    /* Ordered most specific → least. Each entry: [key, level, scope]. */
+    var chain = [];
+    if (pv && grp && tech) chain.push([['A', pv, grp, tech, tier].join('|'), 'A', 'province-provider-tech']);
+    if (pv && tech) chain.push([['B', pv, tech, tier].join('|'), 'B', 'province-tech']);
+    if (tech) chain.push([['C', tech, tier].join('|'), 'C', 'national-tech']);
+    if (pv && grp) chain.push([['D', pv, grp, tier].join('|'), 'D', 'province-provider']);
+    if (pv) chain.push([['E', pv, tier].join('|'), 'E', 'province']);
+    chain.push([['F', tier].join('|'), 'F', 'national']);
+
+    for (var i = 0; i < chain.length; i++) {
+      var hit = table[chain[i][0]];
+      if (hit && hit[0] > 0) {
+        return {
+          price: hit[0],
+          sample: hit[1],
+          level: chain[i][1],
+          scope: chain[i][2],
+          tier: tier,
+          provinceCode: chain[i][1] === 'C' || chain[i][1] === 'F' ? null : pv,
+          providerGroup: (chain[i][1] === 'A' || chain[i][1] === 'D') ? grp : null,
+          techGroup: (chain[i][1] === 'A' || chain[i][1] === 'B' || chain[i][1] === 'C') ? tech : null,
+          /* True when we had to drop the provider the household actually named
+             — the fallback the spec calls for, worth surfacing. */
+          providerFellBack: !!grp && chain[i][1] !== 'A' && chain[i][1] !== 'D'
+        };
+      }
     }
     return null;
   };
 
-  /* Northern internet pricing bears no relation to the national average
-     (satellite/microwave backhaul, no cable overbuild). Scoring a territory
-     household against a southern reference is the least supportable
-     comparison this engine can make, so it is flagged rather than hidden. */
+  /* Northern internet pricing bears no relation to the southern market
+     (satellite/microwave backhaul, no cable overbuild), and the dataset holds
+     only 138 territory rows. A territory household scored against a national
+     fallback is the least supportable comparison this engine can make, so it
+     is flagged rather than hidden. */
   W.TERRITORIES = ['NU', 'NT', 'YT'];
   W.isTerritory = function (provinceCode) {
     return W.TERRITORIES.indexOf(provinceCode) > -1;
   };
 
-  W.hasProvinceBenchmarks = function () {
-    for (var k in PROVINCE_TIER_PRICE) if (Object.prototype.hasOwnProperty.call(PROVINCE_TIER_PRICE, k)) return true;
-    return false;
-  };
-
   /* ================================================================== *
    * 5. SCORING
    * ------------------------------------------------------------------
-   * Boundaries are inclusive-lower: r <= 0.92 strong, r <= 1.12 fair,
-   * else weak. Verified deterministic at every tier — no float flip.
+   * Customer amount = the monthly charge before any promo, minus the promo
+   * discount. Compared against the benchmark price:
+   *
+   *   customer >  1.20 × benchmark   → weak
+   *   customer <  0.95 × benchmark   → strong
+   *   otherwise (inclusive both ends) → fair
+   *
+   * Both comparisons are STRICT, so a customer sitting exactly on 0.95× or
+   * exactly on 1.20× is "fair". That is deliberate: the band is defined as
+   * everything between the two lines, and the lines belong to it.
    * ================================================================== */
 
-  W.STRONG_MAX = 0.92;
-  W.FAIR_MAX = 1.12;
+  W.STRONG_BELOW = 0.95;  /* strictly below this multiple of the benchmark */
+  W.WEAK_ABOVE = 1.20;    /* strictly above this multiple of the benchmark */
   W.CLIFF_DAYS = 60;
+
+  /* Binary floating point cannot represent 0.95 exactly, so a customer sitting
+     precisely on the line computes as 0.949999999999999845 and would be graded
+     "strong" when the rule says "fair". That is not hypothetical: it happens
+     for 21 of the 184 distinct benchmark prices in the current dataset.
+     A tolerance of 1e-9 is ~1/10,000,000 of a cent on a $100 bill — far too
+     small to reclassify any real amount, and large enough to absorb the
+     representation error. */
+  var RATIO_EPSILON = 1e-9;
 
   /* What the household actually pays today. Clamped at zero, and a discount
      that meets or exceeds the charge is flagged as contradictory rather than
@@ -316,8 +385,9 @@
     return { value: charge - disc, contradictory: false };
   };
 
-  /* input: { cost, discount, speed, promoEnd, promoExpired, provinceCode }
-     returns: { state, ratio, benchmark, effective, reason }
+  /* input: { cost, discount, speed, tech, provider, promoEnd, promoExpired,
+              provinceCode }
+     returns: { state, ratio, benchmark, effective, days, reason, caveat }
        state ∈ 'cliff' | 'strong' | 'fair' | 'weak' | 'unknown'
        reason (only when 'unknown') ∈ 'no-cost' | 'no-speed' | 'no-benchmark'
                                     | 'discount-exceeds-charge' */
@@ -328,31 +398,44 @@
     /* Cliff is date-driven and does not need a benchmark, so it is checked
        first — a household with an unknown speed can still be warned. */
     if (days !== null && days >= 0 && days <= W.CLIFF_DAYS) {
-      return { state: 'cliff', ratio: null, benchmark: null, effective: eff.value, days: days, reason: null };
+      return { state: 'cliff', ratio: null, benchmark: null, effective: eff.value, days: days, reason: null, caveat: null };
     }
 
     if (!(Number(input.cost) > 0)) {
-      return { state: 'unknown', ratio: null, benchmark: null, effective: null, days: days, reason: 'no-cost' };
+      return { state: 'unknown', ratio: null, benchmark: null, effective: null, days: days, reason: 'no-cost', caveat: null };
     }
     if (eff.contradictory) {
-      return { state: 'unknown', ratio: null, benchmark: null, effective: eff.value, days: days, reason: 'discount-exceeds-charge' };
+      return { state: 'unknown', ratio: null, benchmark: null, effective: eff.value, days: days, reason: 'discount-exceeds-charge', caveat: null };
     }
     if (input.speed == null || input.speed === '' || input.speed === '0') {
-      return { state: 'unknown', ratio: null, benchmark: null, effective: eff.value, days: days, reason: 'no-speed' };
+      return { state: 'unknown', ratio: null, benchmark: null, effective: eff.value, days: days, reason: 'no-speed', caveat: null };
     }
 
-    var bench = W.benchmarkFor(input.provinceCode, input.speed);
+    var bench = W.benchmarkFor({
+      provinceCode: input.provinceCode,
+      provider: input.provider,
+      tech: input.tech,
+      speed: input.speed
+    });
     if (!bench || !(bench.price > 0)) {
-      return { state: 'unknown', ratio: null, benchmark: null, effective: eff.value, days: days, reason: 'no-benchmark' };
+      return { state: 'unknown', ratio: null, benchmark: null, effective: eff.value, days: days, reason: 'no-benchmark', caveat: null };
     }
 
+    /* Strictly outside the band, per the rule above — landing exactly on a
+       line is "fair". The epsilon keeps that true in floating point. */
     var r = eff.value / bench.price;
-    var state = r <= W.STRONG_MAX ? 'strong' : (r <= W.FAIR_MAX ? 'fair' : 'weak');
+    var state = r > W.WEAK_ABOVE + RATIO_EPSILON ? 'weak'
+      : (r < W.STRONG_BELOW - RATIO_EPSILON ? 'strong' : 'fair');
+
+    /* Flags for comparisons that are materially weaker than the verdict looks,
+       so the UI can qualify rather than state flat. */
+    var caveat = null;
+    if (W.isTerritory(input.provinceCode) && bench.level !== 'A' && bench.level !== 'B') caveat = 'territory';
+    else if (bench.sample < 3) caveat = 'thin-sample';
+
     return {
-      state: state, ratio: r, benchmark: bench, effective: eff.value, days: days, reason: null,
-      /* Set when the comparison is materially weaker than it looks, so the UI
-         can qualify the verdict instead of stating it flat. */
-      caveat: (bench.scope === 'national' && W.isTerritory(input.provinceCode)) ? 'territory' : null
+      state: state, ratio: r, benchmark: bench, effective: eff.value,
+      days: days, reason: null, caveat: caveat
     };
   };
 
@@ -668,7 +751,277 @@
   W.partner = sessionStore(W.PARTNER_KEY);
 
   /* ================================================================== *
-   * 12. POST-SIGN-IN REDIRECT TARGET
+   * 12. SERVER SESSION (the authority behind section 11)
+   * ------------------------------------------------------------------
+   * Section 11 keeps a record in localStorage. This section is what makes
+   * that record true: an HttpOnly session cookie set by the auth function,
+   * which script cannot read, forge or extend.
+   *
+   * The two have to be reconciled somewhere, because a sign-in that
+   * completes on the SERVER — Google, and the emailed code — hands the
+   * browser a cookie and writes nothing to localStorage. A page that trusts
+   * the local record alone would bounce a genuinely signed-in visitor back
+   * to the form they just finished. adopt() closes that gap: ask the server
+   * who this is, then write the local record from the answer.
+   *
+   * Failure is deliberately quiet. If the function is down or the /api/auth
+   * rewrite is misconfigured, read() resolves to signed-out instead of
+   * rejecting, so a page degrades to its local record rather than throwing
+   * inside a boot path and rendering nothing at all.
+   * ================================================================== */
+
+  /**
+   * POST JSON to the auth function and unwrap its one error shape.
+   *
+   * A JSON body would normally trigger a CORS preflight, and the Catalyst
+   * gateway answers preflight itself without CORS headers — which is why the
+   * lead and OCR endpoints stay form-encoded. It is safe HERE and only here
+   * because /api/auth is a same-origin Vercel rewrite, so no preflight is
+   * issued at all. Point this at the Catalyst host directly and it breaks.
+   *
+   * Rejects with an Error carrying `.code` (VALIDATION_ERROR, RATE_LIMITED,
+   * UNAUTHENTICATED …) so a caller can react to the kind of failure, and
+   * `.message` already written for a human — errors.js composes those on the
+   * assumption they will be shown verbatim, so pages should show them rather
+   * than substituting their own guess at what went wrong.
+   */
+  function authPost(path, body) {
+    return fetch(W.AUTH_API + path, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function (r) {
+      return r.json().catch(function () { return null; }).then(function (b) {
+        if (r.ok) return b || {};
+        var e = new Error((b && b.error && b.error.message) ||
+          'Something went wrong. Please try again.');
+        e.code = (b && b.error && b.error.code) || 'SERVER_ERROR';
+        e.status = r.status;
+        throw e;
+      });
+    }, function () {
+      /* Transport-level failure: offline, DNS, the rewrite misconfigured. The
+         message has to be about the connection, not about the code they typed. */
+      var e = new Error('We couldn’t reach Whollar. Check your connection and try again.');
+      e.code = 'NETWORK';
+      throw e;
+    });
+  }
+
+  W.session = {
+
+    /* Never rejects. -> { authenticated, user } ; user is null when signed out. */
+    read: function () {
+      return fetch(W.AUTH_API + '/session', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      }).then(function (r) {
+        return r.ok ? r.json() : null;
+      }).then(function (b) {
+        return {
+          authenticated: Boolean(b && b.authenticated && b.user),
+          user: (b && b.user) || null
+        };
+      }).catch(function () {
+        return { authenticated: false, user: null };
+      });
+    },
+
+    /**
+     * Reconcile the cookie into the local record.
+     * Resolves with the record when a session exists, null when it does not.
+     *
+     * `expect` is the user type the CALLING PAGE serves — 'member' or
+     * 'provider'. Pass it. A partner session is not a member session, and a
+     * page that treats "some session exists" as "the right session exists"
+     * ping-pongs: the consumer sign-in would adopt the partner's session, send
+     * them to /dashboard, which finds no member record and sends them back,
+     * forever. On a mismatch this resolves null and writes nothing.
+     *
+     * A member session writes the member key and a partner session the partner
+     * key, never the other way round — section 11 explains what crossing them
+     * would open up.
+     *
+     * Fields the session payload has never carried (postal code, province) are
+     * preserved from the existing local record, but ONLY when it belongs to the
+     * same person: on a shared device the previous record is someone else's,
+     * and merging their postal code in would put this visitor in the wrong
+     * cohort.
+     */
+    adopt: function (expect) {
+      return W.session.read().then(function (s) {
+        if (!s.authenticated) return null;
+        if (expect && s.user.userType !== expect) return null;
+
+        var store = s.user.userType === 'member' ? W.member : W.partner;
+        var email = String(s.user.email || '');
+        if (!email) return null;
+        var emailKey = email.toLowerCase();
+
+        var prior = store.read() || {};
+        var keep = (prior.emailKey === emailKey) ? prior : {};
+
+        return store.write({
+          firstName: s.user.firstName || W.firstNameFrom(email, keep.firstName),
+          email: email,
+          emailKey: emailKey,
+          fsa: keep.fsa || null,
+          postal: keep.postal || null,
+          province: keep.province || null,
+          provinceCode: keep.provinceCode || null
+        });
+      });
+    },
+
+    /**
+     * Ask for an emailed code. -> { ok, ttlMinutes, dev? }
+     *
+     * REJECTS on failure, unlike read() above. The difference is deliberate:
+     * read() runs in boot paths where "we couldn't tell" has to degrade to
+     * "signed out", but these two run from a button the visitor just pressed,
+     * and a swallowed failure there is a form that silently does nothing.
+     *
+     * The server answers 200 with the same body whether or not an account
+     * exists — do not add anything here that treats those cases differently,
+     * it is the whole reason the endpoint is not an enumeration oracle.
+     *
+     * `dev.code` comes back ONLY in non-production with no mail provider
+     * configured (routes/otp.js decides; two conditions, not one). It is the
+     * intended way to exercise this flow before ZeptoMail is verified.
+     */
+    otpStart: function (email) {
+      return authPost('/otp/start', { email: email });
+    },
+
+    /**
+     * Check the code and take the session the server hands back.
+     * -> { ok, created, user, expiresAt }
+     *
+     * `firstName` is passed through so the account is created with it in the
+     * same request — collecting a name on the form and then writing it only
+     * to localStorage is how the server ends up not knowing who anyone is.
+     */
+    otpVerify: function (o) {
+      return authPost('/otp/verify', {
+        email: o.email,
+        code: o.code,
+        firstName: o.firstName || null,
+        marketing: Boolean(o.marketing)
+      });
+    },
+
+    /**
+     * Create an account. -> { ok, ttlMinutes, dev? }
+     *
+     * Answers identically whether or not the address already has an account —
+     * the owner is told by email instead. Nothing here may branch on the
+     * response to guess which happened; that symmetry is the only thing
+     * stopping the signup form being used to ask who has an account.
+     *
+     * The account exists after this call but is inert until `signupVerify`:
+     * `status` is 'pending' and the password opens nothing.
+     *
+     * Re-posting for an address still pending is also the resend — it replaces
+     * the password with the same one and issues a fresh code.
+     */
+    signup: function (o) {
+      return authPost('/signup', {
+        email: o.email,
+        password: o.password,
+        firstName: o.firstName || null,
+        lastName: o.lastName || null,
+        phone: o.phone || null,
+        postalCode: o.postalCode || null,
+        provinceCode: o.provinceCode || null,
+        referralCode: o.referralCode || null,
+        marketing: Boolean(o.marketing)
+      });
+    },
+
+    /**
+     * Prove the address and take the session. -> { ok, created, user, expiresAt }
+     *
+     * Authenticates with the emailed code alone — the password set at signup is
+     * deliberately not re-sent, so no page needs to hold it between the two
+     * requests.
+     *
+     * `marketing` travels HERE and not with /signup, because the server writes
+     * the consent rows at the moment the account becomes real. Sending it at
+     * signup instead — which this function used to do by omission — meant the
+     * marketing consent row was silently never written for anyone, which is a
+     * CASL problem rather than a missing field.
+     */
+    signupVerify: function (o) {
+      return authPost('/signup/verify', {
+        email: o.email,
+        code: o.code,
+        marketing: Boolean(o.marketing)
+      });
+    },
+
+    /**
+     * Sign in with a password. -> { ok, user, expiresAt }
+     *
+     * A rejected call carries `.code === 'EMAIL_UNVERIFIED'` when the password
+     * was RIGHT but the address was never confirmed; the server has re-sent a
+     * code, and the caller should show the code step rather than an error.
+     * Branch on that code, never on the message text.
+     */
+    login: function (o) {
+      return authPost('/login', { email: o.email, password: o.password });
+    },
+
+    /**
+     * Ask for a password-reset code. -> { ok, ttlMinutes, dev? }
+     *
+     * Resolves identically whether or not the address has an account. That is
+     * the server refusing to be an oracle for who is registered, so a caller
+     * must NOT try to infer anything from it — show "check your email" and
+     * nothing more.
+     */
+    forgotPassword: function (o) {
+      return authPost('/password/forgot', { email: o.email });
+    },
+
+    /**
+     * Set a new password with the emailed code. -> { ok, user, expiresAt }
+     *
+     * Succeeds straight into a session, so no second sign-in is needed. Every
+     * other live session is revoked server-side first — the point of resetting
+     * a password after a compromise is that the other party stops being signed
+     * in, which does not happen if their session survives the change.
+     */
+    resetPassword: function (o) {
+      return authPost('/password/reset', {
+        email: o.email,
+        code: o.code,
+        password: o.password
+      });
+    },
+
+    /**
+     * Sign out on the server first, then locally.
+     *
+     * Clearing only localStorage is not a sign-out: the cookie survives, and
+     * the next page load would adopt() it and sign the visitor straight back
+     * in. The local clear happens either way — a failed request must not
+     * leave someone looking at a dashboard they pressed "sign out" on.
+     */
+    end: function (which) {
+      var store = which === 'partner' ? W.partner : W.member;
+      return fetch(W.AUTH_API + '/logout', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      }).catch(function () { /* offline; the local clear below still has to run */ })
+        .then(function () { store.clear(); });
+    }
+  };
+
+  /* ================================================================== *
+   * 13. POST-SIGN-IN REDIRECT TARGET
    * ------------------------------------------------------------------
    * Both sign-in pages carry the page the visitor was trying to reach in
    * ?next=. Validating it here is what stops that parameter becoming an

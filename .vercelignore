@@ -37,3 +37,7 @@ flyer.jpg
 megan_rexazin_conde-store-4156934_1920.png
 
 node_modules
+
+# Source data for scripts/build-benchmarks.mjs. The site ships the generated
+# js/whollar-benchmarks.js, not the 390 KB spreadsheet.
+*.xlsx

@@ -18,12 +18,14 @@ on:
       - "js/**"
       - "scripts/**"
       - "MobileVersion/**"
+      - "Whollar Pricing Model.xlsx"
   pull_request:
     paths:
       - "**.html"
       - "js/**"
       - "scripts/**"
       - "MobileVersion/**"
+      - "Whollar Pricing Model.xlsx"
   workflow_dispatch:
 
 jobs:
@@ -43,6 +45,12 @@ jobs:
       # The shared module every form and the scoring engine now depend on.
       - name: Shared core parses
         run: node --check js/whollar-core.js
+
+      # Fails when js/whollar-benchmarks.js no longer matches what the
+      # spreadsheet would produce — i.e. the pricing model was updated but the
+      # generated table wasn't, so the site is scoring against stale prices.
+      - name: Benchmarks match the pricing spreadsheet
+        run: node scripts/build-benchmarks.mjs --check
 
       - name: Device router parses
         run: node --check js/device-router.js

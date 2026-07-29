@@ -15,8 +15,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="/js/whollar-core.js"></script>
 <title>Sign in · Whollar</title>
-<!-- No server-side authentication exists yet (see the notice in the form).
-     Keep this page out of the index until it does. -->
+<!-- Both sign-in paths on this page are real now (Google, and the emailed
+     code). The noindex stays until the flow has been run end-to-end against
+     created tables — indexing a sign-in page that 500s is worse than not
+     indexing it at all. Remove once /health reports the schema verified. -->
 <meta name="robots" content="noindex,nofollow">
 <link rel="preconnect" href="https://api.fontshare.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -107,10 +109,42 @@ button{font-family:var(--body)}
 .field.err input{border-color:var(--warn-text);background:#FDF6F2}
 .err-inline{display:none;color:var(--warn-text);font-size:12.5px;margin:-8px 0 14px;font-weight:500}
 
-/* Preview notice — states plainly that no authentication exists behind this
-   form. Remove together with the mock sign-in when real auth ships. */
+/* ---------- password ---------- */
+/* The reveal button sits inside the field rather than beside it, so the input
+   keeps its full width and the control cannot be mistaken for part of the
+   value. Padding-right on the input is what stops a long password running
+   underneath it. */
+.inwrap{position:relative}
+.inwrap input{padding-right:62px}
+.peek{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:0;padding:4px 6px;font-family:var(--label);font-weight:600;font-size:12px;color:var(--accent-hover);cursor:pointer}
+.peek:hover{text-decoration:underline}
+.pwhint{display:block;font-size:12px;color:var(--ink-3);margin-top:7px;line-height:1.45}
+
+/* Right-aligned on its own line so it never competes with the submit button
+   for the tap target directly below the password field. */
+.rowline{display:flex;justify-content:flex-end;margin:-6px 0 16px}
+
+/* ---------- consent ---------- */
+.tc{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--ink-2);line-height:1.5;margin:4px 0 16px;cursor:pointer}
+.tc input{width:17px;height:17px;margin:1px 0 0;flex:0 0 auto;accent-color:var(--accent);cursor:pointer}
+.tc a{color:var(--ink-2);text-decoration:underline}
+
+/* Dev-only affordance: the auth function returns the code in its response
+   when no mail provider is configured, so the flow is testable before the
+   ZeptoMail domain is verified. Styled as a notice, not as chrome — it must
+   look like something that is not supposed to be there. */
 .preview-note{background:var(--warn-soft);border:1px solid #E8C7AE;color:#7A3A19;font-size:12.5px;line-height:1.5;border-radius:12px;padding:10px 13px;margin:0 0 18px}
 .preview-note b{font-weight:700}
+
+/* ---------- code entry (step 2) ---------- */
+.sentto{font-size:14px;color:var(--ink-2);line-height:1.5;margin:7px 0 20px}
+.sentto b{color:var(--ink);font-weight:600;word-break:break-all}
+.otp{display:flex;gap:9px;margin-bottom:8px;justify-content:space-between}
+.otp input{width:100%;aspect-ratio:1/1;text-align:center;font-family:var(--disp);font-weight:700;font-size:22px;color:var(--teal);border:1.5px solid var(--line);border-radius:12px;background:#fff;transition:border-color .15s,box-shadow .15s;padding:0;min-width:0}
+.otp input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(30,158,99,.14)}
+.otp.err input{border-color:var(--warn-text);background:#FDF6F2}
+.otp-meta{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px;color:var(--ink-2);margin-bottom:20px}
+.otp-meta .linkbtn:disabled{color:var(--ink-3);cursor:default;text-decoration:none}
 
 /* Link-styled buttons: these were <a onclick> with no href, which made them
    unreachable by keyboard and invisible to screen readers. */
@@ -166,59 +200,201 @@ button{font-family:var(--body)}
 
     <div class="card rv d2">
 
-      <!-- EMAIL ENTRY -->
-      <section id="entry">
-        <h2 id="entry-h">Welcome back</h2>
-        <p class="fsub" id="entry-sub">Sign in to pick up where your region left off.</p>
-
-        <!-- There is no authentication behind this form: no password, no
-             emailed code, no server. It stores your email in this browser and
-             opens a preview of the member dashboard. Saying so is the only
-             honest option while that is true — remove this notice in the same
-             change that wires up a real auth backend. -->
-        <p class="preview-note" role="note"><b>Preview.</b> Accounts aren’t live yet — this opens a preview of the member dashboard in this browser only. Nothing is sent to us and no account is created.</p>
+      <!-- SIGN IN -->
+      <section id="signin">
+        <h2>Welcome back</h2>
+        <p class="fsub">Sign in to pick up where your region left off.</p>
 
         <div class="soc">
-          <button type="button" class="g" onclick="mock('Google')">
+          <button type="button" class="g" onclick="oauthStart('google')">
             <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z"/></svg>
-            <span id="g-label">Continue with Google</span>
+            <span>Continue with Google</span>
           </button>
           <button type="button" class="a" onclick="mock('Apple')">
             <svg viewBox="0 0 24 24" fill="#fff"><path d="M17.05 12.54c-.02-2.05 1.68-3.03 1.75-3.08-.95-1.4-2.44-1.59-2.97-1.61-1.27-.13-2.47.74-3.11.74-.64 0-1.63-.72-2.68-.7-1.38.02-2.65.8-3.36 2.03-1.43 2.48-.37 6.16 1.03 8.18.68.98 1.5 2.09 2.56 2.05 1.03-.04 1.42-.66 2.66-.66 1.24 0 1.59.66 2.68.64 1.1-.02 1.8-1 2.48-1.99.78-1.14 1.1-2.24 1.12-2.3-.02-.01-2.15-.83-2.17-3.28ZM15.02 6.3c.56-.68.94-1.62.84-2.56-.81.03-1.79.54-2.37 1.22-.52.6-.98 1.56-.86 2.48.9.07 1.83-.46 2.39-1.14Z"/></svg>
-            <span id="a-label">Continue with Apple</span>
+            <span>Continue with Apple</span>
           </button>
         </div>
 
         <div class="divider">or use your email</div>
 
-        <!-- A real <form>: the button and the Enter key now run the same code
-             path. Previously there was no form element and Enter did nothing. -->
-        <form id="entry-form" novalidate>
-        <div class="field" id="fname-f">
-          <label for="fname">First name</label>
-          <input id="fname" type="text" autocomplete="given-name" placeholder="Your first name" maxlength="60">
+        <form id="signin-form" novalidate>
+        <div class="field" id="si-email-f">
+          <label for="si-email">Email</label>
+          <input id="si-email" type="email" autocomplete="email" inputmode="email" placeholder="you@email.com" maxlength="254" aria-describedby="si-email-err">
+          <div class="err-inline" id="si-email-err" role="alert" style="display:none">Enter a valid email address.</div>
         </div>
 
-        <div class="field" id="email-f">
-          <label for="email">Email</label>
-          <input id="email" type="email" autocomplete="email" inputmode="email" placeholder="you@email.com" maxlength="254" aria-describedby="email-err">
-          <div class="err-inline" id="email-err" role="alert" style="display:none">Enter a valid email address.</div>
+        <div class="field" id="si-pass-f">
+          <label for="si-password">Password</label>
+          <div class="inwrap">
+            <input id="si-password" type="password" autocomplete="current-password" placeholder="Your password" maxlength="128">
+            <button type="button" class="peek" data-peek="si-password">Show</button>
+          </div>
         </div>
 
-        <div class="field hidden" id="postal-f">
-          <label for="postal">Postal code</label>
-          <input id="postal" type="text" autocomplete="postal-code" placeholder="K1A 0B1" maxlength="7" spellcheck="false" autocapitalize="characters" aria-describedby="postal-err">
-          <div class="err-inline" id="postal-err" role="alert" style="display:none">Enter a valid Canadian postal code.</div>
-        </div>
+        <div class="rowline"><button type="button" class="linkbtn" id="to-forgot">Forgot password?</button></div>
 
-        <button class="submit" type="submit" id="entry-cta">Email me a code</button>
+        <!-- Form-level, for what the SERVER says: a wrong password, a lockout
+             or a rate limit belongs to the whole submission, not to one field.
+             Naming the field would also say which half was wrong, which the
+             server deliberately refuses to. -->
+        <div class="err-inline" id="signin-err" role="alert" style="display:none"></div>
+
+        <button class="submit" type="submit" id="signin-cta">Sign in</button>
         </form>
-        <p class="legal">By continuing you agree to Whollar's <a href="/terms" target="_blank" rel="noopener noreferrer">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</p>
 
-        <!-- was <a onclick=…> with no href: unreachable by keyboard and
-             invisible to screen readers, so sign-up could not be opened at all
-             without a mouse. -->
-        <p class="foot-switch" id="entry-switch">New to Whollar? <button type="button" class="linkbtn" data-mode="signup">Create an account</button></p>
+        <p class="foot-switch">New to Whollar? <button type="button" class="linkbtn" id="to-signup">Create an account</button></p>
+      </section>
+
+      <!-- CREATE ACCOUNT -->
+      <section id="signup" class="hidden">
+        <h2>Create your account</h2>
+        <p class="fsub">Free for households. We'll email you a code to confirm it's you.</p>
+
+        <div class="soc">
+          <button type="button" class="g" onclick="oauthStart('google')">
+            <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z"/></svg>
+            <span>Sign up with Google</span>
+          </button>
+          <button type="button" class="a" onclick="mock('Apple')">
+            <svg viewBox="0 0 24 24" fill="#fff"><path d="M17.05 12.54c-.02-2.05 1.68-3.03 1.75-3.08-.95-1.4-2.44-1.59-2.97-1.61-1.27-.13-2.47.74-3.11.74-.64 0-1.63-.72-2.68-.7-1.38.02-2.65.8-3.36 2.03-1.43 2.48-.37 6.16 1.03 8.18.68.98 1.5 2.09 2.56 2.05 1.03-.04 1.42-.66 2.66-.66 1.24 0 1.59.66 2.68.64 1.1-.02 1.8-1 2.48-1.99.78-1.14 1.1-2.24 1.12-2.3-.02-.01-2.15-.83-2.17-3.28ZM15.02 6.3c.56-.68.94-1.62.84-2.56-.81.03-1.79.54-2.37 1.22-.52.6-.98 1.56-.86 2.48.9.07 1.83-.46 2.39-1.14Z"/></svg>
+            <span>Sign up with Apple</span>
+          </button>
+        </div>
+
+        <div class="divider">or use your email</div>
+
+        <form id="signup-form" novalidate>
+        <div class="field" id="su-email-f">
+          <label for="su-email">Email</label>
+          <input id="su-email" type="email" autocomplete="email" inputmode="email" placeholder="you@email.com" maxlength="254" aria-describedby="su-email-err">
+          <div class="err-inline" id="su-email-err" role="alert" style="display:none">Enter a valid email address.</div>
+        </div>
+
+        <div class="field" id="su-pass-f">
+          <label for="su-password">Password</label>
+          <div class="inwrap">
+            <input id="su-password" type="password" autocomplete="new-password" placeholder="At least 10 characters" maxlength="128" aria-describedby="su-pass-hint">
+            <button type="button" class="peek" data-peek="su-password">Show</button>
+          </div>
+          <span class="pwhint" id="su-pass-hint">At least 10 characters. A phrase you'll remember beats a short jumble.</span>
+          <div class="err-inline" id="su-pass-err" role="alert" style="display:none"></div>
+        </div>
+
+        <!-- One checkbox covering terms, privacy and marketing, worded so the
+             marketing half is separable in the copy even though it is granted
+             together. The server records each document as its own consent row,
+             which is what CASL and Law 25 want; a single bundled boolean could
+             not be withdrawn in part. -->
+        <label class="tc"><input type="checkbox" id="su-terms"><span>I accept the <a href="/terms" target="_blank" rel="noopener noreferrer">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>, and agree to receive email about my cohort and offers. I can unsubscribe at any time.</span></label>
+        <div class="err-inline" id="su-terms-err" role="alert" style="display:none">Please accept the terms to continue.</div>
+
+        <div class="err-inline" id="signup-err" role="alert" style="display:none"></div>
+
+        <button class="submit" type="submit" id="signup-cta">Create account</button>
+        </form>
+
+        <p class="foot-switch">Already have an account? <button type="button" class="linkbtn" id="to-signin">Sign in</button></p>
+      </section>
+
+      <!-- CODE ENTRY (signup confirmation) -->
+      <section id="codestep" class="hidden">
+        <h2>Check your email</h2>
+        <p class="sentto">We sent a 6-digit code to <b id="echo-email"></b>. It expires in <span id="ttl">10</span> minutes.</p>
+
+        <!-- Shown only when the server reports it sent nothing (no mail
+             provider configured). Never reachable in production. -->
+        <p class="preview-note hidden" id="devcode" role="note"></p>
+
+        <form id="code-form" novalidate>
+        <div class="otp" id="otp">
+          <input inputmode="numeric" autocomplete="one-time-code" maxlength="1" aria-label="digit 1">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 2">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 3">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 4">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 5">
+          <input inputmode="numeric" maxlength="1" aria-label="digit 6">
+        </div>
+        <div class="err-inline" id="otp-err" role="alert" style="display:none"></div>
+
+        <div class="otp-meta">
+          <span>Didn't get it? <button type="button" class="linkbtn" id="resend" disabled>Resend in 30s</button></span>
+          <button type="button" class="linkbtn" id="editemail">Change email</button>
+        </div>
+
+        <button class="submit" type="submit" id="verify-cta">Verify and continue</button>
+        </form>
+
+        <!-- The server answers /signup identically for a new address and one
+             that already has an account, so that this page cannot be used to
+             ask who is registered. The cost is that somebody in the second case
+             waits for a code that is never coming — this line is what stops
+             that being a mystery. -->
+        <p class="legal">Already had an account with this address? We've emailed you a sign-in link instead of a code.</p>
+      </section>
+
+      <!-- FORGOT PASSWORD -->
+      <section id="forgot" class="hidden">
+        <div id="fp-step1">
+          <h2>Reset your password</h2>
+          <p class="fsub">We'll email you a code, then you can choose a new password.</p>
+
+          <form id="fp-email-form" novalidate>
+          <div class="field" id="fp-email-f">
+            <label for="fp-email">Email</label>
+            <input id="fp-email" type="email" autocomplete="email" inputmode="email" placeholder="you@email.com" maxlength="254" aria-describedby="fp-email-err">
+            <div class="err-inline" id="fp-email-err" role="alert" style="display:none">Enter a valid email address.</div>
+          </div>
+          <div class="err-inline" id="fp-start-err" role="alert" style="display:none"></div>
+          <button class="submit" type="submit" id="fp-send">Send reset code</button>
+          </form>
+
+          <p class="foot-switch">Remembered it? <button type="button" class="linkbtn" id="fp-back">Back to sign in</button></p>
+        </div>
+
+        <div id="fp-step2" class="hidden">
+          <h2>Choose a new password</h2>
+          <p class="sentto">We sent a 6-digit code to <b id="fp-echo"></b>. It expires in <span id="fp-ttl">10</span> minutes.</p>
+          <p class="preview-note hidden" id="fp-devcode" role="note"></p>
+
+          <form id="fp-reset-form" novalidate>
+          <div class="otp" id="fp-otp">
+            <input inputmode="numeric" autocomplete="one-time-code" maxlength="1" aria-label="digit 1">
+            <input inputmode="numeric" maxlength="1" aria-label="digit 2">
+            <input inputmode="numeric" maxlength="1" aria-label="digit 3">
+            <input inputmode="numeric" maxlength="1" aria-label="digit 4">
+            <input inputmode="numeric" maxlength="1" aria-label="digit 5">
+            <input inputmode="numeric" maxlength="1" aria-label="digit 6">
+          </div>
+          <div class="err-inline" id="fp-otp-err" role="alert" style="display:none"></div>
+
+          <div class="otp-meta">
+            <span>Didn't get it? <button type="button" class="linkbtn" id="fp-resend" disabled>Resend in 30s</button></span>
+            <button type="button" class="linkbtn" id="fp-editemail">Change email</button>
+          </div>
+
+          <div class="field" id="fp-pass-f">
+            <label for="fp-password">New password</label>
+            <div class="inwrap">
+              <input id="fp-password" type="password" autocomplete="new-password" placeholder="At least 10 characters" maxlength="128">
+              <button type="button" class="peek" data-peek="fp-password">Show</button>
+            </div>
+          </div>
+
+          <div class="field" id="fp-confirm-f">
+            <label for="fp-confirm">Confirm new password</label>
+            <input id="fp-confirm" type="password" autocomplete="new-password" placeholder="Type it again" maxlength="128">
+            <div class="err-inline" id="fp-confirm-err" role="alert" style="display:none">Those two passwords don't match.</div>
+          </div>
+
+          <div class="err-inline" id="fp-err" role="alert" style="display:none"></div>
+
+          <button class="submit" type="submit" id="fp-cta">Set new password</button>
+          </form>
+
+          <p class="legal">Setting a new password signs you out everywhere else.</p>
+        </div>
       </section>
 
     </div>
@@ -243,26 +419,6 @@ button{font-family:var(--body)}
 })();
 
 var W=window.WHOLLAR;
-var mode='signin';
-
-function setMode(m){
-  mode=m;
-  var signup=(m==='signup');
-  document.getElementById('entry-h').textContent=signup?'Join your region':'Welcome back';
-  document.getElementById('entry-sub').textContent=signup?'Your postal code holds your spot and adds weight to your cohort.':'Sign in to pick up where your region left off.';
-  document.getElementById('g-label').textContent=signup?'Sign up with Google':'Continue with Google';
-  document.getElementById('a-label').textContent=signup?'Sign up with Apple':'Continue with Apple';
-  document.getElementById('postal-f').classList.toggle('hidden',!signup);
-  document.getElementById('entry-cta').textContent=signup?'Create my account':'Continue';
-  document.getElementById('entry-switch').innerHTML=signup
-    ? 'Already a member? <button type="button" class="linkbtn" data-mode="signin">Sign in</button>'
-    : 'New to Whollar? <button type="button" class="linkbtn" data-mode="signup">Create an account</button>';
-}
-/* Delegated so the handler survives the innerHTML swap above. */
-document.addEventListener('click',function(e){
-  var b=e.target.closest&&e.target.closest('.linkbtn[data-mode]');
-  if(b)setMode(b.dataset.mode);
-});
 
 function toast(msg){
   var t=document.getElementById('toast');
@@ -270,10 +426,40 @@ function toast(msg){
   clearTimeout(toast._x);
   toast._x=setTimeout(function(){t.classList.remove('show')},2400);
 }
-/* No OAuth provider is wired up behind these buttons. Name the button that
-   was pressed and point at the path that does work, instead of a vague
-   "front end only" string. */
-function mock(label){ toast(label + ' sign-in isn\u2019t connected yet \u2014 use your email below.'); }
+/* Apple is not wired up yet (its config group ships in a later phase). Name the
+   button that was pressed and point at the path that does work, instead of a
+   vague "front end only" string. */
+function mock(label){ toast(label + ' sign-in isn\u2019t connected yet \u2014 use Google, or your email below.'); }
+
+/* A real navigation, deliberately not a fetch: /google/start answers with a 302
+   to Google's consent screen, and only a top-level navigation can follow that.
+   Where to land afterwards travels as ?next=, which the server stores against
+   the flow and re-validates \u2014 it is never read back from Google's callback. */
+function oauthStart(provider){
+  location.href = W.AUTH_API + '/' + provider + '/start?next=' + encodeURIComponent(nextTarget());
+}
+
+/* A failed sign-in comes back here as ?error=CODE rather than a JSON page,
+   because the visitor is mid-navigation in a browser and a JSON body would be
+   a dead end with no way back. Codes are set in routes/google.js. */
+var OAUTH_ERRORS={
+  google_cancelled:'Google sign-in was cancelled. Try again, or use your email below.',
+  google_unverified:'Google hasn\u2019t verified that account\u2019s email address, so we can\u2019t sign you in with it. Use your email below instead.',
+  google_failed:'Google sign-in didn\u2019t complete. Please try again.',
+  google_unavailable:'Google sign-in isn\u2019t available right now. Use your email below.',
+  account_disabled:'That account isn\u2019t active. Email hello@whollar.ca and we\u2019ll sort it out.',
+  expired:'That sign-in attempt expired. Please try again.'
+};
+(function(){
+  var code=new URLSearchParams(location.search).get('error');
+  if(!code)return;
+  toast(OAUTH_ERRORS[code]||'Sign-in didn\u2019t complete. Please try again.');
+  /* Strip it from the URL: a reload should not replay the message, and the
+     address bar should not carry it into a bookmark or a shared link. */
+  var u=new URL(location.href);
+  u.searchParams.delete('error');
+  history.replaceState(null,'',u.pathname+u.search+u.hash);
+})();
 
 /* Name derivation and the ?next= same-origin check live in the shared core:
    the partner sign-in needs both, and two copies of an open-redirect guard is
@@ -282,64 +468,509 @@ function nextTarget(){
   return W.safeNext(new URLSearchParams(location.search).get('next'), '/dashboard');
 }
 
-/* Already signed in? Don't strand the visitor on a form they don't need. */
+/* Already signed in? Don't strand the visitor on a form they don't need.
+   The local record answers instantly when it exists. When it doesn't, that is
+   not proof of being signed out: a Google sign-in completes on the server and
+   leaves a cookie with nothing in localStorage, and /dashboard bounces such a
+   visitor here. Ask the server before deciding they need to sign in again. */
 (function(){
-  if(W.member.read()) location.replace(nextTarget());
+  if(W.member.read()){ location.replace(nextTarget()); return; }
+  W.session.adopt('member').then(function(rec){ if(rec) location.replace(nextTarget()); });
 })();
+/* ------------------------------------------------------------------ *
+ * Password sign-in, sign-up, and reset
+ *
+ * Four views in one page, swapped by showView(). One page rather than four
+ * because every path shares the same OAuth buttons, the same code-entry step
+ * and the same "where do I land afterwards" logic; splitting them would mean
+ * four copies of ?next= handling, which is four places to get an open redirect
+ * wrong instead of one.
+ *
+ * The server is the authority on every failure and this file never invents a
+ * message for one. Sign-in collapses "no such account", "wrong password" and
+ * "not verified" into one string on purpose, so that this page cannot be used
+ * to ask which addresses are registered — restating any of them here in nicer
+ * words would give that away.
+ * ------------------------------------------------------------------ */
 
-/* Postal code: uppercase + space as you type, validated against the real
-   Canadian character sets. In sign-up mode it is what places you in a cohort,
-   so it is now read and stored — previously the field was collected and then
-   discarded by every code path. */
-var postalEl=document.getElementById('postal');
-postalEl.addEventListener('input',function(){
-  var atEnd=this.selectionStart===this.value.length;
-  this.value=W.formatPostal(this.value);
-  if(atEnd)try{this.setSelectionRange(this.value.length,this.value.length);}catch(e){}
-  if(W.parsePostal(this.value)){
-    document.getElementById('postal-err').style.display='none';
-    document.getElementById('postal-f').classList.remove('err');
-  }
+/* What the code step needs to finish, captured at the step before it. Held
+   here rather than re-read from the inputs: the address that gets verified must
+   be the one the code was sent to, and those fields are still sitting in the
+   DOM, editable, behind the view swap. The password rides along because
+   re-posting /signup IS the resend. */
+var pending = null;
+
+var VIEWS = ['signin', 'signup', 'codestep', 'forgot'];
+
+function showView(name) {
+  VIEWS.forEach(function (v) {
+    document.getElementById(v).classList.toggle('hidden', v !== name);
+  });
+  /* Move focus to the top of the new view. Without this a keyboard or screen
+     reader user stays parked on the button they just pressed, which is now
+     hidden, and the page appears not to have responded at all. */
+  var h = document.querySelector('#' + name + ' h2');
+  if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
+}
+
+function setErr(id, msg) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  if (msg) el.textContent = msg;
+  el.style.display = 'block';
+}
+function clearErr(id) {
+  var el = document.getElementById(id);
+  if (el) el.style.display = 'none';
+}
+function markField(fieldId, bad, inputId) {
+  var f = document.getElementById(fieldId);
+  if (f) f.classList.toggle('err', bad);
+  var i = inputId && document.getElementById(inputId);
+  if (i) i.setAttribute('aria-invalid', bad ? 'true' : 'false');
+}
+
+/* Show/hide, wired by data-peek so a new password field needs no new handler.
+   The label says what pressing it will DO, not what state you are in — "Show"
+   while hidden — because the other reading has people toggling twice to work
+   out which way round it is. */
+document.addEventListener('click', function (e) {
+  var btn = e.target.closest && e.target.closest('.peek[data-peek]');
+  if (!btn) return;
+  var input = document.getElementById(btn.dataset.peek);
+  if (!input) return;
+  var reveal = input.type === 'password';
+  input.type = reveal ? 'text' : 'password';
+  btn.textContent = reveal ? 'Hide' : 'Show';
 });
 
-document.getElementById('entry-form').addEventListener('submit',function(e){
-  e.preventDefault();
-  var btn=document.getElementById('entry-cta');
-  var em=document.getElementById('email'), ef=document.getElementById('email-f');
+/* ---------- code boxes ---------- */
 
-  /* Same rule the server uses — this page previously accepted "a@b.c". */
-  var ok=W.isEmail(em.value);
-  document.getElementById('email-err').style.display=ok?'none':'block';
-  ef.classList.toggle('err',!ok);
-  em.setAttribute('aria-invalid', ok?'false':'true');
-  if(!ok){ em.focus(); return; }
+/* One implementation for both the signup code and the reset code. The two sets
+   behave identically and a second copy would drift — the paste handler in
+   particular is the fiddly part and is not worth writing twice. */
+function otpGroup(containerId, onFull) {
+  var box = document.getElementById(containerId);
+  var inputs = Array.prototype.slice.call(box.querySelectorAll('input'));
+  var lastTried = '';
 
-  var postal=null;
-  if(mode==='signup'){
-    postal=W.parsePostal(postalEl.value);
-    var pf=document.getElementById('postal-f'), pe=document.getElementById('postal-err');
-    if(!postal){ pe.style.display='block'; pf.classList.add('err'); postalEl.setAttribute('aria-invalid','true'); postalEl.focus(); return; }
-    pe.style.display='none'; pf.classList.remove('err'); postalEl.setAttribute('aria-invalid','false');
+  function read() { return inputs.map(function (i) { return i.value.replace(/\D/g, ''); }).join(''); }
+  function fill(code) {
+    String(code || '').replace(/\D/g, '').slice(0, 6).split('').forEach(function (ch, i) {
+      if (inputs[i]) inputs[i].value = ch;
+    });
+  }
+  function clear() { inputs.forEach(function (i) { i.value = ''; }); lastTried = ''; }
+  function focusFirstEmpty() {
+    var t = inputs.filter(function (i) { return !i.value; })[0] || inputs[0];
+    if (t) t.focus();
+  }
+  function maybeAuto() {
+    var c = read();
+    if (c.length === 6 && c !== lastTried) { lastTried = c; onFull(c); }
   }
 
-  /* Guards the mobile double-tap. Harmless today (no network call), but this
-     is the line that stops two accounts being created once it is wired up. */
-  if(W.busy(btn,true,'One moment…')===false) return;
+  inputs.forEach(function (inp, idx) {
+    inp.addEventListener('input', function () {
+      this.value = this.value.replace(/\D/g, '').slice(0, 1);
+      if (this.value && idx < inputs.length - 1) inputs[idx + 1].focus();
+      maybeAuto();
+    });
+    inp.addEventListener('keydown', function (e) {
+      if (e.key === 'Backspace' && !this.value && idx > 0) inputs[idx - 1].focus();
+    });
+    /* Paste anywhere in the row spreads across all six. Codes arrive by copy
+       far more often than they are typed, and pasting six digits into one box
+       that accepts one character is the default failure. */
+    inp.addEventListener('paste', function (e) {
+      e.preventDefault();
+      var d = ((e.clipboardData || window.clipboardData).getData('text') || '').replace(/\D/g, '').slice(0, 6);
+      if (!d) return;
+      fill(d);
+      var next = Math.min(d.length, inputs.length - 1);
+      inputs[next].focus();
+      maybeAuto();
+    });
+  });
 
-  var email=em.value.trim();
-  var member={
-    firstName: W.firstNameFrom(email, document.getElementById('fname').value),
-    email: email,
-    /* Stored lowercase so a later CRM lookup can't treat Genie@x.com and
-       genie@x.com as two people. */
-    emailKey: email.toLowerCase(),
-    fsa: postal?postal.fsa:null,
-    postal: postal?postal.full:null,
-    province: postal?postal.province:null,
-    provinceCode: postal?postal.provinceCode:null
-  };
-  W.member.write(member);
-  location.href=nextTarget();
+  return { read: read, fill: fill, clear: clear, focus: focusFirstEmpty, reset: function () { lastTried = ''; } };
+}
+
+/* ---------- resend countdown ---------- */
+
+function countdown(btnId, seconds) {
+  var btn = document.getElementById(btnId);
+  var n = seconds || 30;
+  clearInterval(countdown['_' + btnId]);
+  btn.disabled = true;
+  btn.textContent = 'Resend in ' + n + 's';
+  countdown['_' + btnId] = setInterval(function () {
+    n--;
+    btn.textContent = 'Resend in ' + n + 's';
+    if (n <= 0) { clearInterval(countdown['_' + btnId]); btn.disabled = false; btn.textContent = 'Resend code'; }
+  }, 1000);
+}
+
+/* The server hands back the code itself when no mail provider is configured,
+   so the flow stays testable before a sending domain is verified. Two
+   conditions gate it server-side (non-production AND no transport), so this
+   block cannot appear in production — but it is styled as a warning rather
+   than as chrome, because it must look like something that is not meant to be
+   there. */
+function showDevCode(elId, group, dev) {
+  var el = document.getElementById(elId);
+  if (dev && dev.code) {
+    el.textContent = 'No mail provider configured. Your code is ' + dev.code;
+    el.classList.remove('hidden');
+    group.fill(dev.code);
+  } else {
+    el.classList.add('hidden');
+  }
+}
+
+/* ---------- shared finish ---------- */
+
+/* Every successful path ends here. adopt() re-reads the session from the server
+   rather than trusting what the verify response said, so the localStorage
+   record and the cookie can never disagree — and a null answer means the
+   cookie did not stick, which is worth saying plainly instead of redirecting
+   into a dashboard that will bounce straight back. */
+function finishSignIn(errId, btn) {
+  return W.session.adopt('member').then(function (rec) {
+    if (!rec) {
+      W.busy(btn, false);
+      setErr(errId, 'You’re signed in, but we couldn’t keep you signed in. Check that cookies are enabled and try again.');
+      return;
+    }
+    location.href = nextTarget();
+  });
+}
+
+/* The server's message is the one shown. It already distinguishes a lockout
+   ("try again in N minutes") from a rate limit from a bad password, and it is
+   careful about what it does not say; rewording it here would either lose that
+   care or leak past it. Only a transport failure has no server message. */
+function serverMessage(err) {
+  if (err && err.code === 'NETWORK') {
+    return 'We couldn’t reach our servers. Check your connection and try again.';
+  }
+  return (err && err.message) || 'Something went wrong. Please try again.';
+}
+
+/* ---------- view switching ---------- */
+
+document.getElementById('to-signup').addEventListener('click', function () {
+  clearErr('signin-err'); showView('signup');
+});
+document.getElementById('to-signin').addEventListener('click', function () {
+  clearErr('signup-err'); showView('signin');
+});
+document.getElementById('to-forgot').addEventListener('click', function () {
+  clearErr('signin-err');
+  /* Carry the address across rather than making them type it again — they have
+     usually just failed to sign in with it. */
+  var typed = document.getElementById('si-email').value.trim();
+  if (typed) document.getElementById('fp-email').value = typed;
+  document.getElementById('fp-step1').classList.remove('hidden');
+  document.getElementById('fp-step2').classList.add('hidden');
+  showView('forgot');
+});
+document.getElementById('fp-back').addEventListener('click', function () {
+  clearErr('fp-start-err'); showView('signin');
+});
+
+/* ================================================================== *
+ * SIGN IN
+ * ================================================================== */
+
+document.getElementById('signin-form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var btn = document.getElementById('signin-cta');
+  var em = document.getElementById('si-email');
+  var pw = document.getElementById('si-password');
+
+  clearErr('signin-err');
+
+  var okEmail = W.isEmail(em.value);
+  markField('si-email-f', !okEmail, 'si-email');
+  document.getElementById('si-email-err').style.display = okEmail ? 'none' : 'block';
+  if (!okEmail) { em.focus(); return; }
+
+  if (!pw.value) {
+    setErr('signin-err', 'Enter your password.');
+    markField('si-pass-f', true, 'si-password');
+    pw.focus();
+    return;
+  }
+  markField('si-pass-f', false, 'si-password');
+
+  if (W.busy(btn, true, 'Signing in…') === false) return;
+
+  W.session.login({ email: em.value.trim(), password: pw.value })
+    .then(function () { return finishSignIn('signin-err', btn); })
+    .catch(function (err) {
+      W.busy(btn, false);
+      /* The password was RIGHT but the address was never confirmed. The server
+         has already re-sent a code, so the only useful thing to do is show the
+         step where they can type it — bouncing them back to a sign-in form
+         they just filled in correctly would be a dead end. */
+      if (err && err.code === 'EMAIL_UNVERIFIED') {
+        pending = { email: em.value.trim(), password: pw.value, marketing: true };
+        openCodeStep({ ttlMinutes: 10 });
+        setErr('otp-err', err.message);
+        return;
+      }
+      setErr('signin-err', serverMessage(err));
+    });
+});
+
+/* ================================================================== *
+ * CREATE ACCOUNT
+ * ================================================================== */
+
+document.getElementById('signup-form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var btn = document.getElementById('signup-cta');
+  var em = document.getElementById('su-email');
+  var pw = document.getElementById('su-password');
+  var tc = document.getElementById('su-terms');
+
+  clearErr('signup-err'); clearErr('su-pass-err'); clearErr('su-terms-err');
+
+  var okEmail = W.isEmail(em.value);
+  markField('su-email-f', !okEmail, 'su-email');
+  document.getElementById('su-email-err').style.display = okEmail ? 'none' : 'block';
+  if (!okEmail) { em.focus(); return; }
+
+  /* Mirrors the server's own rule so the common mistake is caught without a
+     round trip. The server still enforces it — this is a courtesy, not the
+     check. */
+  if (pw.value.length < 10) {
+    setErr('su-pass-err', 'Use at least 10 characters.');
+    markField('su-pass-f', true, 'su-password');
+    pw.focus();
+    return;
+  }
+  markField('su-pass-f', false, 'su-password');
+
+  if (!tc.checked) { setErr('su-terms-err'); tc.focus(); return; }
+
+  if (W.busy(btn, true, 'Creating…') === false) return;
+
+  pending = { email: em.value.trim(), password: pw.value, marketing: true };
+
+  W.session.signup(pending)
+    .then(function (r) { W.busy(btn, false); openCodeStep(r); })
+    .catch(function (err) {
+      W.busy(btn, false);
+      setErr('signup-err', serverMessage(err));
+    });
+});
+
+/* ================================================================== *
+ * CODE ENTRY (confirms a signup)
+ * ================================================================== */
+
+var codeOtp = otpGroup('otp', function () {
+  document.getElementById('code-form').dispatchEvent(new Event('submit', { cancelable: true }));
+});
+
+function openCodeStep(r) {
+  document.getElementById('echo-email').textContent = pending.email;
+  document.getElementById('ttl').textContent = String((r && r.ttlMinutes) || 10);
+  clearErr('otp-err');
+  document.getElementById('otp').classList.remove('err');
+  codeOtp.clear();
+  showDevCode('devcode', codeOtp, r && r.dev);
+  showView('codestep');
+  countdown('resend', 30);
+  codeOtp.focus();
+}
+
+document.getElementById('code-form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var btn = document.getElementById('verify-cta');
+  var code = codeOtp.read();
+
+  if (code.length !== 6) {
+    setErr('otp-err', 'Enter all six digits.');
+    document.getElementById('otp').classList.add('err');
+    return;
+  }
+  clearErr('otp-err');
+  document.getElementById('otp').classList.remove('err');
+
+  if (W.busy(btn, true, 'Verifying…') === false) return;
+
+  W.session.signupVerify({ email: pending.email, code: code, marketing: pending.marketing })
+    .then(function () { return finishSignIn('otp-err', btn); })
+    .catch(function (err) {
+      W.busy(btn, false);
+      setErr('otp-err', serverMessage(err));
+      document.getElementById('otp').classList.add('err');
+      codeOtp.clear();
+      /* Let the same six digits be retried after a transport failure — without
+         this the auto-submit guard would swallow the second attempt. */
+      codeOtp.reset();
+      codeOtp.focus();
+    });
+});
+
+/* Re-posting /signup for an address still pending IS the resend: the server
+   replaces the password and issues a fresh code. That is why `pending` holds
+   the password rather than discarding it after the first request. */
+document.getElementById('resend').addEventListener('click', function () {
+  var btn = this;
+  btn.disabled = true;
+  clearErr('otp-err');
+  W.session.signup(pending)
+    .then(function (r) {
+      codeOtp.clear();
+      showDevCode('devcode', codeOtp, r && r.dev);
+      countdown('resend', 30);
+      codeOtp.focus();
+    })
+    .catch(function (err) { btn.disabled = false; setErr('otp-err', serverMessage(err)); });
+});
+
+document.getElementById('editemail').addEventListener('click', function () {
+  clearInterval(countdown._resend);
+  codeOtp.clear(); clearErr('otp-err');
+  document.getElementById('otp').classList.remove('err');
+  showView('signup');
+  document.getElementById('su-email').focus();
+});
+
+/* ================================================================== *
+ * FORGOT PASSWORD
+ * ================================================================== */
+
+var fpOtp = otpGroup('fp-otp', function () {
+  /* No auto-submit here: unlike the signup step, a complete code is not enough
+     to act on — the new password still has to be typed below it. Filling six
+     digits just moves focus on. */
+  var pw = document.getElementById('fp-password');
+  if (!pw.value) pw.focus();
+});
+
+document.getElementById('fp-email-form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var btn = document.getElementById('fp-send');
+  var em = document.getElementById('fp-email');
+
+  clearErr('fp-start-err');
+  var okEmail = W.isEmail(em.value);
+  markField('fp-email-f', !okEmail, 'fp-email');
+  document.getElementById('fp-email-err').style.display = okEmail ? 'none' : 'block';
+  if (!okEmail) { em.focus(); return; }
+
+  if (W.busy(btn, true, 'Sending…') === false) return;
+
+  W.session.forgotPassword({ email: em.value.trim() })
+    .then(function (r) {
+      W.busy(btn, false);
+      /* The server answers identically whether or not that address has an
+         account, so this page must not branch on the result. It says "we sent
+         a code" either way, and the address owner is told the truth by email. */
+      pending = { email: em.value.trim(), password: null, marketing: false };
+      openResetStep(r);
+    })
+    .catch(function (err) {
+      W.busy(btn, false);
+      setErr('fp-start-err', serverMessage(err));
+    });
+});
+
+function openResetStep(r) {
+  document.getElementById('fp-echo').textContent = pending.email;
+  document.getElementById('fp-ttl').textContent = String((r && r.ttlMinutes) || 10);
+  clearErr('fp-otp-err'); clearErr('fp-err'); clearErr('fp-confirm-err');
+  document.getElementById('fp-otp').classList.remove('err');
+  fpOtp.clear();
+  document.getElementById('fp-password').value = '';
+  document.getElementById('fp-confirm').value = '';
+  showDevCode('fp-devcode', fpOtp, r && r.dev);
+  document.getElementById('fp-step1').classList.add('hidden');
+  document.getElementById('fp-step2').classList.remove('hidden');
+  countdown('fp-resend', 30);
+  fpOtp.focus();
+}
+
+document.getElementById('fp-reset-form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var btn = document.getElementById('fp-cta');
+  var code = fpOtp.read();
+  var pw = document.getElementById('fp-password');
+  var cf = document.getElementById('fp-confirm');
+
+  clearErr('fp-otp-err'); clearErr('fp-err'); clearErr('fp-confirm-err');
+  document.getElementById('fp-otp').classList.remove('err');
+
+  if (code.length !== 6) {
+    setErr('fp-otp-err', 'Enter all six digits.');
+    document.getElementById('fp-otp').classList.add('err');
+    fpOtp.focus();
+    return;
+  }
+  if (pw.value.length < 10) {
+    setErr('fp-err', 'Use at least 10 characters.');
+    markField('fp-pass-f', true, 'fp-password');
+    pw.focus();
+    return;
+  }
+  markField('fp-pass-f', false, 'fp-password');
+
+  /* Checked here and nowhere else: the server never sees the confirmation
+     field, because a mismatch is a typo rather than anything it can rule on. */
+  if (pw.value !== cf.value) {
+    setErr('fp-confirm-err');
+    markField('fp-confirm-f', true, 'fp-confirm');
+    cf.focus();
+    return;
+  }
+  markField('fp-confirm-f', false, 'fp-confirm');
+
+  if (W.busy(btn, true, 'Saving…') === false) return;
+
+  W.session.resetPassword({ email: pending.email, code: code, password: pw.value })
+    .then(function () { return finishSignIn('fp-err', btn); })
+    .catch(function (err) {
+      W.busy(btn, false);
+      /* A rejected code and a rejected password land in different places: the
+         code error belongs on the boxes, everything else on the form. The
+         server uses one message for every code failure, so matching on the
+         status is the only signal available. */
+      if (err && err.status === 401) {
+        setErr('fp-otp-err', serverMessage(err));
+        document.getElementById('fp-otp').classList.add('err');
+        fpOtp.clear(); fpOtp.reset(); fpOtp.focus();
+        return;
+      }
+      setErr('fp-err', serverMessage(err));
+    });
+});
+
+document.getElementById('fp-resend').addEventListener('click', function () {
+  var btn = this;
+  btn.disabled = true;
+  clearErr('fp-otp-err');
+  W.session.forgotPassword({ email: pending.email })
+    .then(function (r) {
+      fpOtp.clear();
+      showDevCode('fp-devcode', fpOtp, r && r.dev);
+      countdown('fp-resend', 30);
+      fpOtp.focus();
+    })
+    .catch(function (err) { btn.disabled = false; setErr('fp-otp-err', serverMessage(err)); });
+});
+
+document.getElementById('fp-editemail').addEventListener('click', function () {
+  clearInterval(countdown['_fp-resend']);
+  fpOtp.clear(); clearErr('fp-otp-err'); clearErr('fp-err');
+  document.getElementById('fp-otp').classList.remove('err');
+  document.getElementById('fp-step2').classList.add('hidden');
+  document.getElementById('fp-step1').classList.remove('hidden');
+  document.getElementById('fp-email').focus();
 });
 </script>
 </body>
