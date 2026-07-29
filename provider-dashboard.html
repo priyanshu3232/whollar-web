@@ -33,7 +33,7 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .app{display:grid;grid-template-columns:var(--panew) 1fr;min-height:100vh;transition:grid-template-columns .28s ease}
 .app.collapsed{grid-template-columns:var(--panec) 1fr}
 .pane{background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow:hidden}
-.pane__top{display:flex;align-items:center;gap:10px;padding:18px 18px 8px}
+.pane__top{display:flex;align-items:center;gap:10px;padding:18px 18px 8px;background:none;border:none;cursor:pointer;width:100%;text-align:left;color:inherit;font-family:inherit}
 .pane__top svg{width:36px;height:36px;flex:none}
 .pane__top b{font-family:var(--disp);font-weight:800;font-size:20px;white-space:nowrap}
 .roompill{margin:0 18px 10px;align-self:flex-start;font-size:11.5px;font-weight:700;color:var(--gold-deep);background:var(--gold-soft);border:1px solid #E8D6A8;border-radius:999px;padding:3px 11px;white-space:nowrap}
@@ -340,10 +340,14 @@ tr.exp + tr.dwr{display:table-row}
 <div class="app" id="app">
 
   <aside class="pane" aria-label="Navigation">
-    <div class="pane__top">
+    <!-- The logo is in-app navigation, not a link home: it switches to the
+         Overview view through the same nav() every sidebar button uses, so
+         clicking it never reloads the page or drops the partner out of the
+         console. -->
+    <button class="pane__top" type="button" data-nav="overview" aria-label="Whollar — overview">
       <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
       <b>Whollar</b>
-    </div>
+    </button>
     <span class="roompill">Partner console</span>
     <nav class="pnav" id="pnav">
       <button type="button" data-view="overview" class="on"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/></svg><span>Overview</span></button>

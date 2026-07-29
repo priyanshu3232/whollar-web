@@ -51,7 +51,7 @@ button{font-family:var(--body)}
 .brand{background:linear-gradient(158deg,var(--teal-deep) 0%,#123B2C 54%,#17553D 100%);color:#fff;position:relative;overflow:hidden;display:flex;flex-direction:column;padding:38px 46px 44px}
 @media(max-width:900px){.brand{padding:26px 26px 30px}}
 .brand::after{content:"";position:absolute;right:-150px;bottom:-140px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,rgba(127,227,176,.16),transparent 62%);pointer-events:none}
-.mark{display:flex;align-items:center;gap:9px;position:relative;z-index:2}
+.mark{display:flex;align-items:center;gap:9px;position:relative;z-index:2;color:inherit;text-decoration:none}
 .mark b{font-family:var(--disp);font-weight:900;font-size:21px;color:#fff;letter-spacing:-.02em}
 .mark svg{width:34px;height:34px;flex:none;display:block}
 .mark .tag{margin-left:6px;font-family:var(--label);font-weight:600;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal-soft);border-left:1px solid rgba(255,255,255,.18);padding-left:11px}
@@ -157,7 +157,7 @@ button{font-family:var(--body)}
 
   <!-- BRAND PANEL -->
   <aside class="brand">
-    <div class="mark rv"><svg viewBox="0 0 120 120" aria-label="Whollar"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg><b>Whollar</b><span class="tag">Partner portal</span></div>
+    <a class="mark rv" href="/" aria-label="Whollar — back to the homepage"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg><b>Whollar</b><span class="tag">Partner portal</span></a>
     <div class="brand__mid">
       <div class="eyebrow rv d1">For providers</div>
       <h1 class="rv d1">Compete for whole streets, <em>not single leads.</em></h1>
