@@ -512,6 +512,23 @@
   /* One wording for every transport failure, everywhere. A failed submit must
      never look like success. */
   W.submitErrorMessage = function (err) {
+    /* An error that already carries wording written for a person is shown as
+       it is. Two kinds qualify: auth-layer errors, which errors.js composes on
+       the stated assumption they will be shown verbatim and which always carry
+       a `code`; and the ones a page builds itself for its own rules, which
+       carry neither `code` nor `status`.
+
+       Only a transport failure has no message worth showing, and that is what
+       the table below is for. Before this, every case fell through to it, so a
+       password one character too short, a six-digit box left half filled and a
+       rejected postal code all read as "check your connection" — sending people
+       to debug their wifi over a typo, and hiding the one sentence that said
+       what to change. `submitForm` always sets `status`, and a failed fetch
+       rejects with a TypeError, so neither can reach this branch. */
+    if (err && err.message && !(err instanceof TypeError)) {
+      if (err.code) return err.message;
+      if (err.status === undefined) return err.message;
+    }
     var s = err && err.status;
     if (s === 429) return 'Too many attempts from your network right now — please try again in a little while.';
     if (s === 413) return 'That file is too large — please attach a smaller one and try again.';
