@@ -4,7 +4,8 @@
   "private": true,
   "description": "Whollar marketing site (static HTML/CSS/JS)",
   "scripts": {
-    "start": "serve -l 3000 ."
+    "start": "serve -l 3000 .",
+    "dev": "node scripts/dev-server.mjs"
   },
   "devDependencies": {
     "playwright-core": "^1.61.1",
