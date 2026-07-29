@@ -290,6 +290,125 @@ function existingAccountEmail({ appBaseUrl }) {
   return { subject: 'You already have a Whollar account', text, html };
 }
 
+/**
+ * The password-reset code.
+ *
+ * Kept separate from `otpEmail` rather than reusing it with a different
+ * `purpose` string, because the reassurance a person needs here is specific and
+ * load-bearing: someone who did NOT ask for this needs to be told, in the
+ * message itself, that their password has not changed. A generic "here is your
+ * code" reads as though something already happened to their account.
+ */
+function passwordResetEmail({ code, ttlMinutes }) {
+  const safeCode = escapeHtml(code);
+
+  const text = [
+    `Your Whollar password reset code is ${code}`,
+    '',
+    `Enter it to choose a new password. It expires in ${ttlMinutes} minutes and can`,
+    'only be used once.',
+    '',
+    'If you did not ask to reset your password, you can ignore this email — your',
+    'password has NOT changed, and nobody can change it without this code.',
+    '',
+    'Whollar will never phone, text or email you to ask for this code. Anyone who',
+    'does is not us.',
+  ].join('\n');
+
+  const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#F4F6F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102822">
+  <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#fff;border-radius:14px;padding:32px">
+    <tr><td>
+      <p style="margin:0 0 18px;font-size:15px;line-height:1.5">Enter this code to choose a new Whollar password.</p>
+      <p style="margin:0 0 18px;font-size:34px;font-weight:700;letter-spacing:.16em;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${safeCode}</p>
+      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">It expires in ${ttlMinutes} minutes and can only be used once.</p>
+      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">If you didn't ask to reset your password, you can ignore this email — your password has <b>not</b> changed, and nobody can change it without this code.</p>
+      <p style="margin:0;font-size:13px;line-height:1.5;color:#6B7C77;border-top:1px solid #E3E8E6;padding-top:16px">Whollar will never phone, text or email you to ask for this code. Anyone who does is not us.</p>
+    </td></tr>
+  </table></body></html>`;
+
+  return { subject: `${code} is your Whollar password reset code`, text, html };
+}
+
+/**
+ * Sent after a password actually changes.
+ *
+ * This is the control that makes a stolen account noticeable. Every other
+ * defence here is preventive; this one is the only thing that reaches a victim
+ * *after* a takeover has succeeded, and without it the theft is silent. It is
+ * therefore sent unconditionally, even though the person who just reset their
+ * own password does not need it.
+ *
+ * Carries no code and no link that grants anything — a notification that could
+ * itself be used to take the account over would defeat its own purpose.
+ */
+function passwordChangedEmail({ appBaseUrl }) {
+  const url = String(appBaseUrl || '').replace(/\/+$/, '');
+
+  const text = [
+    'Your Whollar password was just changed.',
+    '',
+    'Every other device that was signed in has been signed out, so you will need',
+    'to sign in again with the new password.',
+    '',
+    'If this was you, there is nothing else to do.',
+    '',
+    'If it was NOT you, someone else may have access to your email. Contact us at',
+    'hello@whollar.ca straight away.',
+  ].join('\n');
+
+  const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#F4F6F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102822">
+  <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#fff;border-radius:14px;padding:32px">
+    <tr><td>
+      <p style="margin:0 0 18px;font-size:15px;line-height:1.5">Your Whollar password was just changed.</p>
+      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">Every other device that was signed in has been signed out, so you'll need to sign in again with the new password.</p>
+      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">If this was you, there's nothing else to do.</p>
+      <p style="margin:0;font-size:14px;line-height:1.5;color:#A34F2B;border-top:1px solid #E3E8E6;padding-top:16px">If it was <b>not</b> you, someone else may have access to your email. Contact us at <a href="mailto:hello@whollar.ca" style="color:#A34F2B">hello@whollar.ca</a> straight away.</p>
+    </td></tr>
+  </table></body></html>`;
+
+  return { subject: 'Your Whollar password was changed', text, html };
+}
+
+/**
+ * Sent when a reset is requested for an address that has no account.
+ *
+ * The mirror of `existingAccountEmail`: `/password/forgot` answers identically
+ * whether or not an account exists, so the response body cannot say "no account
+ * here" without becoming an oracle for who is registered. Telling the address
+ * owner by email keeps the person who typed it in none the wiser, while still
+ * explaining the silence to someone who genuinely expected a code.
+ */
+function noAccountEmail({ appBaseUrl }) {
+  const url = String(appBaseUrl || '').replace(/\/+$/, '');
+  const signUp = `${url}/whollar-login-consumer`;
+
+  const text = [
+    'Someone asked to reset a Whollar password for this email address.',
+    '',
+    'There is no Whollar account here, so there was nothing to reset and we have',
+    'not created anything.',
+    '',
+    `If you meant to join, you can create an account: ${signUp}`,
+    '',
+    'If this was not you, you can ignore this email. No account exists at this',
+    'address and nothing has been sent to anyone else.',
+  ].join('\n');
+
+  const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#F4F6F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102822">
+  <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#fff;border-radius:14px;padding:32px">
+    <tr><td>
+      <p style="margin:0 0 18px;font-size:15px;line-height:1.5">Someone asked to reset a Whollar password for this email address.</p>
+      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">There's no Whollar account here, so there was nothing to reset and we haven't created anything.</p>
+      <p style="margin:0 0 18px;font-size:15px;line-height:1.5"><a href="${escapeHtml(signUp)}" style="color:#178A5A">Create an account</a></p>
+      <p style="margin:0;font-size:13px;line-height:1.5;color:#6B7C77;border-top:1px solid #E3E8E6;padding-top:16px">If this wasn't you, you can ignore this email. No account exists at this address and nothing has been sent to anyone else.</p>
+    </td></tr>
+  </table></body></html>`;
+
+  return { subject: 'No Whollar account for this email address', text, html };
+}
+
 module.exports = {
-  send, transportName, otpEmail, existingAccountEmail, escapeHtml, DEFAULT_API_BASE,
+  send, transportName, otpEmail, existingAccountEmail,
+  passwordResetEmail, passwordChangedEmail, noAccountEmail,
+  escapeHtml, DEFAULT_API_BASE,
 };

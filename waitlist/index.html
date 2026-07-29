@@ -462,7 +462,9 @@ document.addEventListener('DOMContentLoaded',function(){
       if(busy(btn,true,'Verifying…')===false)return;
       lastTried=code;
       try{
-        await W.session.signupVerify({email:S.email,code:code});
+        /* marketing travels with the verify, not the signup: the server writes
+           the consent rows when the account becomes real. */
+        await W.session.signupVerify({email:S.email,code:code,marketing:true});
       }catch(err){
         busy(btn,false);$('#j-otp').classList.add('err');
         submitErr(btn,err);clearCode();otpBoxes()[0].focus();return;

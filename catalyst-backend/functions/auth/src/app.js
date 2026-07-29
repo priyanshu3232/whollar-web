@@ -27,6 +27,7 @@ const { verify: verifySchema, TABLE_NAMES } = require('./lib/schema');
 const { errorHandler, wrap, AppError } = require('./lib/errors');
 const otpRoutes = require('./routes/otp');
 const passwordRoutes = require('./routes/password');
+const resetRoutes = require('./routes/reset');
 const googleRoutes = require('./routes/google');
 const providerRoutes = require('./routes/provider');
 
@@ -147,6 +148,7 @@ function buildApp(cfg) {
 
   otpRoutes.mount(router, cfg);
   passwordRoutes.mount(router, cfg);
+  resetRoutes.mount(router, cfg);
   googleRoutes.mount(router, cfg);
   providerRoutes.mount(router, cfg);
 

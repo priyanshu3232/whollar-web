@@ -946,9 +946,19 @@
      * Authenticates with the emailed code alone — the password set at signup is
      * deliberately not re-sent, so no page needs to hold it between the two
      * requests.
+     *
+     * `marketing` travels HERE and not with /signup, because the server writes
+     * the consent rows at the moment the account becomes real. Sending it at
+     * signup instead — which this function used to do by omission — meant the
+     * marketing consent row was silently never written for anyone, which is a
+     * CASL problem rather than a missing field.
      */
     signupVerify: function (o) {
-      return authPost('/signup/verify', { email: o.email, code: o.code });
+      return authPost('/signup/verify', {
+        email: o.email,
+        code: o.code,
+        marketing: Boolean(o.marketing)
+      });
     },
 
     /**
@@ -961,6 +971,34 @@
      */
     login: function (o) {
       return authPost('/login', { email: o.email, password: o.password });
+    },
+
+    /**
+     * Ask for a password-reset code. -> { ok, ttlMinutes, dev? }
+     *
+     * Resolves identically whether or not the address has an account. That is
+     * the server refusing to be an oracle for who is registered, so a caller
+     * must NOT try to infer anything from it — show "check your email" and
+     * nothing more.
+     */
+    forgotPassword: function (o) {
+      return authPost('/password/forgot', { email: o.email });
+    },
+
+    /**
+     * Set a new password with the emailed code. -> { ok, user, expiresAt }
+     *
+     * Succeeds straight into a session, so no second sign-in is needed. Every
+     * other live session is revoked server-side first — the point of resetting
+     * a password after a compromise is that the other party stops being signed
+     * in, which does not happen if their session survives the change.
+     */
+    resetPassword: function (o) {
+      return authPost('/password/reset', {
+        email: o.email,
+        code: o.code,
+        password: o.password
+      });
     },
 
     /**
