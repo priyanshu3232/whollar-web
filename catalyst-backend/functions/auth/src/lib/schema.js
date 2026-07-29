@@ -122,6 +122,29 @@ const TABLES = Object.freeze({
     org_id:  'varchar(64) required',
     role:    'varchar(16) required',
   },
+  member_bills: {
+    // One row per member: the household has one home-internet bill, and the
+    // dashboard renders "the" switch file, not a history. A new checkup
+    // replaces the row. History, when it is wanted, is a new table — turning
+    // this into an append-only log would silently change what GET /me/bill
+    // means.
+    user_id:          'varchar(64) unique required',
+    provider:         'varchar(100)',
+    // Numbers stored as strings on purpose: bills carry cents, the console's
+    // Int column cannot, and nothing ever filters or sums these server-side.
+    monthly_cost:     'varchar(16)',
+    download_speed:   'varchar(16)',
+    access_tech:      'varchar(32)',
+    // 'YYYY-MM-DD' or 'YYYY-MM', exactly as the dashboard's parsePromoEnd
+    // reads it. Not a datetime: it is month-granular user input, and a
+    // datetime column would force an invented day and time onto it.
+    promo_end_date:   'varchar(10)',
+    promo_expired:    'int',
+    discount_amount:  'varchar(16)',
+    switch_threshold: 'varchar(64)',
+    source:           'varchar(32) required',
+    updated_at:       'datetime required',
+  },
   auth_events: {
     event_type:       'varchar(64) required',
     user_id:          'varchar(64)',

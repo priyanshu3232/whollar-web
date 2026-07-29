@@ -370,7 +370,7 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
       <b>Whollar</b>
     </a>
     <a class="whl-nav__back" href="/">&larr; Back to home</a>
-    <a class="whl-btn whl-btn--sm" href="/waitlist/">Join the waitlist</a>
+    <a class="whl-btn whl-btn--sm" href="/whollar-login-consumer">Sign in</a>
   </div>
 </nav>
 
@@ -942,20 +942,34 @@ $('#checkup-form').addEventListener('submit',async e=>{
 });
 $('#edit-all').addEventListener('click',()=>screen(1));
 
-/* A completed checkup is where the promo end date comes from, so hand it to
-   the signed-in member's record: the dashboard's cliff gauge counts down from
-   exactly this date. W.member.patch is a no-op when nobody is signed in, so a
-   public visitor running the numbers leaves nothing behind. */
+/* A completed checkup is what the dashboard's switch file renders, so hand it
+   over. Three destinations, by who is here:
+     - everyone: W.checkup.save keeps it as a pending handoff, so the account
+       they sign in to LATER on this browser still receives it (whollar-core
+       pushes and clears it during adopt/syncBill);
+     - signed-in members additionally get the local record patched (the cliff
+       gauge moves without waiting on the network) and the server copy saved,
+       which is what makes the same numbers appear on any other device. */
 function rememberBill(){
-  if(!S.pdate)return;
-  W.member.patch({bill:{
-    promoEnd:S.pdate,
+  const bill={
+    promoEnd:S.pdate||null,
     promoExpired:!!S.expired,
     provider:S.prov||null,
     monthly:S.cost||null,
     speed:S.spd||null,
+    tech:S.tech||null,
+    discount:S.disc||null,
+    threshold:((document.querySelector('.qc.on')||{}).textContent||'').trim()||null,
     source:'bill-checkup'
-  }});
+  };
+  if(!bill.provider&&!bill.monthly&&!bill.speed&&!bill.promoEnd)return;
+  W.checkup.save(bill,S.email||null);
+  if(W.member.read()){
+    W.member.patch({bill:bill});
+    /* Fire-and-forget: the results screen must not wait on this, and a miss
+       leaves the pending handoff in place for the next sign-in to push. */
+    W.session.billSave(bill).then(()=>W.checkup.clear(),()=>{});
+  }
 }
 
 /* ---------- signal ----------

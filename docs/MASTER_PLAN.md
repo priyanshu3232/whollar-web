@@ -51,7 +51,11 @@
   sender behind it).
 - Session cleanup cron (`authCronCleanup` is referenced in `sessions.js:153` and
   `create-tables.md` but has no code).
-- Any authenticated data API (dashboards have nothing real to fetch).
+- ~~Any authenticated data API (dashboards have nothing real to fetch).~~ The
+  first one now exists: `GET/POST /me/bill` (`auth/src/routes/member.js`)
+  serves the member's switch file from the `member_bills` table, seeded from
+  `BillCheckupSubmissions` by email on first read. The rest of the dashboard
+  (cohort, offers, activity) is still demo data.
 
 ### 1.4 Structural debts and risks
 

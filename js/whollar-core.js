@@ -767,6 +767,56 @@
   W.member = sessionStore(W.MEMBER_KEY);
   W.partner = sessionStore(W.PARTNER_KEY);
 
+  /* ------------------------------------------------------------------
+   * Pending checkup handoff.
+   *
+   * A completed public checkup is the single richest thing a visitor tells
+   * us, and most of them are signed out when they do it. This key holds that
+   * result so the sign-in that happens LATER — minutes or days, same browser
+   * — can attach it to the account: session 12's sync POSTs it to /me/bill
+   * and clears it.
+   *
+   * localStorage, not sessionStorage, on purpose: the whole point is to
+   * outlive the visit ("run the numbers today, sign up tomorrow"). That is a
+   * deliberate exception to the draft rule above, so it is bounded — synced
+   * copies are cleared immediately, and an unclaimed one expires on read
+   * after 14 days rather than sitting there indefinitely.
+   *
+   * `email` is who the checkup SAID they were (the waitlist box), lowercased.
+   * The sync uses it as a same-person check on shared devices: a handoff that
+   * names one address is never attached to an account with another.
+   * ------------------------------------------------------------------ */
+
+  W.CHECKUP_KEY = 'whollar.checkup.pending';
+  W.CHECKUP_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+
+  W.checkup = {
+    save: function (bill, email) {
+      if (!bill || typeof bill !== 'object') return;
+      try {
+        localStorage.setItem(W.CHECKUP_KEY, JSON.stringify({
+          bill: bill,
+          email: email ? String(email).trim().toLowerCase() : null,
+          savedAt: Date.now()
+        }));
+      } catch (e) { /* private mode */ }
+    },
+    load: function () {
+      try {
+        var v = JSON.parse(localStorage.getItem(W.CHECKUP_KEY));
+        if (!v || typeof v !== 'object' || !v.bill) return null;
+        if (!v.savedAt || Date.now() - v.savedAt > W.CHECKUP_TTL_MS) {
+          W.checkup.clear();
+          return null;
+        }
+        return v;
+      } catch (e) { return null; }
+    },
+    clear: function () {
+      try { localStorage.removeItem(W.CHECKUP_KEY); } catch (e) { /* ignore */ }
+    }
+  };
+
   /* ================================================================== *
    * 12. SERVER SESSION (the authority behind section 11)
    * ------------------------------------------------------------------
@@ -826,6 +876,40 @@
     });
   }
 
+  /**
+   * Reconcile the member's bill between this browser and the server.
+   * Resolves with the (possibly patched) member record, or null when there is
+   * no local member record to sync into. Never rejects — this runs inside
+   * boot paths (adopt, the dashboard's load) where a flaky network must
+   * degrade to "render what we have", not to a blank page.
+   *
+   * Order matters: the pending handoff is PUSHED first, so the GET that
+   * follows returns the checkup the visitor just ran rather than an older
+   * server copy overwriting it.
+   */
+  function syncMemberBill() {
+    var rec = W.member.read();
+    if (!rec) return Promise.resolve(null);
+
+    var pending = W.checkup.load();
+    /* A handoff that named an email belongs to that person only. One with no
+       email was made on this browser moments-to-days ago; attaching it to
+       whoever signs in here is the best link available. */
+    var foreign = pending && pending.email && rec.emailKey && pending.email !== rec.emailKey;
+
+    var push = (pending && pending.bill && !foreign)
+      ? W.session.billSave(pending.bill).then(
+        function () { W.checkup.clear(); },
+        function () { /* kept for the next attempt */ })
+      : Promise.resolve();
+
+    return push
+      .then(function () { return W.session.billGet(); })
+      .then(function (bill) {
+        return (bill && W.member.patch({ bill: bill })) || W.member.read();
+      });
+  }
+
   W.session = {
 
     /* Never rejects. -> { authenticated, user } ; user is null when signed out. */
@@ -880,7 +964,7 @@
         var prior = store.read() || {};
         var keep = (prior.emailKey === emailKey) ? prior : {};
 
-        return store.write({
+        var record = store.write({
           firstName: s.user.firstName || W.firstNameFrom(email, keep.firstName),
           email: email,
           emailKey: emailKey,
@@ -889,8 +973,50 @@
           province: keep.province || null,
           provinceCode: keep.provinceCode || null
         });
+
+        /* A member's bill lives on the server, keyed by their account — not
+           in this record. Reconcile it here so every sign-in path (password,
+           code, Google) lands on a dashboard that already shows their own
+           checkup: push the pending handoff, pull the server copy. */
+        if (!record || s.user.userType !== 'member') return record;
+        return syncMemberBill().then(function (synced) { return synced || record; });
       });
     },
+
+    /**
+     * The bill the server holds for the signed-in member, or null — for a
+     * signed-out visitor, a partner session, and every failure alike. The
+     * first call for a member who ran the public checkup with the same email
+     * is the one that links the two: the server copies that submission onto
+     * their account before answering.
+     */
+    billGet: function () {
+      return fetch(W.AUTH_API + '/me/bill', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      }).then(function (r) {
+        return r.ok ? r.json().catch(function () { return null; }) : null;
+      }).then(function (b) {
+        return (b && b.bill) || null;
+      }).catch(function () {
+        return null;
+      });
+    },
+
+    /**
+     * Replace the signed-in member's bill on the server. -> { ok, bill }
+     * REJECTS on failure (same contract as the other button-path calls):
+     * `bill` is { provider, monthly, speed, tech, promoEnd, promoExpired,
+     * discount, threshold }.
+     */
+    billSave: function (bill) {
+      return authPost('/me/bill', bill);
+    },
+
+    /* See syncMemberBill above. Exposed for pages that are already signed in
+       when they load — their boot skips adopt(), so they call this instead. */
+    syncBill: syncMemberBill,
 
     /**
      * Ask for an emailed code. -> { ok, ttlMinutes, dev? }

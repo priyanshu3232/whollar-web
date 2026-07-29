@@ -30,6 +30,7 @@ const passwordRoutes = require('./routes/password');
 const resetRoutes = require('./routes/reset');
 const googleRoutes = require('./routes/google');
 const providerRoutes = require('./routes/provider');
+const memberRoutes = require('./routes/member');
 
 /**
  * Strip anything address-shaped out of a provider error before it is returned.
@@ -225,6 +226,7 @@ function buildApp(cfg) {
   resetRoutes.mount(router, cfg);
   googleRoutes.mount(router, cfg);
   providerRoutes.mount(router, cfg);
+  memberRoutes.mount(router);
 
   if (!cfg.IS_PRODUCTION) {
     mountDevRoutes(router, cfg);

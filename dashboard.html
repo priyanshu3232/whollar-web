@@ -546,8 +546,8 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
                 <div class="segs" aria-hidden="true"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i></div>
               </div>
               <ul class="flds">
-                <li><span class="tick ok">&#10003;</span>Current provider<span class="val">Rogers</span></li>
-                <li><span class="tick ok">&#10003;</span>Monthly charge<span class="val">$92</span></li>
+                <li><span class="tick ok">&#10003;</span>Current provider<span class="val" data-fld="provider">Rogers</span></li>
+                <li><span class="tick ok">&#10003;</span>Monthly charge<span class="val" data-fld="monthly">$92</span></li>
                 <li><span class="tick ok">&#10003;</span>Promo end date<span class="val" data-fld="promoEnd">Nov 2026</span></li>
                 <li><span class="tick no">&middot;</span>Latest bill upload<span class="val">Add</span></li>
                 <li><span class="tick no">&middot;</span>Mobile bill<span class="soon">Soon</span><span class="val">Track its cliff too</span></li>
@@ -678,11 +678,11 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
               <div class="segs" aria-hidden="true"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i></div>
             </div>
             <ul class="flds">
-              <li><span class="tick ok">&#10003;</span>Current provider<span class="val">Rogers</span></li>
-              <li><span class="tick ok">&#10003;</span>Monthly charge<span class="val">$92</span></li>
-              <li><span class="tick ok">&#10003;</span>Download speed<span class="val">500 Mbps</span></li>
+              <li><span class="tick ok">&#10003;</span>Current provider<span class="val" data-fld="provider">Rogers</span></li>
+              <li><span class="tick ok">&#10003;</span>Monthly charge<span class="val" data-fld="monthly">$92</span></li>
+              <li><span class="tick ok">&#10003;</span>Download speed<span class="val" data-fld="speed">500 Mbps</span></li>
               <li><span class="tick ok">&#10003;</span>Promo end date<span class="val" data-fld="promoEnd">Nov 2026</span></li>
-              <li><span class="tick ok">&#10003;</span>Switch threshold<span class="val">$25+/mo</span></li>
+              <li><span class="tick ok">&#10003;</span>Switch threshold<span class="val" data-fld="threshold">$25+/mo</span></li>
               <li><span class="tick no">&middot;</span>Latest bill upload<span class="val">Add</span></li>
             </ul>
             <p class="fnote">We can't place you in a cohort without your renewal month. Everything here stays private: bidding providers never see your provider or your price.</p>
@@ -900,8 +900,7 @@ var FEED={
   done:[['Oct 8','Install complete'],['Oct 9','Deposit credited to your first bill']]
 };
 var PILL={forming:'Forming',locked:'Locked',bidding:'Bidding live',offers:'Offers in',confirm:'Confirm',switching:'Switching',done:'Switched'};
-var TL={forming:'close',locked:'close',bidding:'bid',offers:'offer',confirm:'offer',switching:'switch',done:'switch'};
-var BLOGS=[
+var TL={forming:'close',locked:'close',bidding:'bid',offers:'offer',confirm:'offer',switching:'switch',done:'switch'};var BLOGS=[
   ['The $487 problem: why most Canadians overpay for internet and never say a word','5 min','overpaying-internet-canada'],
   ['The promo cliff: why your internet bill quietly climbs after 12 to 24 months','6 min','internet-price-increase-promo-cliff'],
   ['What if your whole street switched internet at once?','4 min','collective-switching-internet-canada'],
@@ -1003,13 +1002,46 @@ function paintCliff(){
   });
 }
 
+/* ---------- switch file: the member's own numbers ----------
+   Same contract as the cliff above: the member's bill wins, the demo values
+   stand in until one lands. The bill arrives two ways — written locally by
+   bill-checkup.html, and pulled from GET /me/bill by the sync at the bottom
+   of this script — and both funnel through MEMBER.bill, so this paints from
+   there and only overwrites a field it actually has. */
+function fmtMonthly(v){var n=Number(v);return isFinite(n)&&n>0?('$'+(n%1===0?n:n.toFixed(2))):null}
+function fmtSpeed(v){
+  if(v==null||v==='')return null;
+  var s=String(v).trim();
+  if(!/^\d+(\.\d+)?$/.test(s))return s; /* already worded, e.g. "1 Gig" */
+  return +s>=1000?(+s/1000)+' Gbps':s+' Mbps';
+}
+function paintBill(){
+  var bill=MEMBER&&MEMBER.bill;
+  if(!bill)return;
+  var vals={
+    provider:bill.provider||null,
+    monthly:fmtMonthly(bill.monthly),
+    speed:fmtSpeed(bill.speed),
+    threshold:bill.threshold||null
+  };
+  Object.keys(vals).forEach(function(k){
+    if(vals[k]==null)return;
+    $$('[data-fld="'+k+'"]').forEach(function(el){el.textContent=vals[k]});
+  });
+  /* The offer cards' "you save" math compares against this number. */
+  var n=Number(bill.monthly);
+  if(isFinite(n)&&n>0)S.member.bill=n;
+}
+
 /* Keeping it alive: a dashboard left open across a month boundary, or a bill
    uploaded in another tab, both have to move this number without a reload. */
 function refreshCliff(){
   try{var m=JSON.parse(localStorage.getItem('whollar.member'));if(m&&m.email)MEMBER=m}catch(err){}
   paintCliff();
+  paintBill();
 }
 paintCliff();
+paintBill();
 window.addEventListener('storage',function(e){if(!e.key||e.key==='whollar.member')refreshCliff()});
 document.addEventListener('visibilitychange',function(){if(!document.hidden)refreshCliff()});
 window.addEventListener('focus',refreshCliff);
@@ -1360,6 +1392,23 @@ if(DEMO){
 }
 
 render();
+
+/* ---------- server sync: the account's bill, not this browser's ----------
+   The boot guard above only calls adopt() when the local record is MISSING,
+   so a member who signed in last week and returns today would render only
+   whatever this browser remembers. syncBill() pushes any pending checkup
+   handoff to the account and pulls the server's copy back — that is what
+   makes a checkup run on the phone show up on the laptop. Quietly: on any
+   failure the local record stays on screen. */
+if(W&&W.session&&W.session.syncBill){
+  W.session.syncBill().then(function(rec){
+    if(!rec)return;
+    MEMBER=rec;
+    paintCliff();
+    paintBill();
+    render();
+  });
+}
 })();
 </script>
 </body>

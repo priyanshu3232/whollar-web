@@ -225,6 +225,31 @@ every route writes to it, on success and on failure.
 Never write a raw code, token, password, or IP into `detail`. `lib/audit.js`
 strips them; do not bypass it by calling `insertRow` directly.
 
+## 11. `member_bills`
+
+The signed-in member's switch file — what `/dashboard` renders. One row per
+member; a new checkup replaces it. Written by `POST /me/bill`, read by
+`GET /me/bill`, and seeded once from `BillCheckupSubmissions` when a member's
+email matches an earlier public checkup (the backfill in `routes/member.js`).
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `user_id` | Var Char | 64 | ✅ | ✅ | | one bill per member — the upsert key |
+| `provider` | Var Char | 100 | | | | e.g. `Rogers` |
+| `monthly_cost` | Var Char | 16 | | | | number as a string — bills carry cents, Int cannot |
+| `download_speed` | Var Char | 16 | | | | the checkup's `<select>` value, e.g. `500` |
+| `access_tech` | Var Char | 32 | | | | cable / fibre / DSL / fixed wireless |
+| `promo_end_date` | Var Char | 10 | | | | `YYYY-MM-DD` or `YYYY-MM`; month-granular user input, not a DateTime |
+| `promo_expired` | Int | — | | | | 0 \| 1 |
+| `discount_amount` | Var Char | 16 | | | | number as a string |
+| `switch_threshold` | Var Char | 64 | | | | e.g. `$25+/mo` |
+| `source` | Var Char | 32 | | ✅ | | `bill-checkup` \| `bill-checkup-backfill` \| `dashboard` |
+| `updated_at` | DateTime | — | | ✅ | | |
+
+A bill is a household's private pricing detail, so treat the whole row the way
+`users.postal_code` is treated: consider the PII validator on `provider`,
+`monthly_cost` and `promo_end_date` if per-row access logging is wanted here too.
+
 ---
 
 ## Verify
@@ -244,6 +269,7 @@ SELECT ROWID FROM consents LIMIT 1;
 SELECT ROWID FROM provider_orgs LIMIT 1;
 SELECT ROWID FROM provider_users LIMIT 1;
 SELECT ROWID FROM auth_events LIMIT 1;
+SELECT ROWID FROM member_bills LIMIT 1;
 ```
 
 Then one that exercises the column names the hot path depends on:
