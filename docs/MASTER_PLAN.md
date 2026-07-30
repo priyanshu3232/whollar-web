@@ -311,7 +311,7 @@ frontend wiring.
 
 **B6. Later auth phases (as demand justifies):** Google OIDC (phase 4 — PKCE
 helpers already in `crypto.js`, `oauth_state` table exists, CSRF exemption
-regex already anticipates the callback), Apple (phase 8), CRM linkage (6).
+regex already anticipates the callback), CRM linkage (6).
 
 ---
 

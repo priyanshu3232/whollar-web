@@ -31,16 +31,16 @@ const { claimedOrigin } = require('./request');
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /**
- * OAuth callbacks are the one legitimate exception.
+ * The OAuth callback is the one legitimate exception.
  *
- * Apple returns the user by POSTing a form from `appleid.apple.com`, so its
- * Origin is genuinely a third party and could never appear in our allowlist.
- * That is safe here because those routes carry their own, stronger defence: a
- * single-use `state` row that is looked up and deleted in one operation. A
- * replayed or forged callback finds no row and is rejected — which is a
- * stricter test than an origin match, not a weaker one.
+ * The visitor arrives back on it by top-level navigation from the provider, so
+ * whatever Origin the browser attaches is a third party that could never appear
+ * in our allowlist. That is safe here because the route carries its own,
+ * stronger defence: a single-use `state` row that is looked up and deleted in
+ * one operation. A replayed or forged callback finds no row and is rejected —
+ * which is a stricter test than an origin match, not a weaker one.
  */
-const EXEMPT = [/^\/(auth\/)?(google|apple)\/callback$/];
+const EXEMPT = [/^\/(auth\/)?google\/callback$/];
 
 function isExempt(path) {
   return EXEMPT.some((re) => re.test(path));

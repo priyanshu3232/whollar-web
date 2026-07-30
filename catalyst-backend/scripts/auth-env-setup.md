@@ -213,16 +213,6 @@ The existing `crmSync` function has its own copies of these under different
 names (`ZOHO_CLIENT_ID`, `ZOHO_ACCOUNTS_URL`, …). They are separate functions
 with separate environments; the `auth` names are the ones this function reads.
 
-### Phase 8 — `apple`
-
-| Variable | Notes |
-|---|---|
-| `APPLE_TEAM_ID` | |
-| `APPLE_SERVICES_ID` | a Services ID, **not** an App ID |
-| `APPLE_KEY_ID` | |
-| `APPLE_PRIVATE_KEY` | PEM; `\n` may be backslash-escaped, the loader unescapes |
-| `APPLE_REDIRECT_URI` | |
-
 ---
 
 ## Frontend

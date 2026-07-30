@@ -95,7 +95,6 @@ button{font-family:var(--body)}
 .soc button{display:flex;align-items:center;justify-content:center;gap:11px;width:100%;border-radius:13px;padding:13px 16px;font-size:14.5px;font-weight:600;cursor:pointer;transition:transform .12s,box-shadow .15s,background .15s;border:1.5px solid var(--line)}
 .soc button:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(16,40,34,.08)}
 .soc .g{background:#fff;color:#2B3A33}
-.soc .a{background:#111;color:#fff;border-color:#111}
 .soc svg{width:18px;height:18px;flex:none}
 
 .divider{display:flex;align-items:center;gap:12px;margin:20px 0 18px;color:var(--ink-3);font-size:12px;font-family:var(--label);font-weight:600;letter-spacing:.06em}
@@ -210,10 +209,6 @@ button{font-family:var(--body)}
             <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z"/></svg>
             <span>Continue with Google</span>
           </button>
-          <button type="button" class="a" onclick="mock('Apple')">
-            <svg viewBox="0 0 24 24" fill="#fff"><path d="M17.05 12.54c-.02-2.05 1.68-3.03 1.75-3.08-.95-1.4-2.44-1.59-2.97-1.61-1.27-.13-2.47.74-3.11.74-.64 0-1.63-.72-2.68-.7-1.38.02-2.65.8-3.36 2.03-1.43 2.48-.37 6.16 1.03 8.18.68.98 1.5 2.09 2.56 2.05 1.03-.04 1.42-.66 2.66-.66 1.24 0 1.59.66 2.68.64 1.1-.02 1.8-1 2.48-1.99.78-1.14 1.1-2.24 1.12-2.3-.02-.01-2.15-.83-2.17-3.28ZM15.02 6.3c.56-.68.94-1.62.84-2.56-.81.03-1.79.54-2.37 1.22-.52.6-.98 1.56-.86 2.48.9.07 1.83-.46 2.39-1.14Z"/></svg>
-            <span>Continue with Apple</span>
-          </button>
         </div>
 
         <div class="divider">or use your email</div>
@@ -256,10 +251,6 @@ button{font-family:var(--body)}
           <button type="button" class="g" onclick="oauthStart('google')">
             <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z"/></svg>
             <span>Sign up with Google</span>
-          </button>
-          <button type="button" class="a" onclick="mock('Apple')">
-            <svg viewBox="0 0 24 24" fill="#fff"><path d="M17.05 12.54c-.02-2.05 1.68-3.03 1.75-3.08-.95-1.4-2.44-1.59-2.97-1.61-1.27-.13-2.47.74-3.11.74-.64 0-1.63-.72-2.68-.7-1.38.02-2.65.8-3.36 2.03-1.43 2.48-.37 6.16 1.03 8.18.68.98 1.5 2.09 2.56 2.05 1.03-.04 1.42-.66 2.66-.66 1.24 0 1.59.66 2.68.64 1.1-.02 1.8-1 2.48-1.99.78-1.14 1.1-2.24 1.12-2.3-.02-.01-2.15-.83-2.17-3.28ZM15.02 6.3c.56-.68.94-1.62.84-2.56-.81.03-1.79.54-2.37 1.22-.52.6-.98 1.56-.86 2.48.9.07 1.83-.46 2.39-1.14Z"/></svg>
-            <span>Sign up with Apple</span>
           </button>
         </div>
 
@@ -426,11 +417,6 @@ function toast(msg){
   clearTimeout(toast._x);
   toast._x=setTimeout(function(){t.classList.remove('show')},2400);
 }
-/* Apple is not wired up yet (its config group ships in a later phase). Name the
-   button that was pressed and point at the path that does work, instead of a
-   vague "front end only" string. */
-function mock(label){ toast(label + ' sign-in isn\u2019t connected yet \u2014 use Google, or your email below.'); }
-
 /* A real navigation, deliberately not a fetch: /google/start answers with a 302
    to Google's consent screen, and only a top-level navigation can follow that.
    Where to land afterwards travels as ?next=, which the server stores against

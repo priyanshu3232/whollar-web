@@ -3,7 +3,7 @@
 /**
  * The user repository: one human, many ways in.
  *
- * Every login path — email OTP, Google, Apple, partner password — converges
+ * Every login path — email OTP, Google, partner password — converges
  * here. That convergence is the whole point of the `users` / `auth_identities`
  * split: sign up with a code today, click "Continue with Google" on the same
  * address next month, and it is the same account rather than a duplicate.

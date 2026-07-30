@@ -81,8 +81,9 @@ function buildApp(cfg) {
     next();
   });
 
-  // 2. Body parsers. urlencoded is not optional — Apple's callback is
-  //    form-encoded and omitting it is the single most common Apple failure.
+  // 2. Body parsers. Every route of ours speaks JSON; urlencoded is kept so a
+  //    form-encoded POST parses into a real body rather than an empty one and
+  //    fails validation on its merits.
   app.use(express.json({ limit: '64kb' }));
   app.use(express.urlencoded({ extended: false, limit: '64kb' }));
 

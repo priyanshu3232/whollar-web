@@ -1,7 +1,8 @@
 'use strict';
 
 /**
- * Shared OpenID Connect machinery for Google and Apple.
+ * Shared OpenID Connect machinery. Google is the only provider on it today;
+ * nothing here is Google-specific, so a second one would reuse it as is.
  *
  * Authorization Code + PKCE, server-side throughout. The browser never receives
  * a token it could forge or replay; it only ever carries an opaque `code` that
@@ -31,8 +32,8 @@ const STATE_TTL_MS = 10 * 60 * 1000;
  * Signing keys, cached in module scope for the life of the container.
  *
  * Providers rotate these, so a cache that never expires eventually rejects
- * every login. An hour is well inside both Google's and Apple's rotation
- * cadence, and a miss costs one request. On a verification failure the cache is
+ * every login. An hour is well inside Google's rotation cadence, and a miss
+ * costs one request. On a verification failure the cache is
  * dropped and refetched once, which is what makes a mid-rotation login work
  * rather than fail until the TTL happens to lapse.
  */

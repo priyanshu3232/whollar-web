@@ -16,7 +16,7 @@
  *             degraded app: /health reports which names are missing (names
  *             only, never values), every other route 503s. Fails closed.
  *
- *   GROUPS    Feature bundles (mail, google, apple, crm, consents). Each is
+ *   GROUPS    Feature bundles (mail, google, crm, consents). Each is
  *             all-or-nothing: set none and the feature reports `enabled:false`
  *             and its routes 501; set some and it is a configuration error
  *             (half-configured OAuth is the failure mode that eats a day).
@@ -130,15 +130,6 @@ const v = {
 
   nonEmpty: (raw) =>
     raw.trim().length ? { value: raw.trim() } : { error: 'must not be empty' },
-
-  /** PEM with either real or backslash-escaped newlines. */
-  pem: (raw) => {
-    const value = raw.includes('\\n') ? raw.replace(/\\n/g, '\n') : raw;
-    if (!/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(value)) {
-      return { error: 'does not look like a PEM private key' };
-    }
-    return { value };
-  },
 };
 
 /* ------------------------------------------------------------------ *
@@ -212,14 +203,6 @@ const GROUPS = {
     GOOGLE_CLIENT_ID:     { check: v.nonEmpty },
     GOOGLE_CLIENT_SECRET: { check: v.nonEmpty, secret: true },
     GOOGLE_REDIRECT_URI:  { check: v.nonEmpty },
-  },
-  // Phase 8.
-  apple: {
-    APPLE_TEAM_ID:      { check: v.nonEmpty },
-    APPLE_SERVICES_ID:  { check: v.nonEmpty },
-    APPLE_KEY_ID:       { check: v.nonEmpty },
-    APPLE_PRIVATE_KEY:  { check: v.pem, secret: true },
-    APPLE_REDIRECT_URI: { check: v.nonEmpty },
   },
   // Phase 6. Canadian DC hosts are defaulted, not guessed at call time.
   crm: {

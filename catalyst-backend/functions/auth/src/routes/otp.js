@@ -144,7 +144,7 @@ function mount(router, cfg) {
 
     if (created) {
       // The `otp` identity row exists so this login path is represented in
-      // auth_identities alongside google/apple, rather than being the one
+      // auth_identities alongside google, rather than being the one
       // credential type that leaves no trace there.
       await users.linkIdentity(req.catalyst, {
         userId: user.user_id, provider: 'otp',

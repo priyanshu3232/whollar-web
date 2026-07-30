@@ -95,8 +95,8 @@ several credentials.
 | Column | Type | Length | Unique | Mandatory | PII | Notes |
 |---|---|---|:--:|:--:|:--:|---|
 | `user_id` | Var Char | 64 | | ✅ | | FK to `users.user_id` (logical, not enforced) |
-| `provider` | Var Char | 16 | | ✅ | | `google` \| `apple` \| `password` \| `otp` |
-| `provider_uid` | Var Char | 255 | | ✅ | | Google/Apple `sub`; for `otp`/`password`, the `user_id` |
+| `provider` | Var Char | 16 | | ✅ | | `google` \| `password` \| `otp` |
+| `provider_uid` | Var Char | 255 | | ✅ | | Google `sub`; for `otp`/`password`, the `user_id` |
 | `provider_key` | Var Char | 255 | ✅ | ✅ | | **derived**: `` `${provider}:${provider_uid}` `` |
 | `email_at_provider` | Var Char | 255 | | | ✅ | may drift from `users.email_normalized`; informational |
 | `linked_at` | DateTime | — | | | | |
@@ -162,7 +162,7 @@ defence, so "look up **and delete**" is one operation, not two.
 | `pkce_verifier` | **Encrypted text** | — | | | | never queried |
 | `nonce` | Var Char | 255 | | | | echoed back in the `id_token` |
 | `redirect_to` | Var Char | 255 | | | | already validated before it is written |
-| `provider` | Var Char | 16 | | ✅ | | `google` \| `apple` |
+| `provider` | Var Char | 16 | | ✅ | | `google` |
 | `expires_at` | DateTime | — | | ✅ | | 10 minutes |
 
 ## 7. `consents`
