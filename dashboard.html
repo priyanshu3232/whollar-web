@@ -429,7 +429,6 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .ccact:empty{display:none}
 .ccbtn{font-size:12.5px;font-weight:700;background:var(--accent);color:#fff;border-radius:999px;padding:7px 14px;transition:background .15s,transform .12s}
 .ccbtn:hover{background:var(--accent-deep);transform:translateY(-1px)}
-.ccbtn.ghost{background:var(--mint);color:var(--accent-deep)}
 .ccbtn[disabled]{opacity:.55;cursor:default;transform:none}
 .ccleave{font-size:12px;color:var(--sub);text-decoration:underline;text-underline-offset:2px}
 .ccleave:hover{color:var(--ink)}
@@ -741,7 +740,18 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
       <!-- ======== campaign history ======== -->
       <section class="view" data-v="history">
         <div class="vhead"><h2>Campaign history</h2></div>
-        <div class="card empty">
+        <!-- Campaigns the member is in RIGHT NOW. History starts the moment
+             you join, not the moment something finishes — a member who joined
+             two waitlists and opens this tab must see both, or "history" reads
+             as if the joins didn't take. Painted by paintHistory() from the
+             same CAMPS the cards use, so a join or leave anywhere updates here
+             on the same repaint. -->
+        <div class="card" id="hist-live" hidden>
+          <span class="eyebrow">In play now</span>
+          <div id="hist-live-rows"></div>
+          <p class="fnote">Every campaign you finish lands below with its outcome, the winning offer, and what it changed on your bill.</p>
+        </div>
+        <div class="card empty" id="hist-empty">
           <svg viewBox="0 0 80 80" fill="none" aria-hidden="true"><circle cx="40" cy="40" r="34" stroke="#CBDCC9" stroke-width="3"/><path d="M40 22v18l12 8" stroke="#1E9E63" stroke-width="3.5" stroke-linecap="round"/></svg>
           <h3>Nothing here yet, on purpose</h3>
           <p>Your first campaign is still in play. Every campaign you finish lands here with its outcome, its winning offer, and what it changed on your bill.</p>
@@ -1282,6 +1292,7 @@ function render(){
   EXTRA.forEach(function(f){items.push(f)});
   $('#feed').innerHTML=items.map(function(f){return '<li><span class="when">'+esc(f[0])+'</span>'+esc(f[1])+'</li>'}).reverse().join('');
   paintCampaigns();
+  paintHistory();
   $$('#sts button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-goto')===S.state)});
 }
 function go(state){
@@ -1362,11 +1373,37 @@ function paintCampaigns(){
       if(mono)mono.textContent=c.you==='waitlist'?('You’re on the list · '+c.members+' waiting'):(c.members+' households waiting');
       if(act)act.innerHTML=c.you==='waitlist'
         ?'<button class="ccleave" type="button" data-leave="'+c.id+'">Leave the waitlist</button>'
-        :'<button class="ccbtn ghost" type="button" data-join="'+c.id+'">Join the waitlist</button>';
+        :'<button class="ccbtn" type="button" data-join="'+c.id+'">Join the waitlist</button>';
     }else if(c.kind==='planned'){
       if(mono)mono.textContent=c.you?'You’re on the opening-day list':'We’ll text you the day it opens';
     }
   });
+}
+/* Campaign history's "in play" panel: everything the member has put their
+   name against — a joined cohort, a waitlist spot, an opening-day alert. The
+   leave buttons here are the same data-leave the cards use, handled by the
+   one document-level listener. */
+function paintHistory(){
+  var live=CAMPS.filter(function(c){return c.you});
+  $('#hist-live').hidden=!live.length;
+  $('#hist-empty').hidden=Boolean(live.length);
+  if(!live.length)return;
+  $('#hist-live-rows').innerHTML=live.map(function(c){
+    var tag,cnt,act='';
+    if(c.you==='joined'){
+      tag='<span class="rtag live">Your cohort · '+esc(PILL[S.state])+'</span>';
+      cnt=c.members+' of '+c.target+' households';
+      if(S.state==='forming')act='<button class="ccleave" type="button" data-leave="'+c.id+'">Leave this cohort</button>';
+    }else if(c.you==='waitlist'){
+      tag='<span class="rtag live">You’re on the waitlist</span>';
+      cnt=c.members+' households waiting';
+      act='<button class="ccleave" type="button" data-leave="'+c.id+'">Leave the waitlist</button>';
+    }else{
+      tag='<span class="rtag">Opening-day alert set</span>';
+      cnt='We’ll text you the day it opens';
+    }
+    return '<div class="rrow"><span><b>'+esc(c.region)+'</b><span class="sub">'+esc(c.sub)+'</span>'+tag+'</span><span class="cnt">'+cnt+'</span><span class="act">'+act+'</span></div>';
+  }).join('');
 }
 var SHEET=$('#regionsheet');
 function renderSheet(){
@@ -1382,7 +1419,7 @@ function renderSheet(){
     if(c.joinable){
       act=c.you==='joined'?'<button class="ccleave" type="button" data-leave="'+c.id+'">You’re in · leave</button>'
         :c.you==='waitlist'?'<button class="ccleave" type="button" data-leave="'+c.id+'">On the list · leave</button>'
-        :'<button class="ccbtn'+(c.kind==='forming'?'':' ghost')+'" type="button" data-join="'+c.id+'">'+(c.kind==='forming'?'Join this cohort':'Join the waitlist')+'</button>';
+        :'<button class="ccbtn" type="button" data-join="'+c.id+'">'+(c.kind==='forming'?'Join this cohort':'Join the waitlist')+'</button>';
     }
     return '<div class="rrow"><span><b>'+esc(c.region)+'</b><span class="sub">'+esc(c.sub)+'</span>'+tag(c)+'</span><span class="cnt">'+cnt+'</span><span class="act">'+act+'</span></div>';
   }).join('');
