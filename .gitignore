@@ -12,3 +12,10 @@ catalyst-backend/**/.output/
 Resourcesimages/
 # SEO report exports (endl.io downloads, not site source)
 endl.io_*.csv
+# The admin console lives in its own repo (priyanshu3232/admin-console),
+# nested here for local convenience only — never commit it into this one.
+admin-console/
+# Local agent/tooling state, never site source
+.claude/
+.membrane/
+skills-lock.json

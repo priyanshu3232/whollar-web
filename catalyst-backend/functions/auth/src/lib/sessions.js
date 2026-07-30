@@ -23,13 +23,14 @@ const SESSION_COLUMNS = ['ROWID', 'session_id', 'token_hash', 'user_id', 'expire
 const USER_COLUMNS = ['ROWID', 'user_id', 'email_normalized', 'email_display', 'first_name', 'user_type', 'status'];
 
 /**
- * Members roll, partners do not.
+ * Members roll; partners and admins do not.
  *
  * A household should stay signed in across weeks of not thinking about their
  * internet bill; every visit pushes the expiry out. A partner console shows
  * competitor pricing and cohort internals, so its 12 hours is an absolute
  * ceiling — an unattended laptop stops being a way in after one working day,
- * regardless of activity.
+ * regardless of activity. The admin console can flip approvals and pause
+ * bidding, so it gets the same absolute ceiling for the same reason.
  */
 const rolls = (userType) => userType === 'member';
 
@@ -37,7 +38,9 @@ const rolls = (userType) => userType === 'member';
 const REFRESH_AFTER_FRACTION = 0.5;
 
 function ttlFor(cfg, userType) {
-  return userType === 'provider' ? cfg.SESSION_TTL_MS.provider : cfg.SESSION_TTL_MS.member;
+  if (userType === 'provider') return cfg.SESSION_TTL_MS.provider;
+  if (userType === 'admin') return cfg.SESSION_TTL_MS.admin || cfg.SESSION_TTL_MS.provider;
+  return cfg.SESSION_TTL_MS.member;
 }
 
 /* ------------------------------------------------------------------ *

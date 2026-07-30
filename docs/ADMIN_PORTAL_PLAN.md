@@ -7,6 +7,18 @@
 >
 > Written 2026-07-30. Companion to `docs/MASTER_PLAN.md` (its phases A–E are
 > referenced below). Supersedes the earlier draft of this file.
+>
+> **Build note (2026-07-30, later the same day):** the console was built —
+> `routes/admin.js` + `routes/public.js` in the auth function, and a
+> stand-alone frontend in `admin-console/`. Two decisions changed from this
+> plan during the build, at the owner's direction: the console is hosted on
+> its **own subdomain `admin.whollar.ca`** (a separate Vercel project whose
+> `vercel.json` proxies `/api/auth/*` to the same Catalyst function — still
+> same-origin from the browser's view, so §2's rules hold), and admin
+> identity is **`users.user_type = 'admin'` gated by `ADMIN_EMAIL_DOMAIN`
+> (@whollar.com) + OTP**, not a `role` column — no users-table change needed,
+> and every member/provider guard excludes admins for free. Go-live steps:
+> `docs/ADMIN_CONSOLE_RUNBOOK.md`.
 
 ---
 

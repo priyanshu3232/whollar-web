@@ -407,8 +407,68 @@ function noAccountEmail({ appBaseUrl }) {
   return { subject: 'No Whollar account for this email address', text, html };
 }
 
+/**
+ * The provider approval / rejection notice — what the admin console sends to
+ * every person in an org when a human decides about the company.
+ *
+ * One template with a branch rather than two templates, so the two outcomes
+ * can never drift into different framings of the same decision. The rejection
+ * carries the reason verbatim: it was written to be read by the applicant,
+ * and a rejection with no reason generates a support thread, not an ending.
+ */
+function providerDecisionEmail({ approved, orgName, reason, appBaseUrl }) {
+  const url = String(appBaseUrl || '').replace(/\/+$/, '');
+  const console_ = `${url}/provider-dashboard`;
+  const name = String(orgName || 'your company').trim();
+
+  if (approved) {
+    const text = [
+      `Good news: ${name} is approved on Whollar.`,
+      '',
+      'Your partner console is live — auction briefs, cohort counts and bidding',
+      `are now real data: ${console_}`,
+      '',
+      'Questions, or anything look wrong? Reply to this email and a person answers.',
+    ].join('\n');
+
+    const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#F4F6F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102822">
+  <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#fff;border-radius:14px;padding:32px">
+    <tr><td>
+      <p style="margin:0 0 18px;font-size:15px;line-height:1.5"><b>Good news: ${escapeHtml(name)} is approved on Whollar.</b></p>
+      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">Your partner console is live — auction briefs, cohort counts and bidding are now real data.</p>
+      <p style="margin:0 0 18px;font-size:15px;line-height:1.5"><a href="${escapeHtml(console_)}" style="color:#178A5A">Open your partner console</a></p>
+      <p style="margin:0;font-size:13px;line-height:1.5;color:#6B7C77;border-top:1px solid #E3E8E6;padding-top:16px">Questions, or anything look wrong? Reply to this email and a person answers.</p>
+    </td></tr>
+  </table></body></html>`;
+
+    return { subject: `${name} is approved on Whollar`, text, html };
+  }
+
+  const why = String(reason || '').trim();
+  const text = [
+    `We reviewed ${name}'s Whollar partner application and can't approve it right now.`,
+    '',
+    why ? `Why: ${why}` : '',
+    '',
+    'If something here is wrong or has changed, reply to this email — a person',
+    'reads it, and a review can be reopened.',
+  ].filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n');
+
+  const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#F4F6F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102822">
+  <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#fff;border-radius:14px;padding:32px">
+    <tr><td>
+      <p style="margin:0 0 18px;font-size:15px;line-height:1.5">We reviewed <b>${escapeHtml(name)}</b>'s Whollar partner application and can't approve it right now.</p>
+      ${why ? `<p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57"><b>Why:</b> ${escapeHtml(why)}</p>` : ''}
+      <p style="margin:0;font-size:13px;line-height:1.5;color:#6B7C77;border-top:1px solid #E3E8E6;padding-top:16px">If something here is wrong or has changed, reply to this email — a person reads it, and a review can be reopened.</p>
+    </td></tr>
+  </table></body></html>`;
+
+  return { subject: `About ${name}'s Whollar partner application`, text, html };
+}
+
 module.exports = {
   send, transportName, otpEmail, existingAccountEmail,
   passwordResetEmail, passwordChangedEmail, noAccountEmail,
+  providerDecisionEmail,
   escapeHtml, DEFAULT_API_BASE,
 };

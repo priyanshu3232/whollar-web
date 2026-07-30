@@ -1,0 +1,1008 @@
+'use strict';
+
+/**
+ * The admin console API — the restricted control plane behind admin.whollar.ca.
+ *
+ * Nothing here exists unless the `admin` config group is set
+ * (ADMIN_EMAIL_DOMAIN): mount() returns without adding a single route, so on
+ * an environment without the group the whole surface 404s rather than
+ * refusing. When it is set, the allowlist IS the identity model:
+ *
+ *   IDENTITY   Admins are `users` rows with user_type='admin'. There is no
+ *              signup path. The only way a row acquires that type is
+ *              /admin/login/verify succeeding for an allowlisted address —
+ *              an email on ADMIN_EMAIL_DOMAIN (the staff domain) or listed
+ *              in ADMIN_EMAILS.
+ *
+ *   AUTH       Email OTP, the same challenge machinery as the member flow but
+ *              under its own purpose ('admin_login'), so a code minted on the
+ *              member form can never be spent here. Sessions are the standard
+ *              cookie sessions with the admin TTL: a 12-hour absolute
+ *              ceiling, no rolling — same reasoning as the partner console,
+ *              with more at stake.
+ *
+ *   AUTHZ      requireAdmin() on every other route: session + user_type
+ *              check, generic 403 otherwise (no admin-existence oracle).
+ *              CSRF rides the existing Origin allowlist — admin.whollar.ca
+ *              must be in ALLOWED_ORIGINS.
+ *
+ *   AUDIT      Every mutation writes auth_events with a before -> after
+ *              snapshot, awaited rather than fire-and-forget: for this
+ *              surface a lost audit row is worse than a slower response.
+ *
+ * The approval invariant provider.js documents — "no code path can set
+ * `approved`" — ends here, deliberately: /admin/providers/:orgId/approve is
+ * the one call site in the entire system that writes it, and it writes it on
+ * behalf of a named human.
+ */
+
+const datastore = require('../lib/datastore');
+const sessions = require('../lib/sessions');
+const users = require('../lib/users');
+const orgs = require('../lib/orgs');
+const challenges = require('../lib/challenges');
+const mailer = require('../lib/mailer');
+const audit = require('../lib/audit');
+const ratelimit = require('../lib/ratelimit');
+const siteconfig = require('../lib/siteconfig');
+const catalog = require('../lib/catalog');
+const campaigns = require('./campaigns');
+const { wrap, badRequest, unauthorized, forbidden, AppError } = require('../lib/errors');
+const { canRevealCode } = require('./otp');
+
+const PURPOSE = 'admin_login';
+
+/* ------------------------------------------------------------------ *
+ * Allowlist + guards
+ * ------------------------------------------------------------------ */
+
+function isAllowlisted(cfg, email) {
+  if (!cfg.FEATURES.admin) return false;
+  if (orgs.domainOf(email) === cfg.ADMIN_EMAIL_DOMAIN) return true;
+  return (cfg.ADMIN_EMAILS || []).includes(email);
+}
+
+/**
+ * Session + type check. The 403 body is the generic forbidden — identical to
+ * what a member gets poking at /provider/me — so probing /admin/* teaches an
+ * outsider nothing beyond "not yours".
+ */
+function requireAdmin(req) {
+  if (!req.auth) throw unauthorized('Please sign in again.');
+  if (req.auth.user.user_type !== 'admin') {
+    throw forbidden('You do not have access to that.', {
+      logDetail: `non-admin hit ${req.path}`,
+    });
+  }
+  return req.auth.user;
+}
+
+/** Route params that end up in ZCQL literals: bound the charset first. */
+function cleanId(raw, what) {
+  const s = String(raw || '').trim();
+  if (!/^[A-Za-z0-9:_-]{1,130}$/.test(s)) {
+    throw badRequest(`That ${what} is not valid.`);
+  }
+  return s;
+}
+
+/* ------------------------------------------------------------------ *
+ * Read helpers
+ * ------------------------------------------------------------------ */
+
+/**
+ * How many rows a table holds. COUNT first; if the environment's ZCQL
+ * dialect refuses it, fall back to a capped read that answers "n" or "cap+".
+ * Never rows.length of an uncapped read — that silently stops at 300 and
+ * reports the ceiling as if it were the total.
+ */
+async function countRows(catalystApp, table, where) {
+  const t = datastore.ident(table);
+  const clause = where ? ` WHERE ${where}` : '';
+  try {
+    const rows = await catalystApp.zcql().executeZCQLQuery(
+      `SELECT COUNT(ROWID) FROM ${t}${clause}`
+    );
+    const first = rows && rows[0] ? (rows[0][t] || rows[0]) : null;
+    if (first) {
+      for (const v of Object.values(first)) {
+        const n = Number(v);
+        if (Number.isFinite(n)) return n;
+      }
+    }
+  } catch { /* fall through to the capped read */ }
+  try {
+    const rows = await datastore.query(
+      catalystApp, t, `SELECT ROWID FROM ${t}${clause} LIMIT ${datastore.MAX_ROWS}`
+    );
+    return rows.length >= datastore.MAX_ROWS ? `${datastore.MAX_ROWS}+` : rows.length;
+  } catch (err) {
+    return null; // table missing/unreadable: the overview shows a dash, not a 500
+  }
+}
+
+/**
+ * Newest-first page of a table. ROWID-descending with a `before` cursor —
+ * the mirror of datastore.queryAll's ascending cursor, for surfaces (leads,
+ * audit) where the recent rows are the interesting ones.
+ */
+async function recentRows(catalystApp, table, columns, { before, limit, where } = {}) {
+  const t = datastore.ident(table);
+  const cols = ['ROWID', 'CREATEDTIME', ...columns.filter((c) => c !== 'ROWID' && c !== 'CREATEDTIME')]
+    .map(datastore.ident).join(', ');
+  const parts = [];
+  if (where) parts.push(where);
+  if (before) parts.push(`ROWID < ${datastore.lit(before)}`);
+  const clause = parts.length ? ` WHERE ${parts.join(' AND ')}` : '';
+  const n = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 100);
+  const rows = await datastore.query(
+    catalystApp, t,
+    `SELECT ${cols} FROM ${t}${clause} ORDER BY ROWID DESC LIMIT ${n}`
+  );
+  return {
+    rows,
+    // The cursor for the next page, or null when this one came back short.
+    next: rows.length === n ? rows[rows.length - 1].ROWID : null,
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * Lead tables the console may read. A hardcoded map, never a request value:
+ * ZCQL has no parameter binding, so nothing from a URL reaches a query
+ * without resolving through an allowlist first (the formSubmit pattern).
+ * ------------------------------------------------------------------ */
+
+const LEAD_TABLES = Object.freeze({
+  WaitlistSignups: ['FirstName', 'LastName', 'Email', 'Phone', 'FSA', 'ReferralCode', 'SubmittedAt'],
+  WaitlistDetails: ['Email', 'FSA', 'Provider', 'MonthlyCost', 'DownloadSpeed', 'PromoEndDate',
+    'SwitchThreshold', 'Services', 'BillFileName', 'SubmittedAt'],
+  BillCheckupSubmissions: ['Email', 'Via', 'PostalFSA', 'Provider', 'MonthlyCost', 'DownloadSpeed',
+    'AccessTech', 'PromoEndDate', 'MonthsToRenewal', 'PromoExpired', 'DiscountAmount',
+    'SwitchThreshold', 'BillFileName', 'SubmittedAt'],
+  DeepReadRequests: ['Email', 'Note', 'FileNames', 'SubmittedAt'],
+  PartnerApplications: ['Role', 'FirstName', 'LastName', 'Company', 'Email', 'Phone', 'Provinces',
+    'AccessTech', 'LegalName', 'ProviderType', 'BusinessNumber', 'Brands', 'Signatory',
+    'RepresentsBrands', 'LOA', 'OtherType', 'Note', 'SubmittedAt'],
+  CalculatorEstimates: ['PostalCode', 'FSA', 'MonthlyBill', 'EstimatedAnnualSavings', 'SubmittedAt'],
+  CrmSyncQueue: ['Source', 'SourceRowId', 'Email', 'LeadType', 'Status', 'Attempts', 'LastError', 'SyncedAt'],
+});
+
+/* ------------------------------------------------------------------ *
+ * Mount
+ * ------------------------------------------------------------------ */
+
+function mount(router, cfg) {
+  // No config group, no surface. Everything under /admin falls through to the
+  // app-level 404 — indistinguishable from the route never having existed.
+  if (!cfg.FEATURES.admin) return;
+
+  /* ---------------- sign-in (no session required) ---------------- */
+
+  /**
+   * Issue a staff login code. The domain gate answers plainly rather than
+   * opaquely — which addresses are staff addresses is not a secret worth a
+   * confusing form, and a staff member who typoes the domain needs to be told.
+   */
+  router.post('/admin/login/start', wrap(async (req, res) => {
+    const email = users.normalizeEmail((req.body && req.body.email) || '');
+    if (!users.isEmail(email)) throw badRequest('Enter a valid email address.');
+    if (!isAllowlisted(cfg, email)) {
+      throw forbidden(`Use your @${cfg.ADMIN_EMAIL_DOMAIN} staff email address.`, {
+        logDetail: 'admin login: address not allowlisted',
+      });
+    }
+
+    await ratelimit.enforce(req.catalyst, req, { key: 'admin.start.ip', max: 10, windowSec: 3600 });
+    await ratelimit.enforceFor(req.catalyst, req, email, { key: 'admin.start.email', max: 5, windowSec: 3600 });
+
+    const { code, ttlMinutes } = await challenges.start(req.catalyst, req, { email, purpose: PURPOSE });
+    const message = mailer.otpEmail({ code, purpose: 'login', ttlMinutes });
+
+    let delivered = false;
+    let sendError = null;
+    try {
+      const result = await mailer.send(cfg, { to: email, ...message });
+      delivered = Boolean(result.delivered);
+    } catch (err) {
+      sendError = String((err && err.message) || err).slice(0, 300);
+      console.error(JSON.stringify({
+        req_id: req.id, level: 'error', message: 'admin login mail failed', detail: sendError,
+      }));
+    }
+
+    audit.recordAsync(req.catalyst, req, {
+      type: 'admin.login.start', outcome: 'success', email,
+      detail: { delivered, transport: mailer.transportName(cfg), send_error: sendError },
+    });
+
+    const body = { ok: true, ttlMinutes };
+    if (canRevealCode(cfg)) {
+      body.dev = { note: 'No mail provider configured — code returned here instead.', code };
+    }
+    res.status(200).json(body);
+  }));
+
+  /**
+   * Check the code and start an admin session.
+   *
+   * This is the ONLY place an account acquires user_type 'admin': a fresh
+   * allowlisted address gets a new admin row; an existing member row on the
+   * staff domain is promoted (and the promotion audited). A provider row is
+   * refused outright — a partner org on the staff domain would be a
+   * configuration accident, not a login.
+   */
+  router.post('/admin/login/verify', wrap(async (req, res) => {
+    const email = users.normalizeEmail((req.body && req.body.email) || '');
+    const code = String((req.body && req.body.code) || '').trim();
+
+    if (!users.isEmail(email)) throw badRequest('Enter a valid email address.');
+    if (!/^\d{6}$/.test(code)) throw badRequest('Enter the 6-digit code from your email.');
+    if (!isAllowlisted(cfg, email)) {
+      throw forbidden(`Use your @${cfg.ADMIN_EMAIL_DOMAIN} staff email address.`, {
+        logDetail: 'admin verify: address not allowlisted',
+      });
+    }
+
+    await ratelimit.enforce(req.catalyst, req, { key: 'admin.verify.ip', max: 30, windowSec: 3600 });
+
+    const result = await challenges.verify(req.catalyst, req, { email, code, purpose: PURPOSE });
+    if (!result.ok) {
+      audit.recordAsync(req.catalyst, req, {
+        type: 'admin.login', outcome: 'failure', email,
+        detail: { reason: result.reason, remaining: result.remaining },
+      });
+      throw unauthorized('That code is incorrect or has expired. Request a new one.', {
+        logDetail: `admin verify failed: ${result.reason}`,
+      });
+    }
+
+    let { user, created } = await users.findOrCreate(req.catalyst, {
+      email, userType: 'admin',
+    });
+
+    if (user.user_type === 'provider') {
+      throw unauthorized('That code is incorrect or has expired. Request a new one.', {
+        logDetail: 'admin verify: address belongs to a provider account',
+      });
+    }
+    if (user.status !== 'active') {
+      throw unauthorized('That code is incorrect or has expired. Request a new one.', {
+        logDetail: `admin verify: account status ${user.status}`,
+      });
+    }
+
+    if (!created && user.user_type !== 'admin') {
+      // A member row on the staff domain: promote it, on the record.
+      await datastore.updateRow(req.catalyst, users.USERS, { ROWID: user.ROWID, user_type: 'admin' });
+      await audit.record(req.catalyst, req, {
+        type: 'admin.promote', outcome: 'success', email, userId: user.user_id,
+        detail: { from: user.user_type, to: 'admin', by: 'allowlist' },
+      });
+      user = { ...user, user_type: 'admin' };
+    }
+
+    if (created) {
+      await users.linkIdentity(req.catalyst, {
+        userId: user.user_id, provider: 'otp',
+        providerUid: user.user_id, emailAtProvider: email,
+      });
+    }
+
+    await users.touchLastLogin(req.catalyst, user);
+    const session = await sessions.create(req.catalyst, req, res, {
+      userId: user.user_id, userType: 'admin',
+    });
+
+    audit.recordAsync(req.catalyst, req, {
+      type: 'admin.login', outcome: 'success', email, userId: user.user_id,
+      detail: { created },
+    });
+
+    res.status(200).json({
+      ok: true,
+      user: sessions.publicUser(user),
+      expiresAt: session.expiresAt,
+    });
+  }));
+
+  /** Who am I, admin-shaped. The console's boot call. */
+  router.get('/admin/me', wrap(async (req, res) => {
+    const user = requireAdmin(req);
+    res.status(200).json({ ok: true, user: sessions.publicUser(user) });
+  }));
+
+  /* ---------------- overview ---------------- */
+
+  /**
+   * Situational awareness in one call: lead volumes, CRM queue health,
+   * pending approvals, campaign membership, and the state of the kill switch.
+   * Every count survives its table being missing (null -> the console shows
+   * a dash), because the overview must render on a half-provisioned console.
+   */
+  router.get('/admin/overview', wrap(async (req, res) => {
+    requireAdmin(req);
+    const c = req.catalyst;
+
+    const leadCounts = {};
+    for (const table of Object.keys(LEAD_TABLES)) {
+      if (table === 'CrmSyncQueue') continue;
+      leadCounts[table] = await countRows(c, table);
+    }
+
+    const crm = {};
+    for (const status of ['PENDING', 'SYNCED', 'FAILED']) {
+      crm[status.toLowerCase()] = await countRows(c, 'CrmSyncQueue', `Status = ${datastore.lit(status)}`);
+    }
+
+    const orgRows = await (async () => {
+      try {
+        return await datastore.queryAll(c, orgs.ORGS,
+          ['org_id', 'approval_status'], 'ROWID > 0');
+      } catch { return null; }
+    })();
+    const providerCounts = { pending: 0, approved: 0, rejected: 0 };
+    if (orgRows) {
+      for (const row of orgRows) {
+        const s = row.approval_status || 'pending';
+        providerCounts[s] = (providerCounts[s] || 0) + 1;
+      }
+    }
+
+    const memberRows = await campaigns.allRows(c);
+    const cat = await catalog.load(c, { fresh: true });
+    const tallies = memberRows ? campaigns.tally(memberRows) : {};
+
+    res.status(200).json({
+      ok: true,
+      bidding_enabled: (await siteconfig.getValue(c, 'bidding_enabled')) !== false,
+      leads: leadCounts,
+      crm_queue: crm,
+      providers: orgRows ? providerCounts : null,
+      members: await countRows(c, users.USERS, `user_type = ${datastore.lit('member')}`),
+      campaigns: {
+        source: cat.source,
+        list: cat.list.map((k) => {
+          const t = tallies[k.id] || { signups: 0, watching: 0 };
+          return {
+            id: k.id, region: k.region, kind: k.kind, target: k.target,
+            members: k.seedMembers + t.signups,
+            households: k.seedHouseholds + t.signups,
+            watching: t.watching,
+            bidding_open: Boolean(k.biddingOpen),
+          };
+        }),
+        memberships_live: memberRows !== null,
+      },
+    });
+  }));
+
+  /* ---------------- site information ---------------- */
+
+  router.get('/admin/config', wrap(async (req, res) => {
+    requireAdmin(req);
+    const view = await siteconfig.adminView(req.catalyst);
+    res.status(200).json({ ok: true, ...view });
+  }));
+
+  /**
+   * Create or update one key. Typed: the write is validated against
+   * `value_type` so a stray string can never land where the site reads a
+   * number. Audited with before -> after.
+   */
+  router.put('/admin/config/:key', wrap(async (req, res) => {
+    const admin = requireAdmin(req);
+    const key = String(req.params.key || '').trim();
+    const body = req.body || {};
+
+    let change;
+    try {
+      change = await siteconfig.setValue(req.catalyst, {
+        key,
+        value: body.value,
+        valueType: body.value_type,
+        published: body.published,
+        description: body.description,
+        updatedBy: admin.user_id,
+      });
+    } catch (err) {
+      if (err instanceof TypeError) throw badRequest(err.message);
+      throw new AppError('SERVER_ERROR',
+        'Config is not writable right now — has the site_config table been created?', {
+          logDetail: `site_config write failed: ${String((err && err.message) || err).slice(0, 200)}`,
+        });
+    }
+
+    await audit.record(req.catalyst, req, {
+      type: 'admin.config.set', outcome: 'success',
+      userId: admin.user_id, email: admin.email_normalized,
+      detail: { key, before: change.before, after: change.after },
+    });
+
+    res.status(200).json({ ok: true, key, ...change });
+  }));
+
+  /**
+   * The global kill switch, as its own verb — it is the single most
+   * consequential flag, and "POST /admin/bidding {enabled:false}" is what a
+   * runbook can say unambiguously.
+   */
+  router.post('/admin/bidding', wrap(async (req, res) => {
+    const admin = requireAdmin(req);
+    const enabled = (req.body || {}).enabled;
+    if (typeof enabled !== 'boolean') throw badRequest('Send { enabled: true | false }.');
+
+    const change = await siteconfig.setValue(req.catalyst, {
+      key: 'bidding_enabled', value: enabled, valueType: 'boolean',
+      published: true, updatedBy: admin.user_id,
+    }).catch((err) => {
+      throw new AppError('SERVER_ERROR',
+        'The switch is not writable right now — has the site_config table been created?', {
+          logDetail: `bidding toggle failed: ${String((err && err.message) || err).slice(0, 200)}`,
+        });
+    });
+
+    await audit.record(req.catalyst, req, {
+      type: 'admin.bidding.toggle', outcome: 'success',
+      userId: admin.user_id, email: admin.email_normalized,
+      detail: { before: change.before, after: change.after },
+    });
+
+    res.status(200).json({ ok: true, bidding_enabled: enabled });
+  }));
+
+  /* ---------------- campaigns ---------------- */
+
+  router.get('/admin/campaigns', wrap(async (req, res) => {
+    requireAdmin(req);
+    const cat = await catalog.load(req.catalyst, { fresh: true });
+    const memberRows = await campaigns.allRows(req.catalyst);
+    const tallies = memberRows ? campaigns.tally(memberRows) : {};
+    res.status(200).json({
+      ok: true,
+      source: cat.source,
+      memberships_live: memberRows !== null,
+      campaigns: cat.list.map((c) => {
+        const t = tallies[c.id] || { signups: 0, watching: 0 };
+        return {
+          id: c.id, region: c.region, sub: c.sub, kind: c.kind, target: c.target,
+          seed_members: c.seedMembers, seed_households: c.seedHouseholds,
+          members: c.seedMembers + t.signups,
+          households: c.seedHouseholds + t.signups,
+          watching: t.watching,
+          bidding_open: Boolean(c.biddingOpen),
+          sort_order: c.sortOrder,
+        };
+      }),
+    });
+  }));
+
+  /** Validate the editable fields of a campaign body. Throws 400s. */
+  function campaignFields(body, { partial = false } = {}) {
+    const out = {};
+    const has = (k) => body[k] !== undefined;
+    const int = (k, v, min, max) => {
+      const n = Number(v);
+      if (!Number.isInteger(n) || n < min || n > max) {
+        throw badRequest(`${k} must be a whole number between ${min} and ${max}.`);
+      }
+      return n;
+    };
+    if (has('region') || !partial) {
+      const r = String(body.region || '').trim();
+      if (!r || r.length > 100) throw badRequest('region is required (up to 100 characters).');
+      out.region = r;
+    }
+    if (has('sub')) out.sub = String(body.sub || '').trim().slice(0, 100);
+    if (has('target')) out.target = body.target === null ? null : int('target', body.target, 1, 1000000);
+    if (has('seed_members')) out.seed_members = int('seed_members', body.seed_members, 0, 1000000);
+    if (has('seed_households')) out.seed_households = int('seed_households', body.seed_households, 0, 1000000);
+    if (has('sort_order')) out.sort_order = int('sort_order', body.sort_order, 0, 100000);
+    if (has('bidding_open')) {
+      if (typeof body.bidding_open !== 'boolean') throw badRequest('bidding_open must be true or false.');
+      out.bidding_open = body.bidding_open;
+    }
+    return out;
+  }
+
+  const campaignsWriteError = (err) => new AppError('SERVER_ERROR',
+    'Campaigns are not writable right now — has the campaigns table been created?', {
+      logDetail: `campaigns write failed: ${String((err && err.message) || err).slice(0, 200)}`,
+    });
+
+  router.post('/admin/campaigns', wrap(async (req, res) => {
+    const admin = requireAdmin(req);
+    const body = req.body || {};
+    const id = String(body.id || '').trim();
+    if (!catalog.ID_RE.test(id)) {
+      throw badRequest('id must be a slug: 3-64 characters of a-z, 0-9 and hyphen.');
+    }
+    const kind = String(body.kind || 'planned');
+    if (!catalog.KINDS.includes(kind)) {
+      throw badRequest(`kind must be one of ${catalog.KINDS.join(' | ')}.`);
+    }
+    const fields = campaignFields(body);
+
+    let existing = null;
+    try {
+      existing = await datastore.findBy(req.catalyst, catalog.TABLE, 'campaign_id', id, ['ROWID']);
+    } catch (err) {
+      throw campaignsWriteError(err);
+    }
+    if (existing) {
+      throw new AppError('CONFLICT', 'A campaign with that id already exists.');
+    }
+
+    try {
+      await datastore.insertRow(req.catalyst, catalog.TABLE, {
+        campaign_id: id,
+        region: fields.region,
+        sub: fields.sub || '',
+        kind,
+        target: fields.target === undefined ? null : fields.target,
+        seed_members: fields.seed_members || 0,
+        seed_households: fields.seed_households || 0,
+        bidding_open: Boolean(fields.bidding_open),
+        sort_order: fields.sort_order || 0,
+        updated_by: admin.user_id,
+        updated_at: datastore.nowDb(),
+      });
+    } catch (err) {
+      throw campaignsWriteError(err);
+    }
+    catalog.invalidate();
+
+    await audit.record(req.catalyst, req, {
+      type: 'admin.campaign.create', outcome: 'success',
+      userId: admin.user_id, email: admin.email_normalized,
+      detail: { campaign: id, kind, ...fields },
+    });
+
+    res.status(200).json({ ok: true, id });
+  }));
+
+  router.put('/admin/campaigns/:id', wrap(async (req, res) => {
+    const admin = requireAdmin(req);
+    const id = cleanId(req.params.id, 'campaign id');
+    const fields = campaignFields(req.body || {}, { partial: true });
+    if (!Object.keys(fields).length) throw badRequest('Nothing to change.');
+
+    let row;
+    try {
+      row = await datastore.findBy(req.catalyst, catalog.TABLE, 'campaign_id', id,
+        ['ROWID', ...catalog.COLUMNS]);
+    } catch (err) {
+      throw campaignsWriteError(err);
+    }
+    if (!row) {
+      throw badRequest('That campaign is not in the campaigns table. Import defaults first, or create it.');
+    }
+
+    const before = {};
+    for (const k of Object.keys(fields)) before[k] = row[k];
+
+    await datastore.updateRow(req.catalyst, catalog.TABLE, {
+      ROWID: row.ROWID, ...fields,
+      updated_by: admin.user_id, updated_at: datastore.nowDb(),
+    });
+    catalog.invalidate();
+
+    await audit.record(req.catalyst, req, {
+      type: 'admin.campaign.update', outcome: 'success',
+      userId: admin.user_id, email: admin.email_normalized,
+      detail: { campaign: id, before, after: fields },
+    });
+
+    res.status(200).json({ ok: true, id });
+  }));
+
+  /**
+   * Lifecycle moves, validated against the state machine. Moving to `auction`
+   * locks member joins and (once bidding_open is set) opens the partner bid
+   * window; `archived -> auction` and its kin are refused.
+   */
+  router.post('/admin/campaigns/:id/transition', wrap(async (req, res) => {
+    const admin = requireAdmin(req);
+    const id = cleanId(req.params.id, 'campaign id');
+    const to = String((req.body || {}).to || '').trim();
+    if (!catalog.KINDS.includes(to)) {
+      throw badRequest(`to must be one of ${catalog.KINDS.join(' | ')}.`);
+    }
+
+    let row;
+    try {
+      row = await datastore.findBy(req.catalyst, catalog.TABLE, 'campaign_id', id,
+        ['ROWID', 'kind', 'bidding_open']);
+    } catch (err) {
+      throw campaignsWriteError(err);
+    }
+    if (!row) {
+      throw badRequest('That campaign is not in the campaigns table. Import defaults first, or create it.');
+    }
+
+    const from = catalog.KINDS.includes(row.kind) ? row.kind : 'planned';
+    const legal = catalog.TRANSITIONS[from] || [];
+    if (!legal.includes(to)) {
+      throw new AppError('CONFLICT',
+        `A ${from} campaign cannot move to ${to}. Legal moves: ${legal.join(', ') || 'none'}.`);
+    }
+
+    const fields = { ROWID: row.ROWID, kind: to, updated_by: admin.user_id, updated_at: datastore.nowDb() };
+    // Leaving auction always closes the bid window; entering it never opens
+    // it implicitly — opening bidding is its own deliberate act (PUT bidding_open).
+    if (from === 'auction' && to !== 'auction') fields.bidding_open = false;
+    await datastore.updateRow(req.catalyst, catalog.TABLE, fields);
+    catalog.invalidate();
+
+    await audit.record(req.catalyst, req, {
+      type: 'admin.campaign.transition', outcome: 'success',
+      userId: admin.user_id, email: admin.email_normalized,
+      detail: { campaign: id, from, to },
+    });
+
+    res.status(200).json({ ok: true, id, kind: to });
+  }));
+
+  /**
+   * Seed the table from the code catalog — the one-time promotion. Skips ids
+   * that already exist, so it is safe to run twice.
+   */
+  router.post('/admin/campaigns/import-defaults', wrap(async (req, res) => {
+    const admin = requireAdmin(req);
+    const imported = [];
+    for (const c of catalog.CODE_CATALOG) {
+      let existing;
+      try {
+        existing = await datastore.findBy(req.catalyst, catalog.TABLE, 'campaign_id', c.id, ['ROWID']);
+      } catch (err) {
+        throw campaignsWriteError(err);
+      }
+      if (existing) continue;
+      await datastore.insertRow(req.catalyst, catalog.TABLE, {
+        campaign_id: c.id,
+        region: c.region,
+        sub: c.sub,
+        kind: c.kind,
+        target: c.target,
+        seed_members: c.seedMembers,
+        seed_households: c.seedHouseholds,
+        bidding_open: Boolean(c.biddingOpen),
+        sort_order: c.sortOrder,
+        updated_by: admin.user_id,
+        updated_at: datastore.nowDb(),
+      });
+      imported.push(c.id);
+    }
+    catalog.invalidate();
+
+    await audit.record(req.catalyst, req, {
+      type: 'admin.campaign.import', outcome: 'success',
+      userId: admin.user_id, email: admin.email_normalized,
+      detail: { imported },
+    });
+
+    res.status(200).json({ ok: true, imported });
+  }));
+
+  /* ---------------- provider approval — the human gate ---------------- */
+
+  router.get('/admin/providers', wrap(async (req, res) => {
+    requireAdmin(req);
+    let orgRows;
+    try {
+      orgRows = await datastore.queryAll(req.catalyst, orgs.ORGS,
+        [...orgs.ORG_COLUMNS, 'rejection_reason', 'CREATEDTIME'].filter((c) => c !== 'ROWID'), 'ROWID > 0');
+    } catch {
+      // The optional rejection_reason column may not exist yet; retry without.
+      orgRows = await datastore.queryAll(req.catalyst, orgs.ORGS,
+        [...orgs.ORG_COLUMNS, 'CREATEDTIME'].filter((c) => c !== 'ROWID'), 'ROWID > 0');
+    }
+
+    let memberships = [];
+    try {
+      memberships = await datastore.queryAll(req.catalyst, orgs.MEMBERSHIPS,
+        ['user_id', 'org_id', 'role'], 'ROWID > 0');
+    } catch { /* no memberships yet */ }
+    const seats = {};
+    for (const m of memberships) seats[m.org_id] = (seats[m.org_id] || 0) + 1;
+
+    const status = String(req.query.status || 'all');
+    const list = orgRows
+      .filter((o) => status === 'all' || (o.approval_status || 'pending') === status)
+      .map((o) => ({
+        org_id: o.org_id,
+        legal_name: o.legal_name,
+        email_domain: o.email_domain,
+        approval_status: o.approval_status || 'pending',
+        approved_by: o.approved_by || null,
+        approved_at: o.approved_at || null,
+        rejection_reason: o.rejection_reason || null,
+        seats: seats[o.org_id] || 0,
+        created_at: o.CREATEDTIME || null,
+      }))
+      // Pending first — the queue the console opens onto.
+      .sort((a, b) => (a.approval_status === 'pending' ? 0 : 1) - (b.approval_status === 'pending' ? 0 : 1));
+
+    res.status(200).json({ ok: true, providers: list });
+  }));
+
+  /**
+   * The full review: the org, the people who signed up under it, and the
+   * PartnerApplications rows matched by email domain — the form answers
+   * (provinces, access tech, business number, LOA) are the review material.
+   */
+  router.get('/admin/providers/:orgId', wrap(async (req, res) => {
+    requireAdmin(req);
+    const orgId = cleanId(req.params.orgId, 'organisation id');
+    const org = await orgs.findById(req.catalyst, orgId);
+    if (!org) throw new AppError('NOT_FOUND', 'No such organisation.');
+
+    const memberships = await orgs.membersOf(req.catalyst, orgId);
+    const people = [];
+    for (const m of memberships) {
+      const u = await users.findById(req.catalyst, m.user_id);
+      if (u) {
+        people.push({
+          user_id: u.user_id,
+          email: u.email_display || u.email_normalized,
+          first_name: u.first_name,
+          last_name: u.last_name,
+          status: u.status,
+          org_role: m.role,
+        });
+      }
+    }
+
+    // Applications by domain, matched in code: ZCQL string functions are not
+    // dependable enough to express "ends with @domain" server-side.
+    const domain = String(org.email_domain || '').toLowerCase();
+    let applications = [];
+    try {
+      const rows = await datastore.queryAll(req.catalyst, 'PartnerApplications',
+        LEAD_TABLES.PartnerApplications, 'ROWID > 0');
+      applications = rows.filter((r) =>
+        domain && String(r.Email || '').toLowerCase().endsWith(`@${domain}`));
+    } catch { /* lead table unreadable: review still renders */ }
+
+    res.status(200).json({
+      ok: true,
+      org: {
+        org_id: org.org_id,
+        legal_name: org.legal_name,
+        email_domain: org.email_domain,
+        approval_status: org.approval_status || 'pending',
+        approved_by: org.approved_by || null,
+        approved_at: org.approved_at || null,
+      },
+      people,
+      applications,
+    });
+  }));
+
+  /** Load an org for a decision route or throw the shared 404. */
+  async function orgForDecision(req) {
+    const orgId = cleanId(req.params.orgId, 'organisation id');
+    const org = await orgs.findById(req.catalyst, orgId);
+    if (!org) throw new AppError('NOT_FOUND', 'No such organisation.');
+    return org;
+  }
+
+  /** Email every active person in the org. Best-effort, recorded per address. */
+  async function notifyOrgUsers(req, org, buildMessage) {
+    const memberships = await orgs.membersOf(req.catalyst, org.org_id).catch(() => []);
+    const outcomes = [];
+    for (const m of memberships) {
+      const u = await users.findById(req.catalyst, m.user_id).catch(() => null);
+      if (!u || u.status !== 'active') continue;
+      try {
+        await mailer.send(cfg, { to: u.email_normalized, ...buildMessage() });
+        outcomes.push({ user: u.user_id, delivered: true });
+      } catch (err) {
+        outcomes.push({ user: u.user_id, delivered: false });
+        console.error(JSON.stringify({
+          req_id: req.id, level: 'error', message: 'provider decision mail failed',
+          detail: String((err && err.message) || err).slice(0, 200),
+        }));
+      }
+    }
+    return outcomes;
+  }
+
+  /**
+   * THE write of `approved` — the only one in the system. Stamps who and
+   * when, tells the org's people their console is live, audits.
+   */
+  router.post('/admin/providers/:orgId/approve', wrap(async (req, res) => {
+    const admin = requireAdmin(req);
+    const org = await orgForDecision(req);
+    const before = org.approval_status || 'pending';
+
+    await datastore.updateRow(req.catalyst, orgs.ORGS, {
+      ROWID: org.ROWID,
+      approval_status: 'approved',
+      approved_by: admin.user_id,
+      approved_at: datastore.nowDb(),
+    });
+
+    const mailed = await notifyOrgUsers(req, org, () =>
+      mailer.providerDecisionEmail({
+        approved: true, orgName: org.legal_name, appBaseUrl: cfg.APP_BASE_URL,
+      }));
+
+    await audit.record(req.catalyst, req, {
+      type: 'admin.provider.approve', outcome: 'success',
+      userId: admin.user_id, email: admin.email_normalized,
+      detail: { org_id: org.org_id, before, after: 'approved', mailed },
+    });
+
+    res.status(200).json({ ok: true, org_id: org.org_id, approval_status: 'approved' });
+  }));
+
+  router.post('/admin/providers/:orgId/reject', wrap(async (req, res) => {
+    const admin = requireAdmin(req);
+    const org = await orgForDecision(req);
+    const reason = String((req.body || {}).reason || '').trim();
+    if (reason.length < 3 || reason.length > 255) {
+      throw badRequest('A rejection needs a reason (3-255 characters). The audit trail and the email both carry it.');
+    }
+    const before = org.approval_status || 'pending';
+
+    try {
+      await datastore.updateRow(req.catalyst, orgs.ORGS, {
+        ROWID: org.ROWID, approval_status: 'rejected',
+        approved_by: admin.user_id, approved_at: datastore.nowDb(),
+        rejection_reason: reason,
+      });
+    } catch {
+      // rejection_reason column not created yet — the decision still stands;
+      // the reason survives in the audit row and the email.
+      await datastore.updateRow(req.catalyst, orgs.ORGS, {
+        ROWID: org.ROWID, approval_status: 'rejected',
+        approved_by: admin.user_id, approved_at: datastore.nowDb(),
+      });
+    }
+
+    const mailed = await notifyOrgUsers(req, org, () =>
+      mailer.providerDecisionEmail({
+        approved: false, orgName: org.legal_name, reason, appBaseUrl: cfg.APP_BASE_URL,
+      }));
+
+    await audit.record(req.catalyst, req, {
+      type: 'admin.provider.reject', outcome: 'success',
+      userId: admin.user_id, email: admin.email_normalized,
+      detail: { org_id: org.org_id, before, after: 'rejected', reason, mailed },
+    });
+
+    res.status(200).json({ ok: true, org_id: org.org_id, approval_status: 'rejected' });
+  }));
+
+  /**
+   * approved -> pending. Their sessions keep working, but every surface that
+   * checks approval loses access on its next request. No email — suspension
+   * is usually the start of a conversation, not its conclusion.
+   */
+  router.post('/admin/providers/:orgId/suspend', wrap(async (req, res) => {
+    const admin = requireAdmin(req);
+    const org = await orgForDecision(req);
+    const before = org.approval_status || 'pending';
+    if (before !== 'approved') {
+      throw new AppError('CONFLICT', `Only an approved organisation can be suspended (this one is ${before}).`);
+    }
+
+    await datastore.updateRow(req.catalyst, orgs.ORGS, {
+      ROWID: org.ROWID, approval_status: 'pending',
+    });
+
+    await audit.record(req.catalyst, req, {
+      type: 'admin.provider.suspend', outcome: 'success',
+      userId: admin.user_id, email: admin.email_normalized,
+      detail: { org_id: org.org_id, before, after: 'pending' },
+    });
+
+    res.status(200).json({ ok: true, org_id: org.org_id, approval_status: 'pending' });
+  }));
+
+  /**
+   * The duplicate-domain repair orgs.js anticipates: move every membership to
+   * the survivor, delete the empty row. Rare; audited; refuses to merge an
+   * org into itself.
+   */
+  router.post('/admin/orgs/merge', wrap(async (req, res) => {
+    const admin = requireAdmin(req);
+    const body = req.body || {};
+    const fromId = cleanId(body.fromOrgId, 'organisation id');
+    const toId = cleanId(body.toOrgId, 'organisation id');
+    if (fromId === toId) throw badRequest('fromOrgId and toOrgId must differ.');
+
+    const from = await orgs.findById(req.catalyst, fromId);
+    const to = await orgs.findById(req.catalyst, toId);
+    if (!from || !to) throw new AppError('NOT_FOUND', 'No such organisation.');
+
+    const moving = await orgs.membersOf(req.catalyst, fromId);
+    const existing = await orgs.membersOf(req.catalyst, toId);
+    const already = new Set(existing.map((m) => m.user_id));
+
+    let moved = 0;
+    let dropped = 0;
+    for (const m of moving) {
+      if (already.has(m.user_id)) {
+        await datastore.deleteRow(req.catalyst, orgs.MEMBERSHIPS, m.ROWID);
+        dropped++;
+      } else {
+        await datastore.updateRow(req.catalyst, orgs.MEMBERSHIPS, { ROWID: m.ROWID, org_id: toId });
+        moved++;
+      }
+    }
+    await datastore.deleteRow(req.catalyst, orgs.ORGS, from.ROWID);
+
+    await audit.record(req.catalyst, req, {
+      type: 'admin.org.merge', outcome: 'success',
+      userId: admin.user_id, email: admin.email_normalized,
+      detail: {
+        from: { org_id: from.org_id, legal_name: from.legal_name },
+        to: { org_id: to.org_id, legal_name: to.legal_name },
+        moved, dropped,
+      },
+    });
+
+    res.status(200).json({ ok: true, moved, dropped, survivor: toId });
+  }));
+
+  /* ---------------- visibility ---------------- */
+
+  /**
+   * Read-only lead views. `:table` resolves through LEAD_TABLES — a request
+   * value never reaches ZCQL as a table name. Paginated newest-first; the UI
+   * always shows a "more" affordance while `next` is non-null.
+   */
+  router.get('/admin/leads/:table', wrap(async (req, res) => {
+    requireAdmin(req);
+    const table = String(req.params.table || '');
+    const columns = LEAD_TABLES[table];
+    if (!columns) {
+      throw badRequest(`Unknown table. One of: ${Object.keys(LEAD_TABLES).join(', ')}.`);
+    }
+    const before = req.query.before ? cleanId(req.query.before, 'cursor') : null;
+
+    let page;
+    try {
+      page = await recentRows(req.catalyst, table, columns, {
+        before, limit: req.query.limit,
+      });
+    } catch (err) {
+      throw new AppError('SERVER_ERROR', 'That table could not be read.', {
+        logDetail: `leads read failed for ${table}: ${String((err && err.message) || err).slice(0, 200)}`,
+      });
+    }
+
+    res.status(200).json({ ok: true, table, columns, rows: page.rows, next: page.next });
+  }));
+
+  /**
+   * The audit trail, filterable. Reads the same auth_events every route
+   * writes — including the admin actions above, so the console can watch
+   * itself being used.
+   */
+  router.get('/admin/audit', wrap(async (req, res) => {
+    requireAdmin(req);
+    const before = req.query.before ? cleanId(req.query.before, 'cursor') : null;
+    const parts = [];
+    if (req.query.type) {
+      const t = String(req.query.type).trim();
+      if (!/^[a-z0-9._-]{1,64}$/i.test(t)) throw badRequest('That type filter is not valid.');
+      parts.push(`event_type = ${datastore.lit(t)}`);
+    }
+    if (req.query.outcome) {
+      const o = String(req.query.outcome).trim();
+      if (o !== 'success' && o !== 'failure') throw badRequest('outcome must be success or failure.');
+      parts.push(`outcome = ${datastore.lit(o)}`);
+    }
+
+    const page = await recentRows(req.catalyst, audit.TABLE,
+      ['event_type', 'user_id', 'email_normalized', 'outcome', 'detail'],
+      { before, limit: req.query.limit, where: parts.join(' AND ') || null });
+
+    res.status(200).json({ ok: true, rows: page.rows, next: page.next });
+  }));
+}
+
+module.exports = { mount, requireAdmin, LEAD_TABLES };

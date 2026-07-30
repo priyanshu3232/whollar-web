@@ -32,6 +32,8 @@ const googleRoutes = require('./routes/google');
 const providerRoutes = require('./routes/provider');
 const memberRoutes = require('./routes/member');
 const campaignRoutes = require('./routes/campaigns');
+const adminRoutes = require('./routes/admin');
+const publicRoutes = require('./routes/public');
 
 /**
  * Strip anything address-shaped out of a provider error before it is returned.
@@ -230,6 +232,9 @@ function buildApp(cfg) {
   providerRoutes.mount(router, cfg);
   memberRoutes.mount(router);
   campaignRoutes.mount(router);
+  // Mounts nothing unless the `admin` config group is set — see routes/admin.js.
+  adminRoutes.mount(router, cfg);
+  publicRoutes.mount(router);
 
   if (!cfg.IS_PRODUCTION) {
     mountDevRoutes(router, cfg);

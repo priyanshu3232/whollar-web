@@ -3,11 +3,9 @@
 /**
  * Campaigns: the first surface the member and partner dashboards SHARE.
  *
- * Until now the two dashboards each carried their own hardcoded cohort
- * numbers, with no common identity between "London East" on a member card and
- * `le` on the partner bid desk. This module is the join point: one catalog of
- * campaigns, one membership table, and both sides reading counts from it — so
- * a member joining a cohort is one more household on the partner's desk.
+ * One catalog of campaigns, one membership table, and both sides reading
+ * counts from it — so a member joining a cohort is one more household on the
+ * partner's desk.
  *
  *   GET  /campaigns            what a signed-in member sees near them
  *   POST /campaigns/join       join a forming cohort / a waitlist
@@ -15,55 +13,30 @@
  *   POST /campaigns/notify     "text me the day it opens"
  *   GET  /provider/campaigns   the same campaigns, partner-shaped: counts only
  *
- * The CATALOG below is deliberately code, not a table. The set of campaigns
- * changes by deploy (an ops decision), membership changes by the minute (a
- * user decision) — only the latter needs a Data Store table, and Catalyst
- * tables are hand-created in the console, so every table this module does NOT
- * need is 25 minutes it does not cost. What the catalog holds as `seed*` are
- * the demo baselines the dashboards already showed; live sign-ups add to
- * them, so day one looks like the prototype and every real join moves both
- * surfaces by one.
+ * The catalog itself now lives in `lib/catalog.js`: the `campaigns` table when
+ * it exists, the original code constant when it does not. That move is what
+ * lets the admin console change a cohort's lifecycle without a deploy; the
+ * fallback is what keeps day one identical to yesterday. Membership stays in
+ * `campaign_members`, untouched.
+ *
+ * Bidding is enforced here as data, decided elsewhere: the response to the
+ * partner desk carries `bidding.enabled` (the global kill switch from
+ * site_config) and each auction's `bidding_open`. `requireBiddingOpen()` is
+ * exported for the day a bid-placing route exists — the check must live in
+ * one helper so no future route can forget it.
  *
  * Counts only ever cross the aisle. A partner sees how many households a
- * campaign has, never who they are — same privacy line the bid desk already
- * promises ("bidding providers never see your provider or your price").
+ * campaign has, never who they are.
  */
 
 const datastore = require('../lib/datastore');
 const audit = require('../lib/audit');
+const catalog = require('../lib/catalog');
+const siteconfig = require('../lib/siteconfig');
 const { wrap, badRequest, unauthorized, forbidden, AppError } = require('../lib/errors');
 
 const TABLE = 'campaign_members';
-
-/* ------------------------------------------------------------------ *
- * Catalog
- * ------------------------------------------------------------------ */
-
-/**
- * `kind` is what a member may do about it:
- *   forming  — a cohort filling toward its target; joinable, leaveable
- *   waitlist — a region gathering interest; joinable as a waitlist entry
- *   planned  — announced, opens later; notify only
- *   auction  — already locked and in front of partners; members are done here
- *
- * `seedMembers` is the member-facing baseline ("61 of 100 households"),
- * `seedHouseholds` the partner-facing one (the bid desk's `hh` column). They
- * differ on purpose where the dashboards' demo copy differed — each surface
- * keeps its familiar number, and live joins increment both.
- */
-const CATALOG = [
-  { id: 'kingston-west',     region: 'Kingston West',     sub: 'Autumn cohort', kind: 'auction',  target: null, seedMembers: 64, seedHouseholds: 64 },
-  { id: 'london-east',       region: 'London East',       sub: 'Autumn cohort', kind: 'forming',  target: 100,  seedMembers: 61, seedHouseholds: 112 },
-  { id: 'london-north',      region: 'London North',      sub: 'Winter cohort', kind: 'planned',  target: 100,  seedMembers: 61, seedHouseholds: 100 },
-  { id: 'chatham-kent',      region: 'Chatham-Kent',      sub: 'First cohort',  kind: 'waitlist', target: 100,  seedMembers: 37, seedHouseholds: 100 },
-  { id: 'windsor-core',      region: 'Windsor',           sub: 'Winter cohort', kind: 'waitlist', target: 100,  seedMembers: 52, seedHouseholds: 87 },
-  { id: 'hamilton-mountain', region: 'Hamilton Mountain', sub: 'Winter cohort', kind: 'auction',  target: null, seedMembers: 58, seedHouseholds: 58 },
-];
-
-const byId = new Map(CATALOG.map((c) => [c.id, c]));
-
-/** What joining each kind means. Absent = not joinable. */
-const JOIN_STATUS = { forming: 'joined', waitlist: 'waitlist', planned: 'waitlist' };
+const { JOIN_STATUS } = catalog;
 
 /* ------------------------------------------------------------------ *
  * Membership reads
@@ -113,6 +86,9 @@ function publicCampaign(c, counts, mine) {
   };
 }
 
+/** Archived campaigns exist for the admin console only. */
+const visible = (list) => list.filter((c) => c.kind !== 'archived');
+
 /* ------------------------------------------------------------------ *
  * Guards
  * ------------------------------------------------------------------ */
@@ -138,15 +114,36 @@ function requireProvider(req) {
 }
 
 /** The catalog entry the body names, or a 400 that says what is on offer. */
-function campaignFrom(body) {
+function campaignFrom(cat, body) {
   const id = String((body || {}).campaign || '').trim();
-  const c = byId.get(id);
-  if (!c) {
+  const c = cat.byId.get(id);
+  if (!c || c.kind === 'archived') {
     throw badRequest('That campaign does not exist.', {
       logDetail: `unknown campaign id, length ${id.length}`,
     });
   }
   return c;
+}
+
+/**
+ * The one bidding gate. Every future route that accepts a bid MUST call this
+ * first — the global kill switch and the per-campaign window are both
+ * enforced here and nowhere else, so no new route can check one and forget
+ * the other. Refuses with 409, the code the dashboards render as "bidding is
+ * paused", not as an error of theirs.
+ */
+async function requireBiddingOpen(catalystApp, campaign) {
+  const enabled = await siteconfig.getValue(catalystApp, 'bidding_enabled');
+  if (enabled === false) {
+    throw new AppError('CONFLICT', 'Bidding is paused across Whollar right now.', {
+      logDetail: 'bid refused: bidding_enabled=false',
+    });
+  }
+  if (campaign.kind !== 'auction' || !campaign.biddingOpen) {
+    throw new AppError('CONFLICT', 'Bidding is not open on this campaign.', {
+      logDetail: `bid refused: kind=${campaign.kind} bidding_open=${campaign.biddingOpen}`,
+    });
+  }
 }
 
 /**
@@ -201,6 +198,7 @@ function mount(router) {
    */
   router.get('/campaigns', wrap(async (req, res) => {
     const user = requireMember(req);
+    const cat = await catalog.load(req.catalyst);
     const rows = await allRows(req.catalyst);
     const counts = rows ? tally(rows) : {};
     const mineBy = {};
@@ -210,7 +208,7 @@ function mount(router) {
     res.status(200).json({
       ok: true,
       live: rows !== null,
-      campaigns: CATALOG.map((c) => publicCampaign(c, counts, mineBy[c.id])),
+      campaigns: visible(cat.list).map((c) => publicCampaign(c, counts, mineBy[c.id])),
     });
   }));
 
@@ -221,7 +219,8 @@ function mount(router) {
    */
   router.post('/campaigns/join', wrap(async (req, res) => {
     const user = requireMember(req);
-    const campaign = campaignFrom(req.body);
+    const cat = await catalog.load(req.catalyst);
+    const campaign = campaignFrom(cat, req.body);
     const status = JOIN_STATUS[campaign.kind];
     if (!status) {
       throw badRequest('This campaign is already with providers and closed to new joins.', {
@@ -253,7 +252,8 @@ function mount(router) {
    */
   router.post('/campaigns/leave', wrap(async (req, res) => {
     const user = requireMember(req);
-    const campaign = campaignFrom(req.body);
+    const cat = await catalog.load(req.catalyst);
+    const campaign = campaignFrom(cat, req.body);
     const key = `${campaign.id}:${user.user_id}`;
 
     try {
@@ -287,7 +287,8 @@ function mount(router) {
    */
   router.post('/campaigns/notify', wrap(async (req, res) => {
     const user = requireMember(req);
-    const campaign = campaignFrom(req.body);
+    const cat = await catalog.load(req.catalyst);
+    const campaign = campaignFrom(cat, req.body);
     const key = `${campaign.id}:${user.user_id}`;
 
     let status = 'alert';
@@ -322,20 +323,32 @@ function mount(router) {
   }));
 
   /**
-   * The partner's view: the same campaigns, counts only. -> { ok, live, campaigns }
+   * The partner's view: the same campaigns, counts only.
+   * -> { ok, live, bidding, campaigns }
    *
    * `households` is what the bid desk's `hh` column shows; `members`/`target`
    * feed the "Cohort forming: 62 of 100" notes on planned rows. No member
    * identity of any kind crosses this boundary.
+   *
+   * `bidding.enabled` is the global kill switch; each campaign additionally
+   * carries `bidding_open`. The dashboard renders bid forms disabled when
+   * either is off — and the server refuses regardless, via
+   * requireBiddingOpen(), the day a bid route exists.
    */
   router.get('/provider/campaigns', wrap(async (req, res) => {
     requireProvider(req);
+    const cat = await catalog.load(req.catalyst);
     const rows = await allRows(req.catalyst);
     const counts = rows ? tally(rows) : {};
+    const enabled = await siteconfig.getValue(req.catalyst, 'bidding_enabled') !== false;
     res.status(200).json({
       ok: true,
       live: rows !== null,
-      campaigns: CATALOG.map((c) => {
+      bidding: {
+        enabled,
+        notice: enabled ? null : 'Bidding is paused across Whollar right now.',
+      },
+      campaigns: visible(cat.list).map((c) => {
         const t = counts[c.id] || { signups: 0, watching: 0 };
         return {
           id: c.id,
@@ -347,10 +360,11 @@ function mount(router) {
           households: c.seedHouseholds + t.signups,
           signups: t.signups,
           watching: t.watching,
+          bidding_open: enabled && c.kind === 'auction' && Boolean(c.biddingOpen),
         };
       }),
     });
   }));
 }
 
-module.exports = { mount };
+module.exports = { mount, allRows, tally, requireBiddingOpen, TABLE };

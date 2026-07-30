@@ -130,6 +130,27 @@ const v = {
 
   nonEmpty: (raw) =>
     raw.trim().length ? { value: raw.trim() } : { error: 'must not be empty' },
+
+  /** A bare domain name, lowercased: `whollar.com`. Not an origin, not an email. */
+  domain: (raw) => {
+    const s = String(raw).trim().toLowerCase();
+    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(s)) {
+      return { error: 'must be a bare domain name, e.g. whollar.com' };
+    }
+    return { value: s };
+  },
+
+  /**
+   * Optional email allowlist -> frozen array, normalized. Same separator
+   * leniency as `origins`, for the same Catalyst-console reason. Empty is a
+   * valid value: the domain gate alone is then the whole allowlist.
+   */
+  emailList: (raw) => {
+    const parts = String(raw).split(/[\s,;]+/).map((s) => s.trim().toLowerCase()).filter(Boolean);
+    const bad = parts.filter((p) => !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(p));
+    if (bad.length) return { error: `contains invalid emails: ${bad.join(', ')}` };
+    return { value: Object.freeze([...new Set(parts)]) };
+  },
 };
 
 /* ------------------------------------------------------------------ *
@@ -204,6 +225,22 @@ const GROUPS = {
     GOOGLE_CLIENT_SECRET: { check: v.nonEmpty, secret: true },
     GOOGLE_REDIRECT_URI:  { check: v.nonEmpty },
   },
+  /**
+   * The admin console (admin.whollar.ca).
+   *
+   * Unset -> FEATURES.admin is false and no /admin route is mounted at all:
+   * the surface does not exist until an operator decides it does. The domain
+   * is the allowlist — every mailbox on it can become an admin — so it must
+   * be a domain whose mailboxes the company alone controls. ADMIN_EMAILS adds
+   * individual off-domain addresses (a contractor, a founder's personal
+   * address) without widening the domain gate.
+   */
+  admin: {
+    ADMIN_EMAIL_DOMAIN:      { check: v.domain },
+    ADMIN_EMAILS:            { check: v.emailList, fallback: '' },
+    SESSION_TTL_ADMIN_HOURS: { check: v.int(1, 48), fallback: '12' },
+  },
+
   // Phase 6. Canadian DC hosts are defaulted, not guessed at call time.
   crm: {
     ZOHO_CRM_CLIENT_ID:     { check: v.nonEmpty },
@@ -272,10 +309,12 @@ function load(env = process.env) {
   out.FEATURES = Object.freeze(features);
   out.IS_PRODUCTION = out.NODE_ENV === 'production';
 
-  // Session lifetimes in ms, resolved once. Members roll; partners do not (§1).
+  // Session lifetimes in ms, resolved once. Members roll; partners and admins
+  // do not (§1) — an admin session is an absolute ceiling, like a partner's.
   out.SESSION_TTL_MS = Object.freeze({
     member: out.SESSION_TTL_MEMBER_DAYS * 24 * 60 * 60 * 1000,
     provider: out.SESSION_TTL_PARTNER_HOURS * 60 * 60 * 1000,
+    admin: (features.admin ? out.SESSION_TTL_ADMIN_HOURS : 12) * 60 * 60 * 1000,
   });
 
   return Object.freeze(out);

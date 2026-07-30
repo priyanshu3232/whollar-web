@@ -31,7 +31,7 @@ const TTL_MINUTES = 10;
 const TTL_MS = TTL_MINUTES * 60 * 1000;
 const MAX_ATTEMPTS = 5;
 
-const PURPOSES = Object.freeze(['login', 'signup', 'password_reset']);
+const PURPOSES = Object.freeze(['login', 'signup', 'password_reset', 'admin_login']);
 
 const COLUMNS = ['ROWID', 'challenge_id', 'email_normalized', 'code_hash',
   'purpose', 'expires_at', 'attempts', 'consumed_at'];

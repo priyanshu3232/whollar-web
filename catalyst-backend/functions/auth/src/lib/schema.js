@@ -113,6 +113,10 @@ const TABLES = Object.freeze({
     approval_status: 'varchar(16) required',
     approved_by:     'varchar(255)',
     approved_at:     'datetime',
+    // Written by the admin console's reject action; read back on the review
+    // screen. The reject route tolerates this column being absent (the reason
+    // then survives only in the audit row), so adding it is non-breaking.
+    rejection_reason: 'varchar(255)',
   },
   provider_users: {
     // Deliberately NOT unique: one person may act for two provider orgs (a
@@ -160,6 +164,39 @@ const TABLES = Object.freeze({
     // where they moved later.
     fsa:            'varchar(3)',
     joined_at:      'datetime required',
+  },
+  site_config: {
+    // Editable site information: prices, thresholds, notices, feature flags —
+    // including bidding_enabled, the global kill switch. Written only by the
+    // admin console; read by GET /public/config and server-side flag checks.
+    // Every read path falls back to lib/siteconfig.js DEFAULTS when this
+    // table is missing, so creating it is enabling, never load-bearing.
+    config_key:  'varchar(64) unique required',
+    value:       'text required',        // JSON-encoded, typed by value_type
+    value_type:  'varchar(16) required', // string | number | boolean | json
+    published:   'boolean',              // only published keys reach /public/config
+    description: 'varchar(255)',
+    updated_by:  'varchar(64)',
+    updated_at:  'datetime',
+  },
+  campaigns: {
+    // The campaign catalog, promoted from the code constant in
+    // routes/campaigns.js. lib/catalog.js reads it with a 60s memo and falls
+    // back to the code catalog when the table is missing or empty — so the
+    // dashboards keep working before this exists, and the console's
+    // "import defaults" seeds it with the same six rows.
+    campaign_id:     'varchar(64) unique required', // slug, immutable once created
+    region:          'varchar(100) required',
+    sub:             'varchar(100)',
+    // planned | waitlist | forming | auction | closed | archived
+    kind:            'varchar(16) required',
+    target:          'int',
+    seed_members:    'int',
+    seed_households: 'int',
+    bidding_open:    'boolean', // only meaningful while kind = auction
+    sort_order:      'int',
+    updated_by:      'varchar(64)',
+    updated_at:      'datetime',
   },
   auth_events: {
     event_type:       'varchar(64) required',
