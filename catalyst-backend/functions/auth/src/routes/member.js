@@ -128,10 +128,11 @@ function publicBill(row) {
  * the member's real checkup would stay invisible on every subsequent load.
  *
  * Tries the address exactly as they typed it at signup and its lowercased
- * form — the lead table stores whatever case the checkup form was given, and
- * ZCQL offers no LOWER(), so an email cased a third way on the checkup is
- * simply not found. That is an accepted miss: the pending-handoff path on the
- * client covers the same-device case regardless of casing.
+ * form. The checkup route now lowercases Email on write, so the normalized
+ * candidate matches every new row; rows written before that change kept the
+ * visitor's casing, and ZCQL offers no LOWER(), so one of those cased a third
+ * way is simply not found. That is an accepted miss: the pending-handoff path
+ * on the client covers the same-device case regardless of casing.
  *
  * Every failure returns null. The lead table belongs to another function; it
  * being renamed, empty, or mid-migration must degrade to "no earlier checkup",
@@ -157,9 +158,12 @@ async function latestLead(catalystApp, user) {
       for (const row of rows) {
         if (hasSubstance(fromLead(row))) return row;
       }
-    } catch {
+    } catch (err) {
       // lit() rejecting an odd address, or the table missing: not found —
       // fall through to the next candidate rather than aborting the search.
+      // Logged (without the address) so a renamed column doesn't masquerade
+      // as "this member never ran a checkup" forever.
+      console.warn(JSON.stringify({ evt: 'member.bill.lead_lookup_failed', message: err && err.message }));
     }
   }
   return null;

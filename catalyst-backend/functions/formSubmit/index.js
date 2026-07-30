@@ -449,7 +449,10 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
     const file = await storeFile(catalystApp, req.file);
     const postal = normalizePostal(b.pc || b.postalFull);
     const row = await insert(catalystApp, 'BillCheckupSubmissions', {
-      Email: email,
+      // Lowercased so GET /me/bill's exact-match adoption (ZCQL has no LOWER)
+      // finds this row via the member's email_normalized. CRM keeps the raw
+      // casing in its own payload below.
+      Email: emailKey(email),
       Via: orNull(str(b.via)) || 'form',
       PostalFSA: postal.fsa,
       Provider: orNull(str(b.prov)),

@@ -742,6 +742,7 @@ function leadPayload(){
     pc:S.pc||'',postalFull:S.pcFull||'',province:S.province||'',provinceCode:S.provinceCode||'',
     prov:S.prov,cost:S.cost||'',spd:S.spd||'',tech:S.tech,
     pdate:S.pdate||'',pmo:S.pmo||'',expired:String(S.expired),disc:S.disc||'',
+    switchFor:((document.querySelector('.qc.on')||{}).textContent||'').trim(),
     effectiveCost:eff.value,
     verdict:sc.state,verdictReason:sc.reason||'',
     benchmarkScope:sc.benchmark?sc.benchmark.scope:'',
@@ -928,7 +929,7 @@ $('#checkup-form').addEventListener('submit',async e=>{
     if(busy(btn,true,'Checking…')===false)return;
     /* The lead is sent BEFORE the results render, so a user who bounces at the
        result screen is still captured. */
-    try{joinRes=await submitForm('/bill-checkup-join',{email:em,via:'form',switchFor:(document.querySelector('.qc.on')||{}).textContent||'',...leadPayload(),...W.consentPayload('checkup',true)},{billFile:($('#bill-file').files||[])[0]||null});}
+    try{joinRes=await submitForm('/bill-checkup-join',{email:em,via:'form',...leadPayload(),...W.consentPayload('checkup',true)},{billFile:($('#bill-file').files||[])[0]||null});}
     catch(err){joinErr=err;S.joined=false;} /* never hold the results hostage — show them, surface the miss on the join card */
     busy($('#check'),false);
   }
@@ -969,7 +970,11 @@ function rememberBill(){
     tech:S.tech||null,
     discount:S.disc||null,
     threshold:((document.querySelector('.qc.on')||{}).textContent||'').trim()||null,
-    source:'bill-checkup'
+    source:'bill-checkup',
+    /* Local copies only: lets the dashboard's "from your checkup" line show a
+       date before the server round-trips. /me/bill ignores unknown keys and
+       stamps its own updated_at. */
+    updatedAt:new Date().toISOString().slice(0,10)
   };
   if(!bill.provider&&!bill.monthly&&!bill.speed&&!bill.promoEnd)return;
   W.checkup.save(bill,S.email||null);

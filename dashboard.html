@@ -143,6 +143,7 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .whl-fielderr{margin:6px 0 0;font-size:12px;font-weight:600;color:var(--terra);line-height:1.45}
 .osel.err{border-color:var(--terra)}
 .btn[hidden]{display:none}
+.bu-alert{background:var(--terra-soft);border:1px solid #E7CFB9;border-radius:10px;padding:11px 13px;margin-top:14px;font-size:13px;font-weight:600;color:#8C4622;line-height:1.5}
 .trio{display:grid;grid-template-columns:repeat(auto-fit,minmax(262px,1fr));gap:16px;margin-top:20px}
 .trio > .card{display:flex;flex-direction:column}
 .trio > .card > :last-child{margin-top:auto}
@@ -323,6 +324,8 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .flds .val{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--sub)}
 .soon{font-size:10.5px;font-weight:700;letter-spacing:.05em;background:var(--terra-soft);color:#8C4622;border-radius:6px;padding:2px 7px;margin-left:6px}
 .fnote{font-size:12.5px;color:var(--sub);margin-top:10px}
+.bill-src{font-size:12px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+.bill-src b{font-family:var(--mono);font-weight:600;font-size:11.5px;color:var(--ink)}
 .codebox{display:flex;gap:8px;margin:12px 0 8px}
 .codebox code{flex:1;font-family:var(--mono);font-size:14.5px;letter-spacing:1px;background:var(--paper);border:1.5px dashed #C9C3B2;border-radius:10px;padding:10px 14px;text-align:center}
 .copybtn{background:var(--accent-deep);color:#fff;border-radius:10px;padding:0 16px;font-weight:650;font-size:13.5px}
@@ -521,7 +524,7 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
           <div class="sigblock">
             <div class="siglabel">Your deal signal</div>
             <div class="sigbars" aria-hidden="true"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><span class="arr">&rarr;</span><i class="w"></i><i></i><i></i></div>
-            <h2 id="cliffh2">Cliff ahead: your promo ends around November 2026.</h2>
+            <h2 id="cliffh2">Add your bill to see your promo cliff.</h2>
             <p class="read">Fine today. Then your promo resets, and resets usually land 30 to 60% higher, on autopay. Your cohort is timed to close bidding before your jump.</p>
             <p class="ctx">Rogers &middot; $92/mo &middot; 500 Mbps &middot; London East</p>
           </div>
@@ -571,7 +574,7 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
                 <div class="tn2" data-t="bid"><b>Bidding window</b><span>Sep 15 to 17</span></div>
                 <div class="tn2" data-t="offer"><b>Offer deadline</b><span>Sep 24</span></div>
                 <div class="tn2" data-t="switch"><b>Switch window</b><span>October</span></div>
-                <div class="tn2 cliffed" data-t="cliff"><b>Your promo cliff</b><span data-fld="promoMonth">November</span></div>
+                <div class="tn2 cliffed" data-t="cliff"><b>Your promo cliff</b><span data-fld="promoMonth">&mdash;</span></div>
               </div>
             </div>
             <div class="feed"><h4>Activity</h4><ul id="feed"></ul></div>
@@ -583,17 +586,18 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
             <section class="card" aria-label="Your switch file">
               <span class="eyebrow">Your switch file</span>
               <h3>What providers bid against</h3>
-              <div class="meter">
-                <div class="mrow"><span>Spot strength</span><b>Strong</b></div>
-                <div class="segs" aria-hidden="true"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i></div>
+              <div class="meter" data-spot>
+                <div class="mrow"><span>Spot strength</span><b>&mdash;</b></div>
+                <div class="segs" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               </div>
               <ul class="flds">
-                <li><span class="tick ok">&#10003;</span>Current provider<span class="val" data-fld="provider">Rogers</span></li>
-                <li><span class="tick ok">&#10003;</span>Monthly charge<span class="val" data-fld="monthly">$92</span></li>
-                <li><span class="tick ok">&#10003;</span>Promo end date<span class="val" data-fld="promoEnd">Nov 2026</span></li>
+                <li><span class="tick no">&middot;</span>Current provider<span class="val" data-fld="provider">Add</span></li>
+                <li><span class="tick no">&middot;</span>Monthly charge<span class="val" data-fld="monthly">Add</span></li>
+                <li><span class="tick no">&middot;</span>Promo end date<span class="val" data-fld="promoEnd">Add</span></li>
                 <li><span class="tick no">&middot;</span>Latest bill upload<span class="val">Add</span></li>
                 <li><span class="tick no">&middot;</span>Mobile bill<span class="soon">Soon</span><span class="val">Track its cliff too</span></li>
               </ul>
+              <p class="fnote bill-src" data-bill-src hidden></p>
               <p class="fnote">Private, always: bidding providers never see your provider or your price. <button class="tlink" type="button" data-nav="bills" style="margin-top:0">Open my bills &rarr;</button></p>
             </section>
 
@@ -716,18 +720,19 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
             <section class="card" aria-label="Your switch file">
               <span class="eyebrow">Your switch file &middot; Home internet</span>
               <h3>What providers bid against</h3>
-              <div class="meter">
-                <div class="mrow"><span>Spot strength</span><b>Strong</b></div>
-                <div class="segs" aria-hidden="true"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i></div>
+              <div class="meter" data-spot>
+                <div class="mrow"><span>Spot strength</span><b>&mdash;</b></div>
+                <div class="segs" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               </div>
               <ul class="flds">
-                <li><span class="tick ok">&#10003;</span>Current provider<span class="val" data-fld="provider">Rogers</span></li>
-                <li><span class="tick ok">&#10003;</span>Monthly charge<span class="val" data-fld="monthly">$92</span></li>
-                <li><span class="tick ok">&#10003;</span>Download speed<span class="val" data-fld="speed">500 Mbps</span></li>
-                <li><span class="tick ok">&#10003;</span>Promo end date<span class="val" data-fld="promoEnd">Nov 2026</span></li>
-                <li><span class="tick ok">&#10003;</span>Switch threshold<span class="val" data-fld="threshold">$25+/mo</span></li>
+                <li><span class="tick no">&middot;</span>Current provider<span class="val" data-fld="provider">Add</span></li>
+                <li><span class="tick no">&middot;</span>Monthly charge<span class="val" data-fld="monthly">Add</span></li>
+                <li><span class="tick no">&middot;</span>Download speed<span class="val" data-fld="speed">Add</span></li>
+                <li><span class="tick no">&middot;</span>Promo end date<span class="val" data-fld="promoEnd">Add</span></li>
+                <li><span class="tick no">&middot;</span>Switch threshold<span class="val" data-fld="threshold">Add</span></li>
                 <li id="bu-row"><span class="tick no">&middot;</span>Latest bill upload<span class="val" data-fld="billUpload">Add</span></li>
               </ul>
+              <p class="fnote bill-src" data-bill-src hidden></p>
               <p class="fnote">We can't place you in a cohort without your renewal month. Everything here stays private: bidding providers never see your provider or your price.</p>
             </section>
             <section class="card" id="bu-card" style="margin-top:16px" aria-label="Add your latest bill">
@@ -764,7 +769,7 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
                     <input id="bu-disc" class="osel" inputmode="decimal" maxlength="12" autocomplete="off" placeholder="$ 0">
                   </label>
                 </div>
-                <p class="whl-fielderr" id="bu-err" role="alert" style="display:none"></p>
+                <p class="bu-alert" id="bu-err" role="alert" style="display:none"></p>
                 <button class="btn" type="submit" id="bu-save" style="margin-top:12px">Save to my file</button>
               </form>
               <p class="fnote">Bidding providers never see your provider or your price &mdash; this stays in your file.</p>
@@ -1046,14 +1051,16 @@ function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp
 /* ---------- promo cliff ----------
    One date drives the gauge, the headline, the switch file and the timeline,
    so they can never drift apart. That date comes from the member's bill —
-   bill-checkup.html writes it via W.member.patch when a checkup completes.
-   Until a bill lands, DEMO_PROMO_END stands in with the rest of the demo data.
+   bill-checkup.html writes it via W.member.patch when a checkup completes,
+   and the sync at the bottom pulls the server's copy. There is no demo
+   stand-in: until a bill lands the gauge says "add your bill" and the switch
+   file shows Add prompts, so a member can always tell their numbers from
+   an empty file.
 
    The ring fills as the reset approaches rather than draining, so a nearly
    complete arc reads as urgency. CLIFF_HORIZON is the runway it measures
    against: a promo more than a year out barely registers. */
 var CLIFF_HORIZON=12;
-var DEMO_PROMO_END='2026-11';
 var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 /* Accepts 'YYYY-MM' (month granularity, from a bill that only names the month)
@@ -1078,26 +1085,40 @@ function monthsUntil(end){
   return n;
 }
 
-/* The member's own bill wins. Without one the demo date stands in, because the
-   rest of this panel (provider, price, switch file) is demo data too and an
-   "unknown" cliff beside a switch file that claims to know it reads as a bug. */
+/* The member's own bill or nothing. `expired` covers a checkup that answered
+   "my promo already ended" without naming a date — real data, no date. */
 function cliffState(){
   var bill=MEMBER&&MEMBER.bill;
-  var end=parsePromoEnd(bill&&bill.promoEnd)||parsePromoEnd(DEMO_PROMO_END);
-  return end?{months:monthsUntil(end),end:end}:{months:null,end:null};
+  var end=parsePromoEnd(bill&&bill.promoEnd);
+  return {months:end?monthsUntil(end):null,end:end,expired:!!(bill&&bill.promoExpired)};
 }
 
 function paintCliff(){
   var c=cliffState(),g=$('#cliffgauge');
   if(!g)return;
-  var C=301.6,num=$('#cgnum'),cap=$('#cgcap'),arc=$('#cgarc'),ttl=$('#cgtitle');
+  var C=301.6,num=$('#cgnum'),cap=$('#cgcap'),arc=$('#cgarc'),ttl=$('#cgtitle'),h2=$('#cliffh2');
+  /* The switch file's "Promo end date" row is painted by paintBill() — one
+     owner per row, so a repaint can take it back to its Add state. This
+     function owns only the gauge, the headline and the timeline node. */
 
+  if(!c.end&&c.expired){
+    /* A reset the member confirmed without naming a date: past, not empty. */
+    g.classList.remove('is-empty');g.classList.add('is-past');
+    num.textContent='0';cap.textContent='promo has reset';
+    arc.style.strokeDashoffset='0';
+    ttl.textContent='Your promo has already reset';
+    if(h2)h2.textContent='Your promo has already reset.';
+    $$('[data-fld="promoMonth"]').forEach(function(el){el.textContent='Reset'});
+    return;
+  }
   if(!c.end){
     /* No date anywhere: say so and point at the fix rather than inventing one. */
     g.classList.add('is-empty');g.classList.remove('is-past');
     num.textContent='–';cap.textContent='add your bill';
     arc.style.strokeDashoffset=C;
     ttl.textContent='Add your bill to see your promo cliff';
+    if(h2)h2.textContent='Add your bill to see your promo cliff.';
+    $$('[data-fld="promoMonth"]').forEach(function(el){el.textContent='—'});
     return;
   }
 
@@ -1114,24 +1135,20 @@ function paintCliff(){
 
   /* "Cliff ahead" has to earn itself. A reset ten months out is a diary note,
      and shouting about it is how a dashboard teaches people to ignore it. */
-  var h2=$('#cliffh2');
   if(h2)h2.textContent=past?('Your promo reset around '+monthYear+'.')
     :(months<=6?('Cliff ahead: your promo ends around '+monthYear+'.')
               :('Your promo runs to around '+monthYear+'.'));
-  $$('[data-fld="promoEnd"]').forEach(function(el){
-    el.textContent=MONTHS[c.end.getMonth()].slice(0,3)+' '+c.end.getFullYear();
-  });
   $$('[data-fld="promoMonth"]').forEach(function(el){
     el.textContent=MONTHS[c.end.getMonth()];
   });
 }
 
-/* ---------- switch file: the member's own numbers ----------
-   Same contract as the cliff above: the member's bill wins, the demo values
-   stand in until one lands. The bill arrives two ways — written locally by
-   bill-checkup.html, and pulled from GET /me/bill by the sync at the bottom
-   of this script — and both funnel through MEMBER.bill, so this paints from
-   there and only overwrites a field it actually has. */
+/* ---------- switch file: the member's own numbers, or an honest gap ----------
+   The bill arrives two ways — written locally by bill-checkup.html, and pulled
+   from GET /me/bill by the sync at the bottom of this script — and both funnel
+   through MEMBER.bill. Every row is repainted on every pass, in both
+   directions: a field the bill doesn't have goes BACK to its Add state, so a
+   late sync can never leave a stale value wearing a green tick. */
 function fmtMonthly(v){var n=Number(v);return isFinite(n)&&n>0?('$'+(n%1===0?n:n.toFixed(2))):null}
 function fmtSpeed(v){
   if(v==null||v==='')return null;
@@ -1139,21 +1156,64 @@ function fmtSpeed(v){
   if(!/^\d+(\.\d+)?$/.test(s))return s; /* already worded, e.g. "1 Gig" */
   return +s>=1000?(+s/1000)+' Gbps':s+' Mbps';
 }
+/* One row, value + tick together. null means "not on file": the value reads
+   Add and the tick goes neutral. Never pointed at billUpload — buPrefill()
+   owns that row, because "added" there means a file, not a number. */
+function setFld(k,text){
+  $$('[data-fld="'+k+'"]').forEach(function(el){
+    var li=el.closest('li'),t=li&&li.querySelector('.tick');
+    el.textContent=text==null?'Add':text;
+    if(t){t.className=text==null?'tick no':'tick ok';t.innerHTML=text==null?'&middot;':'&#10003;';}
+  });
+}
+function fmtPromoEnd(bill){
+  var end=parsePromoEnd(bill&&bill.promoEnd);
+  if(end)return MONTHS[end.getMonth()].slice(0,3)+' '+end.getFullYear();
+  if(bill&&bill.promoExpired)return 'Already reset'; /* confirmed, just undated */
+  return null;
+}
+/* Where these numbers came from, so adopted checkup data announces itself.
+   `source`/`updatedAt` ride along from publicBill() via the sync, and from
+   the checkup's local patch on the same-device path. */
+function fmtBillDate(raw){
+  var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(raw||''));
+  return m&&+m[2]>=1&&+m[2]<=12?MONTHS[+m[2]-1].slice(0,3)+' '+(+m[3])+', '+m[1]:null;
+}
+function paintBillSource(bill){
+  $$('[data-bill-src]').forEach(function(el){
+    if(!bill){el.hidden=true;el.textContent='';return;}
+    var label=bill.source==='dashboard'?'From your bill upload here':'From your bill checkup';
+    var d=fmtBillDate(bill.updatedAt);
+    el.innerHTML=esc(label)+(d?' &middot; <b>'+esc(d)+'</b>':'');
+    el.hidden=false;
+  });
+}
+/* Spot strength is the same six rows the card lists: five bill fields plus
+   the uploaded bill. Eight segments scale off that count so the meter can
+   only claim what the ticks below it show. */
+function paintSpot(bill){
+  var have=[bill&&bill.provider,bill&&fmtMonthly(bill.monthly),bill&&fmtSpeed(bill.speed),
+            fmtPromoEnd(bill),bill&&bill.threshold,billDone()||null]
+           .filter(function(v){return v!=null&&v!==''}).length;
+  var label=have<=2?'Weak':have<=4?'Fair':'Strong';
+  $$('[data-spot]').forEach(function(m){
+    var b=m.querySelector('.mrow b');if(b)b.textContent=have?label:'—';
+    var segs=m.querySelectorAll('.segs i'),fill=Math.round(have/6*segs.length);
+    segs.forEach(function(seg,i){seg.className=i<fill?'f':''});
+  });
+}
 function paintBill(){
   var bill=MEMBER&&MEMBER.bill;
-  if(!bill)return;
-  var vals={
-    provider:bill.provider||null,
-    monthly:fmtMonthly(bill.monthly),
-    speed:fmtSpeed(bill.speed),
-    threshold:bill.threshold||null
-  };
-  Object.keys(vals).forEach(function(k){
-    if(vals[k]==null)return;
-    $$('[data-fld="'+k+'"]').forEach(function(el){el.textContent=vals[k]});
-  });
-  /* The offer cards' "you save" math compares against this number. */
-  var n=Number(bill.monthly);
+  setFld('provider',bill&&bill.provider||null);
+  setFld('monthly',bill?fmtMonthly(bill.monthly):null);
+  setFld('speed',bill?fmtSpeed(bill.speed):null);
+  setFld('threshold',bill&&bill.threshold||null);
+  setFld('promoEnd',fmtPromoEnd(bill));
+  paintBillSource(bill);
+  paintSpot(bill);
+  /* The offer cards' "you save" math compares against this number. Without a
+     real bill it keeps its demo default — the offers view is demo end-to-end. */
+  var n=bill&&Number(bill.monthly);
   if(isFinite(n)&&n>0)S.member.bill=n;
 }
 
@@ -1368,7 +1428,9 @@ window.addEventListener('focus',refreshCliff);
       toast('Bill saved to your file.');
     },function(err){
       busy=false;btn.disabled=false;btn.textContent=orig;
-      $('#bu-err').textContent=(err&&err.message)||'Something went wrong. Please try again.';
+      /* err.message is composed server-side to be shown verbatim (it may carry
+         a quotable reference id) — wrap it, don't replace it. */
+      $('#bu-err').textContent='We couldn’t save that just now. '+((err&&err.message)||'Please try again.')+' Nothing below was lost — try again in a moment.';
       $('#bu-err').style.display='block';
     });
   });
