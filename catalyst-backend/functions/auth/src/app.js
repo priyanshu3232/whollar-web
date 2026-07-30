@@ -236,47 +236,24 @@ function buildApp(cfg) {
   adminRoutes.mount(router, cfg);
   publicRoutes.mount(router);
 
-  if (!cfg.IS_PRODUCTION) {
-    mountDevRoutes(router, cfg);
-  }
-
-  // Both mounts share one router instance. The 404 fallback must live on the
-  // app, not the router — a catch-all inside the router would be reached via
-  // the `/` mount and swallow every request before the `/auth` mount ran.
-  app.use('/', router);
-  app.use('/auth', router);
-
-  app.use((req, res, next) => {
-    next(new AppError('NOT_FOUND', 'Not found.', { logDetail: `${req.method} ${req.path}` }));
-  });
-
-  // 6. Error handler.
-  app.use(errorHandler);
-
-  return app;
-}
-
-/**
- * NON-PRODUCTION ONLY. Absent entirely when NODE_ENV=production, so these fall
- * through to the 404 rather than existing and refusing.
- */
-function mountDevRoutes(router, cfg) {
   /**
    * Schema + request-shape diagnostics.
    *
-   * Two questions it answers, both otherwise guesswork. First, do the
-   * hand-created Data Store tables match what the code expects? Catalyst has no
-   * DDL API, so tables are clicked in by hand and a mistyped column fails at
-   * runtime rather than at deploy — checking ten tables and sixty columns by
-   * eye is exactly the job a machine should do once. Second, what survives the
-   * Vercel proxy hop? `Origin` is the whole CSRF defence and the client IP feeds
-   * `ip_hash` and rate limiting.
+   * Requires an admin session unconditionally — NOT `!cfg.IS_PRODUCTION` — on
+   * purpose. This dumps per-table row counts and the full column-level schema
+   * for every table (users, sessions, credentials, campaigns, auth_events…),
+   * which is exactly the kind of thing a misconfigured `NODE_ENV` must not be
+   * the only thing standing between this and the public internet. requireAdmin
+   * is the independent backstop: even if the environment gate fails open, this
+   * still refuses anyone who isn't an authenticated admin.
    *
    * Reports shapes and names only. The Origin value is echoed because it is our
    * own domain and the exact string is the point; the client IP is reduced to a
    * family and a boolean, because that one is personal data.
    */
   router.get('/health/diagnostics', wrap(async (req, res) => {
+    adminRoutes.requireAdmin(req);
+
     const fwd = String(req.headers['x-forwarded-for'] || '');
     const hops = fwd ? fwd.split(',').map((s) => s.trim()).filter(Boolean) : [];
     const ip = req.ip || '';
@@ -330,6 +307,31 @@ function mountDevRoutes(router, cfg) {
     });
   }));
 
+  if (!cfg.IS_PRODUCTION) {
+    mountDevRoutes(router, cfg);
+  }
+
+  // Both mounts share one router instance. The 404 fallback must live on the
+  // app, not the router — a catch-all inside the router would be reached via
+  // the `/` mount and swallow every request before the `/auth` mount ran.
+  app.use('/', router);
+  app.use('/auth', router);
+
+  app.use((req, res, next) => {
+    next(new AppError('NOT_FOUND', 'Not found.', { logDetail: `${req.method} ${req.path}` }));
+  });
+
+  // 6. Error handler.
+  app.use(errorHandler);
+
+  return app;
+}
+
+/**
+ * NON-PRODUCTION ONLY. Absent entirely when NODE_ENV=production, so these fall
+ * through to the 404 rather than existing and refusing.
+ */
+function mountDevRoutes(router, cfg) {
   /** Revoke every session for the signed-in user. Exercises the reset path. */
   router.post('/dev/logout-everywhere', wrap(async (req, res) => {
     if (!req.auth) throw new AppError('UNAUTHENTICATED', 'Please sign in again.');

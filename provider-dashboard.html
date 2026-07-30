@@ -958,10 +958,10 @@ function agendaEvents(){
   var evs=[];
   deskList().forEach(function(c){
     if(covOf(c.cov).st!=='active')return;
-    evs.push({t:c.t.open,cid:c.id,b:c.region+' \u00b7 bidding opens',s:c.hh+' households \u00b7 '+c.sub});
-    evs.push({t:c.t.close,cid:c.id,b:c.region+' \u00b7 bids close',s:'Improve your bid until this moment'});
-    evs.push({t:c.t.offers,cid:c.id,b:c.region+' \u00b7 offers out to households',s:'Households compare and decide'});
-    evs.push({t:c.t.decide,cid:c.id,b:c.region+' \u00b7 decision deadline',s:'Results follow the same day'});
+    evs.push({t:c.t.open,cid:c.id,b:esc(c.region)+' \u00b7 bidding opens',s:c.hh+' households \u00b7 '+esc(c.sub)});
+    evs.push({t:c.t.close,cid:c.id,b:esc(c.region)+' \u00b7 bids close',s:'Improve your bid until this moment'});
+    evs.push({t:c.t.offers,cid:c.id,b:esc(c.region)+' \u00b7 offers out to households',s:'Households compare and decide'});
+    evs.push({t:c.t.decide,cid:c.id,b:esc(c.region)+' \u00b7 decision deadline',s:'Results follow the same day'});
   });
   var n=now();
   return evs.filter(function(e){return e.t>n-12*H}).sort(function(a,b){return a.t-b.t}).slice(0,5);
@@ -985,7 +985,7 @@ function renderPlan(){
   if(!c){$('#plan-body').innerHTML='';return}
   var n=now();
   if(c.planned){
-    $('#plan-body').innerHTML='<div class="planhead"><div><h2 style="font-family:var(--disp);font-size:23px">'+c.region+' \u00b7 '+c.sub+'</h2>'
+    $('#plan-body').innerHTML='<div class="planhead"><div><h2 style="font-family:var(--disp);font-size:23px">'+esc(c.region)+' \u00b7 '+esc(c.sub)+'</h2>'
      +'<p class="cardnote">'+c.note+'</p></div>'
      +'<button class="btn ghost" type="button" data-ics="'+c.id+'" style="margin-left:auto">Add to calendar</button></div>'
      +'<section class="card plan"><span class="eyebrow">Expected plan</span>'
@@ -1013,7 +1013,7 @@ function renderPlan(){
     ? (mine?'<span class="pill sealed">Sealed \u00b7 $'+mine.price+' \u00b7 '+ref(c)+'</span>':'<button class="btn" type="button" data-godesk="'+c.id+'">Review and bid</button>')
     : (st>=4&&mine?'<span class="pill won">Won \u00b7 '+c.conf+' confirmed</span>':'<span class="pill '+(st===3?'pending':'paid')+'">'+STAGES[st]+'</span>');
   $('#plan-body').innerHTML='<div class="planhead">'
-   +'<div><h2 style="font-family:var(--disp);font-size:23px">'+c.region+' \u00b7 '+c.sub+'</h2>'
+   +'<div><h2 style="font-family:var(--disp);font-size:23px">'+esc(c.region)+' \u00b7 '+esc(c.sub)+'</h2>'
    +'<p class="cardnote mono">'+c.hh+' households \u00b7 renewal window '+c.renew+'</p></div>'
    +'<span style="margin-left:auto"></span>'+act
    +'<button class="btn ghost" type="button" data-ics="'+c.id+'">Add to calendar</button></div>'
@@ -1218,7 +1218,7 @@ function renderDesk(){
       :(st===1||st===2)?'<button class="btn'+(mine?' ghost':'')+'" type="button" data-open="'+a.id+'">'+(mine?'View':'Review and bid')+'</button>'
       :'<button class="btn ghost" type="button" data-open="'+a.id+'">View</button>';
     return '<tr data-row="'+a.id+'"'+(locked?' class="locked"':'')+'>'
-      +'<td><button class="rg" type="button" data-plan="'+a.id+'" style="text-align:left">'+a.region+'<small>'+a.sub+'</small></button></td>'
+      +'<td><button class="rg" type="button" data-plan="'+a.id+'" style="text-align:left">'+esc(a.region)+'<small>'+esc(a.sub)+'</small></button></td>'
       +'<td class="num">'+a.hh+'</td>'
       +'<td>'+railHTML(st,hot)+'</td>'
       +'<td><span class="closecell'+(hot?' hot':'')+'">'+win+'</span></td>'
@@ -1228,7 +1228,7 @@ function renderDesk(){
 }
 function renderPlanned(){
   $('#planrows').innerHTML=plannedList().map(function(c){
-    return '<tr><td><button class="rg" type="button" data-plan="'+c.id+'" style="text-align:left;font-size:13.5px">'+c.region+'<small>'+c.sub+'</small></button></td>'
+    return '<tr><td><button class="rg" type="button" data-plan="'+c.id+'" style="text-align:left;font-size:13.5px">'+esc(c.region)+'<small>'+esc(c.sub)+'</small></button></td>'
      +'<td class="num">'+fmtD(c.expected)+' \u00b7 expected</td>'
      +'<td style="font-size:12.5px;color:var(--sub)">'+c.note+'</td>'
      +'<td style="text-align:right;white-space:nowrap"><button class="tlink" type="button" data-ics="'+c.id+'">Add to calendar</button> &nbsp; <button class="tlink" type="button" data-notify="'+c.id+'">Notify me</button></td></tr>';
@@ -1304,7 +1304,7 @@ function liveRows(){
   return Object.keys(S.bids).map(function(cid){
     var c=CAMPAIGNS.filter(function(x){return x.id===cid})[0];
     var st=stageOf(c);
-    return '<tr><td>'+c.region+' \u00b7 '+c.sub+'</td><td class="num">Today</td><td class="num">$'+S.bids[cid].price+'/mo \u00b7 sealed</td><td>'
+    return '<tr><td>'+esc(c.region)+' \u00b7 '+esc(c.sub)+'</td><td class="num">Today</td><td class="num">$'+S.bids[cid].price+'/mo \u00b7 sealed</td><td>'
       +(st>=4?'<span class="pill won">Won</span>':'<span class="pill pending">Pending</span>')
       +'</td><td class="num">'+(st>=4?c.conf:'\u00b7')+'</td><td class="num">\u00b7</td><td class="num">\u00b7</td></tr>';
   }).join('');

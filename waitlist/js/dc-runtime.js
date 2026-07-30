@@ -1335,6 +1335,12 @@
       }
     }
     window.addEventListener("message", (e) => {
+      // Only the design-tool preview frame that embeds this page is a
+      // legitimate sender — postDesignMode() above only ever talks to
+      // window.parent, so that's the one counterpart these replies trust.
+      // Without this, any page that still holds a reference to this window
+      // (e.g. one that opened it) could flip the theme or probe design mode.
+      if (e.source !== window.parent) return;
       const type = e.data && e.data.type;
       if (type === "__dc_theme") {
         const t = e.data.theme;

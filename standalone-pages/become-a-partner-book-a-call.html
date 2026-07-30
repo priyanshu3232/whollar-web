@@ -648,7 +648,7 @@ $('#p-go').addEventListener('click',async()=>{
 
   $('#d-name').textContent=nm;
   if(S.role==='other'){$('#d-h').textContent='Note received';
-    $('#d-sub').innerHTML='Thanks, <b>'+nm+'</b>. We\u2019ll read it and come back if there\u2019s a fit.';
+    $('#d-sub').innerHTML='Thanks, <b>'+String(nm).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})+'</b>. We\u2019ll read it and come back if there\u2019s a fit.';
     $('#d-note').textContent='';}
   $('#stage1').style.display='none';$('#done').classList.add('on');
   document.querySelector('.hs-right').scrollIntoView({behavior:'smooth',block:'center'});

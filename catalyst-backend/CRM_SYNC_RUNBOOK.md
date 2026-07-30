@@ -154,10 +154,15 @@ Behaviour once set:
 - New Cron → schedule: every 5 minutes (or 15 — your call).
 - Target type: **Third-party URL** (Webhook).
 - Method: **POST**.
-- URL: your crmSync function URL with the secret, e.g.
-  `https://whollar-<id>.development.catalystserverless.ca/server/crmSync/process?key=YOUR_CRM_CRON_SECRET`
-  (copy the exact function URL from the crmSync function page; append
-  `/process?key=…`).
+- URL: your crmSync function URL, e.g.
+  `https://whollar-<id>.development.catalystserverless.ca/server/crmSync/process`
+  (copy the exact function URL from the crmSync function page; append `/process`).
+- **Headers: add `X-Cron-Secret: YOUR_CRM_CRON_SECRET`.** A query-string secret
+  (the old `?key=…` form) lands in access logs, the Job Scheduling run
+  history, and any `Referer` header — a header does not. The function still
+  accepts `?key=` as a fallback so an existing cron target doesn't silently
+  break, but it logs a warning every time that path is used; move to the
+  header and confirm the warning stops before treating this as done.
 
 ## Step 4 — Test on Development, THEN go live
 
@@ -169,7 +174,8 @@ Behaviour once set:
 3. Flip `CRM_SYNC_ENABLED=true`. Trigger the worker once manually (or wait for
    the cron):
    ```
-   curl -X POST "https://whollar-<id>.development.catalystserverless.ca/server/crmSync/process?key=YOUR_CRM_CRON_SECRET"
+   curl -X POST -H "X-Cron-Secret: YOUR_CRM_CRON_SECRET" \
+     "https://whollar-<id>.development.catalystserverless.ca/server/crmSync/process"
    ```
    Expect `{"ok":true,"processed":1,"synced":1,"failed":0}`.
 4. Check Zoho CRM → Leads: a new lead tagged `Whollar … [dev]` with a Note. The
@@ -184,7 +190,8 @@ production function URL in the cron, and the same Zoho variables.
 
 ## Troubleshooting
 
-- `403 forbidden` from the curl → the `?key=` doesn't match `CRM_CRON_SECRET`.
+- `403 forbidden` from the curl → the `X-Cron-Secret` header (or `?key=`) doesn't match `CRM_CRON_SECRET`.
+- `skipped … a sync is already in progress` → another invocation (manual trigger overlapping the cron, or a slow prior batch) still holds the lock; it self-clears within an hour even if a run crashed without releasing it.
 - `skipped … CRM_SYNC_ENABLED is not true` → flip the switch to `true`.
 - `token refresh failed` → wrong `ZOHO_*` creds or wrong DC domain.
 - Rows stuck `PENDING`, never SYNCED → the cron isn't hitting the URL (check the

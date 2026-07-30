@@ -117,11 +117,13 @@ async function callCrm(ctx, doRequest) {
 
 async function findRecordByEmail(ctx, moduleName, email) {
   // Lowercased so Genie@x.com and genie@x.com resolve to one record rather
-  // than two. Parentheses and commas are the criteria syntax's own delimiters,
-  // so strip them from the value before interpolating. The module must have an
-  // Email-type field whose API name is `Email` (Leads and Vendors both do; a
-  // custom partner module needs one created — see the runbook).
-  const safe = String(email || '').toLowerCase().replace(/[(),]/g, '');
+  // than two. Parentheses, commas and colons are the criteria syntax's own
+  // delimiters (colon separates field:operator:value), so strip them from the
+  // value before interpolating — otherwise an address with an extra colon in
+  // its local part (rare, but RFC-legal) can reshape the search clause. The
+  // module must have an Email-type field whose API name is `Email` (Leads and
+  // Vendors both do; a custom partner module needs one created — see the runbook).
+  const safe = String(email || '').toLowerCase().replace(/[(),:]/g, '');
   const criteria = encodeURIComponent(`(Email:equals:${safe})`);
   const resp = await callCrm(ctx, (token, apiDomain) =>
     fetch(`${apiDomain}/crm/v8/${moduleName}/search?criteria=${criteria}`, { headers: authHeaders(token) }));
@@ -394,12 +396,31 @@ async function syncJob(ctx, job, cfg) {
  * Route — POST /  (and /process). Invoked by the cron with ?key=SECRET.
  * ------------------------------------------------------------------ */
 
+// A query-string secret lands in access logs, the cron scheduler's own run
+// history, and any Referer header — a header does not. The header is
+// preferred and should be the only thing the cron job actually sends; the
+// query param still works so this deploy can't silently break a cron target
+// that was configured before header support existed. Once the Job Scheduling
+// webhook is confirmed to send `X-Cron-Secret` instead, delete the query
+// fallback below — the console.error makes it obvious from the logs whether
+// anything is still using it.
+const LOCK_KEY = 'crm_sync_batch_lock';
+// Cache expiry here is in whole hours (Catalyst's segment API has no finer
+// grain) — 1h is the crash-recovery ceiling, not the normal hold time. The
+// lock is released explicitly in `finally` below on every normal exit, so a
+// healthy run only ever holds it for the length of one batch; this TTL only
+// matters if a run dies without reaching that release.
+const LOCK_TTL_HOURS = 1;
+
 // Accept GET or POST so the run works regardless of the HTTP method the cron
 // target uses; the secret key — not the method — is the guard.
 app.all(['/', '/process'], async (req, res) => {
   const cfg = config();
 
-  const key = req.query.key || req.headers['x-cron-secret'];
+  const key = req.headers['x-cron-secret'] || req.query.key;
+  if (req.query.key && cfg.cronSecret && req.query.key === cfg.cronSecret) {
+    console.error('[crmSync] cron secret received via query string — reconfigure the Job Scheduling webhook to send it as an X-Cron-Secret header instead');
+  }
   // No/invalid key: a plain GET is a harmless health check; anything else is denied.
   if (!cfg.cronSecret || key !== cfg.cronSecret) {
     if (req.method === 'GET') return res.json({ ok: true, service: 'crmSync' });
@@ -416,6 +437,19 @@ app.all(['/', '/process'], async (req, res) => {
 
   const catalystApp = catalyst.initialize(req);
   const result = { ok: true, processed: 0, synced: 0, failed: 0 };
+
+  // Mutual exclusion for the batch below. `put` creates the cache entry and
+  // rejects if it already exists (that's why getAccessToken falls back to
+  // `update` on the same call) — so a second overlapping invocation (a manual
+  // trigger landing mid-cron, or the cron firing again before a slow batch
+  // finishes) fails here and skips instead of racing the first run to select
+  // and re-send the same PENDING rows.
+  const lockSeg = catalystApp.cache().segment();
+  try {
+    await lockSeg.put(LOCK_KEY, String(Date.now()), LOCK_TTL_HOURS);
+  } catch (err) {
+    return res.json({ ok: true, skipped: true, reason: 'a sync is already in progress' });
+  }
 
   try {
     const rows = await catalystApp.zcql().executeZCQLQuery(
@@ -469,6 +503,8 @@ app.all(['/', '/process'], async (req, res) => {
   } catch (err) {
     console.error('[crmSync] batch error:', err);
     res.status(500).json({ ok: false, error: String(err) });
+  } finally {
+    try { await lockSeg.delete(LOCK_KEY); } catch { /* TTL covers cleanup either way */ }
   }
 });
 
