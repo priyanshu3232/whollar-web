@@ -703,7 +703,10 @@ var CAMPAIGNS=[
   t:{announce:snap(-21,9),open:snap(-14,9),close:NOW0+2*H+14*60e3+9e3,offers:snap(2,9),decide:snap(9,17),sw:snap(23,9),rec:snap(37,9)},
   speed:[['1 Gig',24],['500 Mbps',61],['Under 500',15]],renew:'Oct to Nov',
   intent:[['$25+/mo',33],['$10+/mo',49],['Curious',18]],last:'$58/mo \u00b7 1 Gig'},
- {id:'le',region:'London East',sub:'Autumn cohort',cov:'London East',hh:112,conf:68,
+ /* hh matches the member cards' London East seed (61 of 100), not the old
+    112 — the same campaign must open on the same number on both dashboards,
+    reachable service or not. */
+ {id:'le',region:'London East',sub:'Autumn cohort',cov:'London East',hh:61,conf:68,
   t:{announce:snap(-11,9),open:snap(-4,9),close:snap(18,17),offers:snap(25,9),decide:snap(32,17),sw:snap(46,9),rec:snap(60,9)},
   speed:[['1 Gig',31],['500 Mbps',58],['Under 500',11]],renew:'Oct to Dec',
   intent:[['$25+/mo',38],['$10+/mo',44],['Curious',18]],last:'$57/mo \u00b7 500 Mbps'},
@@ -843,7 +846,13 @@ W.session.providerCampaigns().then(function(r){
     if(s.region)c.region=String(s.region);
     if(s.sub)c.sub=String(s.sub);
     if(!r.live)return;
-    if(typeof s.households==='number'&&s.households!==c.hh){c.hh=s.households;moved=true}
+    /* `members`, not `households`: the service returns both, but members is
+       the number the member cards render ("62 of 100 households"), and one
+       campaign must show one count on both sides of the aisle. The households
+       figure carries a separate, larger seed (112 for London East against the
+       cards' 61) and showing it here is what made the desk look like a
+       different campaign. */
+    if(typeof s.members==='number'&&s.members!==c.hh){c.hh=s.members;moved=true}
     if(c.planned&&typeof s.members==='number'){
       c.note=s.kind==='waitlist'
         ?(s.members+' households on the waitlist; opens when the cohort locks')
@@ -978,7 +987,7 @@ document.addEventListener('click',function(e){
   var g=e.target.closest('[data-godesk]');
   if(g){nav('desk');expandRow(g.getAttribute('data-godesk'));return}
   var ic=e.target.closest('[data-ics]');
-  if(ic){dlICS(ic.getAttribute('data-ics'));return}
+  if(ic){openCalMenu(ic,ic.getAttribute('data-ics'));return}
 });
 document.addEventListener('keydown',function(e){
   if(e.key==='Enter'&&e.target.closest&&e.target.closest('.ag'))openPlan(e.target.closest('.ag').getAttribute('data-plan'));
