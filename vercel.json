@@ -79,6 +79,16 @@
   ],
   "redirects": [
     {
+      "source": "/dashboard",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/provider-dashboard",
+      "destination": "/",
+      "permanent": false
+    },
+    {
       "source": "/disclosures",
       "destination": "/terms",
       "permanent": false
