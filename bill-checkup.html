@@ -943,13 +943,22 @@ $('#checkup-form').addEventListener('submit',async e=>{
 $('#edit-all').addEventListener('click',()=>screen(1));
 
 /* A completed checkup is what the dashboard's switch file renders, so hand it
-   over. Three destinations, by who is here:
-     - everyone: W.checkup.save keeps it as a pending handoff, so the account
-       they sign in to LATER on this browser still receives it (whollar-core
-       pushes and clears it during adopt/syncBill);
-     - signed-in members additionally get the local record patched (the cliff
-       gauge moves without waiting on the network) and the server copy saved,
-       which is what makes the same numbers appear on any other device. */
+   over. Three destinations, all attempted every time:
+     - the pending handoff (W.checkup.save), so the account they sign in to
+       LATER on this browser still receives it (whollar-core pushes and clears
+       it during adopt/syncBill);
+     - the local member record, so a signed-in member's cliff gauge moves
+       without waiting on the network — patch() is a no-op when signed out;
+     - the server, which is what makes the same numbers appear on any other
+       device.
+
+   The server save is NOT gated on the local member record. Being signed in is
+   a fact about the HttpOnly session cookie, and only the auth function can read
+   that — a member whose localStorage was cleared (or who signed in in another
+   tab) is still signed in, and gating on the local copy silently dropped their
+   checkup on the floor. So we always POST and let /me/bill answer: it saves for
+   a member and 401s for everyone else, which is the same "nothing to do" this
+   used to guess at locally, decided by the side that actually knows. */
 function rememberBill(){
   const bill={
     promoEnd:S.pdate||null,
@@ -964,12 +973,11 @@ function rememberBill(){
   };
   if(!bill.provider&&!bill.monthly&&!bill.speed&&!bill.promoEnd)return;
   W.checkup.save(bill,S.email||null);
-  if(W.member.read()){
-    W.member.patch({bill:bill});
-    /* Fire-and-forget: the results screen must not wait on this, and a miss
-       leaves the pending handoff in place for the next sign-in to push. */
-    W.session.billSave(bill).then(()=>W.checkup.clear(),()=>{});
-  }
+  W.member.patch({bill:bill});
+  /* Fire-and-forget: the results screen must not wait on this, and a miss —
+     signed out, or a dropped request — leaves the pending handoff in place for
+     the next sign-in to push. A save that lands clears it. */
+  W.session.billSave(bill).then(()=>W.checkup.clear(),()=>{});
 }
 
 /* ---------- signal ----------

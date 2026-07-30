@@ -428,6 +428,17 @@ app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSe
 // Bill checkup — every "join the waitlist" entry point on the checkup tool
 // (both the quick-join rails and the main check-button flow feed this).
 // Table: BillCheckupSubmissions
+//
+// This route stores the LEAD, never the signed-in member's bill, and it cannot:
+// the session cookie is host-only to www.whollar.ca (see auth/lib/cookies.js)
+// and this function is called cross-origin on the Catalyst domain, so the cookie
+// is not in the request at all — there is no session here to read. A signed-in
+// member's copy is written by the auth function, which owns sessions:
+//   - the checkup POSTs it to /me/bill as the results render, and
+//   - GET /me/bill adopts the newest row of THIS table for that member's email,
+//     which is what covers the case where that POST never arrived.
+// Making this route session-aware would mean proxying it same-origin and
+// duplicating session verification into the public forms endpoint. Don't.
 app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, windowSec: 3600 }), tolerantUpload(upload.single('billFile')), async (req, res) => {
   const b = req.body || {};
   const email = str(b.email);

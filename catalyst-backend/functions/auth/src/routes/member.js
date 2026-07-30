@@ -10,14 +10,21 @@
  *   POST /me/bill   replace it (the checkup and the dashboard both call this)
  *
  * Everything is keyed on `users.user_id`, never on the email string. The email
- * appears in exactly one place: the one-time BACKFILL. The public bill checkup
- * writes unauthenticated leads to `BillCheckupSubmissions` keyed by whatever
- * email the visitor typed, and people run the checkup before they have an
- * account. So the first time a member asks for their bill and `member_bills`
- * has nothing, we look their email up in the lead table, copy the latest
- * submission across under their user_id, and from then on the lead table is
- * never consulted for them again. That copy is what links "the person who ran
- * the checkup" to "the account that signed in" across devices.
+ * appears in exactly one place: the ADOPTION of a public checkup lead. The
+ * public bill checkup writes unauthenticated leads to `BillCheckupSubmissions`
+ * keyed by whatever email the visitor typed, and people run the checkup before
+ * they have an account. So when a member asks for their bill we look their
+ * email up in the lead table and copy the latest submission across under their
+ * user_id — always on the first ask, and afterwards whenever that lead is
+ * NEWER than what we hold. That copy is what links "the person who ran the
+ * checkup" to "the account that signed in" across devices.
+ *
+ * Adoption is not one-time because the checkup's own save to this table can be
+ * lost: the results screen fires POST /me/bill and does not wait for it, so a
+ * closed tab or a dropped connection leaves the member's newest numbers sitting
+ * in the lead table with a stale row here. A lead that postdates our row is
+ * therefore always the better answer — except against `source: 'dashboard'`,
+ * which is the member correcting the numbers by hand and outranks any lead.
  *
  * The same-device link (a checkup done signed-out, with no email at all) is
  * closed on the client instead: whollar-core.js keeps the completed checkup as
@@ -75,6 +82,20 @@ function promoEnd(value) {
 const truthy = (v) =>
   v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true';
 
+/**
+ * Is there a bill in here at all?
+ *
+ * The four fields the dashboard cannot render a switch file without. This is
+ * what stops an empty submission being stored as if it were a reading: the
+ * checkup's quick-join rail sends a lead the moment an email is typed, long
+ * before the form is filled, so "a lead exists" is not "a bill is known".
+ * Adoption leans on it hardest — an empty lead that happens to be newer must
+ * never blank a row that has real numbers in it.
+ */
+const hasSubstance = (f) => Boolean(
+  f.provider || f.monthly_cost || f.download_speed || f.promo_end_date
+);
+
 /** One shape for the wire, whichever table the row came from. */
 function publicBill(row) {
   return {
@@ -92,11 +113,19 @@ function publicBill(row) {
 }
 
 /* ------------------------------------------------------------------ *
- * Backfill from the public checkup
+ * Adoption from the public checkup
  * ------------------------------------------------------------------ */
 
 /**
- * The latest lead this member's email left in the public checkup, or null.
+ * The latest lead this member's email left in the public checkup that actually
+ * carries a bill, or null.
+ *
+ * Reads a short window rather than one row, because the newest lead is often
+ * not the informative one: the checkup's quick-join rail files a lead as soon
+ * as an email is typed, so an email-only row routinely sits on top of the
+ * filled-in submission from the same visit. Taking `LIMIT 1` would find that
+ * empty row, decline it as having nothing to adopt, and never look past it —
+ * the member's real checkup would stay invisible on every subsequent load.
  *
  * Tries the address exactly as they typed it at signup and its lowercased
  * form — the lead table stores whatever case the checkup form was given, and
@@ -108,6 +137,8 @@ function publicBill(row) {
  * being renamed, empty, or mid-migration must degrade to "no earlier checkup",
  * never to a 500 on the member's dashboard.
  */
+const LEAD_WINDOW = 5;
+
 async function latestLead(catalystApp, user) {
   const candidates = [...new Set(
     [user.email_display, user.email_normalized].filter(Boolean)
@@ -118,17 +149,53 @@ async function latestLead(catalystApp, user) {
       const rows = await datastore.query(
         catalystApp, LEADS_TABLE,
         `SELECT ROWID, Provider, MonthlyCost, DownloadSpeed, AccessTech, ` +
-        `PromoEndDate, PromoExpired, DiscountAmount, SwitchThreshold ` +
+        `PromoEndDate, PromoExpired, DiscountAmount, SwitchThreshold, ` +
+        `SubmittedAt, CREATEDTIME ` +
         `FROM ${LEADS_TABLE} WHERE Email = ${datastore.lit(email)} ` +
-        `ORDER BY ROWID DESC LIMIT 1`
+        `ORDER BY ROWID DESC LIMIT ${LEAD_WINDOW}`
       );
-      if (rows[0]) return rows[0];
+      for (const row of rows) {
+        if (hasSubstance(fromLead(row))) return row;
+      }
     } catch {
       // lit() rejecting an odd address, or the table missing: not found —
       // fall through to the next candidate rather than aborting the search.
     }
   }
   return null;
+}
+
+/**
+ * Is this stored row one a public checkup lead may replace?
+ *
+ * Everything except the member's own dashboard edit. They typed those numbers
+ * looking at the bill; a checkup they ran on a phone last month must not undo
+ * the correction. Every other source (an earlier adoption, an earlier checkup)
+ * is just an older reading of the same bill.
+ *
+ * A row without a ROWID cannot be addressed by updateRow, so it cannot be
+ * replaced either — say so here rather than discovering it mid-write.
+ */
+const adoptable = (row) => Boolean(row.ROWID) && row.source !== 'dashboard';
+
+/**
+ * Does `lead` postdate `row`?
+ *
+ * `SubmittedAt` is written by formSubmit's catalystNow() and `updated_at` by
+ * datastore.nowDb() — the same `YYYY-MM-DD HH:MM:SS` UTC on both sides, so the
+ * comparison is between two clocks we own. `CREATEDTIME` backs it up for rows
+ * an older formSubmit left the column empty on; it is Catalyst's own and its
+ * format is Catalyst's choice, which fromDb parses when it can.
+ *
+ * Anything undateable answers false. Declining to replace a row we cannot date
+ * is the safe direction: the checkup's own POST /me/bill is the primary path,
+ * and this only exists to catch what that path drops.
+ */
+function leadIsNewer(lead, row) {
+  const at = datastore.fromDb(lead.SubmittedAt) || datastore.fromDb(lead.CREATEDTIME);
+  const held = datastore.fromDb(row.updated_at);
+  if (!at || !held) return false;
+  return at.getTime() > held.getTime();
 }
 
 /** A lead row reshaped into a member_bills row (without user_id/source). */
@@ -169,27 +236,37 @@ function mount(router) {
     const user = requireMember(req);
 
     let row = await datastore.findBy(req.catalyst, TABLE, 'user_id', user.user_id);
-    if (!row) {
+
+    // The lead table is consulted when we hold nothing, and when what we hold
+    // could be superseded by a checkup run since. See the file header.
+    // latestLead only ever returns a lead with a bill in it, so the only
+    // question left here is which of the two readings is more recent.
+    if (!row || adoptable(row)) {
       const lead = await latestLead(req.catalyst, user);
-      if (lead) {
-        const fields = fromLead(lead);
-        row = {
-          user_id: user.user_id,
-          ...fields,
+      if (lead && (!row || leadIsNewer(lead, row))) {
+        const adopted = {
+          ...fromLead(lead),
           source: 'bill-checkup-backfill',
           updated_at: datastore.nowDb(),
         };
         try {
-          await datastore.insertRow(req.catalyst, TABLE, row);
+          if (row) {
+            await datastore.updateRow(req.catalyst, TABLE, { ROWID: row.ROWID, ...adopted });
+          } else {
+            await datastore.insertRow(req.catalyst, TABLE, { user_id: user.user_id, ...adopted });
+          }
           audit.recordAsync(req.catalyst, req, {
             type: 'member.bill.backfill',
             outcome: 'success',
             userId: user.user_id,
             email: user.email_normalized,
-            detail: { lead_rowid: String(lead.ROWID) },
+            detail: { lead_rowid: String(lead.ROWID), replaced: Boolean(row) },
           });
+          row = { ...(row || {}), ...adopted };
         } catch {
-          // A concurrent first-load already inserted it; serve what we built.
+          // A concurrent first-load already inserted it, or the write failed:
+          // serve what we have rather than 500ing the member's dashboard.
+          row = row || { user_id: user.user_id, ...adopted };
         }
       }
     }
@@ -220,8 +297,7 @@ function mount(router) {
       switch_threshold: str(b.threshold, 64),
     };
 
-    if (!fields.provider && !fields.monthly_cost && !fields.download_speed &&
-        !fields.promo_end_date) {
+    if (!hasSubstance(fields)) {
       throw badRequest('There is nothing to save yet — run the checkup first.', {
         logDetail: 'bill save with no usable field',
       });
