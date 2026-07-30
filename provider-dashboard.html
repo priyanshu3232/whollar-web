@@ -707,7 +707,7 @@ var CAMPAIGNS=[
   t:{announce:snap(-11,9),open:snap(-4,9),close:snap(18,17),offers:snap(25,9),decide:snap(32,17),sw:snap(46,9),rec:snap(60,9)},
   speed:[['1 Gig',31],['500 Mbps',58],['Under 500',11]],renew:'Oct to Dec',
   intent:[['$25+/mo',38],['$10+/mo',44],['Curious',18]],last:'$57/mo \u00b7 500 Mbps'},
- {id:'wc',region:'Windsor Core',sub:'Winter cohort',cov:'Windsor',hh:87,conf:52,
+ {id:'wc',region:'Windsor',sub:'Winter cohort',cov:'Windsor',hh:87,conf:52,
   t:{announce:snap(-3,9),open:snap(14,9),close:snap(28,17),offers:snap(35,9),decide:snap(42,17),sw:snap(56,9),rec:snap(70,9)},
   speed:[['1 Gig',28],['500 Mbps',55],['Under 500',17]],renew:'Jan to Feb',
   intent:[['$25+/mo',36],['$10+/mo',45],['Curious',19]],last:'$54/mo \u00b7 500 Mbps'},
@@ -730,7 +730,7 @@ function stageOf(c){
 }
 var HBIDS=[
  {cohort:'London East \u00b7 Spring 2026',placed:'Mar 12, 2026',bid:'$57/mo \u00b7 500 Mbps \u00b7 24 mo',result:'won',conf:74,comp:62},
- {cohort:'Windsor Core \u00b7 Winter 2026',placed:'Jan 8, 2026',bid:'$54/mo \u00b7 500 Mbps \u00b7 24 mo',result:'won',conf:45,comp:41},
+ {cohort:'Windsor \u00b7 Winter 2026',placed:'Jan 8, 2026',bid:'$54/mo \u00b7 500 Mbps \u00b7 24 mo',result:'won',conf:45,comp:41},
  {cohort:'Kingston West \u00b7 Fall 2025',placed:'Oct 3, 2025',bid:'$58/mo \u00b7 1 Gig \u00b7 24 mo',result:'won',conf:14,comp:13},
  {cohort:'Hamilton Mountain \u00b7 Spring 2026',placed:'Apr 2, 2026',bid:'$59/mo \u00b7 500 Mbps \u00b7 24 mo',result:'lost'},
  {cohort:'London North \u00b7 Winter 2026',placed:'Feb 1, 2026',bid:'$61/mo \u00b7 1 Gig \u00b7 24 mo',result:'lost'},
@@ -821,19 +821,28 @@ W.session.providerMe().then(function(r){
   $('#review-note').hidden=(r.approved===true);
 },function(){ /* offline or not a partner session: leave the fallbacks */ });
 
-/* ---------- live household counts ----------
+/* ---------- live names and household counts ----------
    The desk's numbers are demo seeds until the campaign service answers. The
    member dashboard writes joins through the same service, so every household
    that joins a cohort over there is one more in these columns — counts only,
-   never who they are. `live:false` (membership table not provisioned yet)
-   changes nothing: the seeds ARE the server's numbers in that case. */
+   never who they are.
+
+   Names come from the same answer: the catalog is the one place a campaign
+   is called anything, and the member cards, this desk and the admin console
+   all read it — so a rename there lands here without a deploy. Names apply
+   whenever the catalog answers; counts only when `live` is true, because
+   `live:false` means the membership table isn't provisioned yet and the
+   seeds ARE the server's numbers in that case. */
 var CAMPMAP={kw:'kingston-west',le:'london-east',wc:'windsor-core',hm:'hamilton-mountain',ln:'london-north',ck:'chatham-kent'};
 W.session.providerCampaigns().then(function(r){
-  if(!r||!r.live)return;
+  if(!r||!r.ok)return;
   var by={};(r.campaigns||[]).forEach(function(c){by[c.id]=c});
   var moved=false;
   CAMPAIGNS.forEach(function(c){
     var s=by[CAMPMAP[c.id]];if(!s)return;
+    if(s.region)c.region=String(s.region);
+    if(s.sub)c.sub=String(s.sub);
+    if(!r.live)return;
     if(typeof s.households==='number'&&s.households!==c.hh){c.hh=s.households;moved=true}
     if(c.planned&&typeof s.members==='number'){
       c.note=s.kind==='waitlist'
@@ -1221,7 +1230,7 @@ function renderMotionCharts(){
   $('#chart-months').innerHTML=barChart();
   var steps=[['In coverage',9],['Bid',6],['Won',3],['Confirmed',133],['Completed',116]];
   $('#funnel').innerHTML=steps.map(function(s,i){return '<div class="fstep'+(i===4?' hot':'')+'"><b>'+s[1]+'</b><span>'+s[0]+'</span></div>'}).join('');
-  $('#feed').innerHTML=[['Today','Invoice cycle accruing: 24 completions so far in July'],['Jul 15','London East \u00b7 Autumn opened for sealed bids'],['Jul 8','3 switches completed in Windsor Core']].map(function(f){return '<li><span class="when">'+esc(f[0])+'</span>'+esc(f[1])+'</li>'}).join('');
+  $('#feed').innerHTML=[['Today','Invoice cycle accruing: 24 completions so far in July'],['Jul 15','London East \u00b7 Autumn opened for sealed bids'],['Jul 8','3 switches completed in Windsor']].map(function(f){return '<li><span class="when">'+esc(f[0])+'</span>'+esc(f[1])+'</li>'}).join('');
 }
 function renderAcq(){
   if(S.stage==='day1'){
@@ -1239,7 +1248,7 @@ function renderAcq(){
    +'<div class="grid2"><section class="card"><span class="eyebrow">Trend</span><h3>Completed switches by month</h3><div class="chart">'+barChart()+'</div></section>'
    +'<section class="card"><span class="eyebrow">By region</span><h3>Where they came from</h3><div class="twrap"><table class="tbl"><thead><tr><th>Region</th><th class="num">Won</th><th class="num">Completed</th></tr></thead><tbody>'
    +'<tr><td>London East</td><td class="num">1</td><td class="num">62</td></tr>'
-   +'<tr><td>Windsor Core</td><td class="num">1</td><td class="num">41</td></tr>'
+   +'<tr><td>Windsor</td><td class="num">1</td><td class="num">41</td></tr>'
    +'<tr><td>Kingston West</td><td class="num">1</td><td class="num">13</td></tr>'
    +'</tbody></table></div><p class="fnote">Every completed switch maps to one invoice line in Billing. Same numbers, same source.</p></section></div>';
 }
