@@ -229,8 +229,11 @@ strips them; do not bypass it by calling `insertRow` directly.
 
 The signed-in member's switch file — what `/dashboard` renders. One row per
 member; a new checkup replaces it. Written by `POST /me/bill`, read by
-`GET /me/bill`, and seeded once from `BillCheckupSubmissions` when a member's
-email matches an earlier public checkup (the backfill in `routes/member.js`).
+`GET /me/bill`, and seeded from `BillCheckupSubmissions` when a member's email
+matches a public checkup — on the first read, and again on any read where that
+lead is newer than the row (the adoption in `routes/member.js`, which is what
+covers a checkup whose own save never arrived). A row with
+`source = 'dashboard'` is never overwritten that way.
 
 | Column | Type | Length | Unique | Mandatory | PII | Notes |
 |---|---|---|:--:|:--:|:--:|---|
