@@ -293,6 +293,13 @@ tr.exp + tr.dwr{display:table-row}
 .drop button:last-child{border-bottom:0}
 .drop button:hover{background:#F6F2E7}
 .drop .st{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--sub)}
+
+.calmenu{position:fixed;width:238px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 14px 34px rgba(18,55,43,.14);z-index:65;overflow:hidden}
+.calmenu .cm-ev{display:block;padding:9px 14px 7px;font-size:11px;font-weight:700;color:var(--sub);border-bottom:1px dashed var(--line)}
+.calmenu button{display:block;width:100%;text-align:left;padding:10px 14px;font-size:13px;font-weight:600;color:#3A453E;border-bottom:1px dashed var(--line)}
+.calmenu button:last-child{border-bottom:0}
+.calmenu button:hover,.calmenu button:focus-visible{background:#F6F2E7}
+.calmenu .cm-note{display:block;padding:8px 14px 10px;font-size:11px;color:var(--sub);border-top:1px dashed var(--line)}
 .ag{cursor:pointer}
 .ag:hover .t b{color:var(--forest2)}
 .planhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
@@ -993,28 +1000,110 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Enter'&&e.target.closest&&e.target.closest('.ag'))openPlan(e.target.closest('.ag').getAttribute('data-plan'));
 });
 
-/* ---------- ICS ---------- */
+/* ---------- add to calendar ----------
+   "Add to calendar" used to silently download an .ics \u2014 a dead end for
+   anyone on a web calendar, which is most people. The button now opens a
+   chooser: Google and Outlook get a prefilled event in a new tab, and the
+   .ics file stays for Apple Calendar and desktop apps. All three read the
+   same event list, so a date that moves moves everywhere. */
 function icsStamp(ts){return new Date(ts).toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'')}
+function icsEsc(s){return String(s).replace(/\\/g,'\\\\').replace(/[,;]/g,function(c){return '\\'+c})}
+function calEvents(c){
+  return c.planned
+    ? [{t:c.expected,s:'Whollar \u00b7 '+c.region+' \u00b7 bidding expected to open',tent:1,
+        d:'Expected date \u2014 it firms up the day the cohort locks. Your partner console has the live plan: https://www.whollar.ca/provider-dashboard'}]
+    : [{t:c.t.open,s:'Whollar \u00b7 '+c.region+' \u00b7 bidding opens',d:'Sealed bids accepted from this moment.'},
+       {t:c.t.close,s:'Whollar \u00b7 '+c.region+' \u00b7 bids close',d:'Your number is final at this moment. Improve it any time before.'},
+       {t:c.t.offers,s:'Whollar \u00b7 '+c.region+' \u00b7 offers out',d:'The winning offer goes to every household in the cohort.'},
+       {t:c.t.decide,s:'Whollar \u00b7 '+c.region+' \u00b7 decision deadline',d:'Confirmations lock. Results follow the same day.'}];
+}
+/* The web links can carry one event each, so they take the next milestone
+   still ahead; the .ics carries the whole plan. */
+function nextCalEvent(c){
+  var evs=calEvents(c),n=now();
+  for(var i=0;i<evs.length;i++)if(evs[i].t>n)return evs[i];
+  return evs[evs.length-1];
+}
 function dlICS(cid){
   var c=CAMPAIGNS.filter(function(x){return x.id===cid})[0];if(!c)return;
-  var evs=c.planned
-    ? [{t:c.expected,s:'Whollar \u00b7 '+c.region+' \u00b7 bidding expected to open',tent:1}]
-    : [{t:c.t.open,s:'Whollar \u00b7 '+c.region+' \u00b7 bidding opens'},
-       {t:c.t.close,s:'Whollar \u00b7 '+c.region+' \u00b7 bids close'},
-       {t:c.t.offers,s:'Whollar \u00b7 '+c.region+' \u00b7 offers out'},
-       {t:c.t.decide,s:'Whollar \u00b7 '+c.region+' \u00b7 decision deadline'}];
   var L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Whollar//Partner console//EN'];
-  evs.forEach(function(e,i){
-    L.push('BEGIN:VEVENT','UID:'+cid+'-'+i+'@whollar','DTSTAMP:'+icsStamp(now()),'DTSTART:'+icsStamp(e.t),'DTEND:'+icsStamp(e.t+3600e3),'SUMMARY:'+e.s);
+  calEvents(c).forEach(function(e,i){
+    L.push('BEGIN:VEVENT','UID:'+cid+'-'+i+'@whollar','DTSTAMP:'+icsStamp(now()),'DTSTART:'+icsStamp(e.t),'DTEND:'+icsStamp(e.t+3600e3),'SUMMARY:'+icsEsc(e.s),'DESCRIPTION:'+icsEsc(e.d));
     if(e.tent)L.push('STATUS:TENTATIVE');
     L.push('END:VEVENT');
   });
   L.push('END:VCALENDAR');
   var blob=new Blob([L.join('\r\n')],{type:'text/calendar'});
-  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='whollar-'+cid+'-campaign.ics';
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;a.download='whollar-'+cid+'-campaign.ics';
   document.body.appendChild(a);a.click();a.remove();
-  toast('Calendar file downloaded. A live subscribe feed ships with the real build.');
+  setTimeout(function(){URL.revokeObjectURL(url)},4000);
+  toast('Calendar file downloaded. Open it and your calendar takes the dates.');
 }
+function gcalURL(e){
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+   +'&text='+encodeURIComponent(e.s)
+   +'&dates='+icsStamp(e.t)+'/'+icsStamp(e.t+3600e3)
+   +'&details='+encodeURIComponent(e.d);
+}
+function outlookURL(e){
+  return 'https://outlook.live.com/calendar/0/deeplink/compose?path=%2Fcalendar%2Faction%2Fcompose&rru=addevent'
+   +'&subject='+encodeURIComponent(e.s)
+   +'&startdt='+encodeURIComponent(new Date(e.t).toISOString())
+   +'&enddt='+encodeURIComponent(new Date(e.t+3600e3).toISOString())
+   +'&body='+encodeURIComponent(e.d);
+}
+var calMenuEl=null,calMenuBtn=null;
+function closeCalMenu(){if(calMenuEl){calMenuEl.remove();calMenuEl=null;calMenuBtn=null}}
+/* The menu is position:fixed, so a scroll would leave it floating where the
+   button used to be — follow the button instead of vanishing under the
+   reader's wheel. */
+function placeCalMenu(){
+  if(!calMenuEl||!calMenuBtn)return;
+  if(!calMenuBtn.isConnected){closeCalMenu();return}
+  var r=calMenuBtn.getBoundingClientRect();
+  if(r.bottom<0||r.top>window.innerHeight){closeCalMenu();return}
+  var mw=calMenuEl.offsetWidth,mh=calMenuEl.offsetHeight;
+  var left=Math.max(8,Math.min(r.right-mw,window.innerWidth-mw-8));
+  var top=r.bottom+6;
+  if(top+mh>window.innerHeight-8)top=Math.max(8,r.top-mh-6);
+  calMenuEl.style.left=left+'px';calMenuEl.style.top=top+'px';
+}
+function openCalMenu(btn,cid){
+  var c=CAMPAIGNS.filter(function(x){return x.id===cid})[0];if(!c)return;
+  var again=calMenuEl&&calMenuEl.getAttribute('data-for')===cid;
+  closeCalMenu();
+  if(again)return; /* second click on the same button just closes it */
+  var ev=nextCalEvent(c),count=calEvents(c).length;
+  var m=document.createElement('div');
+  m.className='calmenu';m.setAttribute('role','menu');m.setAttribute('data-for',cid);
+  m.innerHTML='<span class="cm-ev">'+esc(ev.s.replace('Whollar \u00b7 ',''))+' \u00b7 '+fmtD(ev.t)+'</span>'
+   +'<button type="button" data-cal="google">Google Calendar</button>'
+   +'<button type="button" data-cal="outlook">Outlook.com</button>'
+   +'<button type="button" data-cal="ics">.ics file \u00b7 Apple Calendar and the rest</button>'
+   +(count>1?'<span class="cm-note">The links add this next milestone; the file carries all '+count+' dates.</span>':'');
+  document.body.appendChild(m);
+  calMenuEl=m;calMenuBtn=btn;
+  placeCalMenu();
+  m.addEventListener('click',function(e){
+    var b=e.target.closest('[data-cal]');if(!b)return;
+    var k=b.getAttribute('data-cal');
+    if(k==='ics')dlICS(cid);
+    else window.open(k==='google'?gcalURL(ev):outlookURL(ev),'_blank','noopener');
+    closeCalMenu();
+  });
+  calMenuEl=m;
+  m.querySelector('button').focus();
+}
+/* The opener above runs off the earlier delegated listener, so by the time
+   these fire the menu for THIS click already exists \u2014 hence the [data-ics]
+   carve-out, and the toggle branch in openCalMenu does the closing. */
+document.addEventListener('click',function(e){
+  if(calMenuEl&&!e.target.closest('.calmenu')&&!e.target.closest('[data-ics]'))closeCalMenu();
+});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeCalMenu()});
+window.addEventListener('scroll',closeCalMenu,true);
+window.addEventListener('resize',closeCalMenu);
 
 /* ---------- search ---------- */
 var qEl=$('#q'),drop=$('#qdrop');
