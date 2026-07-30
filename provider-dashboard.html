@@ -717,7 +717,7 @@ var CAMPAIGNS=[
   t:{announce:snap(-11,9),open:snap(-4,9),close:snap(18,17),offers:snap(25,9),decide:snap(32,17),sw:snap(46,9),rec:snap(60,9)},
   speed:[['1 Gig',31],['500 Mbps',58],['Under 500',11]],renew:'Oct to Dec',
   intent:[['$25+/mo',38],['$10+/mo',44],['Curious',18]],last:'$57/mo \u00b7 500 Mbps'},
- {id:'wc',region:'Windsor',sub:'Winter cohort',cov:'Windsor',hh:87,conf:52,
+ {id:'wc',region:'Windsor',sub:'Winter cohort',cov:'Windsor',hh:52,conf:52,
   t:{announce:snap(-3,9),open:snap(14,9),close:snap(28,17),offers:snap(35,9),decide:snap(42,17),sw:snap(56,9),rec:snap(70,9)},
   speed:[['1 Gig',28],['500 Mbps',55],['Under 500',17]],renew:'Jan to Feb',
   intent:[['$25+/mo',36],['$10+/mo',45],['Curious',19]],last:'$54/mo \u00b7 500 Mbps'},
@@ -725,8 +725,12 @@ var CAMPAIGNS=[
   t:{announce:snap(-2,9),open:snap(5,9),close:snap(19,17),offers:snap(26,9),decide:snap(33,17),sw:snap(47,9),rec:snap(61,9)},
   speed:[['1 Gig',26],['500 Mbps',57],['Under 500',17]],renew:'Jan to Mar',
   intent:[['$25+/mo',31],['$10+/mo',47],['Curious',22]],last:'No prior bid here'},
- {id:'ln',region:'London North',sub:'Winter cohort',cov:'London North',hh:100,planned:1,expected:snap(45,9),note:'Cohort forming: 61 of 100 households'},
- {id:'ck',region:'Chatham-Kent',sub:'First cohort',cov:'Chatham-Kent',hh:100,planned:1,expected:snap(75,9),note:'Waitlist growing; opens when the cohort locks'}
+ /* Every hh seed below equals the member cards' members seed for the same
+    campaign — one campaign, one number, service reachable or not. Matching
+    seeds are also what keeps the first poll from toasting "counts updated"
+    on a page that just opened. */
+ {id:'ln',region:'London North',sub:'Winter cohort',cov:'London North',hh:61,planned:1,expected:snap(45,9),note:'Cohort forming: 61 of 100 households'},
+ {id:'ck',region:'Chatham-Kent',sub:'First cohort',cov:'Chatham-Kent',hh:37,planned:1,expected:snap(75,9),note:'Waitlist growing; opens when the cohort locks'}
 ];
 var STAGES=['Announced','Open','Closing','Offers out','Decided'];
 function stageOf(c){
@@ -829,7 +833,19 @@ W.session.providerMe().then(function(r){
   }
   paintPartner();
   $('#review-note').hidden=(r.approved===true);
-},function(){ /* offline or not a partner session: leave the fallbacks */ });
+},function(err){
+  /* Offline: leave the guessed headings, the guard already let them in.
+     But a definite 401/403 means the browser's ONE session cookie belongs
+     to someone who is not a partner — usually a member who signed in after
+     this tab's local record was written. Sitting on that record would show
+     a console whose every server call fails, quietly stuck on demo seeds
+     (that is exactly the "desk says 61 while members see 63" bug). Clear
+     the record and ask for a partner sign-in instead. */
+  if(err&&(err.status===401||err.status===403)){
+    W.partner.clear();
+    toSignIn();
+  }
+});
 
 /* ---------- live names and household counts ----------
    The desk's numbers are demo seeds until the campaign service answers. The
@@ -842,33 +858,49 @@ W.session.providerMe().then(function(r){
    all read it — so a rename there lands here without a deploy. Names apply
    whenever the catalog answers; counts only when `live` is true, because
    `live:false` means the membership table isn't provisioned yet and the
-   seeds ARE the server's numbers in that case. */
+   seeds ARE the server's numbers in that case.
+
+   Polled, not fetched once: a desk is a screen partners leave open, and a
+   number that only moves on refresh reads as a number that doesn't move.
+   Every 45 seconds while the tab is visible, plus the moment it becomes
+   visible again — that catches "joined on my phone, flipped back to the
+   laptop" without hammering the function while nobody is looking. */
 var CAMPMAP={kw:'kingston-west',le:'london-east',wc:'windsor-core',hm:'hamilton-mountain',ln:'london-north',ck:'chatham-kent'};
-W.session.providerCampaigns().then(function(r){
-  if(!r||!r.ok)return;
-  var by={};(r.campaigns||[]).forEach(function(c){by[c.id]=c});
-  var moved=false;
-  CAMPAIGNS.forEach(function(c){
-    var s=by[CAMPMAP[c.id]];if(!s)return;
-    if(s.region)c.region=String(s.region);
-    if(s.sub)c.sub=String(s.sub);
-    if(!r.live)return;
-    /* `members`, not `households`: the service returns both, but members is
-       the number the member cards render ("62 of 100 households"), and one
-       campaign must show one count on both sides of the aisle. The households
-       figure carries a separate, larger seed (112 for London East against the
-       cards' 61) and showing it here is what made the desk look like a
-       different campaign. */
-    if(typeof s.members==='number'&&s.members!==c.hh){c.hh=s.members;moved=true}
-    if(c.planned&&typeof s.members==='number'){
-      c.note=s.kind==='waitlist'
-        ?(s.members+' households on the waitlist; opens when the cohort locks')
-        :('Cohort forming: '+s.members+' of '+(s.target||100)+' households');
-    }
-  });
-  renderDesk();renderPlanned();renderOverviewBits();renderBids();
-  if(moved)toast('Cohort counts updated: households joined since your last look.');
-});
+function syncCampaigns(){
+  W.session.providerCampaigns().then(function(r){
+    if(!r||!r.ok)return;
+    var by={};(r.campaigns||[]).forEach(function(c){by[c.id]=c});
+    /* `changed` gates the repaint; `moved` gates the toast — a rename or a
+       reworded note should redraw quietly, only a count that ticked deserves
+       "households joined since your last look". */
+    var moved=false,changed=false;
+    CAMPAIGNS.forEach(function(c){
+      var s=by[CAMPMAP[c.id]];if(!s)return;
+      if(s.region&&String(s.region)!==c.region){c.region=String(s.region);changed=true}
+      if(s.sub&&String(s.sub)!==c.sub){c.sub=String(s.sub);changed=true}
+      if(!r.live)return;
+      /* `members`, not `households`: the service returns both, but members is
+         the number the member cards render ("62 of 100 households"), and one
+         campaign must show one count on both sides of the aisle. The households
+         figure carries a separate, larger seed (112 for London East against the
+         cards' 61) and showing it here is what made the desk look like a
+         different campaign. */
+      if(typeof s.members==='number'&&s.members!==c.hh){c.hh=s.members;changed=true;moved=true}
+      if(c.planned&&typeof s.members==='number'){
+        var note=s.kind==='waitlist'
+          ?(s.members+' households on the waitlist; opens when the cohort locks')
+          :('Cohort forming: '+s.members+' of '+(s.target||100)+' households');
+        if(note!==c.note){c.note=note;changed=true}
+      }
+    });
+    if(!changed)return;
+    renderDesk();renderPlanned();renderOverviewBits();renderBids();
+    if(moved)toast('Cohort counts updated: households joined since your last look.');
+  },function(){ /* offline or not a partner session: try again next tick */ });
+}
+syncCampaigns();
+setInterval(function(){if(!document.hidden)syncCampaigns()},45e3);
+document.addEventListener('visibilitychange',function(){if(!document.hidden)syncCampaigns()});
 
 /* ---------- activation ---------- */
 var TASKDEFS=[
