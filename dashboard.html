@@ -966,6 +966,21 @@ if(!MEMBER||typeof MEMBER!=='object'||!MEMBER.email){
   return;
 }
 
+/* A present whollar.member record only proves a member signed in on this
+   browser at SOME point — the site shares one session cookie across member,
+   provider and admin, so a later provider sign-in in the same browser
+   silently swaps the cookie out from under this cached record. Confirm the
+   live cookie still belongs to a member in the background, without holding
+   up render for the common case where it does. On a mismatch or a signed-out
+   cookie, adopt('member') resolves null and leaves the stale record alone
+   (see its doc comment) — clear it here and bounce, rather than let the page
+   keep showing another account's cached name and bill until a save fails. */
+if(W&&W.session){
+  W.session.adopt('member').then(function(rec){
+    if(!rec){W.member.clear();toSignIn();}
+  });
+}
+
 /* The guard above runs once, at parse time. A back-button restore from the
    bfcache does NOT re-run it, so after signing out the browser would happily
    repaint the fully rendered dashboard. Force a reload on a persisted restore
@@ -1428,6 +1443,14 @@ window.addEventListener('focus',refreshCliff);
       toast('Bill saved to your file.');
     },function(err){
       busy=false;btn.disabled=false;btn.textContent=orig;
+      /* FORBIDDEN here means the live session cookie no longer belongs to a
+         member — most likely a provider or admin sign-in on this browser
+         replaced it after this record was cached. The background check on
+         load (above) should already catch this, but a session can change in
+         another tab between that check and this click. Showing the raw
+         backend text would just confuse someone who thinks they're signed in
+         as themselves; clear the stale record and send them to sign back in. */
+      if(err&&err.code==='FORBIDDEN'){W.member.clear();toSignIn();return;}
       /* err.message is composed server-side to be shown verbatim (it may carry
          a quotable reference id) — wrap it, don't replace it. */
       $('#bu-err').textContent='We couldn’t save that just now. '+((err&&err.message)||'Please try again.')+' Nothing below was lost — try again in a moment.';

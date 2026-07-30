@@ -20,7 +20,13 @@ const SESSIONS = 'sessions';
 const USERS = 'users';
 
 const SESSION_COLUMNS = ['ROWID', 'session_id', 'token_hash', 'user_id', 'expires_at', 'revoked_at'];
-const USER_COLUMNS = ['ROWID', 'user_id', 'email_normalized', 'email_display', 'first_name', 'user_type', 'status'];
+// The whole profile, not just identity: campaign joins snapshot `fsa` from
+// this projection (a narrower list here is why early rows carried fsa: null),
+// and the dashboards render name, region and phone from the session payload.
+// CREATEDTIME is Catalyst's own stamp — selected, never written.
+const USER_COLUMNS = ['ROWID', 'user_id', 'email_normalized', 'email_display',
+  'first_name', 'last_name', 'user_type', 'status',
+  'postal_code', 'fsa', 'province_code', 'phone', 'CREATEDTIME'];
 
 /**
  * Members roll; partners and admins do not.
@@ -203,7 +209,14 @@ function publicUser(user) {
   return {
     email: user.email_display || user.email_normalized,
     firstName: user.first_name || null,
+    lastName: user.last_name || null,
     userType: user.user_type,
+    phone: user.phone || null,
+    postal: user.postal_code || null,
+    fsa: user.fsa || null,
+    provinceCode: user.province_code || null,
+    // Catalyst's creation stamp, 'YYYY-MM-DD HH:MM:SS' — "member since".
+    memberSince: user.CREATEDTIME || null,
   };
 }
 

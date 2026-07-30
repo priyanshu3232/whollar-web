@@ -1277,6 +1277,132 @@
       });
     },
 
+    /* ---- account & preferences (both dashboards) --------------------
+       Button paths REJECT with the server's message; boot-path reads
+       resolve null/{} instead — the same split as everything above. */
+
+    /** Update profile fields. Send only the keys being changed.
+        -> { ok, user } with the fresh public profile. */
+    profileSave: function (fields) { return authPost('/me/profile', fields); },
+
+    /** The stored preference blob, or {} — signed out and failures alike. */
+    prefsGet: function () {
+      return fetch(W.AUTH_API + '/me/prefs', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      }).then(function (r) {
+        return r.ok ? r.json().catch(function () { return null; }) : null;
+      }).then(function (b) {
+        return (b && b.prefs) || {};
+      }).catch(function () { return {}; });
+    },
+
+    /** Merge preference keys ('alerts', 'interests', 'notify'). -> { ok, prefs } */
+    prefsSave: function (patch) { return authPost('/me/prefs', patch); },
+
+    /** Record feedback: { kind: 'rating'|'outage'|'interest'|'provider-notify',
+        payload: {...} }. -> { ok } */
+    event: function (kind, payload) {
+      return authPost('/me/event', { kind: kind, payload: payload || {} });
+    },
+
+    /** The member's share code and how many joined with it, or null. */
+    referral: function () {
+      return fetch(W.AUTH_API + '/me/referral', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      }).then(function (r) {
+        return r.ok ? r.json().catch(function () { return null; }) : null;
+      }).then(function (b) {
+        return (b && b.ok) ? b : null;
+      }).catch(function () { return null; });
+    },
+
+    /** Everything the account owns, as one JSON document. REJECTS on failure —
+        this runs from a button whose whole job is producing the file. */
+    exportData: function () {
+      return fetch(W.AUTH_API + '/me/export', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      }).then(function (r) {
+        return r.json().catch(function () { return null; }).then(function (b) {
+          if (r.ok && b && b.ok) return b.data;
+          var e = new Error((b && b.error && b.error.message) ||
+            'Your export could not be prepared. Please try again.');
+          e.code = (b && b.error && b.error.code) || 'SERVER_ERROR';
+          throw e;
+        });
+      }, function () {
+        var e = new Error('We couldn’t reach Whollar. Check your connection and try again.');
+        e.code = 'NETWORK';
+        throw e;
+      });
+    },
+
+    /** Delete the account. `confirmEmail` must match the account's address —
+        the server refuses anything else. -> { ok } */
+    deleteAccount: function (confirmEmail) {
+      return authPost('/me/delete', { confirmEmail: confirmEmail });
+    },
+
+    /* ---- partner desk ------------------------------------------------ */
+
+    /** Rename the org (org admins only). -> { ok, org } */
+    providerOrgSave: function (legalName) {
+      return authPost('/provider/org', { legalName: legalName });
+    },
+
+    /** The org's team list, or null. -> { team, emailDomain } */
+    providerTeam: function () {
+      return fetch(W.AUTH_API + '/provider/team', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      }).then(function (r) {
+        return r.ok ? r.json().catch(function () { return null; }) : null;
+      }).then(function (b) {
+        return (b && b.ok) ? b : null;
+      }).catch(function () { return null; });
+    },
+
+    /** The org's live sealed bids, or null. -> { live, bids } */
+    providerBids: function () {
+      return fetch(W.AUTH_API + '/provider/bids', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      }).then(function (r) {
+        return r.ok ? r.json().catch(function () { return null; }) : null;
+      }).then(function (b) {
+        return (b && b.ok) ? b : null;
+      }).catch(function () { return null; });
+    },
+
+    /** Place or improve a sealed bid. The server is the gate: approval,
+        the bidding window, and the kill switch are all enforced there.
+        -> { ok, bid, improved } */
+    providerBidSave: function (bid) { return authPost('/provider/bids', bid); },
+
+    /** The org's coverage rows, or null. -> { live, coverage } */
+    providerCoverage: function () {
+      return fetch(W.AUTH_API + '/provider/coverage', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      }).then(function (r) {
+        return r.ok ? r.json().catch(function () { return null; }) : null;
+      }).then(function (b) {
+        return (b && b.ok) ? b : null;
+      }).catch(function () { return null; });
+    },
+
+    /** Update a region's services / declare a new region.
+        -> { ok, live, coverage } with the full refreshed list. */
+    providerCoverageSave: function (row) { return authPost('/provider/coverage', row); },
+
     /**
      * Sign out on the server first, then locally.
      *

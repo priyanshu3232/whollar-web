@@ -198,6 +198,56 @@ const TABLES = Object.freeze({
     updated_by:      'varchar(64)',
     updated_at:      'datetime',
   },
+  user_prefs: {
+    // One JSON blob of preferences per account, member or provider alike:
+    // notification toggles, interest flags, "tell me when this opens" marks.
+    // A blob and not columns because these keys change with the product and a
+    // console-only schema cannot keep up; nothing ever filters on a preference.
+    pref_key:   'varchar(64) unique required', // users.user_id
+    prefs:      'text required',               // JSON object
+    updated_at: 'datetime required',
+  },
+  user_events: {
+    // Append-only feedback from the dashboards: provider ratings, outage
+    // reports, "first in line" interest, a partner's opening-day alerts.
+    // Write-only from the product; the admin console reads it. Payload is JSON
+    // and never filtered on — queries go by user_id or kind only.
+    user_id:    'varchar(64) required',
+    user_type:  'varchar(16)',
+    kind:       'varchar(32) required',
+    payload:    'text',
+    created_at: 'datetime required',
+  },
+  provider_bids: {
+    // One live sealed bid per (campaign, org): improving a bid replaces it,
+    // which is what "sealed but improvable until close" means. The pair is
+    // flattened into one unique column, same trick as membership_key. History
+    // beyond the current bid is the audit log's job, not this table's.
+    bid_key:     'varchar(130) unique required', // `${campaign_id}:${org_id}`
+    campaign_id: 'varchar(64) required',
+    org_id:      'varchar(64) required',
+    user_id:     'varchar(64) required',          // who placed it, for the org's own record
+    price:       'varchar(16) required',          // money-as-string, see member_bills
+    speed:       'varchar(32)',
+    term:        'varchar(32)',
+    includes:    'varchar(255)',                  // CSV of included extras
+    completion:  'varchar(8)',                    // assumed completion %, as typed
+    status:      'varchar(16) required',          // 'sealed'
+    updated_at:  'datetime required',
+  },
+  provider_coverage: {
+    // The regions an org serves and with what. Rows the org declares itself
+    // start as 'verifying' — serviceability is confirmed by an operator, not
+    // asserted by the party it advantages.
+    coverage_key: 'varchar(200) unique required', // `${org_id}:${region-slug}`
+    org_id:       'varchar(64) required',
+    region:       'varchar(100) required',
+    techs:        'varchar(64) required',         // CSV: cable, fibre, fwa, dsl
+    speed:        'varchar(16)',
+    lead:         'varchar(32)',
+    status:       'varchar(16) required',         // 'active' | 'verifying'
+    updated_at:   'datetime required',
+  },
   auth_events: {
     event_type:       'varchar(64) required',
     user_id:          'varchar(64)',
