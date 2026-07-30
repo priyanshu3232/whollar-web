@@ -239,7 +239,12 @@ button{font-family:var(--body)}
         <button class="submit" type="submit" id="signin-cta">Sign in</button>
         </form>
 
-        <p class="foot-switch">New to Whollar? <button type="button" class="linkbtn" id="to-signup">Create an account</button></p>
+        <!-- A link to the founding-member page (/waitlist/), not the in-page
+             signup view: account creation lives there, with the full pitch
+             around it. This link was the signup view's only entry point, so
+             that view and its code step are now unreachable — kept in the
+             file but dead until someone re-links or removes them. -->
+        <p class="foot-switch">New to Whollar? <a class="linkbtn" href="/waitlist/">Create an account</a></p>
       </section>
 
       <!-- CREATE ACCOUNT -->
@@ -645,9 +650,6 @@ function serverMessage(err) {
 
 /* ---------- view switching ---------- */
 
-document.getElementById('to-signup').addEventListener('click', function () {
-  clearErr('signin-err'); showView('signup');
-});
 document.getElementById('to-signin').addEventListener('click', function () {
   clearErr('signup-err'); showView('signin');
 });
