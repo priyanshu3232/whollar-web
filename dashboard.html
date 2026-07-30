@@ -128,6 +128,21 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .olabel{font-size:12px;font-weight:700;color:var(--sub);display:block;margin:10px 0 5px}
 .osel{width:100%;font:inherit;font-size:13.5px;background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;color:var(--ink)}
 .osel:focus{outline:none;border-color:var(--accent)}
+.bu-drop{display:block;border:2px dashed var(--line);border-radius:12px;padding:16px;cursor:pointer;text-align:center;transition:border-color .15s,background .15s}
+.bu-drop:hover,.bu-drop.drag{border-color:var(--accent);background:var(--mint)}
+.bu-drop b{display:block;font-size:14px}
+.bu-drop span{font-size:12.5px;color:var(--sub)}
+.bu-chip{display:flex;align-items:center;gap:8px;font-size:12.5px;margin-top:8px}
+.bu-chip[hidden]{display:none}
+.bu-msg{font-size:12.5px;margin:8px 0 0}
+.bu-msg.warn{color:#8C4622}
+.bu-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-top:14px}
+.bu-grid label{font-size:12px;font-weight:600;color:#3A453E;display:block}
+.bu-grid label .osel{display:block;margin-top:5px;font-size:13.5px;font-weight:400;color:var(--ink)}
+@media(max-width:700px){.bu-grid{grid-template-columns:1fr}}
+.whl-fielderr{margin:6px 0 0;font-size:12px;font-weight:600;color:var(--terra);line-height:1.45}
+.osel.err{border-color:var(--terra)}
+.btn[hidden]{display:none}
 .trio{display:grid;grid-template-columns:repeat(auto-fit,minmax(262px,1fr));gap:16px;margin-top:20px}
 .trio > .card{display:flex;flex-direction:column}
 .trio > .card > :last-child{margin-top:auto}
@@ -697,23 +712,64 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
       <section class="view" data-v="bills">
         <div class="vhead"><h2>My bills</h2><p>Every promo cliff in one file. Internet today, the rest of the household next.</p></div>
         <div class="grid2">
-          <section class="card" aria-label="Your switch file">
-            <span class="eyebrow">Your switch file &middot; Home internet</span>
-            <h3>What providers bid against</h3>
-            <div class="meter">
-              <div class="mrow"><span>Spot strength</span><b>Strong</b></div>
-              <div class="segs" aria-hidden="true"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i></div>
-            </div>
-            <ul class="flds">
-              <li><span class="tick ok">&#10003;</span>Current provider<span class="val" data-fld="provider">Rogers</span></li>
-              <li><span class="tick ok">&#10003;</span>Monthly charge<span class="val" data-fld="monthly">$92</span></li>
-              <li><span class="tick ok">&#10003;</span>Download speed<span class="val" data-fld="speed">500 Mbps</span></li>
-              <li><span class="tick ok">&#10003;</span>Promo end date<span class="val" data-fld="promoEnd">Nov 2026</span></li>
-              <li><span class="tick ok">&#10003;</span>Switch threshold<span class="val" data-fld="threshold">$25+/mo</span></li>
-              <li><span class="tick no">&middot;</span>Latest bill upload<span class="val">Add</span></li>
-            </ul>
-            <p class="fnote">We can't place you in a cohort without your renewal month. Everything here stays private: bidding providers never see your provider or your price.</p>
-          </section>
+          <div style="min-width:0">
+            <section class="card" aria-label="Your switch file">
+              <span class="eyebrow">Your switch file &middot; Home internet</span>
+              <h3>What providers bid against</h3>
+              <div class="meter">
+                <div class="mrow"><span>Spot strength</span><b>Strong</b></div>
+                <div class="segs" aria-hidden="true"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i></div>
+              </div>
+              <ul class="flds">
+                <li><span class="tick ok">&#10003;</span>Current provider<span class="val" data-fld="provider">Rogers</span></li>
+                <li><span class="tick ok">&#10003;</span>Monthly charge<span class="val" data-fld="monthly">$92</span></li>
+                <li><span class="tick ok">&#10003;</span>Download speed<span class="val" data-fld="speed">500 Mbps</span></li>
+                <li><span class="tick ok">&#10003;</span>Promo end date<span class="val" data-fld="promoEnd">Nov 2026</span></li>
+                <li><span class="tick ok">&#10003;</span>Switch threshold<span class="val" data-fld="threshold">$25+/mo</span></li>
+                <li id="bu-row"><span class="tick no">&middot;</span>Latest bill upload<span class="val" data-fld="billUpload">Add</span></li>
+              </ul>
+              <p class="fnote">We can't place you in a cohort without your renewal month. Everything here stays private: bidding providers never see your provider or your price.</p>
+            </section>
+            <section class="card" id="bu-card" style="margin-top:16px" aria-label="Add your latest bill">
+              <span class="eyebrow">Finish your file</span>
+              <h3 id="bu-h3">Add your latest bill</h3>
+              <label class="bu-drop" for="bu-file" id="bu-drop">
+                <b>Attach your bill</b>
+                <span>Drag it in, or click to browse &mdash; PDF or photo. We'll read it and fill the fields below.</span>
+                <input type="file" id="bu-file" accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/gif" style="display:none">
+              </label>
+              <div class="bu-chip" id="bu-chip" hidden>
+                <b id="bu-fname"></b><span id="bu-fsize"></span>
+                <button type="button" class="tlink" id="bu-clear">Remove</button>
+              </div>
+              <p class="bu-msg" id="bu-msg" role="status" hidden></p>
+              <form id="bu-form" novalidate>
+                <div class="bu-grid">
+                  <label>Current provider
+                    <select id="bu-prov" class="osel"><option value="">Choose&hellip;</option><option>Rogers</option><option>Bell</option><option>Telus</option><option>Shaw</option><option>Vid&eacute;otron</option><option>Cogeco</option><option>Eastlink</option><option>SaskTel</option><option>An independent (oxio, TekSavvy&hellip;)</option><option>Other / not sure</option></select>
+                  </label>
+                  <label>Monthly charge, before tax
+                    <input id="bu-cost" class="osel" inputmode="decimal" maxlength="12" autocomplete="off" placeholder="$ 90">
+                  </label>
+                  <label>Download speed
+                    <select id="bu-spd" class="osel"><option value="">Choose&hellip;</option><option value="25">25 or less</option><option value="50">50</option><option value="100">100</option><option value="150">150</option><option value="300">300</option><option value="500">500</option><option value="1000">1 Gig</option><option value="1500">1.5 Gig or faster</option><option value="0">Not sure</option></select>
+                  </label>
+                  <label>How it reaches your house
+                    <select id="bu-tech" class="osel"><option value="">Choose&hellip;</option><option>Cable (TV coax jack)</option><option>Fibre (thin glass line)</option><option>DSL (old phone line)</option><option>Fixed wireless (5G antenna)</option><option>Satellite (dish)</option><option>Not sure</option></select>
+                  </label>
+                  <label>Promo / discount end date
+                    <input id="bu-date" class="osel" type="date">
+                  </label>
+                  <label>Monthly discount, if any
+                    <input id="bu-disc" class="osel" inputmode="decimal" maxlength="12" autocomplete="off" placeholder="$ 0">
+                  </label>
+                </div>
+                <p class="whl-fielderr" id="bu-err" role="alert" style="display:none"></p>
+                <button class="btn" type="submit" id="bu-save" style="margin-top:12px">Save to my file</button>
+              </form>
+              <p class="fnote">Bidding providers never see your provider or your price &mdash; this stays in your file.</p>
+            </section>
+          </div>
           <aside class="aside">
             <section class="card">
               <span class="eyebrow">Coming to your file</span>
@@ -774,11 +830,11 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
         </div>
         <div class="grid2">
           <div>
-            <section class="card" aria-label="Finish your file">
+            <section class="card" aria-label="Finish your file" id="finish-card">
               <span class="eyebrow">Finish your file</span>
-              <h3>Next: add your latest bill</h3>
-              <p class="cardnote">Two minutes, and your file moves to <b id="nextpct"></b>. A complete file is what lets us place you well: providers bid on cohorts they can trust.</p>
-              <button class="btn" type="button" data-nav="bills" style="margin-top:12px">Add my bill</button>
+              <h3 id="finish-h3">Next: add your latest bill</h3>
+              <p class="cardnote" id="finish-note">Two minutes, and your file moves to <b id="nextpct"></b>. A complete file is what lets us place you well: providers bid on cohorts they can trust.</p>
+              <button class="btn" type="button" id="finish-cta" data-nav="bills" style="margin-top:12px">Add my bill</button>
               <div class="hr2"></div>
               <div class="cklist" id="cklist"></div>
             </section>
@@ -1107,12 +1163,218 @@ function refreshCliff(){
   try{var m=JSON.parse(localStorage.getItem('whollar.member'));if(m&&m.email)MEMBER=m}catch(err){}
   paintCliff();
   paintBill();
+  paintChecklist();
+  buPrefill();
 }
 paintCliff();
 paintBill();
 window.addEventListener('storage',function(e){if(!e.key||e.key==='whollar.member')refreshCliff()});
 document.addEventListener('visibilitychange',function(){if(!document.hidden)refreshCliff()});
 window.addEventListener('focus',refreshCliff);
+
+/* ---------- add my bill: upload -> OCR extract -> review -> save ----------
+   Same pipeline as bill-checkup.html (checkUpload/canAutoRead gate, POST to
+   billOcr's /extract-bill, review fields before anything is saved), pointed
+   at the signed-in member instead of an anonymous lead. The form is always
+   visible and pre-filled from MEMBER.bill: an upload is a shortcut that fills
+   it in, not a separate mode, so manual entry (HEIC, oversized, rate-limited,
+   offline) is the same path with nothing extra to build. */
+(function(){
+  var card=$('#bu-card');
+  if(!card)return;
+
+  var busy=false;
+
+  function buMsg(text,warn){
+    var el=$('#bu-msg');
+    if(!el)return;
+    if(!text){el.hidden=true;el.textContent='';return}
+    el.textContent=text;
+    el.classList.toggle('warn',!!warn);
+    el.hidden=false;
+  }
+
+  /* Fills the six review fields from the member's saved bill, and flips the
+     switch-file row + card heading once the upload item is actually done.
+     Called at boot, after syncBill, after save, and from refreshCliff() so a
+     save made in another tab is reflected here too. */
+  function buPrefill(){
+    var bill=MEMBER&&MEMBER.bill;
+    if(bill){
+      if(bill.provider)$('#bu-prov').value=bill.provider;
+      if(bill.monthly!=null&&bill.monthly!=='')$('#bu-cost').value=bill.monthly;
+      if(bill.speed!=null&&bill.speed!=='')$('#bu-spd').value=bill.speed;
+      if(bill.tech)$('#bu-tech').value=bill.tech;
+      if(bill.promoEnd){
+        var end=parsePromoEnd(bill.promoEnd);
+        if(end)$('#bu-date').value=end.getFullYear()+'-'+String(end.getMonth()+1).padStart(2,'0')+'-'+String(end.getDate()).padStart(2,'0');
+      }
+      if(bill.discount!=null&&bill.discount!=='')$('#bu-disc').value=bill.discount;
+    }
+    var row=$('#bu-row'),h3=$('#bu-h3');
+    if(billDone()){
+      if(row){row.querySelector('.tick').className='tick ok';row.querySelector('.tick').innerHTML='&#10003;';row.querySelector('.val').textContent='Added';}
+      if(h3)h3.textContent='Your bill is in your file';
+    }else{
+      if(row){row.querySelector('.tick').className='tick no';row.querySelector('.tick').innerHTML='&middot;';row.querySelector('.val').textContent='Add';}
+      if(h3)h3.textContent='Add your latest bill';
+    }
+  }
+  window.buPrefill=buPrefill;
+
+  function buFill(fields){
+    if(!fields)return;
+    if(fields.provider)$('#bu-prov').value=fields.provider;
+    if(fields.monthlyChargeDollars!=null)$('#bu-cost').value=fields.monthlyChargeDollars;
+    if(fields.downloadSpeedMbps!=null)$('#bu-spd').value=fields.downloadSpeedMbps;
+    if(fields.accessTechnology)$('#bu-tech').value=fields.accessTechnology;
+    if(fields.promoEndDate)$('#bu-date').value=fields.promoEndDate;
+    if(fields.discountAmountDollars!=null)$('#bu-disc').value=fields.discountAmountDollars;
+  }
+
+  function buExtract(f){
+    if(busy)return;
+    busy=true;
+    buMsg('Reading your bill…');
+    var fd=new FormData();
+    fd.append('billFile',f);
+    fetch(W.OCR_API+'/extract-bill',{method:'POST',body:fd})
+      .then(function(r){
+        if(!r.ok){var e=new Error('extract-bill failed: '+r.status);e.status=r.status;throw e;}
+        return r.json();
+      })
+      .then(function(data){
+        busy=false;
+        buFill(data&&data.fields);
+        buMsg('We read your bill — check the fields below, then save.');
+      })
+      .catch(function(err){
+        busy=false;
+        console.error('[whollar-bill-ocr]',err);
+        var note=err.status===429?'A few too many tries for now — please fill in the fields below.'
+          :err.status===415?'We can’t read this file type — a PDF, JPG or PNG works best.'
+          :err.status===413?'File’s too large to auto-read (15 MB max) — please fill in below.'
+          :'Couldn’t read it — please fill in the fields below.';
+        buMsg(note,true);
+      });
+  }
+
+  function buAccept(f){
+    if(!f)return;
+    var check=W.checkUpload(f);
+    if(!check.ok){
+      $('#bu-file').value='';
+      buMsg(check.message,true);
+      return;
+    }
+    $('#bu-fname').textContent=f.name;
+    $('#bu-fsize').textContent=W.formatSize(f.size);
+    $('#bu-chip').hidden=false;
+    if(!W.canAutoRead(f)){
+      buMsg(check.code==='heic'
+        ?'Attached, but we can’t auto-read an iPhone HEIC photo — please check the fields below.'
+        :'Attached, but too large to auto-read — please check the fields below.',true);
+      return;
+    }
+    buExtract(f);
+  }
+
+  $('#bu-file').addEventListener('change',function(e){buAccept(e.target.files[0])});
+  $('#bu-clear').addEventListener('click',function(e){
+    e.preventDefault();
+    $('#bu-file').value='';
+    $('#bu-chip').hidden=true;
+    buMsg('');
+    /* Typed values stay: clearing the attachment must not wipe a half-reviewed
+       form the member is about to save manually. */
+  });
+  var drop=$('#bu-drop');
+  ['dragenter','dragover'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();e.stopPropagation();drop.classList.add('drag')})});
+  ['dragleave','dragend'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();e.stopPropagation();drop.classList.remove('drag')})});
+  drop.addEventListener('drop',function(e){
+    e.preventDefault();e.stopPropagation();
+    drop.classList.remove('drag');
+    var f=e.dataTransfer.files&&e.dataTransfer.files[0];
+    if(!f)return;
+    try{$('#bu-file').files=e.dataTransfer.files}catch(err){}
+    buAccept(f);
+  });
+
+  $('#bu-form').addEventListener('submit',function(e){
+    e.preventDefault();
+    if(busy)return;
+    W.clearFieldError($('#bu-cost'));
+    W.clearFieldError($('#bu-disc'));
+    $('#bu-err').textContent='';
+    $('#bu-err').style.display='none';
+
+    var existing=(MEMBER&&MEMBER.bill)||{};
+    var cost=$('#bu-cost').value.trim(),disc=$('#bu-disc').value.trim();
+
+    if(cost){
+      var costR=W.parseMoneyInRange(cost,W.BILL_MIN,W.BILL_MAX);
+      if(!costR.ok){
+        W.fieldError($('#bu-cost'),costR.reason==='nan'?'Enter your monthly charge as a number, e.g. 90.'
+          :costR.reason==='low'?'That looks too low for a monthly internet bill (at least $'+W.BILL_MIN+').'
+          :'That looks too high for a monthly internet bill (up to $'+W.BILL_MAX+').');
+        return;
+      }
+      cost=costR.value;
+    }else cost=null;
+
+    if(disc){
+      var discR=W.parseMoneyInRange(disc,0,W.BILL_MAX);
+      if(!discR.ok){W.fieldError($('#bu-disc'),'Enter your discount as a number, e.g. 15.');return}
+      disc=discR.value;
+    }else disc=null;
+
+    if(disc!=null&&cost!=null&&disc>=cost){
+      W.fieldError($('#bu-disc'),'Your discount can’t be as large as your monthly charge — check both numbers.');
+      return;
+    }
+
+    var promoEnd=$('#bu-date').value||existing.promoEnd||null;
+    /* daysUntil only parses a full YYYY-MM-DD; a fallback month-only date
+       (e.g. from a checkup that never named a day) returns null here rather
+       than a wrong answer, so keep whatever expiry the record already had
+       instead of defaulting it to "not expired". */
+    var daysLeft=promoEnd?W.daysUntil(promoEnd):null;
+    var payload={
+      provider:$('#bu-prov').value||existing.provider||null,
+      monthly:cost!=null?cost:existing.monthly||null,
+      speed:$('#bu-spd').value||existing.speed||null,
+      tech:$('#bu-tech').value||existing.tech||null,
+      promoEnd:promoEnd,
+      discount:disc!=null?disc:existing.discount||null,
+      threshold:existing.threshold||null,
+      promoExpired:daysLeft!=null?daysLeft<0:!!existing.promoExpired,
+      source:'dashboard'
+    };
+
+    if(!payload.provider&&!payload.monthly&&!payload.speed&&!payload.promoEnd){
+      $('#bu-err').textContent='Add at least your provider, monthly charge, speed or promo end date.';
+      $('#bu-err').style.display='block';
+      return;
+    }
+
+    busy=true;
+    var btn=$('#bu-save'),orig=btn.textContent;
+    btn.disabled=true;btn.textContent='Saving…';
+
+    W.session.billSave(payload).then(function(resp){
+      busy=false;btn.disabled=false;btn.textContent=orig;
+      MEMBER=W.member.patch({bill:(resp&&resp.bill)||payload})||MEMBER;
+      paintCliff();paintBill();paintChecklist();buPrefill();render();
+      toast('Bill saved to your file.');
+    },function(err){
+      busy=false;btn.disabled=false;btn.textContent=orig;
+      $('#bu-err').textContent=(err&&err.message)||'Something went wrong. Please try again.';
+      $('#bu-err').style.display='block';
+    });
+  });
+
+  buPrefill();
+})();
 
 /* ---------- greeting ---------- */
 (function(){
@@ -1487,7 +1749,7 @@ document.addEventListener('click',function(e){
   }
 });
 $('#c-text').addEventListener('click',function(){toast('Prototype: opens your messages.')});
-$('#c-mail').addEventListener('click',function(){toast('Prototype: opens your mail app.')});
+$('#c-mail').addEventListener('click',function(){location.href='mailto:info@whollar.com'});
 document.addEventListener('click',function(e){
   var b=e.target.closest('[data-bell]');if(!b)return;
   b.classList.add('on');
@@ -1497,9 +1759,18 @@ $('#q').addEventListener('keydown',function(e){
   if(e.key==='Enter'){e.preventDefault();toast('Prototype: search lands with multi-region campaigns.')}
 });
 
-/* ---------- profile ---------- */
-var PROF=[['Email verified',1],['Mobile verified',1],['Home address',1],['Current provider',1],['Promo end date',1],['Switch threshold',1],['Latest bill upload',0],['Mobile bill',0]];
-(function(){
+/* ---------- profile ----------
+   "Latest bill upload" is live: it reads MEMBER.bill.source, set only once
+   the member has actually run the flow on THIS card (see the bu-card IIFE
+   below) \u2014 a bill typed into the public checkup is honest for "Current
+   provider" but not for this item, since source:'dashboard' is sticky
+   server-side and never overwritten by lead adoption. "Mobile bill" has no
+   backing table yet, so it stays a static, button-less "Soon" row. Re-run
+   from refreshCliff() and after a save so the ring stays honest across tabs. */
+function billDone(){return !!(MEMBER&&MEMBER.bill&&MEMBER.bill.source==='dashboard')}
+function paintChecklist(){
+  var up=billDone();
+  var PROF=[['Email verified',1],['Mobile verified',1],['Home address',1],['Current provider',1],['Promo end date',1],['Switch threshold',1],['Latest bill upload',up?1:0],['Mobile bill',0]];
   var done=PROF.filter(function(p){return p[1]}).length, pct=Math.round(done/PROF.length*100);
   var C=213.6;
   var fg=$('#ringfg'); if(fg)fg.style.strokeDashoffset=(C*(1-pct/100)).toFixed(1);
@@ -1509,9 +1780,14 @@ var PROF=[['Email verified',1],['Mobile verified',1],['Home address',1],['Curren
   var pl=$('#pplabel'); if(pl)pl.textContent='Profile '+pct+'% complete';
   var ck=$('#cklist');
   if(ck)ck.innerHTML=PROF.map(function(p){
-    return '<div class="ck '+(p[1]?'dn':'md')+'"><i>'+(p[1]?'\u2713':'\u00b7')+'</i><span>'+p[0]+'</span>'+(p[1]?'':'<button class="tlink" type="button" data-nav="bills">Add</button>')+'</div>';
+    var canAdd=!p[1]&&p[0]!=='Mobile bill';
+    return '<div class="ck '+(p[1]?'dn':'md')+'"><i>'+(p[1]?'\u2713':'\u00b7')+'</i><span>'+p[0]+'</span>'+(canAdd?'<button class="tlink" type="button" data-nav="bills">Add</button>':'')+'</div>';
   }).join('');
-})();
+  var h3=$('#finish-h3'),cta=$('#finish-cta');
+  if(h3)h3.textContent=up?'Next: add your mobile bill':'Next: add your latest bill';
+  if(cta)cta.hidden=up;
+}
+paintChecklist();
 document.addEventListener('change',function(e){
   if(e.target.closest('.tog'))toast('Preference saved.');
 });
@@ -1619,6 +1895,8 @@ if(W&&W.session&&W.session.syncBill){
     MEMBER=rec;
     paintCliff();
     paintBill();
+    paintChecklist();
+    buPrefill();
     render();
   });
 }

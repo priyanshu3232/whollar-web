@@ -1124,7 +1124,6 @@ function openCalMenu(btn,cid){
     else window.open(k==='google'?gcalURL(ev):outlookURL(ev),'_blank','noopener');
     closeCalMenu();
   });
-  calMenuEl=m;
   m.querySelector('button').focus();
 }
 /* The opener above runs off the earlier delegated listener, so by the time
@@ -1134,8 +1133,8 @@ document.addEventListener('click',function(e){
   if(calMenuEl&&!e.target.closest('.calmenu')&&!e.target.closest('[data-ics]'))closeCalMenu();
 });
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeCalMenu()});
-window.addEventListener('scroll',closeCalMenu,true);
-window.addEventListener('resize',closeCalMenu);
+window.addEventListener('scroll',placeCalMenu,true);
+window.addEventListener('resize',placeCalMenu);
 
 /* ---------- search ---------- */
 var qEl=$('#q'),drop=$('#qdrop');
@@ -1403,7 +1402,7 @@ document.addEventListener('click',function(e){
   if(e.target.closest('[data-pdf]'))toast('Prototype: invoice PDF lands with billing.');
   if(e.target.closest('[data-edit]'))toast('Prototype: editing lands with accounts.');
   if(e.target.closest('#signout')){signOut();return}
-  if(e.target.closest('#c-mail'))toast('Prototype: opens your mail app.');
+  if(e.target.closest('#c-mail')){location.href='mailto:info@whollar.com';return}
 });
 
 /* ---------- coverage: declared areas + services ---------- */
@@ -1504,6 +1503,15 @@ $('#rst').addEventListener('click',function(){
   NOWOFF=0;S.stage='day1';S.fee=95;S.bids={};S.tasks={cov:1,pay:0,brief:0,bid:0};S.planOpen=null;covEdit=null;
   $('#cfg-fee').value=95;setStage('day1');renderTasks();lastSig=sig();renderAll();toast('Demo reset.');
 });
+
+/* Prototype controls are for internal QA only (jump stages, skip the clock) —
+   a live partner has no use for them and shouldn't see them. Same ?demo=1
+   convention as dashboard.html: append it to the URL to bring the panel back. */
+var DEMO=new URLSearchParams(location.search).get('demo')==='1';
+if(!DEMO){
+  var ctlT=$('#ctl-toggle'); if(ctlT)ctlT.parentNode.removeChild(ctlT);
+  var ctlP=$('#ctl'); if(ctlP)ctlP.parentNode.removeChild(ctlP);
+}
 
 /* ---------- boot ---------- */
 renderTasks();lastSig=sig();renderAll();renderBilling();renderAcq();

@@ -1012,7 +1012,7 @@ $('#ratego').addEventListener('click',function(){
 $('#reddit').addEventListener('click',function(){toast('Prototype: this will open the member subreddit.')});
 $('#viewall').addEventListener('click',function(){toast('One launch per region: a city opens when enough neighbours are in.')});
 $('#c-text').addEventListener('click',function(){toast('Prototype: opens your messages.')});
-$('#c-mail').addEventListener('click',function(){toast('Prototype: opens your mail app.')});
+$('#c-mail').addEventListener('click',function(){location.href='mailto:info@whollar.com'});
 document.addEventListener('click',function(e){
   var b=e.target.closest('[data-bell]');if(!b)return;
   b.classList.add('on');
@@ -1112,6 +1112,12 @@ $('#rst').addEventListener('click',function(){
   S.state='forming';S.sub=null;S.chosen=null;S.deposit=10;
   $('#cfg-dep').value=10;cdSecs=26*3600+14*60+9;render();nav('dashboard');
 });
+
+var DEMO=new URLSearchParams(location.search).get('demo')==='1';
+if(!DEMO){
+  var ctlT=$('#ctl-toggle'); if(ctlT)ctlT.parentNode.removeChild(ctlT);
+  var ctlP=$('#ctl'); if(ctlP)ctlP.parentNode.removeChild(ctlP);
+}
 
 render();
 })();
