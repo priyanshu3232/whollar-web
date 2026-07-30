@@ -295,12 +295,22 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .tl{margin-top:20px}
 .tl h4,.feed h4{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--sub);margin-bottom:11px}
 .tl__row{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
-.tn2{flex:1;min-width:100px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
-.tn2 b{display:block;font-size:12px;font-weight:700}
-.tn2 span{font-family:var(--mono);font-size:11px;color:var(--sub)}
-.tn2.hot{border-color:var(--accent);background:var(--mint)}
-.tn2.cliffed{border-color:#E7CFB9;background:var(--terra-soft)}
+/* Date tiles. The date is the answer, so it gets the display type and the
+   ink; the label above it is a quiet mono caption. A 3px edge notch carries
+   each tile's state — green for the stage we're in, terracotta for the
+   cliff — so colour means something instead of washing the whole tile. */
+.tn2{position:relative;flex:1;min-width:108px;background:#fff;border:1px solid var(--line);border-radius:13px;padding:12px 14px 13px 17px;overflow:hidden;box-shadow:0 1px 2px rgba(18,55,43,.05);transition:transform .16s,box-shadow .16s,border-color .16s}
+.tn2::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--line);transition:background .16s}
+.tn2:hover{transform:translateY(-2px);box-shadow:0 10px 22px -12px rgba(18,55,43,.22);border-color:#D9D2BF}
+.tn2 b{display:block;font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--sub);margin-bottom:6px}
+.tn2 span{display:block;font-family:var(--disp);font-size:16px;font-weight:700;letter-spacing:-.01em;color:var(--ink);line-height:1.15}
+.tn2.hot{border-color:var(--accent);background:linear-gradient(180deg,#fff 0%,var(--mint) 130%)}
+.tn2.hot::before{background:var(--accent)}
+.tn2.hot b{color:var(--accent-deep)}
+.tn2.cliffed{border-color:#E7CFB9;background:linear-gradient(180deg,#fff 0%,var(--terra-soft) 130%)}
+.tn2.cliffed::before{background:#C46A3A}
 .tn2.cliffed b{color:#8C4622}
+.tn2.cliffed span{color:#8C4622}
 .feed{margin-top:20px}
 .feed ul{list-style:none;display:flex;flex-direction:column}
 .feed li{position:relative;padding:0 0 13px 22px;font-size:13.5px;color:#3A453E}
