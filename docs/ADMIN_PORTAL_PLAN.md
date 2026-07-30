@@ -23,8 +23,13 @@
 - `orgs.js` notes that a domain race can produce a duplicate empty org "an
   operator can merge" — the admin console is where that operator works.
 - Verified-but-unapproved partners already get a session carrying
-  `approved: false`, and every real-data surface is required to check it. The
-  enforcement side exists; only the decision side is missing.
+  `approved: false`, and every real-data surface is required to check it.
+  **Caveat (verified 2026-07-30):** today that check lives only in the partner
+  console's front-end banner — `/provider/me` and `/provider/campaigns` gate
+  on `user_type === 'provider'` and return `approved` as data, not as a gate
+  (defensible while everything they serve is counts-only). Any future route
+  that serves real data, bids first of all, must enforce `approved`
+  server-side — and ADM-4's *suspend* only bites if it does.
 
 So this is not a new system. It is one new role, one new route file, two new
 tables, and one new page, plugged into auth/session/CSRF/audit/mailer
@@ -88,7 +93,7 @@ admin console will grow surfaces for them there, see §10).
 ┌────────────────────────────────────▼─────────────────────────────────────┐
 │ Catalyst Data Store                                                      │
 │  existing: users · sessions · provider_orgs · provider_users ·           │
-│            campaign_members · audit_log · PartnerApplications · leads…   │
+│            campaign_members · auth_events · PartnerApplications · leads… │
 │  NEW:      site_config · campaigns                                       │
 │  File Store: bill uploads (admin gets short-lived proxied reads)         │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -156,7 +161,8 @@ Additional hardening on the admin surface:
   against a stolen long-lived cookie.
 - **Rate limits** on `/admin/*` (existing `ratelimit.js`, modest caps — this
   surface has ~2 users).
-- **Full audit:** every mutation writes `audit_log` via the existing
+- **Full audit:** every mutation writes `auth_events` (the audit table —
+  there is no table literally named `audit_log`) via the existing
   `audit.recordAsync` — actor user_id, action, target id, before → after
   snapshot (JSON, truncated). The console itself has an "Audit" tab reading it.
 - Optional later: `ADMIN_IP_ALLOWLIST` env (hashed-IP check, same
@@ -239,7 +245,7 @@ the catalog becomes a table with the same shape:
 - `PartnerApplications` — linked into the review screen by email domain, so
   the human sees the application form answers next to the org they're
   approving.
-- `audit_log` — gains new action types, no schema change.
+- `auth_events` (the audit log) — gains new action types, no schema change.
 - Lead tables (`WaitlistSignups`, `BillCheckupSubmissions`, `DeepReadRequests`,
   …) — read-only, paginated.
 
