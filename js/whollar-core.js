@@ -964,14 +964,20 @@
         var prior = store.read() || {};
         var keep = (prior.emailKey === emailKey) ? prior : {};
 
+        /* The session payload now carries the whole public profile, so the
+           server is the source of truth for every field it answers with; the
+           prior record only fills gaps the server has never known. */
         var record = store.write({
           firstName: s.user.firstName || W.firstNameFrom(email, keep.firstName),
+          lastName: s.user.lastName || keep.lastName || null,
           email: email,
           emailKey: emailKey,
-          fsa: keep.fsa || null,
-          postal: keep.postal || null,
+          phone: s.user.phone || keep.phone || null,
+          fsa: s.user.fsa || keep.fsa || null,
+          postal: s.user.postal || keep.postal || null,
           province: keep.province || null,
-          provinceCode: keep.provinceCode || null
+          provinceCode: s.user.provinceCode || keep.provinceCode || null,
+          memberSince: s.user.memberSince || keep.memberSince || null
         });
 
         /* A member's bill lives on the server, keyed by their account — not
