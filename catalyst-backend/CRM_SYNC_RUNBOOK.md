@@ -102,6 +102,8 @@ Open the `crmSync` function → its configuration / Environment Variables, and a
 | `CRM_CRON_SECRET`    | a long random string you invent (the cron's password) |
 | `CRM_ENVIRONMENT`    | `development` (in prod, set `production`)     |
 | `CRM_SYNC_ENABLED`   | `false`  ← leave OFF until Step 4            |
+| `CRM_PARTNER_MODULE` | *(optional)* module partner applications land in — see below |
+| `CRM_PARTNER_NAME_FIELD` | *(optional)* that module's name field, if not the default |
 
 (If your CRM is on the US DC instead, use `accounts.zoho.com` / `www.zohoapis.com`.)
 
@@ -109,6 +111,43 @@ Open the `crmSync` function → its configuration / Environment Variables, and a
 can fire, but nothing is written to CRM yet. `CRM_ENVIRONMENT=development` tags
 every test lead's source as `… [dev]` and note titles as `[DEV] …`, so test data
 is one filter away from deletion in CRM.
+
+### Partner module — landing provider leads in their own module
+
+By default everything lands in **Leads**, with `Lead_Source` telling consumer
+and provider apart. To give partner applications their **own module** instead,
+set `CRM_PARTNER_MODULE` (no redeploy needed — env vars are read per run):
+
+- **`Vendors`** — the built-in module; zero Zoho setup. The record's name
+  becomes the applicant's company (`Vendor_Name`), Email and Phone carry over,
+  and the full application (role, provinces, access techs, LOA…) is attached
+  as a Note, exactly like before.
+- **A custom module** (e.g. `Partners`, Enterprise edition and up): create it
+  in Setup → Customization → Modules, then set `CRM_PARTNER_MODULE` to its
+  **API name** (Setup → Developer Hub → APIs → API Names — often plural, e.g.
+  `Partners`). Requirements: an **Email**-type field with API name `Email`
+  (used for dedupe search), and if its mandatory name field isn't called
+  `Name`, set `CRM_PARTNER_NAME_FIELD` to its API name.
+
+Behaviour once set:
+
+- Consumer sources (waitlist, bill checkup, deep read) still become Leads;
+  only `PartnerApplications` rows go to the partner module. Dedupe is
+  **per-module**: the same email can be a consumer Lead *and* a partner
+  record — that's the point.
+- `Lead_Source` / `Company` / `Rating` are Leads-only fields and are not sent
+  to the partner module (they'd be rejected as INVALID_DATA); the `[DEV]` tag
+  still appears in the Note title outside production.
+- Partner applications synced **before** the switch stay in Leads; move them
+  by hand once (Zoho has a Mass Transfer/convert tooling) or just delete the
+  `[dev]`-tagged ones.
+- If the module name is wrong or its Email field is missing, those queue rows
+  fail with a clear `<module> search 400/INVALID_MODULE` in `LastError`,
+  retry up to `CRM_MAX_ATTEMPTS`, and consumer syncs are unaffected.
+- The Self Client scope must cover the module. A refresh token minted with
+  `ZohoCRM.modules.ALL` covers Vendors and custom modules; one scoped only to
+  `ZohoCRM.modules.leads.*` does not — check the scope you used and mint a new
+  token if needed (a `OAUTH_SCOPE_MISMATCH` in `LastError` is the symptom).
 
 ## Step 3 — Create the cron (Cloud Scale → Cron, or Job Scheduling)
 

@@ -2,8 +2,10 @@
 
 /* ------------------------------------------------------------------ *
  * crmSync — cron-invoked worker that drains the CrmSyncQueue table and
- * pushes each queued form submission into Zoho CRM as a Lead (+ a Note
- * capturing the submission's details).
+ * pushes each queued form submission into Zoho CRM (+ a Note capturing the
+ * submission's details). Consumer submissions become Leads; partner
+ * applications go to their own module when CRM_PARTNER_MODULE is set
+ * (e.g. 'Vendors' or a custom module), so the two sides land respectively.
  *
  * WHY a queue + this worker (instead of calling CRM from formSubmit):
  *   - The visitor's form never fails because CRM is slow / rate-limited /
@@ -37,7 +39,14 @@ const config = () => ({
   enabled: process.env.CRM_SYNC_ENABLED === 'true',
   isProd: process.env.CRM_ENVIRONMENT === 'production',
   batchSize: Math.max(1, parseInt(process.env.CRM_BATCH_SIZE || '50', 10)),
-  maxAttempts: Math.max(1, parseInt(process.env.CRM_MAX_ATTEMPTS || '6', 10))
+  maxAttempts: Math.max(1, parseInt(process.env.CRM_MAX_ATTEMPTS || '6', 10)),
+  // Module partner applications land in ('Vendors', or a custom module's API
+  // name). Default 'Leads' keeps everything in one module until the dedicated
+  // module exists in Zoho — see "Partner module" in CRM_SYNC_RUNBOOK.md.
+  partnerModule: (process.env.CRM_PARTNER_MODULE || 'Leads').trim() || 'Leads',
+  // That module's mandatory display-name field, when it isn't the default
+  // (Vendor_Name for Vendors, Name for custom modules).
+  partnerNameField: (process.env.CRM_PARTNER_NAME_FIELD || '').trim()
 });
 
 /* ------------------------------------------------------------------ *
@@ -106,16 +115,18 @@ async function callCrm(ctx, doRequest) {
   return resp;
 }
 
-async function findLeadByEmail(ctx, email) {
-  // Lowercased so Genie@x.com and genie@x.com resolve to one lead rather than
-  // two. Parentheses and commas are the criteria syntax's own delimiters, so
-  // strip them from the value before interpolating.
+async function findRecordByEmail(ctx, moduleName, email) {
+  // Lowercased so Genie@x.com and genie@x.com resolve to one record rather
+  // than two. Parentheses and commas are the criteria syntax's own delimiters,
+  // so strip them from the value before interpolating. The module must have an
+  // Email-type field whose API name is `Email` (Leads and Vendors both do; a
+  // custom partner module needs one created — see the runbook).
   const safe = String(email || '').toLowerCase().replace(/[(),]/g, '');
   const criteria = encodeURIComponent(`(Email:equals:${safe})`);
   const resp = await callCrm(ctx, (token, apiDomain) =>
-    fetch(`${apiDomain}/crm/v8/Leads/search?criteria=${criteria}`, { headers: authHeaders(token) }));
+    fetch(`${apiDomain}/crm/v8/${moduleName}/search?criteria=${criteria}`, { headers: authHeaders(token) }));
   if (resp.status === 204) return null;              // 204 = no match
-  if (!resp.ok) throw new Error(`lead search ${resp.status}: ${await resp.text()}`);
+  if (!resp.ok) throw new Error(`${moduleName} search ${resp.status}: ${await resp.text()}`);
   const data = await resp.json();
   return data?.data?.[0]?.id || null;
 }
@@ -136,17 +147,17 @@ function offendingPicklist(data) {
   return PICKLIST_FIELDS.includes(api) ? api : null;
 }
 
-async function postLead(ctx, fields) {
+async function postRecord(ctx, moduleName, fields) {
   const resp = await callCrm(ctx, (token, apiDomain) =>
-    fetch(`${apiDomain}/crm/v8/Leads`, {
+    fetch(`${apiDomain}/crm/v8/${moduleName}`, {
       method: 'POST', headers: authHeaders(token), body: JSON.stringify({ data: [fields] })
     }));
   return resp.json();
 }
 
-async function insertLead(ctx, fields) {
+async function insertRecord(ctx, moduleName, fields) {
   let payload = { ...fields };
-  let data = await postLead(ctx, payload);
+  let data = await postRecord(ctx, moduleName, payload);
   let rec = data?.data?.[0];
 
   const dropped = [];
@@ -157,27 +168,27 @@ async function insertLead(ctx, fields) {
     console.error(`[crmSync] "${payload[bad]}" is not a valid ${bad} picklist option — dropping it and retrying. Add it in the Zoho console to keep the tag.`);
     delete payload[bad];
     dropped.push(bad);
-    data = await postLead(ctx, payload);
+    data = await postRecord(ctx, moduleName, payload);
     rec = data?.data?.[0];
   }
 
-  if (rec?.code !== 'SUCCESS') throw new Error(`lead insert failed: ${JSON.stringify(data)}`);
+  if (rec?.code !== 'SUCCESS') throw new Error(`${moduleName} insert failed: ${JSON.stringify(data)}`);
   return { id: rec.details.id, dropped };
 }
 
-async function updateLead(ctx, leadId, fields) {
+async function updateRecord(ctx, moduleName, recordId, fields) {
   const resp = await callCrm(ctx, (token, apiDomain) =>
-    fetch(`${apiDomain}/crm/v8/Leads/${leadId}`, {
+    fetch(`${apiDomain}/crm/v8/${moduleName}/${recordId}`, {
       method: 'PUT', headers: authHeaders(token), body: JSON.stringify({ data: [fields] })
     }));
   const data = await resp.json();
   const rec = data?.data?.[0];
-  if (rec?.code !== 'SUCCESS') throw new Error(`lead update failed: ${JSON.stringify(data)}`);
+  if (rec?.code !== 'SUCCESS') throw new Error(`${moduleName} update failed: ${JSON.stringify(data)}`);
 }
 
 // Notes are best-effort — a failed note must not fail the whole job, because
-// the Lead (the important part) is already written.
-async function addNote(ctx, leadId, title, content) {
+// the record (the important part) is already written.
+async function addNote(ctx, moduleName, recordId, title, content) {
   try {
     const resp = await callCrm(ctx, (token, apiDomain) =>
       fetch(`${apiDomain}/crm/v8/Notes`, {
@@ -185,8 +196,8 @@ async function addNote(ctx, leadId, title, content) {
           data: [{
             Note_Title: String(title).slice(0, 120),
             Note_Content: String(content).slice(0, 32000),
-            Parent_Id: leadId,
-            se_module: 'Leads'
+            Parent_Id: recordId,
+            se_module: moduleName
           }]
         })
       }));
@@ -203,8 +214,32 @@ const SOURCE_META = {
   WaitlistDetails:        { label: 'Waitlist Details', hasName: false },
   BillCheckupSubmissions: { label: 'Bill Checkup', hasName: false },
   DeepReadRequests:       { label: 'Deep Read', hasName: false, hot: true },
-  PartnerApplications:    { label: 'Partner Application', hasName: true, hasCompany: true }
+  PartnerApplications:    { label: 'Partner Application', hasName: true, hasCompany: true, partner: true }
 };
+
+// Which module a source's records live in. Consumers are always Leads;
+// partner applications go to cfg.partnerModule — which defaults to 'Leads'
+// too, so nothing changes until CRM_PARTNER_MODULE is set in the console.
+const moduleFor = (source, cfg) =>
+  (SOURCE_META[source] || {}).partner ? cfg.partnerModule : 'Leads';
+
+// The partner module's mandatory display-name field: Vendors ships with
+// Vendor_Name, custom modules with Name, unless the env var says otherwise.
+const partnerNameField = (cfg) =>
+  cfg.partnerNameField || (cfg.partnerModule === 'Vendors' ? 'Vendor_Name' : 'Name');
+
+// Fields for a NEW record in a dedicated partner module. Only fields every
+// module has (its name field, Email, Phone) — Last_Name / Company /
+// Lead_Source are Leads fields and would be INVALID_DATA anywhere else. The
+// application detail rides in the Note, exactly as it does for Leads.
+function partnerInsertFields(cfg, email, data) {
+  const name = data.company
+    || [data.firstName, data.lastName].filter(Boolean).join(' ')
+    || email;
+  const fields = { [partnerNameField(cfg)]: name, Email: email };
+  if (data.phone) fields.Phone = data.phone;
+  return fields;
+}
 
 // Fields for a NEW lead. Zoho requires Last_Name and Company on Leads, so for
 // nameless/company-less consumer sources we fall back to the email / "Individual".
@@ -323,25 +358,36 @@ function noteFor(source, email, data, isProd, dropped) {
   };
 }
 
-// Search-then-write: update an existing lead (matched by email) or create one,
-// then always attach a Note with this submission's details.
-async function syncJob(ctx, job, isProd) {
+// Search-then-write: update an existing record (matched by email, within the
+// source's module) or create one, then always attach a Note with this
+// submission's details. Dedupe never crosses modules — the same email can be
+// both a consumer Lead and a partner record, which is the point.
+async function syncJob(ctx, job, cfg) {
   const email = job.Email;
   const data = safeParse(job.Payload);
+  const moduleName = moduleFor(job.Source, cfg);
+  const isPartnerModule = moduleName !== 'Leads';
 
-  let leadId = await findLeadByEmail(ctx, email);
+  let recordId = await findRecordByEmail(ctx, moduleName, email);
   let dropped = [];
-  if (leadId) {
-    const upd = updateFields(job.Source, data);
-    if (Object.keys(upd).length) await updateLead(ctx, leadId, upd);
+  if (recordId) {
+    // In a partner module the only enrichable field is Phone — the name field
+    // is never overwritten, same rule as Leads.
+    const upd = isPartnerModule
+      ? (data.phone ? { Phone: data.phone } : {})
+      : updateFields(job.Source, data);
+    if (Object.keys(upd).length) await updateRecord(ctx, moduleName, recordId, upd);
   } else {
-    const created = await insertLead(ctx, insertFields(job.Source, email, data, isProd));
-    leadId = created.id;
+    const fields = isPartnerModule
+      ? partnerInsertFields(cfg, email, data)
+      : insertFields(job.Source, email, data, cfg.isProd);
+    const created = await insertRecord(ctx, moduleName, fields);
+    recordId = created.id;
     dropped = created.dropped;
   }
-  const note = noteFor(job.Source, email, data, isProd, dropped);
-  await addNote(ctx, leadId, note.title, note.content);
-  return leadId;
+  const note = noteFor(job.Source, email, data, cfg.isProd, dropped);
+  await addNote(ctx, moduleName, recordId, note.title, note.content);
+  return recordId;
 }
 
 /* ------------------------------------------------------------------ *
@@ -395,7 +441,7 @@ app.all(['/', '/process'], async (req, res) => {
       const job = r[QUEUE_TABLE];
       result.processed++;
       try {
-        const leadId = await syncJob(ctx, job, cfg.isProd);
+        const leadId = await syncJob(ctx, job, cfg);
         await table.updateRow({
           ROWID: job.ROWID,
           Status: 'SYNCED',
