@@ -279,6 +279,29 @@ with `live: false` and the seed demo counts — the dashboards keep working —
 and the join/notify POSTs return a clear "not available right now" error.
 Creating the table is what switches the whole feature live; no redeploy needed.
 
+## 13. `provider_ratings`
+
+The dashboard's "One minute, once" card — a private rating of the member's own
+provider (Price / Reliability / Support / Speed, 1-5 each). One row per
+member; `user_id` unique is what makes a second `POST /me/rating` fail with a
+clear "already rated" error instead of overwriting the first. Written and read
+by `routes/rating.js`. Never shown to bidding providers — same access model as
+`user_events`.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `user_id` | Var Char | 64 | ✅ | ✅ | | one rating per member |
+| `provider` | Var Char | 100 | | ✅ | | e.g. `Rogers`, whatever the member's bill named |
+| `price` | Int | — | | ✅ | | 1-5 |
+| `reliability` | Int | — | | ✅ | | 1-5 |
+| `support` | Int | — | | ✅ | | 1-5 |
+| `speed` | Int | — | | ✅ | | 1-5 |
+| `created_at` | DateTime | — | | ✅ | | |
+
+Until this table exists, both routes fail with a server error, same as
+`/me/bill` before `member_bills` was created — this table is load-bearing from
+the moment the route is deployed, not an optional enhancement.
+
 ---
 
 ## Verify
@@ -300,6 +323,7 @@ SELECT ROWID FROM provider_users LIMIT 1;
 SELECT ROWID FROM auth_events LIMIT 1;
 SELECT ROWID FROM member_bills LIMIT 1;
 SELECT ROWID FROM campaign_members LIMIT 1;
+SELECT ROWID FROM provider_ratings LIMIT 1;
 ```
 
 Then one that exercises the column names the hot path depends on:

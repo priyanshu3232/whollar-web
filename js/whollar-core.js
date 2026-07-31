@@ -1025,6 +1025,37 @@
     syncBill: syncMemberBill,
 
     /**
+     * The rating this member has already given their provider, or null —
+     * for a signed-out visitor, a partner session, and every failure alike.
+     * Never rejects: the dashboard's rating card degrades to "show the form"
+     * on any network hiccup rather than blocking on it.
+     */
+    ratingGet: function () {
+      return fetch(W.AUTH_API + '/me/rating', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      }).then(function (r) {
+        return r.ok ? r.json().catch(function () { return null; }) : null;
+      }).then(function (b) {
+        return (b && b.rating) || null;
+      }).catch(function () {
+        return null;
+      });
+    },
+
+    /**
+     * Record the signed-in member's rating. -> { ok, rating }
+     * REJECTS on failure (same contract as billSave) — the caller shows the
+     * error rather than silently discarding it, since this is a one-time ask
+     * and the .code is what tells a repeat submission (CONFLICT) apart from
+     * a real failure. `rating` is { provider, price, reliability, support, speed }.
+     */
+    ratingSave: function (rating) {
+      return authPost('/me/rating', rating);
+    },
+
+    /**
      * The campaigns near the signed-in member: live counts plus their own
      * standing in each (`you`: 'joined' | 'waitlist' | 'alert' | null).
      * Never rejects — this runs in the dashboard's boot path, where a missing

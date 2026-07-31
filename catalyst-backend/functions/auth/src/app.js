@@ -32,6 +32,7 @@ const googleRoutes = require('./routes/google');
 const providerRoutes = require('./routes/provider');
 const memberRoutes = require('./routes/member');
 const meRoutes = require('./routes/me');
+const ratingRoutes = require('./routes/rating');
 const campaignRoutes = require('./routes/campaigns');
 const deskRoutes = require('./routes/desk');
 const adminRoutes = require('./routes/admin');
@@ -234,6 +235,7 @@ function buildApp(cfg) {
   providerRoutes.mount(router, cfg);
   memberRoutes.mount(router);
   meRoutes.mount(router);
+  ratingRoutes.mount(router);
   campaignRoutes.mount(router);
   deskRoutes.mount(router);
   // Mounts nothing unless the `admin` config group is set — see routes/admin.js.

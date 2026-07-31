@@ -1300,6 +1300,29 @@ function paintBill(){
      real bill it keeps its demo default — the offers view is demo end-to-end. */
   var n=bill&&Number(bill.monthly);
   if(isFinite(n)&&n>0)S.member.bill=n;
+  paintRatecardHeading();
+}
+
+/* ---------- rate-your-provider card ----------
+   RATED flips permanently once the server confirms a rating exists (either
+   fetched on load or just submitted) — paintBill() runs again whenever the
+   bill syncs, and without this flag it would stomp the "Noted, thank you"
+   state back to the form by re-setting the h3 text. */
+var RATED=false;
+function ratecardProvider(){
+  var bill=MEMBER&&MEMBER.bill;
+  return (bill&&bill.provider)||'your provider';
+}
+function paintRatecardHeading(){
+  if(RATED)return;
+  var h=document.querySelector('#ratecard h3');
+  if(h)h.textContent='Rate '+ratecardProvider()+', privately';
+}
+function ratecardDone(){
+  RATED=true;
+  var card=$('#ratecard');
+  if(!card)return;
+  card.innerHTML='<span class="eyebrow">One minute, once</span><h3>Noted, thank you</h3><p class="cardnote">Your rating stays private and is never shown to bidding providers. It helps us see which providers actually keep households happy, by region.</p>';
 }
 
 /* Keeping it alive: a dashboard left open across a month boundary, or a bill
@@ -1675,31 +1698,159 @@ window.addEventListener('focus',refreshCliff);
   });
 })();
 
-/* ---------- greeting ---------- */
+/* ---------- account details: inline field editing ----------
+   Name, mobile and postal code are real profile fields
+   (W.session.profileSave -> W.member.patch -> repaint), same shape as the
+   switch-file editor above. Email is excluded on purpose: it's the
+   account's identity, and changing it is a support conversation, not a
+   field on this card (see catalyst-backend me.js /me/profile). */
 (function(){
+  var FIELD={
+    name:{
+      build:function(){
+        var inp=document.createElement('input');
+        inp.type='text';inp.autocomplete='name';inp.maxLength=140;
+        inp.className='fld-edit';inp.style.width='170px';inp.style.textAlign='left';
+        inp.value=FIRST?(FIRST+(LAST?' '+LAST:'')):'';
+        return inp;
+      },
+      read:function(el){
+        var v=el.value.trim();
+        if(!v)return {error:'Enter your name.'};
+        var parts=v.split(/\s+/);
+        return {value:{firstName:parts.shift(),lastName:parts.join(' ')||null}};
+      }
+    },
+    mobile:{
+      build:function(){
+        var inp=document.createElement('input');
+        inp.type='tel';inp.autocomplete='tel';inp.maxLength=32;
+        inp.className='fld-edit';inp.style.width='150px';inp.style.textAlign='left';
+        inp.value=MEMBER.phone||'';
+        return inp;
+      },
+      read:function(el){return {value:{phone:el.value.trim()||null}};}
+    },
+    region:{
+      build:function(){
+        var inp=document.createElement('input');
+        inp.type='text';inp.autocomplete='postal-code';inp.maxLength=7;
+        inp.className='fld-edit';inp.style.width='100px';inp.style.textAlign='left';
+        inp.placeholder='N5Y 2T6';
+        inp.value=MEMBER.postal||'';
+        inp.addEventListener('input',function(){inp.value=W.formatPostal(inp.value);});
+        return inp;
+      },
+      read:function(el){
+        var v=el.value.trim();
+        if(!v)return {value:{postalCode:null,provinceCode:null}};
+        var p=W.parsePostal(v);
+        if(!p||!p.complete)return {error:'Enter a full Canadian postal code, e.g. N5Y 2T6.'};
+        return {value:{postalCode:p.full,provinceCode:p.provinceCode}};
+      }
+    }
+  };
+
+  var saving=false;
+
+  function savePatch(fld,payload){
+    if(saving){paintAccount();return;}
+    saving=true;
+    W.session.profileSave(payload).then(function(resp){
+      saving=false;
+      MEMBER=W.member.patch((resp&&resp.user)||payload)||MEMBER;
+      if(fld==='name'){
+        FIRST=String(MEMBER.firstName||'').trim();
+        LAST=String(MEMBER.lastName||'').trim();
+        INITIALS=FIRST?((FIRST.charAt(0)+(LAST?LAST.charAt(0):FIRST.charAt(1)||'')).toUpperCase()):'W';
+        DISPNAME=FIRST?(LAST?FIRST+' '+LAST.charAt(0)+'.':FIRST):'Member';
+        paintIdentity();
+      }
+      paintAccount();
+      toast('Saved to your account.');
+    },function(err){
+      saving=false;
+      if(err&&err.code==='FORBIDDEN'){W.member.clear();toSignIn();return;}
+      toast((err&&err.message)||'Couldn’t save that — try again.');
+      paintAccount();
+    });
+  }
+
+  function startEdit(fld,btn){
+    var cfg=FIELD[fld];
+    var li=btn.closest('li');
+    var val=li&&$('b',li);
+    if(!cfg||!val||val.querySelector('.fld-edit'))return;
+    var el=cfg.build();
+    var done=false;
+    function commit(){
+      if(done)return;done=true;
+      var res=cfg.read(el);
+      if(res.error){toast(res.error);paintAccount();return;}
+      savePatch(fld,res.value);
+    }
+    function cancel(){if(done)return;done=true;paintAccount();}
+    el.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){e.preventDefault();commit();}
+      else if(e.key==='Escape'){e.preventDefault();cancel();}
+    });
+    el.addEventListener('blur',function(){setTimeout(function(){if(val.contains(el))commit();},120);});
+    val.textContent='';
+    val.appendChild(el);
+    el.focus();
+  }
+
+  document.addEventListener('click',function(e){
+    var btn=e.target.closest('.pi [data-edit]');
+    if(!btn)return;
+    var fld=btn.getAttribute('data-edit');
+    if(fld==='email'){toast('Your email is how you sign in — message support to change it.');return;}
+    if(!FIELD[fld])return;
+    startEdit(fld,btn);
+  });
+})();
+
+/* ---------- identity: name/initials everywhere they're shown ----------
+   Runs at load, and again after a Name save in the account-details editor
+   below — FIRST/LAST/DISPNAME/INITIALS are otherwise derived once from the
+   record at parse time and never revisited. */
+function paintIdentity(){
   var h=new Date().getHours();
   var g=h<12?'Good morning':(h<17?'Good afternoon':'Good evening');
   var s=h<12?'Morning':(h<17?'Afternoon':'Evening');
   $('#greet').textContent=FIRST?(g+', '+FIRST):g;
   $('#hello-h').textContent=FIRST?(s+', '+FIRST+'.'):(s+'.');
-})();
-
-/* ---------- personalization: write the member into every named spot ---------- */
-(function(){
   $$('.ava').forEach(function(el){el.textContent=INITIALS});
   $$('.ava2').forEach(function(el){el.textContent=INITIALS});
   var ppb=$('.pp b'); if(ppb)ppb.textContent=DISPNAME;
   var ph2=$('.phero h2');
   if(ph2&&ph2.firstChild&&ph2.firstChild.nodeType===3)ph2.firstChild.nodeValue=DISPNAME+' ';
   var av=$('.avtxt'); if(av)av.textContent=INITIALS;
+  var rc=$('#refcode'); if(rc)rc.textContent='WHL-'+(FIRST?FIRST.toUpperCase():'W')+'-7';
+}
+paintIdentity();
+
+/* ---------- account details card: Name/Email/Mobile/Region text ----------
+   Name tracks DISPNAME (paintIdentity's job); Email is fixed from the
+   record; Mobile and Region read straight off MEMBER since nothing else
+   on the page repaints them. */
+function paintAccount(){
   $$('.pi li').forEach(function(li){
     var k=$('span',li),v=$('b',li);
     if(!k||!v)return;
     if(k.textContent==='Name')v.textContent=DISPNAME;
-    if(k.textContent==='Email')v.textContent=MEMBER.email;
+    else if(k.textContent==='Email')v.textContent=MEMBER.email;
+    else if(k.textContent==='Mobile')v.textContent=MEMBER.phone||'Add a mobile number';
+    else if(k.textContent==='Region'){
+      if(!MEMBER.fsa){v.textContent='Add your postal code';}
+      else{
+        var p=W.parsePostal(MEMBER.fsa);
+        v.textContent=p?(p.province+' ('+MEMBER.fsa+')'):MEMBER.fsa;
+      }
+    }
   });
-  var rc=$('#refcode'); if(rc)rc.textContent='WHL-'+(FIRST?FIRST.toUpperCase():'W')+'-7';
-})();
+}
+paintAccount();
 
 /* ---------- pane / views ---------- */
 var app=$('#app');
@@ -1897,8 +2048,33 @@ $$('.dots').forEach(function(d){
     $$('button',d).forEach(function(x,i){x.classList.toggle('on',i<v)});
   });
 });
+/* data-a on each .dots div is a short UI key; the server field names are
+   spelled out (see routes/rating.js's ASPECTS list). */
+var RATE_ASPECTS={price:'price',rel:'reliability',sup:'support',spd:'speed'};
+function ratingValues(){
+  var out={},ok=true;
+  $$('.dots',$('#ratecard')).forEach(function(d){
+    var key=RATE_ASPECTS[d.getAttribute('data-a')];
+    var v=$$('button.on',d).length;
+    if(!v)ok=false;
+    if(key)out[key]=v;
+  });
+  return ok?out:null;
+}
 $('#ratego').addEventListener('click',function(){
-  $('#ratecard').innerHTML='<span class="eyebrow">One minute, once</span><h3>Noted, thank you</h3><p class="cardnote">Your rating stays private and is never shown to bidding providers. It helps us see which providers actually keep households happy, by region.</p>';
+  var vals=ratingValues();
+  if(!vals){toast('Rate every category before sending.');return;}
+  if(!W||!W.session||!W.session.ratingSave){ratecardDone();return;}
+  var btn=this;
+  btn.disabled=true;btn.textContent='Sending…';
+  vals.provider=ratecardProvider();
+  W.session.ratingSave(vals).then(function(){
+    ratecardDone();
+  },function(err){
+    if(err&&err.code==='CONFLICT'){ratecardDone();return;}
+    btn.disabled=false;btn.textContent='Send rating';
+    toast((err&&err.message)||'Something went wrong. Please try again.');
+  });
 });
 $('#reddit').addEventListener('click',function(){toast('Prototype: this will open the member subreddit.')});
 /* ---------- campaigns: cards, sheet, joins ---------- */
@@ -2027,7 +2203,6 @@ document.addEventListener('change',function(e){
   if(e.target.closest('.tog'))toast('Preference saved.');
 });
 document.addEventListener('click',function(e){
-  if(e.target.closest('[data-edit]')){toast('Prototype: editing lands with accounts.');return}
   if(e.target.closest('#pf-signout')){signOut();return}
   if(e.target.closest('#dl-data'))toast('Prototype: your data export will land by email.');
   if(e.target.closest('#del-acct'))toast('Prototype: deletion flow, with a real confirm step.');
@@ -2113,6 +2288,16 @@ if(W&&W.session&&W.session.syncBill){
     paintChecklist();
     buPrefill();
     render();
+  });
+}
+
+/* ---------- server sync: has this member already rated their provider? ----------
+   Runs regardless of the bill sync's outcome — a member can have rated before
+   this browser ever learned their bill. Quietly does nothing on failure; the
+   form stays up and a duplicate submit is still caught server-side. */
+if(W&&W.session&&W.session.ratingGet){
+  W.session.ratingGet().then(function(rating){
+    if(rating)ratecardDone();
   });
 }
 

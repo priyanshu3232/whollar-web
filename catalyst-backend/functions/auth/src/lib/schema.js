@@ -257,6 +257,19 @@ const TABLES = Object.freeze({
     outcome:          'varchar(16) required',
     detail:           'text',
   },
+  provider_ratings: {
+    // The dashboard's "One minute, once" card. One row per member — `unique`
+    // on user_id is what makes a second POST /me/rating fail with CONFLICT
+    // instead of silently overwriting the first, same trick as member_bills'
+    // upsert key but refusing the second write rather than replacing it.
+    user_id:     'varchar(64) unique required',
+    provider:    'varchar(100) required',
+    price:       'int required',
+    reliability: 'int required',
+    support:     'int required',
+    speed:       'int required',
+    created_at:  'datetime required',
+  },
 });
 
 const TABLE_NAMES = Object.freeze(Object.keys(TABLES));
