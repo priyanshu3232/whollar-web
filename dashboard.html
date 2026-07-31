@@ -121,11 +121,6 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .cliffgauge.is-empty .cg__mid b{color:#B6A695}
 @media (prefers-reduced-motion:reduce){.cg__arc{transition:none}}
 @media (max-width:1100px){.cliff .step{display:none}}
-.ochips{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
-.ochips button{border:1.5px solid var(--line);border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:600;color:#3A453E;transition:background .15s}
-.ochips button:hover{background:#EDE8DB}
-.ochips button.on{background:var(--mint);border-color:var(--accent);color:var(--accent-deep)}
-.olabel{font-size:12px;font-weight:700;color:var(--sub);display:block;margin:10px 0 5px}
 .osel{width:100%;font:inherit;font-size:13.5px;background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;color:var(--ink)}
 .osel:focus{outline:none;border-color:var(--accent)}
 .bu-drop{display:block;border:2px dashed var(--line);border-radius:12px;padding:16px;cursor:pointer;text-align:center;transition:border-color .15s,background .15s}
@@ -210,7 +205,23 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .sigbars i{width:26px;height:9px;border-radius:5px;background:#E9D5C2;display:block}
 .sigbars i.f{background:var(--accent)}
 .sigbars i.w{background:var(--terra)}
+.sigbars i.r{background:#8C4622}
 .sigbars .arr{font-family:var(--mono);color:#8C4622;font-size:13px;margin:0 2px}
+/* One theme token per signal band: the eyebrow, the pips above and the ring
+   all read urgency from the same class on the panel, so they can never
+   disagree. Green = runway, amber = prepare, red = act / already reset. */
+.cliff.t-green .siglabel{color:var(--accent-deep)}
+.cliff.t-green .cg__arc{stroke:var(--accent)}
+.cliff.t-green .cg__mid b{color:var(--accent-deep)}
+.cliff.t-amber .siglabel{color:#8C4622}
+.cliff.t-amber .cg__arc{stroke:var(--terra)}
+.cliff.t-amber .cg__mid b{color:var(--terra)}
+.cliff.t-red .siglabel{color:#8C4622}
+.cliff.t-red .cg__arc{stroke:#8C4622}
+.cliff.t-red .cg__mid b{color:#8C4622}
+.cliff.sig-pulse .cg__arc{animation:sigpulse 2s ease-in-out infinite}
+@keyframes sigpulse{50%{opacity:.55}}
+@media (prefers-reduced-motion:reduce){.cliff.sig-pulse .cg__arc{animation:none}}
 
 
 
@@ -332,6 +343,17 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .flds .ok{background:var(--mint);color:var(--accent-deep)}
 .flds .no{background:#EDE8DB;color:#949E95}
 .flds .val{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--sub)}
+.flds .val.editable{cursor:pointer;border-bottom:1px dashed transparent;padding-bottom:1px;transition:color .15s,border-color .15s}
+.flds .val.editable:hover{color:var(--ink);border-bottom-color:var(--sub)}
+.flds .val.editable:not(.editing)::after{content:"";display:inline-block;width:9px;height:9px;margin-left:5px;vertical-align:-1px;opacity:.45;
+  background:var(--sub);-webkit-mask:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>') center/contain no-repeat;
+  mask:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>') center/contain no-repeat;}
+.flds .val.editing{margin-left:auto}
+.fld-edit{font:inherit;font-family:var(--mono);font-size:12px;color:var(--ink);background:var(--card);
+  border:1.5px solid var(--accent);border-radius:6px;padding:3px 7px;text-align:right;width:118px;box-shadow:0 0 0 3px var(--mint)}
+select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
+.fld-edit:focus{outline:none}
+.fld-edit:disabled{opacity:.6}
 .soon{font-size:10.5px;font-weight:700;letter-spacing:.05em;background:var(--terra-soft);color:#8C4622;border-radius:6px;padding:2px 7px;margin-left:6px}
 .fnote{font-size:12.5px;color:var(--sub);margin-top:10px}
 .bill-src{font-size:12px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
@@ -385,12 +407,11 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .ktile{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 1px 2px rgba(26,37,32,.04),0 8px 24px rgba(26,37,32,.05);transition:box-shadow .25s,border-color .25s,transform .15s}
 .ktile:hover{box-shadow:0 10px 26px rgba(26,37,32,.1);border-color:var(--accent);transform:translateY(-2px)}
 .ktile-media{display:block;position:relative;overflow:hidden;isolation:isolate;background:var(--mint);aspect-ratio:3/2;flex:none}
-.ktile-media img{width:100%;height:100%;object-fit:cover;display:block;filter:grayscale(1) contrast(1.03) brightness(1.02);transition:transform 600ms cubic-bezier(.2,.7,.2,1)}
-.ktile-media::after{content:"";position:absolute;inset:0;background:#1B4D3E;mix-blend-mode:multiply;opacity:.42;pointer-events:none;transition:opacity 400ms ease}
-@media(hover:hover){
-  .ktile:hover .ktile-media img{transform:scale(1.045)}
-  .ktile:hover .ktile-media::after{opacity:.3}
-}
+/* Photographs run at their own colour. The grayscale + green multiply wash
+   this used to carry made every article look like the same washed-out stock
+   image, and a reader cannot tell a bill from a street from a router that
+   way. No filter, no overlay — the picture is the picture. */
+.ktile-media img{width:100%;height:100%;object-fit:cover;display:block}
 .ktile-body{display:flex;flex-direction:column;gap:10px;flex:1;padding:18px 20px 16px}
 .ktile-top{display:flex;align-items:baseline;gap:10px}
 .knum{font-family:var(--mono);font-size:11.5px;font-weight:700;color:var(--sub);opacity:.55}
@@ -400,10 +421,6 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .kdeck{font-size:13.5px;color:var(--sub);line-height:1.5;flex:1}
 .kmeta{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--line);padding-top:12px;font-family:var(--mono);font-size:11.5px;color:var(--sub)}
 .kmeta .go{color:var(--accent-deep);font-weight:700}
-@media(prefers-reduced-motion:reduce){
-  .ktile-media img,.ktile-media::after{transition:none}
-  .ktile:hover .ktile-media img{transform:none}
-}
 .empty{text-align:center;padding:clamp(34px,6vw,60px) 20px}
 .empty svg{width:74px;height:74px;margin-bottom:14px}
 .empty h3{font-size:20px;font-weight:750;margin-bottom:6px}
@@ -532,11 +549,11 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
                  gauge, which labels the same moment. The step line just points at it. -->
           </svg>
           <div class="sigblock">
-            <div class="siglabel">Your deal signal</div>
-            <div class="sigbars" aria-hidden="true"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><span class="arr">&rarr;</span><i class="w"></i><i></i><i></i></div>
-            <h2 id="cliffh2">Add your bill to see your promo cliff.</h2>
-            <p class="read">Fine today. Then your promo resets, and resets usually land 30 to 60% higher, on autopay. Your cohort is timed to close bidding before your jump.</p>
-            <p class="ctx">Rogers &middot; $92/mo &middot; 500 Mbps &middot; London East</p>
+            <div class="siglabel" id="sig-eyebrow">Your deal signal</div>
+            <div class="sigbars" id="sig-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><span class="arr">&rarr;</span><i></i><i></i><i></i></div>
+            <h2 id="cliffh2">We&rsquo;re still pinpointing your reset.</h2>
+            <p class="read" id="sig-read">Add your promo end date &mdash; it&rsquo;s on your bill&rsquo;s &ldquo;Savings&rdquo; line &mdash; and we&rsquo;ll time your cohort to close bidding before the jump.</p>
+            <p class="ctx" id="sig-ctx" hidden></p>
           </div>
           <!-- Every value here is written by the cliff module below, from the
                promo end date on the member's bill. Nothing is authored. -->
@@ -601,9 +618,9 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
                 <div class="segs" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               </div>
               <ul class="flds">
-                <li><span class="tick no">&middot;</span>Current provider<span class="val" data-fld="provider">Add</span></li>
-                <li><span class="tick no">&middot;</span>Monthly charge<span class="val" data-fld="monthly">Add</span></li>
-                <li><span class="tick no">&middot;</span>Promo end date<span class="val" data-fld="promoEnd">Add</span></li>
+                <li><span class="tick no">&middot;</span>Current provider<span class="val editable" data-fld="provider">Add</span></li>
+                <li><span class="tick no">&middot;</span>Monthly charge<span class="val editable" data-fld="monthly">Add</span></li>
+                <li><span class="tick no">&middot;</span>Promo end date<span class="val editable" data-fld="promoEnd">Add</span></li>
                 <li><span class="tick no">&middot;</span>Latest bill upload<span class="val">Add</span></li>
                 <li><span class="tick no">&middot;</span>Mobile bill<span class="soon">Soon</span><span class="val">Track its cliff too</span></li>
               </ul>
@@ -642,25 +659,6 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
         </div>
 
         <div class="trio">
-<section class="card" aria-label="Report an outage" id="outagecard">
-              <span class="eyebrow" style="color:#8C4622">Connection trouble?</span>
-              <h3>Report an outage</h3>
-              <p class="cardnote">Tell us what's happening. We'll check whether other London East members are seeing it too, and if it keeps up, we'll raise it with your provider for you.</p>
-              <div class="ochips" id="ochips" role="group" aria-label="What is happening">
-                <button type="button" data-o="Internet down" class="on">Internet down</button>
-                <button type="button" data-o="Slow speeds">Slow speeds</button>
-                <button type="button" data-o="Keeps dropping">Keeps dropping</button>
-              </div>
-              <label class="olabel" for="osince">Since when</label>
-              <select id="osince" class="osel">
-                <option>Just now</option>
-                <option>Past hour</option>
-                <option>Today</option>
-                <option>Since yesterday</option>
-              </select>
-              <p class="fnote">Reporting for London East, from your switch file.</p>
-              <button class="btn" type="button" id="osend" style="width:100%;justify-content:center">Report it</button>
-            </section>
 <section class="card" aria-label="Worth a read">
               <span class="eyebrow">Worth a read</span>
               <ul class="reads" id="reads"></ul>
@@ -692,34 +690,6 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
               <button class="btn ghost" type="button" id="reddit">Join us on Reddit</button>
             </section>
         </div>
-
-        <!-- region row -->
-        <div class="rowhead"><h3>Campaigns near you</h3><button class="all" type="button" id="viewall">How regions open &rarr;</button></div>
-        <div class="crow">
-          <div class="cc" data-camp="london-east">
-            <span class="badge live">Your cohort &middot; Forming</span>
-            <span class="cc__art"><img src="/images/regions/region-london-east.webp" srcset="/images/regions/region-london-east.webp 1x, /images/regions/region-london-east@2x.webp 2x" alt="Red-brick terraced homes on a tree-lined residential street" width="300" height="130" loading="lazy" decoding="async"></span>
-            <span class="cc__b"><b>London East</b><span class="m">Autumn cohort &middot; closes Sep 12</span><span class="miniprog"><i style="width:61%"></i></span><span class="mono" data-cmono>61 of 100 households</span><span class="ccact" data-cact></span></span>
-          </div>
-          <div class="cc" data-camp="london-north">
-            <span class="badge soon">Opens after this round</span>
-            <button class="bell" type="button" data-campbell="london-north" aria-label="Notify me when London North opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>
-            <span class="cc__art"><img src="/images/regions/region-london-north.webp" srcset="/images/regions/region-london-north.webp 1x, /images/regions/region-london-north@2x.webp 2x" alt="Quiet suburban street of detached houses under an open sky" width="300" height="130" loading="lazy" decoding="async"></span>
-            <span class="cc__b"><b>London North</b><span class="m">Next opening in your city</span><span class="mono" data-cmono>We'll text you the day it opens</span></span>
-          </div>
-          <div class="cc" data-camp="chatham-kent">
-            <span class="badge soon">Waitlist forming</span>
-            <button class="bell" type="button" data-campbell="chatham-kent" aria-label="Notify me when Chatham-Kent opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>
-            <span class="cc__art"><img src="/images/regions/region-chatham-kent.webp" srcset="/images/regions/region-chatham-kent.webp 1x, /images/regions/region-chatham-kent@2x.webp 2x" alt="Brick bungalow with a covered porch behind a blossoming tree" width="300" height="130" loading="lazy" decoding="async"></span>
-            <span class="cc__b"><b>Chatham-Kent</b><span class="m">Neighbours are gathering</span><span class="mono" data-cmono>Invite yours to speed it up</span><span class="ccact" data-cact></span></span>
-          </div>
-          <div class="cc" data-camp="windsor-core">
-            <span class="badge soon">Waitlist forming</span>
-            <button class="bell" type="button" data-campbell="windsor-core" aria-label="Notify me when Windsor opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>
-            <span class="cc__art"><img src="/images/regions/region-windsor.webp" srcset="/images/regions/region-windsor.webp 1x, /images/regions/region-windsor@2x.webp 2x" alt="Cars parked along a shaded street of single-storey homes" width="300" height="130" loading="lazy" decoding="async"></span>
-            <span class="cc__b"><b>Windsor</b><span class="m">Neighbours are gathering</span><span class="mono" data-cmono>One launch per region</span><span class="ccact" data-cact></span></span>
-          </div>
-        </div>
       </section>
 
       <!-- ======== my bills ======== -->
@@ -735,11 +705,11 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
                 <div class="segs" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               </div>
               <ul class="flds">
-                <li><span class="tick no">&middot;</span>Current provider<span class="val" data-fld="provider">Add</span></li>
-                <li><span class="tick no">&middot;</span>Monthly charge<span class="val" data-fld="monthly">Add</span></li>
-                <li><span class="tick no">&middot;</span>Download speed<span class="val" data-fld="speed">Add</span></li>
-                <li><span class="tick no">&middot;</span>Promo end date<span class="val" data-fld="promoEnd">Add</span></li>
-                <li><span class="tick no">&middot;</span>Switch threshold<span class="val" data-fld="threshold">Add</span></li>
+                <li><span class="tick no">&middot;</span>Current provider<span class="val editable" data-fld="provider">Add</span></li>
+                <li><span class="tick no">&middot;</span>Monthly charge<span class="val editable" data-fld="monthly">Add</span></li>
+                <li><span class="tick no">&middot;</span>Download speed<span class="val editable" data-fld="speed">Add</span></li>
+                <li><span class="tick no">&middot;</span>Promo end date<span class="val editable" data-fld="promoEnd">Add</span></li>
+                <li><span class="tick no">&middot;</span>Switch threshold<span class="val editable" data-fld="threshold">Add</span></li>
                 <li id="bu-row"><span class="tick no">&middot;</span>Latest bill upload<span class="val" data-fld="billUpload">Add</span></li>
               </ul>
               <p class="fnote bill-src" data-bill-src hidden></p>
@@ -908,19 +878,6 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
       </section>
 
     </div>
-  </div>
-</div>
-
-<!-- ======== regions sheet: every campaign, and how one opens ======== -->
-<div class="rsheet" id="regionsheet" hidden role="dialog" aria-modal="true" aria-labelledby="rs-title">
-  <div class="rsheet__panel">
-    <button class="rsheet__x" type="button" id="rs-close" aria-label="Close">&times;</button>
-    <span class="eyebrow">One launch per region</span>
-    <h3 id="rs-title">How regions open</h3>
-    <p class="cardnote">A region opens when enough neighbours are in. First a waitlist gathers, then a cohort forms toward its target, then it locks and providers bid on everyone at once. Joining a forming cohort is free and never binding until it locks.</p>
-    <ol class="rsteps"><li>Waitlist</li><li>Forming</li><li>Locked</li><li>Bidding</li><li>Offers in</li><li>Switching</li></ol>
-    <div id="rlist"></div>
-    <p class="fnote" id="rs-note">Demo counts until the campaign service connects.</p>
   </div>
 </div>
 
@@ -1101,72 +1058,174 @@ function parsePromoEnd(raw){
   return out.getFullYear()===y&&out.getMonth()===mo?out:null;
 }
 
-/* Whole months between now and the reset. A date later this month still counts
-   as 0 months left, which is the honest reading: the jump lands this cycle. */
-function monthsUntil(end){
-  var now=new Date();
-  var n=(end.getFullYear()-now.getFullYear())*12+(end.getMonth()-now.getMonth());
-  if(end.getDate()<now.getDate())n-=1;
-  return n;
-}
+/* ---------- the deal signal: four bands, one clock ----------
+   Everything on the panel — eyebrow, pips, headline, body, ring — derives
+   from ONE continuous number, months until the reset, so the copy and the
+   colours can never disagree about how urgent this is:
 
-/* The member's own bill or nothing. `expired` covers a checkup that answered
-   "my promo already ended" without naming a date — real data, no date. */
-function cliffState(){
+     EARLY        > 6 months   green   informational; soft "30 to 60%" figure
+     APPROACHING  2–6 months   amber   prepare; the figure hardens to "up to
+                                       100% — full rate", because under six
+                                       months the real stakes are near
+     IMMINENT     < 2 months   red     act now; counts weeks, then days
+     RESET        <= 0         red     it already happened
+
+   Both boundaries (exactly 6.0, exactly 2.0) belong to APPROACHING — bands
+   must tile the line with no gap for a value to fall through. Months are
+   measured in average month-lengths, not calendar months, so 6.0 means the
+   same thing in February as in July; the days shown to the member are
+   counted midnight-to-midnight so the number cannot flip mid-evening. */
+var MS_DAY=86400000,DAYS_PER_MONTH=30.4375;
+function plural(n,unit){return n+' '+unit+(n===1?'':'s')}
+
+function dealSignal(){
   var bill=MEMBER&&MEMBER.bill;
   var end=parsePromoEnd(bill&&bill.promoEnd);
-  return {months:end?monthsUntil(end):null,end:end,expired:!!(bill&&bill.promoExpired)};
+  var expired=!!(bill&&bill.promoExpired);
+
+  /* No date and no "already expired" answer: neutral, and honest about why. */
+  if(!end&&!expired)return{
+    state:'UNKNOWN',theme:'green',empty:true,
+    eyebrow:'Your deal signal',
+    headline:'We’re still pinpointing your reset.',
+    body:'Add your promo end date — it’s on your bill’s “Savings” line — and we’ll time your cohort to close bidding before the jump.',
+    circleValue:'–',circleLabel:'months to reset',
+    pips:['f','f','f','f','w','',''],arcFrac:0,timeline:'—',
+    title:'Add your promo end date to see your reset'
+  };
+
+  var monthYear=end?(MONTHS[end.getMonth()]+' '+end.getFullYear()):null;
+
+  if(!end&&expired)return resetSignal('Your promo has already reset.',null);
+
+  var now=new Date();
+  var today0=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  var m=(end.getTime()-now.getTime())/MS_DAY/DAYS_PER_MONTH;   /* continuous: band selection */
+  var D=Math.max(1,Math.round((end.getTime()-today0.getTime())/MS_DAY)); /* midnight-to-midnight */
+  var W=Math.ceil(D/7);
+  var N=Math.max(0,Math.round(m));
+
+  if(m<=0)return resetSignal('Your promo reset around '+monthYear+'.',end);
+
+  if(m<2){
+    var days=D<=14;
+    return{
+      state:'IMMINENT',theme:'red',pulse:true,
+      eyebrow:'Your deal signal · Act now',
+      headline:days
+        ?(D===1?'Your promo resets today.':'Your promo resets in '+plural(D,'day')+'.')
+        :'Your promo resets in '+plural(W,'week')+'.',
+      body:'This is the window. The moment your promo expires your bill can jump up to 100% — the full rate, on autopay. Bidding for your cohort closes before that hit — lock your spot now so you don’t roll onto full price.',
+      circleValue:String(days?D:W),
+      circleLabel:days?(D===1?'day to reset':'days to reset'):(W===1?'week to reset':'weeks to reset'),
+      pips:['f','w','w','w','w','w','r'],
+      arcFrac:arcFrac(m),timeline:MONTHS[end.getMonth()],
+      title:(days?plural(D,'day'):plural(W,'week'))+' to your promo reset in '+monthYear
+    };
+  }
+
+  if(m<=6){
+    var g=Math.min(Math.max(Math.round(m-2),1),4);
+    var pips=[];for(var i=0;i<7;i++)pips.push(i<g?'f':(i<g+2?'w':''));
+    return{
+      state:'APPROACHING',theme:'amber',
+      eyebrow:'Your deal signal · Heads up',
+      headline:'Your promo resets in about '+plural(N,'month')+'.',
+      body:'Still fine for now. But once the promo expires your price can jump up to 100% — full rate, on autopay. We’re forming your cohort so bidding can close before that jump — nothing for you to do yet, we’ll signal when it’s time.',
+      circleValue:String(N),circleLabel:N===1?'month to reset':'months to reset',
+      pips:pips,arcFrac:arcFrac(m),timeline:MONTHS[end.getMonth()],
+      title:plural(N,'month')+' to your promo reset in '+monthYear
+    };
+  }
+
+  return{
+    state:'EARLY',theme:'green',
+    eyebrow:'Your deal signal',
+    headline:'Your promo resets around '+monthYear+'.',
+    body:'Fine today. Then your promo resets, and resets usually land 30 to 60% higher, on autopay. Your cohort is timed to close bidding before your jump.',
+    circleValue:String(N),circleLabel:N===1?'month to reset':'months to reset',
+    pips:['f','f','f','f','w','',''],
+    arcFrac:arcFrac(m),timeline:MONTHS[end.getMonth()],
+    title:plural(N,'month')+' to your promo reset in '+monthYear
+  };
+}
+
+/* The ring fills as the reset approaches; CLIFF_HORIZON months out it is
+   empty, at the reset it is full. Continuous input, so it creeps daily. */
+function arcFrac(m){return Math.max(0,Math.min(1,(CLIFF_HORIZON-m)/CLIFF_HORIZON))}
+
+function resetSignal(headline,end){
+  return{
+    state:'RESET',theme:'red',past:true,
+    eyebrow:'Your deal signal',
+    headline:headline,
+    body:'Your promo has expired — you’re likely on full price now, up to 100% higher, on autopay. Your cohort is still bidding; join to pull the rate back down.',
+    circleValue:'0',circleLabel:'promo has reset',
+    pips:['r','r','r','r','r','r','r'],arcFrac:1,
+    timeline:end?MONTHS[end.getMonth()]:'Reset',
+    title:'Your promo has reset'
+  };
 }
 
 function paintCliff(){
-  var c=cliffState(),g=$('#cliffgauge');
+  var s=dealSignal(),g=$('#cliffgauge');
   if(!g)return;
-  var C=301.6,num=$('#cgnum'),cap=$('#cgcap'),arc=$('#cgarc'),ttl=$('#cgtitle'),h2=$('#cliffh2');
+  var C=301.6,card=g.closest('.cliff');
   /* The switch file's "Promo end date" row is painted by paintBill() — one
      owner per row, so a repaint can take it back to its Add state. This
-     function owns only the gauge, the headline and the timeline node. */
+     function owns the signal block, the gauge and the timeline node. */
 
-  if(!c.end&&c.expired){
-    /* A reset the member confirmed without naming a date: past, not empty. */
-    g.classList.remove('is-empty');g.classList.add('is-past');
-    num.textContent='0';cap.textContent='promo has reset';
-    arc.style.strokeDashoffset='0';
-    ttl.textContent='Your promo has already reset';
-    if(h2)h2.textContent='Your promo has already reset.';
-    $$('[data-fld="promoMonth"]').forEach(function(el){el.textContent='Reset'});
-    return;
+  if(card){
+    card.classList.remove('t-green','t-amber','t-red','sig-pulse');
+    card.classList.add('t-'+s.theme);
+    if(s.pulse)card.classList.add('sig-pulse');
   }
-  if(!c.end){
-    /* No date anywhere: say so and point at the fix rather than inventing one. */
-    g.classList.add('is-empty');g.classList.remove('is-past');
-    num.textContent='–';cap.textContent='add your bill';
-    arc.style.strokeDashoffset=C;
-    ttl.textContent='Add your bill to see your promo cliff';
-    if(h2)h2.textContent='Add your bill to see your promo cliff.';
-    $$('[data-fld="promoMonth"]').forEach(function(el){el.textContent='—'});
-    return;
+  var eb=$('#sig-eyebrow');if(eb)eb.textContent=s.eyebrow;
+  var read=$('#sig-read');if(read)read.textContent=s.body;
+  $$('#sig-bars i').forEach(function(el,i){el.className=s.pips[i]||''});
+
+  var num=$('#cgnum'),cap=$('#cgcap'),arc=$('#cgarc'),ttl=$('#cgtitle'),h2=$('#cliffh2');
+  g.classList.toggle('is-empty',!!s.empty);
+  g.classList.toggle('is-past',!!s.past);
+  num.textContent=s.circleValue;
+  cap.textContent=s.circleLabel;
+  arc.style.strokeDashoffset=(C*(1-s.arcFrac)).toFixed(1);
+  ttl.textContent=s.title;
+  if(h2)h2.textContent=s.headline;
+
+  /* The mono context line: the member's own numbers or nothing — never a
+     sample household's. */
+  var ctx=$('#sig-ctx');
+  if(ctx){
+    var bill=MEMBER&&MEMBER.bill;
+    var parts=[
+      bill&&bill.provider,
+      bill&&fmtMonthly(bill.monthly)?fmtMonthly(bill.monthly)+'/mo':null,
+      bill&&fmtSpeed(bill.speed),
+      (MEMBER&&MEMBER.fsa)||null
+    ].filter(Boolean);
+    ctx.textContent=parts.join(' · ');
+    ctx.hidden=!parts.length;
   }
 
-  var months=c.months,past=months<=0;
-  var monthYear=MONTHS[c.end.getMonth()]+' '+c.end.getFullYear();
-  g.classList.remove('is-empty');
-  g.classList.toggle('is-past',past);
-
-  num.textContent=past?'0':String(months);
-  cap.textContent=past?'promo has reset':(months===1?'month to cliff':'months to cliff');
-  arc.style.strokeDashoffset=(C*(1-Math.max(0,Math.min(1,(CLIFF_HORIZON-months)/CLIFF_HORIZON)))).toFixed(1);
-  ttl.textContent=past?('Your promo reset in '+monthYear)
-    :(months+' month'+(months===1?'':'s')+' to your promo cliff in '+monthYear);
-
-  /* "Cliff ahead" has to earn itself. A reset ten months out is a diary note,
-     and shouting about it is how a dashboard teaches people to ignore it. */
-  if(h2)h2.textContent=past?('Your promo reset around '+monthYear+'.')
-    :(months<=6?('Cliff ahead: your promo ends around '+monthYear+'.')
-              :('Your promo runs to around '+monthYear+'.'));
-  $$('[data-fld="promoMonth"]').forEach(function(el){
-    el.textContent=MONTHS[c.end.getMonth()];
-  });
+  $$('[data-fld="promoMonth"]').forEach(function(el){el.textContent=s.timeline});
 }
+
+/* A card left open across midnight has to change bands without a reload —
+   "9 days" at 23:59 is "8 days" a minute later. Focus/visibility repaints
+   cover returns to the tab; this covers the tab that never left. */
+(function(){
+  function tick(){
+    paintCliff();
+    schedule();
+  }
+  function schedule(){
+    var now=new Date();
+    var next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,0,5);
+    setTimeout(tick,Math.max(60000,next.getTime()-now.getTime()));
+  }
+  schedule();
+})();
 
 /* ---------- switch file: the member's own numbers, or an honest gap ----------
    The bill arrives two ways — written locally by bill-checkup.html, and pulled
@@ -1187,6 +1246,7 @@ function fmtSpeed(v){
 function setFld(k,text){
   $$('[data-fld="'+k+'"]').forEach(function(el){
     var li=el.closest('li'),t=li&&li.querySelector('.tick');
+    el.classList.remove('editing');
     el.textContent=text==null?'Add':text;
     if(t){t.className=text==null?'tick no':'tick ok';t.innerHTML=text==null?'&middot;':'&#10003;';}
   });
@@ -1471,6 +1531,150 @@ window.addEventListener('focus',refreshCliff);
   buPrefill();
 })();
 
+/* ---------- switch file: inline field editing ----------
+   Click any value in "What providers bid against" to edit it in place,
+   without scrolling to the upload form below. Same save path as bu-form
+   (W.session.billSave -> W.member.patch -> repaint), just one field at a
+   time. billUpload is excluded — it isn't a value someone types, it's the
+   upload's own state. */
+(function(){
+  var PROV_OPTS=['Rogers','Bell','Telus','Shaw','Vidéotron','Cogeco','Eastlink','SaskTel','An independent (oxio, TekSavvy…)','Other / not sure'];
+  var SPD_OPTS=[['25','25 or less'],['50','50'],['100','100'],['150','150'],['300','300'],['500','500'],['1000','1 Gig'],['1500','1.5 Gig or faster'],['0','Not sure']];
+  var THRESH_OPTS=['$10+/mo','$25+/mo','Just curious'];
+
+  function selectEl(options,value){
+    var sel=document.createElement('select');
+    sel.className='fld-edit';
+    var blank=document.createElement('option');blank.value='';blank.textContent='Choose…';
+    sel.appendChild(blank);
+    options.forEach(function(o){
+      var v=Array.isArray(o)?o[0]:o,label=Array.isArray(o)?o[1]:o;
+      var opt=document.createElement('option');opt.value=v;opt.textContent=label;
+      sel.appendChild(opt);
+    });
+    sel.value=value||'';
+    return sel;
+  }
+  function isoDate(raw){
+    var end=parsePromoEnd(raw);
+    return end?end.getFullYear()+'-'+String(end.getMonth()+1).padStart(2,'0')+'-'+String(end.getDate()).padStart(2,'0'):'';
+  }
+
+  var FIELD={
+    provider:{
+      build:function(bill){return selectEl(PROV_OPTS,bill&&bill.provider);},
+      read:function(el){return {value:el.value||null};},
+      live:true
+    },
+    monthly:{
+      build:function(bill){
+        var inp=document.createElement('input');
+        inp.type='text';inp.inputMode='decimal';inp.autocomplete='off';inp.maxLength=12;
+        inp.className='fld-edit';inp.placeholder='$ 90';
+        inp.value=(bill&&bill.monthly!=null)?bill.monthly:'';
+        return inp;
+      },
+      read:function(el){
+        var v=el.value.trim();
+        if(!v)return {value:null};
+        var r=W.parseMoneyInRange(v,W.BILL_MIN,W.BILL_MAX);
+        if(!r.ok)return {error:r.reason==='nan'?'Enter your monthly charge as a number, e.g. 90.'
+          :r.reason==='low'?'That looks too low for a monthly internet bill (at least $'+W.BILL_MIN+').'
+          :'That looks too high for a monthly internet bill (up to $'+W.BILL_MAX+').'};
+        return {value:r.value};
+      }
+    },
+    speed:{
+      build:function(bill){return selectEl(SPD_OPTS,bill&&bill.speed);},
+      read:function(el){return {value:el.value||null};},
+      live:true
+    },
+    promoEnd:{
+      build:function(bill){
+        var inp=document.createElement('input');
+        inp.type='date';inp.className='fld-edit';
+        inp.value=isoDate(bill&&bill.promoEnd);
+        return inp;
+      },
+      read:function(el){return {value:el.value||null};}
+    },
+    threshold:{
+      build:function(bill){return selectEl(THRESH_OPTS,bill&&bill.threshold);},
+      read:function(el){return {value:el.value||null};},
+      live:true
+    }
+  };
+
+  var saving=false;
+
+  function mergedPayload(patch){
+    var existing=(MEMBER&&MEMBER.bill)||{};
+    var promoEnd='promoEnd' in patch?patch.promoEnd:(existing.promoEnd||null);
+    var daysLeft=promoEnd?W.daysUntil(promoEnd):null;
+    return {
+      provider:'provider' in patch?patch.provider:(existing.provider||null),
+      monthly:'monthly' in patch?patch.monthly:(existing.monthly||null),
+      speed:'speed' in patch?patch.speed:(existing.speed||null),
+      tech:existing.tech||null,
+      promoEnd:promoEnd,
+      discount:existing.discount||null,
+      threshold:'threshold' in patch?patch.threshold:(existing.threshold||null),
+      promoExpired:daysLeft!=null?daysLeft<0:!!existing.promoExpired,
+      source:'dashboard'
+    };
+  }
+
+  function savePatch(fld,value){
+    if(saving){paintBill();return;}
+    saving=true;
+    var patch={};patch[fld]=value;
+    W.session.billSave(mergedPayload(patch)).then(function(resp){
+      saving=false;
+      MEMBER=W.member.patch({bill:(resp&&resp.bill)||mergedPayload(patch)})||MEMBER;
+      paintCliff();paintBill();paintChecklist();
+      if(window.buPrefill)buPrefill();
+      render();
+      toast('Saved to your file.');
+    },function(err){
+      saving=false;
+      if(err&&err.code==='FORBIDDEN'){W.member.clear();toSignIn();return;}
+      toast((err&&err.message)||'Couldn’t save that — try again.');
+      paintBill();
+    });
+  }
+
+  function startEdit(fld,val){
+    var cfg=FIELD[fld];
+    if(!cfg||val.querySelector('.fld-edit'))return;
+    var bill=(MEMBER&&MEMBER.bill)||{};
+    var el=cfg.build(bill);
+    var done=false;
+    function commit(){
+      if(done)return;done=true;
+      var res=cfg.read(el);
+      if(res.error){toast(res.error);paintBill();return;}
+      savePatch(fld,res.value);
+    }
+    function cancel(){if(done)return;done=true;paintBill();}
+    el.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){e.preventDefault();commit();}
+      else if(e.key==='Escape'){e.preventDefault();cancel();}
+    });
+    el.addEventListener('blur',function(){setTimeout(function(){if(val.contains(el))commit();},120);});
+    if(cfg.live)el.addEventListener('change',commit);
+    val.textContent='';
+    val.classList.add('editing');
+    val.appendChild(el);
+    el.focus();
+  }
+
+  document.addEventListener('click',function(e){
+    var val=e.target.closest('.val.editable[data-fld]');
+    if(!val)return;
+    startEdit(val.getAttribute('data-fld'),val);
+  });
+})();
+
 /* ---------- greeting ---------- */
 (function(){
   var h=new Date().getHours();
@@ -1528,10 +1732,12 @@ function cdStop(){if(cdTimer){clearInterval(cdTimer);cdTimer=null}}
 
 /* ---------- dot cluster (forming) ---------- */
 function dotCluster(){
-  var cols=20,rows=5,gap=21,r=6.5,pad=10;
+  var cols=20,gap=21,r=6.5,pad=10;
+  var total=Math.max(50,S.cohort.have);
+  var rows=Math.ceil(total/cols);
   var w=pad*2+(cols-1)*gap,h=pad*2+(rows-1)*gap;
   var out='<svg viewBox="0 0 '+w+' '+(h+2)+'" role="img" aria-label="'+S.cohort.have+' of '+S.cohort.need+' households in your cohort">';
-  for(var i=0;i<S.cohort.need;i++){
+  for(var i=0;i<total;i++){
     var cx=pad+(i%cols)*gap, cy=pad+Math.floor(i/cols)*gap;
     if(i===S.cohort.you){out+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(r+1)+'" fill="#C2643B"/>'}
     else if(i<S.cohort.have){out+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="#1E9E63" opacity=".9"/>'}
@@ -1646,9 +1852,7 @@ function render(){
   if(hot)hot.classList.add('hot');
   var items=[];
   for(var i=0;i<=idx;i++){(FEED[STATES[i]]||[]).forEach(function(f){items.push(f)})}
-  EXTRA.forEach(function(f){items.push(f)});
   $('#feed').innerHTML=items.map(function(f){return '<li><span class="when">'+esc(f[0])+'</span>'+esc(f[1])+'</li>'}).reverse().join('');
-  paintCampaigns();
   paintHistory();
   $$('#sts button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-goto')===S.state)});
 }
@@ -1713,29 +1917,6 @@ function syncCohortFromCamps(){
   S.cohort.have=le.members;S.cohort.need=le.target;S.cohort.locked=le.households;
   FEED.forming[1]=['Today',le.members+' of '+le.target+' households in'];
 }
-function paintCampaigns(){
-  CAMPS.forEach(function(c){
-    var card=$('[data-camp="'+c.id+'"]');if(!card)return;
-    var badge=$('.badge',card),mono=$('[data-cmono]',card),act=$('[data-cact]',card),prog=$('.miniprog i',card),bell=$('[data-campbell]',card);
-    if(bell)bell.classList.toggle('on',Boolean(c.you));
-    if(c.kind==='forming'){
-      var joined=c.you==='joined';
-      if(badge)badge.textContent=joined?('Your cohort · '+(S.sub==='stayed'?'Staying put':PILL[S.state])):'Forming · open to join';
-      if(mono)mono.textContent=(joined&&S.state!=='forming')?(S.cohort.locked+' households, '+PILL[S.state].toLowerCase()):(c.members+' of '+c.target+' households');
-      if(prog)prog.style.width=Math.min(100,Math.round(c.members/c.target*100))+'%';
-      if(act)act.innerHTML=joined
-        ?(S.state==='forming'?'<button class="ccleave" type="button" data-leave="'+c.id+'">Leave this cohort</button>':'')
-        :'<button class="ccbtn" type="button" data-join="'+c.id+'">Join this cohort</button>';
-    }else if(c.kind==='waitlist'){
-      if(mono)mono.textContent=c.you==='waitlist'?('You’re on the list · '+c.members+' waiting'):(c.members+' households waiting');
-      if(act)act.innerHTML=c.you==='waitlist'
-        ?'<button class="ccleave" type="button" data-leave="'+c.id+'">Leave the waitlist</button>'
-        :'<button class="ccbtn" type="button" data-join="'+c.id+'">Join the waitlist</button>';
-    }else if(c.kind==='planned'){
-      if(mono)mono.textContent=c.you?'You’re on the opening-day list':'We’ll text you the day it opens';
-    }
-  });
-}
 /* Campaign history's "in play" panel: everything the member has put their
    name against — a joined cohort, a waitlist spot, an opening-day alert. The
    leave buttons here are the same data-leave the cards use, handled by the
@@ -1762,36 +1943,7 @@ function paintHistory(){
     return '<div class="rrow"><span><b>'+esc(c.region)+'</b><span class="sub">'+esc(c.sub)+'</span>'+tag+'</span><span class="cnt">'+cnt+'</span><span class="act">'+act+'</span></div>';
   }).join('');
 }
-var SHEET=$('#regionsheet');
-function renderSheet(){
-  var tag=function(c){
-    if(c.kind==='auction')return '<span class="rtag prov">With providers now</span>';
-    if(c.kind==='forming')return '<span class="rtag live">Cohort forming</span>';
-    if(c.kind==='planned')return '<span class="rtag">Opens after this round</span>';
-    return '<span class="rtag">Waitlist forming</span>';
-  };
-  $('#rlist').innerHTML=CAMPS.map(function(c){
-    var cnt=c.kind==='auction'?(c.households+' households · bidding'):(c.members+' of '+c.target+' households');
-    var act='';
-    if(c.joinable){
-      act=c.you==='joined'?'<button class="ccleave" type="button" data-leave="'+c.id+'">You’re in · leave</button>'
-        :c.you==='waitlist'?'<button class="ccleave" type="button" data-leave="'+c.id+'">On the list · leave</button>'
-        :'<button class="ccbtn" type="button" data-join="'+c.id+'">'+(c.kind==='forming'?'Join this cohort':'Join the waitlist')+'</button>';
-    }
-    return '<div class="rrow"><span><b>'+esc(c.region)+'</b><span class="sub">'+esc(c.sub)+'</span>'+tag(c)+'</span><span class="cnt">'+cnt+'</span><span class="act">'+act+'</span></div>';
-  }).join('');
-  $('#rs-note').textContent=CAMPLIVE
-    ?'Live counts. Providers watching these regions see them move as neighbours join.'
-    :'Demo counts until the campaign service connects.';
-}
-function renderSheetIfOpen(){if(SHEET&&!SHEET.hidden)renderSheet()}
-function openSheet(){renderSheet();SHEET.hidden=false}
-function closeSheet(){SHEET.hidden=true}
-$('#viewall').addEventListener('click',openSheet);
-$('#rs-close').addEventListener('click',closeSheet);
-SHEET.addEventListener('click',function(e){if(e.target===SHEET)closeSheet()});
-document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!SHEET.hidden)closeSheet()});
-function campRepaint(){syncCohortFromCamps();render();renderSheetIfOpen()}
+function campRepaint(){syncCohortFromCamps();render()}
 /* The endpoint not existing yet (404) or being unreachable degrades to the
    local demo rather than a dead button; a real refusal shows its message. */
 function offlineish(err){return !err||err.code==='NETWORK'||err.status===404}
@@ -1830,18 +1982,6 @@ document.addEventListener('click',function(e){
   if(j){doJoin(j.getAttribute('data-join'),j);return}
   var l=e.target.closest('[data-leave]');
   if(l){doLeave(l.getAttribute('data-leave'));return}
-  var b=e.target.closest('[data-campbell]');
-  if(b){
-    var id=b.getAttribute('data-campbell'),c=campById(id);
-    /* Optimistic: the bell is a promise about the future, so it can read as
-       set immediately; the server call just makes it durable. */
-    if(c&&!c.you)c.you='alert';
-    paintCampaigns();
-    toast('Noted. We’ll text you the day '+(c?c.region:'it')+' opens.');
-    W.session.campaignNotify(id).then(function(r){
-      if(r&&r.campaign){applyCampaign(r.campaign);paintCampaigns();}
-    },function(){});
-  }
 });
 $('#c-text').addEventListener('click',function(){toast('Prototype: opens your messages.')});
 $('#c-mail').addEventListener('click',function(){location.href='mailto:info@whollar.com'});
@@ -1891,26 +2031,6 @@ document.addEventListener('click',function(e){
   if(e.target.closest('#pf-signout')){signOut();return}
   if(e.target.closest('#dl-data'))toast('Prototype: your data export will land by email.');
   if(e.target.closest('#del-acct'))toast('Prototype: deletion flow, with a real confirm step.');
-});
-
-/* ---------- outage report ---------- */
-var EXTRA=[];
-var oc=$('#ochips');
-if(oc)oc.addEventListener('click',function(e){
-  var b=e.target.closest('button');if(!b)return;
-  $$('button',oc).forEach(function(x){x.classList.remove('on')});
-  b.classList.add('on');
-});
-var osend=$('#osend');
-if(osend)osend.addEventListener('click',function(){
-  var what=($('.ochips button.on')||{}).getAttribute?$('.ochips button.on').getAttribute('data-o'):'Internet down';
-  var since=$('#osince').value;
-  EXTRA.push(['Today','You reported: '+what.toLowerCase()+', '+since.toLowerCase()+'. We\u2019re checking your area.']);
-  $('#outagecard').innerHTML='<span class="eyebrow" style="color:#8C4622">Connection trouble?</span>'
-   +'<h3>Logged. We\u2019re on it.</h3>'
-   +'<p class="cardnote">We\u2019re checking reports from other London East members and will text you if it\u2019s more than just you. If it keeps up, we\u2019ll raise it with Rogers on your behalf, that\u2019s what the concierge is for.</p>';
-  toast('Outage logged: '+what+'. We\u2019ll text you what we find.');
-  render();
 });
 
 /* ---------- reads + knowledge ---------- */
@@ -2008,7 +2128,6 @@ if(W&&W.session&&W.session.campaignsList){
     (r.campaigns||[]).forEach(applyCampaign);
     syncCohortFromCamps();
     render();
-    renderSheetIfOpen();
   });
 }
 })();
