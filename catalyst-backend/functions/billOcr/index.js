@@ -245,12 +245,8 @@ async function billContentBlock(file) {
 async function extractBillFields(file) {
   const billBlock = await billContentBlock(file);
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-5',
-    // Sonnet 5 runs adaptive thinking when `thinking` is omitted, and max_tokens
-    // caps thinking + output together — 1024 risked truncating the tool call.
-    // Set both explicitly so behaviour doesn't ride on model defaults.
+    model: 'claude-haiku-4-5',
     max_tokens: 4096,
-    thinking: { type: 'adaptive' },
     system:
       'You extract structured billing fields from Canadian home-internet bills. ' +
       'If a field is ambiguous, missing, or you are not confident, return null for that field ' +
