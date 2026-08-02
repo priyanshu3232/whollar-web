@@ -1,4 +1,4 @@
-/* Whollar shared core — validators, parsers, benchmark, scoring, form plumbing.
+/* Whollar shared core: validators, parsers, benchmark, scoring, form plumbing.
  *
  * WHY THIS FILE EXISTS
  * Before this, every one of these helpers was copy-pasted into 7 pages
@@ -7,7 +7,7 @@
  * validators, and a scoring engine duplicated three times. A fix applied to
  * one copy silently missed the others. Everything shared now lives here.
  *
- * Loaded as a classic script (no modules — these are plain static pages served
+ * Loaded as a classic script (no modules: these are plain static pages served
  * from Vercel, and the bundled pages re-run head scripts after unpacking).
  * Exposes a single global: window.WHOLLAR.
  */
@@ -15,7 +15,7 @@
   'use strict';
 
   /* Bundled pages (index.html, partners.html and their mobile builds) re-run
-     head scripts after the template unpacks. Never initialise twice — the same
+     head scripts after the template unpacks. Never initialise twice, the same
      guard device-router.js uses. */
   if (root.WHOLLAR && root.WHOLLAR.__init) return;
 
@@ -31,7 +31,7 @@
    *
    * ⚠ THIS IS THE DEVELOPMENT ENVIRONMENT. catalyst-backend/.catalystrc
    * declares exactly one environment (id 110003037934, type 3 =
-   * Development) — there is no production environment to point at yet.
+   * Development). There is no production environment to point at yet.
    * Every live lead currently lands in the dev Data Store. Create the
    * production environment in the Catalyst console, then change the two
    * constants below and redeploy the frontend.
@@ -42,7 +42,7 @@
   W.OCR_API = W.CATALYST_HOST + '/server/billOcr';
 
   /* The auth function is reached SAME-ORIGIN, through the /api/auth rewrite in
-     vercel.json — not on W.CATALYST_HOST like the two above. That is not a
+     vercel.json, not on W.CATALYST_HOST like the two above. That is not a
      style choice, it is what makes session cookies possible at all:
      catalystserverless.ca cannot set a cookie for whollar.ca, and a third-party
      cookie would be blocked by Safari ITP anyway. Proxying through Vercel makes
@@ -51,8 +51,8 @@
      Being same-origin also means: no CORS, no preflight, no `credentials`
      juggling, and `connect-src 'self'` in the CSP already covers it.
 
-     Catalyst Domain Mappings — which would let api.whollar.ca front the
-     function directly and remove the proxy hop — are PRODUCTION-ONLY, and this
+     Catalyst Domain Mappings, which would let api.whollar.ca front the
+     function directly and remove the proxy hop, are PRODUCTION-ONLY, and this
      project has no production environment yet. When one exists, this becomes
      'https://api.whollar.ca/auth' and the rewrite in vercel.json is deleted. */
   W.AUTH_API = '/api/auth';
@@ -91,7 +91,7 @@
     A: 'NL', B: 'NS', C: 'PE', E: 'NB', G: 'QC', H: 'QC', J: 'QC',
     K: 'ON', L: 'ON', M: 'ON', N: 'ON', P: 'ON', R: 'MB', S: 'SK',
     T: 'AB', V: 'BC', Y: 'YT'
-    /* X deliberately absent — resolved by FSA below. */
+    /* X deliberately absent: resolved by FSA below. */
   };
   /* X is the only prefix shared by two territories, so the first letter alone
      cannot resolve it. Canada Post splits it by FSA. */
@@ -148,7 +148,7 @@
     var negative = /^\s*[-−]/.test(s);
 
     /* Reject anything containing letters instead of salvaging digits out of it.
-       Blind stripping turned "1e9" into 19 — a plausible-looking bill the user
+       Blind stripping turned "1e9" into 19, a plausible-looking bill the user
        never typed, which then scored as a confident "Strong deal". A leading
        currency code is the only allowed alphabetic prefix. */
     if (/[A-Za-z]/.test(s.replace(/^(CAD|CA|USD|US)/i, ''))) return null;
@@ -183,7 +183,7 @@
   };
 
   /* Parse + range check in one call. Returns
-     { value, ok, reason } — reason is 'empty' | 'nan' | 'low' | 'high'. */
+     { value, ok, reason }; reason is 'empty' | 'nan' | 'low' | 'high'. */
   W.parseMoneyInRange = function (raw, min, max) {
     var n = W.parseMoney(raw);
     if (n === null) return { value: null, ok: false, reason: String(raw || '').trim() ? 'nan' : 'empty' };
@@ -193,7 +193,7 @@
   };
 
   /* Plausible monthly home-internet bill. The floor was already 15; the
-     ceiling is new — there was none, so "999999" scored and rendered. */
+     ceiling is new: there was none, so "999999" scored and rendered. */
   W.BILL_MIN = 15;
   W.BILL_MAX = 500;
 
@@ -207,7 +207,7 @@
      decimals unless the value is whole. */
   W.money = function (n, opts) {
     var v = Number(n);
-    if (!isFinite(v)) return '—';
+    if (!isFinite(v)) return 'n/a';
     var whole = Math.abs(v % 1) < 0.005;
     var forceCents = opts && opts.cents;
     return '$' + (whole && !forceCents
@@ -224,7 +224,7 @@
   /* Parses a <input type="date"> value as a LOCAL calendar date at midnight.
      The old code appended 'T12:00:00' to dodge timezone drift, which meant a
      promo ending *today* read as already expired for anyone using the page
-     after noon — mislabelling the single most urgent case as "Expired". */
+     after noon, mislabelling the single most urgent case as "Expired". */
   W.parseDateLocal = function (v) {
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v || '').trim());
     if (!m) return null;
@@ -326,8 +326,8 @@
           provinceCode: chain[i][1] === 'C' || chain[i][1] === 'F' ? null : pv,
           providerGroup: (chain[i][1] === 'A' || chain[i][1] === 'D') ? grp : null,
           techGroup: (chain[i][1] === 'A' || chain[i][1] === 'B' || chain[i][1] === 'C') ? tech : null,
-          /* True when we had to drop the provider the household actually named
-             — the fallback the spec calls for, worth surfacing. */
+          /* True when we had to drop the provider the household actually named:
+             the fallback the spec calls for, worth surfacing. */
           providerFellBack: !!grp && chain[i][1] !== 'A' && chain[i][1] !== 'D'
         };
       }
@@ -368,7 +368,7 @@
      precisely on the line computes as 0.949999999999999845 and would be graded
      "strong" when the rule says "fair". That is not hypothetical: it happens
      for 21 of the 184 distinct benchmark prices in the current dataset.
-     A tolerance of 1e-9 is ~1/10,000,000 of a cent on a $100 bill — far too
+     A tolerance of 1e-9 is ~1/10,000,000 of a cent on a $100 bill, far too
      small to reclassify any real amount, and large enough to absorb the
      representation error. */
   var RATIO_EPSILON = 1e-9;
@@ -376,7 +376,7 @@
   /* What the household actually pays today. Clamped at zero, and a discount
      that meets or exceeds the charge is flagged as contradictory rather than
      silently producing an effective cost of $0 (which used to score as a
-     "Strong deal — you pay $0/mo"). */
+     "Strong deal: you pay $0/mo"). */
   W.effectiveCost = function (input) {
     var charge = Number(input.cost) || 0;
     var disc = Number(input.discount) || 0;
@@ -396,7 +396,7 @@
     var days = input.promoEnd ? W.daysUntil(input.promoEnd) : null;
 
     /* Cliff is date-driven and does not need a benchmark, so it is checked
-       first — a household with an unknown speed can still be warned. */
+       first: a household with an unknown speed can still be warned. */
     if (days !== null && days >= 0 && days <= W.CLIFF_DAYS) {
       return { state: 'cliff', ratio: null, benchmark: null, effective: eff.value, days: days, reason: null, caveat: null };
     }
@@ -421,7 +421,7 @@
       return { state: 'unknown', ratio: null, benchmark: null, effective: eff.value, days: days, reason: 'no-benchmark', caveat: null };
     }
 
-    /* Strictly outside the band, per the rule above — landing exactly on a
+    /* Strictly outside the band, per the rule above: landing exactly on a
        line is "fair". The epsilon keeps that true in floating point. */
     var r = eff.value / bench.price;
     var state = r > W.WEAK_ABOVE + RATIO_EPSILON ? 'weak'
@@ -444,7 +444,7 @@
    * ------------------------------------------------------------------
    * CASL requires that consent be provable: what was agreed to, when, and
    * where. Previously a checkbox gated the submit button and its state was
-   * then thrown away — nothing about the consent reached the backend.
+   * then thrown away: nothing about the consent reached the backend.
    * ================================================================== */
 
   W.CONSENT_TEXT = {
@@ -521,7 +521,7 @@
        Only a transport failure has no message worth showing, and that is what
        the table below is for. Before this, every case fell through to it, so a
        password one character too short, a six-digit box left half filled and a
-       rejected postal code all read as "check your connection" — sending people
+       rejected postal code all read as "check your connection", sending people
        to debug their wifi over a typo, and hiding the one sentence that said
        what to change. `submitForm` always sets `status`, and a failed fetch
        rejects with a TypeError, so neither can reach this branch. */
@@ -530,12 +530,12 @@
       if (err.status === undefined) return err.message;
     }
     var s = err && err.status;
-    if (s === 429) return 'Too many attempts from your network right now — please try again in a little while.';
-    if (s === 413) return 'That file is too large — please attach a smaller one and try again.';
-    if (s === 415) return 'We can’t accept that file type — a PDF, JPG or PNG works.';
+    if (s === 429) return 'Too many attempts from your network right now. Please try again in a little while.';
+    if (s === 413) return 'That file is too large. Please attach a smaller one and try again.';
+    if (s === 415) return 'We can’t accept that file type. A PDF, JPG or PNG works.';
     if (s === 400 && err.body && err.body.error) return err.body.error;
-    if (s >= 500) return 'Our server had a problem, so this wasn’t saved — please try again in a moment.';
-    return 'We couldn’t reach our servers, so this wasn’t saved — please check your connection and try again.';
+    if (s >= 500) return 'Our server had a problem, so this wasn’t saved. Please try again in a moment.';
+    return 'We couldn’t reach our servers, so this wasn’t saved. Please check your connection and try again.';
   };
 
   /* Disable + relabel a button for the duration of a request. Guards against
@@ -563,7 +563,7 @@
   /* ================================================================== *
    * 8. ACCESSIBLE FIELD ERRORS
    * ------------------------------------------------------------------
-   * Errors used to be a red border and nothing else on 4 of 7 forms — no
+   * Errors used to be a red border and nothing else on 4 of 7 forms: no
    * live region, no association with the input, so screen-reader users got
    * a silent failure. These two helpers wire aria-describedby + role=alert
    * and move focus, from one place.
@@ -654,19 +654,19 @@
     var type = (file.type || '').toLowerCase();
 
     if (file.size === 0) {
-      return { ok: false, code: 'size', message: 'That file is empty — please attach the bill itself.' };
+      return { ok: false, code: 'size', message: 'That file is empty. Please attach the bill itself.' };
     }
     if (file.size > W.MAX_ATTACH) {
-      return { ok: false, code: 'size', message: 'That file is over 20 MB — a photo of the first page works too.' };
+      return { ok: false, code: 'size', message: 'That file is over 20 MB. A photo of the first page works too.' };
     }
     if (W.isHeic(file)) {
       return {
         ok: true, code: 'heic',
-        message: 'Attached. It’s an iPhone HEIC photo, so we can’t auto-read it — please fill in the fields below and we’ll open it by hand.'
+        message: 'Attached. It’s an iPhone HEIC photo, so we can’t auto-read it. Please fill in the fields below and we’ll open it by hand.'
       };
     }
     if (type && W.UPLOAD_TYPES.indexOf(type) === -1) {
-      return { ok: false, code: 'type', message: 'We can’t take that file type — a PDF, JPG, PNG, WebP or GIF works.' };
+      return { ok: false, code: 'type', message: 'We can’t take that file type. A PDF, JPG, PNG, WebP or GIF works.' };
     }
     return { ok: true, code: null, message: null };
   };
@@ -772,13 +772,13 @@
    *
    * A completed public checkup is the single richest thing a visitor tells
    * us, and most of them are signed out when they do it. This key holds that
-   * result so the sign-in that happens LATER — minutes or days, same browser
-   * — can attach it to the account: session 12's sync POSTs it to /me/bill
+   * result so the sign-in that happens LATER (minutes or days, same browser)
+   * can attach it to the account: session 12's sync POSTs it to /me/bill
    * and clears it.
    *
    * localStorage, not sessionStorage, on purpose: the whole point is to
    * outlive the visit ("run the numbers today, sign up tomorrow"). That is a
-   * deliberate exception to the draft rule above, so it is bounded — synced
+   * deliberate exception to the draft rule above, so it is bounded: synced
    * copies are cleared immediately, and an unclaimed one expires on read
    * after 14 days rather than sitting there indefinitely.
    *
@@ -825,7 +825,7 @@
    * which script cannot read, forge or extend.
    *
    * The two have to be reconciled somewhere, because a sign-in that
-   * completes on the SERVER — Google, and the emailed code — hands the
+   * completes on the SERVER (Google, and the emailed code) hands the
    * browser a cookie and writes nothing to localStorage. A page that trusts
    * the local record alone would bounce a genuinely signed-in visitor back
    * to the form they just finished. adopt() closes that gap: ask the server
@@ -841,14 +841,14 @@
    * POST JSON to the auth function and unwrap its one error shape.
    *
    * A JSON body would normally trigger a CORS preflight, and the Catalyst
-   * gateway answers preflight itself without CORS headers — which is why the
+   * gateway answers preflight itself without CORS headers, which is why the
    * lead and OCR endpoints stay form-encoded. It is safe HERE and only here
    * because /api/auth is a same-origin Vercel rewrite, so no preflight is
    * issued at all. Point this at the Catalyst host directly and it breaks.
    *
    * Rejects with an Error carrying `.code` (VALIDATION_ERROR, RATE_LIMITED,
    * UNAUTHENTICATED …) so a caller can react to the kind of failure, and
-   * `.message` already written for a human — errors.js composes those on the
+   * `.message` already written for a human: errors.js composes those on the
    * assumption they will be shown verbatim, so pages should show them rather
    * than substituting their own guess at what went wrong.
    */
@@ -879,7 +879,7 @@
   /**
    * Reconcile the member's bill between this browser and the server.
    * Resolves with the (possibly patched) member record, or null when there is
-   * no local member record to sync into. Never rejects — this runs inside
+   * no local member record to sync into. Never rejects: this runs inside
    * boot paths (adopt, the dashboard's load) where a flaky network must
    * degrade to "render what we have", not to a blank page.
    *
@@ -934,7 +934,7 @@
      * Reconcile the cookie into the local record.
      * Resolves with the record when a session exists, null when it does not.
      *
-     * `expect` is the user type the CALLING PAGE serves — 'member' or
+     * `expect` is the user type the CALLING PAGE serves: 'member' or
      * 'provider'. Pass it. A partner session is not a member session, and a
      * page that treats "some session exists" as "the right session exists"
      * ping-pongs: the consumer sign-in would adopt the partner's session, send
@@ -942,7 +942,7 @@
      * forever. On a mismatch this resolves null and writes nothing.
      *
      * A member session writes the member key and a partner session the partner
-     * key, never the other way round — section 11 explains what crossing them
+     * key, never the other way round. Section 11 explains what crossing them
      * would open up.
      *
      * Fields the session payload has never carried (postal code, province) are
@@ -980,7 +980,7 @@
           memberSince: s.user.memberSince || keep.memberSince || null
         });
 
-        /* A member's bill lives on the server, keyed by their account — not
+        /* A member's bill lives on the server, keyed by their account, not
            in this record. Reconcile it here so every sign-in path (password,
            code, Google) lands on a dashboard that already shows their own
            checkup: push the pending handoff, pull the server copy. */
@@ -990,7 +990,7 @@
     },
 
     /**
-     * The bill the server holds for the signed-in member, or null — for a
+     * The bill the server holds for the signed-in member, or null: for a
      * signed-out visitor, a partner session, and every failure alike. The
      * first call for a member who ran the public checkup with the same email
      * is the one that links the two: the server copies that submission onto
@@ -1021,11 +1021,11 @@
     },
 
     /* See syncMemberBill above. Exposed for pages that are already signed in
-       when they load — their boot skips adopt(), so they call this instead. */
+       when they load: their boot skips adopt(), so they call this instead. */
     syncBill: syncMemberBill,
 
     /**
-     * The rating this member has already given their provider, or null —
+     * The rating this member has already given their provider, or null:
      * for a signed-out visitor, a partner session, and every failure alike.
      * Never rejects: the dashboard's rating card degrades to "show the form"
      * on any network hiccup rather than blocking on it.
@@ -1046,7 +1046,7 @@
 
     /**
      * Record the signed-in member's rating. -> { ok, rating }
-     * REJECTS on failure (same contract as billSave) — the caller shows the
+     * REJECTS on failure (same contract as billSave): the caller shows the
      * error rather than silently discarding it, since this is a one-time ask
      * and the .code is what tells a repeat submission (CONFLICT) apart from
      * a real failure. `rating` is { provider, price, reliability, support, speed }.
@@ -1058,7 +1058,7 @@
     /**
      * The campaigns near the signed-in member: live counts plus their own
      * standing in each (`you`: 'joined' | 'waitlist' | 'alert' | null).
-     * Never rejects — this runs in the dashboard's boot path, where a missing
+     * Never rejects: this runs in the dashboard's boot path, where a missing
      * endpoint or a flaky network must degrade to the page's built-in demo
      * data, not to a blank section. Resolves { live, campaigns } or null.
      * `live:false` means the server answered but counts are seed baselines
@@ -1081,7 +1081,7 @@
     /**
      * Join a forming cohort or a region's waitlist / leave one / ask for the
      * opening-day text. Button paths, so these REJECT on failure with the
-     * server's message — show it, the copy is written to be shown. Each
+     * server's message: show it, the copy is written to be shown. Each
      * resolves { ok, campaign } with the campaign's updated counts.
      */
     campaignJoin: function (id) { return authPost('/campaigns/join', { campaign: id }); },
@@ -1090,7 +1090,7 @@
 
     /**
      * The partner console's view of the same campaigns: counts only, no
-     * member identity. Never rejects — resolves { live, campaigns } or null,
+     * member identity. Never rejects: resolves { live, campaigns } or null,
      * and the console keeps its demo numbers on null.
      */
     providerCampaigns: function () {
@@ -1116,7 +1116,7 @@
      * and a swallowed failure there is a form that silently does nothing.
      *
      * The server answers 200 with the same body whether or not an account
-     * exists — do not add anything here that treats those cases differently,
+     * exists. Do not add anything here that treats those cases differently,
      * it is the whole reason the endpoint is not an enumeration oracle.
      *
      * `dev.code` comes back ONLY in non-production with no mail provider
@@ -1132,7 +1132,7 @@
      * -> { ok, created, user, expiresAt }
      *
      * `firstName` is passed through so the account is created with it in the
-     * same request — collecting a name on the form and then writing it only
+     * same request. Collecting a name on the form and then writing it only
      * to localStorage is how the server ends up not knowing who anyone is.
      */
     otpVerify: function (o) {
@@ -1147,15 +1147,15 @@
     /**
      * Create an account. -> { ok, ttlMinutes, dev? }
      *
-     * Answers identically whether or not the address already has an account —
-     * the owner is told by email instead. Nothing here may branch on the
+     * Answers identically whether or not the address already has an account.
+     * The owner is told by email instead. Nothing here may branch on the
      * response to guess which happened; that symmetry is the only thing
      * stopping the signup form being used to ask who has an account.
      *
      * The account exists after this call but is inert until `signupVerify`:
      * `status` is 'pending' and the password opens nothing.
      *
-     * Re-posting for an address still pending is also the resend — it replaces
+     * Re-posting for an address still pending is also the resend: it replaces
      * the password with the same one and issues a fresh code.
      */
     signup: function (o) {
@@ -1175,13 +1175,13 @@
     /**
      * Prove the address and take the session. -> { ok, created, user, expiresAt }
      *
-     * Authenticates with the emailed code alone — the password set at signup is
+     * Authenticates with the emailed code alone: the password set at signup is
      * deliberately not re-sent, so no page needs to hold it between the two
      * requests.
      *
      * `marketing` travels HERE and not with /signup, because the server writes
      * the consent rows at the moment the account becomes real. Sending it at
-     * signup instead — which this function used to do by omission — meant the
+     * signup instead, which this function used to do by omission, meant the
      * marketing consent row was silently never written for anyone, which is a
      * CASL problem rather than a missing field.
      */
@@ -1210,7 +1210,7 @@
      *
      * Resolves identically whether or not the address has an account. That is
      * the server refusing to be an oracle for who is registered, so a caller
-     * must NOT try to infer anything from it — show "check your email" and
+     * must NOT try to infer anything from it: show "check your email" and
      * nothing more.
      */
     forgotPassword: function (o) {
@@ -1221,7 +1221,7 @@
      * Set a new password with the emailed code. -> { ok, user, expiresAt }
      *
      * Succeeds straight into a session, so no second sign-in is needed. Every
-     * other live session is revoked server-side first — the point of resetting
+     * other live session is revoked server-side first: the point of resetting
      * a password after a compromise is that the other party stops being signed
      * in, which does not happen if their session survives the change.
      */
@@ -1236,14 +1236,14 @@
     /**
      * Register a partner. -> { ok, ttlMinutes, dev? }
      *
-     * Same opacity contract as signup() above — the response never says
+     * Same opacity contract as signup() above: the response never says
      * whether the address already had an account. The ONE exception the
      * server makes is a free-mailbox address (gmail, outlook …): that comes
      * back as a VALIDATION_ERROR telling them to use their work email,
      * because the email domain is what the partner org is derived from.
      * Show that message on the email field, not as a generic failure.
      *
-     * Everything the account needs travels in this single request — the
+     * Everything the account needs travels in this single request: the
      * code that follows only proves the address, it carries no fields.
      */
     providerSignup: function (o) {
@@ -1261,7 +1261,7 @@
      * Prove the address and take the session. -> { ok, user, org, approved }
      *
      * `approved` is the org's approval, decided by a human, and is FALSE for
-     * a brand-new company. The session is real either way — an unapproved
+     * a brand-new company. The session is real either way: an unapproved
      * partner lands on a "we're reviewing your application" state, not a
      * login form that rejects them. Every surface showing real data must
      * check `approved`, not just "signed in".
@@ -1277,7 +1277,7 @@
     /**
      * Partner sign-in. -> { ok, user, org, approved }
      *
-     * One opaque message for every failure — including a correct password on
+     * One opaque message for every failure, including a correct password on
      * a never-verified address. Unlike the member login there is no
      * EMAIL_UNVERIFIED branch to recover into a code step; the caller shows
      * the message and stops.
@@ -1290,8 +1290,8 @@
      * What the signed-in partner may see about themselves.
      * -> { ok, user, org, approved } ; rejects when not a partner session.
      *
-     * This is where a page gets the real org name and approval state —
-     * deriving either from the email address is a guess the server does not
+     * This is where a page gets the real org name and approval state.
+     * Deriving either from the email address is a guess the server does not
      * have to make.
      */
     providerMe: function () {
@@ -1316,13 +1316,13 @@
 
     /* ---- account & preferences (both dashboards) --------------------
        Button paths REJECT with the server's message; boot-path reads
-       resolve null/{} instead — the same split as everything above. */
+       resolve null/{} instead, the same split as everything above. */
 
     /** Update profile fields. Send only the keys being changed.
         -> { ok, user } with the fresh public profile. */
     profileSave: function (fields) { return authPost('/me/profile', fields); },
 
-    /** The stored preference blob, or {} — signed out and failures alike. */
+    /** The stored preference blob, or {}: signed out and failures alike. */
     prefsGet: function () {
       return fetch(W.AUTH_API + '/me/prefs', {
         method: 'GET',
@@ -1357,7 +1357,7 @@
       }).catch(function () { return null; });
     },
 
-    /** Everything the account owns, as one JSON document. REJECTS on failure —
+    /** Everything the account owns, as one JSON document. REJECTS on failure:
         this runs from a button whose whole job is producing the file. */
     exportData: function () {
       return fetch(W.AUTH_API + '/me/export', {
@@ -1379,8 +1379,8 @@
       });
     },
 
-    /** Delete the account. `confirmEmail` must match the account's address —
-        the server refuses anything else. -> { ok } */
+    /** Delete the account. `confirmEmail` must match the account's address.
+        The server refuses anything else. -> { ok } */
     deleteAccount: function (confirmEmail) {
       return authPost('/me/delete', { confirmEmail: confirmEmail });
     },
@@ -1445,7 +1445,7 @@
      *
      * Clearing only localStorage is not a sign-out: the cookie survives, and
      * the next page load would adopt() it and sign the visitor straight back
-     * in. The local clear happens either way — a failed request must not
+     * in. The local clear happens either way: a failed request must not
      * leave someone looking at a dashboard they pressed "sign out" on.
      */
     end: function (which) {
@@ -1493,7 +1493,7 @@
   };
 
   /* Monogram for an avatar chip: initials of the first two words. A single word
-     gives a single letter on purpose — two letters of "Northline" is "NO",
+     gives a single letter on purpose: two letters of "Northline" is "NO",
      which reads as the word rather than as initials. Never empty. */
   W.monogram = function (text) {
     var words = String(text || '').trim().split(/[\s.\-_]+/).filter(Boolean);

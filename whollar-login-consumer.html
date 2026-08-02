@@ -17,7 +17,7 @@
 <title>Sign in · Whollar</title>
 <!-- Both sign-in paths on this page are real now (Google, and the emailed
      code). The noindex stays until the flow has been run end-to-end against
-     created tables — indexing a sign-in page that 500s is worse than not
+     created tables: indexing a sign-in page that 500s is worse than not
      indexing it at all. Remove once /health reports the schema verified. -->
 <meta name="robots" content="noindex,nofollow">
 <link rel="preconnect" href="https://api.fontshare.com">
@@ -30,7 +30,7 @@
   --teal:#0E2A20; --teal-deep:#0A2018; --teal-bright:#178A5A; --teal-soft:#7FE3B0;
   --accent:#1E9E63; --accent-hover:#178A5A;
   --cream:#FAF8F3; --paper:#ffffff; --mist:#F6F4EE;
-  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#5F6B64; /* was #8A968F (2.6-3.1:1) — carries real body copy at 11-12.5px; darkened to clear WCAG AA 4.5:1 on cream, white, mist, green-tint and warn-soft */ --line:#e7ebe6; --line-2:#dfe3dd;
+  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#5F6B64; /* was #8A968F (2.6-3.1:1), carries real body copy at 11-12.5px; darkened to clear WCAG AA 4.5:1 on cream, white, mist, green-tint and warn-soft */ --line:#e7ebe6; --line-2:#dfe3dd;
   --warn:#C2643B; --warn-text:#A34F2B; /* --warn stays for borders/strokes (decorative). Text must use --warn-text: #C2643B is only 3.4-3.8:1 on these backgrounds. */ --warn-soft:#F7E7DD; --green-tint:#E4F4EC;
   --label:'General Sans','Satoshi',system-ui,sans-serif;
   --disp:'Satoshi',system-ui,sans-serif;
@@ -130,7 +130,7 @@ button{font-family:var(--body)}
 
 /* Dev-only affordance: the auth function returns the code in its response
    when no mail provider is configured, so the flow is testable before the
-   ZeptoMail domain is verified. Styled as a notice, not as chrome — it must
+   ZeptoMail domain is verified. Styled as a notice, not as chrome. It must
    look like something that is not supposed to be there. */
 .preview-note{background:var(--warn-soft);border:1px solid #E8C7AE;color:#7A3A19;font-size:12.5px;line-height:1.5;border-radius:12px;padding:10px 13px;margin:0 0 18px}
 .preview-note b{font-weight:700}
@@ -173,7 +173,7 @@ button{font-family:var(--body)}
 
   <!-- BRAND PANEL -->
   <aside class="brand">
-    <a class="mark rv" href="/" aria-label="Whollar — back to the homepage">
+    <a class="mark rv" href="/" aria-label="Whollar, back to the homepage">
       <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
       <b>Whollar</b>
     </a>
@@ -242,7 +242,7 @@ button{font-family:var(--body)}
         <!-- A link to the founding-member page (/waitlist/), not the in-page
              signup view: account creation lives there, with the full pitch
              around it. This link was the signup view's only entry point, so
-             that view and its code step are now unreachable — kept in the
+             that view and its code step are now unreachable, kept in the
              file but dead until someone re-links or removes them. -->
         <p class="foot-switch">New to Whollar? <a class="linkbtn" href="/waitlist/">Create an account</a></p>
       </section>
@@ -325,7 +325,7 @@ button{font-family:var(--body)}
         <!-- The server answers /signup identically for a new address and one
              that already has an account, so that this page cannot be used to
              ask who is registered. The cost is that somebody in the second case
-             waits for a code that is never coming — this line is what stops
+             waits for a code that is never coming. This line is what stops
              that being a mystery. -->
         <p class="legal">Already had an account with this address? We've emailed you a sign-in link instead of a code.</p>
       </section>
@@ -425,7 +425,7 @@ function toast(msg){
 /* A real navigation, deliberately not a fetch: /google/start answers with a 302
    to Google's consent screen, and only a top-level navigation can follow that.
    Where to land afterwards travels as ?next=, which the server stores against
-   the flow and re-validates \u2014 it is never read back from Google's callback. */
+   the flow and re-validates. It is never read back from Google's callback. */
 function oauthStart(provider){
   location.href = W.AUTH_API + '/' + provider + '/start?next=' + encodeURIComponent(nextTarget());
 }
@@ -480,7 +480,7 @@ function nextTarget(){
  * The server is the authority on every failure and this file never invents a
  * message for one. Sign-in collapses "no such account", "wrong password" and
  * "not verified" into one string on purpose, so that this page cannot be used
- * to ask which addresses are registered — restating any of them here in nicer
+ * to ask which addresses are registered. Restating any of them here in nicer
  * words would give that away.
  * ------------------------------------------------------------------ */
 
@@ -522,8 +522,8 @@ function markField(fieldId, bad, inputId) {
 }
 
 /* Show/hide, wired by data-peek so a new password field needs no new handler.
-   The label says what pressing it will DO, not what state you are in — "Show"
-   while hidden — because the other reading has people toggling twice to work
+   The label says what pressing it will DO, not what state you are in ("Show"
+   while hidden), because the other reading has people toggling twice to work
    out which way round it is. */
 document.addEventListener('click', function (e) {
   var btn = e.target.closest && e.target.closest('.peek[data-peek]');
@@ -538,7 +538,7 @@ document.addEventListener('click', function (e) {
 /* ---------- code boxes ---------- */
 
 /* One implementation for both the signup code and the reset code. The two sets
-   behave identically and a second copy would drift — the paste handler in
+   behave identically and a second copy would drift. The paste handler in
    particular is the fiddly part and is not worth writing twice. */
 function otpGroup(containerId, onFull) {
   var box = document.getElementById(containerId);
@@ -605,7 +605,7 @@ function countdown(btnId, seconds) {
 /* The server hands back the code itself when no mail provider is configured,
    so the flow stays testable before a sending domain is verified. Two
    conditions gate it server-side (non-production AND no transport), so this
-   block cannot appear in production — but it is styled as a warning rather
+   block cannot appear in production, but it is styled as a warning rather
    than as chrome, because it must look like something that is not meant to be
    there. */
 function showDevCode(elId, group, dev) {
@@ -623,7 +623,7 @@ function showDevCode(elId, group, dev) {
 
 /* Every successful path ends here. adopt() re-reads the session from the server
    rather than trusting what the verify response said, so the localStorage
-   record and the cookie can never disagree — and a null answer means the
+   record and the cookie can never disagree, and a null answer means the
    cookie did not stick, which is worth saying plainly instead of redirecting
    into a dashboard that will bounce straight back. */
 function finishSignIn(errId, btn) {
@@ -655,7 +655,7 @@ document.getElementById('to-signin').addEventListener('click', function () {
 });
 document.getElementById('to-forgot').addEventListener('click', function () {
   clearErr('signin-err');
-  /* Carry the address across rather than making them type it again — they have
+  /* Carry the address across rather than making them type it again. They have
      usually just failed to sign in with it. */
   var typed = document.getElementById('si-email').value.trim();
   if (typed) document.getElementById('fp-email').value = typed;
@@ -700,7 +700,7 @@ document.getElementById('signin-form').addEventListener('submit', function (e) {
       W.busy(btn, false);
       /* The password was RIGHT but the address was never confirmed. The server
          has already re-sent a code, so the only useful thing to do is show the
-         step where they can type it — bouncing them back to a sign-in form
+         step where they can type it. Bouncing them back to a sign-in form
          they just filled in correctly would be a dead end. */
       if (err && err.code === 'EMAIL_UNVERIFIED') {
         pending = { email: em.value.trim(), password: pw.value, marketing: true };
@@ -731,7 +731,7 @@ document.getElementById('signup-form').addEventListener('submit', function (e) {
   if (!okEmail) { em.focus(); return; }
 
   /* Mirrors the server's own rule so the common mistake is caught without a
-     round trip. The server still enforces it — this is a courtesy, not the
+     round trip. The server still enforces it. This is a courtesy, not the
      check. */
   if (pw.value.length < 10) {
     setErr('su-pass-err', 'Use at least 10 characters.');
@@ -797,7 +797,7 @@ document.getElementById('code-form').addEventListener('submit', function (e) {
       setErr('otp-err', serverMessage(err));
       document.getElementById('otp').classList.add('err');
       codeOtp.clear();
-      /* Let the same six digits be retried after a transport failure — without
+      /* Let the same six digits be retried after a transport failure. Without
          this the auto-submit guard would swallow the second attempt. */
       codeOtp.reset();
       codeOtp.focus();
@@ -835,7 +835,7 @@ document.getElementById('editemail').addEventListener('click', function () {
 
 var fpOtp = otpGroup('fp-otp', function () {
   /* No auto-submit here: unlike the signup step, a complete code is not enough
-     to act on — the new password still has to be typed below it. Filling six
+     to act on. The new password still has to be typed below it. Filling six
      digits just moves focus on. */
   var pw = document.getElementById('fp-password');
   if (!pw.value) pw.focus();

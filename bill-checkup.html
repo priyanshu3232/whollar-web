@@ -8,7 +8,7 @@
         y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
     })(window, document, "clarity", "script", "xrkpgls1yj");
     /* This page's inputs are bill details and an email address. Clarity
-       records session replays, so mask text content by default — PIPEDA /
+       records session replays, so mask text content by default. PIPEDA /
        Quebec Law 25 make recording an identifiable bill a real exposure. */
     window.clarity('set','mask','true');
 </script>
@@ -17,17 +17,17 @@
 <script src="/js/device-router.js"></script>
 <script src="/js/whollar-benchmarks.js"></script>
 <script src="/js/whollar-core.js"></script>
-<title>Check if you're overpaying for internet — Whollar</title>
-<meta name="description" content="Enter your internet bill and speed to see how your price compares to the national advertised range for your tier — and when your promo discount ends.">
+<title>Check if you’re overpaying for internet · Whollar</title>
+<meta name="description" content="Enter your internet bill and speed to see how your price compares to the national advertised range for your tier, and when your promo discount ends.">
 <link rel="canonical" href="https://www.whollar.ca/bill-checkup">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://www.whollar.ca/bill-checkup">
 <meta property="og:title" content="Check if you're overpaying for internet">
-<meta property="og:description" content="Enter your internet bill and speed to see how your price compares to the national advertised range for your tier — and when your promo discount ends.">
+<meta property="og:description" content="Enter your internet bill and speed to see how your price compares to the national advertised range for your tier, and when your promo discount ends.">
 <meta property="og:site_name" content="Whollar">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Check if you're overpaying for internet">
-<meta name="twitter:description" content="Enter your internet bill and speed to see how your price compares to the national advertised range for your tier — and when your promo discount ends.">
+<meta name="twitter:description" content="Enter your internet bill and speed to see how your price compares to the national advertised range for your tier, and when your promo discount ends.">
 <link rel="preconnect" href="https://api.fontshare.com">
 <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -150,18 +150,8 @@ body[data-screen="2"] .only1{display:none!important}
 @keyframes shake{0%,100%{transform:none}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 
 /* waitlist block in-form */
-.wl{margin-top:22px;border:1.5px solid var(--line);border-radius:16px;overflow:hidden;transition:border-color .2s}
-.wl.on{border-color:#BBD9C8}
-.wl__row{display:flex;align-items:flex-start;gap:12px;padding:15px 17px;cursor:pointer;background:var(--paper)}
-.wl__row input{margin:2px 0 0;width:19px;height:19px;flex:none;accent-color:var(--accent);cursor:pointer}
-.wl__row b{display:block;font-family:var(--disp);font-weight:700;font-size:15.5px;color:var(--teal)}
-.wl__row span{font-size:12.5px;color:var(--ink-3);line-height:1.5;display:block;margin-top:2px}
-.wl__more{display:none;padding:15px 17px;border-top:1px dashed var(--line);background:var(--cream)}
-.wl.on .wl__more{display:block;animation:rise .3s var(--ease)}
-.wl__more input[type=email]{font-family:var(--body);font-size:15px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;width:100%}
-.wl__more input[type=email]:focus{outline:none;border-color:var(--accent)}
-.wl__more input.err{border-color:var(--warn-text);animation:shake .3s}
-.wl__consent{font-size:11.5px;color:var(--ink-2);margin-top:11px;line-height:1.5}
+.wl{margin-top:22px;border:1.5px solid var(--line);border-radius:16px;padding:15px 17px;background:var(--cream)}
+.wl__consent{font-size:11.5px;color:var(--ink-2);margin-top:0;line-height:1.5}
 .wl__consent a{color:var(--teal-bright);text-decoration:underline;text-underline-offset:2px}
 
 /* Field-level errors. Every one carries role="alert" and is wired to its
@@ -169,12 +159,12 @@ body[data-screen="2"] .only1{display:none!important}
    instead of being a silent red border. */
 .whl-fielderr{margin:6px 0 0;font-size:12px;font-weight:600;color:var(--warn-text);line-height:1.45}
 .f .whl-fielderr{margin-top:5px}
-/* The join rails and the results join card are dark green — the AA-on-cream
+/* The join rails and the results join card are dark green. The AA-on-cream
    warn colour is unreadable there, so these get the light variant already used
    for submit errors on the same cards. */
 .join2 .whl-fielderr,.rail .whl-fielderr{color:#FFC9A8}
 
-/* Visually hidden but available to screen readers — for labels that the visual
+/* Visually hidden but available to screen readers, for labels that the visual
    design carries by position (e.g. the waitlist email field). */
 .whl-sr{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 .wl__trust{font-size:11px;color:var(--ink-3);margin-top:10px}
@@ -382,7 +372,7 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
   <div class="wrap">
     <span class="whl-eyebrow">The Whollar checkup</span>
     <h1>What's your internet <em style="font-style:normal;color:var(--accent)">really</em> costing you?</h1>
-    <p class="sub">Not the sticker &mdash; the <b>complete bill</b>: your plan, the rented box, the credits, and the jump that lands when your promo quietly expires.</p>
+    <p class="sub">Not the sticker. The <b>complete bill</b>: your plan, the rented box, the credits, and the jump that lands when your promo quietly expires.</p>
   </div>
 </header>
 
@@ -398,7 +388,7 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
 
         <label class="upload" for="bill-file" id="uploadZone">
           <span class="upload__icon"><svg viewBox="0 0 24 24"><path d="M12 16V5"/><path d="M7 10l5-5 5 5"/><path d="M4.5 18a4 4 0 0 1 1-7.9A6 6 0 0 1 17 7a5 5 0 0 1 3 9.5"/></svg></span>
-          <span class="upload__copy"><b>Shortcut: attach your bill</b><span>Drag it in, or click to browse &mdash; PDF or photo, we'll decode every line.</span></span>
+          <span class="upload__copy"><b>Shortcut: attach your bill</b><span>Drag it in, or click to browse. PDF or photo, we'll decode every line.</span></span>
           <span class="upload__cta">Upload<svg viewBox="0 0 24 24"><path d="M12 16V5"/><path d="M7 10l5-5 5 5"/></svg></span>
           <input type="file" id="bill-file" accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/gif" style="display:none">
         </label>
@@ -445,40 +435,32 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
             <label for="pdate">When does your promo / discount end?</label>
             <span class="badge">the jump</span>
             <input id="pdate" type="date">
-            <span class="fh">The &ldquo;Savings&rdquo; line on your bill shows it &mdash; e.g. <i>ends May 21/26</i>. Leave blank if none.</span>
+            <span class="fh">The &ldquo;Savings&rdquo; line on your bill shows it, e.g. <i>ends May 21/26</i>. Leave blank if none.</span>
           </div>
           <div class="f" data-live>
             <label for="disc">Discount amount, if you know it</label>
             <input id="disc" placeholder="$ / month (optional)" inputmode="decimal" maxlength="12" autocomplete="off">
-            <span class="fh">Blank is fine &mdash; we estimate the jump and say so.</span>
+            <span class="fh">Blank is fine. We estimate the jump and say so.</span>
             <p class="whl-fielderr" id="disc-err" role="alert" style="display:none"></p>
           </div>
-          <!-- The email moved out of the waitlist card into an ordinary form
-               field: it keeps its id, so the draft, the join validation and
-               the rail's write-back all still find it. Only required when the
-               checkbox below is ticked — the submit handler enforces that. -->
+          <!-- The waitlist opt-in checkbox is gone: email is now a required
+               field on every submission, and the submit handler always joins.
+               The id stays the same, so the draft and the rail's write-back
+               still find it. -->
           <div class="f" data-live>
             <label for="email">Email address</label>
-            <input type="email" id="email" placeholder="you@example.com" autocomplete="email" maxlength="254" inputmode="email">
+            <input type="email" id="email" placeholder="you@example.com" autocomplete="email" maxlength="254" inputmode="email" required>
             <p class="whl-fielderr" id="email-err" role="alert" style="display:none"></p>
           </div>
         </div>
 
         <div class="wl" id="wl">
-          <label class="wl__row">
-            <input type="checkbox" id="wl-check">
-            <span><b>Join Whollar's waitlist</b>
-            <span>This isn't only about your bill. Every household that joins makes pricing a little more honest &mdash; and hears it first when Whollar goes beyond internet.</span></span>
-          </label>
-          <div class="wl__more">
-            <!-- CASL: express consent for commercial email, with the exact
-                 wording, the timestamp and the source page recorded server-side
-                 (see WHOLLAR.consentPayload). This text must stay visible with
-                 the checkbox that grants it — a gated checkbox whose wording
-                 was hidden is not provable consent. -->
-            <p class="wl__consent">By joining you agree to receive email about your cohort and offers, and accept our <a href="/terms" target="_blank" rel="noopener noreferrer">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy&nbsp;Policy</a>. You can unsubscribe at any time.</p>
-            <p class="wl__trust">Free for households &mdash; providers pay us only when they win your group.</p>
-          </div>
+          <!-- CASL: express consent disclosure for commercial email, with the
+               timestamp and source page recorded server-side (see
+               WHOLLAR.consentPayload). Kept visible next to the email field
+               it applies to now that there is no opt-in checkbox to gate it. -->
+          <p class="wl__consent">By submitting, you agree to receive email about your cohort and offers, and accept our <a href="/terms" target="_blank" rel="noopener noreferrer">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy&nbsp;Policy</a>. You can unsubscribe at any time.</p>
+          <p class="wl__trust">Free for households. Providers pay us only when they win your group.</p>
         </div>
 
         <div class="cta-row">
@@ -501,7 +483,7 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
 
         <section class="deep" id="deep">
           <h4>Want the deep read?</h4>
-          <p>The cliff, the reset date, the clauses that move your number &mdash; they're written in your paperwork. Share your agreement or a few more bills and we'll decode every line.</p>
+          <p>The cliff, the reset date, the clauses that move your number. They're written in your paperwork. Share your agreement or a few more bills and we'll decode every line.</p>
           <div id="deep-form">
             <label class="dupl" for="deep-files">
               <svg viewBox="0 0 24 24"><path d="M12 16V5"/><path d="M7 10l5-5 5 5"/><path d="M4.5 18a4 4 0 0 1 1-7.9A6 6 0 0 1 17 7a5 5 0 0 1 3 9.5"/></svg>
@@ -530,7 +512,7 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
       <div class="know only1">
         <h4>Worth knowing</h4>
         <div class="krow"><span class="kn good">$0</span><p><b>What switching costs in fees since June 12, 2026.</b> Activation, change and cancellation fees are banned (CRTC 2026&#8209;43).</p></div>
-        <div class="krow"><span class="kn hot">30&ndash;60%</span><p><b>The average promo cliff.</b> How far prices reset when the discount expires &mdash; it lands on autopay, noticed a bill or two later.</p></div>
+        <div class="krow"><span class="kn hot">30&ndash;60%</span><p><b>The average promo cliff.</b> How far prices reset when the discount expires. It lands on autopay, noticed a bill or two later.</p></div>
         <div class="krow" style="display:block">
           <div class="inv-wrap">
             <div class="inv" id="inv" aria-label="A real bill, animated">
@@ -542,9 +524,9 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
               <div class="tot"><em>Total before tax</em><b id="inv-tot">$73.99</b></div>
             </div>
           </div>
-          <p class="inv-cap">A real household's statements, Jan&rarr;May 2026 (anonymized). The discount expired &mdash; <b style="color:var(--teal)">nobody called to warn them.</b></p>
+          <p class="inv-cap">A real household's statements, Jan&rarr;May 2026 (anonymized). The discount expired. <b style="color:var(--teal)">Nobody called to warn them.</b></p>
         </div>
-        <div class="krow"><span class="kn">$60&ndash;180<span style="font-size:11px">/yr</span></span><p><b>What the rented box adds.</b> Most independents include the modem free &mdash; same internet, no line item.</p></div>
+        <div class="krow"><span class="kn">$60&ndash;180<span style="font-size:11px">/yr</span></span><p><b>What the rented box adds.</b> Most independents include the modem free: same internet, no line item.</p></div>
       </div>
 
       <div class="getnum only1">
@@ -560,7 +542,7 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
       <!-- SCREEN 2 rail: 11 levers -->
       <div class="lev only2" id="lev" style="display:none">
         <h4>The 11 levers behind one number</h4>
-        <p id="lev-sub">Whollar sorts this complexity for you &mdash; so you finally see what it actually takes to price your internet.</p>
+        <p id="lev-sub">Whollar sorts this complexity for you, so you finally see what it actually takes to price your internet.</p>
         <div id="lev-list"></div>
       </div>
 
@@ -596,7 +578,7 @@ const S={pc:null,pcFull:null,province:null,provinceCode:null,prov:'',cost:0,spd:
 const submitForm=(path,fields,files)=>W.submitForm(path,fields,files);
 const busy=(btn,on,label)=>W.busy(btn,on,label);
 
-/* A failed submit must never masquerade as success — surface it and let the
+/* A failed submit must never masquerade as success. Surface it and let the
    user retry. dark=true renders legibly on the dark join cards. */
 function submitErr(anchor,err,dark){
   console.error('[whollar submit]',err);
@@ -617,7 +599,7 @@ function noteFileRejected(anchor,reason,dark){
   const el=document.createElement('p');
   el.setAttribute('role','status');
   el.style.cssText='margin:10px 0 0;font-size:12.5px;font-weight:600;color:'+(dark?'#FFD9B8':'var(--warn-text)');
-  el.textContent='Saved — but we couldn’t keep your bill attachment ('+reason+'). Your details are in; you can reply to our email with the bill.';
+  el.textContent='Saved, but we couldn’t keep your bill attachment ('+reason+'). Your details are in; you can reply to our email with the bill.';
   row.parentNode.insertBefore(el,row.nextSibling);
 }
 
@@ -661,7 +643,7 @@ $('#pc').addEventListener('input',e=>{
 });
 $('#pc').addEventListener('blur',e=>{
   const raw=e.target.value.trim();
-  if(raw && !W.parsePostal(raw)) W.fieldError(e.target,'That doesn\u2019t look like a Canadian postal code \u2014 try the format K1A 0B1.');
+  if(raw && !W.parsePostal(raw)) W.fieldError(e.target,'That doesn\u2019t look like a Canadian postal code. Try the format K1A 0B1.');
 });
 $('#prov').addEventListener('change',e=>{S.prov=e.target.value;saveDraft();});
 /* WHOLLAR.parseMoney handles the fr-CA comma decimal. The old parser stripped
@@ -672,8 +654,8 @@ $('#cost').addEventListener('blur',e=>{
   const r=W.parseMoneyInRange(e.target.value,W.BILL_MIN,W.BILL_MAX);
   if(!r.ok){
     W.fieldError(e.target, r.reason==='nan'?'Enter your monthly charge as a number, e.g. 90.'
-      :r.reason==='low'?'That looks too low for a monthly internet bill \u2014 enter the total monthly charge (at least $'+W.BILL_MIN+').'
-      :'That looks too high for a monthly internet bill \u2014 enter the monthly total, not the annual one (up to $'+W.BILL_MAX+').');
+      :r.reason==='low'?'That looks too low for a monthly internet bill. Enter the total monthly charge (at least $'+W.BILL_MIN+').'
+      :'That looks too high for a monthly internet bill. Enter the monthly total, not the annual one (up to $'+W.BILL_MAX+').');
   }else{W.clearFieldError(e.target);e.target.value=String(r.value);S.cost=r.value;saveDraft();}
 });
 $('#spd').addEventListener('change',e=>{S.spd=e.target.value||null;saveDraft();});
@@ -684,11 +666,11 @@ $('#disc').addEventListener('blur',e=>{
   const n=W.parseMoney(e.target.value);
   if(n===null||n<0){W.fieldError(e.target,'Enter the monthly discount as a number, e.g. 20.');return;}
   /* A discount at or above the charge makes the effective price meaningless.
-     It used to yield effCost 0 and a confident "Strong deal \u2014 you pay $0/mo". */
-  if(S.cost>0&&n>=S.cost){W.fieldError(e.target,'Your discount can\u2019t be as large as your monthly charge \u2014 check both numbers. The charge should be the price before the discount.');return;}
+     It used to yield effCost 0 and a confident "Strong deal. You pay $0/mo". */
+  if(S.cost>0&&n>=S.cost){W.fieldError(e.target,'Your discount can\u2019t be as large as your monthly charge. Check both numbers. The charge should be the price before the discount.');return;}
   W.clearFieldError(e.target);
 });
-/* Promo end date. Comparing local midnight to local midnight \u2014 the old code
+/* Promo end date. Comparing local midnight to local midnight: the old code
    appended 'T12:00:00', so a promo ending TODAY read as "Expired" for anyone
    using the page after noon: the most urgent case, mislabelled. */
 $('#pdate').addEventListener('input',e=>{
@@ -709,7 +691,7 @@ function saveDraft(){
   draftTimer=setTimeout(()=>W.draft.save('checkup',{
     pc:$('#pc').value,prov:$('#prov').value,cost:$('#cost').value,
     spd:$('#spd').value,tech:$('#tech').value,pdate:$('#pdate').value,
-    disc:$('#disc').value,email:$('#email').value,joined:$('#wl-check').checked
+    disc:$('#disc').value,email:$('#email').value
   }),300);
 }
 function restoreDraft(){
@@ -719,7 +701,6 @@ function restoreDraft(){
     el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));};
   set('#pc',d.pc);set('#prov',d.prov);set('#cost',d.cost);set('#spd',d.spd);
   set('#tech',d.tech);set('#pdate',d.pdate);set('#disc',d.disc);set('#email',d.email);
-  if(d.joined){$('#wl-check').checked=true;$('#wl-check').dispatchEvent(new Event('change',{bubbles:true}));}
 }
 
 /* rail quick-join (syncs with form checkbox state) */
@@ -727,7 +708,7 @@ async function railJoin(inputEl,rowEl,doneEl){const em=inputEl.value.trim();
   if(!W.isEmail(em)){W.fieldError(inputEl,'Enter a valid email address, e.g. you@example.com.');return false;}
   W.clearFieldError(inputEl);
   const btn=rowEl.querySelector('button');clearErr(btn);
-  /* busy() returns false if this button is already in flight — that is the
+  /* busy() returns false if this button is already in flight, and that is the
      double-tap guard. Without it a mobile double-tap created two records. */
   if(busy(btn,true,'…')===false)return false;
   let res;
@@ -775,7 +756,7 @@ function setFieldValue(el,value){
 }
 function autofillFromBill(f){
   const original=$('#filename').textContent;
-  $('#filename').textContent=original+' — reading your bill…';
+  $('#filename').textContent=original+' (reading your bill…)';
   const fd=new FormData();
   fd.append('billFile',f);
   fetch(W.OCR_API+'/extract-bill',{method:'POST',body:fd})
@@ -794,17 +775,17 @@ function autofillFromBill(f){
     })
     .catch(err=>{
       console.error('[whollar-bill-ocr]',err);
-      const note=err.status===429?' — a few too many tries for now; please fill in below'
-        :err.status===415?' — we can’t read this file type; a PDF, JPG or PNG works best'
-        :err.status===413?' — file’s too large (15 MB max), please fill in below'
-        :' — couldn’t read it, please fill in below';
+      const note=err.status===429?': a few too many tries for now; please fill in below'
+        :err.status===415?': we can’t read this file type; a PDF, JPG or PNG works best'
+        :err.status===413?': file’s too large (15 MB max), please fill in below'
+        :': couldn’t read it, please fill in below';
       $('#filename').textContent=original+note;
       setTimeout(()=>{$('#filename').textContent=original;},8000);
     });
 }
 /* Type/size limits live in whollar-core.js and mirror both Catalyst functions'
    multer configs. HEIC gets its own actionable message instead of a generic
-   "can't take that file type" — it is the iPhone camera default, i.e. the most
+   "can't take that file type": it is the iPhone camera default, i.e. the most
    likely upload from the exact user this page is for. */
 function flashUploadMsg(msg,persistMs){
   const el=uploadZone.querySelector('.upload__copy span');
@@ -831,8 +812,8 @@ function acceptFile(f){
      budget on a request that will be refused. */
   if(!W.canAutoRead(f)){
     const why=check.code==='heic'
-      ? ' — attached, but we can’t auto-read an iPhone HEIC photo; please fill in below'
-      : ' — attached, but too large to auto-read; please fill in below';
+      ? ': attached, but we can’t auto-read an iPhone HEIC photo; please fill in below'
+      : ': attached, but too large to auto-read; please fill in below';
     $('#filename').textContent=f.name+why;
     setTimeout(()=>{$('#filename').textContent=f.name;},check.code==='heic'?12000:8000);
     return;
@@ -861,23 +842,22 @@ uploadZone.addEventListener('drop',e=>{
   acceptFile(f);
 });
 
-/* waitlist block */
+/* email + consent disclosure (waitlist joining is mandatory, no opt-in checkbox) */
 $('#email').addEventListener('input',e=>{S.email=e.target.value.trim();W.clearFieldError(e.target);saveDraft();});
-$('#wl-check').addEventListener('change',e=>{S.joined=e.target.checked;$('#wl').classList.toggle('on',e.target.checked);saveDraft();});
 
 /* deep read mini-form */
 let deepFiles=[];
 $('#deep-files').addEventListener('change',e=>{
   const files=[...e.target.files];
-  /* mirror the backend's limits up front: 5 files max, 20 MB each, PDF/image only —
-     one bad file would otherwise get the whole request rejected */
+  /* mirror the backend's limits up front: 5 files max, 20 MB each, PDF/image only,
+     because one bad file would otherwise get the whole request rejected */
   let msg=null;
-  if(files.length>5)msg='Five files max — please pick your most recent bills.';
+  if(files.length>5)msg='Five files max. Please pick your most recent bills.';
   else{
     /* Same checkUpload() the single-file path uses, so HEIC, empty and
        oversized files all get the same wording here as there. */
     const bad=files.map(f=>({f,r:W.checkUpload(f)})).find(x=>!x.r.ok);
-    if(bad)msg='“'+bad.f.name+'” — '+bad.r.message;
+    if(bad)msg='“'+bad.f.name+'”: '+bad.r.message;
   }
   if(msg){
     e.target.value='';deepFiles=[];
@@ -916,28 +896,28 @@ $('#checkup-form').addEventListener('submit',async e=>{
   if(!costR.ok){
     W.fieldError($('#cost'), costR.reason==='empty'?'Enter your monthly charge so we can compare it.'
       :costR.reason==='nan'?'Enter your monthly charge as a number, e.g. 90.'
-      :costR.reason==='low'?'That looks too low for a monthly internet bill — enter the total monthly charge (at least $'+W.BILL_MIN+').'
-      :'That looks too high for a monthly internet bill — enter the monthly total, not the annual one (up to $'+W.BILL_MAX+').');
+      :costR.reason==='low'?'That looks too low for a monthly internet bill. Enter the total monthly charge (at least $'+W.BILL_MIN+').'
+      :'That looks too high for a monthly internet bill. Enter the monthly total, not the annual one (up to $'+W.BILL_MAX+').');
     return;
   }
   S.cost=costR.value;
-  if(!S.spd){W.fieldError($('#spd'),'Choose your download speed — without it there is nothing to compare your price against.');return;}
-  if(S.disc>0&&S.disc>=S.cost){W.fieldError($('#disc'),'Your discount can’t be as large as your monthly charge — check both numbers.');return;}
+  if(!S.spd){W.fieldError($('#spd'),'Choose your download speed. Without it there is nothing to compare your price against.');return;}
+  if(S.disc>0&&S.disc>=S.cost){W.fieldError($('#disc'),'Your discount can’t be as large as your monthly charge. Check both numbers.');return;}
 
+  /* Email is mandatory on every submission now (no opt-in checkbox), so this
+     always joins. */
   let joinErr=null,joinRes=null;
-  if(S.joined){
-    const em=$('#email').value.trim();
-    if(!W.isEmail(em)){W.fieldError($('#email'),'Enter a valid email address, e.g. you@example.com.');return;}
-    W.clearFieldError($('#email'));
-    S.email=em;
-    const btn=$('#check');clearErr(btn);
-    if(busy(btn,true,'Checking…')===false)return;
-    /* The lead is sent BEFORE the results render, so a user who bounces at the
-       result screen is still captured. */
-    try{joinRes=await submitForm('/bill-checkup-join',{email:em,via:'form',...leadPayload(),...W.consentPayload('checkup',true)},{billFile:($('#bill-file').files||[])[0]||null});}
-    catch(err){joinErr=err;S.joined=false;} /* never hold the results hostage — show them, surface the miss on the join card */
-    busy($('#check'),false);
-  }
+  const em=$('#email').value.trim();
+  if(!W.isEmail(em)){W.fieldError($('#email'),'Enter a valid email address, e.g. you@example.com.');return;}
+  W.clearFieldError($('#email'));
+  S.email=em;S.joined=true;
+  const btn=$('#check');clearErr(btn);
+  if(busy(btn,true,'Checking…')===false)return;
+  /* The lead is sent BEFORE the results render, so a user who bounces at the
+     result screen is still captured. */
+  try{joinRes=await submitForm('/bill-checkup-join',{email:em,via:'form',...leadPayload(),...W.consentPayload('checkup',true)},{billFile:($('#bill-file').files||[])[0]||null});}
+  catch(err){joinErr=err;S.joined=false;} /* never hold the results hostage. Show them, surface the miss on the join card */
+  busy(btn,false);
   rememberBill();
   renderResults();screen(2);
   if(joinErr)submitErr($('#j2-join'),joinErr,true);
@@ -954,13 +934,13 @@ $('#edit-all').addEventListener('click',()=>screen(1));
        LATER on this browser still receives it (whollar-core pushes and clears
        it during adopt/syncBill);
      - the local member record, so a signed-in member's cliff gauge moves
-       without waiting on the network — patch() is a no-op when signed out;
+       without waiting on the network, and patch() is a no-op when signed out;
      - the server, which is what makes the same numbers appear on any other
        device.
 
    The server save is NOT gated on the local member record. Being signed in is
    a fact about the HttpOnly session cookie, and only the auth function can read
-   that — a member whose localStorage was cleared (or who signed in in another
+   that. A member whose localStorage was cleared (or who signed in in another
    tab) is still signed in, and gating on the local copy silently dropped their
    checkup on the floor. So we always POST and let /me/bill answer: it saves for
    a member and 401s for everyone else, which is the same "nothing to do" this
@@ -984,8 +964,8 @@ function rememberBill(){
   if(!bill.provider&&!bill.monthly&&!bill.speed&&!bill.promoEnd)return;
   W.checkup.save(bill,S.email||null);
   W.member.patch({bill:bill});
-  /* Fire-and-forget: the results screen must not wait on this, and a miss —
-     signed out, or a dropped request — leaves the pending handoff in place for
+  /* Fire-and-forget: the results screen must not wait on this, and a miss
+     (signed out, or a dropped request) leaves the pending handoff in place for
      the next sign-in to push. A save that lands clears it. */
   W.session.billSave(bill).then(()=>W.checkup.clear(),()=>{});
 }
@@ -998,7 +978,7 @@ function rememberBill(){
 
    COPY RULE: never describe the comparison more precisely than the level that
    actually answered. scopeLabel() reads score().benchmark.level and says only
-   what that level supports \u2014 if the household's provider had no rows and we
+   what that level supports. If the household's provider had no rows and we
    dropped to the province average, the copy says so. */
 const money=n=>W.money(n);
 const monthName=d=>W.monthName(d);
@@ -1034,19 +1014,19 @@ const CTX=sc=>[
 ].filter(Boolean).join(' \u00b7 ');
 
 const STATES={
-strong:sc=>({bars:BAR(['f','f','f','f']),h:'Strong deal',read:'At <b>'+money(effCost())+'/mo</b> you sit more than 5% below '+scopeLabel(sc)+' (<b>'+money(sc.benchmark.price)+'/mo</b>). The play now is <b>keeping it past renewal</b> \u2014 exactly what a pooled bid is for.'}),
-fair:sc=>({bars:BAR(['f','f','fa','']),h:'Fair deal',read:'Your <b>'+money(effCost())+'/mo</b> is within reach of '+scopeLabel(sc)+' (<b>'+money(sc.benchmark.price)+'/mo</b>) \u2014 not a crisis, not a deal. \u201cClose\u201d is what group bids beat, without you making a single call.'}),
-weak:sc=>({bars:BAR(['fw','','','']),cls:'warnbg',h:'Weak deal',read:'You pay <b>'+money(effCost())+'/mo</b> against '+scopeLabel(sc)+' of <b>'+money(sc.benchmark.price)+'/mo</b> \u2014 more than 20% over, a gap of about <b>'+money(Math.max(0,effCost()-sc.benchmark.price))+'/mo</b> that compounds every month. Your cohort\u2019s bid is built to close it.'}),
-cliff:sc=>({bars:'<div class="sig__bars"><i class="f pop"></i><i class="f pop"></i><i class="f pop"></i><i class="f pop"></i><span class="arrow">\u2192</span><i class="fw pop"></i><i></i><i></i><i></i></div>',cls:'warnbg',h:'Cliff ahead',read:'Whatever today\u2019s price looks like \u2014 your promo ends around <b>'+monthName(S.pdate)+'</b>, within the next two months. That\u2019s the part of your bill nobody explains: the reset lands on autopay, usually 30\u201360% higher'+(S.disc?' (about <b>'+money(S.disc)+'/mo</b> back onto your bill)':'')+'. The window to pool is <b>before</b> the jump.'}),
+strong:sc=>({bars:BAR(['f','f','f','f']),h:'Strong deal',read:'At <b>'+money(effCost())+'/mo</b> you sit more than 5% below '+scopeLabel(sc)+' (<b>'+money(sc.benchmark.price)+'/mo</b>). The play now is <b>keeping it past renewal</b>, exactly what a pooled bid is for.'}),
+fair:sc=>({bars:BAR(['f','f','fa','']),h:'Fair deal',read:'Your <b>'+money(effCost())+'/mo</b> is within reach of '+scopeLabel(sc)+' (<b>'+money(sc.benchmark.price)+'/mo</b>): not a crisis, not a deal. \u201cClose\u201d is what group bids beat, without you making a single call.'}),
+weak:sc=>({bars:BAR(['fw','','','']),cls:'warnbg',h:'Weak deal',read:'You pay <b>'+money(effCost())+'/mo</b> against '+scopeLabel(sc)+' of <b>'+money(sc.benchmark.price)+'/mo</b>: more than 20% over, a gap of about <b>'+money(Math.max(0,effCost()-sc.benchmark.price))+'/mo</b> that compounds every month. Your cohort\u2019s bid is built to close it.'}),
+cliff:sc=>({bars:'<div class="sig__bars"><i class="f pop"></i><i class="f pop"></i><i class="f pop"></i><i class="f pop"></i><span class="arrow">\u2192</span><i class="fw pop"></i><i></i><i></i><i></i></div>',cls:'warnbg',h:'Cliff ahead',read:'Whatever today\u2019s price looks like, your promo ends around <b>'+monthName(S.pdate)+'</b>, within the next two months. That\u2019s the part of your bill nobody explains: the reset lands on autopay, usually 30\u201360% higher'+(S.disc?' (about <b>'+money(S.disc)+'/mo</b> back onto your bill)':'')+'. The window to pool is <b>before</b> the jump.'}),
 /* Honest fallback. Previously: "Not sure" speed silently scored against an
    invented $60 benchmark, and a discount larger than the charge scored as
-   "Strong deal \u2014 you pay $0/mo". */
+   "Strong deal. You pay $0/mo". */
 unknown:sc=>{
   const why={
-    'no-speed':'We can\u2019t compare your price without your <b>download speed</b> \u2014 the same $85 is a great deal at 1 Gbps and a poor one at 50 Mbps. Add your speed above and we\u2019ll score it.',
+    'no-speed':'We can\u2019t compare your price without your <b>download speed</b>: the same $85 is a great deal at 1 Gbps and a poor one at 50 Mbps. Add your speed above and we\u2019ll score it.',
     'no-cost':'Add your <b>monthly charge</b> above and we\u2019ll compare it.',
     'no-benchmark':'We don\u2019t hold advertised plans for that combination yet, so we won\u2019t guess at a verdict.',
-    'discount-exceeds-charge':'Your <b>discount</b> is the same as or larger than your <b>monthly charge</b>, so the two numbers can\u2019t both be right. The charge should be the price <i>before</i> the discount \u2014 fix either one and we\u2019ll score it.'
+    'discount-exceeds-charge':'Your <b>discount</b> is the same as or larger than your <b>monthly charge</b>, so the two numbers can\u2019t both be right. The charge should be the price <i>before</i> the discount. Fix either one and we\u2019ll score it.'
   }[sc.reason]||'We don\u2019t have enough of your bill to score it yet.';
   return {bars:BAR(['fa','','','']),h:'Not enough to score',read:why+'<br><br>Your cohort still forms on your postal code and renewal date, so joining works either way.'};
 }};
@@ -1079,7 +1059,7 @@ function rv(label,val,target,hot,ic){rvI++;return '<button class="rv'+(hot?' hot
 function renderResults(){
   const sc=currentScore();
   setSig(sc.state,sc);
-  const sp=!S.spd?'\u2014':(S.spd==='0'?'Not sure':(+S.spd>=1500?'1.5 Gig+':(+S.spd>=1000?'1 Gig':S.spd+' Mbps')));
+  const sp=!S.spd?'Not given':(S.spd==='0'?'Not sure':(+S.spd>=1500?'1.5 Gig+':(+S.spd>=1000?'1 Gig':S.spd+' Mbps')));
   let promoVal='None / not sure',hot=false;
   if(S.expired)promoVal='Expired '+monthName(S.pdate);
   else if(S.pmo>0){promoVal='Ends '+monthName(S.pdate);hot=true;}
@@ -1088,18 +1068,18 @@ function renderResults(){
      concatenation ("$90"), so two currency formats sat side by side. */
   $('#rgrid').innerHTML=
     rv('Cohort',S.pc?S.pc+' \u00b7 '+S.province:'Add postal code','pc',false,'pin')+
-    rv('Provider',S.prov?S.prov.split(' (')[0]:'\u2014','prov',false,'bld')+
-    rv('Monthly charge',S.cost?(S.disc&&!S.expired?money(effCost())+'/mo with promo':money(S.cost)+'/mo'):'\u2014','cost',false,'dol')+
+    rv('Provider',S.prov?S.prov.split(' (')[0]:'Not given','prov',false,'bld')+
+    rv('Monthly charge',S.cost?(S.disc&&!S.expired?money(effCost())+'/mo with promo':money(S.cost)+'/mo'):'Not given','cost',false,'dol')+
     rv('Speed',sp,'spd',false,'gau')+
-    rv('Connection',S.tech?S.tech.split(' (')[0]:'\u2014','tech',false,'plg')+
+    rv('Connection',S.tech?S.tech.split(' (')[0]:'Not given','tech',false,'plg')+
     rv('Promo',promoVal,'pdate',hot,'cal')+
     (S.disc?rv('Discount',money(S.disc)+'/mo','disc',false,'tag'):'')+
     (S.file?rv('Bill attached','\u2713 '+S.file,'bill-file',false,'clp'):'');
   $$('#rgrid .rv').forEach(b=>b.addEventListener('click',()=>{screen(1);const el=document.getElementById(b.dataset.t);if(el)setTimeout(()=>el.focus(),350);}));
   renderLevers();
   const j2=$('#join2');
-  if(S.joined){j2.innerHTML='<h3>&#10003; You\u2019re on the '+W.escapeHtml(S.pc?S.pc+' ':'')+'waitlist</h3><p>We\u2019ll write the moment your cohort opens &mdash; and you\u2019ll be first to hear where Whollar goes next.</p>';}
-  else{j2.innerHTML='<h3>'+(S.pc?'Put the '+W.escapeHtml(S.pc)+' cohort to work':'Get your number, the easy way')+'</h3><p>Join to shrink your bill &mdash; and to build a market where prices finally have to explain themselves. Internet first; more to come.</p><div class="gerow" id="j2row"><label class="whl-sr" for="j2-email">Email address to join</label><input type="email" id="j2-email" placeholder="you@example.com" autocomplete="email" maxlength="254" inputmode="email"><button class="whl-btn" type="button" id="j2-join">Join</button></div><p class="wl__consent" style="margin-top:9px;color:#CFE2D5">By joining you agree to receive email about your cohort and offers, and accept our <a href="/terms" target="_blank" rel="noopener noreferrer" style="color:#7FE3B0">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style="color:#7FE3B0">Privacy&nbsp;Policy</a>. Unsubscribe any time.</p><div class="gdone" id="j2done">&#10003;&nbsp; You\u2019re in &mdash; we\u2019ll write when your cohort opens.</div>';
+  if(S.joined){j2.innerHTML='<h3>&#10003; You\u2019re on the '+W.escapeHtml(S.pc?S.pc+' ':'')+'waitlist</h3><p>We\u2019ll write the moment your cohort opens, and you\u2019ll be first to hear where Whollar goes next.</p>';}
+  else{j2.innerHTML='<h3>'+(S.pc?'Put the '+W.escapeHtml(S.pc)+' cohort to work':'Get your number, the easy way')+'</h3><p>Join to shrink your bill, and to build a market where prices finally have to explain themselves. Internet first; more to come.</p><div class="gerow" id="j2row"><label class="whl-sr" for="j2-email">Email address to join</label><input type="email" id="j2-email" placeholder="you@example.com" autocomplete="email" maxlength="254" inputmode="email"><button class="whl-btn" type="button" id="j2-join">Join</button></div><p class="wl__consent" style="margin-top:9px;color:#CFE2D5">By joining you agree to receive email about your cohort and offers, and accept our <a href="/terms" target="_blank" rel="noopener noreferrer" style="color:#7FE3B0">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style="color:#7FE3B0">Privacy&nbsp;Policy</a>. Unsubscribe any time.</p><div class="gdone" id="j2done">&#10003;&nbsp; You\u2019re in. We\u2019ll write when your cohort opens.</div>';
     $('#j2-join').addEventListener('click',()=>{railJoin($('#j2-email'),$('#j2row'),$('#j2done')).then(ok=>{if(ok)renderResults();});});
     if(S.email)$('#j2-email').value=S.email;}
   if(S.email)$('#deep-email').value=$('#deep-email').value||S.email;
@@ -1108,17 +1088,17 @@ function renderResults(){
 /* ---------- 11 levers ---------- */
 function renderLevers(){
   const L=[
-    ['Speed tier','The headline differentiator \u2014 50 up to 8 Gbps rungs.',!!S.spd],
-    ['Access technology','Fibre, cable, 5G, DSL \u2014 same speed, different price.',!!S.tech],
+    ['Speed tier','The headline differentiator: 50 up to 8 Gbps rungs.',!!S.spd],
+    ['Access technology','Fibre, cable, 5G, DSL: same speed, different price.',!!S.tech],
     ['Address / postal code','Decides who can even reach your door.',!!S.pc],
-    ['Promo vs. regular rate','The cliff \u2014 the single biggest driver of overpayment.',!!S.pdate],
+    ['Promo vs. regular rate','The cliff: the single biggest driver of overpayment.',!!S.pdate],
     ['Contract & exit terms','Early-exit fees: banned since June 2026.',false,'$0 by law'],
-    ['Equipment rental','$5\u201315/mo for the box \u2014 free at most independents.',false],
+    ['Equipment rental','$5\u201315/mo for the box, free at most independents.',false],
     ['Install & activation','One-time fees: banned since June 2026.',false,'$0 by law'],
     ['Data caps & overage','\u201cUnlimited\u201d sometimes means deprioritised.',false],
     ['Bundling','Stated savings often evaporate under audit.',false],
     ['Provider type','Same physical line, 20\u201340% apart on billing.',!!S.prov],
-    ['Add-ons & QoS','Static IP, mesh, priority support \u2014 rarely contractual.',false]
+    ['Add-ons & QoS','Static IP, mesh, priority support: rarely contractual.',false]
   ];
   $('#lev-list').innerHTML=L.map((l,i)=>{
     const got=l[2];const law=l[3];

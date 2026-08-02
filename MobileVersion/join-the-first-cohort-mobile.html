@@ -15,16 +15,16 @@
     window.clarity('set','mask','true');
 </script>
 <script src="/js/whollar-core.js"></script>
-<title>Join the waitlist — Whollar</title>
+<title>Join the waitlist · Whollar</title>
 <meta name="description" content="Hold your spot in your neighbourhood's cohort. Whollar gets providers to bid for whole streets at once, so everyone gets the group price.">
 <link rel="canonical" href="https://www.whollar.ca/waitlist/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://www.whollar.ca/waitlist/">
-<meta property="og:title" content="Join the waitlist — Whollar">
+<meta property="og:title" content="Join the waitlist · Whollar">
 <meta property="og:description" content="Hold your spot in your neighbourhood's cohort. Whollar gets providers to bid for whole streets at once, so everyone gets the group price.">
 <meta property="og:site_name" content="Whollar">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Join the waitlist — Whollar">
+<meta name="twitter:title" content="Join the waitlist · Whollar">
 <meta name="twitter:description" content="Hold your spot in your neighbourhood's cohort. Whollar gets providers to bid for whole streets at once, so everyone gets the group price.">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDEyMCAxMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJXaG9sbGFyIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0id2hvbGxhck1hcmsiIHgxPSIxOCIgeTE9IjE0IiB4Mj0iMTAyIiB5Mj0iMTA2IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzBFMkEyMCI+PC9zdG9wPgogICAgICA8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMxRTlFNjMiPjwvc3RvcD4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxyZWN0IHg9IjYiIHk9IjYiIHdpZHRoPSIxMDgiIGhlaWdodD0iMTA4IiByeD0iMzIiIGZpbGw9InVybCgjd2hvbGxhck1hcmspIj48L3JlY3Q+CiAgPGc+CiAgICA8cGF0aCBkPSJNMzQgNDJoNTJNMzQgNDJsMjYgMzhNODYgNDJsLTI2IDM4IiBzdHJva2U9IiNGRkZGRkYiIHN0cm9rZS13aWR0aD0iNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIwLjg1Ij48L3BhdGg+CiAgICA8Y2lyY2xlIGN4PSIzNCIgY3k9IjQyIiByPSIxMSIgZmlsbD0iI0ZGRkZGRiI+PC9jaXJjbGU+CiAgICA8Y2lyY2xlIGN4PSI4NiIgY3k9IjQyIiByPSIxMSIgZmlsbD0iI0ZGRkZGRiI+PC9jaXJjbGU+CiAgICA8Y2lyY2xlIGN4PSI2MCIgY3k9IjgwIiByPSIxMSIgZmlsbD0iI0ZGRkZGRiI+PC9jaXJjbGU+CiAgPC9nPgo8L3N2Zz4K">
 <link rel="preconnect" href="https://api.fontshare.com">
@@ -655,7 +655,7 @@
       <!-- CODE ENTRY
 
            The account was created by /signup, but sits in `status: pending`
-           until this code is checked — a password alone opens nothing. That is
+           until this code is checked. A password alone opens nothing. That is
            what stops someone registering an address they don't control. -->
       <div id="codestep" style="display:none">
         <h3>Check your email</h3>
@@ -888,7 +888,7 @@ document.addEventListener('DOMContentLoaded',function(){
     }
     function clearErr(anchor){const el=anchor.parentNode.querySelector('.suberr');if(el)el.remove();}
     /* busy() now comes from whollar-core.js and returns false when the button
-       is already in flight — the double-tap guard. */
+       is already in flight: the double-tap guard. */
 
     if($('#viz2-lottie')&&window.lottie){window.lottie.loadAnimation({container:$('#viz2-lottie'),renderer:'svg',loop:true,autoplay:true,animationData:__WALLET_LOTTIE});}
     if($('#viz3-lottie')&&window.lottie){window.lottie.loadAnimation({container:$('#viz3-lottie'),renderer:'svg',loop:true,autoplay:true,animationData:__SEARCH_LOTTIE});}
@@ -901,7 +901,7 @@ document.addEventListener('DOMContentLoaded',function(){
     if(q.get('fsa')&&$('#j-pc'))$('#j-pc').value=q.get('fsa');
 
     /* The old check only tested the FIRST letter against a province table, so
-       "K1D 0B1" passed — D never appears in a Canadian postal code. */
+       "K1D 0B1" passed: D never appears in a Canadian postal code. */
     function parsePC(){const el=$('#j-pc');
       const caretAtEnd=el.selectionStart===el.value.length;
       el.value=W.formatPostal(el.value);
@@ -928,7 +928,7 @@ document.addEventListener('DOMContentLoaded',function(){
       const ph=$('#j-phone').value.replace(/\D/g,'');
       if(ph.length<10||ph.length>11){W.fieldError($('#j-phone'),'Enter a 10-digit phone number, e.g. (555) 555-0123.');return;}
       W.clearFieldError($('#j-phone'));
-      if(!S.fsa){W.fieldError($('#j-pc'),'Enter a valid Canadian postal code — that is what places you in a cohort.');return;}
+      if(!S.fsa){W.fieldError($('#j-pc'),'Enter a valid Canadian postal code. That is what places you in a cohort.');return;}
       W.clearFieldError($('#j-pc'));
       const pw=$('#j-pw').value;
       if(pw.length<10){W.fieldError($('#j-pw'),'Use at least 10 characters. A phrase you’ll remember beats a short jumble.');return;}
@@ -940,7 +940,7 @@ document.addEventListener('DOMContentLoaded',function(){
       try{
         /* Creates the account in `status: pending` and emails a code. Consent
            travels with it and the server writes a `consents` row inside the
-           same request that creates the account — CASL needs it provable, and
+           same request that creates the account. CASL needs it provable, and
            consent recorded "shortly after" is consent you cannot prove came
            first. The checkbox wording covers cohort and offer email, so it is
            the marketing consent. */
@@ -968,7 +968,7 @@ document.addEventListener('DOMContentLoaded',function(){
       cdTimer=setInterval(()=>{n--;if(n<=0){clearInterval(cdTimer);b.disabled=false;b.textContent='Resend code';return;}b.textContent='Resend in '+n+'s';},1000);
     }
     /* The server returns the code only when it is not production AND no mail
-       provider is configured — i.e. when it sent nothing. */
+       provider is configured, i.e. when it sent nothing. */
     function showDevCode(dev){
       const el=$('#j-devcode');
       if(!dev||!dev.code){el.style.display='none';return;}
@@ -1153,7 +1153,7 @@ document.addEventListener('DOMContentLoaded',function(){
         setTimeout(()=>{if(!S.details.file)$('#s-filename').textContent='';},8000);
         return;}
       S.details.file=f.name;
-      $('#s-filename').textContent=chk.code==='heic'?('✓ '+f.name+' (HEIC — we’ll open it by hand)'):('✓ '+f.name);
+      $('#s-filename').textContent=chk.code==='heic'?('✓ '+f.name+' (HEIC, we’ll open it by hand)'):('✓ '+f.name);
       meter();});
     function collect(){S.details={provider:$('#s-prov').value,cost:$('#s-cost').value,speed:$('#s-spd').value,
       promoEnd:$('#s-date').value,threshold:($$('#thr button.on')[0]||{}).textContent||null,

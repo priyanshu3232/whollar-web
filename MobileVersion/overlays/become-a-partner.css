@@ -1,7 +1,7 @@
 /* ===== Whollar mobile version =====
    Breakpoint MUST match BREAKPOINT in js/device-router.js (768). It was 720,
    so viewports 721-768px were routed to this page and then rendered with the
-   desktop layout — a confirmed unstyled band on iPad portrait and on small
+   desktop layout: a confirmed unstyled band on iPad portrait and on small
    laptop windows. */
 @media (max-width:768px){
   body{font-size:15px}

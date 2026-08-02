@@ -308,8 +308,8 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .tl__row{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
 /* Date tiles. The date is the answer, so it gets the display type and the
    ink; the label above it is a quiet mono caption. A 3px edge notch carries
-   each tile's state — green for the stage we're in, terracotta for the
-   cliff — so colour means something instead of washing the whole tile. */
+   each tile's state (green for the stage we're in, terracotta for the
+   cliff), so colour means something instead of washing the whole tile. */
 .tn2{position:relative;flex:1;min-width:108px;background:#fff;border:1px solid var(--line);border-radius:13px;padding:12px 14px 13px 17px;overflow:hidden;box-shadow:0 1px 2px rgba(18,55,43,.05);transition:transform .16s,box-shadow .16s,border-color .16s}
 .tn2::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--line);transition:background .16s}
 .tn2:hover{transform:translateY(-2px);box-shadow:0 10px 22px -12px rgba(18,55,43,.22);border-color:#D9D2BF}
@@ -410,7 +410,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 /* Photographs run at their own colour. The grayscale + green multiply wash
    this used to carry made every article look like the same washed-out stock
    image, and a reader cannot tell a bill from a street from a router that
-   way. No filter, no overlay — the picture is the picture. */
+   way. No filter, no overlay. The picture is the picture. */
 .ktile-media img{width:100%;height:100%;object-fit:cover;display:block}
 .ktile-body{display:flex;flex-direction:column;gap:10px;flex:1;padding:18px 20px 16px}
 .ktile-top{display:flex;align-items:baseline;gap:10px}
@@ -552,7 +552,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
             <div class="siglabel" id="sig-eyebrow">Your deal signal</div>
             <div class="sigbars" id="sig-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><span class="arr">&rarr;</span><i></i><i></i><i></i></div>
             <h2 id="cliffh2">We&rsquo;re still pinpointing your reset.</h2>
-            <p class="read" id="sig-read">Add your promo end date &mdash; it&rsquo;s on your bill&rsquo;s &ldquo;Savings&rdquo; line &mdash; and we&rsquo;ll time your cohort to close bidding before the jump.</p>
+            <p class="read" id="sig-read">Add your promo end date (it&rsquo;s on your bill&rsquo;s &ldquo;Savings&rdquo; line) and we&rsquo;ll time your cohort to close bidding before the jump.</p>
             <p class="ctx" id="sig-ctx" hidden></p>
           </div>
           <!-- Every value here is written by the cliff module below, from the
@@ -601,7 +601,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
                 <div class="tn2" data-t="bid"><b>Bidding window</b><span>Sep 15 to 17</span></div>
                 <div class="tn2" data-t="offer"><b>Offer deadline</b><span>Sep 24</span></div>
                 <div class="tn2" data-t="switch"><b>Switch window</b><span>October</span></div>
-                <div class="tn2 cliffed" data-t="cliff"><b>Your promo cliff</b><span data-fld="promoMonth">&mdash;</span></div>
+                <div class="tn2 cliffed" data-t="cliff"><b>Your promo cliff</b><span data-fld="promoMonth">Not set</span></div>
               </div>
             </div>
             <div class="feed"><h4>Activity</h4><ul id="feed"></ul></div>
@@ -614,7 +614,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               <span class="eyebrow">Your switch file</span>
               <h3>What providers bid against</h3>
               <div class="meter" data-spot>
-                <div class="mrow"><span>Spot strength</span><b>&mdash;</b></div>
+                <div class="mrow"><span>Spot strength</span><b>None</b></div>
                 <div class="segs" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               </div>
               <ul class="flds">
@@ -701,7 +701,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               <span class="eyebrow">Your switch file &middot; Home internet</span>
               <h3>What providers bid against</h3>
               <div class="meter" data-spot>
-                <div class="mrow"><span>Spot strength</span><b>&mdash;</b></div>
+                <div class="mrow"><span>Spot strength</span><b>None</b></div>
                 <div class="segs" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               </div>
               <ul class="flds">
@@ -720,7 +720,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               <h3 id="bu-h3">Add your latest bill</h3>
               <label class="bu-drop" for="bu-file" id="bu-drop">
                 <b>Attach your bill</b>
-                <span>Drag it in, or click to browse &mdash; PDF or photo. We'll read it and fill the fields below.</span>
+                <span>Drag it in, or click to browse: PDF or photo. We'll read it and fill the fields below.</span>
                 <input type="file" id="bu-file" accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/gif" style="display:none">
               </label>
               <div class="bu-chip" id="bu-chip" hidden>
@@ -752,7 +752,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
                 <p class="bu-alert" id="bu-err" role="alert" style="display:none"></p>
                 <button class="btn" type="submit" id="bu-save" style="margin-top:12px">Save to my file</button>
               </form>
-              <p class="fnote">Bidding providers never see your provider or your price &mdash; this stays in your file.</p>
+              <p class="fnote">Bidding providers never see your provider or your price. This stays in your file.</p>
             </section>
           </div>
           <aside class="aside">
@@ -782,7 +782,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
       <section class="view" data-v="history">
         <div class="vhead"><h2>Campaign history</h2></div>
         <!-- Campaigns the member is in RIGHT NOW. History starts the moment
-             you join, not the moment something finishes — a member who joined
+             you join, not the moment something finishes: a member who joined
              two waitlists and opens this tab must see both, or "history" reads
              as if the joins didn't take. Painted by paintHistory() from the
              same CAMPS the cards use, so a join or leave anywhere updates here
@@ -901,7 +901,7 @@ var $$=function(s,c){return Array.prototype.slice.call((c||document).querySelect
 
 /* ---------- member boot: front-end guard only, not security ----------
    This checks a localStorage key. Anyone can set that key from a console, so
-   it keeps honest visitors on the right page and nothing more — it is not an
+   it keeps honest visitors on the right page and nothing more. It is not an
    authorisation boundary. When real auth ships, the gate belongs in a Catalyst
    function that this page calls, not here. */
 var W=window.WHOLLAR;
@@ -920,7 +920,7 @@ if(!MEMBER||typeof MEMBER!=='object'||!MEMBER.email){
      here, having written nothing to localStorage. Bouncing on the local check
      alone would send someone who just signed in back to the sign-in form.
 
-     So ask the server — with the page hidden, because the demo dashboard must
+     So ask the server, with the page hidden, because the demo dashboard must
      not flash up at a visitor who turns out to be signed out after all. */
   if(!W||!W.session){toSignIn();return;}
   document.documentElement.style.visibility='hidden';
@@ -934,13 +934,13 @@ if(!MEMBER||typeof MEMBER!=='object'||!MEMBER.email){
 }
 
 /* A present whollar.member record only proves a member signed in on this
-   browser at SOME point — the site shares one session cookie across member,
+   browser at SOME point: the site shares one session cookie across member,
    provider and admin, so a later provider sign-in in the same browser
    silently swaps the cookie out from under this cached record. Confirm the
    live cookie still belongs to a member in the background, without holding
    up render for the common case where it does. On a mismatch or a signed-out
    cookie, adopt('member') resolves null and leaves the stale record alone
-   (see its doc comment) — clear it here and bounce, rather than let the page
+   (see its doc comment). Clear it here and bounce, rather than let the page
    keep showing another account's cached name and bill until a save fails. */
 if(W&&W.session){
   W.session.adopt('member').then(function(rec){
@@ -965,7 +965,7 @@ var DISPNAME=FIRST?(LAST?FIRST+' '+LAST.charAt(0)+'.':FIRST):'Member';
 function signOut(){
   /* End the server session, not just the local record. Clearing localStorage
      alone leaves the cookie alive, and the guard above would adopt() it on the
-     next visit and sign the visitor straight back in — a sign-out button that
+     next visit and sign the visitor straight back in, a sign-out button that
      doesn't sign you out. W.session.end() clears the local record itself, and
      does so even if the request fails. */
   var done=function(){location.replace('/whollar-login-consumer')};
@@ -1000,7 +1000,7 @@ var TL={forming:'close',locked:'close',bidding:'bid',offers:'offer',confirm:'off
    Seeded with the numbers the cards always showed, then overwritten by
    GET /api/auth/campaigns when the service answers. Joining writes through
    W.session, which is what moves the household counts on the partner
-   console's bid desk — one more member here is one more household there.
+   console's bid desk. One more member here is one more household there.
    When the server can't be reached, joins still work as a local demo. */
 var CAMPS=[
  {id:'london-east',region:'London East',sub:'Autumn cohort',kind:'forming',target:100,members:61,households:112,joinable:true,you:'joined'},
@@ -1032,7 +1032,7 @@ function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp
 
 /* ---------- promo cliff ----------
    One date drives the gauge, the headline, the switch file and the timeline,
-   so they can never drift apart. That date comes from the member's bill —
+   so they can never drift apart. That date comes from the member's bill:
    bill-checkup.html writes it via W.member.patch when a checkup completes,
    and the sync at the bottom pulls the server's copy. There is no demo
    stand-in: until a bill lands the gauge says "add your bill" and the switch
@@ -1059,18 +1059,18 @@ function parsePromoEnd(raw){
 }
 
 /* ---------- the deal signal: four bands, one clock ----------
-   Everything on the panel — eyebrow, pips, headline, body, ring — derives
+   Everything on the panel (eyebrow, pips, headline, body, ring) derives
    from ONE continuous number, months until the reset, so the copy and the
    colours can never disagree about how urgent this is:
 
      EARLY        > 6 months   green   informational; soft "30 to 60%" figure
      APPROACHING  2–6 months   amber   prepare; the figure hardens to "up to
-                                       100% — full rate", because under six
+                                       100%, full rate", because under six
                                        months the real stakes are near
      IMMINENT     < 2 months   red     act now; counts weeks, then days
      RESET        <= 0         red     it already happened
 
-   Both boundaries (exactly 6.0, exactly 2.0) belong to APPROACHING — bands
+   Both boundaries (exactly 6.0, exactly 2.0) belong to APPROACHING: bands
    must tile the line with no gap for a value to fall through. Months are
    measured in average month-lengths, not calendar months, so 6.0 means the
    same thing in February as in July; the days shown to the member are
@@ -1088,9 +1088,9 @@ function dealSignal(){
     state:'UNKNOWN',theme:'green',empty:true,
     eyebrow:'Your deal signal',
     headline:'We’re still pinpointing your reset.',
-    body:'Add your promo end date — it’s on your bill’s “Savings” line — and we’ll time your cohort to close bidding before the jump.',
+    body:'Add your promo end date (it’s on your bill’s “Savings” line) and we’ll time your cohort to close bidding before the jump.',
     circleValue:'–',circleLabel:'months to reset',
-    pips:['f','f','f','f','w','',''],arcFrac:0,timeline:'—',
+    pips:['f','f','f','f','w','',''],arcFrac:0,timeline:'Not set',
     title:'Add your promo end date to see your reset'
   };
 
@@ -1115,7 +1115,7 @@ function dealSignal(){
       headline:days
         ?(D===1?'Your promo resets today.':'Your promo resets in '+plural(D,'day')+'.')
         :'Your promo resets in '+plural(W,'week')+'.',
-      body:'This is the window. The moment your promo expires your bill can jump up to 100% — the full rate, on autopay. Bidding for your cohort closes before that hit — lock your spot now so you don’t roll onto full price.',
+      body:'This is the window. The moment your promo expires your bill can jump up to 100%, the full rate, on autopay. Bidding for your cohort closes before that hit. Lock your spot now so you don’t roll onto full price.',
       circleValue:String(days?D:W),
       circleLabel:days?(D===1?'day to reset':'days to reset'):(W===1?'week to reset':'weeks to reset'),
       pips:['f','w','w','w','w','w','r'],
@@ -1131,7 +1131,7 @@ function dealSignal(){
       state:'APPROACHING',theme:'amber',
       eyebrow:'Your deal signal · Heads up',
       headline:'Your promo resets in about '+plural(N,'month')+'.',
-      body:'Still fine for now. But once the promo expires your price can jump up to 100% — full rate, on autopay. We’re forming your cohort so bidding can close before that jump — nothing for you to do yet, we’ll signal when it’s time.',
+      body:'Still fine for now. But once the promo expires your price can jump up to 100%, full rate, on autopay. We’re forming your cohort so bidding can close before that jump. Nothing for you to do yet, we’ll signal when it’s time.',
       circleValue:String(N),circleLabel:N===1?'month to reset':'months to reset',
       pips:pips,arcFrac:arcFrac(m),timeline:MONTHS[end.getMonth()],
       title:plural(N,'month')+' to your promo reset in '+monthYear
@@ -1159,7 +1159,7 @@ function resetSignal(headline,end){
     state:'RESET',theme:'red',past:true,
     eyebrow:'Your deal signal',
     headline:headline,
-    body:'Your promo has expired — you’re likely on full price now, up to 100% higher, on autopay. Your cohort is still bidding; join to pull the rate back down.',
+    body:'Your promo has expired. You’re likely on full price now, up to 100% higher, on autopay. Your cohort is still bidding; join to pull the rate back down.',
     circleValue:'0',circleLabel:'promo has reset',
     pips:['r','r','r','r','r','r','r'],arcFrac:1,
     timeline:end?MONTHS[end.getMonth()]:'Reset',
@@ -1171,7 +1171,7 @@ function paintCliff(){
   var s=dealSignal(),g=$('#cliffgauge');
   if(!g)return;
   var C=301.6,card=g.closest('.cliff');
-  /* The switch file's "Promo end date" row is painted by paintBill() — one
+  /* The switch file's "Promo end date" row is painted by paintBill(): one
      owner per row, so a repaint can take it back to its Add state. This
      function owns the signal block, the gauge and the timeline node. */
 
@@ -1193,7 +1193,7 @@ function paintCliff(){
   ttl.textContent=s.title;
   if(h2)h2.textContent=s.headline;
 
-  /* The mono context line: the member's own numbers or nothing — never a
+  /* The mono context line: the member's own numbers or nothing, never a
      sample household's. */
   var ctx=$('#sig-ctx');
   if(ctx){
@@ -1211,7 +1211,7 @@ function paintCliff(){
   $$('[data-fld="promoMonth"]').forEach(function(el){el.textContent=s.timeline});
 }
 
-/* A card left open across midnight has to change bands without a reload —
+/* A card left open across midnight has to change bands without a reload:
    "9 days" at 23:59 is "8 days" a minute later. Focus/visibility repaints
    cover returns to the tab; this covers the tab that never left. */
 (function(){
@@ -1228,8 +1228,8 @@ function paintCliff(){
 })();
 
 /* ---------- switch file: the member's own numbers, or an honest gap ----------
-   The bill arrives two ways — written locally by bill-checkup.html, and pulled
-   from GET /me/bill by the sync at the bottom of this script — and both funnel
+   The bill arrives two ways (written locally by bill-checkup.html, and pulled
+   from GET /me/bill by the sync at the bottom of this script) and both funnel
    through MEMBER.bill. Every row is repainted on every pass, in both
    directions: a field the bill doesn't have goes BACK to its Add state, so a
    late sync can never leave a stale value wearing a green tick. */
@@ -1241,7 +1241,7 @@ function fmtSpeed(v){
   return +s>=1000?(+s/1000)+' Gbps':s+' Mbps';
 }
 /* One row, value + tick together. null means "not on file": the value reads
-   Add and the tick goes neutral. Never pointed at billUpload — buPrefill()
+   Add and the tick goes neutral. Never pointed at billUpload: buPrefill()
    owns that row, because "added" there means a file, not a number. */
 function setFld(k,text){
   $$('[data-fld="'+k+'"]').forEach(function(el){
@@ -1282,7 +1282,7 @@ function paintSpot(bill){
            .filter(function(v){return v!=null&&v!==''}).length;
   var label=have<=2?'Weak':have<=4?'Fair':'Strong';
   $$('[data-spot]').forEach(function(m){
-    var b=m.querySelector('.mrow b');if(b)b.textContent=have?label:'—';
+    var b=m.querySelector('.mrow b');if(b)b.textContent=have?label:'None';
     var segs=m.querySelectorAll('.segs i'),fill=Math.round(have/6*segs.length);
     segs.forEach(function(seg,i){seg.className=i<fill?'f':''});
   });
@@ -1297,7 +1297,7 @@ function paintBill(){
   paintBillSource(bill);
   paintSpot(bill);
   /* The offer cards' "you save" math compares against this number. Without a
-     real bill it keeps its demo default — the offers view is demo end-to-end. */
+     real bill it keeps its demo default. The offers view is demo end-to-end. */
   var n=bill&&Number(bill.monthly);
   if(isFinite(n)&&n>0)S.member.bill=n;
   paintRatecardHeading();
@@ -1305,7 +1305,7 @@ function paintBill(){
 
 /* ---------- rate-your-provider card ----------
    RATED flips permanently once the server confirms a rating exists (either
-   fetched on load or just submitted) — paintBill() runs again whenever the
+   fetched on load or just submitted): paintBill() runs again whenever the
    bill syncs, and without this flag it would stomp the "Noted, thank you"
    state back to the form by re-setting the h3 text. */
 var RATED=false;
@@ -1414,15 +1414,15 @@ window.addEventListener('focus',refreshCliff);
       .then(function(data){
         busy=false;
         buFill(data&&data.fields);
-        buMsg('We read your bill — check the fields below, then save.');
+        buMsg('We read your bill. Check the fields below, then save.');
       })
       .catch(function(err){
         busy=false;
         console.error('[whollar-bill-ocr]',err);
-        var note=err.status===429?'A few too many tries for now — please fill in the fields below.'
-          :err.status===415?'We can’t read this file type — a PDF, JPG or PNG works best.'
-          :err.status===413?'File’s too large to auto-read (15 MB max) — please fill in below.'
-          :'Couldn’t read it — please fill in the fields below.';
+        var note=err.status===429?'A few too many tries for now. Please fill in the fields below.'
+          :err.status===415?'We can’t read this file type. A PDF, JPG or PNG works best.'
+          :err.status===413?'File’s too large to auto-read (15 MB max). Please fill in below.'
+          :'Couldn’t read it. Please fill in the fields below.';
         buMsg(note,true);
       });
   }
@@ -1440,8 +1440,8 @@ window.addEventListener('focus',refreshCliff);
     $('#bu-chip').hidden=false;
     if(!W.canAutoRead(f)){
       buMsg(check.code==='heic'
-        ?'Attached, but we can’t auto-read an iPhone HEIC photo — please check the fields below.'
-        :'Attached, but too large to auto-read — please check the fields below.',true);
+        ?'Attached, but we can’t auto-read an iPhone HEIC photo. Please check the fields below.'
+        :'Attached, but too large to auto-read. Please check the fields below.',true);
       return;
     }
     buExtract(f);
@@ -1497,7 +1497,7 @@ window.addEventListener('focus',refreshCliff);
     }else disc=null;
 
     if(disc!=null&&cost!=null&&disc>=cost){
-      W.fieldError($('#bu-disc'),'Your discount can’t be as large as your monthly charge — check both numbers.');
+      W.fieldError($('#bu-disc'),'Your discount can’t be as large as your monthly charge. Check both numbers.');
       return;
     }
 
@@ -1537,7 +1537,7 @@ window.addEventListener('focus',refreshCliff);
     },function(err){
       busy=false;btn.disabled=false;btn.textContent=orig;
       /* FORBIDDEN here means the live session cookie no longer belongs to a
-         member — most likely a provider or admin sign-in on this browser
+         member: most likely a provider or admin sign-in on this browser
          replaced it after this record was cached. The background check on
          load (above) should already catch this, but a session can change in
          another tab between that check and this click. Showing the raw
@@ -1545,8 +1545,8 @@ window.addEventListener('focus',refreshCliff);
          as themselves; clear the stale record and send them to sign back in. */
       if(err&&err.code==='FORBIDDEN'){W.member.clear();toSignIn();return;}
       /* err.message is composed server-side to be shown verbatim (it may carry
-         a quotable reference id) — wrap it, don't replace it. */
-      $('#bu-err').textContent='We couldn’t save that just now. '+((err&&err.message)||'Please try again.')+' Nothing below was lost — try again in a moment.';
+         a quotable reference id). Wrap it, don't replace it. */
+      $('#bu-err').textContent='We couldn’t save that just now. '+((err&&err.message)||'Please try again.')+' Nothing below was lost. Try again in a moment.';
       $('#bu-err').style.display='block';
     });
   });
@@ -1558,7 +1558,7 @@ window.addEventListener('focus',refreshCliff);
    Click any value in "What providers bid against" to edit it in place,
    without scrolling to the upload form below. Same save path as bu-form
    (W.session.billSave -> W.member.patch -> repaint), just one field at a
-   time. billUpload is excluded — it isn't a value someone types, it's the
+   time. billUpload is excluded: it isn't a value someone types, it's the
    upload's own state. */
 (function(){
   var PROV_OPTS=['Rogers','Bell','Telus','Shaw','Vidéotron','Cogeco','Eastlink','SaskTel','An independent (oxio, TekSavvy…)','Other / not sure'];
@@ -1661,7 +1661,7 @@ window.addEventListener('focus',refreshCliff);
     },function(err){
       saving=false;
       if(err&&err.code==='FORBIDDEN'){W.member.clear();toSignIn();return;}
-      toast((err&&err.message)||'Couldn’t save that — try again.');
+      toast((err&&err.message)||'Couldn’t save that. Try again.');
       paintBill();
     });
   }
@@ -1771,7 +1771,7 @@ window.addEventListener('focus',refreshCliff);
     },function(err){
       saving=false;
       if(err&&err.code==='FORBIDDEN'){W.member.clear();toSignIn();return;}
-      toast((err&&err.message)||'Couldn’t save that — try again.');
+      toast((err&&err.message)||'Couldn’t save that. Try again.');
       paintAccount();
     });
   }
@@ -1804,7 +1804,7 @@ window.addEventListener('focus',refreshCliff);
     var btn=e.target.closest('.pi [data-edit]');
     if(!btn)return;
     var fld=btn.getAttribute('data-edit');
-    if(fld==='email'){toast('Your email is how you sign in — message support to change it.');return;}
+    if(fld==='email'){toast('Your email is how you sign in. Message support to change it.');return;}
     if(!FIELD[fld])return;
     startEdit(fld,btn);
   });
@@ -1812,7 +1812,7 @@ window.addEventListener('focus',refreshCliff);
 
 /* ---------- identity: name/initials everywhere they're shown ----------
    Runs at load, and again after a Name save in the account-details editor
-   below — FIRST/LAST/DISPNAME/INITIALS are otherwise derived once from the
+   below: FIRST/LAST/DISPNAME/INITIALS are otherwise derived once from the
    record at parse time and never revisited. */
 function paintIdentity(){
   var h=new Date().getHours();
@@ -2094,7 +2094,7 @@ function syncCohortFromCamps(){
   FEED.forming[1]=['Today',le.members+' of '+le.target+' households in'];
 }
 /* Campaign history's "in play" panel: everything the member has put their
-   name against — a joined cohort, a waitlist spot, an opening-day alert. The
+   name against: a joined cohort, a waitlist spot, an opening-day alert. The
    leave buttons here are the same data-leave the cards use, handled by the
    one document-level listener. */
 function paintHistory(){
@@ -2131,7 +2131,7 @@ function doJoin(id,btn){
   var doneToast=function(){
     toast(c.kind==='forming'
       ?('You’re in. '+c.region+' is at '+c.members+' of '+c.target+' households.')
-      :('You’re on the '+c.region+' list — '+c.members+' households waiting.'));
+      :('You’re on the '+c.region+' list, '+c.members+' households waiting.'));
   };
   W.session.campaignJoin(id).then(function(r){
     if(r&&r.campaign)applyCampaign(r.campaign);else localApply();
@@ -2147,9 +2147,9 @@ function doLeave(id){
   var localApply=function(){if(was==='joined'||was==='waitlist'){c.members=Math.max(0,c.members-1);c.households=Math.max(0,c.households-1)}c.you=null};
   W.session.campaignLeave(id).then(function(r){
     if(r&&r.campaign)applyCampaign(r.campaign);else localApply();
-    campRepaint();toast('Done — you’ve left '+c.region+'. Rejoin any time before it locks.');
+    campRepaint();toast('Done. You’ve left '+c.region+'. Rejoin any time before it locks.');
   },function(err){
-    if(offlineish(err)){localApply();campRepaint();toast('Done — you’ve left '+c.region+'.');return}
+    if(offlineish(err)){localApply();campRepaint();toast('Done. You’ve left '+c.region+'.');return}
     toast(err.message||'That didn’t save. Please try again.');
   });
 }
@@ -2173,7 +2173,7 @@ $('#q').addEventListener('keydown',function(e){
 /* ---------- profile ----------
    "Latest bill upload" is live: it reads MEMBER.bill.source, set only once
    the member has actually run the flow on THIS card (see the bu-card IIFE
-   below) \u2014 a bill typed into the public checkup is honest for "Current
+   below): a bill typed into the public checkup is honest for "Current
    provider" but not for this item, since source:'dashboard' is sticky
    server-side and never overwritten by lead adoption. "Mobile bill" has no
    backing table yet, so it stays a static, button-less "Soon" row. Re-run
@@ -2276,7 +2276,7 @@ render();
    The boot guard above only calls adopt() when the local record is MISSING,
    so a member who signed in last week and returns today would render only
    whatever this browser remembers. syncBill() pushes any pending checkup
-   handoff to the account and pulls the server's copy back — that is what
+   handoff to the account and pulls the server's copy back. That is what
    makes a checkup run on the phone show up on the laptop. Quietly: on any
    failure the local record stays on screen. */
 if(W&&W.session&&W.session.syncBill){
@@ -2292,7 +2292,7 @@ if(W&&W.session&&W.session.syncBill){
 }
 
 /* ---------- server sync: has this member already rated their provider? ----------
-   Runs regardless of the bill sync's outcome — a member can have rated before
+   Runs regardless of the bill sync's outcome: a member can have rated before
    this browser ever learned their bill. Quietly does nothing on failure; the
    form stays up and a duplicate submit is still caught server-side. */
 if(W&&W.session&&W.session.ratingGet){
@@ -2304,7 +2304,7 @@ if(W&&W.session&&W.session.ratingGet){
 /* ---------- server sync: campaigns ----------
    Same shape as the bill sync: ask, and quietly keep the seeded demo numbers
    on any failure. When the server answers, its counts and this member's own
-   standing (joined / waitlisted / bell set) replace the seeds — including
+   standing (joined / waitlisted / bell set) replace the seeds, including
    "not joined yet", which turns the London East card into an invitation. */
 if(W&&W.session&&W.session.campaignsList){
   W.session.campaignsList().then(function(r){

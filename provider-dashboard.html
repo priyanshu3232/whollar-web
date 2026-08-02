@@ -351,7 +351,7 @@ tr.exp + tr.dwr{display:table-row}
          Overview view through the same nav() every sidebar button uses, so
          clicking it never reloads the page or drops the partner out of the
          console. -->
-    <button class="pane__top" type="button" data-nav="overview" aria-label="Whollar — overview">
+    <button class="pane__top" type="button" data-nav="overview" aria-label="Whollar overview">
       <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
       <b>Whollar</b>
     </button>
@@ -385,14 +385,14 @@ tr.exp + tr.dwr{display:table-row}
 
     <!-- Approval is a human decision (provider_orgs.approval_status), separate
          from the email verification that signed this partner in. Until it is
-         made the console has to say so — a partner who cannot tell "signed in"
+         made the console has to say so: a partner who cannot tell "signed in"
          from "approved" would reasonably assume the bids below are live.
          Hidden by default and revealed by the /provider/me answer, so the
          approved majority never see a flash of it. -->
     <div class="review-note" id="review-note" role="status" hidden>
       <b>Your partner application is under review.</b>
       You're signed in, and we're reviewing your company before bidding opens.
-      We'll email you when it's approved — questions to <a href="mailto:hello@whollar.ca">hello@whollar.ca</a>.
+      We'll email you when it's approved. Questions to <a href="mailto:hello@whollar.ca">hello@whollar.ca</a>.
     </div>
 
     <div class="content">
@@ -576,9 +576,9 @@ tr.exp + tr.dwr{display:table-row}
               <li><span>Legal name</span><b id="acct-org">Your company</b><button class="tlink" type="button" data-edit="org">Edit</button></li>
               <!-- The account email, not a demo address: a partner who cannot
                    see which login they are in cannot tell two accounts apart. -->
-              <li><span>Sign-in email</span><b id="acct-email">&mdash;</b><button class="tlink" type="button" data-edit="bemail">Edit</button></li>
-              <li><span>Bid authority</span><b id="acct-auth">&mdash;</b><button class="tlink" type="button" data-edit="auth">Edit</button></li>
-              <li><span>Team</span><b id="acct-team">&mdash;</b><button class="tlink" type="button" data-edit="team">Manage</button></li>
+              <li><span>Sign-in email</span><b id="acct-email">Not set</b><button class="tlink" type="button" data-edit="bemail">Edit</button></li>
+              <li><span>Bid authority</span><b id="acct-auth">Not set</b><button class="tlink" type="button" data-edit="auth">Edit</button></li>
+              <li><span>Team</span><b id="acct-team">Not set</b><button class="tlink" type="button" data-edit="team">Manage</button></li>
             </ul>
             <button class="tlink" type="button" id="signout" style="margin-top:12px">Sign out</button>
           </section>
@@ -651,7 +651,7 @@ var PARTNER=W.partner.read();
 if(!PARTNER){
   /* An empty local record is NOT proof of being signed out. A verify that
      completed in another tab sets the session cookie and writes nothing to
-     THIS tab's boot — so ask the server, with the page hidden, because the
+     THIS tab's boot, so ask the server, with the page hidden, because the
      console must not flash up at a visitor who turns out to be signed out. */
   document.documentElement.style.visibility='hidden';
   W.session.adopt('provider').then(function(rec){
@@ -669,7 +669,7 @@ if(!PARTNER){
 window.addEventListener('pageshow',function(e){
   if(e.persisted&&!W.partner.read())location.reload();
 });
-/* Signed out in another tab — don't leave a live console behind. */
+/* Signed out in another tab: don't leave a live console behind. */
 window.addEventListener('storage',function(e){
   if((!e.key||e.key===W.PARTNER_KEY)&&!W.partner.read())location.reload();
 });
@@ -689,7 +689,7 @@ var CONTACT=FIRST?(FIRST+' '+(PARTNER.lastName?String(PARTNER.lastName).charAt(0
 function signOut(){
   /* End the server session, not just the local record. Clearing localStorage
      alone leaves the cookie alive, and the guard above would adopt() it on
-     the next visit and sign the visitor straight back in — a sign-out button
+     the next visit and sign the visitor straight back in, a sign-out button
      that doesn't sign you out. W.session.end() clears the local record
      itself, and does so even if the request fails. */
   var done=function(){location.replace('/whollar-login-provider')};
@@ -711,7 +711,7 @@ var CAMPAIGNS=[
   speed:[['1 Gig',24],['500 Mbps',61],['Under 500',15]],renew:'Oct to Nov',
   intent:[['$25+/mo',33],['$10+/mo',49],['Curious',18]],last:'$58/mo \u00b7 1 Gig'},
  /* hh matches the member cards' London East seed (61 of 100), not the old
-    112 — the same campaign must open on the same number on both dashboards,
+    112: the same campaign must open on the same number on both dashboards,
     reachable service or not. */
  {id:'le',region:'London East',sub:'Autumn cohort',cov:'London East',hh:61,conf:68,
   t:{announce:snap(-11,9),open:snap(-4,9),close:snap(18,17),offers:snap(25,9),decide:snap(32,17),sw:snap(46,9),rec:snap(60,9)},
@@ -726,7 +726,7 @@ var CAMPAIGNS=[
   speed:[['1 Gig',26],['500 Mbps',57],['Under 500',17]],renew:'Jan to Mar',
   intent:[['$25+/mo',31],['$10+/mo',47],['Curious',22]],last:'No prior bid here'},
  /* Every hh seed below equals the member cards' members seed for the same
-    campaign — one campaign, one number, service reachable or not. Matching
+    campaign: one campaign, one number, service reachable or not. Matching
     seeds are also what keeps the first poll from toasting "counts updated"
     on a page that just opened. */
  {id:'ln',region:'London North',sub:'Winter cohort',cov:'London North',hh:61,planned:1,expected:snap(45,9),note:'Cohort forming: 61 of 100 households'},
@@ -808,7 +808,7 @@ function paintPartner(){
   $('#acct-org').textContent=ORG;
   $('#acct-email').textContent=PARTNER.email;
   $('#acct-auth').textContent=CONTACT+' · '+ROLE;
-  /* Team is a single seat until invites exist — listing a second name invented
+  /* Team is a single seat until invites exist. Listing a second name invented
      a colleague. */
   $('#acct-team').textContent=CONTACT+' · only seat so far';
 }
@@ -821,7 +821,7 @@ paintPartner();
    role the server assigned. This is also the only place the approval state
    arrives: `approved` is false until a human approves the company, and the
    banner above the content is what tells the partner that plainly. A failed
-   call changes nothing — the guessed headings stay, the banner stays hidden,
+   call changes nothing: the guessed headings stay, the banner stays hidden,
    and the session guard has already decided who may be here at all. */
 W.session.providerMe().then(function(r){
   if(!r||!r.ok)return;
@@ -836,7 +836,7 @@ W.session.providerMe().then(function(r){
 },function(err){
   /* Offline: leave the guessed headings, the guard already let them in.
      But a definite 401/403 means the browser's ONE session cookie belongs
-     to someone who is not a partner — usually a member who signed in after
+     to someone who is not a partner, usually a member who signed in after
      this tab's local record was written. Sitting on that record would show
      a console whose every server call fails, quietly stuck on demo seeds
      (that is exactly the "desk says 61 while members see 63" bug). Clear
@@ -850,12 +850,12 @@ W.session.providerMe().then(function(r){
 /* ---------- live names and household counts ----------
    The desk's numbers are demo seeds until the campaign service answers. The
    member dashboard writes joins through the same service, so every household
-   that joins a cohort over there is one more in these columns — counts only,
+   that joins a cohort over there is one more in these columns: counts only,
    never who they are.
 
    Names come from the same answer: the catalog is the one place a campaign
    is called anything, and the member cards, this desk and the admin console
-   all read it — so a rename there lands here without a deploy. Names apply
+   all read it, so a rename there lands here without a deploy. Names apply
    whenever the catalog answers; counts only when `live` is true, because
    `live:false` means the membership table isn't provisioned yet and the
    seeds ARE the server's numbers in that case.
@@ -863,14 +863,14 @@ W.session.providerMe().then(function(r){
    Polled, not fetched once: a desk is a screen partners leave open, and a
    number that only moves on refresh reads as a number that doesn't move.
    Every 45 seconds while the tab is visible, plus the moment it becomes
-   visible again — that catches "joined on my phone, flipped back to the
+   visible again. That catches "joined on my phone, flipped back to the
    laptop" without hammering the function while nobody is looking. */
 var CAMPMAP={kw:'kingston-west',le:'london-east',wc:'windsor-core',hm:'hamilton-mountain',ln:'london-north',ck:'chatham-kent'};
 function syncCampaigns(){
   W.session.providerCampaigns().then(function(r){
     if(!r||!r.ok)return;
     var by={};(r.campaigns||[]).forEach(function(c){by[c.id]=c});
-    /* `changed` gates the repaint; `moved` gates the toast — a rename or a
+    /* `changed` gates the repaint; `moved` gates the toast: a rename or a
        reworded note should redraw quietly, only a count that ticked deserves
        "households joined since your last look". */
     var moved=false,changed=false;
@@ -1033,7 +1033,7 @@ document.addEventListener('keydown',function(e){
 });
 
 /* ---------- add to calendar ----------
-   "Add to calendar" used to silently download an .ics \u2014 a dead end for
+   "Add to calendar" used to silently download an .ics, a dead end for
    anyone on a web calendar, which is most people. The button now opens a
    chooser: Google and Outlook get a prefilled event in a new tab, and the
    .ics file stays for Apple Calendar and desktop apps. All three read the
@@ -1043,7 +1043,7 @@ function icsEsc(s){return String(s).replace(/\\/g,'\\\\').replace(/[,;]/g,functi
 function calEvents(c){
   return c.planned
     ? [{t:c.expected,s:'Whollar \u00b7 '+c.region+' \u00b7 bidding expected to open',tent:1,
-        d:'Expected date \u2014 it firms up the day the cohort locks. Your partner console has the live plan: https://www.whollar.ca/provider-dashboard'}]
+        d:'Expected date. It firms up the day the cohort locks. Your partner console has the live plan: https://www.whollar.ca/provider-dashboard'}]
     : [{t:c.t.open,s:'Whollar \u00b7 '+c.region+' \u00b7 bidding opens',d:'Sealed bids accepted from this moment.'},
        {t:c.t.close,s:'Whollar \u00b7 '+c.region+' \u00b7 bids close',d:'Your number is final at this moment. Improve it any time before.'},
        {t:c.t.offers,s:'Whollar \u00b7 '+c.region+' \u00b7 offers out',d:'The winning offer goes to every household in the cohort.'},
@@ -1088,7 +1088,7 @@ function outlookURL(e){
 var calMenuEl=null,calMenuBtn=null;
 function closeCalMenu(){if(calMenuEl){calMenuEl.remove();calMenuEl=null;calMenuBtn=null}}
 /* The menu is position:fixed, so a scroll would leave it floating where the
-   button used to be — follow the button instead of vanishing under the
+   button used to be. Follow the button instead of vanishing under the
    reader's wheel. */
 function placeCalMenu(){
   if(!calMenuEl||!calMenuBtn)return;
@@ -1127,7 +1127,7 @@ function openCalMenu(btn,cid){
   m.querySelector('button').focus();
 }
 /* The opener above runs off the earlier delegated listener, so by the time
-   these fire the menu for THIS click already exists \u2014 hence the [data-ics]
+   these fire the menu for THIS click already exists, hence the [data-ics]
    carve-out, and the toggle branch in openCalMenu does the closing. */
 document.addEventListener('click',function(e){
   if(calMenuEl&&!e.target.closest('.calmenu')&&!e.target.closest('[data-ics]'))closeCalMenu();
@@ -1504,8 +1504,8 @@ $('#rst').addEventListener('click',function(){
   $('#cfg-fee').value=95;setStage('day1');renderTasks();lastSig=sig();renderAll();toast('Demo reset.');
 });
 
-/* Prototype controls are for internal QA only (jump stages, skip the clock) —
-   a live partner has no use for them and shouldn't see them. Same ?demo=1
+/* Prototype controls are for internal QA only (jump stages, skip the clock).
+   A live partner has no use for them and shouldn't see them. Same ?demo=1
    convention as dashboard.html: append it to the URL to bring the panel back. */
 var DEMO=new URLSearchParams(location.search).get('demo')==='1';
 if(!DEMO){

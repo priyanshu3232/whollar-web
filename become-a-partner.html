@@ -16,16 +16,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="/js/device-router.js"></script>
 <script src="/js/whollar-core.js"></script>
-<title>Become a founding partner — Whollar</title>
+<title>Become a founding partner · Whollar</title>
 <meta name="description" content="Apply to join Whollar as an internet provider, sales partner or distributor. Bid for whole neighbourhood cohorts instead of buying single leads.">
 <link rel="canonical" href="https://www.whollar.ca/become-a-partner">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://www.whollar.ca/become-a-partner">
-<meta property="og:title" content="Become a founding partner — Whollar">
+<meta property="og:title" content="Become a founding partner · Whollar">
 <meta property="og:description" content="Apply to join Whollar as an internet provider, sales partner or distributor. Bid for whole neighbourhood cohorts instead of buying single leads.">
 <meta property="og:site_name" content="Whollar">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Become a founding partner — Whollar">
+<meta name="twitter:title" content="Become a founding partner · Whollar">
 <meta name="twitter:description" content="Apply to join Whollar as an internet provider, sales partner or distributor. Bid for whole neighbourhood cohorts instead of buying single leads.">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="preconnect" href="https://api.fontshare.com">
@@ -41,7 +41,7 @@
   --teal:#0E2A20; --teal-deep:#0A2018; --teal-bright:#178A5A; --teal-soft:#7FE3B0;
   --accent:#1E9E63; --accent-hover:#178A5A;
   --cream:#FAF8F3; --paper:#ffffff; --mist:#F6F4EE;
-  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#5F6B64; /* was #8A968F (2.6-3.1:1) — carries real body copy at 11-12.5px; darkened to clear WCAG AA 4.5:1 on cream, white, mist, green-tint and warn-soft */ --line:#e7ebe6;
+  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#5F6B64; /* was #8A968F (2.6-3.1:1): carries real body copy at 11-12.5px; darkened to clear WCAG AA 4.5:1 on cream, white, mist, green-tint and warn-soft */ --line:#e7ebe6;
   --warn:#C2643B; --warn-text:#A34F2B; /* --warn stays for borders/strokes (decorative). Text must use --warn-text: #C2643B is only 3.4-3.8:1 on these backgrounds. */ --green-tint:#E4F4EC;
   --label:'General Sans','Satoshi',system-ui,sans-serif;
   --disp:'Satoshi',system-ui,sans-serif;
@@ -578,12 +578,12 @@ const PROV=['AB','BC','MB','NB','NL','NS','NT','NU','ON','PE','QC','SK','YT'];
 
 /* Endpoint, validators and transport all come from /js/whollar-core.js. This
    page previously carried its own looser email regex ([^@\s]+$), which
-   accepted "a@b.c" — input the server then rejected with a 400 the visitor
+   accepted "a@b.c": input the server then rejected with a 400 the visitor
    could do nothing about. */
 const W=window.WHOLLAR;
 const submitForm=(path,fields)=>W.submitForm(path,fields);
 const busy=(btn,on,label)=>W.busy(btn,on,label);
-/* a failed submit must never masquerade as success — surface it and let the user retry */
+/* a failed submit must never masquerade as success: surface it and let the user retry */
 function submitErr(anchor,err){
   console.error('[whollar submit]',err);
   const row=anchor.closest('.ctarow')||anchor.parentNode;
@@ -628,7 +628,7 @@ $('#p-go').addEventListener('click',async()=>{
   if($('#p-last').value.trim().length<2)return bad($('#p-last'),'Enter your last name.');
   if($('#p-company').value.trim().length<2)return bad($('#p-company'),'Enter your company name.');
   const ph=$('#p-phone').value.replace(/\D/g,''); if(ph.length<10||ph.length>11)return bad($('#p-phone'),'Enter a 10-digit phone number, e.g. (555) 555-0123.');
-  /* Same rule as the server's EMAIL_RE — the old regex here accepted a
+  /* Same rule as the server's EMAIL_RE: the old regex here accepted a
      one-character TLD the backend then rejected. */
   if(!W.isEmail($('#p-email').value.trim()))return bad($('#p-email'),'Enter a valid work email, e.g. you@company.ca.');
   if(S.role==='provider'){
@@ -673,7 +673,7 @@ $('#p-go').addEventListener('click',async()=>{
     note:$('#o-note').value.trim()||null,
     ts:new Date().toISOString()};
   const btn=$('#p-go');clearErr(btn);
-  /* busy() returns false when this button is already in flight — the
+  /* busy() returns false when this button is already in flight: the
      double-tap guard that stops a second application being filed. */
   if(busy(btn,true,'Sending…')===false)return;
   try{await submitForm('/partner-application',payload);}

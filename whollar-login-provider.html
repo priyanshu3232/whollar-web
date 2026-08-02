@@ -28,7 +28,7 @@
   --teal:#0E2A20; --teal-deep:#0A2018; --teal-bright:#178A5A; --teal-soft:#7FE3B0;
   --accent:#1E9E63; --accent-hover:#178A5A;
   --cream:#FAF8F3; --paper:#ffffff; --mist:#F6F4EE;
-  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#5F6B64; /* was #8A968F (2.6-3.1:1) — carries real body copy at 11-12.5px; darkened to clear WCAG AA 4.5:1 on cream, white, mist, green-tint and warn-soft */ --line:#e7ebe6; --line-2:#dfe3dd;
+  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#5F6B64; /* was #8A968F (2.6-3.1:1), carries real body copy at 11-12.5px; darkened to clear WCAG AA 4.5:1 on cream, white, mist, green-tint and warn-soft */ --line:#e7ebe6; --line-2:#dfe3dd;
   --warn:#C2643B; --warn-text:#A34F2B; /* --warn stays for borders/strokes (decorative). Text must use --warn-text: #C2643B is only 3.4-3.8:1 on these backgrounds. */ --warn-soft:#F7E7DD; --green-tint:#E4F4EC;
   --label:'General Sans','Satoshi',system-ui,sans-serif;
   --disp:'Satoshi',system-ui,sans-serif;
@@ -158,7 +158,7 @@ button{font-family:var(--body)}
 
   <!-- BRAND PANEL -->
   <aside class="brand">
-    <a class="mark rv" href="/" aria-label="Whollar — back to the homepage"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg><b>Whollar</b><span class="tag">Partner portal</span></a>
+    <a class="mark rv" href="/" aria-label="Whollar, back to the homepage"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg><b>Whollar</b><span class="tag">Partner portal</span></a>
     <div class="brand__mid">
       <div class="eyebrow rv d1">For providers</div>
       <h1 class="rv d1">Compete for whole streets, <em>not single leads.</em></h1>
@@ -225,12 +225,12 @@ button{font-family:var(--body)}
         </div>
 
         <!-- step 1: everything the account needs, in one request. The code
-             that follows only proves the address — /provider/signup wants the
+             that follows only proves the address: /provider/signup wants the
              password and company WITH the email, which is why they are no
              longer collected after the code. -->
         <div id="su-step1">
           <h2>Create a partner account</h2>
-          <p class="fsub">Use your work email — it links you to your company. We'll email a code to confirm it.</p>
+          <p class="fsub">Use your work email. It links you to your company. We'll email a code to confirm it.</p>
 
           <form id="signup-form" novalidate>
           <div class="field" id="su-email-f">
@@ -297,7 +297,7 @@ button{font-family:var(--body)}
           <!-- /provider/signup answers a new address and an already-registered
                one identically, so this page cannot be used to ask which
                companies have accounts. The cost is that somebody in the second
-               case waits for a code that is never coming — this line is what
+               case waits for a code that is never coming. This line is what
                stops that being a mystery. -->
           <p class="legal">Already had an account with this address? We've emailed you about that instead of sending a code.</p>
         </div>
@@ -372,7 +372,7 @@ button{font-family:var(--body)}
 
 <script>
 /* ------------------------------------------------------------------ *
- * Partner sign-in, sign-up and reset — the same machinery as the member
+ * Partner sign-in, sign-up and reset: the same machinery as the member
  * page (whollar-login-consumer.html), pointed at the /provider/* routes.
  *
  * The differences that matter are the server's, not this file's:
@@ -380,7 +380,7 @@ button{font-family:var(--body)}
  *   - /provider/signup needs the password and company WITH the email, in
  *     one request, before any code is sent. So step 1 collects everything
  *     and step 2 only proves the address.
- *   - A free mailbox (gmail, outlook …) is refused by name — the email
+ *   - A free mailbox (gmail, outlook …) is refused by name. The email
  *     domain is what the partner org is derived from. It is the one
  *     specific error the server gives, and it belongs on the email field.
  *   - There is no EMAIL_UNVERIFIED recovery branch: partner login folds
@@ -398,8 +398,8 @@ function nextTarget(){
 
 /* Already signed in? Don't strand a partner on a form they don't need. The
    local record answers instantly; when it is empty that is not proof of being
-   signed out — a verify that completed in another tab leaves a cookie with
-   nothing in localStorage — so ask the server before deciding. */
+   signed out (a verify that completed in another tab leaves a cookie with
+   nothing in localStorage), so ask the server before deciding. */
 (function(){
   if(W.partner.read()){ location.replace(nextTarget()); return; }
   W.session.adopt('provider').then(function(rec){ if(rec) location.replace(nextTarget()); });
@@ -483,7 +483,7 @@ function otpGroup(containerId,onFull){
     inp.addEventListener('keydown',function(e){
       if(e.key==='Backspace'&&!this.value&&idx>0) inputs[idx-1].focus();
     });
-    /* Paste anywhere in the row spreads across all six — codes arrive by copy
+    /* Paste anywhere in the row spreads across all six. Codes arrive by copy
        far more often than they are typed. */
     inp.addEventListener('paste',function(e){
       e.preventDefault();
@@ -534,7 +534,7 @@ function showDevCode(elId,group,dev){
 /* Every successful path ends here. adopt() re-reads the session from the
    server rather than trusting the response body, so the localStorage record
    and the cookie can never disagree. A null answer means either the cookie
-   did not stick, or — reachable only through the shared reset flow — the
+   did not stick, or (reachable only through the shared reset flow) the
    address belongs to a household account, whose session this page must not
    adopt. Both are worth saying plainly instead of redirecting into a
    dashboard that bounces straight back here. */
@@ -542,7 +542,7 @@ function finishSignIn(errId,btn){
   return W.session.adopt('provider').then(function(rec){
     if(!rec){
       W.busy(btn,false);
-      setErr(errId,'You’re signed in, but we couldn’t open the partner console. If this address is a household account, use the member sign-in — otherwise check that cookies are enabled and try again.');
+      setErr(errId,'You’re signed in, but we couldn’t open the partner console. If this address is a household account, use the member sign-in. Otherwise check that cookies are enabled and try again.');
       return;
     }
     location.href=nextTarget();
@@ -569,7 +569,7 @@ document.getElementById('to-signin').addEventListener('click',function(){
 });
 document.getElementById('to-forgot').addEventListener('click',function(){
   clearErr('signin-err');
-  /* Carry the address across rather than making them type it again — they
+  /* Carry the address across rather than making them type it again. They
      have usually just failed to sign in with it. */
   var typed=document.getElementById('si-email').value.trim();
   if(typed) document.getElementById('fp-email').value=typed;
@@ -674,7 +674,7 @@ document.getElementById('signup-form').addEventListener('submit',function(e){
     .catch(function(err){
       W.busy(btn,false);
       /* The one specific refusal the server makes: a free mailbox cannot
-         anchor a partner org. It belongs on the email field — shown as a
+         anchor a partner org. It belongs on the email field. Shown as a
          form-level failure it reads like the whole signup is broken. Any
          other message the pattern misses still lands below, so nothing is
          swallowed if the wording changes. */
@@ -731,8 +731,8 @@ document.getElementById('code-form').addEventListener('submit',function(e){
       setErr('otp-err',serverMessage(err));
       document.getElementById('otp').classList.add('err');
       codeOtp.clear();
-      /* Let the same six digits be retried after a transport failure —
-         without this the auto-submit guard would swallow the second try. */
+      /* Let the same six digits be retried after a transport failure.
+         Without this the auto-submit guard would swallow the second try. */
       codeOtp.reset();
       codeOtp.focus();
     });
@@ -767,14 +767,14 @@ document.getElementById('editemail').addEventListener('click',function(){
  * FORGOT PASSWORD
  *
  * The generic /password/forgot + /password/reset pair serves both account
- * types — the server keys the reset to whatever account owns the address
+ * types. The server keys the reset to whatever account owns the address
  * and hands back a session of that account's type. finishSignIn() then
  * refuses to adopt anything that is not a provider session.
  * ================================================================== */
 
 var fpOtp=otpGroup('fp-otp',function(){
   /* No auto-submit: unlike the signup step, a complete code is not enough to
-     act on — the new password still has to be typed below it. */
+     act on. The new password still has to be typed below it. */
   var pw=document.getElementById('fp-password');
   if(!pw.value) pw.focus();
 });
