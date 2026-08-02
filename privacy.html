@@ -39,7 +39,7 @@
     /* legal-page palette */
     --green:#1B4D3E; --green-deep:#143B30; --cream:#F1ECDF; --cream-2:#EBE5D7;
     --purple:#534AB7; --gold:#C4A24B; --ink:#22221E; --muted:#6E6E63; --line:#D9D2C2;
-    --measure:70ch;
+    --measure:60rem;
     /* site component tokens (header/footer) */
     --teal:#0E2A20; --teal-deep:#0A2018; --navy-deep:#0A2018;
     --disp:'Satoshi',system-ui,sans-serif;
@@ -105,67 +105,59 @@
 
   /* ── Legal document ── */
   .page{max-width:1120px; margin:0 auto; padding:3.2rem 1.5rem 0}
-  .eyebrow{font-size:.72rem; font-weight:600; letter-spacing:.2em; text-transform:uppercase;
+  .eyebrow{font-size:.612rem; font-weight:600; letter-spacing:.2em; text-transform:uppercase;
     color:var(--green); display:flex; align-items:center; gap:.6rem;}
   .eyebrow::after{content:""; height:1px; width:46px; background:var(--gold)}
+  /* The reading column is centred on the page. Removing the sidebar left the
+     text hard against the left edge of a 1120px container; .dochead and
+     .content share --measure so the heading block and the body stay aligned. */
+  .dochead{max-width:var(--measure); margin:0 auto}
   .dochead h1{font-family:"Fraunces",serif; font-weight:500; line-height:1.05;
-    font-size:clamp(2.3rem,5.2vw,3.3rem); margin:.7rem 0 .5rem; color:var(--green-deep);}
-  .meta{color:var(--muted); font-size:.86rem; margin:0 0 1.4rem}
+    font-size:clamp(1.955rem,4.42vw,2.805rem); margin:.7rem 0 .5rem; color:var(--green-deep);}
+  .meta{color:var(--muted); font-size:.731rem; margin:0 0 1.4rem}
   .meta b{color:var(--ink); font-weight:600}
-  .intro{max-width:var(--measure); font-size:1.06rem; color:#33332C}
+  .intro{max-width:var(--measure); font-size:.901rem; color:#33332C}
   .intro ul{margin:.7rem 0; padding-left:1.1rem}
   .intro li{margin:.35rem 0}
 
-  .layout{max-width:1120px; margin:0 auto; padding:2.4rem 1.5rem 0;
-    display:grid; grid-template-columns:230px minmax(0,1fr); gap:3.2rem; align-items:start;}
-  .toc{position:sticky; top:84px}
-  .toc__title{font-size:.72rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin:0 0 .8rem}
-  .toc ol{list-style:none; margin:0; padding:0; border-left:1px solid var(--line)}
-  .toc a{display:block; text-decoration:none; color:var(--muted); font-size:.82rem; line-height:1.35;
-    padding:.28rem 0 .28rem .9rem; margin-left:-1px; border-left:2px solid transparent; transition:color .15s,border-color .15s}
-  .toc a:hover{color:var(--ink)}
-  .toc a.is-active{color:var(--green-deep); font-weight:600; border-left-color:var(--purple)}
+  .layout{max-width:1120px; margin:0 auto; padding:2.4rem 1.5rem 0}
 
-  .content{max-width:var(--measure)}
+  /* Body copy is set here rather than inherited from body{16px} so the whole
+     legal document scales as one unit: .85rem = 13.6px, 15% below the site base. */
+  .content{max-width:var(--measure); margin:0 auto; font-size:.85rem}
   .clause{display:flex; gap:1.1rem; margin:1.9rem 0; scroll-margin-top:92px}
   .clause:first-of-type{margin-top:.5rem}
   .clause__num{font-family:"Fraunces",serif; font-weight:600; color:var(--green);
-    font-size:1.25rem; line-height:1.3; flex:none; width:1.8rem; text-align:right}
+    font-size:1.063rem; line-height:1.3; flex:none; width:1.8rem; text-align:right}
   .clause__body{flex:1; min-width:0}
-  .clause__body h2{font-size:1.1rem; font-weight:700; color:var(--ink); margin:.15rem 0 .5rem; line-height:1.3}
-  .clause__body h3{font-family:"Fraunces",serif; font-weight:600; font-size:1rem; color:var(--green-deep);
+  .clause__body h2{font-size:.935rem; font-weight:700; color:var(--ink); margin:.15rem 0 .5rem; line-height:1.3}
+  .clause__body h3{font-family:"Fraunces",serif; font-weight:600; font-size:.85rem; color:var(--green-deep);
     margin:1.5rem 0 .3rem; line-height:1.3}
   .clause__body p{margin:.6rem 0}
   .clause__body ul{margin:.6rem 0; padding-left:1.1rem}
   .clause__body li{margin:.35rem 0}
   .clause__body strong{font-weight:600}
-  .inshort{color:#4A4A40; font-size:.95rem; font-style:italic; margin:.4rem 0 .9rem}
+  .inshort{color:#4A4A40; font-size:.808rem; font-style:italic; margin:.4rem 0 .9rem}
   .inshort b{font-style:normal; font-weight:700; color:var(--ink)}
 
   .callout{background:var(--cream-2); border-left:3px solid var(--gold);
-    padding:.9rem 1.1rem; margin:1rem 0; border-radius:0 6px 6px 0; font-size:.96rem}
+    padding:.9rem 1.1rem; margin:1rem 0; border-radius:0 6px 6px 0; font-size:.816rem}
   .callout--purple{border-left-color:var(--purple)}
   .fill{background:#efe7cf; border-bottom:1px dashed #b9a35f; padding:0 .15em; color:#5c4a18; font-style:normal}
   .snap{background:var(--green); color:var(--cream); border-radius:10px; padding:1.3rem 1.5rem; margin:0 0 1rem}
-  .snap h2{font-family:"Fraunces",serif; font-weight:600; font-size:1.1rem; margin:0 0 .6rem; color:#fff}
-  .snap p{margin:.55rem 0; font-size:.95rem}
+  .snap h2{font-family:"Fraunces",serif; font-weight:600; font-size:.935rem; margin:0 0 .6rem; color:#fff}
+  .snap p{margin:.55rem 0; font-size:.808rem}
   .snap p b{color:#fff}
   .snap ul{margin:0; padding-left:1.1rem}
-  .snap li{margin:.35rem 0; font-size:.95rem}
+  .snap li{margin:.35rem 0; font-size:.808rem}
   .snap a{color:#EBD9A6}
 
   :focus-visible{outline:2px solid var(--purple); outline-offset:2px; border-radius:2px}
   .whl-footer :focus-visible,.whl-header :focus-visible{outline-color:var(--gold)}
 
-  @media (max-width:900px){
-    .layout{grid-template-columns:1fr; gap:1.4rem}
-    .toc{position:static; max-height:40vh; overflow:auto; background:var(--cream-2); border:1px solid var(--line); border-radius:8px; padding:1rem 1.1rem}
-    .toc ol{border-left:none}
-    .toc a{padding-left:.4rem}
-  }
   @media (max-width:560px){
     .clause{gap:.7rem}
-    .clause__num{width:1.4rem; font-size:1.05rem}
+    .clause__num{width:1.4rem; font-size:.893rem}
   }
 </style>
 </head>
@@ -231,30 +223,6 @@
 </main>
 
 <div class="layout">
-  <nav class="toc" aria-label="On this page">
-    <div class="toc__title">On this page</div>
-    <ol>
-      <li><a href="#summary">Summary of key points</a></li>
-      <li><a href="#s1">1. What information do we collect?</a></li>
-      <li><a href="#s2">2. How do we process your information?</a></li>
-      <li><a href="#s3">3. What legal bases do we rely on?</a></li>
-      <li><a href="#s4">4. When and with whom do we share?</a></li>
-      <li><a href="#s5">5. Third-party websites</a></li>
-      <li><a href="#s6">6. Cookies and tracking technologies</a></li>
-      <li><a href="#s7">7. Artificial intelligence-based products</a></li>
-      <li><a href="#s8">8. Your social logins</a></li>
-      <li><a href="#s9">9. How long we keep your information</a></li>
-      <li><a href="#s10">10. How we keep your information safe</a></li>
-      <li><a href="#s11">11. Information from minors</a></li>
-      <li><a href="#s12">12. What are your privacy rights?</a></li>
-      <li><a href="#s13">13. Do-Not-Track features</a></li>
-      <li><a href="#s14">14. United States residents’ rights</a></li>
-      <li><a href="#s15">15. Updates to this notice</a></li>
-      <li><a href="#s16">16. How to contact us</a></li>
-      <li><a href="#s17">17. Review, update, or delete your data</a></li>
-    </ol>
-  </nav>
-
   <article class="content">
 
     <section class="clause" id="summary">
@@ -584,24 +552,6 @@
       mobnav.querySelectorAll('[data-mobnav-link]').forEach(function(a){ a.addEventListener('click', function(){ setNav(false); }); });
       window.addEventListener('resize', function(){ if(window.innerWidth > 880) setNav(false); });
     }
-
-    /* "On this page" scroll-spy */
-    var links = Array.prototype.slice.call(document.querySelectorAll('.toc a[href^="#"]'));
-    var map = {};
-    links.forEach(function(l){ var id=l.getAttribute('href').slice(1); map[id]=l; });
-    var targets = Object.keys(map).map(function(id){ return document.getElementById(id); }).filter(Boolean);
-    if(!('IntersectionObserver' in window) || !targets.length) return;
-    var current=null;
-    var io=new IntersectionObserver(function(entries){
-      entries.forEach(function(e){
-        if(e.isIntersecting){
-          if(current) current.classList.remove('is-active');
-          var l=map[e.target.id];
-          if(l){ l.classList.add('is-active'); current=l; }
-        }
-      });
-    },{rootMargin:'-90px 0px -70% 0px', threshold:0});
-    targets.forEach(function(t){ io.observe(t); });
   })();
 </script>
 </body>
