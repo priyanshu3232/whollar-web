@@ -1,17 +1,16 @@
-/* Whollar device router — one shared script for every mapped desktop/mobile page.
+/* Whollar device router: one shared script for every mapped desktop/mobile page.
    Desktop page on a small viewport → its mobile counterpart; mobile page on a
    large viewport → its desktop counterpart. Pages with no mapping entry are
-   never redirected — no fallback, no homepage catch-all. location.replace()
+   never redirected: no fallback, no homepage catch-all. location.replace()
    keeps the wrong-device URL out of history so Back never bounces between
    versions.
    INVARIANT: on every page that includes this script, the
    <meta name="viewport" content="width=device-width"...> tag must appear
-   BEFORE this include (bundle pages: in the OUTER wrapper head). Without it,
-   phones report a ~980px layout viewport here and would misroute. */
+   BEFORE this include. Without it, phones report a ~980px layout viewport
+   here and would misroute. */
 (function () {
   'use strict';
-  /* Bundled pages re-run head scripts after the template unpacks — never
-     initialize twice. */
+  /* Guard against double-inclusion. */
   if (window.__whlDeviceRouter) return;
   window.__whlDeviceRouter = true;
 
@@ -67,8 +66,8 @@
 
   /* The counterpart route when the current page is wrong for the viewport,
      else null. A desktop page only has an entry in toMobile and a mobile page
-     only in toDesktop, so a page already matching its viewport — or any
-     unmapped page — always resolves to null. That asymmetry is the loop
+     only in toDesktop, so a page already matching its viewport, or any
+     unmapped page, always resolves to null. That asymmetry is the loop
      guard. */
   function target() {
     var here = normalize(location.pathname);
@@ -78,11 +77,11 @@
   function redirect() {
     var t = target();
     if (!t) return;
-    /* Desktop routes served from directories (index.html inside) — a trailing
+    /* Desktop routes served from directories (index.html inside). A trailing
        slash works on every server. */
     var isDir = t === '/waitlist' || t === '/blog' || t.indexOf('/blog/') === 0;
     if (/\.html?$/i.test(location.pathname)) {
-      /* Static servers without clean-URL rewrites — stay in .html style. */
+      /* Static servers without clean-URL rewrites: stay in .html style. */
       if (t === '/') t = '/index.html';
       else if (isDir) t = t + '/';
       else t = t + '.html';
@@ -94,7 +93,7 @@
 
   redirect();
 
-  /* A bfcache restore skips the load-time check — the viewport may have
+  /* A bfcache restore skips the load-time check. The viewport may have
      changed (rotation, window resize) while the page was frozen. */
   window.addEventListener('pageshow', function (e) {
     if (e.persisted) redirect();

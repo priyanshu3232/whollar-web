@@ -1,10 +1,11 @@
-/* Read/write helpers for the self-unpacking bundle pages.
+/* Read/write helpers for self-unpacking bundle pages.
  *
- * index.html, partners.html and their mobile builds are not editable as plain
- * HTML: the real document lives as a JSON-encoded string inside
- * <script type="__bundler/template">…</script>, and a loader in the outer head
- * swaps it in on DOMContentLoaded. Hand-editing that line is how the mobile
- * estimator CTA ended up pointing at the wrong page.
+ * HISTORICAL: index.html, partners.html and their mobile builds used to ship
+ * as bundles, where the real document lives as a JSON-encoded string inside
+ * <script type="__bundler/template">…</script> and a loader in the outer head
+ * swaps it in on DOMContentLoaded. scripts/debundle.mjs converted all four to
+ * plain static HTML so crawlers see content without executing JS. These
+ * helpers stay for that converter and for any future bundle drop.
  *
  * `<` must stay escaped as < on the way back in, otherwise a literal
  * </script> inside the payload would terminate the outer script tag early and

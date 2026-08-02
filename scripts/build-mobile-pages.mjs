@@ -20,8 +20,9 @@
  *   node scripts/build-mobile-pages.mjs --check  # CI: fail if they are stale
  *
  * NOT handled here (different mechanisms, still hand-maintained):
- *   - index.html / partners.html and their mobile builds are self-unpacking
- *     bundles; edit the JSON template inside them.
+ *   - index.html / partners.html and their mobile builds (consumer-mobile,
+ *     provider-mobile) are separate hand-edited pages; they were converted
+ *     from self-unpacking bundles to plain HTML by scripts/debundle.mjs.
  *   - waitlist <-> join-the-first-cohort-mobile: the mobile build inlines
  *     Lottie JSON and fonts that the desktop page loads as separate files.
  *   - blog articles: see scripts/build-mobile-blog.mjs.
