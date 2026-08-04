@@ -652,4 +652,106 @@ app.post('/calculator-estimate', limit({ key: 'calculator-estimate', max: 40, wi
   }
 });
 
+// Contact form on /contact.
+// Table: ContactSubmissions
+const CONTACT_TOPICS = ['sales', 'support', 'partnership', 'press', 'other'];
+const CONTACT_INBOX = 'info@whollar.com';
+
+// Best-effort copy of a submission to the team inbox, same ZeptoMail API the
+// auth mailer uses (see functions/auth/src/lib/mailer.js — its regional-DC
+// note applies here too). Mirror ZEPTOMAIL_TOKEN / ZEPTOMAIL_FROM (and
+// ZEPTOMAIL_API_BASE if set) from the auth function's config onto this one;
+// until they exist the message is logged instead, and either way a mail
+// failure must NEVER fail the visitor's request — the row is already saved.
+async function notifyTeam(subject, text) {
+  const token = (process.env.ZEPTOMAIL_TOKEN || '').trim().replace(/^Bearer\s+/i, '');
+  const from = (process.env.ZEPTOMAIL_FROM || '').trim();
+  if (!token || !from) {
+    console.log(`[formSubmit] notifyTeam (no mail transport) ${subject}\n${text}`);
+    return;
+  }
+  try {
+    const base = (process.env.ZEPTOMAIL_API_BASE || 'https://api.zeptomail.com').replace(/\/+$/, '');
+    const res = await fetch(`${base}/v1.1/email`, {
+      method: 'POST',
+      headers: {
+        Authorization: /^Zoho-enczapikey\s/i.test(token) ? token : `Zoho-enczapikey ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      },
+      body: JSON.stringify({
+        from: { address: from, name: 'Whollar' },
+        to: [{ email_address: { address: CONTACT_INBOX } }],
+        subject,
+        textbody: text
+      })
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`zeptomail ${res.status}: ${body.slice(0, 300)}`);
+    }
+  } catch (err) {
+    console.error('[formSubmit] notifyTeam failed:', err);
+  }
+}
+
+app.post('/contact', limit({ key: 'contact', max: 10, windowSec: 3600 }), async (req, res) => {
+  const b = req.body || {};
+  const firstName = str(b.firstName);
+  const lastName = str(b.lastName);
+  const email = str(b.email);
+  const message = str(b.message);
+  const topic = CONTACT_TOPICS.includes(str(b.topic)) ? str(b.topic) : 'other';
+
+  if (firstName.length < 2) return badRequest(res, 'firstName is required.');
+  if (lastName.length < 2) return badRequest(res, 'lastName is required.');
+  if (!isEmail(email)) return badRequest(res, 'A valid email is required.');
+  if (message.length < 10) return badRequest(res, 'A message of at least 10 characters is required.');
+  if (message.length > 5000) return badRequest(res, 'message must be at most 5000 characters.');
+  // Phone is optional here, unlike the join forms — but if one is given it
+  // must parse, so the table never holds an uncallable number.
+  if (str(b.phone) && !normalizePhone(b.phone)) {
+    return badRequest(res, 'A valid 10-digit Canadian phone number is required.');
+  }
+
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const row = await insert(catalystApp, 'ContactSubmissions', {
+      FirstName: firstName,
+      LastName: lastName,
+      Email: email,
+      Phone: digits(b.phone) || null,
+      Company: orNull(str(b.company).slice(0, 150)),
+      Topic: topic,
+      Message: message,
+      SubmittedAt: catalystNow()
+    });
+    await enqueueCrm(catalystApp, {
+      source: 'ContactSubmissions', rowId: row.ROWID, email, leadType: 'consumer',
+      data: {
+        firstName, lastName, topic,
+        emailKey: emailKey(email),
+        phone: normalizePhone(b.phone),
+        company: str(b.company),
+        message
+      }
+    });
+    await notifyTeam(
+      `[whollar.ca] Contact form: ${topic} — ${firstName} ${lastName}`,
+      [
+        `Topic: ${topic}`,
+        `Name: ${firstName} ${lastName}`,
+        `Email: ${email}`,
+        `Phone: ${normalizePhone(b.phone) || 'n/a'}`,
+        `Company: ${str(b.company) || 'n/a'}`,
+        '',
+        message
+      ].join('\n')
+    );
+    res.status(200).json({ ok: true, id: row.ROWID });
+  } catch (err) {
+    serverError(res, err, 'contact');
+  }
+});
+
 module.exports = app;

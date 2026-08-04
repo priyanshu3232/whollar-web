@@ -24,7 +24,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const PAGES = [
   'index.html', 'partners.html', 'bill-checkup.html', 'become-a-partner.html',
-  'waitlist/index.html', 'blog/index.html', 'terms.html', 'privacy.html',
+  'waitlist/index.html', 'blog/index.html', 'terms.html', 'privacy.html', 'contact.html',
   'thank-you.html', 'dashboard.html', 'provider-dashboard.html',
   'whollar-login-consumer.html', 'whollar-login-provider.html',
   'MobileVersion/consumer-mobile.html', 'MobileVersion/provider-mobile.html',
