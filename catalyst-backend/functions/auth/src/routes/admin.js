@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * The admin console API — the restricted control plane behind admin.whollar.ca.
+ * The admin console API: the restricted control plane behind admin.whollar.ca.
  *
  * Nothing here exists unless the `admin` config group is set
  * (ADMIN_EMAIL_DOMAIN): mount() returns without adding a single route, so on
@@ -10,7 +10,7 @@
  *
  *   IDENTITY   Admins are `users` rows with user_type='admin'. There is no
  *              signup path. The only way a row acquires that type is
- *              /admin/login/verify succeeding for an allowlisted address —
+ *              /admin/login/verify succeeding for an allowlisted address:
  *              an email on ADMIN_EMAIL_DOMAIN (the staff domain) or listed
  *              in ADMIN_EMAILS.
  *
@@ -18,20 +18,20 @@
  *              under its own purpose ('admin_login'), so a code minted on the
  *              member form can never be spent here. Sessions are the standard
  *              cookie sessions with the admin TTL: a 12-hour absolute
- *              ceiling, no rolling — same reasoning as the partner console,
+ *              ceiling, no rolling: same reasoning as the partner console,
  *              with more at stake.
  *
  *   AUTHZ      requireAdmin() on every other route: session + user_type
  *              check, generic 403 otherwise (no admin-existence oracle).
- *              CSRF rides the existing Origin allowlist — admin.whollar.ca
+ *              CSRF rides the existing Origin allowlist: admin.whollar.ca
  *              must be in ALLOWED_ORIGINS.
  *
  *   AUDIT      Every mutation writes auth_events with a before -> after
  *              snapshot, awaited rather than fire-and-forget: for this
  *              surface a lost audit row is worse than a slower response.
  *
- * The approval invariant provider.js documents — "no code path can set
- * `approved`" — ends here, deliberately: /admin/providers/:orgId/approve is
+ * The approval invariant provider.js documents ("no code path can set
+ * `approved`") ends here, deliberately: /admin/providers/:orgId/approve is
  * the one call site in the entire system that writes it, and it writes it on
  * behalf of a named human.
  */
@@ -63,8 +63,8 @@ function isAllowlisted(cfg, email) {
 }
 
 /**
- * Session + type check. The 403 body is the generic forbidden — identical to
- * what a member gets poking at /provider/me — so probing /admin/* teaches an
+ * Session + type check. The 403 body is the generic forbidden, identical to
+ * what a member gets poking at /provider/me, so probing /admin/* teaches an
  * outsider nothing beyond "not yours".
  */
 function requireAdmin(req) {
@@ -93,7 +93,7 @@ function cleanId(raw, what) {
 /**
  * How many rows a table holds. COUNT first; if the environment's ZCQL
  * dialect refuses it, fall back to a capped read that answers "n" or "cap+".
- * Never rows.length of an uncapped read — that silently stops at 300 and
+ * Never rows.length of an uncapped read: that silently stops at 300 and
  * reports the ceiling as if it were the total.
  */
 async function countRows(catalystApp, table, where) {
@@ -122,7 +122,7 @@ async function countRows(catalystApp, table, where) {
 }
 
 /**
- * Newest-first page of a table. ROWID-descending with a `before` cursor —
+ * Newest-first page of a table. ROWID-descending with a `before` cursor:
  * the mirror of datastore.queryAll's ascending cursor, for surfaces (leads,
  * audit) where the recent rows are the interesting ones.
  */
@@ -174,14 +174,14 @@ const LEAD_TABLES = Object.freeze({
 
 function mount(router, cfg) {
   // No config group, no surface. Everything under /admin falls through to the
-  // app-level 404 — indistinguishable from the route never having existed.
+  // app-level 404, indistinguishable from the route never having existed.
   if (!cfg.FEATURES.admin) return;
 
   /* ---------------- sign-in (no session required) ---------------- */
 
   /**
    * Issue a staff login code. The domain gate answers plainly rather than
-   * opaquely — which addresses are staff addresses is not a secret worth a
+   * opaquely: which addresses are staff addresses is not a secret worth a
    * confusing form, and a staff member who typoes the domain needs to be told.
    */
   router.post('/admin/login/start', wrap(async (req, res) => {
@@ -218,7 +218,7 @@ function mount(router, cfg) {
 
     const body = { ok: true, ttlMinutes };
     if (canRevealCode(cfg)) {
-      body.dev = { note: 'No mail provider configured — code returned here instead.', code };
+      body.dev = { note: 'No mail provider configured - code returned here instead.', code };
     }
     res.status(200).json(body);
   }));
@@ -229,7 +229,7 @@ function mount(router, cfg) {
    * This is the ONLY place an account acquires user_type 'admin': a fresh
    * allowlisted address gets a new admin row; an existing member row on the
    * staff domain is promoted (and the promotion audited). A provider row is
-   * refused outright — a partner org on the staff domain would be a
+   * refused outright: a partner org on the staff domain would be a
    * configuration accident, not a login.
    */
   router.post('/admin/login/verify', wrap(async (req, res) => {
@@ -408,7 +408,7 @@ function mount(router, cfg) {
     } catch (err) {
       if (err instanceof TypeError) throw badRequest(err.message);
       throw new AppError('SERVER_ERROR',
-        'Config is not writable right now — has the site_config table been created?', {
+        'Config is not writable right now - has the site_config table been created?', {
           logDetail: `site_config write failed: ${String((err && err.message) || err).slice(0, 200)}`,
         });
     }
@@ -423,7 +423,7 @@ function mount(router, cfg) {
   }));
 
   /**
-   * The global kill switch, as its own verb — it is the single most
+   * The global kill switch, as its own verb: it is the single most
    * consequential flag, and "POST /admin/bidding {enabled:false}" is what a
    * runbook can say unambiguously.
    */
@@ -437,7 +437,7 @@ function mount(router, cfg) {
       published: true, updatedBy: admin.user_id,
     }).catch((err) => {
       throw new AppError('SERVER_ERROR',
-        'The switch is not writable right now — has the site_config table been created?', {
+        'The switch is not writable right now - has the site_config table been created?', {
           logDetail: `bidding toggle failed: ${String((err && err.message) || err).slice(0, 200)}`,
         });
     });
@@ -506,7 +506,7 @@ function mount(router, cfg) {
   }
 
   const campaignsWriteError = (err) => new AppError('SERVER_ERROR',
-    'Campaigns are not writable right now — has the campaigns table been created?', {
+    'Campaigns are not writable right now - has the campaigns table been created?', {
       logDetail: `campaigns write failed: ${String((err && err.message) || err).slice(0, 200)}`,
     });
 
@@ -629,7 +629,7 @@ function mount(router, cfg) {
 
     const fields = { ROWID: row.ROWID, kind: to, updated_by: admin.user_id, updated_at: datastore.nowDb() };
     // Leaving auction always closes the bid window; entering it never opens
-    // it implicitly — opening bidding is its own deliberate act (PUT bidding_open).
+    // it implicitly: opening bidding is its own deliberate act (PUT bidding_open).
     if (from === 'auction' && to !== 'auction') fields.bidding_open = false;
     await datastore.updateRow(req.catalyst, catalog.TABLE, fields);
     catalog.invalidate();
@@ -644,7 +644,7 @@ function mount(router, cfg) {
   }));
 
   /**
-   * Seed the table from the code catalog — the one-time promotion. Skips ids
+   * Seed the table from the code catalog, the one-time promotion. Skips ids
    * that already exist, so it is safe to run twice.
    */
   router.post('/admin/campaigns/import-defaults', wrap(async (req, res) => {
@@ -684,7 +684,7 @@ function mount(router, cfg) {
     res.status(200).json({ ok: true, imported });
   }));
 
-  /* ---------------- provider approval — the human gate ---------------- */
+  /* ---------------- provider approval: the human gate ---------------- */
 
   router.get('/admin/providers', wrap(async (req, res) => {
     requireAdmin(req);
@@ -720,7 +720,7 @@ function mount(router, cfg) {
         seats: seats[o.org_id] || 0,
         created_at: o.CREATEDTIME || null,
       }))
-      // Pending first — the queue the console opens onto.
+      // Pending first: the queue the console opens onto.
       .sort((a, b) => (a.approval_status === 'pending' ? 0 : 1) - (b.approval_status === 'pending' ? 0 : 1));
 
     res.status(200).json({ ok: true, providers: list });
@@ -728,7 +728,7 @@ function mount(router, cfg) {
 
   /**
    * The full review: the org, the people who signed up under it, and the
-   * PartnerApplications rows matched by email domain — the form answers
+   * PartnerApplications rows matched by email domain: the form answers
    * (provinces, access tech, business number, LOA) are the review material.
    */
   router.get('/admin/providers/:orgId', wrap(async (req, res) => {
@@ -809,7 +809,7 @@ function mount(router, cfg) {
   }
 
   /**
-   * THE write of `approved` — the only one in the system. Stamps who and
+   * THE write of `approved`, the only one in the system. Stamps who and
    * when, tells the org's people their console is live, audits.
    */
   router.post('/admin/providers/:orgId/approve', wrap(async (req, res) => {
@@ -854,7 +854,7 @@ function mount(router, cfg) {
         rejection_reason: reason,
       });
     } catch {
-      // rejection_reason column not created yet — the decision still stands;
+      // rejection_reason column not created yet: the decision still stands;
       // the reason survives in the audit row and the email.
       await datastore.updateRow(req.catalyst, orgs.ORGS, {
         ROWID: org.ROWID, approval_status: 'rejected',
@@ -878,7 +878,7 @@ function mount(router, cfg) {
 
   /**
    * approved -> pending. Their sessions keep working, but every surface that
-   * checks approval loses access on its next request. No email — suspension
+   * checks approval loses access on its next request. No email: suspension
    * is usually the start of a conversation, not its conclusion.
    */
   router.post('/admin/providers/:orgId/suspend', wrap(async (req, res) => {
@@ -951,7 +951,7 @@ function mount(router, cfg) {
   /* ---------------- visibility ---------------- */
 
   /**
-   * Read-only lead views. `:table` resolves through LEAD_TABLES — a request
+   * Read-only lead views. `:table` resolves through LEAD_TABLES: a request
    * value never reaches ZCQL as a table name. Paginated newest-first; the UI
    * always shows a "more" affordance while `next` is non-null.
    */
@@ -980,7 +980,7 @@ function mount(router, cfg) {
 
   /**
    * The audit trail, filterable. Reads the same auth_events every route
-   * writes — including the admin actions above, so the console can watch
+   * writes, including the admin actions above, so the console can watch
    * itself being used.
    */
   router.get('/admin/audit', wrap(async (req, res) => {

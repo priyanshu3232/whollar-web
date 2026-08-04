@@ -3,7 +3,7 @@
 /**
  * Per-account preferences: one JSON blob per user in `user_prefs`.
  *
- * Members and providers share the table — a preference is a fact about the
+ * Members and providers share the table: a preference is a fact about the
  * person, and the keys inside the blob ('alerts', 'interests', 'notify') are
  * namespaced by what each dashboard writes. Reads degrade to {} when the table
  * is missing, so the toggles render their defaults; writes throw, because a
@@ -17,7 +17,7 @@ const { AppError } = require('./errors');
 const TABLE = 'user_prefs';
 const MAX_JSON = 4000;
 
-/** The stored preferences for a user, or {} — missing row and missing table alike. */
+/** The stored preferences for a user, or {} - missing row and missing table alike. */
 async function get(catalystApp, userId) {
   try {
     const row = await datastore.findBy(catalystApp, TABLE, 'pref_key', userId, ['ROWID', 'prefs']);
@@ -31,7 +31,7 @@ async function get(catalystApp, userId) {
 
 /**
  * Merge `patch` into the stored blob and return the result. Top-level keys
- * only — the caller sends whole values for the keys it owns. Throws a clear
+ * only: the caller sends whole values for the keys it owns. Throws a clear
  * "not available" when the table is missing rather than a generic 500.
  */
 async function merge(catalystApp, userId, patch) {

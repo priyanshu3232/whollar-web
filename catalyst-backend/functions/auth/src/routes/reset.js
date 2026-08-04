@@ -60,7 +60,7 @@ function mount(router, cfg) {
    *
    * Two branches, one response. A registered address gets a code; an
    * unregistered one gets an email explaining that there is no account here.
-   * The caller cannot tell which happened — but in both cases the person who
+   * The caller cannot tell which happened, but in both cases the person who
    * owns the address is told something true, which is what stops the silence
    * being mistaken for a fault.
    */
@@ -105,7 +105,7 @@ function mount(router, cfg) {
 
     const body = { ok: true, ttlMinutes };
     if (canRevealCode(cfg)) {
-      body.dev = { note: 'No mail provider configured — code returned here instead.', code };
+      body.dev = { note: 'No mail provider configured - code returned here instead.', code };
     }
     return res.status(200).json(body);
   }));
@@ -116,7 +116,7 @@ function mount(router, cfg) {
    * Also the recovery path for a locked-out account: `credentials.set` clears
    * `failed_count` and `locked_until` as a side effect, so someone who has
    * locked themselves out by forgetting their password is unlocked by the very
-   * act of remembering it differently. That is deliberate — a lockout is meant
+   * act of remembering it differently. That is deliberate: a lockout is meant
    * to stop guessing, not to punish the account's owner for fifteen minutes.
    */
   router.post('/password/reset', wrap(async (req, res) => {
@@ -148,7 +148,7 @@ function mount(router, cfg) {
     if (!result.ok) throw deny(result.reason);
 
     const user = await users.findByEmail(req.catalyst, email);
-    // A valid code with no account is not a state a legitimate flow reaches —
+    // A valid code with no account is not a state a legitimate flow reaches:
     // the challenge is only ever issued for an address that has one. Treat it
     // exactly like a bad code rather than explaining the difference.
     if (!user) throw deny('no_account');
@@ -166,8 +166,8 @@ function mount(router, cfg) {
     }
 
     // BEFORE sessions.create, not after. A password change that leaves existing
-    // sessions alive does not actually lock anyone out — which is the entire
-    // point of resetting it after a compromise — and reversing the order would
+    // sessions alive does not actually lock anyone out (which is the entire
+    // point of resetting it after a compromise), and reversing the order would
     // revoke the session this request is about to mint.
     const revoked = await sessions.revokeAllForUser(req.catalyst, user.user_id);
 

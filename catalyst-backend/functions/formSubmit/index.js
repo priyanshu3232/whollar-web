@@ -8,7 +8,7 @@ const fs = require('fs');
 const app = express();
 
 /* ------------------------------------------------------------------ *
- * CONFIG — edit these two after your first deploy, then redeploy.
+ * CONFIG: edit these two after your first deploy, then redeploy.
  * ------------------------------------------------------------------ */
 
 // Domains allowed to call this function from a browser. Add every host
@@ -22,8 +22,8 @@ const ALLOWED_ORIGINS = [
 
 // Local development: the marketing pages are plain HTML files, opened either
 // via a dev server on an arbitrary port (Live Server, http.server, …) or
-// straight from disk (Origin: null). CORS is a browser-side gate only — the
-// endpoint is reachable by curl regardless — so allowing these loses nothing.
+// straight from disk (Origin: null). CORS is a browser-side gate only (the
+// endpoint is reachable by curl regardless), so allowing these loses nothing.
 const isDevOrigin = (origin) =>
   origin === 'null' || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 
@@ -36,8 +36,8 @@ const isVercelOrigin = (origin) =>
 
 // Dev origins (localhost / Origin:null) are allowed only when this function is
 // NOT running on its production Catalyst domain, so the live prod backend never
-// reflects them. Detection is automatic from the request host — the prod domain
-// is *.catalystserverless.ca without the `.development.` segment — with an
+// reflects them. Detection is automatic from the request host (the prod domain
+// is *.catalystserverless.ca without the `.development.` segment), with an
 // optional CATALYST_ENV=production override.
 const isProdRequest = (req) => {
   if (process.env.CATALYST_ENV === 'production') return true;
@@ -70,16 +70,16 @@ app.use((req, res, next) => {
 
 // Also parse text/plain as JSON: the Catalyst gateway answers CORS preflight
 // (OPTIONS) itself with no CORS headers, so browser requests must stay
-// preflight-free — the frontend posts JSON with a text/plain content type
+// preflight-free: the frontend posts JSON with a text/plain content type
 // (CORS-safelisted) instead of application/json.
 app.use(express.json({ limit: '1mb', type: ['application/json', 'text/plain'] }));
 
 /* ------------------------------------------------------------------ *
- * Abuse controls — distributed rate limiting via Catalyst Cache.
+ * Abuse controls: distributed rate limiting via Catalyst Cache.
  * Advanced I/O functions are horizontally scaled with no shared process
  * memory, so an in-process counter is useless; the Cache default segment
  * is shared across every instance. Fixed-window counters keyed by route
- * (+ client IP). Fails OPEN if the cache is unreachable — a broken limiter
+ * (+ client IP). Fails OPEN if the cache is unreachable: a broken limiter
  * must not take the forms down.
  * ------------------------------------------------------------------ */
 
@@ -90,7 +90,7 @@ const clientIp = (req) =>
 async function withinLimit(req, { key, max, windowSec, perIp = true }) {
   try {
     const catalystApp = catalyst.initialize(req);
-    const seg = catalystApp.cache().segment(); // default segment — no console setup needed
+    const seg = catalystApp.cache().segment(); // default segment - no console setup needed
     const window = Math.floor(Date.now() / (windowSec * 1000));
     const bucket = perIp ? `rl:${key}:${clientIp(req)}:${window}` : `rl:${key}:${window}`;
     const ttlHours = Math.max(1, Math.ceil(windowSec / 3600));
@@ -119,14 +119,14 @@ const limit = (opts) => async (req, res, next) => {
 // HEIC/HEIF is the iPhone camera default, so it is the single most likely
 // upload from the households this site is for. The bill reader cannot parse it
 // (the Claude vision API takes JPEG/PNG/GIF/WebP only, which is why billOcr's
-// list is shorter), but there is no reason to refuse to STORE it — a person
+// list is shorter), but there is no reason to refuse to STORE it: a person
 // can open it later. Accept it here; the frontend skips the OCR call for it.
 const ACCEPTED_UPLOAD_TYPES = new Set([
   'application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'image/webp',
   'image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence'
 ]);
 
-// Reject anything that isn't a bill (PDF/image) server-side — the frontend's
+// Reject anything that isn't a bill (PDF/image) server-side: the frontend's
 // accept="…" hint is trivially bypassed, and the File Store must not become
 // free hosting for arbitrary uploads.
 const rejectUnsupported = (req, file, cb) => {
@@ -151,7 +151,7 @@ const guardUpload = (mw) => (req, res, next) => mw(req, res, (err) => {
 
 // Single-file convenience attachments (/waitlist-details, /bill-checkup-join):
 // the bill is a nice-to-have, the lead is not. A rejected file must not sink
-// the submission — swallow the multer error, note why, and save the row bare.
+// the submission: swallow the multer error, note why, and save the row bare.
 // (The frontend appends text fields before the file, so req.body is already
 // fully populated when a file-level rejection aborts the multipart parse.)
 const tolerantUpload = (mw) => (req, res, next) => mw(req, res, (err) => {
@@ -166,7 +166,7 @@ const tolerantUpload = (mw) => (req, res, next) => mw(req, res, (err) => {
 });
 
 // Remove multer temp files when a request is rejected before the route runs
-// its own storeFile/finally cleanup (validation 400s) — /tmp on a warm
+// its own storeFile/finally cleanup (validation 400s): /tmp on a warm
 // instance must not accumulate orphans.
 const discardUpload = (req) => {
   [req.file, ...(req.files || [])].filter(Boolean).forEach(f => fs.unlink(f.path, () => {}));
@@ -174,7 +174,7 @@ const discardUpload = (req) => {
 
 // Disk storage (not memory): the Catalyst SDK's uploadFile() appends the
 // stream to form-data with no options, so it relies on the stream's `.path`
-// to derive the filename — which only an fs.ReadStream has, not a Buffer.
+// to derive the filename, which only an fs.ReadStream has, not a Buffer.
 const upload = multer({
   dest: '/tmp/whollar-uploads/',
   limits: { fileSize: 20 * 1024 * 1024, files: 5 },
@@ -204,7 +204,7 @@ const catalystNow = () => new Date().toISOString().slice(0, 19).replace('T', ' '
  * Canonical formats
  * ------------------------------------------------------------------
  * One concept, one shape. Before this, a postal code reached the CRM in four
- * different forms depending on the route — "M5V 3A8" from the calculator, the
+ * different forms depending on the route: "M5V 3A8" from the calculator, the
  * bare FSA "M5V" from the checkup, and (within the same deep-read handler)
  * both an uppercased and a raw-case copy of the same value. That silently
  * fragments the dataset: you cannot join estimates to checkups on geography.
@@ -239,7 +239,7 @@ function normalizePhone(v) {
 // Genie@x.com and genie@x.com would otherwise create two Leads.
 const emailKey = v => str(v).toLowerCase();
 
-/* CASL: consent must be provable — what was agreed, when, and where. The
+/* CASL: consent must be provable: what was agreed, when, and where. The
  * frontend sends these; they travel in the CRM payload (which is a free-form
  * JSON column) rather than as new Data Store columns, because adding a column
  * that does not exist in the console makes insertRow fail outright.
@@ -307,7 +307,7 @@ async function insert(catalystApp, tableName, row) {
 
 // Queue a submission for the CRM sync worker (the crmSync cron function reads
 // CrmSyncQueue and pushes rows into Zoho CRM). Best-effort by design: it must
-// NEVER throw into the request path — the submission is already saved, so a
+// NEVER throw into the request path: the submission is already saved, so a
 // queue miss only delays that one lead's sync, it doesn't fail the user's form.
 async function enqueueCrm(catalystApp, { source, rowId, email, leadType, data }) {
   try {
@@ -329,7 +329,7 @@ async function enqueueCrm(catalystApp, { source, rowId, email, leadType, data })
  * Routes
  * ------------------------------------------------------------------ */
 
-// Waitlist — stage 1 (name/email/phone/postal code/referral).
+// Waitlist: stage 1 (name/email/phone/postal code/referral).
 // Table: WaitlistSignups
 app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 3600 }), async (req, res) => {
   const b = req.body || {};
@@ -343,7 +343,7 @@ app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 360
   if (lastName.length < 2) return badRequest(res, 'lastName is required.');
   if (!isEmail(email)) return badRequest(res, 'A valid email is required.');
   if (!phone) return badRequest(res, 'A valid 10-digit Canadian phone number is required.');
-  // Was `if (!fsa)` — any non-empty string passed, so "ZZZ" was accepted.
+  // Was `if (!fsa)`: any non-empty string passed, so "ZZZ" was accepted.
   if (!postal.fsa) return badRequest(res, 'A valid Canadian postal code is required.');
 
   try {
@@ -376,7 +376,7 @@ app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 360
   }
 });
 
-// Waitlist — stage 2 (optional add-on details + optional bill attachment).
+// Waitlist: stage 2 (optional add-on details + optional bill attachment).
 // Table: WaitlistDetails
 app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSec: 3600 }), tolerantUpload(upload.single('billFile')), async (req, res) => {
   const b = req.body || {};
@@ -425,14 +425,14 @@ app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSe
   }
 });
 
-// Bill checkup — every "join the waitlist" entry point on the checkup tool
+// Bill checkup: every "join the waitlist" entry point on the checkup tool
 // (both the quick-join rails and the main check-button flow feed this).
 // Table: BillCheckupSubmissions
 //
 // This route stores the LEAD, never the signed-in member's bill, and it cannot:
 // the session cookie is host-only to www.whollar.ca (see auth/lib/cookies.js)
 // and this function is called cross-origin on the Catalyst domain, so the cookie
-// is not in the request at all — there is no session here to read. A signed-in
+// is not in the request at all: there is no session here to read. A signed-in
 // member's copy is written by the auth function, which owns sessions:
 //   - the checkup POSTs it to /me/bill as the results render, and
 //   - GET /me/bill adopts the newest row of THIS table for that member's email,
@@ -481,7 +481,7 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
         discount: toNumber(b.disc), threshold: str(b.switchFor),
         // What the visitor was actually shown. Without these, sales sees the
         // gross charge and has no idea which of the four verdicts appeared on
-        // screen — the number the conversation has to start from.
+        // screen, the number the conversation has to start from.
         effectiveCost: toNumber(b.effectiveCost),
         verdict: str(b.verdict) || null,
         verdictReason: str(b.verdictReason) || null,
@@ -504,7 +504,7 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
   }
 });
 
-// Bill checkup — "deep read" request (attach agreement/more bills + note).
+// Bill checkup: "deep read" request (attach agreement/more bills + note).
 // Table: DeepReadRequests
 app.post('/deep-read', limit({ key: 'deep-read', max: 10, windowSec: 3600 }), guardUpload(upload.array('files', 5)), async (req, res) => {
   const b = req.body || {};
@@ -516,7 +516,7 @@ app.post('/deep-read', limit({ key: 'deep-read', max: 10, windowSec: 3600 }), gu
     const catalystApp = catalyst.initialize(req);
     const files = await storeFiles(catalystApp, req.files);
     // One postal shape. This block used to store `pc` in whatever case the
-    // browser sent while the CRM payload below uppercased the same value —
+    // browser sent while the CRM payload below uppercased the same value:
     // two spellings of one field, written by one handler.
     const postal = normalizePostal(b.pc || b.postalFull);
     const context = {
@@ -613,13 +613,13 @@ app.post('/partner-application', limit({ key: 'partner-application', max: 10, wi
   }
 });
 
-// Savings calculator — anonymous estimate snapshot (postal code + monthly
+// Savings calculator: anonymous estimate snapshot (postal code + monthly
 // bill → projected annual savings shown to the visitor).
 // Table: CalculatorEstimates
 app.post('/calculator-estimate', limit({ key: 'calculator-estimate', max: 40, windowSec: 3600 }), async (req, res) => {
   const b = req.body || {};
 
-  // This was the one route with no input validation at all — it accepted any
+  // This was the one route with no input validation at all: it accepted any
   // body, so a junk postal code or an arbitrary "savings" number went straight
   // into the table. The per-IP rate limit was the only gate.
   const postal = normalizePostal(b.postal || b.fsa);
@@ -638,7 +638,7 @@ app.post('/calculator-estimate', limit({ key: 'calculator-estimate', max: 40, wi
   try {
     const catalystApp = catalyst.initialize(req);
     const row = await insert(catalystApp, 'CalculatorEstimates', {
-      // "A1A 1A1" when the full code is present, otherwise null — never a
+      // "A1A 1A1" when the full code is present, otherwise null, never a
       // half-normalised mix of spaced and unspaced values.
       PostalCode: postal.full,
       FSA: postal.fsa,
@@ -658,11 +658,11 @@ const CONTACT_TOPICS = ['sales', 'support', 'partnership', 'press', 'other'];
 const CONTACT_INBOX = 'info@whollar.com';
 
 // Best-effort copy of a submission to the team inbox, same ZeptoMail API the
-// auth mailer uses (see functions/auth/src/lib/mailer.js — its regional-DC
+// auth mailer uses (see functions/auth/src/lib/mailer.js - its regional-DC
 // note applies here too). Mirror ZEPTOMAIL_TOKEN / ZEPTOMAIL_FROM (and
 // ZEPTOMAIL_API_BASE if set) from the auth function's config onto this one;
 // until they exist the message is logged instead, and either way a mail
-// failure must NEVER fail the visitor's request — the row is already saved.
+// failure must NEVER fail the visitor's request: the row is already saved.
 async function notifyTeam(subject, text) {
   const token = (process.env.ZEPTOMAIL_TOKEN || '').trim().replace(/^Bearer\s+/i, '');
   const from = (process.env.ZEPTOMAIL_FROM || '').trim();
@@ -708,7 +708,7 @@ app.post('/contact', limit({ key: 'contact', max: 10, windowSec: 3600 }), async 
   if (!isEmail(email)) return badRequest(res, 'A valid email is required.');
   if (message.length < 10) return badRequest(res, 'A message of at least 10 characters is required.');
   if (message.length > 5000) return badRequest(res, 'message must be at most 5000 characters.');
-  // Phone is optional here, unlike the join forms — but if one is given it
+  // Phone is optional here, unlike the join forms, but if one is given it
   // must parse, so the table never holds an uncallable number.
   if (str(b.phone) && !normalizePhone(b.phone)) {
     return badRequest(res, 'A valid 10-digit Canadian phone number is required.');
@@ -737,7 +737,7 @@ app.post('/contact', limit({ key: 'contact', max: 10, windowSec: 3600 }), async 
       }
     });
     await notifyTeam(
-      `[whollar.ca] Contact form: ${topic} — ${firstName} ${lastName}`,
+      `[whollar.ca] Contact form: ${topic} - ${firstName} ${lastName}`,
       [
         `Topic: ${topic}`,
         `Name: ${firstName} ${lastName}`,

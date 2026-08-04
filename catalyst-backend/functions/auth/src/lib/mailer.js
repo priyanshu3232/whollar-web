@@ -8,7 +8,7 @@
  *   zeptomail  real delivery, once a sending domain is verified
  *   log        writes the message to the function log instead of sending
  *
- * The `log` transport is not a placeholder to be replaced later — it is what
+ * The `log` transport is not a placeholder to be replaced later: it is what
  * makes the whole login flow buildable and testable before a sending domain
  * exists. Domain verification is a 24–48h DNS wait plus, for a fresh account,
  * a provider signup; blocking every line of auth on that would be letting a
@@ -38,7 +38,7 @@ async function sendViaLog(cfg, message) {
   console.log(JSON.stringify({
     level: 'info',
     transport: 'log',
-    note: 'MAIL NOT SENT — no mail provider configured. Message logged instead.',
+    note: 'MAIL NOT SENT: no mail provider configured. Message logged instead.',
     to: message.to,
     subject: message.subject,
     // The whole point: without this the dev flow cannot be completed.
@@ -49,7 +49,7 @@ async function sendViaLog(cfg, message) {
 
 /**
  * ZeptoMail's auth scheme is `Zoho-enczapikey <token>`, not Bearer, and the
- * console presents the value inconsistently — sometimes with the prefix
+ * console presents the value inconsistently: sometimes with the prefix
  * included, sometimes as the bare key. Pasting the wrong one produces a 401
  * with no hint as to which half is missing.
  *
@@ -96,7 +96,7 @@ async function sendViaZeptoMail(cfg, message) {
  * SMTP relay, via the mailbox provider the domain's SPF already authorizes.
  *
  * The connection is created per send rather than pooled. In a serverless
- * function a pooled connection outlives nothing useful — the container may be
+ * function a pooled connection outlives nothing useful: the container may be
  * frozen between invocations, and a socket held across that comes back dead.
  * Reconnecting costs a round trip; a stale pool costs a failed login.
  */
@@ -137,7 +137,7 @@ async function sendViaSmtp(cfg, message) {
 }
 
 /**
- * Which transport is active. Exposed so /health can report it honestly —
+ * Which transport is active. Exposed so /health can report it honestly:
  * "why did no email arrive" should be answerable without reading logs.
  *
  * Order is deliberate. ZeptoMail is a transactional service with real
@@ -163,7 +163,7 @@ function transportName(cfg) {
  *
  * It deliberately does NOT fall back to `log` when a real transport exists and
  * fails. Logging the code and reporting success would look like delivery while
- * the user's inbox stayed empty — the failure has to stay visible.
+ * the user's inbox stayed empty. The failure has to stay visible.
  */
 async function send(cfg, message) {
   const f = cfg.FEATURES || {};
@@ -207,8 +207,8 @@ const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => (
  * HTML, and a login code that only exists inside a <table> is a login code some
  * people cannot use.
  *
- * The copy states the code is never asked for by staff. Code-relay phishing —
- * "hi, this is Whollar support, read me the number we just sent" — is the
+ * The copy states the code is never asked for by staff. Code-relay phishing,
+ * "hi, this is Whollar support, read me the number we just sent", is the
  * common attack against every OTP system, and the email is the only place the
  * warning reliably lands.
  */
@@ -221,7 +221,7 @@ function otpEmail({ code, purpose, ttlMinutes }) {
     '',
     `Enter this code to ${action}. It expires in ${ttlMinutes} minutes and can only be used once.`,
     '',
-    'If you did not request this, you can ignore this email — nobody can sign in without the code.',
+    'If you did not request this, you can ignore this email - nobody can sign in without the code.',
     '',
     'Whollar will never phone, text or email you to ask for this code. Anyone who does is not us.',
   ].join('\n');
@@ -232,7 +232,7 @@ function otpEmail({ code, purpose, ttlMinutes }) {
       <p style="margin:0 0 18px;font-size:15px;line-height:1.5">Enter this code to ${escapeHtml(action)}.</p>
       <p style="margin:0 0 18px;font-size:34px;font-weight:700;letter-spacing:.16em;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${safeCode}</p>
       <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">It expires in ${ttlMinutes} minutes and can only be used once.</p>
-      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">If you didn't request this, you can ignore this email — nobody can sign in without the code.</p>
+      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">If you didn't request this, you can ignore this email - nobody can sign in without the code.</p>
       <p style="margin:0;font-size:13px;line-height:1.5;color:#6B7C77;border-top:1px solid #E3E8E6;padding-top:16px">Whollar will never phone, text or email you to ask for this code. Anyone who does is not us.</p>
     </td></tr>
   </table></body></html>`;
@@ -249,7 +249,7 @@ function otpEmail({ code, purpose, ttlMinutes }) {
  * active account.
  *
  * This email is the reason `POST /signup` can answer identically in both cases.
- * The alternative — telling the browser "that address is taken" — turns the
+ * The alternative, telling the browser "that address is taken", turns the
  * signup form into an account-enumeration oracle, which is exactly what the
  * emailed-code routes were built to avoid. The person who owns the address
  * learns what happened; the person who typed it into the form does not.
@@ -265,7 +265,7 @@ function existingAccountEmail({ appBaseUrl }) {
   const text = [
     'Someone just tried to create a Whollar account with this email address.',
     '',
-    'You already have one, so we did not create a second — and nothing about your',
+    'You already have one, so we did not create a second, and nothing about your',
     'account has changed. Your password is untouched.',
     '',
     `If that was you, sign in instead: ${signIn}`,
@@ -280,7 +280,7 @@ function existingAccountEmail({ appBaseUrl }) {
   <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#fff;border-radius:14px;padding:32px">
     <tr><td>
       <p style="margin:0 0 18px;font-size:15px;line-height:1.5">Someone just tried to create a Whollar account with this email address.</p>
-      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">You already have one, so we didn't create a second — and nothing about your account has changed. Your password is untouched.</p>
+      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">You already have one, so we didn't create a second, and nothing about your account has changed. Your password is untouched.</p>
       <p style="margin:0 0 18px;font-size:15px;line-height:1.5"><a href="${escapeHtml(signIn)}" style="color:#178A5A">Sign in instead</a></p>
       <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">If it wasn't you, you can ignore this. Nobody can get into your account from a signup attempt, and we haven't sent them any code or link.</p>
       <p style="margin:0;font-size:13px;line-height:1.5;color:#6B7C77;border-top:1px solid #E3E8E6;padding-top:16px">Whollar will never phone, text or email you to ask for your password.</p>
@@ -308,7 +308,7 @@ function passwordResetEmail({ code, ttlMinutes }) {
     `Enter it to choose a new password. It expires in ${ttlMinutes} minutes and can`,
     'only be used once.',
     '',
-    'If you did not ask to reset your password, you can ignore this email — your',
+    'If you did not ask to reset your password, you can ignore this email - your',
     'password has NOT changed, and nobody can change it without this code.',
     '',
     'Whollar will never phone, text or email you to ask for this code. Anyone who',
@@ -321,7 +321,7 @@ function passwordResetEmail({ code, ttlMinutes }) {
       <p style="margin:0 0 18px;font-size:15px;line-height:1.5">Enter this code to choose a new Whollar password.</p>
       <p style="margin:0 0 18px;font-size:34px;font-weight:700;letter-spacing:.16em;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${safeCode}</p>
       <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">It expires in ${ttlMinutes} minutes and can only be used once.</p>
-      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">If you didn't ask to reset your password, you can ignore this email — your password has <b>not</b> changed, and nobody can change it without this code.</p>
+      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">If you didn't ask to reset your password, you can ignore this email - your password has <b>not</b> changed, and nobody can change it without this code.</p>
       <p style="margin:0;font-size:13px;line-height:1.5;color:#6B7C77;border-top:1px solid #E3E8E6;padding-top:16px">Whollar will never phone, text or email you to ask for this code. Anyone who does is not us.</p>
     </td></tr>
   </table></body></html>`;
@@ -338,7 +338,7 @@ function passwordResetEmail({ code, ttlMinutes }) {
  * therefore sent unconditionally, even though the person who just reset their
  * own password does not need it.
  *
- * Carries no code and no link that grants anything — a notification that could
+ * Carries no code and no link that grants anything: a notification that could
  * itself be used to take the account over would defeat its own purpose.
  */
 function passwordChangedEmail({ appBaseUrl }) {
@@ -408,7 +408,7 @@ function noAccountEmail({ appBaseUrl }) {
 }
 
 /**
- * The provider approval / rejection notice — what the admin console sends to
+ * The provider approval / rejection notice: what the admin console sends to
  * every person in an org when a human decides about the company.
  *
  * One template with a branch rather than two templates, so the two outcomes
@@ -425,7 +425,7 @@ function providerDecisionEmail({ approved, orgName, reason, appBaseUrl }) {
     const text = [
       `Good news: ${name} is approved on Whollar.`,
       '',
-      'Your partner console is live — auction briefs, cohort counts and bidding',
+      'Your partner console is live - auction briefs, cohort counts and bidding',
       `are now real data: ${console_}`,
       '',
       'Questions, or anything look wrong? Reply to this email and a person answers.',
@@ -435,7 +435,7 @@ function providerDecisionEmail({ approved, orgName, reason, appBaseUrl }) {
   <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#fff;border-radius:14px;padding:32px">
     <tr><td>
       <p style="margin:0 0 18px;font-size:15px;line-height:1.5"><b>Good news: ${escapeHtml(name)} is approved on Whollar.</b></p>
-      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">Your partner console is live — auction briefs, cohort counts and bidding are now real data.</p>
+      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">Your partner console is live - auction briefs, cohort counts and bidding are now real data.</p>
       <p style="margin:0 0 18px;font-size:15px;line-height:1.5"><a href="${escapeHtml(console_)}" style="color:#178A5A">Open your partner console</a></p>
       <p style="margin:0;font-size:13px;line-height:1.5;color:#6B7C77;border-top:1px solid #E3E8E6;padding-top:16px">Questions, or anything look wrong? Reply to this email and a person answers.</p>
     </td></tr>
@@ -450,7 +450,7 @@ function providerDecisionEmail({ approved, orgName, reason, appBaseUrl }) {
     '',
     why ? `Why: ${why}` : '',
     '',
-    'If something here is wrong or has changed, reply to this email — a person',
+    'If something here is wrong or has changed, reply to this email - a person',
     'reads it, and a review can be reopened.',
   ].filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n');
 
@@ -459,7 +459,7 @@ function providerDecisionEmail({ approved, orgName, reason, appBaseUrl }) {
     <tr><td>
       <p style="margin:0 0 18px;font-size:15px;line-height:1.5">We reviewed <b>${escapeHtml(name)}</b>'s Whollar partner application and can't approve it right now.</p>
       ${why ? `<p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57"><b>Why:</b> ${escapeHtml(why)}</p>` : ''}
-      <p style="margin:0;font-size:13px;line-height:1.5;color:#6B7C77;border-top:1px solid #E3E8E6;padding-top:16px">If something here is wrong or has changed, reply to this email — a person reads it, and a review can be reopened.</p>
+      <p style="margin:0;font-size:13px;line-height:1.5;color:#6B7C77;border-top:1px solid #E3E8E6;padding-top:16px">If something here is wrong or has changed, reply to this email - a person reads it, and a review can be reopened.</p>
     </td></tr>
   </table></body></html>`;
 

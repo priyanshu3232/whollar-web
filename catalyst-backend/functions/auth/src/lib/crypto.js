@@ -26,7 +26,7 @@ const token = (bytes = 32) => crypto.randomBytes(bytes).toString('base64url');
  * A numeric one-time code, zero-padded, drawn without modulo bias.
  *
  * `randomInt` is rejection-sampled by Node, so unlike `randomBytes()[0] % 10`
- * every digit is equally likely. Six digits is 10^6 — weak on its own, which is
+ * every digit is equally likely. Six digits is 10^6: weak on its own, which is
  * why the attempt counter and short TTL on `auth_challenges` are not optional
  * extras but the other half of this control.
  */
@@ -47,7 +47,7 @@ const sha256 = (value) => crypto.createHash('sha256').update(String(value), 'utf
  *
  * A pepper defends a low-entropy secret against an offline brute force of a
  * stolen table. A 256-bit random token has nothing to brute force, so a pepper
- * buys nothing here — and it would cost something real: rotating it would
+ * buys nothing here, and it would cost something real: rotating it would
  * invalidate every live session at once. `sessions.token_hash` therefore stays
  * a plain digest, and stays queryable.
  */
@@ -65,7 +65,7 @@ const hashSessionToken = (raw) => sha256(raw);
 const hashCode = (code, cfg) => sha256(`${code}${cfg.CODE_PEPPER}`);
 
 /**
- * IPs are peppered so the table holds no raw addresses, only comparable ones —
+ * IPs are peppered so the table holds no raw addresses, only comparable ones:
  * enough to spot "same source hammering the login", never enough to reveal who.
  *
  * Note the pepper cannot be rotated without making historical hashes
@@ -83,7 +83,7 @@ const hashIp = (ip, cfg) => (ip ? sha256(`${ip}${cfg.IP_PEPPER}`) : null);
  * `a === b` on a secret leaks its prefix through timing: it returns on the
  * first differing byte, so a remote attacker can recover a token character by
  * character. `timingSafeEqual` needs equal-length buffers, so unequal lengths
- * are compared against a fixed dummy rather than short-circuited — returning
+ * are compared against a fixed dummy rather than short-circuited: returning
  * early on a length mismatch would leak the length.
  */
 function safeEqual(a, b) {
@@ -97,7 +97,7 @@ function safeEqual(a, b) {
 }
 
 /* ------------------------------------------------------------------ *
- * Passwords (partners only — members never have a password row)
+ * Passwords (partners only, members never have a password row)
  * ------------------------------------------------------------------ */
 
 /**
@@ -105,7 +105,7 @@ function safeEqual(a, b) {
  * baseline: roughly 16 MB of memory and ~100 ms per hash on modest hardware.
  *
  * These travel with each stored hash in `credentials.algo` so the cost can be
- * raised later without locking out everyone who signed up before — on a
+ * raised later without locking out everyone who signed up before: on a
  * successful login with an older `algo`, re-hash and store.
  */
 const SCRYPT = Object.freeze({ N: 16384, r: 8, p: 1, keylen: 64 });

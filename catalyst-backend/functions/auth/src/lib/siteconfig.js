@@ -10,7 +10,7 @@
  * marketing site down.
  *
  * Values are stored JSON-encoded in a Text column, typed by `value_type`, so
- * a boolean is `true`, not `"true"` — the console renders the right editor
+ * a boolean is `true`, not `"true"`. The console renders the right editor
  * and the reader gets the right type back without guessing.
  *
  * Reads are memoized in-process for 60 seconds. A config flip propagates in
@@ -117,7 +117,7 @@ let memo = { at: 0, rows: undefined }; // rows: array | null (unreadable) | unde
 function invalidate() { memo = { at: 0, rows: undefined }; }
 
 /**
- * Every config row, or null when the table cannot be read — the same
+ * Every config row, or null when the table cannot be read: the same
  * "no rows" vs "no table" distinction routes/campaigns.js draws, for the
  * same reason.
  */
@@ -152,7 +152,7 @@ async function getValue(catalystApp, key) {
 const isTruthyDb = (v) => v === true || v === 'true' || v === 1 || v === '1';
 
 /**
- * The published subset, defaults merged underneath — the body of
+ * The published subset, defaults merged underneath: the body of
  * GET /public/config. Safe for anonymous eyes by construction: only keys
  * marked published, values only.
  */
@@ -220,7 +220,7 @@ async function adminView(catalystApp) {
 
 /**
  * Create or update one key. Returns { before, after } for the audit row.
- * Throws TypeError on a bad key/type/value — the route maps that to a 400.
+ * Throws TypeError on a bad key/type/value. The route maps that to a 400.
  */
 async function setValue(catalystApp, { key, value, valueType, published, description, updatedBy }) {
   if (!KEY_RE.test(String(key || ''))) {

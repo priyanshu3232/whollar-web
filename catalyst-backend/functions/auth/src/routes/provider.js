@@ -8,7 +8,7 @@
  * exists to avoid:
  *
  *   VERIFICATION  proves the person holds the email address. Same mechanism as
- *                 the member flow — a code, `status: pending` until it is used.
+ *                 the member flow: a code, `status: pending` until it is used.
  *
  *   APPROVAL      decides whether we deal with that company at all. A human
  *                 sets `provider_orgs.approval_status`. No code path here can
@@ -16,7 +16,7 @@
  *
  * Passing the first does not imply the second. The partner console shows
  * competitor pricing and cohort internals, so "I can read this inbox" must
- * never be sufficient to see any of it — anyone who registers a domain could
+ * never be sufficient to see any of it: anyone who registers a domain could
  * otherwise read a rival's numbers within minutes.
  *
  * A verified-but-unapproved partner DOES get a session. That is on purpose:
@@ -41,7 +41,7 @@ const { canRevealCode } = require('./otp');
 const PURPOSE = 'signup';
 
 /**
- * Issue and send a code. Failures are swallowed and recorded, never surfaced —
+ * Issue and send a code. Failures are swallowed and recorded, never surfaced:
  * `/provider/signup` must answer identically whether the provider is having a
  * bad day, or the timing becomes the oracle the response body refuses to be.
  */
@@ -67,7 +67,7 @@ async function issueCode(req, cfg, email) {
 function opaqueOk(cfg, res, { ttlMinutes, code }) {
   const body = { ok: true, ttlMinutes };
   if (code && canRevealCode(cfg)) {
-    body.dev = { note: 'No mail provider configured — code returned here instead.', code };
+    body.dev = { note: 'No mail provider configured - code returned here instead.', code };
   }
   return res.status(200).json(body);
 }
@@ -77,7 +77,7 @@ function mount(router, cfg) {
    * Register a partner.
    *
    * Creates the person as `pending` and attaches them to an org derived from
-   * their email domain — creating that org, also pending, if it is the first
+   * their email domain, creating that org, also pending, if it is the first
    * time we have seen the domain.
    *
    * Everyone at one domain lands in one org, so the second person from a
@@ -98,11 +98,11 @@ function mount(router, cfg) {
      * Everything else here is deliberately opaque, but this cannot be: a person
      * typing their Gmail address needs to be told to use their work address, or
      * they will simply try again, and again, and conclude the form is broken.
-     * It also leaks nothing — that gmail.com is a free provider is not a fact
+     * It also leaks nothing: that gmail.com is a free provider is not a fact
      * about our users.
      */
     if (orgs.isFreeEmailDomain(email)) {
-      throw badRequest('Please use your work email address — a personal mailbox cannot be linked to a provider account.');
+      throw badRequest('Please use your work email address - a personal mailbox cannot be linked to a provider account.');
     }
 
     credentials.assertAcceptable(password, email);
@@ -159,7 +159,7 @@ function mount(router, cfg) {
    * Check the code, activate the person, and sign them in.
    *
    * Activation is about the human, not the company. The org's approval is
-   * untouched here — a partner finishes verification and lands on a "we are
+   * untouched here: a partner finishes verification and lands on a "we are
    * reviewing this" screen, which is the honest state.
    */
   router.post('/provider/signup/verify', wrap(async (req, res) => {
@@ -227,7 +227,7 @@ function mount(router, cfg) {
   /**
    * Sign in.
    *
-   * Every failure — unknown address, wrong password, unverified, disabled —
+   * Every failure (unknown address, wrong password, unverified, disabled)
    * returns one message. A partner console is a higher-value target than a
    * member account, so the enumeration rule is if anything stricter here.
    *
@@ -267,7 +267,7 @@ function mount(router, cfg) {
     const check = await credentials.check(req.catalyst, user.user_id, password);
     if (!check.ok) throw deny(check.reason || 'bad_password', user.user_id);
 
-    // Correct password on an unverified account. Still one message — but the
+    // Correct password on an unverified account. Still one message, but the
     // response cannot mint a session, because the address was never proven.
     if (user.status !== 'active') throw deny('not_verified', user.user_id);
 
@@ -294,7 +294,7 @@ function mount(router, cfg) {
    * What a signed-in partner is allowed to see about themselves.
    *
    * Separate from `GET /session` so the member endpoint keeps one shape. A
-   * member hitting this gets 403 rather than an empty org — being a partner is
+   * member hitting this gets 403 rather than an empty org: being a partner is
    * not a property a member can have.
    */
   router.get('/provider/me', wrap(async (req, res) => {

@@ -3,7 +3,7 @@
 /**
  * The user repository: one human, many ways in.
  *
- * Every login path — email OTP, Google, partner password — converges
+ * Every login path (email OTP, Google, partner password) converges
  * here. That convergence is the whole point of the `users` / `auth_identities`
  * split: sign up with a code today, click "Continue with Google" on the same
  * address next month, and it is the same account rather than a duplicate.
@@ -21,7 +21,7 @@ const USER_COLUMNS = ['ROWID', 'user_id', 'email_normalized', 'email_display',
   'crm_contact_id'];
 
 /**
- * The signup fields that are not identity — everything the waitlist form
+ * The signup fields that are not identity: everything the waitlist form
  * collects beyond an email and a password.
  *
  * Trimmed and length-capped here rather than at the route, so every path that
@@ -35,7 +35,7 @@ function profileFrom(input = {}) {
     return s ? s.slice(0, n) : null;
   };
   // Upper-cased here and not merely in the browser. These are compared against
-  // each other later — an FSA from one row against a postal code from another —
+  // each other later (an FSA from one row against a postal code from another),
   // and a mix of `K1A` and `k1a` in one column turns every such comparison into
   // a silent miss.
   const upper = (v, n) => { const s = cap(v, n); return s ? s.toUpperCase() : null; };
@@ -122,7 +122,7 @@ async function findOrCreate(catalystApp, {
       crm_contact_id: null,
     });
   } catch (err) {
-    // Lost the race — or a genuine failure. Re-reading distinguishes them:
+    // Lost the race, or a genuine failure. Re-reading distinguishes them:
     // if a row is now present, the constraint did its job.
     const raced = await findByEmail(catalystApp, normalized);
     if (raced) return { user: raced, created: false };
@@ -181,7 +181,7 @@ async function findByIdentity(catalystApp, provider, providerUid) {
  * Only used while an account is still `pending`: someone repeating an
  * unfinished signup may well be correcting the postal code they got wrong the
  * first time, and keeping the original would place them in the wrong cohort
- * with no way to say so. Once an account is active this must not be called —
+ * with no way to say so. Once an account is active this must not be called:
  * changing a verified member's region belongs behind an authenticated profile
  * endpoint, not behind an unauthenticated signup form.
  */
@@ -205,7 +205,7 @@ async function setStatus(catalystApp, user, status) {
   return { ...user, status };
 }
 
-/** Best-effort — a missing last_login_at is not worth failing a login over. */
+/** Best-effort: a missing last_login_at is not worth failing a login over. */
 async function touchLastLogin(catalystApp, user) {
   try {
     await datastore.updateRow(catalystApp, USERS, {

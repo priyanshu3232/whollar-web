@@ -6,7 +6,7 @@
  * A function that boots with a missing pepper and silently hashes with
  * `undefined` is worse than one that refuses to boot. So: this module
  * validates everything at require time and throws a single ConfigError
- * listing *every* problem at once (not the first one — you should not have
+ * listing *every* problem at once (not the first one: you should not have
  * to redeploy five times to find five typos).
  *
  * Two tiers:
@@ -76,7 +76,7 @@ const v = {
    * not aesthetic: the Catalyst console validates environment-variable input
    * itself, and which punctuation it will accept is neither documented nor
    * stable. Accepting all three means a console that rejects one separator
-   * never forces a code change — and `https://a.ca https://b.ca` is a legal
+   * never forces a code change, and `https://a.ca https://b.ca` is a legal
    * value here. An origin can never itself contain any of the three, so this
    * cannot merge two entries by accident.
    */
@@ -100,7 +100,7 @@ const v = {
    * High-entropy secret: must decode to >= 32 bytes, i.e. 256 bits.
    *
    * The decode is base64, but hex passes too (64 hex chars decode as base64 to
-   * 48 bytes) and hex is what the setup doc now recommends — the Catalyst
+   * 48 bytes) and hex is what the setup doc now recommends: the Catalyst
    * console rejects some punctuation in values, and base64's '+', '/' and '='
    * are prime candidates. Either encoding is fine: the pepper is used as an
    * opaque string, so this check is an entropy floor, not a format contract.
@@ -168,7 +168,7 @@ const BOOT = {
   IP_PEPPER:       { check: v.pepper, secret: true },
 
   // Applies to every mail transport, so it lives here rather than inside one
-  // provider's group — a reply to a no-reply address should reach a human
+  // provider's group: a reply to a no-reply address should reach a human
   // rather than hard-bounce, whichever way the mail went out.
   MAIL_REPLY_TO:   { check: v.nonEmpty, fallback: 'info@whollar.com' },
 
@@ -179,12 +179,12 @@ const BOOT = {
 // All-or-nothing feature bundles.
 const GROUPS = {
   /**
-   * SMTP relay — the transport that needs no DNS work at all.
+   * SMTP relay: the transport that needs no DNS work at all.
    *
    * Sending through the mailbox provider that the domain's SPF already
    * authorizes means there is nothing to verify: no DKIM record to add, no
    * domain-verification wait. It is second choice on deliverability, so `mail`
-   * (ZeptoMail) wins when both are set — but it is first choice on being
+   * (ZeptoMail) wins when both are set, but it is first choice on being
    * available today, and a login system that cannot send a code is not a login
    * system.
    *
@@ -213,7 +213,7 @@ const GROUPS = {
     // count as "the operator configured mail".
     ZEPTOMAIL_API_BASE: { check: v.baseUrl, fallback: 'https://api.zeptomail.com' },
   },
-  // Needed from Phase 3 — signup writes versioned consent rows.
+  // Needed from Phase 3: signup writes versioned consent rows.
   consents: {
     TERMS_VERSION:         { check: v.docVersion },
     PRIVACY_VERSION:       { check: v.docVersion },
@@ -230,7 +230,7 @@ const GROUPS = {
    *
    * Unset -> FEATURES.admin is false and no /admin route is mounted at all:
    * the surface does not exist until an operator decides it does. The domain
-   * is the allowlist — every mailbox on it can become an admin — so it must
+   * is the allowlist (every mailbox on it can become an admin), so it must
    * be a domain whose mailboxes the company alone controls. ADMIN_EMAILS adds
    * individual off-domain addresses (a contractor, a founder's personal
    * address) without widening the domain gate.
@@ -291,7 +291,7 @@ function load(env = process.env) {
     const absent = requiredNames.filter((n) => env[n] === undefined || env[n] === '');
     if (absent.length) {
       problems.push(
-        `${group} is partially configured — also set: ${absent.join(', ')} ` +
+        `${group} is partially configured. Also set: ${absent.join(', ')} ` +
         `(a half-configured feature must not boot)`
       );
       features[group] = false;
@@ -310,7 +310,7 @@ function load(env = process.env) {
   out.IS_PRODUCTION = out.NODE_ENV === 'production';
 
   // Session lifetimes in ms, resolved once. Members roll; partners and admins
-  // do not (§1) — an admin session is an absolute ceiling, like a partner's.
+  // do not (§1): an admin session is an absolute ceiling, like a partner's.
   out.SESSION_TTL_MS = Object.freeze({
     member: out.SESSION_TTL_MEMBER_DAYS * 24 * 60 * 60 * 1000,
     provider: out.SESSION_TTL_PARTNER_HOURS * 60 * 60 * 1000,

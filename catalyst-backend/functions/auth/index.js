@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Whollar auth — Advanced I/O function entry point.
+ * Whollar auth: Advanced I/O function entry point.
  *
  * Config is validated at cold start. If it fails, we do NOT boot a working
  * app with `undefined` peppers; we boot a degraded one that 503s every auth

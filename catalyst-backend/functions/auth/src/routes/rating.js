@@ -1,12 +1,12 @@
 'use strict';
 
 /**
- * The member's private rating of their own provider — the dashboard's
+ * The member's private rating of their own provider, the dashboard's
  * "One minute, once" card: Price / Reliability / Support / Speed, 1-5 each.
  * Never shown to bidding providers; only the admin console reads it.
  *
  *   GET  /me/rating   the rating this member has already given, or null
- *   POST /me/rating   record it, once — CONFLICT on a second attempt
+ *   POST /me/rating   record it, once - CONFLICT on a second attempt
  *
  * One row per member. `provider_ratings.user_id` is unique, so a concurrent
  * double-submit (two tabs, a doubled click) fails at the insert even if both
@@ -57,7 +57,7 @@ function mount(router) {
 
   /**
    * Record this member's rating. -> { ok, rating }
-   * CONFLICT if one already exists — unlike /me/bill this is not a
+   * CONFLICT if one already exists: unlike /me/bill this is not a
    * replace-on-resubmit endpoint; the card is a one-time ask.
    */
   router.post('/me/rating', wrap(async (req, res) => {
@@ -85,7 +85,7 @@ function mount(router) {
     try {
       await datastore.insertRow(req.catalyst, TABLE, row);
     } catch (err) {
-      // The unique constraint on user_id is the real guard — the existence
+      // The unique constraint on user_id is the real guard: the existence
       // check above is just what makes the common case a clean error message
       // instead of a raw insert failure.
       throw new AppError('CONFLICT', 'You have already rated your provider.', {

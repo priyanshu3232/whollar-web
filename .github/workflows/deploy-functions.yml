@@ -70,7 +70,7 @@ jobs:
       - name: Deploy to Catalyst (Development env)
         working-directory: catalyst-backend
         env:
-          # Secret token you store in GitHub — never written in this file
+          # Secret token you store in GitHub, never written in this file
           CATALYST_TOKEN: ${{ secrets.CATALYST_TOKEN }}
         run: |
           set -o pipefail
@@ -87,7 +87,7 @@ jobs:
             --only functions \
             -ni 2>&1 | tee deploy.log
           # Backstop: this CLI has exited 0 even on failure (that caused earlier
-          # false-green runs). Its error glyph is ✖ — treat any ✖ as a failure.
+          # false-green runs). Its error glyph is ✖, treat any ✖ as a failure.
           if grep -q "✖" deploy.log; then
             echo "::error::Catalyst deploy reported an error (see log above)"
             exit 1

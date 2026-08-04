@@ -1,7 +1,7 @@
 'use strict';
 
 /* ------------------------------------------------------------------ *
- * crmSync — cron-invoked worker that drains the CrmSyncQueue table and
+ * crmSync: cron-invoked worker that drains the CrmSyncQueue table and
  * pushes each queued form submission into Zoho CRM (+ a Note capturing the
  * submission's details). Consumer submissions become Leads; partner
  * applications go to their own module when CRM_PARTNER_MODULE is set
@@ -9,13 +9,13 @@
  *
  * WHY a queue + this worker (instead of calling CRM from formSubmit):
  *   - The visitor's form never fails because CRM is slow / rate-limited /
- *     the token expired — formSubmit only writes a Data Store row.
+ *     the token expired: formSubmit only writes a Data Store row.
  *   - Nothing is lost: this worker retries PENDING/FAILED rows every run.
  *   - Only THIS function holds the Zoho credentials (formSubmit has none).
  *
  * It is an Advanced I/O (HTTP) function. A Catalyst Job Scheduling cron
  * hits its URL on a schedule with ?key=<CRM_CRON_SECRET>. It is safe to
- * call repeatedly — each run processes a bounded batch and is idempotent
+ * call repeatedly: each run processes a bounded batch and is idempotent
  * per row (a SYNCED row is never re-sent).
  * ------------------------------------------------------------------ */
 
@@ -42,7 +42,7 @@ const config = () => ({
   maxAttempts: Math.max(1, parseInt(process.env.CRM_MAX_ATTEMPTS || '6', 10)),
   // Module partner applications land in ('Vendors', or a custom module's API
   // name). Default 'Leads' keeps everything in one module until the dedicated
-  // module exists in Zoho — see "Partner module" in CRM_SYNC_RUNBOOK.md.
+  // module exists in Zoho. See "Partner module" in CRM_SYNC_RUNBOOK.md.
   partnerModule: (process.env.CRM_PARTNER_MODULE || 'Leads').trim() || 'Leads',
   // That module's mandatory display-name field, when it isn't the default
   // (Vendor_Name for Vendors, Name for custom modules).
@@ -119,10 +119,10 @@ async function findRecordByEmail(ctx, moduleName, email) {
   // Lowercased so Genie@x.com and genie@x.com resolve to one record rather
   // than two. Parentheses, commas and colons are the criteria syntax's own
   // delimiters (colon separates field:operator:value), so strip them from the
-  // value before interpolating — otherwise an address with an extra colon in
+  // value before interpolating. Otherwise an address with an extra colon in
   // its local part (rare, but RFC-legal) can reshape the search clause. The
   // module must have an Email-type field whose API name is `Email` (Leads and
-  // Vendors both do; a custom partner module needs one created — see the runbook).
+  // Vendors both do; a custom partner module needs one created - see the runbook).
   const safe = String(email || '').toLowerCase().replace(/[(),:]/g, '');
   const criteria = encodeURIComponent(`(Email:equals:${safe})`);
   const resp = await callCrm(ctx, (token, apiDomain) =>
@@ -136,7 +136,7 @@ async function findRecordByEmail(ctx, moduleName, email) {
 // Zoho rejects a picklist value that is not already defined on the field, with
 // INVALID_DATA naming the offending field. Lead_Source and Rating are picklists
 // by default, and this worker writes five Lead_Source labels (plus a " [dev]"
-// suffix outside production) — if those options do not exist in the console,
+// suffix outside production): if those options do not exist in the console,
 // EVERY insert fails, retries six times, lands on FAILED, and the leads are
 // silently lost. Rather than lose them, drop the offending field and retry
 // once: an imperfectly tagged lead in the CRM beats no lead at all.
@@ -167,7 +167,7 @@ async function insertRecord(ctx, moduleName, fields) {
   for (let i = 0; i < PICKLIST_FIELDS.length && rec?.code !== 'SUCCESS'; i++) {
     const bad = offendingPicklist(data);
     if (!bad || !(bad in payload)) break;
-    console.error(`[crmSync] "${payload[bad]}" is not a valid ${bad} picklist option — dropping it and retrying. Add it in the Zoho console to keep the tag.`);
+    console.error(`[crmSync] "${payload[bad]}" is not a valid ${bad} picklist option - dropping it and retrying. Add it in the Zoho console to keep the tag.`);
     delete payload[bad];
     dropped.push(bad);
     data = await postRecord(ctx, moduleName, payload);
@@ -188,7 +188,7 @@ async function updateRecord(ctx, moduleName, recordId, fields) {
   if (rec?.code !== 'SUCCESS') throw new Error(`${moduleName} update failed: ${JSON.stringify(data)}`);
 }
 
-// Notes are best-effort — a failed note must not fail the whole job, because
+// Notes are best-effort: a failed note must not fail the whole job, because
 // the record (the important part) is already written.
 async function addNote(ctx, moduleName, recordId, title, content) {
   try {
@@ -220,7 +220,7 @@ const SOURCE_META = {
 };
 
 // Which module a source's records live in. Consumers are always Leads;
-// partner applications go to cfg.partnerModule — which defaults to 'Leads'
+// partner applications go to cfg.partnerModule, which defaults to 'Leads'
 // too, so nothing changes until CRM_PARTNER_MODULE is set in the console.
 const moduleFor = (source, cfg) =>
   (SOURCE_META[source] || {}).partner ? cfg.partnerModule : 'Leads';
@@ -231,7 +231,7 @@ const partnerNameField = (cfg) =>
   cfg.partnerNameField || (cfg.partnerModule === 'Vendors' ? 'Vendor_Name' : 'Name');
 
 // Fields for a NEW record in a dedicated partner module. Only fields every
-// module has (its name field, Email, Phone) — Last_Name / Company /
+// module has (its name field, Email, Phone): Last_Name / Company /
 // Lead_Source are Leads fields and would be INVALID_DATA anywhere else. The
 // application detail rides in the Note, exactly as it does for Leads.
 function partnerInsertFields(cfg, email, data) {
@@ -277,20 +277,20 @@ function noteFor(source, email, data, isProd, dropped) {
   const meta = SOURCE_META[source] || { label: source };
   const devTag = isProd ? '' : '[DEV] ';
   const lines = [];
-  if (meta.hot) lines.push('⚠ DEEP READ REQUESTED — high intent');
+  if (meta.hot) lines.push('⚠ DEEP READ REQUESTED - high intent');
 
   const add = (k, v) => { if (v !== undefined && v !== null && v !== '') lines.push(`${k}: ${v}`); };
   const money = v => (v === undefined || v === null || v === '' ? null : `$${Number(v).toFixed(2)}`);
 
   // What the visitor was actually shown. The note used to carry only the gross
   // charge, so a rep opening the lead saw "$90" while the screen had said
-  // "$60/mo with promo" — two different numbers for the same household.
+  // "$60/mo with promo": two different numbers for the same household.
   if (data.verdict) {
     const VERDICT = {
-      strong: 'STRONG — already below the reference price',
-      fair: 'FAIR — near the reference price',
-      weak: 'WEAK — above the reference price',
-      cliff: 'CLIFF — promo ends within 60 days',
+      strong: 'STRONG - already below the reference price',
+      fair: 'FAIR - near the reference price',
+      weak: 'WEAK - above the reference price',
+      cliff: 'CLIFF - promo ends within 60 days',
       unknown: 'NOT SCORED'
     };
     add('Result shown', VERDICT[data.verdict] || data.verdict);
@@ -305,7 +305,7 @@ function noteFor(source, email, data, isProd, dropped) {
         F: 'speed only, national'
       };
       add('Compared against', `${money(data.benchmarkPrice)}/mo advertised`);
-      add('Match basis', LEVEL[data.benchmarkLevel] || data.benchmarkScope || '—');
+      add('Match basis', LEVEL[data.benchmarkLevel] || data.benchmarkScope || '-');
       add('Plans behind that figure', data.benchmarkSample);
       if (data.benchmarkCaveat) add('⚠ Comparison caveat', data.benchmarkCaveat);
     }
@@ -338,7 +338,7 @@ function noteFor(source, email, data, isProd, dropped) {
   // the lead rather than only in the Data Store row.
   if (data.consentGranted) {
     lines.push('');
-    lines.push('— Consent —');
+    lines.push('- Consent -');
     add('Granted at (server)', data.consentAt);
     add('Consent type', data.consentKind);
     add('Source page', data.consentSource);
@@ -346,7 +346,7 @@ function noteFor(source, email, data, isProd, dropped) {
     add('Wording shown', data.consentText);
   } else if (data.consentGranted === false) {
     lines.push('');
-    lines.push('— Consent: NOT granted. Do not send commercial email to this address. —');
+    lines.push('- Consent: NOT granted. Do not send commercial email to this address. -');
   }
 
   if (dropped && dropped.length) {
@@ -355,14 +355,14 @@ function noteFor(source, email, data, isProd, dropped) {
   }
 
   return {
-    title: `${devTag}Whollar ${meta.label} — ${email}`.trim(),
+    title: `${devTag}Whollar ${meta.label} - ${email}`.trim(),
     content: lines.length ? lines.join('\n') : `Submission via ${meta.label}.`
   };
 }
 
 // Search-then-write: update an existing record (matched by email, within the
 // source's module) or create one, then always attach a Note with this
-// submission's details. Dedupe never crosses modules — the same email can be
+// submission's details. Dedupe never crosses modules: the same email can be
 // both a consumer Lead and a partner record, which is the point.
 async function syncJob(ctx, job, cfg) {
   const email = job.Email;
@@ -373,7 +373,7 @@ async function syncJob(ctx, job, cfg) {
   let recordId = await findRecordByEmail(ctx, moduleName, email);
   let dropped = [];
   if (recordId) {
-    // In a partner module the only enrichable field is Phone — the name field
+    // In a partner module the only enrichable field is Phone: the name field
     // is never overwritten, same rule as Leads.
     const upd = isPartnerModule
       ? (data.phone ? { Phone: data.phone } : {})
@@ -393,40 +393,40 @@ async function syncJob(ctx, job, cfg) {
 }
 
 /* ------------------------------------------------------------------ *
- * Route — POST /  (and /process). Invoked by the cron with ?key=SECRET.
+ * Route: POST /  (and /process). Invoked by the cron with ?key=SECRET.
  * ------------------------------------------------------------------ */
 
 // A query-string secret lands in access logs, the cron scheduler's own run
-// history, and any Referer header — a header does not. The header is
+// history, and any Referer header. A header does not. The header is
 // preferred and should be the only thing the cron job actually sends; the
 // query param still works so this deploy can't silently break a cron target
 // that was configured before header support existed. Once the Job Scheduling
 // webhook is confirmed to send `X-Cron-Secret` instead, delete the query
-// fallback below — the console.error makes it obvious from the logs whether
+// fallback below: the console.error makes it obvious from the logs whether
 // anything is still using it.
 const LOCK_KEY = 'crm_sync_batch_lock';
 // Cache expiry here is in whole hours (Catalyst's segment API has no finer
-// grain) — 1h is the crash-recovery ceiling, not the normal hold time. The
+// grain): 1h is the crash-recovery ceiling, not the normal hold time. The
 // lock is released explicitly in `finally` below on every normal exit, so a
 // healthy run only ever holds it for the length of one batch; this TTL only
 // matters if a run dies without reaching that release.
 const LOCK_TTL_HOURS = 1;
 
 // Accept GET or POST so the run works regardless of the HTTP method the cron
-// target uses; the secret key — not the method — is the guard.
+// target uses; the secret key, not the method, is the guard.
 app.all(['/', '/process'], async (req, res) => {
   const cfg = config();
 
   const key = req.headers['x-cron-secret'] || req.query.key;
   if (req.query.key && cfg.cronSecret && req.query.key === cfg.cronSecret) {
-    console.error('[crmSync] cron secret received via query string — reconfigure the Job Scheduling webhook to send it as an X-Cron-Secret header instead');
+    console.error('[crmSync] cron secret received via query string - reconfigure the Job Scheduling webhook to send it as an X-Cron-Secret header instead');
   }
   // No/invalid key: a plain GET is a harmless health check; anything else is denied.
   if (!cfg.cronSecret || key !== cfg.cronSecret) {
     if (req.method === 'GET') return res.json({ ok: true, service: 'crmSync' });
     return res.status(403).json({ ok: false, error: 'forbidden' });
   }
-  // Master switch — lets the function deploy and the cron fire harmlessly
+  // Master switch: lets the function deploy and the cron fire harmlessly
   // until you're ready to actually write to CRM (see runbook).
   if (!cfg.enabled) {
     return res.json({ ok: true, skipped: true, reason: 'CRM_SYNC_ENABLED is not true' });
@@ -440,7 +440,7 @@ app.all(['/', '/process'], async (req, res) => {
 
   // Mutual exclusion for the batch below. `put` creates the cache entry and
   // rejects if it already exists (that's why getAccessToken falls back to
-  // `update` on the same call) — so a second overlapping invocation (a manual
+  // `update` on the same call), so a second overlapping invocation (a manual
   // trigger landing mid-cron, or the cron firing again before a slow batch
   // finishes) fails here and skips instead of racing the first run to select
   // and re-send the same PENDING rows.
