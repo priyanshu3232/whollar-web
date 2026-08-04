@@ -164,6 +164,7 @@ const LEAD_TABLES = Object.freeze({
     'AccessTech', 'LegalName', 'ProviderType', 'BusinessNumber', 'Brands', 'Signatory',
     'RepresentsBrands', 'LOA', 'OtherType', 'Note', 'SubmittedAt'],
   CalculatorEstimates: ['PostalCode', 'FSA', 'MonthlyBill', 'EstimatedAnnualSavings', 'SubmittedAt'],
+  ContactSubmissions: ['FirstName', 'LastName', 'Email', 'Phone', 'Company', 'Topic', 'Message', 'SubmittedAt'],
   CrmSyncQueue: ['Source', 'SourceRowId', 'Email', 'LeadType', 'Status', 'Attempts', 'LastError', 'SyncedAt'],
 });
 

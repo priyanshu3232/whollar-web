@@ -65,7 +65,7 @@ the tables. See **Going to production** at the bottom before pointing the live w
 ## 2. Create the Data Store tables
 
 In the Catalyst console: **Cloud Scale → Data Store → Create Table**. Catalyst tables aren't
-defined as code, so create these six tables and columns by hand once. `Text` = up to 10,000
+defined as code, so create these seven tables and columns by hand once. `Text` = up to 10,000
 characters, `Var Char` = up to 255. Every column below should allow nulls unless marked required.
 
 ### WaitlistSignups
@@ -153,6 +153,24 @@ characters, `Var Char` = up to 255. Every column below should allow nulls unless
 | MonthlyBill | Double | |
 | EstimatedAnnualSavings | Double | |
 | SubmittedAt | DateTime | |
+
+### ContactSubmissions
+| Column | Type | Notes |
+|---|---|---|
+| FirstName | Var Char | required |
+| LastName | Var Char | required |
+| Email | Var Char | required |
+| Phone | Var Char | digits only, optional |
+| Company | Var Char | optional |
+| Topic | Var Char | `sales` / `support` / `partnership` / `press` / `other` |
+| Message | Text | |
+| SubmittedAt | DateTime | |
+
+The `/contact` route also emails each submission to `info@whollar.com`. That send needs the
+auth function's ZeptoMail credentials mirrored onto **this** function's config
+(Console → Functions → formSubmit → Configuration): `ZEPTOMAIL_TOKEN`, `ZEPTOMAIL_FROM`, and
+`ZEPTOMAIL_API_BASE` if the auth function sets one. Until they exist the submission still
+saves and syncs — the notification is logged instead of sent.
 
 ## 3. Create the File Store folder (for bill attachments)
 
