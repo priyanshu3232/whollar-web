@@ -11,16 +11,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Contact us · Whollar</title>
-<meta name="description" content="Talk to a real person at Whollar. Questions about your bill, joining a cohort, partnerships, or press — we reply within two business days.">
+<meta name="description" content="Talk to a real person at Whollar. Questions about your bill, joining a cohort, partnerships, or press. We reply within two business days.">
 <link rel="canonical" href="https://www.whollar.ca/contact">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://www.whollar.ca/contact">
 <meta property="og:title" content="Contact us · Whollar">
-<meta property="og:description" content="Talk to a real person at Whollar. Questions about your bill, joining a cohort, partnerships, or press — we reply within two business days.">
+<meta property="og:description" content="Talk to a real person at Whollar. Questions about your bill, joining a cohort, partnerships, or press. We reply within two business days.">
 <meta property="og:site_name" content="Whollar">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Contact us · Whollar">
-<meta name="twitter:description" content="Talk to a real person at Whollar. Questions about your bill, joining a cohort, partnerships, or press — we reply within two business days.">
+<meta name="twitter:description" content="Talk to a real person at Whollar. Questions about your bill, joining a cohort, partnerships, or press. We reply within two business days.">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -233,7 +233,7 @@
     <div class="contact-copy reveal">
       <div class="eyebrow">Contact</div>
       <h1>Talk to a <em>real</em> person.</h1>
-      <p>No phone trees, no scripts, no &ldquo;press 1 for billing.&rdquo; Tell us what you need &mdash; a question about your bill, joining the first cohort, a partnership, or press &mdash; and a human will get back to you.</p>
+      <p>No phone trees, no scripts, no &ldquo;press 1 for billing.&rdquo; Tell us what you need (a question about your bill, joining the first cohort, a partnership, or press) and a human will get back to you.</p>
 
       <div class="contact-alt">
         <a class="contact-tile" href="mailto:info@whollar.com">
@@ -309,7 +309,7 @@
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
         </div>
         <h2>Message sent.</h2>
-        <p>Thanks for reaching out &mdash; a real person will reply to <b id="c-done-email"></b> within two business days.</p>
+        <p>Thanks for reaching out. A real person will reply to <b id="c-done-email"></b> within two business days.</p>
       </div>
     </section>
 
@@ -398,7 +398,7 @@
       if(first.value.trim().length < 2){ W.fieldError(first, 'Please enter your first name.'); return; }
       if(last.value.trim().length < 2){ W.fieldError(last, 'Please enter your last name.'); return; }
       if(!W.isEmail(email.value)){ W.fieldError(email, 'Please enter a valid email address.'); return; }
-      if(msg.value.trim().length < 10){ W.fieldError(msg, 'Tell us a bit more — at least a sentence.'); return; }
+      if(msg.value.trim().length < 10){ W.fieldError(msg, 'Tell us a bit more: at least a sentence.'); return; }
 
       if(W.busy(btn, true, 'Sending…') === false) return;
 

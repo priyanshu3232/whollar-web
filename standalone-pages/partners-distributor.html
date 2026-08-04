@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   // Error sink persists across replaceWith since it's on window, not the DOM.
   window.addEventListener('error', function(e) {
     // Failed resource loads (CSP-blocked links, scripts, images) fire plain
-    // events at the element — warn only; real JS errors carry message/error.
+    // events at the element, warn only; real JS errors carry message/error.
     if (!e.message && !e.error && e.target && e.target !== window) {
       console.warn('[bundle] resource failed to load:',
         e.target.tagName, String(e.target.src || e.target.href || ''));
@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const templateEl = document.querySelector('script[type="__bundler/template"]');
     if (!manifestEl || !templateEl) {
       setStatus('Error: missing bundle data');
-      console.error('[bundler] Missing script tags — manifestEl:', !!manifestEl, 'templateEl:', !!templateEl);
+      console.error('[bundler] Missing script tags, manifestEl:', !!manifestEl, 'templateEl:', !!templateEl);
       return;
     }
 
@@ -145,14 +145,14 @@ document.addEventListener('DOMContentLoaded', async function() {
       if (blobUrls[entry.uuid]) resourceMap[entry.id] = blobUrls[entry.uuid];
     }
 
-    // Artifact-host CSP (connect-src 'self') refuses fetch() of blob: URLs —
+    // Artifact-host CSP (connect-src 'self') refuses fetch() of blob: URLs,
     // consumers read these Blobs directly. Survives the swap like the error sink.
     window.__resourceBlobs = resourceBlobs;
 
     setStatus('Almost ready…');
     for (const uuid of uuids) template = template.split(uuid).join(blobUrls[uuid]);
 
-    // Strip integrity + crossorigin — blob URLs from a file:// document inherit
+    // Strip integrity + crossorigin, blob URLs from a file:// document inherit
     // a null origin, so crossorigin forces a CORS fetch that SRI then rejects.
     // The manifest bytes are ours; SRI protects against CDN compromise, not this.
     template = template.replace(/\s+integrity="[^"]*"/gi, '').replace(/\s+crossorigin="[^"]*"/gi, '');
@@ -172,7 +172,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     // Parse the template and swap the root element. Scripts inserted via
-    // DOMParser/replaceWith are inert per spec — re-create each with
+    // DOMParser/replaceWith are inert per spec, re-create each with
     // createElement so they execute, awaiting onload for src scripts to
     // preserve ordering (React before ReactDOM before Babel before text/babel).
     const doc = new DOMParser().parseFromString(template, 'text/html');

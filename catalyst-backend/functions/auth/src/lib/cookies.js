@@ -20,7 +20,7 @@ const NAME = 'whollar_session';
  * auth could never be tested anywhere but production.
  *
  * Host-only is also the stricter choice: the cookie goes to `www.whollar.ca`
- * and to nothing else — not to a sibling subdomain, not to the apex. Nothing is
+ * and to nothing else: not to a sibling subdomain, not to the apex. Nothing is
  * lost by that here, because the apex 308s to `www` and no visitor stays on it.
  *
  * `COOKIE_DOMAIN` is still validated in config, and comes back into use at the
@@ -44,7 +44,7 @@ function isSecureRequest(req) {
  * SameSite=Lax, not Strict.
  *
  * Strict withholds the cookie on any cross-site navigation, including a click
- * from an email or from the OAuth provider's own redirect back to us — the user
+ * from an email or from the OAuth provider's own redirect back to us: the user
  * would land on the dashboard, appear signed out, and sign in again in a loop.
  * Lax sends the cookie on top-level GET navigations while still withholding it
  * from cross-site POSTs, which is the CSRF case that matters.
@@ -62,7 +62,7 @@ function serialize(name, value, attrs) {
   return parts.join('; ');
 }
 
-/** Append rather than assign — never clobber a Set-Cookie already on the response. */
+/** Append rather than assign: never clobber a Set-Cookie already on the response. */
 function append(res, cookie) {
   const existing = res.getHeader('Set-Cookie');
   if (!existing) res.setHeader('Set-Cookie', cookie);
@@ -96,7 +96,7 @@ function set(req, res, value, ttlMs) {
 }
 
 /**
- * Clear it. The attributes must match those it was set with — a browser treats
+ * Clear it. The attributes must match those it was set with: a browser treats
  * a differing Path or Domain as a different cookie and leaves the original in
  * place, which looks exactly like "logout does nothing".
  */

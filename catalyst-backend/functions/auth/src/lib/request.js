@@ -3,8 +3,8 @@
 /**
  * Facts about the caller, extracted once and consistently.
  *
- * Two hops sit between the browser and this function — Vercel's proxy and
- * Catalyst's gateway — so "the client's IP" is a question with several possible
+ * Two hops sit between the browser and this function (Vercel's proxy and
+ * Catalyst's gateway), so "the client's IP" is a question with several possible
  * answers, and picking the wrong one silently breaks rate limiting.
  */
 
@@ -19,7 +19,7 @@
  *
  * That is tolerable because of what an IP is and is not used for here. It feeds
  * rate limiting and `ip_hash` forensics; it never grants access. Someone
- * spoofing the header can evade their own rate limit — which is precisely why
+ * spoofing the header can evade their own rate limit, which is precisely why
  * the per-challenge `attempts` counter, not the IP limit, is the primary defence
  * against guessing an OTP.
  */
@@ -40,7 +40,7 @@ const userAgent = (req) => String(req.headers['user-agent'] || '').slice(0, 255)
  *
  * `Origin` is the header to trust: browsers set it on every cross-origin
  * request and on same-origin non-GET requests, and script cannot override it.
- * `Referer` is the fallback for the handful of older clients that omit Origin —
+ * `Referer` is the fallback for the handful of older clients that omit Origin:
  * weaker, since it can be suppressed, but suppressed is not the same as forged,
  * and a request with neither is rejected rather than assumed safe.
  */

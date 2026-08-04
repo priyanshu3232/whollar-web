@@ -26,7 +26,7 @@ MobileVersion/overlays
 
 # Working files no live page references (verified against every page,
 # including the decoded bundle templates).
-# NOTE: *.lottie and retail.jpg are deliberately NOT listed — partners.html,
+# NOTE: *.lottie and retail.jpg are deliberately NOT listed: partners.html,
 # provider-mobile and the waitlist builds still reference them.
 .backup
 Become_a_founding_member_of_Whollar

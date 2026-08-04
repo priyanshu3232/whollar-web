@@ -79,7 +79,7 @@ function buildApp(cfg) {
   });
 
   // Nothing this function returns is ever cacheable. Set once, centrally, so a
-  // new route cannot forget it — a cached auth response would hand one visitor
+  // new route cannot forget it: a cached auth response would hand one visitor
   // another visitor's session.
   app.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store, max-age=0');
@@ -95,7 +95,7 @@ function buildApp(cfg) {
   // 3. Origin allowlist on every state-changing request.
   app.use(csrf.middleware(cfg));
 
-  // 4. Session loader. Populates req.auth for every route; never rejects —
+  // 4. Session loader. Populates req.auth for every route; never rejects:
   //    a route that requires a session says so itself, via requireSession.
   app.use(wrap(async (req, res, next) => {
     req.catalyst = datastore.app(req);
@@ -122,7 +122,7 @@ function buildApp(cfg) {
       // hunting for a bad token rather than a wrong hostname.
       mail_transport: mailer.transportName(cfg),
       mail_endpoint: cfg.FEATURES.mail ? (cfg.ZEPTOMAIL_API_BASE || null) : null,
-      // The From address is public — it appears in the header of every message
+      // The From address is public: it appears in the header of every message
       // we send. Surfacing it turns "does this match the verified domain?" from
       // a console hunt into one curl, and a mismatch there is rejected on every
       // send with an error that does not mention the domain.
@@ -135,13 +135,13 @@ function buildApp(cfg) {
    * Did the last codes actually go out?
    *
    * Every send-bearing route answers identically whether the provider accepted
-   * the mail or rejected it — that symmetry is what stops /signup and /otp/start
+   * the mail or rejected it. That symmetry is what stops /signup and /otp/start
    * being used to probe which addresses have accounts. The cost is that a total
    * delivery outage looks exactly like success from outside, and the only place
    * the distinction survives is the `delivered` flag on the audit row.
    *
    * This is the replacement for the old /dev/events, which answered the same
-   * question by returning the rows wholesale — including the email column. It
+   * question by returning the rows wholesale, including the email column. It
    * reports delivery OUTCOMES only: no address is selected from the table, and
    * the provider's error string is redacted before it is returned, because a
    * rejection body routinely echoes the recipient back (see mailer.js). That is
@@ -198,7 +198,7 @@ function buildApp(cfg) {
    *
    * Answers 200 with `authenticated: false` rather than 401 when signed out.
    * This is the endpoint every page calls on load to decide what to render, and
-   * "no session" is a normal answer to that question, not an error — a 401 here
+   * "no session" is a normal answer to that question, not an error: a 401 here
    * would put a red line in the console of every logged-out visitor.
    */
   router.get('/session', (req, res) => {
@@ -238,14 +238,14 @@ function buildApp(cfg) {
   ratingRoutes.mount(router);
   campaignRoutes.mount(router);
   deskRoutes.mount(router);
-  // Mounts nothing unless the `admin` config group is set — see routes/admin.js.
+  // Mounts nothing unless the `admin` config group is set (see routes/admin.js).
   adminRoutes.mount(router, cfg);
   publicRoutes.mount(router);
 
   /**
    * Schema + request-shape diagnostics.
    *
-   * Requires an admin session unconditionally — NOT `!cfg.IS_PRODUCTION` — on
+   * Requires an admin session unconditionally (NOT `!cfg.IS_PRODUCTION`) on
    * purpose. This dumps per-table row counts and the full column-level schema
    * for every table (users, sessions, credentials, campaigns, auth_events…),
    * which is exactly the kind of thing a misconfigured `NODE_ENV` must not be
@@ -280,7 +280,7 @@ function buildApp(cfg) {
     // ceiling can be probed without a redeploy per attempt.
     const CAP = Math.min(Math.max(parseInt(req.query.cap, 10) || 200, 1), 1000);
     const counts = {};
-    // Every table the schema declares, not a hand-kept subset — a list that has
+    // Every table the schema declares, not a hand-kept subset: a list that has
     // to be extended by hand is a list that silently stops covering the table
     // you most need to look at.
     for (const table of TABLE_NAMES) {
@@ -318,7 +318,7 @@ function buildApp(cfg) {
   }
 
   // Both mounts share one router instance. The 404 fallback must live on the
-  // app, not the router — a catch-all inside the router would be reached via
+  // app, not the router: a catch-all inside the router would be reached via
   // the `/` mount and swallow every request before the `/auth` mount ran.
   app.use('/', router);
   app.use('/auth', router);
@@ -362,7 +362,7 @@ function buildDegradedApp(problems, missingNames) {
       status: 'degraded',
       service: 'auth',
       node: process.versions.node,
-      reason: 'configuration incomplete — auth routes are disabled',
+      reason: 'configuration incomplete: auth routes are disabled',
       missing: missingNames,
       problems,
     });

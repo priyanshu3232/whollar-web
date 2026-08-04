@@ -13,7 +13,7 @@
  *
  * Approval gates the competitive surfaces. Renaming your own org and listing
  * your own team only require being in it; placing a bid or editing coverage
- * requires the org to be approved — those are the actions that touch cohorts.
+ * requires the org to be approved: those are the actions that touch cohorts.
  *
  * Bids additionally pass requireBiddingOpen(), the single gate campaigns.js
  * exports for exactly this route's benefit: the global kill switch and the
@@ -52,13 +52,13 @@ async function requirePartner(req) {
 
 function requireApproved(context) {
   if (!context.approved) {
-    throw forbidden('Your organisation is still under review — this opens the moment it is approved.', {
+    throw forbidden('Your organisation is still under review - this opens the moment it is approved.', {
       logDetail: `unapproved org ${context.orgId} hit a gated desk route`,
     });
   }
 }
 
-/** A dollar amount as a canonical string — same contract as member bills. */
+/** A dollar amount as a canonical string, same contract as member bills. */
 function money(value, max) {
   if (value === null || value === undefined || value === '') return null;
   const n = Number(String(value).replace(/[$,\s]/g, ''));
@@ -114,7 +114,7 @@ async function coverageRows(catalystApp, orgId) {
 
 function mount(router) {
   /**
-   * Rename the organisation. Org admins only — the legal name is what the
+   * Rename the organisation. Org admins only: the legal name is what the
    * approval decision was made against, so the change is audited with both
    * values and the admin console sees it in the trail.
    */
@@ -151,7 +151,7 @@ function mount(router) {
 
   /**
    * Who is attached to this org. Names and roles only, for the org's own
-   * members — this is the one place a partner sees another person's name, and
+   * members: this is the one place a partner sees another person's name, and
    * they are colleagues.
    */
   router.get('/provider/team', wrap(async (req, res) => {
@@ -200,7 +200,7 @@ function mount(router) {
   }));
 
   /**
-   * Place a sealed bid, or improve the one already standing — one live bid
+   * Place a sealed bid, or improve the one already standing: one live bid
    * per (campaign, org), and an upsert is what "improvable until close"
    * means. Approval and the bidding window are both enforced here, always.
    */
@@ -208,7 +208,7 @@ function mount(router) {
     const { user, context } = await requirePartner(req);
     requireApproved(context);
     if (context.role === 'viewer') {
-      throw forbidden('Your seat can view the desk but not place bids — ask your organisation’s admin.', {
+      throw forbidden('Your seat can view the desk but not place bids - ask your organisation’s admin.', {
         logDetail: 'viewer tried to place a bid',
       });
     }
@@ -292,7 +292,7 @@ function mount(router) {
 
   /**
    * Update a region's services, or declare a new region. A declaration lands
-   * as 'verifying' — serviceability is confirmed by an operator, not asserted
+   * as 'verifying': serviceability is confirmed by an operator, not asserted
    * by the party it advantages. Editing an existing region keeps its status.
    */
   router.post('/provider/coverage', wrap(async (req, res) => {

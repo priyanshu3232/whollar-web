@@ -7,7 +7,7 @@
  * <script type="__bundler/template">, so a syntax error there blanks the page
  * entirely and nothing in the build would have noticed.
  *
- * Also verifies the bundle templates still decode as JSON — the failure mode
+ * Also verifies the bundle templates still decode as JSON, the failure mode
  * if a `<` ever gets written back unescaped.
  *
  *   node scripts/check-inline-scripts.mjs
@@ -56,7 +56,7 @@ function checkScripts(source, label) {
     } catch (err) {
       failures++;
       const msg = (err.stderr || Buffer.from('')).toString().split('\n').slice(0, 4).join('\n');
-      console.error(`FAIL  ${label} — inline script #${checked}\n${msg}`);
+      console.error(`FAIL  ${label}, inline script #${checked}\n${msg}`);
     }
   }
 }
@@ -65,14 +65,14 @@ for (const page of PAGES) {
   const path = join(ROOT, page);
   let source;
   try { source = readFileSync(path, 'utf8'); }
-  catch { console.error(`FAIL  ${page} — missing`); failures++; continue; }
+  catch { console.error(`FAIL  ${page}, missing`); failures++; continue; }
 
   checkScripts(source, page);
 
   if (source.includes('<script type="__bundler/template">')) {
     let inner;
     try { inner = readBundle(path).inner; }
-    catch (err) { console.error(`FAIL  ${page} — bundle template did not decode: ${err.message}`); failures++; continue; }
+    catch (err) { console.error(`FAIL  ${page}, bundle template did not decode: ${err.message}`); failures++; continue; }
     checkScripts(inner, `${page} (bundle template)`);
   }
   console.log(`ok    ${page}`);

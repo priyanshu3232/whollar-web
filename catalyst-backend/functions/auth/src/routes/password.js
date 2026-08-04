@@ -6,7 +6,7 @@
  * THE SHAPE. `POST /signup` creates the account in `status: 'pending'` and
  * emails a code; `POST /signup/verify` checks the code and flips it to
  * 'active', which is also the moment the session is minted. Until that flip,
- * the password is stored but will not let anyone in — so registering with an
+ * the password is stored but will not let anyone in, so registering with an
  * address you do not control gets you nothing, which is the point.
  *
  * WHY PENDING RATHER THAN NO ROW. The account has to exist before verification,
@@ -16,7 +16,7 @@
  *
  * WHAT IS DELIBERATELY NOT HERE. No response anywhere tells the caller whether
  * an address already has an account. `/signup` answers identically either way
- * and the owner of the address is told by email instead — see
+ * and the owner of the address is told by email instead. See
  * `mailer.existingAccountEmail`. Login collapses every failure into one
  * message. Both rules exist so that this pair cannot be used to ask "does this
  * person bank here?", the same property `routes/otp.js` is built around.
@@ -65,7 +65,7 @@ async function issueCode(req, cfg, email, purpose) {
  *
  * In production the branches are indistinguishable: no `code` is ever revealed,
  * so all three return `{ok, ttlMinutes}` exactly. The dev-only `dev.code` block
- * IS asymmetric — an existing-account attempt has no code to show — but that
+ * IS asymmetric (an existing-account attempt has no code to show), but that
  * asymmetry exists only where `canRevealCode` is true, which is a non-production
  * deploy with no mail provider, and is precisely the signal you want while
  * testing. Do not "fix" it by inventing a code for that branch.
@@ -80,7 +80,7 @@ function opaqueOk(cfg, res, { ttlMinutes, code }) {
   const body = { ok: true, ttlMinutes };
   if (code && canRevealCode(cfg)) {
     body.dev = {
-      note: 'No mail provider configured — code returned here instead of being sent.',
+      note: 'No mail provider configured - code returned here instead of being sent.',
       code,
     };
   }
@@ -221,7 +221,7 @@ function mount(router, cfg) {
 
     // A consumed code with no account behind it means the row was removed
     // between the two requests. Nothing to activate, and the same message a
-    // wrong code gets — the caller learns nothing either way.
+    // wrong code gets: the caller learns nothing either way.
     if (!user) {
       audit.recordAsync(req.catalyst, req, {
         type: 'signup.verify', outcome: 'failure', email,
@@ -273,8 +273,8 @@ function mount(router, cfg) {
   /**
    * Sign in with the password.
    *
-   * Every failure below — no such account, no password set, wrong password,
-   * locked out — answers with one message. The distinctions are real and they
+   * Every failure below (no such account, no password set, wrong password,
+   * locked out) answers with one message. The distinctions are real and they
    * all go to the audit row; none of them reach the caller, because together
    * they would say "this address exists, keep guessing".
    *
@@ -319,7 +319,7 @@ function mount(router, cfg) {
       if (check.reason === 'locked' || check.reason === 'locked_now') {
         // The one failure that gets its own message. A lockout the user cannot
         // see is indistinguishable from a broken password, and they will spend
-        // the window guessing — which is what the lock is there to stop.
+        // the window guessing, which is what the lock is there to stop.
         const waitMs = check.retryAfterMs || credentials.LOCK_MS;
         const minutes = Math.max(1, Math.ceil(waitMs / 60000));
         throw rateLimited(

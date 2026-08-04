@@ -2,7 +2,7 @@
 <html lang="en-CA"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Join the waitlist — Whollar</title>
+<title>Join the waitlist, Whollar</title>
 <meta name="description" content="Hold your spot in your neighbourhood's cohort. Whollar gets providers to bid for whole streets at once, so everyone gets the group price.">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDEyMCAxMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJXaG9sbGFyIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0id2hvbGxhck1hcmsiIHgxPSIxOCIgeTE9IjE0IiB4Mj0iMTAyIiB5Mj0iMTA2IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzBFMkEyMCI+PC9zdG9wPgogICAgICA8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMxRTlFNjMiPjwvc3RvcD4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxyZWN0IHg9IjYiIHk9IjYiIHdpZHRoPSIxMDgiIGhlaWdodD0iMTA4IiByeD0iMzIiIGZpbGw9InVybCgjd2hvbGxhck1hcmspIj48L3JlY3Q+CiAgPGc+CiAgICA8cGF0aCBkPSJNMzQgNDJoNTJNMzQgNDJsMjYgMzhNODYgNDJsLTI2IDM4IiBzdHJva2U9IiNGRkZGRkYiIHN0cm9rZS13aWR0aD0iNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIwLjg1Ij48L3BhdGg+CiAgICA8Y2lyY2xlIGN4PSIzNCIgY3k9IjQyIiByPSIxMSIgZmlsbD0iI0ZGRkZGRiI+PC9jaXJjbGU+CiAgICA8Y2lyY2xlIGN4PSI4NiIgY3k9IjQyIiByPSIxMSIgZmlsbD0iI0ZGRkZGRiI+PC9jaXJjbGU+CiAgICA8Y2lyY2xlIGN4PSI2MCIgY3k9IjgwIiByPSIxMSIgZmlsbD0iI0ZGRkZGRiI+PC9jaXJjbGU+CiAgPC9nPgo8L3N2Zz4K">
 <link rel="preconnect" href="https://api.fontshare.com">
@@ -802,7 +802,7 @@ document.addEventListener('DOMContentLoaded',function(){
     const FSA={A:'Newfoundland & Labrador',B:'Nova Scotia',C:'PEI',E:'New Brunswick',G:'Quebec',H:'Quebec',J:'Quebec',K:'Ontario',L:'Ontario',M:'Ontario',N:'Ontario',P:'Ontario',R:'Manitoba',S:'Saskatchewan',T:'Alberta',V:'British Columbia',X:'the North',Y:'Yukon'};
     const S={name:'',last:'',email:'',phone:'',fsa:null,details:{}};
 
-    /* CATALYST SETUP: replace with your deployed function base URL — see catalyst-backend/README.md */
+    /* CATALYST SETUP: replace with your deployed function base URL, see catalyst-backend/README.md */
     const CATALYST_BASE='https://whollar-110003037934.development.catalystserverless.ca/server/formSubmit';
     function submitForm(path,fields,files){
       const hasFiles=files&&Object.values(files).some(f=>Array.isArray(f)?f.length:f);
@@ -815,13 +815,13 @@ document.addEventListener('DOMContentLoaded',function(){
         if(!r.ok){const e=new Error('submit failed: '+r.status);e.status=r.status;throw e;}
         return r.json();});
     }
-    /* a failed submit must never masquerade as success — surface it and let the user retry */
+    /* a failed submit must never masquerade as success, surface it and let the user retry */
     function submitErr(anchor,err){
       console.error('[whollar submit]',err);
       let el=anchor.parentNode.querySelector('.suberr');
       if(!el){el=document.createElement('p');el.className='suberr';el.style.cssText='margin:10px 0 0;font-size:13px;font-weight:600;color:#C2643B';anchor.parentNode.insertBefore(el,anchor.nextSibling);}
-      el.textContent=err&&err.status===429?'Too many attempts from your network right now — please try again in a little while.'
-        :'We couldn’t reach our servers, so this wasn’t saved — please check your connection and try again.';
+      el.textContent=err&&err.status===429?'Too many attempts from your network right now, please try again in a little while.'
+        :'We couldn’t reach our servers, so this wasn’t saved, please check your connection and try again.';
     }
     function clearErr(anchor){const el=anchor.parentNode.querySelector('.suberr');if(el)el.remove();}
     function busy(btn,on,label){
@@ -964,13 +964,13 @@ document.addEventListener('DOMContentLoaded',function(){
     function collectServices(){return $$('#svc .svcrow.on').map(row=>{
       const key=row.dataset.svc,qb=row.querySelector('.qty b'),xin=row.querySelector('.svcx');
       return {service:key,count:qb?(+qb.textContent||1):null,detail:xin?xin.value.trim()||null:null};});}
-    /* only attach what the backend will actually store — a rejected file must not cost the submission */
+    /* only attach what the backend will actually store, a rejected file must not cost the submission */
     const OKFILE=new Set(['application/pdf','image/jpeg','image/png','image/gif','image/webp']);
     $('#s-file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;
       const t=(f.type||'').toLowerCase();
       if((f.type&&!OKFILE.has(t))||f.size>20*1024*1024){
         e.target.value='';S.details.file=null;
-        $('#s-filename').textContent=f.size>20*1024*1024?'That file is over 20 MB — please attach a smaller one':'We can’t take that type — a PDF, JPG, PNG, WebP or GIF works';
+        $('#s-filename').textContent=f.size>20*1024*1024?'That file is over 20 MB, please attach a smaller one':'We can’t take that type, a PDF, JPG, PNG, WebP or GIF works';
         setTimeout(()=>{if(!S.details.file)$('#s-filename').textContent='';},6000);
         return;}
       S.details.file=f.name;$('#s-filename').textContent='✓ '+f.name;meter();});

@@ -2,7 +2,7 @@
 
 /**
  * The member's account beyond the bill: profile, preferences, feedback,
- * referral standing, and the two rights every account owner has — take your
+ * referral standing, and the two rights every account owner has: take your
  * data out, and delete the account.
  *
  *   POST /me/profile    update name / phone / postal code
@@ -57,7 +57,7 @@ const referralCodeFor = (user) =>
 
 /**
  * Record a feedback event. Append-only; the admin console is the reader.
- * Payload is capped and stored as JSON — never filtered on, so Text is fine.
+ * Payload is capped and stored as JSON, never filtered on, so Text is fine.
  */
 async function recordEvent(catalystApp, user, kind, payload) {
   const json = JSON.stringify(payload == null ? {} : payload).slice(0, 4000);
@@ -74,7 +74,7 @@ function mount(router) {
   /**
    * Update the profile fields a member may change about themselves. Selective:
    * only the keys present in the body are touched, so saving a phone number
-   * does not blank the postal code. Email is deliberately absent — the address
+   * does not blank the postal code. Email is deliberately absent: the address
    * is the account's identity and every credential hangs off it; changing it
    * is a support conversation, not a PATCH.
    */
@@ -102,7 +102,7 @@ function mount(router) {
         throw badRequest('That does not look like a Canadian postal code, e.g. N5Y 2T6.');
       }
       fields.postal_code = postal || null;
-      // Derived here, never taken from the client — the FSA decides the cohort.
+      // Derived here, never taken from the client: the FSA decides the cohort.
       fields.fsa = postal ? postal.replace(/\s+/g, '').slice(0, 3) : null;
     }
     if ('provinceCode' in body) {
@@ -156,7 +156,7 @@ function mount(router) {
 
   /**
    * Record feedback: a provider rating, an outage report, an interest signal.
-   * -> { ok }. A failure is a failure — the dashboards only say "logged"
+   * -> { ok }. A failure is a failure: the dashboards only say "logged"
    * when it was.
    */
   router.post('/me/event', wrap(async (req, res) => {
@@ -212,7 +212,7 @@ function mount(router) {
   /**
    * Everything this account owns, in one JSON document. PIPEDA's access right,
    * self-serve: the browser downloads the response as a file. Each table is
-   * read best-effort — an unprovisioned table appears as an empty list, not as
+   * read best-effort: an unprovisioned table appears as an empty list, not as
    * a failed export.
    */
   router.get('/me/export', wrap(async (req, res) => {
@@ -259,7 +259,7 @@ function mount(router) {
   }));
 
   /**
-   * Delete the account. The typed email is the confirmation — a button that
+   * Delete the account. The typed email is the confirmation: a button that
    * deletes on one click is how support tickets are born. Sessions are revoked
    * first, owned rows deleted, and the users row scrubbed rather than removed:
    * the row anchors the audit trail, but nothing personal stays on it. The
@@ -321,7 +321,7 @@ function mount(router) {
   }));
 }
 
-/** The Catalyst app for this request — one name for it in every route above. */
+/** The Catalyst app for this request: one name for it in every route above. */
 const catalyst = (req) => req.catalyst;
 
 module.exports = { mount, referralCodeFor, EVENTS };
