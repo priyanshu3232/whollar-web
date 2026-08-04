@@ -341,11 +341,31 @@ img,svg{display:block}
 .whl-btn--block{display:flex;width:100%}
 .whl-btn--outline{background:transparent;color:var(--teal);border:1.5px solid rgba(14,42,32,.18);box-shadow:none}
 .whl-btn--outline:hover{background:rgba(14,42,32,.05);border-color:rgba(14,42,32,.32)}
-/* Gold provider pill: text is darkened from the section gold (#D4B36A) so it
-   keeps AA contrast on the cream header. */
-.whl-btn--providers{background:transparent;color:#8A6D2F;border:1px solid rgba(178,141,63,.5);box-shadow:none}
-.whl-btn--providers:hover{background:rgba(212,179,106,.14);border-color:#B28D3F;color:#6E5623}
+/* Gold provider pill: the one gold-audience CTA in a green header, so it now
+   carries a soft gold fill instead of a hairline outline — a transparent pill
+   read as disabled next to the two solid buttons beside it. Still deliberately
+   lighter than the dark "Join the First Cohort" primary, so the hierarchy holds.
+   Text is darkened from the section gold (#D4B36A) to keep AA contrast on the
+   cream header, and darkens further on hover as the fill deepens. */
+.whl-btn--providers{
+  background:linear-gradient(180deg,rgba(212,179,106,.22),rgba(178,141,63,.13));
+  color:#6E5623;
+  border:1px solid rgba(178,141,63,.55);
+  box-shadow:0 1px 2px rgba(110,86,35,.10), inset 0 1px 0 rgba(255,255,255,.5);
+}
+.whl-btn--providers svg{transition:transform .18s var(--ease)}
+.whl-btn--providers:hover{
+  background:linear-gradient(180deg,rgba(212,179,106,.38),rgba(178,141,63,.24));
+  border-color:#B28D3F;
+  color:#57431A;
+  box-shadow:0 4px 14px rgba(178,141,63,.26), inset 0 1px 0 rgba(255,255,255,.55);
+}
+.whl-btn--providers:hover svg{transform:translateX(3px)}
 .whl-btn--providers:focus-visible{outline:2px solid #D4B36A;outline-offset:3px}
+@media (prefers-reduced-motion:reduce){
+  .whl-btn--providers svg{transition:none}
+  .whl-btn--providers:hover svg{transform:none}
+}
 
 /* header */
 .whl-header{position:sticky;top:0;z-index:60;background:rgba(250,248,243,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid #e8ebe7;transition:box-shadow .2s}
@@ -1484,8 +1504,8 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
 #whero .btn--primary:hover{background:var(--wh-accent-hover); transform:translateY(-1px); box-shadow:0 18px 40px rgba(30,158,99,.42);}
 #whero .btn--ghost{background:rgba(255,255,255,.045); color:var(--wh-tx); border-color:rgba(255,255,255,.2);}
 #whero .btn--ghost:hover{background:rgba(255,255,255,.09); transform:translateY(-1px);}
-/* Gold provider strip: the audience hand-off under the consumer CTAs. It
-   jumps to #for-providers rather than leaving the page. */
+/* Gold provider strip: the audience hand-off under the consumer CTAs. It sends
+   providers to /partners, the dedicated provider page. */
 #whero .prov-card{display:flex; align-items:center; gap:16px; max-width:620px; padding:16px 18px; border-radius:16px; text-decoration:none;
   background:rgba(212,179,106,.07); border:1px solid rgba(212,179,106,.22);
   transition:border-color .2s, background .2s, transform .2s var(--wh-ease);}
@@ -1584,7 +1604,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
       <a href="/contact">Contact</a>
     </nav>
     <div class="whl-header__actions">
-      <a class="whl-btn whl-btn--providers" href="#for-providers">For providers
+      <a class="whl-btn whl-btn--providers" href="/partners">For providers
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
       </a>
       <a class="whl-btn whl-btn--outline" href="/whollar-login-consumer">Log in</a>
@@ -1600,7 +1620,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
     <a href="#faq" data-mobnav-link="">FAQ</a>
     <a href="/blog/" data-mobnav-link="">Resources</a>
     <a href="/contact" data-mobnav-link="">Contact</a>
-    <a class="whl-btn whl-btn--providers whl-btn--block" href="#for-providers" data-mobnav-link="">For providers
+    <a class="whl-btn whl-btn--providers whl-btn--block" href="/partners" data-mobnav-link="">For providers
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
     </a>
     <a class="whl-btn whl-btn--outline whl-btn--block" href="/whollar-login-consumer" data-mobnav-link="">Log in</a>
@@ -1627,7 +1647,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
           </a>
         </div>
-        <a class="prov-card" href="#for-providers">
+        <a class="prov-card" href="/partners">
           <span class="prov-card__ic" aria-hidden="true">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9"/><path d="M7.8 4.7a6.14 6.14 0 0 0-.8 7.5"/><circle cx="12" cy="9" r="2"/><path d="M16.2 4.8c2 2 2.26 5.11.8 7.47"/><path d="M19.1 1.9a9.9 9.9 0 0 1 0 14.1"/><path d="M9.5 18h5"/><path d="m8 22 4-11 4 11"/></svg>
           </span>
@@ -2748,144 +2768,6 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
     </div>
   </div>
 </section>
-
-<!-- FOR PROVIDERS -->
-<style>
-/* Provider band: the page's one gold-audience section. Dark like the hero and
-   footer so the household (green) to provider (gold) shift reads instantly. */
-#for-providers{background:#0E1F16;border-top:1px solid rgba(212,179,106,.18);scroll-margin-top:96px;
-  font-family:var(--body);padding:112px 0 120px}
-#for-providers .fp-eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#D4B36A;margin:0}
-#for-providers .fp-head{max-width:720px}
-#for-providers h2{font-family:var(--disp);font-weight:700;letter-spacing:-.02em;line-height:1.06;
-  font-size:clamp(36px,4.5vw,56px);color:#F1ECDF;margin:14px 0 0}
-#for-providers .fp-sub{font-size:18px;line-height:1.6;color:#9DB3A6;margin:20px 0 0}
-#for-providers .fp-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:56px}
-#for-providers .fp-card{background:#12261B;border:1px solid rgba(235,229,215,.10);border-radius:16px;padding:28px;
-  transition:border-color .18s ease}
-#for-providers .fp-card:hover{border-color:rgba(212,179,106,.45)}
-#for-providers .fp-ic{width:44px;height:44px;border-radius:12px;background:rgba(212,179,106,.14);
-  display:flex;align-items:center;justify-content:center;color:#D4B36A}
-#for-providers .fp-card h3{font-size:19px;font-weight:700;color:#F1ECDF;margin:20px 0 0}
-#for-providers .fp-card p{font-size:15.5px;line-height:1.55;color:#9DB3A6;margin:8px 0 0}
-#for-providers .fp-apply{background:#11241A;border:1px solid rgba(212,179,106,.30);border-radius:20px;padding:48px;
-  display:grid;grid-template-columns:5fr 7fr;gap:48px;margin-top:64px}
-#for-providers .fp-apply h3{font-family:var(--disp);font-size:30px;font-weight:700;color:#F1ECDF;margin:0}
-#for-providers .fp-apply-copy{display:flex;flex-direction:column}
-#for-providers .fp-apply-copy>p{font-size:16px;line-height:1.6;color:#9DB3A6;margin:14px 0 0}
-#for-providers .fp-signin{font-size:14.5px;color:#9DB3A6;margin:auto 0 0;padding-top:28px}
-#for-providers .fp-signin a{color:#D4B36A;text-decoration:none;font-weight:600}
-#for-providers .fp-signin a:hover{text-decoration:underline;text-underline-offset:3px}
-#for-providers .fp-form{display:flex;flex-direction:column;gap:16px}
-#for-providers .fp-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-#for-providers .fp-f{display:flex;flex-direction:column;gap:6px}
-#for-providers .fp-f label{font-size:13px;font-weight:600;color:#9DB3A6}
-#for-providers .fp-f input,#for-providers .fp-f textarea{font-family:var(--body);background:#0E1F16;
-  border:1px solid rgba(235,229,215,.12);border-radius:12px;padding:13px 16px;color:#F1ECDF;font-size:15.5px;
-  width:100%;box-sizing:border-box;transition:border-color .15s}
-#for-providers .fp-f textarea{resize:vertical;line-height:1.5}
-#for-providers .fp-f ::placeholder{color:#6E8577;opacity:1}
-#for-providers .fp-f input:focus,#for-providers .fp-f textarea:focus{border-color:#D4B36A;outline:none}
-#for-providers .fp-submit{background:#D4B36A;color:#14261B;font-family:var(--body);font-weight:700;font-size:16px;
-  padding:15px;border:none;border-radius:12px;width:100%;cursor:pointer;transition:filter .15s}
-#for-providers .fp-submit:hover{filter:brightness(1.08)}
-#for-providers .fp-done{display:flex;flex-direction:column;align-items:flex-start;gap:10px;color:#D4B36A;
-  min-height:220px;justify-content:center}
-#for-providers .fp-done h4{font-size:20px;font-weight:700;color:#F1ECDF;margin:6px 0 0}
-#for-providers .fp-done p{font-size:15.5px;color:#9DB3A6;margin:0}
-#for-providers a:focus-visible,#for-providers button:focus-visible,
-#for-providers input:focus-visible,#for-providers textarea:focus-visible{outline:2px solid #D4B36A;outline-offset:3px}
-@media (max-width:900px){
-  #for-providers .fp-cards{grid-template-columns:1fr}
-  #for-providers .fp-apply{grid-template-columns:1fr;gap:36px}
-}
-@media (max-width:640px){
-  #for-providers{padding:64px 0 72px}
-  #for-providers .fp-apply{padding:28px}
-  #for-providers .fp-row{grid-template-columns:1fr}
-}
-</style>
-<section id="for-providers" aria-labelledby="fp-title">
-  <div class="whl-wrap">
-    <div class="fp-head">
-      <p class="fp-eyebrow">For ISPs &amp; Distributors</p>
-      <h2 id="fp-title">Verified demand, ready to close.</h2>
-      <p class="fp-sub">Whollar pools households into regional cohorts and runs sealed reverse-bid auctions. You bid once on real, aggregated demand, and pay nothing unless switches complete.</p>
-    </div>
-
-    <div class="fp-cards">
-      <div class="fp-card">
-        <span class="fp-ic" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        </span>
-        <h3>Pre-pooled cohorts</h3>
-        <p>Households grouped by region and serviceability: ready-to-switch demand, not cold leads.</p>
-      </div>
-      <div class="fp-card">
-        <span class="fp-ic" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 12.5-8 8a2.119 2.119 0 1 1-3-3l8-8"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/></svg>
-        </span>
-        <h3>Sealed reverse-bid auctions</h3>
-        <p>One bid, scored on price, guarantee length, and contract flexibility. No public race to the bottom.</p>
-      </div>
-      <div class="fp-card">
-        <span class="fp-ic" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></svg>
-        </span>
-        <h3>Success fee only</h3>
-        <p>Zero cost to enter the network. You pay only when a switch completes.</p>
-      </div>
-    </div>
-
-    <div class="fp-apply">
-      <div class="fp-apply-copy">
-        <h3>Join the network</h3>
-        <p>Tell us who you are and where you operate. We review every provider before opening cohort access.</p>
-        <p class="fp-signin">Already a partner? <a href="/whollar-login-provider">Sign in</a></p>
-      </div>
-      <form class="fp-form" id="fp-form">
-        <div class="fp-row">
-          <div class="fp-f">
-            <label for="fp-company">Company name</label>
-            <input id="fp-company" name="company" type="text" required autocomplete="organization">
-          </div>
-          <div class="fp-f">
-            <label for="fp-email">Work email</label>
-            <input id="fp-email" name="email" type="email" required autocomplete="email">
-          </div>
-        </div>
-        <div class="fp-f">
-          <label for="fp-role">Role</label>
-          <input id="fp-role" name="role" type="text" required autocomplete="organization-title">
-        </div>
-        <div class="fp-f">
-          <label for="fp-regions">Coverage regions</label>
-          <input id="fp-regions" name="regions" type="text" required placeholder="e.g. Ontario, Alberta">
-        </div>
-        <div class="fp-f">
-          <label for="fp-note">Anything we should know? <span style="font-weight:500">(optional)</span></label>
-          <textarea id="fp-note" name="note" rows="3"></textarea>
-        </div>
-        <button class="fp-submit" type="submit">Request access &rarr;</button>
-      </form>
-    </div>
-  </div>
-</section>
-<script>
-  (function(){
-    var form = document.getElementById('fp-form');
-    if(!form) return;
-    form.addEventListener('submit', function(ev){
-      ev.preventDefault();
-      form.innerHTML =
-        '<div class="fp-done" role="status">'
-        + '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>'
-        + '<h4>Request received</h4>'
-        + '<p>We\'ll reach out within 2 business days.</p>'
-        + '</div>';
-    });
-  })();
-</script>
 
 <!-- FOOTER -->
 <footer class="whl-footer">
