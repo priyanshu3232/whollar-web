@@ -147,6 +147,25 @@ button{font-family:var(--body)}
 
 #done{display:none}
 #done.on{display:block;animation:rise .4s var(--ease)}
+
+/* Verify step (borrowed from the partner sign-in page, on this page's tokens) */
+#verify{display:none}
+#verify.on{display:block;animation:rise .4s var(--ease)}
+.hidden{display:none!important}
+.pwrap{position:relative}
+.pwrap input{padding-right:64px}
+.peek{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:none;background:none;font-family:var(--label);font-weight:600;font-size:12px;color:var(--ink-2);cursor:pointer;padding:6px 8px;border-radius:8px}
+.peek:hover{color:var(--teal)}
+.pw-hint{font-size:11.5px;color:var(--ink-3);margin:6px 0 0;line-height:1.5}
+.sentto{font-size:13.5px;color:var(--ink-2);margin:8px 0 16px}
+.sentto b{color:var(--ink)}
+.otp{display:flex;gap:9px;margin-bottom:8px;justify-content:space-between;max-width:340px}
+.otp input{width:100%;aspect-ratio:1/1;text-align:center;font-family:var(--label);font-weight:700;font-size:22px;color:var(--teal);border:1.5px solid var(--line);border-radius:12px;background:var(--paper);transition:border-color .15s,box-shadow .15s}
+.otp input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(30,158,99,.14)}
+.otp.err input{border-color:var(--warn-text);background:#FDF6F2}
+.otp-meta{font-size:12.5px;color:var(--ink-2);margin:10px 0 18px}
+.linkbtn{border:none;background:none;padding:0;font:inherit;font-weight:600;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.linkbtn:disabled{color:var(--ink-3);cursor:default;text-decoration:none}
 .dhead{display:flex;align-items:center;gap:12px}
 .dhead .tick{flex:none;width:42px;height:42px;border-radius:13px;background:var(--green-tint);display:grid;place-items:center}
 .dhead .tick svg{width:21px;height:21px;stroke:var(--accent);stroke-width:2.8;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:26;stroke-dashoffset:26;animation:draw .5s .2s var(--ease) forwards}
@@ -354,6 +373,19 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
             <input type="email" id="p-email" placeholder="you@company.ca" autocomplete="email" inputmode="email">
           </div>
 
+          <!-- Applying also creates the partner account, the same shape as the
+               member flow: password with the email, then a code to prove the
+               address. Hidden for "Something else": a note does not need an
+               account, and the server refuses free mailboxes anyway. -->
+          <div class="jf" id="pass-wrap">
+            <label for="p-pass">Create a password</label>
+            <div class="pwrap">
+              <input type="password" id="p-pass" placeholder="At least 10 characters" autocomplete="new-password" maxlength="128">
+              <button type="button" class="peek" data-peek="p-pass">Show</button>
+            </div>
+            <p class="pw-hint">You'll sign in to your partner console with this once your email is confirmed.</p>
+          </div>
+
           <!-- role-conditional credentials -->
           <div class="cred" id="cred-provider">
             <div class="cred__h"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.4-2.9 8.3-7 9.5C7.9 19.3 5 15.4 5 11V6l7-3Z"/></svg><b>Your provider credentials</b></div>
@@ -441,6 +473,32 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
         </div>
       </div>
 
+      <!-- step 2: prove the address. Same contract as the partner sign-in
+           page: /provider/signup sent the code, /provider/signup/verify checks
+           it, activates the person and signs them in. The org stays under
+           review either way. -->
+      <div id="verify">
+        <h3>Confirm your email</h3>
+        <p class="sentto">Your application is in. We sent a 6-digit code to <b id="v-email"></b> so you can sign in while we review it. It expires in <span id="v-ttl">10</span> minutes.</p>
+        <p class="pw-hint hidden" id="v-devcode" role="note"></p>
+        <form id="v-form" novalidate>
+          <div class="otp" id="v-otp">
+            <input inputmode="numeric" autocomplete="one-time-code" maxlength="1" aria-label="digit 1">
+            <input inputmode="numeric" maxlength="1" aria-label="digit 2">
+            <input inputmode="numeric" maxlength="1" aria-label="digit 3">
+            <input inputmode="numeric" maxlength="1" aria-label="digit 4">
+            <input inputmode="numeric" maxlength="1" aria-label="digit 5">
+            <input inputmode="numeric" maxlength="1" aria-label="digit 6">
+          </div>
+          <p class="whl-fielderr" id="v-err" role="alert" style="display:none;margin:6px 0 0;font-size:12px;font-weight:600;color:var(--warn-text)"></p>
+          <div class="otp-meta">
+            <span>Didn't get it? <button type="button" class="linkbtn" id="v-resend" disabled>Resend in 30s</button></span>
+          </div>
+          <button class="whl-btn go" id="v-go" type="submit">Verify and continue</button>
+        </form>
+        <p class="dnote" style="margin-top:14px">Already had an account with this address? We've emailed you about that instead of sending a code. You can also skip this: your application is saved either way.</p>
+      </div>
+
       <div id="done">
         <div class="dhead">
           <span class="tick"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>
@@ -448,6 +506,7 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
         </div>
         <p class="dsub" id="d-sub">Thanks, <b id="d-name">there</b>. We'll review it and come back within two business days with the next step.</p>
         <p class="dnote" id="d-note">Anything else we need, we'll ask for it directly. Nothing is shared with households until you're a confirmed partner.</p>
+        <a class="whl-btn go" id="d-console" href="/provider-dashboard" style="display:none;margin-top:16px">Open your partner console &rarr;</a>
       </div>
 
     </div>
@@ -615,9 +674,22 @@ $$('#rlist .rc').forEach(b=>b.addEventListener('click',()=>{
   const other=S.role==='other';
   $('#spec').classList.toggle('on',other);
   $('#coverage').style.display=other?'none':'block';
+  /* A note doesn't create an account, so it doesn't need a password. */
+  $('#pass-wrap').style.display=other?'none':'block';
   $('#lab-company').textContent=S.role==='distributor'?'Your company (the distributor)':'Company';
   $('#p-go').textContent=other?'Send us a note':'Apply as a founding partner';
 }));
+
+/* Show/hide password, wired by data-peek like the sign-in pages. */
+document.addEventListener('click',e=>{
+  const btn=e.target.closest&&e.target.closest('.peek[data-peek]');
+  if(!btn)return;
+  const input=document.getElementById(btn.dataset.peek);
+  if(!input)return;
+  const reveal=input.type==='password';
+  input.type=reveal?'text':'password';
+  btn.textContent=reveal?'Hide':'Show';
+});
 
 /* Errors are now announced and tied to the input, not just a red border that
    fades after 700ms with no message. */
@@ -631,6 +703,9 @@ $('#p-go').addEventListener('click',async()=>{
   /* Same rule as the server's EMAIL_RE: the old regex here accepted a
      one-character TLD the backend then rejected. */
   if(!W.isEmail($('#p-email').value.trim()))return bad($('#p-email'),'Enter a valid work email, e.g. you@company.ca.');
+  /* Mirrors the server's own minimum so the common mistake is caught without
+     a round trip. The server still enforces it. */
+  if(S.role!=='other'&&$('#p-pass').value.length<10)return bad($('#p-pass'),'Use at least 10 characters.');
   if(S.role==='provider'){
     if($('#c-legal').value.trim().length<2)return bad($('#c-legal'));
     if(!$('#c-type').value)return bad($('#c-type'));
@@ -676,6 +751,41 @@ $('#p-go').addEventListener('click',async()=>{
   /* busy() returns false when this button is already in flight: the
      double-tap guard that stops a second application being filed. */
   if(busy(btn,true,'Sending…')===false)return;
+
+  /* Applying now also creates the partner account, same shape as the member
+     flow: password with the email, then a code that proves the address.
+
+     The account is created FIRST, because it is the request that can refuse
+     the email (a free mailbox cannot anchor a partner org). Refused before
+     anything is filed, the fix is editing one field; refused after, resending
+     the form would file the application twice. Re-posting /provider/signup
+     for an address still pending IS the resend, so a retry here is safe. */
+  if(S.role!=='other'){
+    VER.pending={email:$('#p-email').value.trim(),password:$('#p-pass').value,
+      orgName:$('#p-company').value.trim(),firstName:nm,lastName:$('#p-last').value.trim(),phone:ph};
+    let sr;
+    try{sr=await W.session.providerSignup(VER.pending);}
+    catch(err){
+      busy(btn,false);
+      /* The one specific refusal the server makes, and it belongs on the
+         email field, not on the button. */
+      if(err&&err.status===400&&/work email|personal mailbox/i.test(err.message||'')){
+        return bad($('#p-email'),err.message);
+      }
+      /* Every remaining 400 from /provider/signup is about the password
+         (length, or equal to the email); anything else is not a field. */
+      if(err&&err.status===400&&/password|characters/i.test(err.message||'')){
+        return bad($('#p-pass'),err.message);
+      }
+      submitErr(btn,err);return;
+    }
+    try{await submitForm('/partner-application',payload);}
+    catch(err){busy(btn,false);submitErr(btn,err);return;}
+    busy(btn,false);
+    openVerify(sr);
+    return;
+  }
+
   try{await submitForm('/partner-application',payload);}
   catch(err){busy(btn,false);submitErr(btn,err);return;}
   busy(btn,false);
@@ -687,6 +797,98 @@ $('#p-go').addEventListener('click',async()=>{
   $('#stage1').style.display='none';$('#done').classList.add('on');
   document.querySelector('.hs-right').scrollIntoView({behavior:'smooth',block:'center'});
   showThankYou(S.role==='other'?'Thanks for your note. We’ll read it and come back if there’s a fit.':undefined);
+});
+
+/* ================================================================== *
+ * EMAIL VERIFICATION (confirms the account the application created)
+ * Same contract as whollar-login-provider.html: /provider/signup sent the
+ * code; /provider/signup/verify checks it, activates the person and signs
+ * them in. The org's approval is a separate, human decision.
+ * ================================================================== */
+const VER={pending:null};
+
+function vErr(msg){const el=$('#v-err');if(msg)el.textContent=msg;el.style.display=msg?'block':'none';
+  $('#v-otp').classList.toggle('err',!!msg);}
+function vFail(err){
+  vErr((err&&err.code==='NETWORK')?'We couldn’t reach our servers. Check your connection and try again.':(err&&err.message)||'Something went wrong. Please try again.');
+}
+
+/* Six boxes, one value: auto-advance, backspace, paste-spreads, auto-submit. */
+const vOtp=(function(){
+  const inputs=[...document.querySelectorAll('#v-otp input')];
+  let lastTried='';
+  const read=()=>inputs.map(i=>i.value.replace(/\D/g,'')).join('');
+  const fill=code=>{String(code||'').replace(/\D/g,'').slice(0,6).split('').forEach((ch,i)=>{if(inputs[i])inputs[i].value=ch;});};
+  const clear=()=>{inputs.forEach(i=>{i.value='';});lastTried='';};
+  const maybeAuto=()=>{const c=read();if(c.length===6&&c!==lastTried){lastTried=c;$('#v-form').dispatchEvent(new Event('submit',{cancelable:true}));}};
+  inputs.forEach((inp,idx)=>{
+    inp.addEventListener('input',function(){this.value=this.value.replace(/\D/g,'').slice(0,1);
+      if(this.value&&idx<inputs.length-1)inputs[idx+1].focus();maybeAuto();});
+    inp.addEventListener('keydown',function(e){if(e.key==='Backspace'&&!this.value&&idx>0)inputs[idx-1].focus();});
+    /* Paste anywhere in the row spreads across all six. Codes arrive by copy
+       far more often than they are typed. */
+    inp.addEventListener('paste',function(e){e.preventDefault();
+      const d=((e.clipboardData||window.clipboardData).getData('text')||'').replace(/\D/g,'').slice(0,6);
+      if(!d)return;fill(d);inputs[Math.min(d.length,inputs.length-1)].focus();maybeAuto();});
+  });
+  return{read,fill,clear,reset(){lastTried='';},focus(){(inputs.find(i=>!i.value)||inputs[0]).focus();}};
+})();
+
+function vCountdown(seconds){
+  const btn=$('#v-resend');let n=seconds||30;
+  clearInterval(vCountdown._t);btn.disabled=true;btn.textContent='Resend in '+n+'s';
+  vCountdown._t=setInterval(()=>{n--;btn.textContent='Resend in '+n+'s';
+    if(n<=0){clearInterval(vCountdown._t);btn.disabled=false;btn.textContent='Resend code';}},1000);
+}
+
+/* The server hands the code back when no mail provider is configured, so the
+   flow stays testable before a sending domain is verified. */
+function vDevCode(r){
+  const dv=$('#v-devcode');
+  if(r&&r.dev&&r.dev.code){dv.textContent='No mail provider configured. Your code is '+r.dev.code;dv.classList.remove('hidden');vOtp.fill(r.dev.code);}
+  else dv.classList.add('hidden');
+}
+
+function openVerify(r){
+  $('#v-email').textContent=VER.pending.email;
+  $('#v-ttl').textContent=String((r&&r.ttlMinutes)||10);
+  vErr(null);vOtp.clear();vDevCode(r);
+  $('#stage1').style.display='none';
+  $('#verify').classList.add('on');
+  document.querySelector('.hs-right').scrollIntoView({behavior:'smooth',block:'center'});
+  vCountdown(30);vOtp.focus();
+}
+
+$('#v-form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const code=vOtp.read();
+  if(code.length!==6){vErr('Enter all six digits.');return;}
+  vErr(null);
+  const btn=$('#v-go');
+  if(busy(btn,true,'Verifying…')===false)return;
+  try{await W.session.providerSignupVerify({email:VER.pending.email,code});}
+  catch(err){busy(btn,false);vErr(null);vFail(err);
+    /* Let the same six digits be retried after a transport failure. Without
+       this the auto-submit guard would swallow the second try. */
+    vOtp.clear();vOtp.reset();vOtp.focus();return;}
+  busy(btn,false);
+  $('#d-name').textContent=VER.pending.firstName;
+  $('#d-h').textContent='Application received, email confirmed';
+  $('#d-sub').innerHTML='Thanks, <b>'+W.escapeHtml(VER.pending.firstName)+'</b>. Your partner account is ready, and we’ll review your application within two business days. Your console will say “under review” until then.';
+  $('#d-console').style.display='inline-flex';
+  $('#verify').classList.remove('on');$('#done').classList.add('on');
+  document.querySelector('.hs-right').scrollIntoView({behavior:'smooth',block:'center'});
+  showThankYou('Your application is in and your email is confirmed. We’ll be in touch within two business days.');
+});
+
+/* Re-posting /provider/signup for an address still pending IS the resend: the
+   server replaces the password and issues a fresh code. That is why VER.pending
+   holds the password and company rather than discarding them. */
+$('#v-resend').addEventListener('click',async function(){
+  this.disabled=true;vErr(null);
+  try{const r=await W.session.providerSignup(VER.pending);
+    vOtp.clear();vDevCode(r);vCountdown(30);vOtp.focus();}
+  catch(err){this.disabled=false;vFail(err);}
 });
 
 /* step animations */
