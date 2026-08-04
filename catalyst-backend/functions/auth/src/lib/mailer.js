@@ -353,7 +353,7 @@ function passwordChangedEmail({ appBaseUrl }) {
     'If this was you, there is nothing else to do.',
     '',
     'If it was NOT you, someone else may have access to your email. Contact us at',
-    'hello@whollar.ca straight away.',
+    'info@whollar.com straight away.',
   ].join('\n');
 
   const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#F4F6F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102822">
@@ -362,7 +362,7 @@ function passwordChangedEmail({ appBaseUrl }) {
       <p style="margin:0 0 18px;font-size:15px;line-height:1.5">Your Whollar password was just changed.</p>
       <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">Every other device that was signed in has been signed out, so you'll need to sign in again with the new password.</p>
       <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">If this was you, there's nothing else to do.</p>
-      <p style="margin:0;font-size:14px;line-height:1.5;color:#A34F2B;border-top:1px solid #E3E8E6;padding-top:16px">If it was <b>not</b> you, someone else may have access to your email. Contact us at <a href="mailto:hello@whollar.ca" style="color:#A34F2B">hello@whollar.ca</a> straight away.</p>
+      <p style="margin:0;font-size:14px;line-height:1.5;color:#A34F2B;border-top:1px solid #E3E8E6;padding-top:16px">If it was <b>not</b> you, someone else may have access to your email. Contact us at <a href="mailto:info@whollar.com" style="color:#A34F2B">info@whollar.com</a> straight away.</p>
     </td></tr>
   </table></body></html>`;
 

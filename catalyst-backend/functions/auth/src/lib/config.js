@@ -170,7 +170,7 @@ const BOOT = {
   // Applies to every mail transport, so it lives here rather than inside one
   // provider's group — a reply to a no-reply address should reach a human
   // rather than hard-bounce, whichever way the mail went out.
-  MAIL_REPLY_TO:   { check: v.nonEmpty, fallback: 'hello@whollar.ca' },
+  MAIL_REPLY_TO:   { check: v.nonEmpty, fallback: 'info@whollar.com' },
 
   SESSION_TTL_MEMBER_DAYS:   { check: v.int(1, 365), fallback: '30' },
   SESSION_TTL_PARTNER_HOURS: { check: v.int(1, 168), fallback: '12' },

@@ -127,7 +127,7 @@ plus an interactive consumer tool. Page by page:
   - **"Whollar becomes your internet advocate"** — renewal reminders, future negotiations handled,
     concierge support, provider-issue escalation, and **"Backup internet during outages" (marked *Coming soon*)**.
   - **Trust & safety** (never sell data, end-to-end encryption, no obligation), **Founding members**
-    section, **FAQ**, and a **Contact** block (email `hello@whollar.ca`, live chat).
+    section, **FAQ**, and a **Contact** block (email `info@whollar.com`, live chat).
 - **`whollar-bill checkup-v6.html`** — the flagship interactive tool, **"The Whollar checkup."**
   Households enter postal code, provider, monthly charge, download speed, access technology, promo
   end-date, and discount (or **attach a bill** PDF/photo). It:
@@ -292,7 +292,7 @@ package.json                            Static-site tooling (serve, playwright-c
 - **unpkg** (`unpkg.com`) — React / ReactDOM for the design-tool exports
 - **Zoho Forms** (`forms.zohopublic.ca`) — founding-member submissions (live)
 - **Cal.com** (`cal.com`) — "Book a call" scheduling (wire-up target)
-- Brand contact: **`hello@whollar.ca`**, domain **`whollar.ca`**
+- Brand contact: **`info@whollar.com`**, domain **`whollar.ca`**
 
 ---
 
