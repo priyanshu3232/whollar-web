@@ -1190,13 +1190,14 @@ img,svg{display:block}
 /* footer */
 .whl-footer{background:var(--navy-deep);color:#CFE8D6;padding:0 0 30px;border-top:1px solid rgba(255,255,255,.08)}
 .whl-footer .whl-wrap{padding-top:40px}
-.whl-footer__top{display:flex;flex-wrap:wrap;gap:28px;justify-content:space-between;align-items:flex-start;padding-bottom:30px;border-bottom:1px solid rgba(255,255,255,.12)}
+.whl-footer__top{display:grid;grid-template-columns:1fr auto 1fr;gap:28px;align-items:start;padding-bottom:30px;border-bottom:1px solid rgba(255,255,255,.12)}
+@media(max-width:880px){.whl-footer__top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start}}
 .whl-footer__brand{max-width:300px}
 .whl-footer__brand .row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .whl-footer__brand .mk{width:30px;height:30px;border-radius:9px;flex:none;display:block}
 .whl-footer__brand .wm{font-family:var(--disp);font-weight:800;font-size:20px;color:#fff}
 .whl-footer__brand p{font-size:14px;line-height:1.5;color:#9fc1bf;margin:0}
-.whl-footer__cols{display:flex;gap:48px;flex-wrap:wrap}
+.whl-footer__cols{display:flex;gap:48px;flex-wrap:wrap;margin:0 auto}
 .whl-footer__col{display:flex;flex-direction:column;gap:11px}
 .whl-footer__col a{color:#CFE8D6;text-decoration:none;font-size:14.5px}
 .whl-footer__col a:hover{color:#fff}
@@ -2460,7 +2461,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
 <!-- SECTION 4: BIG IDEA -->
   <section style="position:relative;z-index:1;padding:clamp(80px,11vh,140px) 0;background:linear-gradient(180deg,transparent,rgba(16,185,129,0.05),transparent);">
     <div style="width:100%;max-width:1080px;margin:0 auto;padding:0 clamp(24px,5vw,40px);text-align:center;">
-      <h2 class="whl-reveal" style="font-family:'Satoshi',sans-serif;font-weight:900;font-size:clamp(30px,4.6vw,54px);line-height:1.06;letter-spacing:-0.03em;color:var(--ink);margin:0 auto 56px;max-width:820px;text-wrap:balance;">One household has no leverage. Hundreds do.</h2>
+      <h2 class="whl-reveal" style="font-family:'Satoshi',sans-serif;font-weight:900;font-size:clamp(30px,4.6vw,54px);line-height:1.06;letter-spacing:-0.03em;color:var(--ink);margin:0 auto 56px;max-width:820px;text-wrap:balance;">One household has no leverage. <span style="color:var(--green)">Hundreds do.</span></h2>
       <div class="whl-reveal" style="display:grid;grid-template-columns:0.8fr auto 1.2fr;gap:clamp(20px,4vw,52px);align-items:center;background:#fff;border:1px solid rgba(14,42,32,0.07);border-radius:28px;padding:clamp(28px,5vw,52px);box-shadow:0 40px 90px -50px rgba(14,42,32,0.4);">
         <div style="text-align:center;">
           <div class="whl-home-lottie" autoplay="" loop="" style="width:160px;height:160px;display:inline-block;margin-bottom:-8px"></div>
@@ -2604,13 +2605,13 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
             <div class="how-fill"></div>
             <div class="how-node">1</div>
             <h3>Upload one bill</h3>
-            <p>Snap a photo or upload a PDF. We securely confirm your current plan, speed and renewal date. That's all we need.</p>
+            <p>Snap a photo or upload a PDF. We securely confirm your current plan, speed and renewal date.</p>
           </div>
           <div class="how-step how-reveal">
             <div class="how-fill"></div>
             <div class="how-node">2</div>
             <h3>Join your neighbourhood</h3>
-            <p>We group you with nearby households renewing around the same time. Providers compete to win the whole group at once.</p>
+            <p>We group you with nearby households renewing around the same time. Providers compete to win the whole group.</p>
           </div>
           <div class="how-step how-reveal">
             <div class="how-fill"></div>
@@ -3284,8 +3285,8 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
         <p>Wholesale buying power that saves you dollars</p>
       </div>
       <div class="whl-footer__cols">
-        <div class="whl-footer__col"><a href="#how">How it works</a><a href="#why">Why us</a><a href="#faq">FAQ</a></div>
-        <div class="whl-footer__col"><a href="/MobileVersion/resources-mobile">Resources</a><a href="/contact">Contact</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/disclosures">Disclosures</a><a href="/MobileVersion/provider-mobile">For providers</a></div>
+        <div class="whl-footer__col"><a href="#how">How it works</a><a href="#why">Why us</a><a href="#faq">FAQ</a><a href="/MobileVersion/resources-mobile">Resources</a><a href="/contact">Contact</a></div>
+        <div class="whl-footer__col"><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/MobileVersion/provider-mobile">For providers</a></div>
       </div>
     </div>
     <div class="whl-footer__bottom">
