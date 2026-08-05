@@ -5,6 +5,9 @@
 // strip Draft badge, stamp dates, add canonical), writes each to blog/<slug>/index.html,
 // then generates blog/index.html (Resources page), sitemap.xml and robots.txt.
 // All metadata on the Resources page is parsed out of each post's own markup.
+//
+// The footer emitted here is only a placeholder: scripts/build-footer.mjs owns
+// the real site footer and replaces it in place, so run that after this script.
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -222,22 +225,6 @@ const indexHtml = `<!DOCTYPE html>
   .tile .arr{display:inline-block;transition:transform .25s cubic-bezier(.22,.61,.36,1)}
   .tile:hover .arr{transform:translateX(4px)}
 
-  footer.whl-footer{margin-top:46px;background:#0A2018;color:#CFE8D6;border-top:1px solid rgba(255,255,255,.08);padding:40px 0 30px}
-  footer.whl-footer .in{max-width:1080px;margin:0 auto;padding:0 26px}
-  .whl-footer__top{display:grid;grid-template-columns:1fr auto 1fr;gap:28px;align-items:start;padding-bottom:30px;border-bottom:1px solid rgba(255,255,255,.12)}
-  .whl-footer__brand{max-width:300px}
-  .whl-footer__brand .row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-  .whl-footer__brand .mk{width:30px;height:30px;border-radius:9px;flex:none;display:block}
-  .whl-footer__brand .wm{font-family:'Bricolage Grotesque';font-weight:800;font-size:20px;color:#fff}
-  .whl-footer__brand p{font-family:'Space Mono';font-size:12.5px;line-height:1.55;color:#9FC1BF;margin:0}
-  .whl-footer__cols{display:flex;gap:96px;flex-wrap:wrap;margin:0 auto}
-  .whl-footer__col{display:flex;flex-direction:column;gap:11px}
-  .whl-footer__col a{font-family:'Space Mono';font-size:13px;color:#CFE8D6;text-decoration:none}
-  .whl-footer__col a:hover{color:#fff}
-  .whl-footer__col a[aria-current="page"]{color:#fff;font-weight:700}
-  .whl-footer__bottom{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;padding-top:22px;font-family:'Space Mono';font-size:12px;color:#8FB39B}
-  .whl-footer__bottom a{color:#7FE3B0}
-  @media(max-width:880px){.whl-footer__top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start}.whl-footer__cols{gap:48px}}
 
   @media(max-width:640px){.grid{grid-template-columns:1fr;padding-top:30px}.hero{padding-top:44px}}
 </style>

@@ -4,7 +4,7 @@
  * Source: 6803 advertised Canadian home-internet plans.
  * Used: 6659. Dropped: 144 zero/prepaid-price rows,
  * 0 unusable speeds, 0 unusable provinces.
- * Built 2026-08-02.
+ * Built 2026-08-05.
  *
  * Keys are "<level>|<dims…>" and values are [meanMonthlyPrice, sampleSize].
  * Levels, tried in this order by WHOLLAR.benchmarkFor():
@@ -14,17 +14,28 @@
  *   D  province | providerGroup | speedTier            no tech (satellite excluded)
  *   E  province | speedTier                            (satellite excluded)
  *   F  speedTier                                       last resort (satellite excluded)
+ *
+ * W.P10_BY_PROVINCE / W.P10_NATIONAL are a separate, unkeyed aggregate for the
+ * homepage estimator, which has only a postal code to work with. Values are
+ * [bottomDecileMeanMonthlyPrice, rowsInThatDecile, rowsInProvince].
  */
 (function (root) {
   'use strict';
   var W = root.WHOLLAR || (root.WHOLLAR = {});
 
   W.BENCH_META = {
-    builtOn: "2026-08-02",
+    builtOn: "2026-08-05",
     sourceRows: 6803,
     usedRows: 6659,
     tiers: [25,50,100,150,300,500,1000,1500]
   };
+
+  /* Mean of every advertised price at or below the province's 10th percentile:
+     what the cheap end of that market costs. The homepage estimator compares a
+     household's bill against this figure, annualised. Satellite excluded.
+     Satellite-only in this sheet, so absent here and served by P10_NATIONAL: NT, NU, YT. */
+  W.P10_BY_PROVINCE = {"AB":[33.85,91,902],"BC":[33.28,119,1185],"MB":[34.96,26,258],"NB":[75,14,139],"NL":[61.88,8,76],"NS":[51,35,344],"ON":[35.54,113,1123],"PE":[81.67,3,22],"QC":[35.6,115,1142],"SK":[24.86,56,556]};
+  W.P10_NATIONAL = [32.82,575,5747];
 
   /* Sheet speeds are continuous; the form offers eight tiers. Band edges are
      the geometric mean of adjacent tiers. */

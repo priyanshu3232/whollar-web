@@ -31,7 +31,23 @@ const TTL_MINUTES = 10;
 const TTL_MS = TTL_MINUTES * 60 * 1000;
 const MAX_ATTEMPTS = 5;
 
-const PURPOSES = Object.freeze(['login', 'signup', 'password_reset', 'admin_login']);
+/**
+ * Purposes are deliberately fine-grained, and a code issued for one is worthless
+ * at the endpoint that verifies another — `verify` filters on the purpose, so a
+ * mismatch reads as "no challenge".
+ *
+ * That separation is load-bearing for the two `*_login` purposes. They are the
+ * second factor on a password sign-in and are only ever issued AFTER the
+ * password has been checked, so the code alone is enough to mint a session at
+ * `/login/verify`. Were they issued as plain 'login', the same code would be
+ * redeemable at `/otp/verify`, which signs in — and creates accounts — with no
+ * password at all. One shared string would quietly turn a second factor into a
+ * bypass of the first.
+ */
+const PURPOSES = Object.freeze([
+  'login', 'signup', 'password_reset', 'admin_login',
+  'login_mfa', 'provider_login',
+]);
 
 const COLUMNS = ['ROWID', 'challenge_id', 'email_normalized', 'code_hash',
   'purpose', 'expires_at', 'attempts', 'consumed_at'];

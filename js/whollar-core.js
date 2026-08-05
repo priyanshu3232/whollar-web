@@ -345,6 +345,61 @@
     return W.TERRITORIES.indexOf(provinceCode) > -1;
   };
 
+  /* ------------------------------------------------------------------ *
+   * Bottom-decile reference, for the homepage estimator
+   *
+   * The estimator asks for two things only: a monthly bill and a postal code.
+   * With no speed, tech or provider it cannot use benchmarkFor()'s keyed
+   * levels at all, so it compares against the mean of the province's cheapest
+   * advertised decile — W.P10_BY_PROVINCE, built by scripts/build-benchmarks.mjs.
+   *
+   * Falls back to the national pool when a province has none. NT, NU and YT are
+   * satellite-only in the sheet, and satellite is excluded from every
+   * tech-blind aggregate, so those three always take the fallback.
+   * ------------------------------------------------------------------ */
+  W.p10For = function (provinceCode) {
+    var byProv = W.P10_BY_PROVINCE || null;
+    var hit = (byProv && provinceCode) ? byProv[provinceCode] : null;
+    if (hit && hit[0] > 0) {
+      return { monthly: hit[0], decileRows: hit[1], poolRows: hit[2], scope: 'province', provinceCode: provinceCode };
+    }
+    var nat = W.P10_NATIONAL || null;
+    if (nat && nat[0] > 0) {
+      return { monthly: nat[0], decileRows: nat[1], poolRows: nat[2], scope: 'national', provinceCode: null };
+    }
+    return null;
+  };
+
+  /* Annual saving = twelve months of the household's bill, minus twelve months
+     at the province's bottom-decile price.
+
+     Returns null when no reference exists, so a caller shows nothing rather
+     than a number it cannot support. `saving` is clamped at zero and
+     `atOrBelow` says why: a bill under the local floor is a real outcome (the
+     slider reaches $40 while NB's decile sits at $75), and it must not be
+     rendered as a negative saving. */
+  W.estimateAnnualSavings = function (monthlyBill, provinceCode) {
+    var bill = Number(monthlyBill);
+    if (!isFinite(bill) || bill <= 0) return null;
+    var ref = W.p10For(provinceCode);
+    if (!ref) return null;
+
+    var annualBill = bill * 12;
+    var annualFloor = ref.monthly * 12;
+    var raw = annualBill - annualFloor;
+    return {
+      saving: Math.max(0, raw),
+      atOrBelow: raw <= 0,
+      annualBill: annualBill,
+      annualFloor: annualFloor,
+      referenceMonthly: ref.monthly,
+      scope: ref.scope,
+      provinceCode: ref.provinceCode,
+      decileRows: ref.decileRows,
+      poolRows: ref.poolRows
+    };
+  };
+
   /* ================================================================== *
    * 5. SCORING
    * ------------------------------------------------------------------
@@ -1194,15 +1249,38 @@
     },
 
     /**
-     * Sign in with a password. -> { ok, user, expiresAt }
+     * Sign in, step one. -> { ok, mfaRequired: true, ttlMinutes, dev? }
+     *
+     * RESOLVING DOES NOT MEAN SIGNED IN. A correct password gets a code emailed
+     * and nothing else — no cookie, no session. `loginVerify` below is what
+     * finishes it, and that is true on every sign-in, not only the first after
+     * signup. A caller that treats this resolution as success sends people to a
+     * dashboard that will bounce them straight back out.
      *
      * A rejected call carries `.code === 'EMAIL_UNVERIFIED'` when the password
-     * was RIGHT but the address was never confirmed; the server has re-sent a
-     * code, and the caller should show the code step rather than an error.
-     * Branch on that code, never on the message text.
+     * was RIGHT but the address was never confirmed; the server has sent a
+     * SIGNUP code, so the caller should show the code step wired to
+     * `signupVerify` rather than an error. Branch on that code, never on the
+     * message text.
+     *
+     * Re-posting this IS the resend: the server retires the outstanding code
+     * and issues a fresh one, which is why callers hold the password until the
+     * code step is done with.
      */
     login: function (o) {
       return authPost('/login', { email: o.email, password: o.password });
+    },
+
+    /**
+     * Sign in, step two: the emailed code, exchanged for the session.
+     * -> { ok, user, expiresAt }
+     *
+     * The password is deliberately not re-sent — the server already checked it
+     * before the code existed, so no page needs to hold it across the wire a
+     * second time.
+     */
+    loginVerify: function (o) {
+      return authPost('/login/verify', { email: o.email, code: o.code });
     },
 
     /**
@@ -1275,15 +1353,33 @@
     },
 
     /**
-     * Partner sign-in. -> { ok, user, org, approved }
+     * Partner sign-in, step one. -> { ok, mfaRequired: true, ttlMinutes, dev? }
+     *
+     * Like the member login above, resolving means "we emailed a code", not
+     * "signed in": no session exists until `providerLoginVerify`. Nothing about
+     * the org — its name, its approval — comes back here, because none of it
+     * has been earned at this point.
      *
      * One opaque message for every failure, including a correct password on
      * a never-verified address. Unlike the member login there is no
      * EMAIL_UNVERIFIED branch to recover into a code step; the caller shows
      * the message and stops.
+     *
+     * Re-posting this is the resend.
      */
     providerLogin: function (o) {
       return authPost('/provider/login', { email: o.email, password: o.password });
+    },
+
+    /**
+     * Partner sign-in, step two. -> { ok, user, org, approved }
+     *
+     * `approved` matters as much here as it does after signup: an approved
+     * session and a session pending review look identical apart from this flag,
+     * and every surface showing real data has to check it.
+     */
+    providerLoginVerify: function (o) {
+      return authPost('/provider/login/verify', { email: o.email, code: o.code });
     },
 
     /**
