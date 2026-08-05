@@ -339,27 +339,13 @@ img,svg{display:block}
 .whl-btn:hover{background:var(--teal-deep);transform:translateY(-1px)}
 .whl-btn--lg{font-size:16px;padding:15px 24px;border-radius:13px;box-shadow:0 14px 30px -14px rgba(14,42,32,.85)}
 .whl-btn--block{display:flex;width:100%}
-.whl-btn--outline{background:transparent;color:var(--teal);border:1.5px solid rgba(14,42,32,.18);box-shadow:none}
-.whl-btn--outline:hover{background:rgba(14,42,32,.05);border-color:rgba(14,42,32,.32)}
-/* Gold provider pill: the one gold-audience CTA in a green header, so it now
-   carries a soft gold fill instead of a hairline outline — a transparent pill
-   read as disabled next to the two solid buttons beside it. Still deliberately
-   lighter than the dark "Join the First Cohort" primary, so the hierarchy holds.
-   Text is darkened from the section gold (#D4B36A) to keep AA contrast on the
-   cream header, and darkens further on hover as the fill deepens. */
-.whl-btn--providers{
-  background:linear-gradient(180deg,rgba(212,179,106,.22),rgba(178,141,63,.13));
-  color:#6E5623;
-  border:1px solid rgba(178,141,63,.55);
-  box-shadow:0 1px 2px rgba(110,86,35,.10), inset 0 1px 0 rgba(255,255,255,.5);
-}
+/* "For providers" and "Log in" are plain text links in the header — only the
+   "Join the First Cohort" primary keeps a boxed button. */
+.whl-btn--outline{background:transparent;color:var(--teal);border:none;box-shadow:none;padding:13px 0}
+.whl-btn--outline:hover{background:transparent;color:var(--teal-deep);transform:none}
+.whl-btn--providers{background:none;color:#6E5623;border:none;box-shadow:none;padding:13px 0}
 .whl-btn--providers svg{transition:transform .18s var(--ease)}
-.whl-btn--providers:hover{
-  background:linear-gradient(180deg,rgba(212,179,106,.38),rgba(178,141,63,.24));
-  border-color:#B28D3F;
-  color:#57431A;
-  box-shadow:0 4px 14px rgba(178,141,63,.26), inset 0 1px 0 rgba(255,255,255,.55);
-}
+.whl-btn--providers:hover{background:none;color:#57431A;transform:none}
 .whl-btn--providers:hover svg{transform:translateX(3px)}
 .whl-btn--providers:focus-visible{outline:2px solid #D4B36A;outline-offset:3px}
 @media (prefers-reduced-motion:reduce){
@@ -378,7 +364,7 @@ img,svg{display:block}
 .whl-nav a{text-decoration:none;color:#54625B;font-weight:500;font-size:15px;transition:color .15s}
 .whl-nav a:hover{color:var(--teal)}
 .whl-header__cta{display:inline-flex}
-.whl-header__actions{display:flex;align-items:center;gap:12px}
+.whl-header__actions{display:flex;align-items:center;gap:20px}
 /* mobile hamburger */
 .whl-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:42px;height:42px;border:1px solid #e7ebe6;border-radius:11px;background:rgba(255,255,255,.6);cursor:pointer;padding:0 11px}
 .whl-burger span{display:block;height:2px;width:100%;background:#54625B;border-radius:2px;transition:transform .25s var(--ease),opacity .2s}
@@ -1504,22 +1490,10 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
 #whero .btn--primary:hover{background:var(--wh-accent-hover); transform:translateY(-1px); box-shadow:0 18px 40px rgba(30,158,99,.42);}
 #whero .btn--ghost{background:rgba(255,255,255,.045); color:var(--wh-tx); border-color:rgba(255,255,255,.2);}
 #whero .btn--ghost:hover{background:rgba(255,255,255,.09); transform:translateY(-1px);}
-/* Gold provider strip: the audience hand-off under the consumer CTAs. It sends
-   providers to /partners, the dedicated provider page. */
-#whero .prov-card{display:flex; align-items:center; gap:16px; max-width:620px; padding:16px 18px; border-radius:16px; text-decoration:none;
-  background:rgba(212,179,106,.07); border:1px solid rgba(212,179,106,.22);
-  transition:border-color .2s, background .2s, transform .2s var(--wh-ease);}
-#whero .prov-card:hover{border-color:rgba(212,179,106,.5); background:rgba(212,179,106,.11); transform:translateY(-1px);}
-#whero .prov-card:focus-visible{outline:2px solid #D4B36A; outline-offset:3px;}
-#whero .prov-card__ic{width:44px; height:44px; flex:none; border-radius:12px; background:rgba(212,179,106,.14);
-  display:flex; align-items:center; justify-content:center; color:#D4B36A;}
-#whero .prov-card__kicker{display:block; font-family:var(--wh-label); font-weight:700; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#D4B36A; margin-bottom:4px;}
-#whero .prov-card__line{display:block; font-size:14.5px; line-height:1.5; color:var(--wh-tx-mut);}
-#whero .prov-card__line b{color:var(--wh-tx); font-weight:600;}
-#whero .prov-card__go{width:38px; height:38px; flex:none; margin-left:auto; border-radius:50%; border:1px solid rgba(212,179,106,.35);
-  display:flex; align-items:center; justify-content:center; color:#D4B36A; transition:transform .25s var(--wh-ease);}
-#whero .prov-card:hover .prov-card__go{transform:translateX(3px);}
-@media (max-width:560px){#whero .prov-card__go{display:none}}
+#whero .providers{display:flex; align-items:center; gap:9px; font-size:14.5px; flex-wrap:wrap;}
+#whero .providers span{color:var(--wh-tx-faint); font-weight:500;}
+#whero .providers a{display:inline-flex; align-items:center; gap:6px; color:var(--wh-mint); font-weight:600; text-decoration:none;}
+#whero .providers a:hover{color:#A6EFC9;}
 #whero .col-scene{position:relative; width:100%; max-width:540px; margin:0 auto; justify-self:end;}
 #whero .scene{width:100%; height:auto; display:block; overflow:visible;}
 #whero .scene text{font-family:var(--wh-label);}
@@ -1647,18 +1621,12 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
           </a>
         </div>
-        <a class="prov-card" href="/partners">
-          <span class="prov-card__ic" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9"/><path d="M7.8 4.7a6.14 6.14 0 0 0-.8 7.5"/><circle cx="12" cy="9" r="2"/><path d="M16.2 4.8c2 2 2.26 5.11.8 7.47"/><path d="M19.1 1.9a9.9 9.9 0 0 1 0 14.1"/><path d="M9.5 18h5"/><path d="m8 22 4-11 4 11"/></svg>
-          </span>
-          <span class="prov-card__tx">
-            <span class="prov-card__kicker">For ISPs &amp; distributors</span>
-            <span class="prov-card__line"><b>Join the network: bid on verified cohorts of ready-to-switch households.</b> Pay only on completed switches.</span>
-          </span>
-          <span class="prov-card__go" aria-hidden="true">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
-          </span>
-        </a>
+        <div class="providers">
+          <span>For providers</span>
+          <a href="/partners">Join the network
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+          </a>
+        </div>
       </div>
 
       <!-- RIGHT / SCENE -->
