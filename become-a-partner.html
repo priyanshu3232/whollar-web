@@ -163,7 +163,9 @@ button{font-family:var(--body)}
 .otp input{width:100%;aspect-ratio:1/1;text-align:center;font-family:var(--label);font-weight:700;font-size:22px;color:var(--teal);border:1.5px solid var(--line);border-radius:12px;background:var(--paper);transition:border-color .15s,box-shadow .15s}
 .otp input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(30,158,99,.14)}
 .otp.err input{border-color:var(--warn-text);background:#FDF6F2}
-.otp-meta{font-size:12.5px;color:var(--ink-2);margin:10px 0 18px}
+/* Two controls on one line: the resend on the left, the way back to the form on
+   the right. Wraps rather than crushes them on a narrow phone. */
+.otp-meta{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;max-width:340px;font-size:12.5px;color:var(--ink-2);margin:10px 0 18px}
 .linkbtn{border:none;background:none;padding:0;font:inherit;font-weight:600;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .linkbtn:disabled{color:var(--ink-3);cursor:default;text-decoration:none}
 .dhead{display:flex;align-items:center;gap:12px}
@@ -493,6 +495,7 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
           <p class="whl-fielderr" id="v-err" role="alert" style="display:none;margin:6px 0 0;font-size:12px;font-weight:600;color:var(--warn-text)"></p>
           <div class="otp-meta">
             <span>Didn't get it? <button type="button" class="linkbtn" id="v-resend" disabled>Resend in 30s</button></span>
+            <button type="button" class="linkbtn" id="v-edit">Change email</button>
           </div>
           <button class="whl-btn go" id="v-go" type="submit">Verify and continue</button>
         </form>
@@ -779,15 +782,29 @@ $('#p-go').addEventListener('click',async()=>{
       }
       submitErr(btn,err);return;
     }
-    try{await submitForm('/partner-application',payload);}
-    catch(err){busy(btn,false);submitErr(btn,err);return;}
+    /* Skipped when the application is already in: they pressed "Change email"
+       on the code step and came back. /partner-application only ever inserts,
+       so posting again would file the same application a second time and
+       enqueue a second CRM lead. The corrected address still reaches the
+       account through /provider/signup above, which is what the code and the
+       sign-in are keyed to. */
+    if(!VER.filed){
+      try{await submitForm('/partner-application',payload);}
+      catch(err){busy(btn,false);submitErr(btn,err);return;}
+      VER.filed=true;
+    }
     busy(btn,false);
     openVerify(sr);
     return;
   }
 
-  try{await submitForm('/partner-application',payload);}
-  catch(err){busy(btn,false);submitErr(btn,err);return;}
+  /* Same guard: switching to "something else" after coming back from the code
+     step must not file a second copy either. */
+  if(!VER.filed){
+    try{await submitForm('/partner-application',payload);}
+    catch(err){busy(btn,false);submitErr(btn,err);return;}
+    VER.filed=true;
+  }
   busy(btn,false);
 
   $('#d-name').textContent=nm;
@@ -805,7 +822,9 @@ $('#p-go').addEventListener('click',async()=>{
  * code; /provider/signup/verify checks it, activates the person and signs
  * them in. The org's approval is a separate, human decision.
  * ================================================================== */
-const VER={pending:null};
+/* `filed` is what stops the application being submitted twice when somebody
+   goes back from the code step to correct their address. */
+const VER={pending:null,filed:false};
 
 function vErr(msg){const el=$('#v-err');if(msg)el.textContent=msg;el.style.display=msg?'block':'none';
   $('#v-otp').classList.toggle('err',!!msg);}
@@ -889,6 +908,21 @@ $('#v-resend').addEventListener('click',async function(){
   try{const r=await W.session.providerSignup(VER.pending);
     vOtp.clear();vDevCode(r);vCountdown(30);vOtp.focus();}
   catch(err){this.disabled=false;vFail(err);}
+});
+
+/* Back to the form, because the address shown on this step is not editable and
+   a typo in it is a dead end: no code can ever arrive. The countdown is stopped
+   on the way out, or it keeps ticking against a button nobody can see and comes
+   back reading "Resend in -40s". Resubmitting re-runs /provider/signup with the
+   corrected address; the application itself is already filed and is not sent
+   again (see VER.filed). */
+$('#v-edit').addEventListener('click',()=>{
+  clearInterval(vCountdown._t);
+  vErr(null);vOtp.clear();vOtp.reset();
+  $('#verify').classList.remove('on');
+  $('#stage1').style.display='';
+  document.querySelector('.hs-right').scrollIntoView({behavior:'smooth',block:'center'});
+  const em=$('#p-email');em.focus();em.select();
 });
 
 /* step animations */
