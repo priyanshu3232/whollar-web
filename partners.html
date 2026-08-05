@@ -754,6 +754,22 @@
     a:hover { color:var(--green); }
     .wf-hero-cta { display:inline-block; }
     .wf-hero-cta:hover { background:#178a5a !important; transform:scale(1.045); }
+    /* "For members" and "Log in" are plain text links in the header, mirroring
+       the member site where "For providers" and "Log in" are unboxed. Only the
+       founding-partner CTA keeps a filled pill. */
+    .wf-members { display:inline-flex; align-items:center; gap:6px; color:var(--green); font-weight:600; font-size:13.5px; }
+    .wf-members svg { transition:transform .18s ease; }
+    .wf-members:hover { color:var(--ink); }
+    .wf-members:hover svg { transform:translateX(3px); }
+    .wf-login { color:var(--ink); font-weight:600; font-size:13.5px; }
+    .wf-login:hover { color:var(--green); }
+    .wf-hero-members { display:flex; align-items:center; gap:9px; flex-wrap:wrap; font-size:14.5px; margin-top:20px; }
+    .wf-hero-members > span { color:var(--muted); font-weight:500; }
+    .wf-hero-members a { display:inline-flex; align-items:center; gap:6px; color:var(--green); font-weight:600; }
+    .wf-hero-members a svg { transition:transform .18s ease; }
+    .wf-hero-members a:hover { color:var(--ink); }
+    .wf-hero-members a:hover svg { transform:translateX(3px); }
+    @media (prefers-reduced-motion:reduce) { .wf-members svg, .wf-hero-members a svg { transition:none; } }
     .mono { font-family:'IBM Plex Mono', ui-monospace, monospace; font-feature-settings:"tnum" 1; }
     details > summary { list-style:none; }
     details > summary::-webkit-details-marker { display:none; }
@@ -1065,8 +1081,8 @@
 
   <!-- NAV -->
   <header style="position:sticky; top:0; z-index:50; background:rgba(250,248,243,.88); backdrop-filter:blur(12px); border-bottom:1px solid rgba(12,42,36,.08)">
-    <nav style="max-width:1340px; margin:0 auto; padding:18px 36px; display:flex; align-items:center; justify-content:space-between; gap:24px">
-      <a href="/" aria-label="Whollar home" style="display:flex; align-items:center; gap:11px; text-decoration:none">
+    <nav style="max-width:1340px; margin:0 auto; padding:18px 36px; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:24px">
+      <a href="/" aria-label="Whollar home" style="display:flex; align-items:center; gap:11px; text-decoration:none; justify-self:start">
         <svg width="30" height="30" sc-camel-view-box="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Whollar" style="display:block; flex:none">
           <defs><linearGradient id="whollarMarkNav" x1="18" y1="14" x2="102" y2="106" sc-camel-gradient-units="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"></stop><stop offset="1" stop-color="#1E9E63"></stop></linearGradient></defs>
           <rect x="6" y="6" width="108" height="108" rx="32" fill="url(#whollarMarkNav)"></rect>
@@ -1076,15 +1092,16 @@
         <span style="font-family:'Hanken Grotesk',sans-serif; font-weight:900; font-size:23px; letter-spacing:-0.03em; color:var(--ink)">whollar</span>
         <span style="font-family:'IBM Plex Sans',sans-serif; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); align-self:center">For providers</span>
       </a>
-      <div style="display:flex; align-items:center; gap:28px">
-        <div class="wf-nav-links" style="display:flex; align-items:center; gap:28px; font-size:14px">
-          <a href="#how" style="color:var(--body)" style-hover="color:var(--ink)">How it works</a>
-          <a href="#faq" style="color:var(--body)" style-hover="color:var(--ink)">FAQ</a>
-        </div>
-        <div style="display:flex; align-items:center; gap:12px">
-          <a href="/whollar-login-provider" style="border:1.5px solid rgba(12,42,36,.16); color:var(--ink); padding:11px 22px; border-radius:100px; font-weight:600; font-size:13.5px; background:transparent" style-hover="border-color:rgba(12,42,36,.32); background:rgba(12,42,36,.04)">Log in</a>
-          <a href="/become-a-partner" style="background:var(--ink); color:var(--paper); padding:11px 22px; border-radius:100px; font-weight:600; font-size:13.5px" style-hover="background:var(--green); color:var(--paper)">Become a founding partner</a>
-        </div>
+      <div class="wf-nav-links" style="display:flex; align-items:center; gap:28px; font-size:14px; justify-self:center">
+        <a href="#how" style="color:var(--body)" style-hover="color:var(--ink)">How it works</a>
+        <a href="#faq" style="color:var(--body)" style-hover="color:var(--ink)">FAQ</a>
+      </div>
+      <div style="display:flex; align-items:center; gap:20px; justify-self:end">
+        <a class="wf-members" href="/">For members
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="13 6 19 12 13 18"></polyline></svg>
+        </a>
+        <a class="wf-login" href="/whollar-login-provider">Log in</a>
+        <a href="/become-a-partner" style="background:var(--ink); color:var(--paper); padding:11px 22px; border-radius:100px; font-weight:600; font-size:13.5px" style-hover="background:var(--green); color:var(--paper)">Become a founding partner</a>
       </div>
     </nav>
   </header>
@@ -1100,7 +1117,13 @@
         <a href="/become-a-partner" class="wf-hero-cta" style="background:var(--ink); color:var(--paper); padding:16px 30px; border-radius:100px; font-weight:600; font-size:15.5px; transition:background .22s ease, transform .22s ease">Request Early Access</a>
         <a href="#how" style="border:1.5px solid rgba(12,42,36,.16); color:var(--ink); padding:16px 30px; border-radius:100px; font-weight:600; font-size:15.5px; background:transparent" style-hover="border-color:var(--ink)">See how it works</a>
       </div>
-      
+      <div class="wf-hero-members">
+        <span>For members</span>
+        <a href="/">Visit the member site
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="13 6 19 12 13 18"></polyline></svg>
+        </a>
+      </div>
+
     </div>
 
     <!-- SIGNATURE: three-zone demand flow scene -->

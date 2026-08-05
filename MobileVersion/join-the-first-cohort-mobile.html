@@ -503,6 +503,11 @@
 
 .whl a{color:var(--accent);text-decoration:none}
 .whl a:hover{color:var(--teal)}
+/* An anchor styled as a button: `.whl a` is one specificity step above
+   `.whl-btn`, so without this the label is accent green on an accent green
+   fill, i.e. an invisible button. */
+.whl a.whl-btn{color:#fff}
+.whl a.whl-btn:hover{color:#fff}
 
 .wm-ov{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(10,32,24,.55);backdrop-filter:blur(6px);opacity:0;transition:opacity .3s var(--ease)}
 .wm-ov.on{display:flex;opacity:1}
@@ -733,6 +738,10 @@
             <button class="cp" id="sh-cp" type="button">Copy</button>
           </div>
         </div>
+        <!-- The code step left them signed in, so this is the way through.
+             Without it a founding member who has just finished the form is
+             parked on a marketing page with no route to their own dashboard. -->
+        <a class="whl-btn go" href="/dashboard">Go to my dashboard</a>
       </div>
 
     </div>
@@ -1020,7 +1029,9 @@ document.addEventListener('DOMContentLoaded',function(){
       if(busy(btn,true,'Verifying…')===false)return;
       lastTried=code;
       try{
-        await W.session.signupVerify({email:S.email,code:code});
+        /* marketing travels with the verify, not the signup: the server writes
+           the consent rows when the account becomes real. */
+        await W.session.signupVerify({email:S.email,code:code,marketing:true});
       }catch(err){
         busy(btn,false);$('#j-otp').classList.add('err');
         submitErr(btn,err);clearCode();otpBoxes()[0].focus();return;
@@ -1030,7 +1041,16 @@ document.addEventListener('DOMContentLoaded',function(){
          cookie did not stick, and /dashboard would bounce straight back. */
       const rec=await W.session.adopt('member');
       if(!rec){busy(btn,false);submitErr(btn,new Error('You’re verified, but we couldn’t keep you signed in. Check that cookies are enabled and try again.'));return;}
-      location.href='/dashboard';
+      busy(btn,false);
+      /* Signed in from here, so the next screen is the confirmation, not
+         /dashboard. The stage-2 form waiting behind the modal is where a cohort
+         stops being a postal code and becomes a bid: provider, charge, speed,
+         promo end. Nobody comes back to add those later, so they are asked once,
+         now, while the tile is still up. The code step originally replaced this
+         handoff with a redirect and took both the tile and the form with it. */
+      $('#codestep').style.display='none';
+      $('#stage2').style.display='block';
+      openWelcome(S.name);
     }
     $('#j-verify').addEventListener('click',verifyCode);
 
@@ -1158,6 +1178,15 @@ document.addEventListener('DOMContentLoaded',function(){
     function collect(){S.details={provider:$('#s-prov').value,cost:$('#s-cost').value,speed:$('#s-spd').value,
       promoEnd:$('#s-date').value,threshold:($$('#thr button.on')[0]||{}).textContent||null,
       file:S.details.file||null,services:collectServices()};}
+    /* Stage 2 sits lower down the page than the card that replaces it, so on a
+       phone the confirmation lands off-screen and saving looks like nothing
+       happened. Jumped rather than smooth-scrolled: the thank-you popup locks
+       the body immediately after. */
+    function showJoinDone(){
+      $('#stage2').style.display='none';
+      $('#joindone').classList.add('on');
+      $('#joindone').scrollIntoView({block:'center'});
+    }
     $('#s-save').addEventListener('click',async()=>{
       collect();
       const btn=$('#s-save');clearErr(btn);
@@ -1166,14 +1195,10 @@ document.addEventListener('DOMContentLoaded',function(){
         await submitForm('/waitlist-details',{firstName:S.name,lastName:S.last,email:S.email,fsa:S.fsa,postalFull:S.postalFull||'',province:S.province||'',provinceCode:S.provinceCode||'',...S.details},{billFile:$('#s-file').files[0]||null});
       }catch(err){busy(btn,false);submitErr(btn,err);return;}
       busy(btn,false);
-      $('#stage2').style.display='none';
-      $('#joindone').classList.add('on');
+      showJoinDone();
       showThankYou();
     });
-    $('#s-skip').addEventListener('click',()=>{
-      $('#stage2').style.display='none';
-      $('#joindone').classList.add('on');
-    });
+    $('#s-skip').addEventListener('click',showJoinDone);
 
     (function(){
       const g=$('#v1-houses');if(!g)return;
