@@ -37,7 +37,8 @@
     'internet-retention-offer-win-back',
     'independent-internet-providers-canada',
     'collective-switching-energy-proof',
-    'big-three-telecom-canada'
+    'big-three-telecom-canada',
+    'crtc-internet-prices-canada'
   ];
   for (var s = 0; s < BLOG_SLUGS.length; s++) {
     PAIRS.push(['/blog/' + BLOG_SLUGS[s], '/MobileVersion/blog/' + BLOG_SLUGS[s]]);

@@ -95,7 +95,9 @@ function mount(router, cfg) {
       email, purpose: PURPOSE,
     });
     const sent = await sendQuietly(
-      req, cfg, email, mailer.passwordResetEmail({ code, ttlMinutes }), 'password-reset'
+      req, cfg, email,
+      mailer.passwordResetEmail({ code, ttlMinutes, firstName: user.first_name }),
+      'password-reset'
     );
 
     audit.recordAsync(req.catalyst, req, {
@@ -180,7 +182,11 @@ function mount(router, cfg) {
     // already succeeded; making it conditional would remove it from exactly
     // the case it exists for.
     const sent = await sendQuietly(
-      req, cfg, email, mailer.passwordChangedEmail({ appBaseUrl: cfg.APP_BASE_URL }), 'password-changed'
+      req, cfg, email,
+      mailer.passwordChangedEmail({
+        appBaseUrl: cfg.APP_BASE_URL, firstName: user.first_name, changedAt: new Date(),
+      }),
+      'password-changed'
     );
 
     audit.recordAsync(req.catalyst, req, {

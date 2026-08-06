@@ -201,6 +201,75 @@ const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => (
 ));
 
 /**
+ * The brand mark, as a hosted PNG rather than the site's inline SVG — email
+ * clients don't render SVG, and remote images are the only form Gmail and
+ * Outlook both accept. Pinned to the production host on purpose: an email is
+ * read days after it is sent, long after any preview deployment is gone.
+ *
+ * Clients that block remote images show the alt text instead, so the mark can
+ * only ever be decoration here — nothing a recipient needs may live in it.
+ */
+const LOGO_URL = 'https://www.whollar.ca/images/email/whollar-mark.png';
+const logoImg = () =>
+  `<img src="${LOGO_URL}" width="40" height="40" alt="Whollar" style="display:block;border:0;width:40px;height:40px;margin:0 0 20px">`;
+
+/**
+ * One set of inline styles shared by every template, so six emails cannot
+ * drift into six slightly different cards. Inline because email clients strip
+ * <style> blocks; string constants because that is the only reuse mechanism
+ * inline styles allow.
+ */
+const S = {
+  body: "margin:0;padding:24px;background:#F4F6F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102822",
+  card: 'max-width:480px;margin:0 auto;background:#fff;border-radius:14px;padding:32px',
+  p: 'margin:0 0 18px;font-size:15px;line-height:1.5',
+  sub: 'margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57',
+  code: 'margin:0 0 18px;font-size:34px;font-weight:700;letter-spacing:.16em;font-family:ui-monospace,SFMono-Regular,Menlo,monospace',
+  note: 'margin:0 0 14px;font-size:13px;line-height:1.5;color:#6B7C77;border-top:1px solid #E3E8E6;padding-top:16px',
+  alert: 'margin:0 0 14px;font-size:14px;line-height:1.5;color:#A34F2B;border-top:1px solid #E3E8E6;padding-top:16px',
+  signoff: 'margin:0;font-size:13px;line-height:1.5;color:#6B7C77',
+  link: 'color:#178A5A',
+};
+
+const renderCard = (inner) => `<!doctype html><html><body style="${S.body}">
+  <table role="presentation" cellpadding="0" cellspacing="0" style="${S.card}">
+    <tr><td>
+      ${logoImg()}
+${inner}
+    </td></tr>
+  </table></body></html>`;
+
+/**
+ * "Hi Sam," when a name is on file, "Hi," when it is not — the same bare
+ * greeting the copy deck itself uses where no name exists. The name passes
+ * through user input on the signup path, so it is flattened and capped here
+ * rather than trusted: escaping protects the HTML, this protects the text
+ * part, and both protect the reader from a two-hundred-character "name".
+ */
+function greeting(firstName) {
+  const name = String(firstName || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  return name ? `Hi ${name},` : 'Hi,';
+}
+
+/**
+ * "August 6, 2026 at 1:05 p.m. ET". Eastern time by choice, not accident:
+ * the service is Canadian and a raw UTC timestamp in a security email reads
+ * as "was that me?" confusion, which is the one question this line exists to
+ * answer. Falls back to ISO if ICU is missing rather than sending nothing.
+ */
+function formatWhen(d) {
+  const date = d instanceof Date ? d : new Date(d);
+  try {
+    const s = new Intl.DateTimeFormat('en-CA', {
+      dateStyle: 'long', timeStyle: 'short', timeZone: 'America/Toronto',
+    }).format(date);
+    return `${s} ET`;
+  } catch {
+    return date.toISOString();
+  }
+}
+
+/**
  * The one-time code email.
  *
  * Plain text is not an afterthought. Some clients render it in preference to
@@ -212,33 +281,39 @@ const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => (
  * common attack against every OTP system, and the email is the only place the
  * warning reliably lands.
  */
-function otpEmail({ code, purpose, ttlMinutes }) {
-  const action = purpose === 'signup' ? 'finish creating your Whollar account' : 'sign in to Whollar';
+function otpEmail({ code, purpose, ttlMinutes, firstName }) {
+  const signup = purpose === 'signup';
+  const hi = greeting(firstName);
+  const lead = signup ? 'Your code to finish creating your Whollar account:' : 'Your sign-in code:';
+  const ignore = signup
+    ? "If you didn't request this, ignore this email and nothing happens."
+    : "If you didn't try to sign in, ignore this email.";
+  const never = 'Never share this code. Whollar will never ask you for it.';
   const safeCode = escapeHtml(code);
 
   const text = [
-    `Your Whollar code is ${code}`,
+    hi,
     '',
-    `Enter this code to ${action}. It expires in ${ttlMinutes} minutes and can only be used once.`,
+    lead,
     '',
-    'If you did not request this, you can ignore this email — nobody can sign in without the code.',
+    code,
     '',
-    'Whollar will never phone, text or email you to ask for this code. Anyone who does is not us.',
+    `It expires in ${ttlMinutes} minutes and works once.`,
+    '',
+    `${ignore} ${never}`,
+    '',
+    'The Whollar team',
   ].join('\n');
 
-  const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#F4F6F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102822">
-  <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#fff;border-radius:14px;padding:32px">
-    <tr><td>
-      <p style="margin:0 0 18px;font-size:15px;line-height:1.5">Enter this code to ${escapeHtml(action)}.</p>
-      <p style="margin:0 0 18px;font-size:34px;font-weight:700;letter-spacing:.16em;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${safeCode}</p>
-      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">It expires in ${ttlMinutes} minutes and can only be used once.</p>
-      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">If you didn't request this, you can ignore this email — nobody can sign in without the code.</p>
-      <p style="margin:0;font-size:13px;line-height:1.5;color:#6B7C77;border-top:1px solid #E3E8E6;padding-top:16px">Whollar will never phone, text or email you to ask for this code. Anyone who does is not us.</p>
-    </td></tr>
-  </table></body></html>`;
+  const html = renderCard(`      <p style="${S.p}">${escapeHtml(hi)}</p>
+      <p style="${S.p}">${escapeHtml(lead)}</p>
+      <p style="${S.code}">${safeCode}</p>
+      <p style="${S.sub}">It expires in ${ttlMinutes} minutes and works once.</p>
+      <p style="${S.note}">${escapeHtml(ignore)} ${escapeHtml(never)}</p>
+      <p style="${S.signoff}">The Whollar team</p>`);
 
   return {
-    subject: `${code} is your Whollar code`,
+    subject: signup ? `${code} is your Whollar code` : `${code} is your Whollar sign-in code`,
     text,
     html,
   };
@@ -258,34 +333,36 @@ function otpEmail({ code, purpose, ttlMinutes }) {
  * attempt came from an attacker, the owner needs to know without that attempt
  * having produced a credential of any kind.
  */
-function existingAccountEmail({ appBaseUrl }) {
+function existingAccountEmail({ appBaseUrl, firstName }) {
   const url = String(appBaseUrl || '').replace(/\/+$/, '');
   const signIn = `${url}/whollar-login-consumer`;
+  const hi = greeting(firstName);
 
   const text = [
+    hi,
+    '',
     'Someone just tried to create a Whollar account with this email address.',
     '',
-    'You already have one, so we did not create a second — and nothing about your',
+    'You already have one, so we did not create a second, and nothing about your',
     'account has changed. Your password is untouched.',
     '',
     `If that was you, sign in instead: ${signIn}`,
     '',
-    'If it was not you, you can ignore this. Nobody can get into your account from',
-    'a signup attempt, and we have not sent them any code or link.',
+    'If it was not you, you can ignore this email. Nobody can get into your account',
+    'from a signup attempt, and we have not sent them any code or link.',
     '',
     'Whollar will never phone, text or email you to ask for your password.',
+    '',
+    'The Whollar team',
   ].join('\n');
 
-  const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#F4F6F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102822">
-  <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#fff;border-radius:14px;padding:32px">
-    <tr><td>
-      <p style="margin:0 0 18px;font-size:15px;line-height:1.5">Someone just tried to create a Whollar account with this email address.</p>
-      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">You already have one, so we didn't create a second — and nothing about your account has changed. Your password is untouched.</p>
-      <p style="margin:0 0 18px;font-size:15px;line-height:1.5"><a href="${escapeHtml(signIn)}" style="color:#178A5A">Sign in instead</a></p>
-      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">If it wasn't you, you can ignore this. Nobody can get into your account from a signup attempt, and we haven't sent them any code or link.</p>
-      <p style="margin:0;font-size:13px;line-height:1.5;color:#6B7C77;border-top:1px solid #E3E8E6;padding-top:16px">Whollar will never phone, text or email you to ask for your password.</p>
-    </td></tr>
-  </table></body></html>`;
+  const html = renderCard(`      <p style="${S.p}">${escapeHtml(hi)}</p>
+      <p style="${S.p}">Someone just tried to create a Whollar account with this email address.</p>
+      <p style="${S.sub}">You already have one, so we didn't create a second, and nothing about your account has changed. Your password is untouched.</p>
+      <p style="${S.p}"><a href="${escapeHtml(signIn)}" style="${S.link}">Sign in instead</a></p>
+      <p style="${S.sub}">If it wasn't you, you can ignore this email. Nobody can get into your account from a signup attempt, and we haven't sent them any code or link.</p>
+      <p style="${S.note}">Whollar will never phone, text or email you to ask for your password.</p>
+      <p style="${S.signoff}">The Whollar team</p>`);
 
   return { subject: 'You already have a Whollar account', text, html };
 }
@@ -299,34 +376,36 @@ function existingAccountEmail({ appBaseUrl }) {
  * message itself, that their password has not changed. A generic "here is your
  * code" reads as though something already happened to their account.
  */
-function passwordResetEmail({ code, ttlMinutes }) {
+function passwordResetEmail({ code, ttlMinutes, firstName }) {
   const safeCode = escapeHtml(code);
+  const hi = greeting(firstName);
 
   const text = [
-    `Your Whollar password reset code is ${code}`,
+    hi,
     '',
-    `Enter it to choose a new password. It expires in ${ttlMinutes} minutes and can`,
-    'only be used once.',
+    'We received a request to reset the password on your Whollar account. Use this',
+    'code to choose a new one:',
     '',
-    'If you did not ask to reset your password, you can ignore this email — your',
-    'password has NOT changed, and nobody can change it without this code.',
+    code,
     '',
-    'Whollar will never phone, text or email you to ask for this code. Anyone who',
-    'does is not us.',
+    `It expires in ${ttlMinutes} minutes and works once.`,
+    '',
+    "Didn't request this? Ignore this email. Your password stays as it is.",
+    '',
+    'Never share this code. Whollar will never ask you for it.',
+    '',
+    'The Whollar team',
   ].join('\n');
 
-  const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#F4F6F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102822">
-  <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#fff;border-radius:14px;padding:32px">
-    <tr><td>
-      <p style="margin:0 0 18px;font-size:15px;line-height:1.5">Enter this code to choose a new Whollar password.</p>
-      <p style="margin:0 0 18px;font-size:34px;font-weight:700;letter-spacing:.16em;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${safeCode}</p>
-      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">It expires in ${ttlMinutes} minutes and can only be used once.</p>
-      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">If you didn't ask to reset your password, you can ignore this email — your password has <b>not</b> changed, and nobody can change it without this code.</p>
-      <p style="margin:0;font-size:13px;line-height:1.5;color:#6B7C77;border-top:1px solid #E3E8E6;padding-top:16px">Whollar will never phone, text or email you to ask for this code. Anyone who does is not us.</p>
-    </td></tr>
-  </table></body></html>`;
+  const html = renderCard(`      <p style="${S.p}">${escapeHtml(hi)}</p>
+      <p style="${S.p}">We received a request to reset the password on your Whollar account. Use this code to choose a new one:</p>
+      <p style="${S.code}">${safeCode}</p>
+      <p style="${S.sub}">It expires in ${ttlMinutes} minutes and works once.</p>
+      <p style="${S.sub}">Didn't request this? Ignore this email. Your password stays as it is.</p>
+      <p style="${S.note}">Never share this code. Whollar will never ask you for it.</p>
+      <p style="${S.signoff}">The Whollar team</p>`);
 
-  return { subject: `${code} is your Whollar password reset code`, text, html };
+  return { subject: 'Reset your Whollar password', text, html };
 }
 
 /**
@@ -341,30 +420,36 @@ function passwordResetEmail({ code, ttlMinutes }) {
  * Carries no code and no link that grants anything — a notification that could
  * itself be used to take the account over would defeat its own purpose.
  */
-function passwordChangedEmail({ appBaseUrl }) {
+function passwordChangedEmail({ appBaseUrl, firstName, changedAt }) {
   const url = String(appBaseUrl || '').replace(/\/+$/, '');
+  const resetLink = `${url}/whollar-login-consumer`;
+  const hi = greeting(firstName);
+  // With no timestamp the sentence still stands on its own; "on undefined"
+  // would not.
+  const when = changedAt ? ` on ${formatWhen(changedAt)}` : ' just now';
 
   const text = [
-    'Your Whollar password was just changed.',
+    hi,
+    '',
+    `The password on your Whollar account was changed${when}.`,
     '',
     'Every other device that was signed in has been signed out, so you will need',
     'to sign in again with the new password.',
     '',
-    'If this was you, there is nothing else to do.',
+    "If this was you, you're all set.",
     '',
-    'If it was NOT you, someone else may have access to your email. Contact us at',
-    'info@whollar.com straight away.',
+    `If it wasn't, reset your password right away (${resetLink}) and reply to this`,
+    'email so we can help secure your account.',
+    '',
+    'The Whollar team',
   ].join('\n');
 
-  const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#F4F6F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102822">
-  <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#fff;border-radius:14px;padding:32px">
-    <tr><td>
-      <p style="margin:0 0 18px;font-size:15px;line-height:1.5">Your Whollar password was just changed.</p>
-      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">Every other device that was signed in has been signed out, so you'll need to sign in again with the new password.</p>
-      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">If this was you, there's nothing else to do.</p>
-      <p style="margin:0;font-size:14px;line-height:1.5;color:#A34F2B;border-top:1px solid #E3E8E6;padding-top:16px">If it was <b>not</b> you, someone else may have access to your email. Contact us at <a href="mailto:info@whollar.com" style="color:#A34F2B">info@whollar.com</a> straight away.</p>
-    </td></tr>
-  </table></body></html>`;
+  const html = renderCard(`      <p style="${S.p}">${escapeHtml(hi)}</p>
+      <p style="${S.p}">The password on your Whollar account was changed${escapeHtml(when)}.</p>
+      <p style="${S.sub}">Every other device that was signed in has been signed out, so you'll need to sign in again with the new password.</p>
+      <p style="${S.sub}">If this was you, you're all set.</p>
+      <p style="${S.alert}">If it <b>wasn't</b>, <a href="${escapeHtml(resetLink)}" style="color:#A34F2B">reset your password right away</a> and reply to this email so we can help secure your account.</p>
+      <p style="${S.signoff}">The Whollar team</p>`);
 
   return { subject: 'Your Whollar password was changed', text, html };
 }
@@ -383,6 +468,8 @@ function noAccountEmail({ appBaseUrl }) {
   const signUp = `${url}/whollar-login-consumer`;
 
   const text = [
+    'Hi,',
+    '',
     'Someone asked to reset a Whollar password for this email address.',
     '',
     'There is no Whollar account here, so there was nothing to reset and we have',
@@ -392,17 +479,16 @@ function noAccountEmail({ appBaseUrl }) {
     '',
     'If this was not you, you can ignore this email. No account exists at this',
     'address and nothing has been sent to anyone else.',
+    '',
+    'The Whollar team',
   ].join('\n');
 
-  const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#F4F6F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102822">
-  <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#fff;border-radius:14px;padding:32px">
-    <tr><td>
-      <p style="margin:0 0 18px;font-size:15px;line-height:1.5">Someone asked to reset a Whollar password for this email address.</p>
-      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">There's no Whollar account here, so there was nothing to reset and we haven't created anything.</p>
-      <p style="margin:0 0 18px;font-size:15px;line-height:1.5"><a href="${escapeHtml(signUp)}" style="color:#178A5A">Create an account</a></p>
-      <p style="margin:0;font-size:13px;line-height:1.5;color:#6B7C77;border-top:1px solid #E3E8E6;padding-top:16px">If this wasn't you, you can ignore this email. No account exists at this address and nothing has been sent to anyone else.</p>
-    </td></tr>
-  </table></body></html>`;
+  const html = renderCard(`      <p style="${S.p}">Hi,</p>
+      <p style="${S.p}">Someone asked to reset a Whollar password for this email address.</p>
+      <p style="${S.sub}">There's no Whollar account here, so there was nothing to reset and we haven't created anything.</p>
+      <p style="${S.p}"><a href="${escapeHtml(signUp)}" style="${S.link}">Create an account</a></p>
+      <p style="${S.note}">If this wasn't you, you can ignore this email. No account exists at this address and nothing has been sent to anyone else.</p>
+      <p style="${S.signoff}">The Whollar team</p>`);
 
   return { subject: 'No Whollar account for this email address', text, html };
 }
@@ -416,52 +502,71 @@ function noAccountEmail({ appBaseUrl }) {
  * carries the reason verbatim: it was written to be read by the applicant,
  * and a rejection with no reason generates a support thread, not an ending.
  */
-function providerDecisionEmail({ approved, orgName, reason, appBaseUrl }) {
+function providerDecisionEmail({ approved, orgName, reason, appBaseUrl, firstName }) {
   const url = String(appBaseUrl || '').replace(/\/+$/, '');
   const console_ = `${url}/provider-dashboard`;
   const name = String(orgName || 'your company').trim();
+  const hi = greeting(firstName);
 
   if (approved) {
+    const bullets = [
+      'See cohorts forming in your footprint',
+      'Submit and update bids on your own terms',
+      'Track completed switches and success fees',
+    ];
+
     const text = [
-      `Good news: ${name} is approved on Whollar.`,
+      hi,
       '',
-      'Your partner console is live — auction briefs, cohort counts and bidding',
-      `are now real data: ${console_}`,
+      `Your Whollar partner account for ${name} is approved and live.`,
       '',
-      'Questions, or anything look wrong? Reply to this email and a person answers.',
+      'From your dashboard you can:',
+      '',
+      ...bullets.map((b) => `· ${b}`),
+      '',
+      'A reminder of how the model works: you pay only on a completed, retained',
+      'switch. No winning bid, no fee. You control your volume and can pause any time.',
+      '',
+      `Sign in: ${console_}`,
+      '',
+      'Questions? Reply to this email. A real person reads these.',
+      '',
+      'The Whollar team',
     ].join('\n');
 
-    const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#F4F6F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102822">
-  <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#fff;border-radius:14px;padding:32px">
-    <tr><td>
-      <p style="margin:0 0 18px;font-size:15px;line-height:1.5"><b>Good news: ${escapeHtml(name)} is approved on Whollar.</b></p>
-      <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57">Your partner console is live — auction briefs, cohort counts and bidding are now real data.</p>
-      <p style="margin:0 0 18px;font-size:15px;line-height:1.5"><a href="${escapeHtml(console_)}" style="color:#178A5A">Open your partner console</a></p>
-      <p style="margin:0;font-size:13px;line-height:1.5;color:#6B7C77;border-top:1px solid #E3E8E6;padding-top:16px">Questions, or anything look wrong? Reply to this email and a person answers.</p>
-    </td></tr>
-  </table></body></html>`;
+    const html = renderCard(`      <p style="${S.p}">${escapeHtml(hi)}</p>
+      <p style="${S.p}"><b>Your Whollar partner account for ${escapeHtml(name)} is approved and live.</b></p>
+      <p style="${S.sub}">From your dashboard you can:</p>
+      <ul style="margin:0 0 18px;padding-left:20px;font-size:14px;line-height:1.7;color:#4A5D57">
+        ${bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join('\n        ')}
+      </ul>
+      <p style="${S.sub}">A reminder of how the model works: you pay only on a completed, retained switch. No winning bid, no fee. You control your volume and can pause any time.</p>
+      <p style="${S.p}"><a href="${escapeHtml(console_)}" style="${S.link}">Sign in to your partner dashboard</a></p>
+      <p style="${S.note}">Questions? Reply to this email. A real person reads these.</p>
+      <p style="${S.signoff}">The Whollar team</p>`);
 
-    return { subject: `${name} is approved on Whollar`, text, html };
+    return { subject: 'Welcome to Whollar · your partner account is live', text, html };
   }
 
   const why = String(reason || '').trim();
   const text = [
+    hi,
+    '',
     `We reviewed ${name}'s Whollar partner application and can't approve it right now.`,
     '',
     why ? `Why: ${why}` : '',
     '',
-    'If something here is wrong or has changed, reply to this email — a person',
+    'If something here is wrong or has changed, reply to this email. A person',
     'reads it, and a review can be reopened.',
+    '',
+    'The Whollar team',
   ].filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n');
 
-  const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#F4F6F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102822">
-  <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#fff;border-radius:14px;padding:32px">
-    <tr><td>
-      <p style="margin:0 0 18px;font-size:15px;line-height:1.5">We reviewed <b>${escapeHtml(name)}</b>'s Whollar partner application and can't approve it right now.</p>
-      ${why ? `<p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#4A5D57"><b>Why:</b> ${escapeHtml(why)}</p>` : ''}
-      <p style="margin:0;font-size:13px;line-height:1.5;color:#6B7C77;border-top:1px solid #E3E8E6;padding-top:16px">If something here is wrong or has changed, reply to this email — a person reads it, and a review can be reopened.</p>
-    </td></tr>
-  </table></body></html>`;
+  const html = renderCard(`      <p style="${S.p}">${escapeHtml(hi)}</p>
+      <p style="${S.p}">We reviewed <b>${escapeHtml(name)}</b>'s Whollar partner application and can't approve it right now.</p>
+      ${why ? `<p style="${S.sub}"><b>Why:</b> ${escapeHtml(why)}</p>` : ''}
+      <p style="${S.note}">If something here is wrong or has changed, reply to this email. A person reads it, and a review can be reopened.</p>
+      <p style="${S.signoff}">The Whollar team</p>`);
 
   return { subject: `About ${name}'s Whollar partner application`, text, html };
 }

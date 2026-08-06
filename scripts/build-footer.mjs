@@ -138,7 +138,8 @@ const BLOG_SLUGS = [
   'collective-switching-internet-canada', 'teksavvy-vs-rogers-same-cable',
   'internet-bill-breakdown-canada', 'negotiate-internet-bill-canada',
   'internet-retention-offer-win-back', 'independent-internet-providers-canada',
-  'collective-switching-energy-proof', 'big-three-telecom-canada'
+  'collective-switching-energy-proof', 'big-three-telecom-canada',
+  'crtc-internet-prices-canada'
 ];
 
 /* current: which nav link is marked aria-current on this page. */

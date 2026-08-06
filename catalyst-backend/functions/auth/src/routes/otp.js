@@ -59,7 +59,14 @@ function mount(router, cfg) {
       email, purpose: 'login',
     });
 
-    const message = mailer.otpEmail({ code, purpose: 'login', ttlMinutes });
+    // Best-effort personalisation: an existing member gets their name, anyone
+    // else gets the bare greeting. A lookup failure falls through to the bare
+    // greeting — it must never change the response or block the send.
+    const known = await users.findByEmail(req.catalyst, email).catch(() => null);
+    const message = mailer.otpEmail({
+      code, purpose: 'login', ttlMinutes,
+      firstName: known ? known.first_name : null,
+    });
     let delivered = false;
     let sendError = null;
     try {

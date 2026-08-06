@@ -20,7 +20,11 @@ const SLUGS = [
   'independent-internet-providers-canada',
   'collective-switching-energy-proof',
   'big-three-telecom-canada',
+  'crtc-internet-prices-canada',
 ];
+
+// Posts published after the 2026-07-20 launch carry their own dates.
+const POST_DATES = { 'crtc-internet-prices-canada': '2026-08-06' };
 
 let failures = 0;
 const results = [];
@@ -55,8 +59,9 @@ for (const slug of SLUGS) {
   check(`${slug}: JSON-LD parses`, parseOk);
   check(`${slug}: BlogPosting + FAQPage present`, !!blogPosting && !!faq);
   check(`${slug}: @id = url#article`, blogPosting?.['@id'] === `${prodUrl}#article`, blogPosting?.['@id']);
-  check(`${slug}: datePublished = ${PUBLISH_DATE}`, blogPosting?.datePublished === PUBLISH_DATE, blogPosting?.datePublished);
-  check(`${slug}: dateModified = ${PUBLISH_DATE}`, blogPosting?.dateModified === PUBLISH_DATE, blogPosting?.dateModified);
+  const postDate = POST_DATES[slug] || PUBLISH_DATE;
+  check(`${slug}: datePublished = ${postDate}`, blogPosting?.datePublished === postDate, blogPosting?.datePublished);
+  check(`${slug}: dateModified = ${postDate}`, blogPosting?.dateModified === postDate, blogPosting?.dateModified);
 
   const canonical = body.match(/<link rel="canonical" href="([^"]*)"/)?.[1];
   check(`${slug}: canonical = url`, canonical === prodUrl, canonical);
@@ -82,9 +87,9 @@ for (const [route, label] of [['/join', 'JOIN_ROUTE /join'], ['/checkup', 'CHECK
   const { status, body } = await get('/blog/');
   console.log('page /blog/ (Resources)');
   check('/blog/: 200', status === 200, `got ${status}`);
-  const tiles = [...body.matchAll(/<a class="tile" href="\/blog\/([a-z0-9-]+)">/g)].map(m => m[1]);
-  check('/blog/: exactly 10 tiles', tiles.length === 10, `got ${tiles.length}`);
-  check('/blog/: tiles in order 01-10', JSON.stringify(tiles) === JSON.stringify(SLUGS));
+  const tiles = [...body.matchAll(/<a class="tile(?: featured)?" href="\/blog\/([a-z0-9-]+)">/g)].map(m => m[1]);
+  check('/blog/: exactly 11 tiles', tiles.length === 11, `got ${tiles.length}`);
+  check('/blog/: tiles in order 01-11', JSON.stringify(tiles) === JSON.stringify(SLUGS));
   check('/blog/: tile is the full-card anchor', /<a class="tile"[^>]*>[\s\S]*?<h2>/.test(body));
   check('/blog/: no em dash', !body.includes(EM_DASH));
   check('/blog/: no "Draft"', !body.includes('Draft'));
@@ -115,14 +120,15 @@ for (const [route, label] of [['/join', 'JOIN_ROUTE /join'], ['/checkup', 'CHECK
   const { status, body } = await get('/sitemap.xml');
   check('sitemap: 200', status === 200);
   const locs = [...body.matchAll(/<loc>([^<]*)<\/loc>/g)].map(m => m[1]);
-  const STATIC_PAGES = ['/', '/bill-checkup', '/become-a-partner', '/partners', '/waitlist/', '/terms', '/privacy'];
-  check('sitemap: exactly 18 URLs (7 static + blog index + 10 posts)', locs.length === 18, `got ${locs.length}`);
+  const STATIC_PAGES = ['/', '/bill-checkup', '/become-a-partner', '/partners', '/waitlist/', '/contact', '/terms', '/privacy'];
+  check('sitemap: exactly 20 URLs (8 static + blog index + 11 posts)', locs.length === 20, `got ${locs.length}`);
   for (const p of STATIC_PAGES) check(`sitemap: includes ${p}`, locs.includes(`${DOMAIN}${p}`));
   check('sitemap: includes /blog/', locs.includes(`${DOMAIN}/blog/`));
   for (const slug of SLUGS) check(`sitemap: includes ${slug}`, locs.includes(`${DOMAIN}/blog/${slug}`));
   check('sitemap: excludes /resources', !locs.some(l => l.includes('/resources')));
   check('sitemap: all www, no apex', locs.every(l => l.startsWith(DOMAIN)));
-  check('sitemap: lastmod = publish date', [...body.matchAll(/<lastmod>([^<]*)<\/lastmod>/g)].every(m => m[1] === PUBLISH_DATE));
+  const knownDates = new Set([PUBLISH_DATE, ...Object.values(POST_DATES)]);
+  check('sitemap: lastmod is a known publish date', [...body.matchAll(/<lastmod>([^<]*)<\/lastmod>/g)].every(m => knownDates.has(m[1])));
   check('sitemap: no em dash', !body.includes(EM_DASH));
 
   const robots = await get('/robots.txt');
