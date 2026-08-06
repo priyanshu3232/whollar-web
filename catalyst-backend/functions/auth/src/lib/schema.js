@@ -144,7 +144,10 @@ const TABLES = Object.freeze({
     // datetime column would force an invented day and time onto it.
     promo_end_date:   'varchar(10)',
     promo_expired:    'int',
-    discount_amount:  'varchar(16)',
+    // Same month-granular 'YYYY-MM-DD' / 'YYYY-MM' shape as promo_end_date.
+    contract_start_date: 'varchar(10)',
+    // The form's <select> values as typed: '12'|'24'|'36'|'0'|'-1'.
+    contract_length:  'varchar(8)',
     switch_threshold: 'varchar(64)',
     source:           'varchar(32) required',
     updated_at:       'datetime required',

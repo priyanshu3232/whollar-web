@@ -462,7 +462,10 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
       PromoEndDate: orNull(str(b.pdate)),
       MonthsToRenewal: b.pmo != null && b.pmo !== '' ? parseInt(b.pmo, 10) : null,
       PromoExpired: str(b.expired) === 'true',
-      DiscountAmount: toNumber(b.disc),
+      // The checkup asks for the contract's start and length now, not the
+      // discount amount — the form field is gone, so `disc` arrives empty.
+      ContractStartDate: orNull(str(b.contractStart)),
+      ContractLength: orNull(str(b.contractLength)),
       SwitchThreshold: orNull(str(b.switchFor)),
       BillFileId: orNull(file?.id ?? null),
       BillFileName: orNull(file?.name ?? (req.fileRejected ? `[rejected: ${req.fileRejected}]` : null)),
@@ -478,7 +481,9 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
         provider: str(b.prov), cost: toNumber(b.cost), speed: str(b.spd),
         tech: str(b.tech), promoEnd: str(b.pdate),
         monthsToRenewal: b.pmo != null && b.pmo !== '' ? parseInt(b.pmo, 10) : null,
-        discount: toNumber(b.disc), threshold: str(b.switchFor),
+        contractStart: str(b.contractStart) || null,
+        contractLength: str(b.contractLength) || null,
+        threshold: str(b.switchFor),
         // What the visitor was actually shown. Without these, sales sees the
         // gross charge and has no idea which of the four verdicts appeared on
         // screen — the number the conversation has to start from.
@@ -524,7 +529,8 @@ app.post('/deep-read', limit({ key: 'deep-read', max: 10, windowSec: 3600 }), gu
       province: orNull(str(b.province)), provinceCode: orNull(str(b.provinceCode)),
       prov: orNull(str(b.prov)), cost: toNumber(b.cost),
       spd: orNull(str(b.spd)), tech: orNull(str(b.tech)), pdate: orNull(str(b.pdate)),
-      disc: toNumber(b.disc), effectiveCost: toNumber(b.effectiveCost),
+      contractStart: orNull(str(b.contractStart)), contractLength: orNull(str(b.contractLength)),
+      effectiveCost: toNumber(b.effectiveCost),
       verdict: orNull(str(b.verdict))
     };
     const row = await insert(catalystApp, 'DeepReadRequests', {
@@ -543,7 +549,8 @@ app.post('/deep-read', limit({ key: 'deep-read', max: 10, windowSec: 3600 }), gu
         fsa: postal.fsa, postal: postal.full,
         province: str(b.province) || null, provinceCode: str(b.provinceCode) || null,
         provider: str(b.prov), cost: toNumber(b.cost),
-        speed: str(b.spd), tech: str(b.tech), promoEnd: str(b.pdate), discount: toNumber(b.disc),
+        speed: str(b.spd), tech: str(b.tech), promoEnd: str(b.pdate),
+        contractStart: str(b.contractStart) || null, contractLength: str(b.contractLength) || null,
         effectiveCost: toNumber(b.effectiveCost), verdict: str(b.verdict) || null,
         ...consentFrom(b, req)
       }

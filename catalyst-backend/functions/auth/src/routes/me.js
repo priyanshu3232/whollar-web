@@ -231,7 +231,8 @@ function mount(router) {
       try {
         const row = await datastore.findBy(app, 'member_bills', 'user_id', uid,
           ['provider', 'monthly_cost', 'download_speed', 'access_tech', 'promo_end_date',
-            'promo_expired', 'discount_amount', 'switch_threshold', 'source', 'updated_at']);
+            'promo_expired', 'contract_start_date', 'contract_length',
+            'switch_threshold', 'source', 'updated_at']);
         if (!row) return null;
         const { ROWID, ...rest } = row;
         return rest;
