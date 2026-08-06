@@ -14,7 +14,7 @@
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="/js/device-router.js?v=20260806"></script>
+<script src="/js/device-router.js?v=20260806a"></script>
 <script src="/js/whollar-benchmarks.js?v=20260806"></script>
 <script src="/js/whollar-core.js?v=20260806"></script>
 <title>Check if you’re overpaying for internet · Whollar</title>
@@ -147,6 +147,70 @@ body[data-screen="2"] .only1{display:none!important}
 .f .fh{font-size:11.5px;color:var(--ink-3);line-height:1.5}
 .f.filled input,.f.filled select{border-color:#BBD9C8;background:#FDFEFD}
 .f.err input{border-color:var(--warn-text);animation:shake .3s}
+
+/* label row for fields that carry an "I don't know" toggle: the badge and the
+   toggle sit on the label line, so neither collides with the absolute badge */
+.f .lrow{display:flex;align-items:center;gap:8px;min-height:22px}
+.f .lrow .badge{position:static}
+.f .idk{margin-left:auto;flex:none;font-family:var(--label);font-weight:600;font-size:11px;letter-spacing:.03em;border:1px solid var(--line);background:var(--paper);color:var(--ink-2);border-radius:999px;padding:4px 11px;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.f .idk:hover{border-color:var(--amber);color:var(--warn-text)}
+.f .idk[aria-pressed="true"]{background:var(--amber);border-color:var(--amber);color:#fff}
+.f .noted{display:none;font-size:11.5px;color:var(--warn-text);line-height:1.5}
+.f.idk-on .noted{display:block;animation:rise .3s var(--ease)}
+.f.idk-on input[type=date]{opacity:.45;pointer-events:none}
+
+/* "Worth two minutes" callout: appears when either date is marked unknown */
+.knowbox{display:none;grid-column:1 / -1;background:var(--warn-soft);border-radius:18px;padding:20px 24px 22px}
+.knowbox.on{display:block;animation:rise .3s var(--ease)}
+.knowbox h4{font-family:var(--disp);font-weight:800;font-size:19px;color:var(--warn-text);letter-spacing:-.01em}
+.knowbox p{margin-top:10px;font-size:14px;line-height:1.65;color:#7A4326;max-width:660px}
+
+/* ===== loading interstitial: shown while the submission is in flight ===== */
+.calc{position:fixed;inset:0;z-index:120;display:none;align-items:flex-start;justify-content:center;overflow:auto;padding:clamp(14px,4vw,44px);background:rgba(6,18,13,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.calc.on{display:flex}
+.calc__card{width:min(880px,100%);margin:auto;border-radius:var(--rf);box-shadow:var(--sh-3);background:linear-gradient(150deg,#0A2018,#11362a 55%,#0D2A1F);color:#fff;padding:clamp(24px,4vw,44px);animation:rise .4s var(--ease)}
+.calc__top{display:flex;align-items:center;gap:12px;font-family:var(--label);font-weight:600;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal-soft)}
+.calc__top .pct{margin-left:auto;color:rgba(255,255,255,.7);font-variant-numeric:tabular-nums}
+.calc__ring{width:16px;height:16px;border-radius:50%;border:2px solid rgba(127,227,176,.35);border-top-color:var(--teal-soft);animation:calcspin 1s linear infinite;flex:none}
+@keyframes calcspin{to{transform:rotate(360deg)}}
+.calc__bar{height:4px;border-radius:99px;background:rgba(255,255,255,.12);margin:14px 0 26px;overflow:hidden}
+.calc__bar i{display:block;height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--teal-soft));transition:width .3s var(--ease)}
+.calc__card h2{color:#fff;font-size:clamp(26px,3.6vw,40px);font-weight:900;line-height:1.08;max-width:620px;text-wrap:balance}
+.calc__pts{list-style:none;margin:26px 0 0;padding:0;display:flex;flex-direction:column;gap:20px}
+.calc__pts li{display:flex;gap:16px;font-size:clamp(14.5px,1.5vw,16.5px);line-height:1.6;color:rgba(255,255,255,.82);max-width:700px}
+.calc__pts li b{color:#fff}
+.calc__pts .n{flex:none;width:30px;height:30px;border-radius:9px;border:1px solid rgba(127,227,176,.4);color:var(--teal-soft);display:grid;place-items:center;font-family:var(--label);font-weight:600;font-size:13px;margin-top:2px}
+.calc__meta{border-top:1px solid rgba(255,255,255,.14);margin-top:28px;padding-top:22px}
+.calc__meta .big{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.calc__meta .big b{font-family:var(--disp);font-weight:900;font-size:clamp(30px,3.4vw,42px);color:var(--teal-soft)}
+.calc__meta .big span{font-size:15px;color:rgba(255,255,255,.8)}
+.calc__meta .chip{background:rgba(127,227,176,.18);border:1px solid rgba(127,227,176,.4);color:#CFF7E2;border-radius:999px;padding:5px 13px;font-family:var(--label);font-weight:600;font-size:12.5px}
+.calc__meta .sub{margin-top:8px;font-size:13.5px;color:rgba(255,255,255,.6)}
+.calc__tick{margin-top:18px;font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:rgba(255,255,255,.35);white-space:nowrap;overflow:hidden}
+
+/* ===== result hero: badge + headline + stat row (Above / Rise / Below) ===== */
+.sig.neut{background:linear-gradient(150deg,#22312B,#2E4038 55%,#37493F)}
+.sig .hv-badge{display:inline-block;font-family:var(--label);font-weight:600;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9FF0C6;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:6px 13px;margin-bottom:16px;position:relative}
+.sig.warnbg .hv-badge{color:#FFD3B5}
+.sig.neut .hv-badge{color:#CFE2D5}
+.sig h3{font-size:clamp(25px,3vw,36px);line-height:1.1;max-width:560px;text-wrap:balance}
+.hv-stats{display:flex;gap:clamp(20px,4vw,48px);flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.16);margin-top:18px;padding-top:16px;position:relative}
+.hv-stats small{display:block;font-family:var(--label);font-weight:600;letter-spacing:.12em;text-transform:uppercase;font-size:10.5px;color:rgba(255,255,255,.6);margin-bottom:4px}
+.hv-stats b{font-family:var(--disp);font-weight:900;font-size:clamp(24px,2.6vw,33px);color:#fff;letter-spacing:-.02em}
+.hv-stats .going b{color:#7FE3B0}
+.sig.warnbg .hv-stats .going b{color:#FFC9A8}
+
+/* ===== "what your area pays" comparison bars ===== */
+.hvm{display:none;background:var(--paper);border:1px solid var(--line);border-radius:var(--rf);box-shadow:var(--sh-1);padding:22px 24px;margin-top:14px}
+.hvm.on{display:block;animation:rise .4s var(--ease)}
+.hvm h3{font-size:clamp(19px,2vw,22px);font-weight:900}
+.hvm .sub{margin-top:7px;font-size:13.5px;line-height:1.6;color:var(--ink-2);max-width:560px}
+.hvm .rows{margin-top:16px;display:flex;flex-direction:column;gap:9px}
+.hvm .brow{display:grid;grid-template-columns:minmax(74px,110px) 1fr;align-items:center;gap:12px}
+.hvm .brow small{font-weight:600;font-size:13.5px;color:var(--ink)}
+.hvm .bar{height:42px;border-radius:12px;background:var(--mist);border:1px solid var(--line);display:flex;align-items:center;justify-content:flex-end;padding:0 14px;font-family:var(--disp);font-weight:800;font-size:15.5px;color:var(--ink);min-width:64px}
+.hvm .bar.you{background:linear-gradient(90deg,#D2703F,#C2643B);border-color:#C2643B;color:#fff}
+.hvm .note{margin-top:12px;font-size:11.5px;color:var(--ink-3)}
 @keyframes shake{0%,100%{transform:none}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 
 /* waitlist block in-form */
@@ -456,17 +520,39 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
             <label for="tech">How it reaches your house</label>
             <select id="tech"><option value="">Choose&hellip;</option><option>Cable (TV coax jack)</option><option>Fibre (thin glass line)</option><option>DSL (old phone line)</option><option>Fixed wireless (5G antenna)</option><option>Satellite (dish)</option><option>Not sure</option></select>
           </div>
+          <div class="f" data-live id="f-cstart">
+            <div class="lrow">
+              <label for="cstart">Contract start date</label>
+              <button type="button" class="idk" id="cstart-idk" aria-pressed="false">I don't know</button>
+            </div>
+            <input id="cstart" type="date">
+            <span class="fh">On the agreement you signed, or the welcome email from that day.</span>
+            <span class="noted">Noted. Worth finding, though &mdash; see below.</span>
+          </div>
           <div class="f" data-live>
-            <label for="pdate">When does your promo / discount end?</label>
-            <span class="badge">the jump</span>
+            <label for="clen">Length of contract</label>
+            <select id="clen"><option value="">Choose&hellip;</option><option value="12">12 months</option><option value="24">24 months</option><option value="36">36 months</option><option value="0">No contract / month-to-month</option><option value="-1">Not sure</option></select>
+            <span class="fh">It runs from the start date above.</span>
+          </div>
+          <div class="f" data-live id="f-pdate">
+            <div class="lrow">
+              <label for="pdate">When does your promo / discount end?</label>
+              <span class="badge">the jump</span>
+              <button type="button" class="idk" id="pdate-idk" aria-pressed="false">I don't know</button>
+            </div>
             <input id="pdate" type="date">
             <span class="fh">The &ldquo;Savings&rdquo; line on your bill shows it, e.g. <i>ends May 21/26</i>. Leave blank if none.</span>
+            <span class="noted">Noted. This is the one worth going to find &mdash; see below.</span>
           </div>
           <div class="f" data-live>
             <label for="disc">Discount amount, if you know it</label>
             <input id="disc" placeholder="$ / month (optional)" inputmode="decimal" maxlength="12" autocomplete="off">
             <span class="fh">Blank is fine. We estimate the jump and say so.</span>
             <p class="whl-fielderr" id="disc-err" role="alert" style="display:none"></p>
+          </div>
+          <div class="knowbox" id="knowbox" aria-live="polite">
+            <h4>Worth two minutes before you finish</h4>
+            <div id="knowbox-body"></div>
           </div>
           <!-- The waitlist opt-in checkbox is gone: email is now a required
                field on every submission, and the submit handler always joins.
@@ -497,6 +583,7 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
       <!-- SCREEN 2: results -->
       <div class="only2" id="result-left" style="display:none">
         <div class="sig" id="sig" aria-live="polite"></div>
+        <section class="hvm" id="market" aria-label="What your area pays for the same service"></section>
 
         <section class="recap">
           <div class="recap__head">
@@ -575,6 +662,27 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
   </div>
 </div>
 
+<!-- Loading interstitial: covers the join round-trip after submit, so the wait
+     explains the model instead of freezing the button. Content is filled by
+     showCalc() so the cohort code can be the visitor's own FSA. -->
+<div class="calc" id="calc" role="status" aria-live="polite">
+  <div class="calc__card">
+    <div class="calc__top"><span class="calc__ring" aria-hidden="true"></span>Adding up your contract<span class="pct" id="calc-pct">0%</span></div>
+    <div class="calc__bar"><i id="calc-fill"></i></div>
+    <h2>While we add it up, here is the whole idea.</h2>
+    <ol class="calc__pts">
+      <li><span class="n">1</span><span><b>On your own, you get the individual price list.</b> A discount to sign you, then the real rate once it runs out. No call, no letter, just a bigger number for the rest of the term.</span></li>
+      <li><span class="n">2</span><span id="calc-pt2"><b>On Whollar, your street pools into one cohort.</b> Providers bid for the whole block, and a block does not get quietly reset. One rate, no cheap half and expensive half.</span></li>
+      <li><span class="n">3</span><span><b>You take the best offer, or stay put.</b> Switching fees are $0 by law, so the only way to lose is to not be in the room.</span></li>
+    </ol>
+    <div class="calc__meta">
+      <div class="big"><b id="calc-count">1,284</b><span>households already pooling.</span><span class="chip" id="calc-chip" style="display:none"></span></div>
+      <p class="sub" id="calc-sub">Cohorts form on postal code and renewal date, and open once a street hits critical mass.</p>
+      <div class="calc__tick" id="calc-tick" aria-hidden="true">T2P forming &nbsp;&middot;&nbsp; V6B forming &nbsp;&middot;&nbsp; H2X forming &nbsp;&middot;&nbsp; K1N cohort forming &nbsp;&middot;&nbsp; M4C forming</div>
+    </div>
+  </div>
+</div>
+
 <div class="ty-ov" id="ty-pop" role="dialog" aria-modal="true" aria-labelledby="ty-h">
   <div class="ty">
     <button class="ty__x" id="ty-x" aria-label="Close">&times;</button>
@@ -598,7 +706,7 @@ const W=window.WHOLLAR;
 /* /js/whollar-core.js holds every validator, parser, the benchmark and the
    scoring engine. It used to be copy-pasted into this file, its mobile twin
    and the standalone snapshot, and the three copies had already drifted. */
-const S={pc:null,pcFull:null,province:null,provinceCode:null,prov:'',cost:0,spd:null,tech:'',pdate:null,pmo:0,expired:false,disc:0,joined:false,file:null,email:''};
+const S={pc:null,pcFull:null,province:null,provinceCode:null,prov:'',cost:0,spd:null,tech:'',pdate:null,pmo:0,expired:false,disc:0,joined:false,file:null,email:'',cstart:null,clen:'',cstartIdk:false,pdateIdk:false};
 
 const submitForm=(path,fields,files)=>W.submitForm(path,fields,files);
 const busy=(btn,on,label)=>W.busy(btn,on,label);
@@ -707,6 +815,49 @@ $('#pdate').addEventListener('input',e=>{
   saveDraft();
 });
 
+/* ---------- contract fields + the two "I don't know" toggles ----------
+   Marking a date unknown clears it (an unknown date must not keep scoring as
+   a known one) and opens the "worth two minutes" note below the grid. The
+   note's copy depends on WHICH date is missing; both missing gets the summary
+   version rather than two stacked lectures. */
+$('#cstart').addEventListener('input',e=>{S.cstart=e.target.value||null;saveDraft();});
+$('#clen').addEventListener('change',e=>{S.clen=e.target.value||'';saveDraft();});
+
+const KNOW={
+  start:'Your start date is what tells us how much of the term you have already used, and how much of it is still ahead at the higher rate. A few minutes of looking makes the rest of this accurate rather than approximate.',
+  promo:'The month your promo ends is the difference between doing something about it and finding out three bills later. If it is close, this is the moment a cohort is worth joining, and a few minutes of looking could be worth several hundred dollars over the rest of your term.',
+  both:'Two dates decide this: the day your contract started and the month your promo ends. Together they tell us how much of the term is behind you, what is still ahead at the higher rate, and whether the jump is close enough to act on. A few minutes of looking makes the rest of this accurate rather than approximate.',
+  where:'Look on the agreement you signed, or the welcome email from the day you signed up. The savings line on a recent bill often carries the end date too.'
+};
+function renderKnowbox(){
+  const a=S.cstartIdk,b=S.pdateIdk;
+  const box=$('#knowbox');
+  if(!a&&!b){box.classList.remove('on');return;}
+  const lead=a&&b?KNOW.both:(a?KNOW.start:KNOW.promo);
+  $('#knowbox-body').innerHTML='<p>'+lead+'</p><p>'+KNOW.where+'</p>';
+  box.classList.add('on');
+}
+function setIdk(which,on){
+  const isStart=which==='cstart';
+  const wrap=$(isStart?'#f-cstart':'#f-pdate'),btn=$(isStart?'#cstart-idk':'#pdate-idk'),input=$(isStart?'#cstart':'#pdate');
+  if(isStart)S.cstartIdk=on;else S.pdateIdk=on;
+  btn.setAttribute('aria-pressed',on?'true':'false');
+  wrap.classList.toggle('idk-on',on);
+  if(on){
+    input.value='';
+    if(isStart){S.cstart=null;}
+    else{S.pdate=null;S.pmo=0;S.expired=false;}
+    wrap.classList.remove('filled');
+  }
+  renderKnowbox();
+  saveDraft();
+}
+$('#cstart-idk').addEventListener('click',()=>setIdk('cstart',!S.cstartIdk));
+$('#pdate-idk').addEventListener('click',()=>setIdk('pdate',!S.pdateIdk));
+/* Typing a date is the strongest possible "actually, I do know" */
+$('#cstart').addEventListener('input',()=>{if(S.cstartIdk&&$('#cstart').value)setIdk('cstart',false);});
+$('#pdate').addEventListener('input',()=>{if(S.pdateIdk&&$('#pdate').value)setIdk('pdate',false);});
+
 /* ---------- draft persistence ----------
    A refresh mid-form used to dump all seven fields. sessionStorage keeps them
    for the tab's lifetime only, so bill details don't outlive the visit. */
@@ -716,7 +867,9 @@ function saveDraft(){
   draftTimer=setTimeout(()=>W.draft.save('checkup',{
     pc:$('#pc').value,prov:$('#prov').value,cost:$('#cost').value,
     spd:$('#spd').value,tech:$('#tech').value,pdate:$('#pdate').value,
-    disc:$('#disc').value,email:$('#email').value
+    disc:$('#disc').value,email:$('#email').value,
+    cstart:$('#cstart').value,clen:$('#clen').value,
+    cstartIdk:S.cstartIdk,pdateIdk:S.pdateIdk
   }),300);
 }
 function restoreDraft(){
@@ -726,6 +879,9 @@ function restoreDraft(){
     el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));};
   set('#pc',d.pc);set('#prov',d.prov);set('#cost',d.cost);set('#spd',d.spd);
   set('#tech',d.tech);set('#pdate',d.pdate);set('#disc',d.disc);set('#email',d.email);
+  set('#cstart',d.cstart);set('#clen',d.clen);
+  if(d.cstartIdk)setIdk('cstart',true);
+  if(d.pdateIdk)setIdk('pdate',true);
 }
 
 /* rail quick-join (syncs with form checkbox state) */
@@ -755,6 +911,8 @@ function leadPayload(){
     pc:S.pc||'',postalFull:S.pcFull||'',province:S.province||'',provinceCode:S.provinceCode||'',
     prov:S.prov,cost:S.cost||'',spd:S.spd||'',tech:S.tech,
     pdate:S.pdate||'',pmo:S.pmo||'',expired:String(S.expired),disc:S.disc||'',
+    contractStart:S.cstart||'',contractLength:S.clen||'',
+    startUnknown:String(!!S.cstartIdk),promoUnknown:String(!!S.pdateIdk),
     /* The "you'd switch for" tier buttons are gone from the form; the field
        stays in the payload so the backend contract doesn't change. */
     switchFor:'',
@@ -908,6 +1066,48 @@ $('#deep-send').addEventListener('click',async()=>{
   $('#deep-form').style.display='none';$('#ddone').classList.add('on');
   showThankYou('Your bills are in. We’ll do the deep read and email your results shortly.');});
 
+/* ---------- loading interstitial ----------
+   Covers the join round-trip. The progress bar is honest about being a
+   pace-keeper, not a measurement: it climbs to 91% on a clock and only
+   reaches 100 when the request has actually come back. A minimum display
+   time stops a fast response from flashing the card for 300ms. */
+const CALC_MIN_MS=matchMedia('(prefers-reduced-motion: reduce)').matches?600:2800;
+let calcT0=0,calcTimer=null;
+function showCalc(){
+  calcT0=performance.now();
+  const fsa=S.pc||null;
+  if(fsa){
+    $('#calc-pt2').innerHTML='<b>On Whollar, '+W.escapeHtml(fsa)+' pools into one cohort.</b> Providers bid for the whole block, and a block does not get quietly reset. One rate, no cheap half and expensive half.';
+    $('#calc-chip').style.display='';
+    $('#calc-chip').textContent=fsa+' cohort forming';
+    $('#calc-sub').textContent='The '+fsa+' cohort opens once the street hits critical mass.';
+    $('#calc-tick').innerHTML='T2P forming &nbsp;&middot;&nbsp; V6B forming &nbsp;&middot;&nbsp; '+W.escapeHtml(fsa)+' opens soon &nbsp;&middot;&nbsp; K1N cohort forming &nbsp;&middot;&nbsp; M4C forming';
+  }
+  $('#calc').classList.add('on');
+  document.body.style.overflow='hidden';
+  const fill=$('#calc-fill'),pct=$('#calc-pct');
+  let p=0;
+  clearInterval(calcTimer);
+  calcTimer=setInterval(()=>{
+    p=Math.min(91,p+(p<60?7:2));
+    fill.style.width=p+'%';pct.textContent=p+'%';
+  },160);
+}
+function hideCalc(){
+  return new Promise(res=>{
+    const wait=Math.max(0,CALC_MIN_MS-(performance.now()-calcT0));
+    setTimeout(()=>{
+      clearInterval(calcTimer);
+      $('#calc-fill').style.width='100%';$('#calc-pct').textContent='100%';
+      setTimeout(()=>{
+        $('#calc').classList.remove('on');
+        document.body.style.overflow='';
+        res();
+      },340);
+    },wait);
+  });
+}
+
 /* ---------- CTA ---------- */
 /* Bound to the form's submit event, so the button click AND the Enter key run
    the same code path. Before this there was no <form> at all and Enter did
@@ -938,13 +1138,16 @@ $('#checkup-form').addEventListener('submit',async e=>{
   S.email=em;S.joined=true;
   const btn=$('#check');clearErr(btn);
   if(busy(btn,true,'Checking…')===false)return;
+  showCalc();
   /* The lead is sent BEFORE the results render, so a user who bounces at the
      result screen is still captured. */
   try{joinRes=await submitForm('/bill-checkup-join',{email:em,via:'form',...leadPayload(),...W.consentPayload('checkup',true)},{billFile:($('#bill-file').files||[])[0]||null});}
   catch(err){joinErr=err;S.joined=false;} /* never hold the results hostage. Show them, surface the miss on the join card */
-  busy(btn,false);
   rememberBill();
-  renderResults();screen(2);
+  renderResults();
+  screen(2);           /* switches under the overlay, so nothing flashes */
+  await hideCalc();
+  busy(btn,false);
   if(joinErr)submitErr($('#j2-join'),joinErr,true);
   else if(S.joined){
     if(joinRes&&joinRes.fileRejected)noteFileRejected($('#join2'),joinRes.fileRejected,true);
@@ -980,6 +1183,10 @@ function rememberBill(){
     tech:S.tech||null,
     discount:S.disc||null,
     threshold:null,
+    /* New contract fields ride along; /me/bill ignores keys it doesn't know,
+       so older deployments of the function lose nothing. */
+    contractStart:S.cstart||null,
+    contractLength:S.clen||null,
     source:'bill-checkup',
     /* Local copies only: lets the dashboard's "from your checkup" line show a
        date before the server round-trips. /me/bill ignores unknown keys and
@@ -1057,12 +1264,52 @@ unknown:sc=>{
 }};
 
 function verdict(){return currentScore().state;}
+
+/* ---------- hero card ----------
+   The verdict states are unchanged (strong/fair/weak/cliff/unknown, scored in
+   whollar-core.js); what changed is the clothes they wear. Each state maps to
+   one of three card treatments — above the going rate, a rise is coming,
+   below/near the going rate — with a badge, a plain-language headline and the
+   three numbers that matter. The old STATES read copy stays as the body. */
+const HERO_BADGE={strong:'Below the going rate',fair:'Near the going rate',weak:'Above the going rate',cliff:'A rise is coming',unknown:'Not enough to score'};
+/* score() deliberately skips the benchmark for a cliff (the warning is
+   date-driven), but the card can still show the going rate when the inputs
+   support one — so look it up here and stay hidden when they don't. */
+function pageBench(sc){
+  if(sc&&sc.benchmark)return sc.benchmark;
+  return W.benchmarkFor({provinceCode:S.provinceCode,provider:S.prov,tech:S.tech,speed:S.spd});
+}
+function heroHead(k,sc){
+  const b=sc&&sc.benchmark;
+  if(k==='weak'&&b)return 'You pay '+money(Math.max(1,Math.round(effCost()-b.price)))+' a month above the going rate.';
+  if(k==='strong')return 'You pay less than '+W.escapeHtml(S.province||'your area')+' pays for the same service.';
+  if(k==='fair')return 'You pay about the going rate for what you get.';
+  if(k==='cliff'){
+    if(S.disc>0)return 'In '+monthName(S.pdate)+' your bill goes up about '+money(S.disc)+' a month.';
+    return 'In '+monthName(S.pdate)+' your promo ends and the price resets.';
+  }
+  return 'We need one more number to score this.';
+}
+/* The third stat is the projection over the term: the contract length when
+   given, 24 months otherwise. A cliff with a known discount splits the term
+   into promo months at today's price and the rest at the reset price. */
+function heroStats(k,sc){
+  const b=pageBench(sc);if(!b||!S.cost)return '';
+  const eff=effCost();const term=(+S.clen>0)?+S.clen:24;
+  let total=eff*term;
+  if(k==='cliff'&&S.disc>0){const left=Math.max(0,Math.min(S.pmo||0,term));total=eff*left+(eff+S.disc)*(term-left);}
+  return '<div class="hv-stats">'
+    +'<div><small>You pay now</small><b>'+money(eff)+'/mo</b></div>'
+    +'<div class="going"><small>Going rate here</small><b>'+money(b.price)+'/mo</b></div>'
+    +'<div><small>Over '+term+' months</small><b>'+money(Math.round(total))+'</b></div>'
+    +'</div>';
+}
 function setSig(k,sc){
   sc=sc||currentScore();
   const s=STATES[k](sc);
   const ctx=CTX(sc);
-  $('#sig').className='sig '+(s.cls||'');
-  $('#sig').innerHTML='<div class="sig__label">Your deal signal</div>'+s.bars+'<h3>'+s.h+'</h3><p class="read">'+s.read+'</p>'
+  $('#sig').className='sig '+(k==='unknown'?'neut':(s.cls||''));
+  $('#sig').innerHTML='<span class="hv-badge">'+HERO_BADGE[k]+'</span><h3>'+heroHead(k,sc)+'</h3>'+heroStats(k,sc)+'<p class="read">'+s.read+'</p>'
     +(ctx?'<p class="ctx">'+W.escapeHtml(ctx)+'</p>':'')
     /* Provenance: how many real advertised plans stand behind the number, and
        whether we had to widen the comparison to find them. */
@@ -1075,6 +1322,40 @@ function setSig(k,sc){
     +(S.joined?'<span class="joined">&#10003; You\u2019re on the '+W.escapeHtml(S.pc?S.pc+' ':'')+'waitlist</span>':'');
 }
 
+/* ---------- "what your area pays" bars ----------
+   One bar per provider group with a level-A benchmark row at the household's
+   province + technology + speed tier, with their own effective price on top.
+   Falls back to a single going-rate bar when the specific rows don't exist,
+   and hides entirely when there is no benchmark at all — a chart with one
+   invented bar would undo the honesty rules the scoring keeps. */
+const GROUP_LABEL={rogers:'Rogers',bell:'Bell',telus:'Telus',shaw:'Shaw',videotron:'Vidéotron',cogeco:'Cogeco',eastlink:'Eastlink',sasktel:'SaskTel',independent:'Independents'};
+function renderMarket(sc){
+  const el=$('#market');
+  const b=pageBench(sc);
+  if(!b||!S.cost){el.classList.remove('on');el.innerHTML='';return;}
+  const eff=effCost();
+  const tech=S.tech?(W.TECH_GROUPS||{})[S.tech]||null:null;
+  let rows=[];
+  if(S.provinceCode&&tech&&W.BENCHMARKS){
+    Object.keys(GROUP_LABEL).forEach(g=>{
+      const hit=W.BENCHMARKS[['A',S.provinceCode,g,tech,b.tier].join('|')];
+      if(hit&&hit[0]>0)rows.push({label:GROUP_LABEL[g],price:hit[0]});
+    });
+  }
+  rows.sort((x,y)=>y.price-x.price);
+  rows=rows.slice(0,4);
+  if(!rows.length)rows=[{label:'Going rate',price:b.price}];
+  const speed=speedLabel()||'your speed';
+  const t=techWord();
+  const max=Math.max(eff,...rows.map(r=>r.price));
+  const bar=(label,price,you)=>'<div class="brow"><small>'+W.escapeHtml(label)+'</small><div class="bar'+(you?' you':'')+'" style="width:'+Math.max(30,Math.round(price/max*100))+'%">'+money(price)+'</div></div>';
+  el.innerHTML='<h3>What '+W.escapeHtml(S.province||'Canada')+' pays for '+W.escapeHtml(speed)+(t?' on '+t:'')+'.</h3>'
+    +'<p class="sub">Advertised offers for the same tier'+(t?' and the same technology':'')+' in your area today. This is the individual price list: the best any one household can do by asking on its own.</p>'
+    +'<div class="rows">'+bar('You pay',eff,true)+rows.map(r=>bar(r.label,r.price,false)).join('')+'</div>'
+    +'<p class="note">Mean advertised prices from our Canadian pricing set'+(W.BENCH_META?' (updated '+W.BENCH_META.builtOn+')':'')+'. Advertised prices, not quotes.</p>';
+  el.classList.add('on');
+}
+
 /* ---------- recap ---------- */
 const RIC={pin:'<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',bld:'<rect x="4" y="3" width="12" height="18" rx="2"/><path d="M8 7h4M8 11h4M8 15h4M16 9h4v12h-4"/>',dol:'<circle cx="12" cy="12" r="9"/><path d="M12 7v10M15 9.5c0-1.4-1.3-2.5-3-2.5s-3 .9-3 2.2c0 3 6 1.6 6 4.6 0 1.3-1.3 2.2-3 2.2s-3-1.1-3-2.5"/>',gau:'<path d="M4 14a8 8 0 1 1 16 0"/><path d="M12 14l4-4"/><circle cx="12" cy="14" r="1.4"/>',plg:'<path d="M9 3v5M15 3v5M7 8h10v4a5 5 0 0 1-10 0V8Z"/><path d="M12 17v4"/>',cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>',tag:'<path d="M3 12V4h8l9 9-8 8-9-9Z"/><circle cx="7.5" cy="8.5" r="1.4"/>',clp:'<path d="M8 12l6.5-6.5a3.5 3.5 0 0 1 5 5L11 19a5.5 5.5 0 0 1-8-7.6L10.5 4"/>'};
 let rvI=0;
@@ -1084,9 +1365,11 @@ function rv(label,val,target,hot,ic){rvI++;return '<button class="rv'+(hot?' hot
 function renderResults(){
   const sc=currentScore();
   setSig(sc.state,sc);
+  renderMarket(sc);
   const sp=!S.spd?'Not given':(S.spd==='0'?'Not sure':(+S.spd>=1500?'1.5 Gig+':(+S.spd>=1000?'1 Gig':S.spd+' Mbps')));
   let promoVal='None / not sure',hot=false;
-  if(S.expired)promoVal='Expired '+monthName(S.pdate);
+  if(S.pdateIdk)promoVal='Not sure yet';
+  else if(S.expired)promoVal='Expired '+monthName(S.pdate);
   else if(S.pmo>0){promoVal='Ends '+monthName(S.pdate);hot=true;}
   rvI=0;
   /* money() everywhere: the grid used to mix money() ("$54.50") with raw
@@ -1098,6 +1381,8 @@ function renderResults(){
     rv('Speed',sp,'spd',false,'gau')+
     rv('Connection',S.tech?S.tech.split(' (')[0]:'Not given','tech',false,'plg')+
     rv('Promo',promoVal,'pdate',hot,'cal')+
+    rv('Contract start',S.cstartIdk?'Not sure yet':(S.cstart?monthName(S.cstart):'Not given'),'cstart',false,'cal')+
+    rv('Contract length',({'12':'12 months','24':'24 months','36':'36 months','0':'Month-to-month','-1':'Not sure'})[S.clen]||'Not given','clen',false,'tag')+
     (S.disc?rv('Discount',money(S.disc)+'/mo','disc',false,'tag'):'')+
     (S.file?rv('Bill attached','\u2713 '+S.file,'bill-file',false,'clp'):'');
   $$('#rgrid .rv').forEach(b=>b.addEventListener('click',()=>{screen(1);const el=document.getElementById(b.dataset.t);if(el)setTimeout(()=>el.focus(),350);}));
