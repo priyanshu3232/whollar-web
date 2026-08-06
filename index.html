@@ -6,6 +6,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="/js/device-router.js"></script>
+<!-- Benchmarks before core, as on /bill-checkup: core reads the tables at call
+     time but the estimator below needs them present on first paint. -->
+<script src="/js/whollar-benchmarks.js"></script>
 <script src="/js/whollar-core.js"></script>
 
 
@@ -339,8 +342,19 @@ img,svg{display:block}
 .whl-btn:hover{background:var(--teal-deep);transform:translateY(-1px)}
 .whl-btn--lg{font-size:16px;padding:15px 24px;border-radius:13px;box-shadow:0 14px 30px -14px rgba(14,42,32,.85)}
 .whl-btn--block{display:flex;width:100%}
-.whl-btn--outline{background:transparent;color:var(--teal);border:1.5px solid rgba(14,42,32,.18);box-shadow:none}
-.whl-btn--outline:hover{background:rgba(14,42,32,.05);border-color:rgba(14,42,32,.32)}
+/* "For providers" and "Log in" are plain text links in the header — only the
+   "Join the First Cohort" primary keeps a boxed button. */
+.whl-btn--outline{background:transparent;color:var(--teal);border:none;box-shadow:none;padding:13px 0}
+.whl-btn--outline:hover{background:transparent;color:var(--teal-deep);transform:none}
+.whl-btn--providers{background:none;color:#6E5623;border:none;box-shadow:none;padding:13px 0}
+.whl-btn--providers svg{transition:transform .18s var(--ease)}
+.whl-btn--providers:hover{background:none;color:#57431A;transform:none}
+.whl-btn--providers:hover svg{transform:translateX(3px)}
+.whl-btn--providers:focus-visible{outline:2px solid #D4B36A;outline-offset:3px}
+@media (prefers-reduced-motion:reduce){
+  .whl-btn--providers svg{transition:none}
+  .whl-btn--providers:hover svg{transform:none}
+}
 
 /* header */
 .whl-header{position:sticky;top:0;z-index:60;background:rgba(250,248,243,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid #e8ebe7;transition:box-shadow .2s}
@@ -353,7 +367,7 @@ img,svg{display:block}
 .whl-nav a{text-decoration:none;color:#54625B;font-weight:500;font-size:15px;transition:color .15s}
 .whl-nav a:hover{color:var(--teal)}
 .whl-header__cta{display:inline-flex}
-.whl-header__actions{display:flex;align-items:center;gap:12px}
+.whl-header__actions{display:flex;align-items:center;gap:20px}
 /* mobile hamburger */
 .whl-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:42px;height:42px;border:1px solid #e7ebe6;border-radius:11px;background:rgba(255,255,255,.6);cursor:pointer;padding:0 11px}
 .whl-burger span{display:block;height:2px;width:100%;background:#54625B;border-radius:2px;transition:transform .25s var(--ease),opacity .2s}
@@ -866,6 +880,13 @@ img,svg{display:block}
 .whl-est__calc-btn{margin-top:26px}
 .whl-est__result{max-height:0;opacity:0;overflow:hidden;transition:max-height .5s var(--ease),opacity .45s var(--ease)}
 .whl-est__result.is-shown{max-height:360px;opacity:1}
+/* The note under the card answers a different question before and after the
+   estimate runs: first "is this worth doing while I am locked in", then
+   "what does the detailed view add that this number does not". Driven by the
+   same is-shown class as the result block, which sits above both notes. */
+.whl-est__note--post{display:none}
+.whl-est__result.is-shown ~ .whl-est__note--pre{display:none}
+.whl-est__result.is-shown ~ .whl-est__note--post{display:block}
 .whl-est__out{background:var(--mist);border-radius:16px;padding:24px;margin-top:24px;text-align:center}
 .whl-est__out .pre{color:#0a4448;font-size:14.5px;font-weight:600}
 .whl-est__num{display:flex;align-items:baseline;gap:6px;justify-content:center;margin-top:6px}
@@ -1200,22 +1221,6 @@ img,svg{display:block}
   .whl-talk__in{grid-template-columns:1fr;gap:40px}
 }
 
-/* footer */
-.whl-footer{background:var(--navy-deep);color:#CFE8D6;padding:0 0 30px;border-top:1px solid rgba(255,255,255,.08)}
-.whl-footer .whl-wrap{padding-top:40px}
-.whl-footer__top{display:flex;flex-wrap:wrap;gap:28px;justify-content:space-between;align-items:flex-start;padding-bottom:30px;border-bottom:1px solid rgba(255,255,255,.12)}
-.whl-footer__brand{max-width:300px}
-.whl-footer__brand .row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-.whl-footer__brand .mk{width:30px;height:30px;border-radius:9px;flex:none;display:block}
-.whl-footer__brand .wm{font-family:var(--disp);font-weight:800;font-size:20px;color:#fff}
-.whl-footer__brand p{font-size:14px;line-height:1.5;color:#9fc1bf;margin:0}
-.whl-footer__cols{display:flex;gap:48px;flex-wrap:wrap}
-.whl-footer__col{display:flex;flex-direction:column;gap:11px}
-.whl-footer__col a{color:#CFE8D6;text-decoration:none;font-size:14.5px}
-.whl-footer__col a:hover{color:#fff}
-.whl-footer__bottom{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center;padding-top:22px}
-.whl-footer__bottom span{font-size:13px;color:#8FB39B}
-.whl-made{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:#CFE8D6;font-weight:600}
 
 /* reveal */
 .whl-reveal{opacity:0;transform:translateY(14px);transition:opacity .55s var(--ease),transform .22s var(--ease),box-shadow .2s var(--ease),border-color .2s var(--ease)}
@@ -1535,6 +1540,31 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
 </style>
 <script src="/js/lottie.min.js" defer=""></script>
 
+<!-- WHOLLAR-FOOTER-CSS:START (generated by scripts/build-footer.mjs) -->
+<style id="whl-footer-css">
+.whl-footer{margin:0;background:#0A2018;color:#CFE8D6;border-top:1px solid rgba(255,255,255,.08);padding:40px 0 calc(30px + env(safe-area-inset-bottom));font-family:Inter,'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14.5px;line-height:1.5;text-align:left}
+.whl-footer__wrap{max-width:1340px;margin:0 auto;padding:0 24px}
+.whl-footer__top{display:grid;grid-template-columns:1fr auto 1fr;gap:28px;align-items:start;padding-bottom:30px;border-bottom:1px solid rgba(255,255,255,.12)}
+.whl-footer__brand{max-width:300px}
+.whl-footer__row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.whl-footer__mk{width:30px;height:30px;border-radius:9px;flex:none;display:block}
+.whl-footer__wm{font-family:'Satoshi','Hanken Grotesk','Bricolage Grotesque',Inter,system-ui,sans-serif;font-weight:800;font-size:20px;letter-spacing:-.01em;color:#fff}
+.whl-footer__brand p{margin:0;font-size:14px;line-height:1.5;color:#9FC1BF;font-style:normal}
+.whl-footer__cols{display:flex;gap:96px;flex-wrap:wrap;margin:0 auto}
+.whl-footer__col{display:flex;flex-direction:column;gap:11px}
+.whl-footer__col a{color:#CFE8D6;text-decoration:none;font-size:14.5px;font-weight:400;border:0}
+.whl-footer__col a:hover{color:#fff}
+.whl-footer__col a[aria-current="page"]{color:#fff;font-weight:600}
+.whl-footer__bottom{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center;padding-top:22px}
+.whl-footer__bottom span{font-size:13px;color:#8FB39B}
+.whl-footer__made{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:#CFE8D6;font-weight:600}
+@media(max-width:880px){
+  .whl-footer__top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start}
+  .whl-footer__cols{gap:48px;margin:0}
+}
+@media(max-width:560px){.whl-footer__cols{gap:34px}}
+</style>
+<!-- WHOLLAR-FOOTER-CSS:END -->
 </head>
 <body>
 
@@ -1567,6 +1597,9 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
       <a href="/contact">Contact</a>
     </nav>
     <div class="whl-header__actions">
+      <a class="whl-btn whl-btn--providers" href="/partners">For providers
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+      </a>
       <a class="whl-btn whl-btn--outline" href="/whollar-login-consumer">Log in</a>
       <a class="whl-btn whl-header__cta" href="/waitlist/">Join the First Cohort</a>
     </div>
@@ -1580,6 +1613,9 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
     <a href="#faq" data-mobnav-link="">FAQ</a>
     <a href="/blog/" data-mobnav-link="">Resources</a>
     <a href="/contact" data-mobnav-link="">Contact</a>
+    <a class="whl-btn whl-btn--providers whl-btn--block" href="/partners" data-mobnav-link="">For providers
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+    </a>
     <a class="whl-btn whl-btn--outline whl-btn--block" href="/whollar-login-consumer" data-mobnav-link="">Log in</a>
     <a class="whl-btn whl-btn--block" href="/waitlist/" data-mobnav-link="">Join the First Cohort</a>
   </nav>
@@ -2027,7 +2063,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
         <div class="whl-range__ticks"><span>$40</span><span>$160</span></div>
         <label class="whl-est__lbl whl-est__postal-lbl" for="whl-postal"><span>Your postal code</span><input class="whl-est__postal" id="whl-postal" type="text" placeholder="M5V 3A8" maxlength="7" autocomplete="postal-code" data-postal="" aria-label="Your postal code"></label>
         <p class="whl-est__hint" data-postal-hint="">Enter your postal code to see your estimate</p>
-        <button class="whl-btn whl-btn--lg whl-btn--block whl-est__calc-btn" type="button" data-calc-btn="">Calculate my savings</button>
+        <button class="whl-btn whl-btn--lg whl-btn--block whl-est__calc-btn" type="button" data-calc-btn="">Estimate my savings</button>
         <div class="whl-est__result" data-est-result="">
           <div class="whl-est__out">
             <div class="pre">Households like yours typically save</div>
@@ -2035,7 +2071,8 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
           </div>
           <a class="whl-btn whl-btn--lg whl-btn--block" href="/bill-checkup" style="margin-top:18px">Click here to check detailed view</a>
         </div>
-        <p class="whl-est__note" style="font-size:13.5px;margin-top:12px">Under contract? No problem. We track your end date and time your cohort to your renewal.</p>
+        <p class="whl-est__note whl-est__note--pre" style="font-size:13.5px;margin-top:12px">Under contract? No problem. We track your end date and time your cohort to your renewal.</p>
+        <p class="whl-est__note whl-est__note--post" style="font-size:13.5px;margin-top:12px">The detailed view reads your actual bill and breaks down what you are paying for, so you get your own number instead of an average.</p>
       </div>
     </div>
   </div>
@@ -2044,7 +2081,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
 <!-- SECTION 4: BIG IDEA -->
   <section style="position:relative;z-index:1;padding:clamp(80px,11vh,140px) 0;background:linear-gradient(180deg,transparent,rgba(16,185,129,0.05),transparent);">
     <div style="width:100%;max-width:1080px;margin:0 auto;padding:0 clamp(24px,5vw,40px);text-align:center;">
-      <h2 class="whl-reveal" style="font-family:'Satoshi',sans-serif;font-weight:900;font-size:clamp(30px,4.6vw,54px);line-height:1.06;letter-spacing:-0.03em;color:var(--ink);margin:0 auto 56px;max-width:820px;text-wrap:balance;">One household has no leverage. Hundreds do.</h2>
+      <h2 class="whl-reveal" style="font-family:'Satoshi',sans-serif;font-weight:900;font-size:clamp(30px,4.6vw,54px);line-height:1.06;letter-spacing:-0.03em;color:var(--ink);margin:0 auto 56px;max-width:820px;text-wrap:balance;">One household has no leverage. <span style="color:var(--green)">Hundreds do.</span></h2>
       <div class="whl-reveal" style="display:grid;grid-template-columns:0.8fr auto 1.2fr;gap:clamp(20px,4vw,52px);align-items:center;background:#fff;border:1px solid rgba(14,42,32,0.07);border-radius:28px;padding:clamp(28px,5vw,52px);box-shadow:0 40px 90px -50px rgba(14,42,32,0.4);">
         <div style="text-align:center;">
           <div class="whl-home-lottie" autoplay="" loop="" style="width:160px;height:160px;display:inline-block;margin-bottom:-8px"></div>
@@ -2182,13 +2219,13 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
             <div class="how-fill"></div>
             <div class="how-node">1</div>
             <h3>Upload one bill</h3>
-            <p>Snap a photo or upload a PDF. We securely confirm your current plan, speed and renewal date. That's all we need.</p>
+            <p>Snap a photo or upload a PDF. We securely confirm your current plan, speed and renewal date.</p>
           </div>
           <div class="how-step how-reveal">
             <div class="how-fill"></div>
             <div class="how-node">2</div>
             <h3>Join your neighbourhood</h3>
-            <p>We group you with nearby households renewing around the same time. Providers compete to win the whole group at once.</p>
+            <p>We group you with nearby households renewing around the same time. Providers compete to win the whole group.</p>
           </div>
           <div class="how-step how-reveal">
             <div class="how-fill"></div>
@@ -2688,7 +2725,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
       <p style="font-size:18.5px;line-height:1.6;color:rgba(255,255,255,0.72);max-width:520px;margin:0 auto 36px;">Join the households putting an end to the loyalty tax. Check your bill in two minutes. You'll never negotiate alone again.</p>
       <div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:center;">
         <a href="/bill-checkup" class="whl-cta10-btn" style="display:inline-flex;align-items:center;gap:9px;background:#fff;color:var(--ink);font-size:16.5px;font-weight:600;padding:16px 30px;border-radius:13px;text-decoration:none;transition:transform .2s;">Check if I'm overpaying<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
-        <a href="/waitlist/" class="whl-cta10-ghost" style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.1);color:#fff;font-size:16.5px;font-weight:500;padding:16px 26px;border-radius:13px;text-decoration:none;border:1px solid rgba(255,255,255,0.18);transition:background .2s;">Join the waitlist</a>
+        <a href="/waitlist/" class="whl-cta10-ghost" style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.1);color:#fff;font-size:16.5px;font-weight:500;padding:16px 26px;border-radius:13px;text-decoration:none;border:1px solid rgba(255,255,255,0.18);transition:background .2s;">Join the cohort</a>
       </div>
       <div style="margin-top:26px;display:flex;flex-wrap:wrap;gap:20px;justify-content:center;color:rgba(255,255,255,0.62);font-size:13.5px;">
         <span>Private &amp; secure</span><span style="opacity:.4;">·</span><span>You always choose</span>
@@ -2702,7 +2739,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   <div class="whl-wrap whl-talk__in">
     <div class="whl-talk__copy">
       <h2>Need to talk?</h2>
-      <p>Our team is available to help. Email a real (and friendly) person. No phone trees, no scripts, no "press 1 for billing."</p>
+      <p>Our team is available to help. Email a real (and friendly) person.</p>
       <span class="whl-talk__label">For Sales, Service &amp; Support:</span>
       <a class="whl-talk__btn" href="/contact">
         Get in touch
@@ -2721,40 +2758,38 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
 </section>
 
 <!-- FOOTER -->
+<!-- WHOLLAR-FOOTER:START (generated by scripts/build-footer.mjs) -->
 <footer class="whl-footer">
-  <div class="whl-wrap">
+  <div class="whl-footer__wrap">
     <div class="whl-footer__top">
       <div class="whl-footer__brand">
-        <div class="row"><svg class="mk" width="30" height="30" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Whollar">
-          <defs>
-            <linearGradient id="whollarMarkFooter" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse">
-              <stop offset="0" stop-color="#0E2A20"></stop>
-              <stop offset="1" stop-color="#1E9E63"></stop>
-            </linearGradient>
-          </defs>
-          <rect x="6" y="6" width="108" height="108" rx="32" fill="url(#whollarMarkFooter)"></rect>
-          <g>
-            <path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"></path>
-            <circle cx="34" cy="42" r="11" fill="#FFFFFF"></circle>
-            <circle cx="86" cy="42" r="11" fill="#FFFFFF"></circle>
-            <circle cx="60" cy="80" r="11" fill="#FFFFFF"></circle>
-          </g>
-        </svg><span class="wm">Whollar</span></div>
-        <p style="width: 324px; height: 47px">Wholesale buying power that saves you dollars</p>
+        <div class="whl-footer__row"><svg class="whl-footer__mk" width="30" height="30" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Whollar"><defs><linearGradient id="whlFooterMark" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#whlFooterMark)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#FFFFFF"/><circle cx="86" cy="42" r="11" fill="#FFFFFF"/><circle cx="60" cy="80" r="11" fill="#FFFFFF"/></svg><span class="whl-footer__wm">Whollar</span></div>
+        <p>Wholesale buying power that saves you dollars</p>
       </div>
       <div class="whl-footer__cols">
-        <div class="whl-footer__col"><a href="#how">How it works</a><a href="#why">Why us</a><a href="#faq">FAQ</a></div>
-        <div class="whl-footer__col"><a href="/blog/">Resources</a><a href="/contact">Contact</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/disclosures">Disclosures</a><a href="#">For providers</a></div>
+        <div class="whl-footer__col">
+        <a href="#how">How it works</a>
+        <a href="#why">Why us</a>
+        <a href="#faq">FAQ</a>
+        <a href="/blog/">Resources</a>
+        <a href="/contact">Contact</a>
+        </div>
+        <div class="whl-footer__col">
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="/partners">For providers</a>
+        </div>
       </div>
     </div>
     <div class="whl-footer__bottom">
-      <span>© 2026 Whollar, now forming the first cohorts.</span>
-      <span class="whl-made">Made in Canada
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="#1E9E63" aria-hidden="true"><path d="M12 2l1.6 4.3 4.4-1.2-2 4 3.5 2.4-4 1.3.6 4.4-3.7-2.2L12 22l-.4-3.3-3.7 2.2.6-4.4-4-1.3L4 9.1l-2-4 4.4 1.2z"></path></svg>
+      <span>&copy; 2026 Whollar, now forming the first cohorts.</span>
+      <span class="whl-footer__made">Made in Canada
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="#1E9E63" aria-hidden="true"><path d="M12 2l1.6 4.3 4.4-1.2-2 4 3.5 2.4-4 1.3.6 4.4-3.7-2.2L12 22l-.4-3.3-3.7 2.2.6-4.4-4-1.3L4 9.1l-2-4 4.4 1.2z"/></svg>
       </span>
     </div>
   </div>
 </footer>
+<!-- WHOLLAR-FOOTER:END -->
 
 <script>
 (function(){
@@ -2817,15 +2852,43 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   var postalHint = document.querySelector('[data-postal-hint]');
   var calcBtn = document.querySelector('[data-calc-btn]');
   var estResult = document.querySelector('[data-est-result]');
-  var BMIN=40, BMAX=160, RATE=0.21;
-  /* RATE is a flat 21% of the annual bill. It is NOT derived from the postal
-     code, the province, or any benchmark dataset. None exists in this repo.
-     The postal code is collected because a cohort forms on it, not because it
-     changes this number, and the copy must not imply otherwise. The detailed
-     checkup at /bill-checkup is the only place a per-tier comparison happens. */
+  var savePre = estResult ? estResult.querySelector('.pre') : null;
+  var saveUnit = save ? save.parentNode.querySelector('span') : null;
+  var BMIN=40, BMAX=160;
+  /* The number is twelve months of the household's bill minus twelve months at
+     the bottom-decile advertised price for their province, which is why the
+     postal code is required before it will calculate. Both the decile figures
+     and the arithmetic live in whollar-core.js / whollar-benchmarks.js so this
+     page and /bill-checkup cannot drift apart. It is still an estimate against
+     a province-wide pool, not a like-for-like quote at the household's own
+     speed; the detailed checkup is where that comparison happens.
+
+     Replaces a flat 21% of the annual bill that ignored the postal code
+     entirely. */
+  var lastProvince = null;
   function paintTrack(v){ var pct=((v-BMIN)/(BMAX-BMIN))*100; bill.style.background='linear-gradient(90deg, var(--teal) '+pct+'%, #dfe7e2 '+pct+'%)'; }
-  function savedFor(v){ return Math.round((v*12*RATE)/10)*10; }
-  function updateSave(){ if(save && estResult && estResult.classList.contains('is-shown')) save.textContent='$'+savedFor(parseInt(bill.value,10)).toLocaleString('en-CA'); }
+  function estimateFor(v){ return window.WHOLLAR.estimateAnnualSavings(v, lastProvince); }
+  function savedFor(v){ var e=estimateFor(v); return e ? Math.round(e.saving/10)*10 : null; }
+  /* A bill at or under the local floor is a real answer, not an error, and
+     showing "$0 / year" under "typically save" would read as a bug. */
+  function renderEstimate(v, animate){
+    var est = estimateFor(v);
+    if(!est){ if(savePre) savePre.textContent='Enter your postal code for an estimate'; if(save) save.textContent=''; if(saveUnit) saveUnit.style.display='none'; return; }
+    if(est.atOrBelow){
+      if(savePre) savePre.textContent='You are already at or below the going rate near you';
+      if(save) save.textContent='';
+      if(saveUnit) saveUnit.style.display='none';
+      return;
+    }
+    if(savePre) savePre.textContent='Households like yours typically save';
+    if(saveUnit) saveUnit.style.display='';
+    var target = Math.round(est.saving/10)*10;
+    if(!animate){ save.textContent='$'+target.toLocaleString('en-CA'); return; }
+    var dur=700, t0=performance.now();
+    var step=function(now){ var p=Math.min(1,(now-t0)/dur); var e=1-Math.pow(1-p,3); save.textContent='$'+(Math.round(target*e/10)*10).toLocaleString('en-CA'); if(p<1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  }
+  function updateSave(){ if(save && estResult && estResult.classList.contains('is-shown')) renderEstimate(parseInt(bill.value,10), false); }
   function syncFromSlider(){ var v=parseInt(bill.value,10); if(billInput) billInput.value=v; paintTrack(v); updateSave(); }
   function syncFromInput(){ var v=parseInt(billInput.value.replace(/[^0-9]/g,''),10); if(isNaN(v)) return; v=Math.max(BMIN,Math.min(BMAX,v)); bill.value=v; paintTrack(v); updateSave(); }
   var fmtPostal = function(s){ return window.WHOLLAR.formatPostal(s); };
@@ -2844,6 +2907,14 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
       if(atEnd) try{ postal.setSelectionRange(postal.value.length, postal.value.length); }catch(e){}
       var p = window.WHOLLAR.parsePostal(postal.value);
       if(postal.classList.contains('is-err') && p && p.complete){ postal.classList.remove('is-err'); if(postalHint) postalHint.classList.remove('is-shown'); }
+      /* The province now decides the comparison price, and the Calculate button
+         removes itself after the first run. Without this, editing the postal
+         code afterwards would leave the old province's number on screen with no
+         way to refresh it. */
+      if(estResult && estResult.classList.contains('is-shown') && p && p.complete && p.provinceCode !== lastProvince){
+        lastProvince = p.provinceCode || null;
+        renderEstimate(parseInt(bill.value,10), false);
+      }
     });
   }
   if(calcBtn && estResult){
@@ -2857,14 +2928,17 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
         return;
       }
       if(postal) postal.classList.remove('is-err'); if(postalHint) postalHint.classList.remove('is-shown');
-      calcBtn.disabled=true; calcBtn.textContent='Calculating\u2026';
+      /* The province drives the comparison price, so it is captured before the
+         estimate is drawn and kept for later slider moves. */
+      lastProvince = parsed.provinceCode || null;
+      calcBtn.disabled=true; calcBtn.textContent='Estimating\u2026';
       setTimeout(function(){
         estResult.classList.add('is-shown');
+        var est=estimateFor(parseInt(bill.value,10));
         var target=savedFor(parseInt(bill.value,10));
-        try{ if(parsed){ fetch(window.WHOLLAR.API+'/calculator-estimate',{method:'POST',body:JSON.stringify({postal:parsed.full,fsa:parsed.fsa,province:parsed.province,provinceCode:parsed.provinceCode,monthlyBill:Number(bill.value),estimatedAnnualSavings:target,estimateBasis:'flat-rate-'+RATE})}).catch(function(){}); } }catch(e){}
+        try{ if(parsed){ fetch(window.WHOLLAR.API+'/calculator-estimate',{method:'POST',body:JSON.stringify({postal:parsed.full,fsa:parsed.fsa,province:parsed.province,provinceCode:parsed.provinceCode,monthlyBill:Number(bill.value),estimatedAnnualSavings:target,estimateBasis:est?('p10-'+est.scope+'-'+est.referenceMonthly):'no-reference'})}).catch(function(){}); } }catch(e){}
         var reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
-        if(reduce){ save.textContent='$'+target.toLocaleString('en-CA'); }
-        else { var dur=700, t0=performance.now(); var step=function(now){ var p=Math.min(1,(now-t0)/dur); var e=1-Math.pow(1-p,3); save.textContent='$'+(Math.round(target*e/10)*10).toLocaleString('en-CA'); if(p<1) requestAnimationFrame(step); }; requestAnimationFrame(step); }
+        renderEstimate(parseInt(bill.value,10), !reduce);
         calcBtn.style.display='none';
       }, 700);
     });

@@ -39,6 +39,9 @@ const CHECK = process.argv.includes('--check');
    before "/". Routes with no mobile counterpart (/terms, /privacy,
    /disclosures, /favicon.svg) are deliberately absent and pass through. */
 const ROUTE_MAP = [
+  ['/#how', '/MobileVersion/consumer-mobile#how'],
+  ['/#why', '/MobileVersion/consumer-mobile#why'],
+  ['/#faq', '/MobileVersion/consumer-mobile#faq'],
   ['/become-a-partner', '/MobileVersion/become-a-partner-mobile'],
   ['/bill-checkup', '/MobileVersion/bill-checkup-mobile'],
   ['/waitlist/', '/MobileVersion/join-the-first-cohort-mobile'],

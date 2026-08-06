@@ -37,6 +37,14 @@ jobs:
         with:
           node-version: 20
 
+      # Fails when any page's footer no longer matches the one definition in
+      # scripts/build-footer.mjs — i.e. someone hand-edited a footer instead of
+      # the generator, which is how /partners ended up shipping href="#" links.
+      # Runs before the mobile check: the two generated mobile pages inherit
+      # their footer from their desktop source.
+      - name: Footers are in sync across every page
+        run: node scripts/build-footer.mjs --check
+
       # Fails when a MobileVersion page no longer matches what its desktop
       # source + CSS overlay would generate — i.e. someone edited one side only.
       - name: Mobile pages are in sync with their desktop sources

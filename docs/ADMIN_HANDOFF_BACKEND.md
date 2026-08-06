@@ -39,13 +39,20 @@ Admin additions (`ADMIN_EMAILS`) should join `config.js` the same way.
   `GET /health/diagnostics` (schema verify + row counts) and
   `POST /dev/logout-everywhere`.
 - Member auth: `/otp/start`, `/otp/verify`, `/signup`, `/signup/verify`,
-  `/login`, `/password/forgot`, `/password/reset`, `/google/start`,
-  `/google/callback` (CSRF-exempt, single-use `oauth_state`). Google is the
-  only social provider — Apple was removed 2026-07-30.
+  `/login` + `/login/verify`, `/password/forgot`, `/password/reset`,
+  `/google/start`, `/google/callback` (CSRF-exempt, single-use `oauth_state`).
+  Google is the only social provider — Apple was removed 2026-07-30.
 - Partner auth: `/provider/signup` (creates org via
   `orgs.findOrCreateForDomain`, refuses free-mail domains),
-  `/provider/signup/verify`, `/provider/login` (unapproved partners still
-  get sessions, with `approved:false`), `GET /provider/me`.
+  `/provider/signup/verify`, `/provider/login` + `/provider/login/verify`
+  (unapproved partners still get sessions, with `approved:false`),
+  `GET /provider/me`.
+- **Password sign-in is two requests, always.** `/login` and `/provider/login`
+  check the password and email a code; the `*/login/verify` pair checks the
+  code and mints the session. Neither first step sets a cookie, and this
+  applies to every sign-in, not only the first after signup. The codes use
+  their own challenge purposes (`login_mfa`, `provider_login`) precisely so
+  they are not redeemable at `/otp/verify` or `/signup/verify`.
 - Member data: `GET/POST /me/bill` (one `member_bills` row per member,
   full replace; GET backfills from `BillCheckupSubmissions` leads).
 - Campaigns: `GET /campaigns`, `POST /campaigns/join|leave|notify` (member),

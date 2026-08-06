@@ -39,15 +39,26 @@ const ratelimit = require('../lib/ratelimit');
 const { canRevealCode } = require('./otp');
 
 const PURPOSE = 'signup';
+/**
+ * The second factor on a partner sign-in. Its own purpose rather than 'signup',
+ * so a code emailed to someone signing in cannot be replayed at
+ * `/provider/signup/verify` — which activates a pending account — and vice
+ * versa. See lib/challenges.js.
+ */
+const LOGIN_PURPOSE = 'provider_login';
 
 /**
  * Issue and send a code. Failures are swallowed and recorded, never surfaced —
  * `/provider/signup` must answer identically whether the provider is having a
  * bad day, or the timing becomes the oracle the response body refuses to be.
  */
-async function issueCode(req, cfg, email) {
-  const { code, ttlMinutes } = await challenges.start(req.catalyst, req, { email, purpose: PURPOSE });
-  const message = mailer.otpEmail({ code, purpose: 'signup', ttlMinutes });
+async function issueCode(req, cfg, email, purpose = PURPOSE) {
+  const { code, ttlMinutes } = await challenges.start(req.catalyst, req, { email, purpose });
+  // Wording follows what the code is for. A partner signing in must not be told
+  // to "finish creating your Whollar account".
+  const message = mailer.otpEmail({
+    code, purpose: purpose === PURPOSE ? 'signup' : 'login', ttlMinutes,
+  });
 
   let delivered = false;
   let sendError = null;
@@ -225,7 +236,12 @@ function mount(router, cfg) {
   }));
 
   /**
-   * Sign in.
+   * Sign in, step one: check the password, then email a code.
+   *
+   * No session is minted here. `/provider/login/verify` does that, on every
+   * sign-in rather than only the first — a partner console shows competitor
+   * pricing and cohort internals, so a leaked password must not be sufficient
+   * to open it.
    *
    * Every failure — unknown address, wrong password, unverified, disabled —
    * returns one message. A partner console is a higher-value target than a
@@ -271,6 +287,69 @@ function mount(router, cfg) {
     // response cannot mint a session, because the address was never proven.
     if (user.status !== 'active') throw deny('not_verified', user.user_id);
 
+    // Password proven; second factor sent. Nothing about the org — not its name,
+    // not its approval state — is in this response, because none of it has been
+    // earned yet.
+    const issued = await issueCode(req, cfg, email, LOGIN_PURPOSE);
+
+    audit.recordAsync(req.catalyst, req, {
+      type: 'provider.login.challenge', outcome: 'success', email, userId: user.user_id,
+      detail: {
+        delivered: issued.delivered,
+        transport: mailer.transportName(cfg),
+        send_error: issued.sendError,
+      },
+    });
+
+    const sent = { ok: true, mfaRequired: true, ttlMinutes: issued.ttlMinutes };
+    if (canRevealCode(cfg)) {
+      sent.dev = { note: 'No mail provider configured — code returned here instead.', code: issued.code };
+    }
+    res.status(200).json(sent);
+  }));
+
+  /**
+   * Sign in, step two: the emailed code, exchanged for the session.
+   *
+   * A `provider_login` challenge is only ever created by `/provider/login`,
+   * after the password passed. That is what makes it safe for this endpoint not
+   * to ask for the password again — the code is the second half of a credential
+   * already presented, not a credential of its own.
+   *
+   * The failure wording is the same single string the rest of this file uses.
+   * Somebody holding a code must not be able to learn that the account was
+   * suspended in the ninety seconds since they typed their password.
+   */
+  router.post('/provider/login/verify', wrap(async (req, res) => {
+    const body = req.body || {};
+    const email = users.normalizeEmail(body.email || '');
+    const code = String(body.code || '').trim();
+
+    if (!users.isEmail(email)) throw badRequest('Enter a valid work email address.');
+    if (!/^\d{6}$/.test(code)) throw badRequest('Enter the 6-digit code from your email.');
+
+    await ratelimit.enforce(req.catalyst, req, { key: 'provider.login.verify.ip', max: 30, windowSec: 3600 });
+
+    const refuse = (reason, userId) => {
+      audit.recordAsync(req.catalyst, req, {
+        type: 'provider.login.verify', outcome: 'failure', email, userId: userId || null,
+        detail: { reason },
+      });
+      return unauthorized('That code is incorrect or has expired. Request a new one.', {
+        logDetail: `provider login verify failed: ${reason}`,
+      });
+    };
+
+    const result = await challenges.verify(req.catalyst, req, {
+      email, code, purpose: LOGIN_PURPOSE,
+    });
+    if (!result.ok) throw refuse(result.reason);
+
+    const user = await users.findByEmail(req.catalyst, email);
+    if (!user) throw refuse('no_user_for_verified_code');
+    if (user.user_type !== 'provider') throw refuse('not_a_provider', user.user_id);
+    if (user.status !== 'active') throw refuse('account_not_active', user.user_id);
+
     const context = await orgs.contextFor(req.catalyst, user.user_id);
     await users.touchLastLogin(req.catalyst, user);
     await sessions.create(req.catalyst, req, res, {
@@ -279,7 +358,11 @@ function mount(router, cfg) {
 
     audit.recordAsync(req.catalyst, req, {
       type: 'provider.login', outcome: 'success', email, userId: user.user_id,
-      detail: { org_id: context && context.orgId, approval_status: context && context.approvalStatus },
+      detail: {
+        factor: 'password+code',
+        org_id: context && context.orgId,
+        approval_status: context && context.approvalStatus,
+      },
     });
 
     res.status(200).json({

@@ -5,6 +5,9 @@
 // strip Draft badge, stamp dates, add canonical), writes each to blog/<slug>/index.html,
 // then generates blog/index.html (Resources page), sitemap.xml and robots.txt.
 // All metadata on the Resources page is parsed out of each post's own markup.
+//
+// The footer emitted here is only a placeholder: scripts/build-footer.mjs owns
+// the real site footer and replaces it in place, so run that after this script.
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -222,9 +225,6 @@ const indexHtml = `<!DOCTYPE html>
   .tile .arr{display:inline-block;transition:transform .25s cubic-bezier(.22,.61,.36,1)}
   .tile:hover .arr{transform:translateX(4px)}
 
-  footer{margin-top:36px;border-top:1px solid var(--line);padding:26px 0 60px}
-  footer .in{max-width:1080px;margin:0 auto;padding:0 26px;font-family:'Space Mono';font-size:12px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
-  footer a{color:var(--accent)}
 
   @media(max-width:640px){.grid{grid-template-columns:1fr;padding-top:30px}.hero{padding-top:44px}}
 </style>
@@ -254,10 +254,22 @@ ${tiles}
   </section>
 </main>
 
-<footer>
+<footer class="whl-footer">
   <div class="in">
-    <span>© 2026 Whollar, now forming the first cohorts.</span>
-    <span><a href="/join">Join the first cohort</a> · <a href="/">whollar.ca</a></span>
+    <div class="whl-footer__top">
+      <div class="whl-footer__brand">
+        <div class="row"><svg class="mk" width="30" height="30" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Whollar"><defs><linearGradient id="whollarMarkFooter" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#whollarMarkFooter)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#FFFFFF"/><circle cx="86" cy="42" r="11" fill="#FFFFFF"/><circle cx="60" cy="80" r="11" fill="#FFFFFF"/></svg><span class="wm">Whollar</span></div>
+        <p>Wholesale buying power that saves you dollars</p>
+      </div>
+      <div class="whl-footer__cols">
+        <div class="whl-footer__col"><a href="/#how">How it works</a><a href="/#why">Why us</a><a href="/#faq">FAQ</a><a href="/blog/" aria-current="page">Resources</a><a href="/contact">Contact</a></div>
+        <div class="whl-footer__col"><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/partners">For providers</a></div>
+      </div>
+    </div>
+    <div class="whl-footer__bottom">
+      <span>&copy; 2026 Whollar, now forming the first cohorts.</span>
+      <span><a href="/join">Join the first cohort</a> &middot; <a href="/">whollar.ca</a></span>
+    </div>
   </div>
 </footer>
 

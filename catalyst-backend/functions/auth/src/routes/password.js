@@ -14,6 +14,13 @@
  * claiming one address in a race. Holding the signup in a side table until the
  * code is checked would move that race somewhere with no constraint to win it.
  *
+ * SIGNING IN IS ALSO TWO REQUESTS. `POST /login` checks the password and emails
+ * a code; `POST /login/verify` checks the code and mints the session. Every
+ * sign-in, not only the first — the password alone never opens the account, so
+ * one that leaks is not enough on its own. The two steps reuse the same
+ * challenge machinery as signup under their own purpose (`login_mfa`), for the
+ * reason set out in lib/challenges.js.
+ *
  * WHAT IS DELIBERATELY NOT HERE. No response anywhere tells the caller whether
  * an address already has an account. `/signup` answers identically either way
  * and the owner of the address is told by email instead — see
@@ -43,7 +50,13 @@ const { canRevealCode } = require('./otp');
  */
 async function issueCode(req, cfg, email, purpose) {
   const { code, ttlMinutes } = await challenges.start(req.catalyst, req, { email, purpose });
-  const message = mailer.otpEmail({ code, purpose: 'signup', ttlMinutes });
+  // The wording follows what the code is FOR, not the challenge purpose string.
+  // 'login_mfa' is a second factor on a sign-in, and an email telling someone to
+  // "finish creating your Whollar account" when they were signing into an
+  // account they have had for a year reads as though something is wrong.
+  const message = mailer.otpEmail({
+    code, purpose: purpose === 'signup' ? 'signup' : 'login', ttlMinutes,
+  });
 
   let delivered = false;
   let sendError = null;
@@ -271,7 +284,13 @@ function mount(router, cfg) {
   }));
 
   /**
-   * Sign in with the password.
+   * Step one of signing in: check the password, then email a code.
+   *
+   * THIS ROUTE NO LONGER MINTS A SESSION. A correct password gets you a code in
+   * your inbox and nothing else; `/login/verify` is what turns that code into a
+   * session. Every sign-in goes through both, not just the first one after
+   * signup — a password that leaks is then not enough to reach the account,
+   * which is the entire reason the second step exists.
    *
    * Every failure below — no such account, no password set, wrong password,
    * locked out — answers with one message. The distinctions are real and they
@@ -353,6 +372,83 @@ function mount(router, cfg) {
       throw wrong();
     }
 
+    // The password is proven. Deliberately no session, no cookie, and nothing
+    // in the response that a later step could be talked out of requiring: the
+    // only thing this hands back is "we emailed you".
+    const issued = await issueCode(req, cfg, email, 'login_mfa');
+
+    audit.recordAsync(req.catalyst, req, {
+      type: 'login.challenge', outcome: 'success', email, userId: user.user_id,
+      detail: {
+        rehashed: Boolean(check.rehashed),
+        delivered: issued.delivered,
+        transport: mailer.transportName(cfg),
+        send_error: issued.sendError,
+      },
+    });
+
+    const body = { ok: true, mfaRequired: true, ttlMinutes: issued.ttlMinutes };
+    if (canRevealCode(cfg)) {
+      body.dev = {
+        note: 'No mail provider configured — code returned here instead of being sent.',
+        code: issued.code,
+      };
+    }
+    res.status(200).json(body);
+  }));
+
+  /**
+   * Step two of signing in: the emailed code, exchanged for the session.
+   *
+   * The password is NOT re-sent here, and that is safe for exactly one reason:
+   * a `login_mfa` challenge is only ever created by `/login`, which reaches
+   * that line only after `credentials.check` passed. The code is therefore not
+   * a credential on its own — it is the second half of one that has already
+   * been presented. If any other route ever starts issuing `login_mfa`
+   * challenges, this endpoint becomes a passwordless login, so don't.
+   *
+   * Every failure answers with the wording a wrong code gets, including an
+   * account that stopped being active between the two requests. Someone holding
+   * a valid code should not be able to learn that the account was suspended.
+   */
+  router.post('/login/verify', wrap(async (req, res) => {
+    const email = users.normalizeEmail((req.body && req.body.email) || '');
+    const code = String((req.body && req.body.code) || '').trim();
+
+    if (!users.isEmail(email)) throw badRequest('Enter a valid email address.');
+    if (!/^\d{6}$/.test(code)) throw badRequest('Enter the 6-digit code from your email.');
+
+    await ratelimit.enforce(req.catalyst, req, {
+      key: 'login.verify.ip', max: 30, windowSec: 3600,
+    });
+
+    const result = await challenges.verify(req.catalyst, req, {
+      email, code, purpose: 'login_mfa',
+    });
+
+    if (!result.ok) {
+      audit.recordAsync(req.catalyst, req, {
+        type: 'login.verify', outcome: 'failure', email,
+        detail: { reason: result.reason, remaining: result.remaining },
+      });
+      throw unauthorized('That code is incorrect or has expired. Request a new one.', {
+        logDetail: `login verify failed: ${result.reason}`,
+      });
+    }
+
+    const user = await users.findByEmail(req.catalyst, email);
+
+    if (!user || user.status !== 'active') {
+      audit.recordAsync(req.catalyst, req, {
+        type: 'login.verify', outcome: 'failure', email,
+        userId: (user && user.user_id) || null,
+        detail: { reason: user ? 'account_not_active' : 'no_user', status: user && user.status },
+      });
+      throw unauthorized('That code is incorrect or has expired. Request a new one.', {
+        logDetail: user ? `account status ${user.status}` : 'verified login code had no user row',
+      });
+    }
+
     await users.touchLastLogin(req.catalyst, user);
     const session = await sessions.create(req.catalyst, req, res, {
       userId: user.user_id, userType: user.user_type,
@@ -360,7 +456,7 @@ function mount(router, cfg) {
 
     audit.recordAsync(req.catalyst, req, {
       type: 'login', outcome: 'success', email, userId: user.user_id,
-      detail: { rehashed: Boolean(check.rehashed) },
+      detail: { factor: 'password+code' },
     });
 
     res.status(200).json({

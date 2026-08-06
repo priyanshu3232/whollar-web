@@ -212,6 +212,11 @@
 
 .whl a{color:var(--accent);text-decoration:none}
 .whl a:hover{color:var(--teal)}
+/* An anchor styled as a button: `.whl a` is one specificity step above
+   `.whl-btn`, so without this the label is accent green on an accent green
+   fill, i.e. an invisible button. */
+.whl a.whl-btn{color:#fff}
+.whl a.whl-btn:hover{color:#fff}
 
 .wm-ov{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(10,32,24,.55);backdrop-filter:blur(6px);opacity:0;transition:opacity .3s var(--ease)}
 .wm-ov.on{display:flex;opacity:1}
