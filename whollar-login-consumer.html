@@ -660,14 +660,20 @@ function showDevCode(elId, group, dev) {
 
 /* ---------- shared finish ---------- */
 
-/* Every successful path ends here. adopt() re-reads the session from the server
-   rather than trusting what the verify response said, so the localStorage
-   record and the cookie can never disagree, and a null answer means the
+/* Every successful path ends here. The session is re-read from the server
+   rather than trusted from the verify response, so a null answer means the
    cookie did not stick, which is worth saying plainly instead of redirecting
-   into a dashboard that will bounce straight back. */
+   into a dashboard that will bounce straight back.
+
+   Deliberately session.read(), NOT adopt(): adopt() also reconciles the
+   member's bill (a /me/bill round trip whose first call scans the checkup
+   lead table server-side), all of which the dashboard's own boot repeats via
+   its adopt('member') gate. Doing it here too meant three or four sequential
+   round trips behind a frozen "Verifying…" button; the redirect must wait
+   only for proof the cookie stuck. */
 function finishSignIn(errId, btn) {
-  return W.session.adopt('member').then(function (rec) {
-    if (!rec) {
+  return W.session.read().then(function (s) {
+    if (!s.authenticated || !s.user || s.user.userType !== 'member') {
       W.busy(btn, false);
       setErr(errId, 'You’re signed in, but we couldn’t keep you signed in. Check that cookies are enabled and try again.');
       return;
