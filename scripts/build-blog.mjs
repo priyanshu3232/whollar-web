@@ -99,7 +99,7 @@ for (const [file, slug] of SLUGS) {
 
   // 4b. device-router include after the viewport meta — articles are mapped to
   // /MobileVersion/blog/<slug> counterparts, so phones must be routed off them.
-  const routerTag = '<script src="/js/device-router.js"></script>';
+  const routerTag = '<script src="/js/device-router.js?v=20260806"></script>';
   if (!html.includes(routerTag)) {
     const viewport = html.match(/<meta name="viewport"[^>]*>/);
     if (!viewport) fail(file, 'viewport meta not found');
@@ -165,7 +165,7 @@ const indexHtml = `<!DOCTYPE html>
 </script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="/js/device-router.js"></script>
+<script src="/js/device-router.js?v=20260806"></script>
 <title>Resources: plain-language reads on internet pricing in Canada · Whollar</title>
 <meta name="description" content="Ten plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
 <link rel="canonical" href="${DOMAIN}/blog/">
