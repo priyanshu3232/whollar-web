@@ -60,6 +60,24 @@ jobs:
       - name: Benchmarks match the pricing spreadsheet
         run: node scripts/build-benchmarks.mjs --check
 
+      # Fails when js/whollar-signal-lookup.js (the checkup's five-band card
+      # reference, FSA-level) no longer matches what the pricing spreadsheet +
+      # FSA-to-city map would produce.
+      - name: Signal lookup matches the pricing spreadsheet
+        run: node scripts/build-signal-lookup.mjs --check
+
+      # Pure-function unit tests for the band-selection thresholds and
+      # guardrails (js/whollar-core.js's W.selectBand). No DOM, no build step.
+      - name: Signal band engine unit tests
+        run: node --test scripts/test-select-band.mjs
+
+      # Pure-function unit tests for the contract schedule engine
+      # (W.buildSchedule / W.contractQuote): promo cliffs, elapsed vs
+      # remaining cycles, stacked promo rows, and the clamps that keep a
+      # below-market household from rendering a negative saving.
+      - name: Contract schedule engine unit tests
+        run: node --test scripts/test-contract-quote.mjs
+
       - name: Device router parses
         run: node --check js/device-router.js
 

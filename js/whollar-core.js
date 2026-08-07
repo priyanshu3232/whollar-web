@@ -336,56 +336,48 @@
     };
   };
 
-  /* Northern internet pricing bears no relation to the southern market
-     (satellite/microwave backhaul, no cable overbuild), and the dataset holds
-     only 138 territory rows. A territory household scored against a national
-     fallback is the least supportable comparison this engine can make, so it
-     is flagged rather than hidden. */
-  W.TERRITORIES = ['NU', 'NT', 'YT'];
-  W.isTerritory = function (provinceCode) {
-    return W.TERRITORIES.indexOf(provinceCode) > -1;
-  };
-
   /* ------------------------------------------------------------------ *
-   * Bottom-decile reference, for the homepage estimator
+   * Cheapest-plan-in-area reference, for the homepage estimator
    *
-   * The estimator asks for two things only: a monthly bill and a postal code.
-   * With no speed, tech or provider it cannot use benchmarkFor()'s keyed
-   * levels at all, so it compares against the mean of the province's cheapest
-   * advertised decile — W.P10_BY_PROVINCE, built by scripts/build-benchmarks.mjs.
+   * The estimator asks for two things only: a monthly bill and a postal
+   * code — no speed or tech, so it cannot use benchmarkFor()'s tier-keyed
+   * levels. It compares against the single cheapest advertised plan in the
+   * household's province (W.BASE_MIN_BY_PROVINCE, built by
+   * scripts/build-base-pricing.mjs from PlanSavvy-Pricing.xlsx) — the
+   * lowest a household in that area could actually pay, not an average.
+   * That makes the resulting number a MAXIMUM possible saving, not a
+   * typical one; the widget's own copy says so.
    *
-   * Falls back to the national pool when a province has none. NT, NU and YT are
-   * satellite-only in the sheet, and satellite is excluded from every
-   * tech-blind aggregate, so those three always take the fallback.
+   * Falls back to the national floor when a province has none (should not
+   * happen — PlanSavvy lists all thirteen — but a missing data file must
+   * not throw).
    * ------------------------------------------------------------------ */
-  W.p10For = function (provinceCode) {
-    /* Now answered from the PlanSavvy list too (mean of the province's twelve
-       cheapest advertised plans), so the homepage estimator and the checkup
-       score against the same sheet. Field names kept for callers. */
-    var byProv = W.BASE_BY_PROVINCE || null;
+  W.minBasePriceFor = function (provinceCode) {
+    var byProv = W.BASE_MIN_BY_PROVINCE || null;
     var hit = (byProv && provinceCode) ? byProv[provinceCode] : null;
     if (hit && hit[0] > 0) {
-      return { monthly: hit[0], decileRows: hit[1], poolRows: hit[1], scope: 'province', provinceCode: provinceCode };
+      return { monthly: hit[0], sample: hit[1], scope: 'province', provinceCode: provinceCode };
     }
-    var nat = W.BASE_NATIONAL || null;
+    var nat = W.BASE_MIN_NATIONAL || null;
     if (nat && nat[0] > 0) {
-      return { monthly: nat[0], decileRows: nat[1], poolRows: nat[1], scope: 'national', provinceCode: null };
+      return { monthly: nat[0], sample: nat[1], scope: 'national', provinceCode: null };
     }
     return null;
   };
 
-  /* Annual saving = twelve months of the household's bill, minus twelve months
-     at the province's bottom-decile price.
+  /* Annual saving = twelve months of the household's bill, minus twelve
+     months at the cheapest advertised plan in their province:
+     12 * (monthlyBill - minBasePriceFor(provinceCode).monthly).
 
      Returns null when no reference exists, so a caller shows nothing rather
      than a number it cannot support. `saving` is clamped at zero and
-     `atOrBelow` says why: a bill under the local floor is a real outcome (the
-     slider reaches $40 while NB's decile sits at $75), and it must not be
-     rendered as a negative saving. */
+     `atOrBelow` says why: a bill under the local floor is a real outcome,
+     and it must not be rendered as a negative saving. */
   W.estimateAnnualSavings = function (monthlyBill, provinceCode) {
     var bill = Number(monthlyBill);
     if (!isFinite(bill) || bill <= 0) return null;
-    var ref = W.p10For(provinceCode);
+
+    var ref = W.minBasePriceFor(provinceCode);
     if (!ref) return null;
 
     var annualBill = bill * 12;
@@ -399,151 +391,404 @@
       referenceMonthly: ref.monthly,
       scope: ref.scope,
       provinceCode: ref.provinceCode,
-      decileRows: ref.decileRows,
-      poolRows: ref.poolRows
+      sample: ref.sample
     };
   };
 
-  /* ------------------------------------------------------------------ *
-   * Base price (floor reference for the "you could save" projection)
+  /* ================================================================== *
+   * 5. SIGNAL BANDS (bill-checkup result card)
+   * ------------------------------------------------------------------
+   * Replaces the old weak/fair/strong/cliff verdict (W.score/effectiveCost/
+   * basePriceFor, retired 2026-08-07 — nothing but bill-checkup.html ever
+   * called them, confirmed by repo-wide grep before deleting). The lookup
+   * this scores against is js/whollar-signal-lookup.js (built from the full
+   * "Whollar Pricing Model.xlsx" sheet, FSA-level, median-based) via
+   * W.signalBaseFor() below — a different reference from W.benchmarkFor()/
+   * W.p10For() above, which are UNCHANGED and still power the homepage
+   * estimator.
    *
-   * Source: "PlanSavvy-Pricing.xlsx" (Internet Plans sheet — the dozen
-   * lowest-priced advertised plans per province), aggregated at build time
-   * into js/whollar-base-pricing.js by scripts/build-base-pricing.mjs.
-   *
-   * This is a SEPARATE reference from benchmarkFor(): benchmarkFor answers
-   * "what does the market typically charge for this exact tier/tech/
-   * provider" (what decides the weak/fair/strong verdict — unchanged).
-   * basePriceFor answers "what is the cheapest advertised floor in this
-   * household's area" — the number a cohort is actually bidding toward —
-   * and unlike benchmarkFor it is always available: a cliff verdict carries
-   * no benchmark at all (score() returns early on the date check, before any
-   * benchmark lookup), so it is what the savings projection uses instead.
-   *
-   * Cascade, most to least specific:
-   *   province + speed tier   → that province's plans at this tier
-   *   province                → every plan listed for that province
-   *   speed tier (national)   → this tier pooled across every province
-   *   national                → every plan in the sheet
-   * ------------------------------------------------------------------ */
-  W.basePriceFor = function (provinceCode, speedRaw) {
-    var byPT = W.BASE_BY_PROVINCE_TIER, byProv = W.BASE_BY_PROVINCE,
-      byTier = W.BASE_BY_TIER, nat = W.BASE_NATIONAL;
-    if (!byPT && !byProv && !byTier && !nat) return null;
+   * W.selectBand is a pure function: no DOM, no globals read besides its
+   * own arguments, integer cents in and out. Unit-tested in
+   * scripts/test-select-band.mjs.
+   * ================================================================== */
 
-    var tier = W.speedTier(speedRaw === '0' ? null : speedRaw);
-    var pv = provinceCode || null;
+  /* Threshold table (bandId, condition on deltaRatio = (userPriceCents -
+     basePriceCents) / basePriceCents):
+       1  ratio >= +0.15
+       2  +0.05 <= ratio <  +0.15
+       3  -0.05 <  ratio <  +0.05
+       4  -0.20 <  ratio <= -0.05
+       5  ratio <= -0.20
+     This partitions the number line with no gap and no overlap: every
+     boundary value belongs to exactly one band. NOTE: the spec this was
+     built from also said in prose "exactly -0.05 is band 3", which
+     contradicts its own table (where band 3 is -0.05 < ratio, open, and
+     band 4 is ratio <= -0.05, closed). Implemented per the table, since
+     it is the only one of the two that is internally consistent across
+     all five bands — flagging this rather than silently picking a side. */
+  W.selectBand = function (input) {
+    var opts = input || {};
+    var userPriceCents = Math.round(Number(opts.userPriceCents) || 0);
+    var basePriceCents = (opts.basePriceCents == null || opts.basePriceCents === '')
+      ? null : Math.round(Number(opts.basePriceCents));
+    var periodMonths = Number(opts.periodMonths) > 0 ? Number(opts.periodMonths) : 24;
+    var onPromo = opts.onPromo === true;
+    var promoEndDate = opts.promoEndDate || null;
+    /* Term-aware savings from W.contractQuote(), when the household gave
+       enough of a contract to build a schedule. periodMonths * today's delta
+       is the fallback, and it is wrong the moment a price change sits inside
+       the window — see the contract schedule engine's note above. Band
+       SELECTION is unaffected either way: the verdict is about the price
+       being paid today, not about the total. */
+    var scheduleSavingsCents = (opts.scheduleSavingsCents == null || opts.scheduleSavingsCents === '')
+      ? null : Math.round(Number(opts.scheduleSavingsCents));
+    if (!isFinite(scheduleSavingsCents)) scheduleSavingsCents = null;
 
-    if (pv && tier && byPT) {
-      var hitPT = byPT[pv + '|' + tier];
-      if (hitPT && hitPT[0] > 0) return { price: hitPT[0], sample: hitPT[1], level: 'province-tier', provinceCode: pv, tier: tier };
+    /* Guardrail 1: a lookup miss must never masquerade as a confident
+       verdict. Render band 3 with both the benchmark row and the savings
+       row suppressed rather than substituting any other reference. */
+    if (basePriceCents == null || !(basePriceCents > 0)) {
+      return {
+        bandId: 3, deltaRatio: null, deltaCents: null, savingsCents: 0,
+        showBenchmarkRow: false, showSavingsRow: false, showPromoDateRow: false
+      };
     }
-    if (pv && byProv) {
-      var hitP = byProv[pv];
-      if (hitP && hitP[0] > 0) return { price: hitP[0], sample: hitP[1], level: 'province', provinceCode: pv, tier: tier };
+
+    var deltaCents = userPriceCents - basePriceCents;
+    var deltaRatio = deltaCents / basePriceCents;
+
+    var bandId;
+    if (deltaRatio >= 0.15) bandId = 1;
+    else if (deltaRatio >= 0.05) bandId = 2;
+    else if (deltaRatio > -0.05) bandId = 3;
+    else if (deltaRatio > -0.20) bandId = 4;
+    else bandId = 5;
+
+    /* Guardrail 2: band 5 asserts promo pricing. Without confirmation, the
+       same ratio reads as band 4 at the household's actual (non-promo)
+       price instead. */
+    if (bandId === 5 && !onPromo) bandId = 4;
+    /* Guardrail 3: band 5's CTA and body both name a real date. */
+    if (bandId === 5 && !promoEndDate) bandId = 4;
+
+    var showPromoDateRow = bandId === 5;
+    /* savingsCents is never negative — the schedule figure arrives already
+       floored at zero (W.contractQuote's forward.savingsCents), and the
+       fallback floors the per-month gap before the multiply — so bands 3/4,
+       negative or near-zero ratios, compute to exactly 0 rather than merely
+       displaying as $0. */
+    var savingsCents = scheduleSavingsCents !== null
+      ? Math.max(0, scheduleSavingsCents)
+      : Math.round(periodMonths * Math.max(0, deltaCents));
+
+    return {
+      bandId: bandId,
+      deltaRatio: deltaRatio,
+      deltaCents: deltaCents,
+      savingsCents: showPromoDateRow ? null : savingsCents,
+      showBenchmarkRow: true,
+      showSavingsRow: !showPromoDateRow,
+      showPromoDateRow: showPromoDateRow
+    };
+  };
+
+  /* Cascade for the new FSA-level lookup: FSA → city → province, and within
+     each geography, the household's exact connection type before falling
+     back to every terrestrial type pooled together (js/whollar-signal-
+     lookup.js only ever emits a bucket once it has >=5 samples, so any key
+     present here already clears that bar — a miss just means "try the next,
+     coarser key").
+     input: { fsa, provinceCode, speedMbps, connectionType } (connectionType
+     is one of 'fibre'|'cable'|'dsl'|null; null skips straight to the
+     terrestrial-pooled key at each geography)
+     returns: { basePriceCents, sample, confidence } or null. */
+  W.signalBaseFor = function (input) {
+    var opts = input || {};
+    var byFsa = W.SIGNAL_BY_FSA, byCity = W.SIGNAL_BY_CITY, byProv = W.SIGNAL_BY_PROVINCE;
+    if (!byFsa && !byCity && !byProv) return null;
+
+    var tier = W.signalSpeedTier(opts.speedMbps);
+    if (!tier) return null;
+
+    var fsa = (opts.fsa || '').toUpperCase();
+    var loc = fsa && W.FSA_CITY ? W.FSA_CITY[fsa] : null;
+    var city = loc ? loc.city : null;
+    var pv = opts.provinceCode || (loc ? loc.province : null);
+    var type = opts.connectionType || null;
+
+    /* Must exactly mirror scripts/build-signal-lookup.mjs's normCity(): same
+       cleanup on both sides of the join, or a real match silently misses. */
+    var cityKey = city && pv
+      ? city.toLowerCase().trim().replace(/[.''’]/g, '').replace(/\s+\d+$/, '').replace(/\s+/g, ' ') + '|' + pv
+      : null;
+
+    var tries = [];
+    if (fsa) { if (type) tries.push(['fsa', byFsa, fsa + '|' + tier + '|' + type]); tries.push(['fsa', byFsa, fsa + '|' + tier + '|terrestrial']); }
+    if (cityKey) { if (type) tries.push(['city', byCity, cityKey + '|' + tier + '|' + type]); tries.push(['city', byCity, cityKey + '|' + tier + '|terrestrial']); }
+    if (pv) { if (type) tries.push(['province', byProv, pv + '|' + tier + '|' + type]); tries.push(['province', byProv, pv + '|' + tier + '|terrestrial']); }
+
+    for (var i = 0; i < tries.length; i++) {
+      var table = tries[i][1];
+      var hit = table ? table[tries[i][2]] : null;
+      if (hit && hit[0] > 0) {
+        return { basePriceCents: hit[0], sample: hit[1], confidence: tries[i][0] };
+      }
     }
-    if (tier && byTier) {
-      var hitT = byTier[String(tier)];
-      if (hitT && hitT[0] > 0) return { price: hitT[0], sample: hitT[1], level: 'tier', provinceCode: null, tier: tier };
-    }
-    if (nat && nat[0] > 0) return { price: nat[0], sample: nat[1], level: 'national', provinceCode: null, tier: tier };
     return null;
   };
 
-  /* ================================================================== *
-   * 5. SCORING
-   * ------------------------------------------------------------------
-   * Customer amount = the monthly charge before any promo, minus the promo
-   * discount. Compared against the benchmark price:
-   *
-   *   customer >  1.20 × benchmark   → weak
-   *   customer <  0.95 × benchmark   → strong
-   *   otherwise (inclusive both ends) → fair
-   *
-   * Both comparisons are STRICT, so a customer sitting exactly on 0.95× or
-   * exactly on 1.20× is "fair". That is deliberate: the band is defined as
-   * everything between the two lines, and the lines belong to it.
-   * ================================================================== */
-
-  W.STRONG_BELOW = 0.95;  /* strictly below this multiple of the benchmark */
-  W.WEAK_ABOVE = 1.20;    /* strictly above this multiple of the benchmark */
-  W.CLIFF_DAYS = 60;
-
-  /* Binary floating point cannot represent 0.95 exactly, so a customer sitting
-     precisely on the line computes as 0.949999999999999845 and would be graded
-     "strong" when the rule says "fair". That is not hypothetical: it happens
-     for 21 of the 184 distinct benchmark prices in the current dataset.
-     A tolerance of 1e-9 is ~1/10,000,000 of a cent on a $100 bill, far too
-     small to reclassify any real amount, and large enough to absorb the
-     representation error. */
-  var RATIO_EPSILON = 1e-9;
-
-  /* What the household actually pays today. Clamped at zero, and a discount
-     that meets or exceeds the charge is flagged as contradictory rather than
-     silently producing an effective cost of $0 (which used to score as a
-     "Strong deal: you pay $0/mo"). */
-  W.effectiveCost = function (input) {
-    var charge = Number(input.cost) || 0;
-    var disc = Number(input.discount) || 0;
-    if (input.promoExpired || disc <= 0) return { value: charge, contradictory: false };
-    if (disc >= charge) return { value: charge, contradictory: true };
-    return { value: charge - disc, contradictory: false };
+  /* Nearest-tier bucketing (not floor/ceiling): the tier with the smallest
+     absolute distance from the raw Mbps value wins. Ties (equidistant
+     between two tiers) resolve to the lower tier, matching Math.round's own
+     .5-rounds-up-toward-the-first-comparison behaviour is NOT what this
+     does — ties are decided explicitly below so the rule is legible
+     without working out floating-point argmin by hand. */
+  W.signalSpeedTier = function (mbps) {
+    var v = Number(mbps);
+    if (!isFinite(v) || v <= 0) return null;
+    var tiers = W.SIGNAL_META ? W.SIGNAL_META.speedTiers : null;
+    if (!tiers || !tiers.length) return null;
+    var best = tiers[0], bestDist = Math.abs(v - tiers[0]);
+    for (var i = 1; i < tiers.length; i++) {
+      var d = Math.abs(v - tiers[i]);
+      if (d < bestDist) { best = tiers[i]; bestDist = d; }
+    }
+    return best;
   };
 
-  /* input: { cost, discount, speed, tech, provider, promoEnd, promoExpired,
-              provinceCode }
-     returns: { state, ratio, benchmark, effective, days, reason, caveat }
-       state ∈ 'cliff' | 'strong' | 'fair' | 'weak' | 'unknown'
-       reason (only when 'unknown') ∈ 'no-cost' | 'no-speed' | 'no-benchmark'
-                                    | 'discount-exceeds-charge' */
-  W.score = function (input) {
-    var eff = W.effectiveCost(input);
-    var days = input.promoEnd ? W.daysUntil(input.promoEnd) : null;
+  /* ------------------------------------------------------------------ *
+   * Contract schedule engine
+   * ------------------------------------------------------------------
+   * The savings row used to be periodMonths * (today's price - benchmark).
+   * That is only right for a household whose price never changes, which is
+   * exactly the household this page does NOT exist for: a promo that ends in
+   * November means the next twelve bills are not twelve of the bill sitting
+   * on the table today.
+   *
+   * One model covers every case: a contract is a series of monthly BILLING
+   * CYCLES. Cycle k bills on (contractStart + k months), k = 0..term-1. Each
+   * cycle has the price actually paid that month; the benchmark is what the
+   * market charges for that speed in that area. Savings over any window =
+   * sum(paid - benchmark) across the cycles in it.
+   *
+   * Promo rules:
+   *  - Single promo: a cycle is promo-priced iff its bill date falls on or
+   *    before the promo end date. After that, the regular price applies.
+   *  - Stacked promos: the month-by-month rows ARE the schedule, consumed in
+   *    order from contract start; months they don't cover bill at the regular
+   *    price. When rows are present they override the single-promo fields.
+   *
+   * Field mapping from the checkup form (both in cents here):
+   *   regularPriceCents  = Q03 "Current price you pay" — the gross monthly
+   *                        charge, which is also the post-promo price
+   *   discountPriceCents = that charge minus Q09's discount — what is paid
+   *                        while the promo runs
+   * The form collects the discount as an amount off (so does the bill OCR);
+   * the conversion to a promo PRICE happens at the call site.
+   *
+   * The benchmark is passed in, never looked up here: W.signalBaseFor() is
+   * the one price reference and its cascade already decided the number.
+   * ------------------------------------------------------------------ */
 
-    /* Cliff is date-driven and does not need a benchmark, so it is checked
-       first: a household with an unknown speed can still be warned. */
-    if (days !== null && days >= 0 && days <= W.CLIFF_DAYS) {
-      return { state: 'cliff', ratio: null, benchmark: null, effective: eff.value, days: days, reason: null, caveat: null };
+  /* Typical Canadian ISP promo length, used only when a discount is stated
+     but its end date is not. Always reported back in flags.assumedPromoMonths
+     so the card can say the number rests on an assumption. */
+  W.ASSUMED_PROMO_MONTHS = 12;
+
+  /* Add n months, clamping the day: Jan 31 + 1mo is Feb 28, not Mar 3. */
+  W.addMonths = function (date, n) {
+    var day = date.getDate();
+    var d = new Date(date.getFullYear(), date.getMonth() + n, 1);
+    var lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(day, lastDay));
+    return d;
+  };
+
+  /* Accepts a Date, a 'YYYY-MM-DD' string (what <input type="date"> gives),
+     or null. Anchored to LOCAL midnight — see W.parseDateLocal's note. */
+  function asDate(v) {
+    if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+    return W.parseDateLocal(v);
+  }
+
+  /* input: { termMonths, regularPriceCents, discountPriceCents?,
+              contractStart?, promoEnd?, periods?: [{priceCents, months}],
+              today? }
+     returns { term, anchor, elapsed, prices (cents, one per cycle), flags } */
+  W.buildSchedule = function (input) {
+    var opts = input || {};
+    var term = Math.max(1, Math.round(Number(opts.termMonths) || 0));
+    /* A blank field is "not given", not zero: Number('') is 0, so without
+       this an empty monthly charge would schedule a free contract and every
+       downstream figure would be a confident lie. A real numeric 0 is still
+       allowed through. */
+    var raw = opts.regularPriceCents;
+    if (raw === null || raw === undefined || raw === '') return null;
+    var regular = Math.round(Number(raw));
+    if (!isFinite(regular) || regular < 0) return null;
+
+    var flags = { assumedStart: false, assumedPromoMonths: null };
+    var anchor = asDate(opts.contractStart);
+    if (!anchor) {
+      anchor = asDate(opts.today) || new Date();
+      anchor.setHours(0, 0, 0, 0);
+      flags.assumedStart = true;
     }
 
-    if (!(Number(input.cost) > 0)) {
-      return { state: 'unknown', ratio: null, benchmark: null, effective: null, days: days, reason: 'no-cost', caveat: null };
-    }
-    if (eff.contradictory) {
-      return { state: 'unknown', ratio: null, benchmark: null, effective: eff.value, days: days, reason: 'discount-exceeds-charge', caveat: null };
-    }
-    if (input.speed == null || input.speed === '' || input.speed === '0') {
-      return { state: 'unknown', ratio: null, benchmark: null, effective: eff.value, days: days, reason: 'no-speed', caveat: null };
+    /* Cycles already billed: bill date on or before today. If the start date
+       had to be assumed, nothing counts as elapsed — every figure is then a
+       forward projection, which is the only claim the data supports. */
+    var today = asDate(opts.today) || new Date();
+    today.setHours(0, 0, 0, 0);
+    var elapsed = 0;
+    if (!flags.assumedStart) {
+      for (var e = 0; e < term; e++) {
+        if (W.addMonths(anchor, e) <= today) elapsed++;
+        else break;
+      }
     }
 
-    var bench = W.benchmarkFor({
-      provinceCode: input.provinceCode,
-      provider: input.provider,
-      tech: input.tech,
-      speed: input.speed
+    /* Stacked promos: the rows win over the single-promo fields. */
+    var rows = (opts.periods || []).map(function (p) {
+      return {
+        priceCents: Math.round(Number(p.priceCents)),
+        months: Math.floor(Number(p.months) || 0)
+      };
+    }).filter(function (p) {
+      return p.months > 0 && isFinite(p.priceCents) && p.priceCents >= 0;
     });
-    if (!bench || !(bench.price > 0)) {
-      return { state: 'unknown', ratio: null, benchmark: null, effective: eff.value, days: days, reason: 'no-benchmark', caveat: null };
+
+    var prices = [], k;
+    if (rows.length) {
+      for (var i = 0; i < rows.length; i++) {
+        for (var j = 0; j < rows[i].months && prices.length < term; j++) {
+          prices.push(rows[i].priceCents);
+        }
+      }
+      while (prices.length < term) prices.push(regular);
+    } else {
+      var dRaw = opts.discountPriceCents;
+      var hasDiscount = dRaw !== null && dRaw !== undefined && dRaw !== '' && isFinite(Number(dRaw));
+      var discount = hasDiscount ? Math.round(Number(dRaw)) : null;
+      var promoEnd = asDate(opts.promoEnd);
+
+      var promoCycles = 0;
+      if (discount !== null) {
+        if (promoEnd) {
+          for (k = 0; k < term; k++) {
+            if (W.addMonths(anchor, k) <= promoEnd) promoCycles++;
+            else break;
+          }
+        } else {
+          /* No end date, but a discount IS on the bill. Anchoring the assumed
+             twelve months at the contract start would put the promo in the
+             past for anyone more than a year in, and then the schedule would
+             price today's cycle at the full rate while the card's own "you
+             pay now" row shows the discounted one — the same household told
+             two different things on one card. So the assumed window runs
+             twelve months FORWARD from the cycle they are in now.
+
+             That also errs the safe way. Assuming the promo ends sooner
+             raises the projected gap against the market, i.e. promises more
+             saving; assuming it runs on lowers it. When the household has
+             told us they don't know, the number that under-promises is the
+             only one worth showing. flags.assumedPromoMonths carries it to
+             the card, which says so in as many words. */
+          promoCycles = Math.min(elapsed + W.ASSUMED_PROMO_MONTHS, term);
+          flags.assumedPromoMonths = W.ASSUMED_PROMO_MONTHS;
+        }
+      }
+      for (k = 0; k < term; k++) prices.push(k < promoCycles ? discount : regular);
     }
 
-    /* Strictly outside the band, per the rule above: landing exactly on a
-       line is "fair". The epsilon keeps that true in floating point. */
-    var r = eff.value / bench.price;
-    var state = r > W.WEAK_ABOVE + RATIO_EPSILON ? 'weak'
-      : (r < W.STRONG_BELOW - RATIO_EPSILON ? 'strong' : 'fair');
+    return { term: term, anchor: anchor, elapsed: elapsed, prices: prices, flags: flags };
+  };
 
-    /* Flags for comparisons that are materially weaker than the verdict looks,
-       so the UI can qualify rather than state flat. */
-    var caveat = null;
-    /* The PlanSavvy sheet carries real NT/NU/YT rows, so a province-level hit
-       for a territory is a genuine northern comparison; only the national
-       fallback still deserves the flag. */
-    if (W.isTerritory(input.provinceCode) && bench.scope !== 'province') caveat = 'territory';
-    else if (bench.sample < 3) caveat = 'thin-sample';
+  /* Everything buildSchedule takes, plus:
+       basePriceCents   the benchmark from W.signalBaseFor(), or null
+       horizonMonths    how many UNBILLED cycles the forward figure covers;
+                        defaults to (and is capped at) the whole remainder
+
+     returns null when there is nothing to schedule. Otherwise:
+       months   { term, elapsed, remaining, horizon }
+       nowCents price of the cycle the household is in today
+       schedule per-cycle rows, for anyone who wants to show the ladder
+       toDate / forward / total   { payCents, atMarketCents, differenceCents }
+                                  null when there is no benchmark
+       flags    assumedStart, assumedPromoMonths, atOrBelowMarket,
+                noBenchmark, priceChangesInHorizon
+
+     forward.differenceCents is the honest signed number. The card shows
+     forward.savingsCents, which is that floored at zero: a household paying
+     under the local median is a real outcome and must never render as a
+     negative saving. flags.atOrBelowMarket says which case it is. */
+  W.contractQuote = function (input) {
+    var opts = input || {};
+    var built = W.buildSchedule(opts);
+    if (!built) return null;
+
+    var term = built.term, prices = built.prices, anchor = built.anchor;
+    var elapsed = built.elapsed, remaining = term - elapsed;
+    var k;
+
+    var horizon = remaining;
+    if (opts.horizonMonths != null && Number(opts.horizonMonths) >= 0) {
+      horizon = Math.min(remaining, Math.round(Number(opts.horizonMonths)));
+    }
+
+    var base = (opts.basePriceCents == null || opts.basePriceCents === '')
+      ? null : Math.round(Number(opts.basePriceCents));
+    if (!(base > 0)) base = null;
+
+    var sum = function (a) {
+      return a.reduce(function (x, y) { return x + y; }, 0);
+    };
+    var window_ = function (payCents, months) {
+      if (base === null) return null;
+      return {
+        payCents: payCents,
+        atMarketCents: base * months,
+        differenceCents: payCents - base * months
+      };
+    };
+
+    var forwardPrices = prices.slice(elapsed, elapsed + horizon);
+    var forward = window_(sum(forwardPrices), horizon);
+    if (forward) forward.savingsCents = Math.max(0, forward.differenceCents);
+
+    /* The cycle being lived through right now: the last one billed, or the
+       first one if none has billed yet. */
+    var nowCents = prices[Math.min(term - 1, Math.max(0, elapsed - 1))];
+    if (elapsed === 0) nowCents = prices[0];
+
+    var changes = false;
+    for (k = 1; k < forwardPrices.length; k++) {
+      if (forwardPrices[k] !== forwardPrices[k - 1]) { changes = true; break; }
+    }
 
     return {
-      state: state, ratio: r, benchmark: bench, effective: eff.value,
-      days: days, reason: null, caveat: caveat
+      months: { term: term, elapsed: elapsed, remaining: remaining, horizon: horizon },
+      nowCents: nowCents,
+      schedule: prices.map(function (price, idx) {
+        return {
+          cycle: idx + 1,
+          billDate: W.addMonths(anchor, idx),
+          payCents: price,
+          marketCents: base,
+          deltaCents: base === null ? null : price - base,
+          billed: idx < elapsed
+        };
+      }),
+      toDate: window_(sum(prices.slice(0, elapsed)), elapsed),
+      forward: forward,
+      total: window_(sum(prices), term),
+      flags: {
+        assumedStart: built.flags.assumedStart,
+        assumedPromoMonths: built.flags.assumedPromoMonths,
+        noBenchmark: base === null,
+        atOrBelowMarket: !!(forward && forward.differenceCents <= 0),
+        priceChangesInHorizon: changes
+      }
     };
   };
 

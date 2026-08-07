@@ -18,6 +18,10 @@
  *   speedTier (national)    BASE_BY_TIER["<tier>"]
  *   national                BASE_NATIONAL
  * Values are [meanMonthlyPrice, sampleSize].
+ *
+ * BASE_MIN_BY_PROVINCE / BASE_MIN_NATIONAL are a separate, speed-blind pair:
+ * the single CHEAPEST advertised plan (not a mean) per province / overall.
+ * Values are [minMonthlyPrice, sampleSize].
  */
 (function (root) {
   'use strict';
@@ -34,4 +38,6 @@
   W.BASE_BY_PROVINCE = {"AB":[50.89,12],"BC":[48.48,12],"MB":[50.48,12],"NB":[54.8,12],"NL":[52.31,12],"NS":[52.31,12],"NT":[118.32,12],"NU":[118.32,12],"ON":[42.97,12],"PE":[52.31,12],"QC":[42.81,12],"SK":[51.31,12],"YT":[118.32,12]};
   W.BASE_BY_TIER = {"25":[41.92,38],"50":[64.28,36],"100":[56.79,47],"150":[89.58,12],"300":[199.95,3],"500":[88.33,9],"1000":[108.86,11]};
   W.BASE_NATIONAL = [65.66,156];
+  W.BASE_MIN_BY_PROVINCE = {"AB":[32.95,12],"BC":[32.95,12],"MB":[32.95,12],"NB":[32.95,12],"NL":[32.95,12],"NS":[32.95,12],"NT":[50,12],"NU":[50,12],"ON":[32.95,12],"PE":[32.95,12],"QC":[32.95,12],"SK":[32.95,12],"YT":[50,12]};
+  W.BASE_MIN_NATIONAL = [32.95,156];
 })(typeof window !== 'undefined' ? window : globalThis);

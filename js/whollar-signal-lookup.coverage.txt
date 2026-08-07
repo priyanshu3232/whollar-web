@@ -1,0 +1,40 @@
+Whollar signal lookup coverage report
+Built: 2026-08-07
+Source: "Whollar Pricing Model.xlsx" (Internet Pricing sheet)
+
+Source rows: 6803
+Used after price/speed/province/satellite filtering: 5452
+Dropped: 144 null/zero price, 286 bad speed or unrecognised connection type, 912 satellite, 0 unrecognised province
+Trimmed as above the 99th percentile for their (speedTier, connectionType) bucket: 9
+
+FSAs known (js/whollar-fsa-cities.js): 1652
+FSAs with at least one usable (speedTier, connectionType) bucket: 82 (5.0%)
+FSAs with NO usable bucket at any tier (province-level fallback only): 1570
+
+Per speed tier, bucket counts (a bucket = one geography x connectionType-or-terrestrial combination that cleared the 5-sample minimum):
+      25 Mbps: 61 city buckets, 13 province buckets
+      50 Mbps: 0 city buckets, 15 province buckets
+      75 Mbps: 0 city buckets, 10 province buckets
+     100 Mbps: 22 city buckets, 17 province buckets
+     150 Mbps: 0 city buckets, 15 province buckets
+     300 Mbps: 0 city buckets, 20 province buckets
+     500 Mbps: 0 city buckets, 20 province buckets
+     750 Mbps: 0 city buckets, 2 province buckets
+    1000 Mbps: 0 city buckets, 22 province buckets
+    1500 Mbps: 0 city buckets, 21 province buckets
+    3000 Mbps: 0 city buckets, 14 province buckets
+    8000 Mbps: 0 city buckets, 4 province buckets
+
+Caveats:
+- FSA-level and city-level numbers are the same underlying figure (see the
+  build script's header comment) — this sheet has no data finer than city.
+  Expect signalBaseFor()'s confidence field to report 'fsa' or 'province' in
+  practice, not 'city'.
+- City-name matching between this sheet and js/whollar-fsa-cities.js is a
+  normalized string match (case, punctuation, a numeric suffix this sheet
+  uses for duplicate names). A city whose sheet spelling doesn't normalize-
+  match any GeoNames place name resolves zero FSAs and falls through to
+  province for every postal code in it.
+- If a large share of FSAs only resolve at province level, that is a signal
+  to narrow launch geography to well-covered FSAs, not to lower the sample
+  threshold below 5.

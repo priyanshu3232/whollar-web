@@ -18,9 +18,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="/js/device-router.js?v=20260806a"></script>
-<script src="/js/whollar-benchmarks.js?v=20260806"></script>
-<script src="/js/whollar-base-pricing.js?v=20260807"></script>
-<script src="/js/whollar-core.js?v=20260807b"></script>
+<script src="/js/whollar-fsa-cities.js?v=20260807"></script>
+<script src="/js/whollar-signal-lookup.js?v=20260807"></script>
+<script src="/js/whollar-core.js?v=20260808a"></script>
 <title>Check if you’re overpaying for internet · Whollar</title>
 <meta name="description" content="Enter your internet bill and speed to see how your price compares to the national advertised range for your tier, and when your promo discount ends.">
 <link rel="canonical" href="https://www.whollar.ca/bill-checkup">
@@ -89,8 +89,8 @@ button{font-family:var(--body)}
 
 .hero{padding:clamp(38px,5.5vw,56px) 0 0}
 .wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}
-.hero h1{font-weight:900;font-size:clamp(31px,4.8vw,52px);line-height:1.05;max-width:760px;text-wrap:balance}
-.hero .sub{margin-top:14px;font-size:clamp(15.5px,1.5vw,18px);line-height:1.6;color:var(--ink-2);max-width:640px}
+.hero h1{font-weight:900;font-size:clamp(27px,3.6vw,40px);line-height:1.08;max-width:760px;text-wrap:balance}
+.hero .sub{margin-top:12px;font-size:clamp(14.5px,1.3vw,16px);line-height:1.6;color:var(--ink-2);max-width:620px}
 .hero .sub b{color:var(--teal)}
 @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
@@ -102,14 +102,14 @@ body[data-screen="2"] .only1{display:none!important}
 .screen-in{animation:rise .4s var(--ease)}
 
 /* ===== form card ===== */
-.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--rf);box-shadow:var(--sh-2);padding:clamp(22px,3vw,30px) clamp(22px,3.2vw,34px) clamp(20px,2.6vw,26px)}
-.card h2{font-size:clamp(21px,2.4vw,25px);font-weight:900}
-.card .lede{color:var(--ink-2);font-size:14.5px;line-height:1.6;margin-top:6px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:20px;box-shadow:var(--sh-2);padding:clamp(18px,2.4vw,24px) clamp(18px,2.6vw,28px) clamp(16px,2.2vw,22px)}
+.card h2{font-size:clamp(19px,2.1vw,22px);font-weight:900}
+.card .lede{color:var(--ink-2);font-size:13.5px;line-height:1.6;margin-top:5px}
 
-.upload{position:relative;display:flex;align-items:center;gap:14px;border:1.5px dashed #cbd6d0;border-radius:16px;padding:14px 16px;margin-top:20px;background:var(--cream);flex-wrap:wrap;cursor:pointer;overflow:hidden;transition:border-color .2s var(--ease),background .2s var(--ease),box-shadow .2s var(--ease),transform .2s var(--ease)}
+.upload{position:relative;display:flex;align-items:center;gap:12px;border:1.5px dashed #cbd6d0;border-radius:14px;padding:11px 14px;margin-top:16px;background:var(--cream);flex-wrap:wrap;cursor:pointer;overflow:hidden;transition:border-color .2s var(--ease),background .2s var(--ease),box-shadow .2s var(--ease),transform .2s var(--ease)}
 .upload:hover{border-color:var(--accent);background:#fff;box-shadow:var(--sh-1);transform:translateY(-1px)}
 .upload.drag{border-color:var(--accent);border-style:solid;background:var(--green-tint);box-shadow:var(--sh-2);transform:scale(1.006)}
-.upload__icon{flex:none;width:42px;height:42px;border-radius:12px;background:var(--green-tint);display:grid;place-items:center;transition:background .2s var(--ease),transform .2s var(--ease)}
+.upload__icon{flex:none;width:36px;height:36px;border-radius:11px;background:var(--green-tint);display:grid;place-items:center;transition:background .2s var(--ease),transform .2s var(--ease)}
 .upload:hover .upload__icon{transform:translateY(-1px)}
 .upload.drag .upload__icon{background:#fff}
 .upload__icon svg{width:19px;height:19px;stroke:var(--teal-bright);stroke-width:2.1;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:none}
@@ -133,38 +133,38 @@ body[data-screen="2"] .only1{display:none!important}
 .filechip__x:hover{background:#fff;color:var(--warn-text)}
 .filechip__x svg{width:13px;height:13px;stroke:currentColor;stroke-width:2.3;fill:none;stroke-linecap:round;stroke-linejoin:round}
 
-.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px;margin-top:22px;align-items:stretch}
-.f.q{background:var(--paper);border:1px solid var(--line);border-radius:var(--rf);box-shadow:var(--sh-1);padding:16px 20px 15px;gap:10px}
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px 14px;margin-top:18px;align-items:stretch}
+.f.q{background:var(--paper);border:1px solid var(--line);border-radius:15px;box-shadow:var(--sh-1);padding:12px 15px 12px;gap:8px}
 .f.q.full{grid-column:1 / -1}
-.qhead{display:flex;align-items:center;gap:10px;min-height:28px;flex-wrap:wrap}
-.qno{flex:none;font-family:var(--label);font-weight:700;font-size:11px;letter-spacing:.08em;color:var(--ink-3);background:var(--mist);border-radius:8px;padding:4px 7px}
+.qhead{display:flex;align-items:center;gap:8px;min-height:24px;flex-wrap:wrap}
+.qno{flex:none;font-family:var(--label);font-weight:700;font-size:10px;letter-spacing:.08em;color:var(--ink-3);background:var(--mist);border-radius:7px;padding:3px 6px}
 /* min-width:0 lets a long label (e.g. "How it reaches your house") wrap its
    OWN text within the row instead of flex-wrap bumping the whole label onto
    an empty second line under the qno badge. */
-.f.q label{font-family:var(--disp);font-weight:800;font-size:16.5px;color:var(--ink);letter-spacing:-.01em;flex:1;min-width:0}
-.qhead .badge{flex:none;font-family:var(--label);font-weight:700;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#B4552B;background:#F8E3D6;border-radius:999px;padding:4px 10px}
+.f.q label{font-family:var(--disp);font-weight:700;font-size:14.5px;color:var(--ink);letter-spacing:-.01em;flex:1;min-width:0}
+.qhead .badge{flex:none;font-family:var(--label);font-weight:700;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#B4552B;background:#F8E3D6;border-radius:999px;padding:3px 9px}
 #pc{text-transform:uppercase;letter-spacing:.05em;font-weight:600}
-.f .ok{display:none;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--accent);background:var(--green-tint);border-radius:999px;padding:6px 12px;align-self:flex-start}
+.f .ok{display:none;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--accent);background:var(--green-tint);border-radius:999px;padding:5px 11px;align-self:flex-start}
 .f .ok.on{display:inline-flex;animation:rise .3s var(--ease)}
 
 /* multi-promo question + month-by-month periods */
-.mpq{margin-top:16px;background:var(--paper);border:1px solid var(--line);border-radius:var(--rf);box-shadow:var(--sh-1);padding:20px 24px}
-.mpq h3{font-family:var(--disp);font-weight:800;font-size:19px;letter-spacing:-.01em}
-.mpq .sub,.mbm .sub{margin-top:6px;font-size:13.5px;line-height:1.6;color:var(--ink-2);max-width:560px}
-.mpq__row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
-.mpq__opt{font-family:var(--label);font-weight:700;font-size:14px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);border-radius:999px;padding:11px 20px;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.mpq{margin-top:12px;background:var(--paper);border:1px solid var(--line);border-radius:15px;box-shadow:var(--sh-1);padding:15px 18px 16px}
+.mpq h3{font-family:var(--disp);font-weight:700;font-size:16px;letter-spacing:-.01em}
+.mpq .sub,.mbm .sub{margin-top:5px;font-size:13px;line-height:1.55;color:var(--ink-2);max-width:560px}
+.mpq__row{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:12px}
+.mpq__opt{font-family:var(--label);font-weight:700;font-size:13px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);border-radius:999px;padding:8px 16px;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
 .mpq__opt:hover{border-color:var(--accent)}
 .mpq__opt[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:#fff}
-.mpq__link{border:none;background:none;font-family:var(--label);font-weight:700;font-size:14px;color:var(--accent);cursor:pointer;padding:6px 4px}
-.mpq__note{display:none;margin-top:14px;background:var(--warn-soft);color:var(--warn-text);border-radius:12px;padding:14px 18px;font-size:14px;line-height:1.65;max-width:640px}
+.mpq__link{border:none;background:none;font-family:var(--label);font-weight:700;font-size:13px;color:var(--accent);cursor:pointer;padding:6px 4px}
+.mpq__note{display:none;margin-top:12px;background:var(--warn-soft);color:var(--warn-text);border-radius:11px;padding:12px 15px;font-size:13px;line-height:1.6;max-width:640px}
 .mpq__note.on{display:block;animation:rise .3s var(--ease)}
-.mbm{display:none;margin-top:14px;background:var(--paper);border:1.5px solid var(--green-tint);border-radius:var(--rf);box-shadow:var(--sh-1);padding:20px 24px}
+.mbm{display:none;margin-top:12px;background:var(--paper);border:1.5px solid var(--green-tint);border-radius:15px;box-shadow:var(--sh-1);padding:15px 18px 16px}
 .mbm.on{display:block;animation:rise .3s var(--ease)}
-.mbm__head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
-.mbm__head h3{font-family:var(--disp);font-weight:800;font-size:19px;letter-spacing:-.01em}
+.mbm__head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.mbm__head h3{font-family:var(--disp);font-weight:700;font-size:16px;letter-spacing:-.01em}
 .mbm__status{font-size:13px;color:var(--ink-3)}
-.mbm__row{display:flex;align-items:center;gap:12px;background:var(--cream);border:1px solid var(--line);border-radius:14px;padding:11px 14px;margin-top:10px;flex-wrap:wrap}
-.mbm__row input{font-family:var(--body);font-size:15px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:11px;padding:10px 12px}
+.mbm__row{display:flex;align-items:center;gap:10px;background:var(--cream);border:1px solid var(--line);border-radius:12px;padding:9px 12px;margin-top:9px;flex-wrap:wrap}
+.mbm__row input{font-family:var(--body);font-size:14px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:8px 11px}
 .mbm__row input:focus{outline:none;border-color:var(--accent)}
 .mbm__amt{width:110px}
 .mbm__lbl{font-size:14px;color:var(--ink-2)}
@@ -189,8 +189,8 @@ body[data-screen="2"] .only1{display:none!important}
 .prog .hint{flex-basis:100%}
 .f{display:flex;flex-direction:column;gap:7px;position:relative}
 .f label{font-family:var(--label);font-weight:600;font-size:13.5px;color:var(--teal)}
-.f input,.f select{font-family:var(--body);font-size:15px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;width:100%;appearance:none;transition:border-color .15s}
-.f select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2354625B' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+.f input,.f select{font-family:var(--body);font-size:14px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;width:100%;appearance:none;transition:border-color .15s}
+.f select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2354625B' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
 .f input:focus,.f select:focus{outline:none;border-color:var(--accent)}
 .f.filled input,.f.filled select{border-color:#BBD9C8;background:#FDFEFD}
 .f.err input{border-color:var(--warn-text);animation:shake .3s}
@@ -204,10 +204,10 @@ body[data-screen="2"] .only1{display:none!important}
 .f.idk-on input[type=date]{opacity:.45;pointer-events:none}
 
 /* "Worth two minutes" callout: appears when either date is marked unknown */
-.knowbox{display:none;grid-column:1 / -1;background:var(--warn-soft);border-radius:18px;padding:20px 24px 22px}
+.knowbox{display:none;grid-column:1 / -1;background:var(--warn-soft);border-radius:15px;padding:15px 18px 16px}
 .knowbox.on{display:block;animation:rise .3s var(--ease)}
-.knowbox h4{font-family:var(--disp);font-weight:800;font-size:19px;color:var(--warn-text);letter-spacing:-.01em}
-.knowbox p{margin-top:10px;font-size:14px;line-height:1.65;color:#7A4326;max-width:660px}
+.knowbox h4{font-family:var(--disp);font-weight:700;font-size:16px;color:var(--warn-text);letter-spacing:-.01em}
+.knowbox p{margin-top:8px;font-size:13px;line-height:1.6;color:#7A4326;max-width:660px}
 
 /* ===== loading interstitial: shown while the submission is in flight ===== */
 /* Values are lifted verbatim from the approved standalone design
@@ -248,10 +248,8 @@ body[data-screen="2"] .only1{display:none!important}
 .calc.s6 .calc__done{display:flex}
 
 /* ===== result hero: badge + headline + stat row (Above / Rise / Below) ===== */
-.sig.neut{background:linear-gradient(150deg,#22312B,#2E4038 55%,#37493F)}
 .sig .hv-badge{display:inline-block;font-family:var(--label);font-weight:600;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9FF0C6;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:6px 13px;margin-bottom:16px;position:relative}
 .sig.warnbg .hv-badge{color:#FFD3B5}
-.sig.neut .hv-badge{color:#CFE2D5}
 .sig h3{font-size:clamp(25px,3vw,36px);line-height:1.1;max-width:560px;text-wrap:balance}
 .hv-stats{display:flex;gap:clamp(20px,4vw,48px);flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.16);margin-top:18px;padding-top:16px;position:relative}
 .hv-stats small{display:block;font-family:var(--label);font-weight:600;letter-spacing:.12em;text-transform:uppercase;font-size:10.5px;color:rgba(255,255,255,.6);margin-bottom:4px}
@@ -261,7 +259,7 @@ body[data-screen="2"] .only1{display:none!important}
 @keyframes shake{0%,100%{transform:none}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 
 /* waitlist block in-form */
-.wl{margin-top:22px;border:1.5px solid var(--line);border-radius:16px;padding:15px 17px;background:var(--cream)}
+.wl{margin-top:18px;border:1.5px solid var(--line);border-radius:14px;padding:13px 15px;background:var(--cream)}
 .wl__consent{font-size:11.5px;color:var(--ink-2);margin-top:0;line-height:1.5}
 .wl__consent a{color:var(--teal-bright);text-decoration:underline;text-underline-offset:2px}
 
@@ -280,8 +278,8 @@ body[data-screen="2"] .only1{display:none!important}
 .whl-sr{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 .wl__trust{font-size:11px;color:var(--ink-3);margin-top:10px}
 
-.cta-row{display:flex;align-items:center;gap:14px;margin-top:22px}
-.cta-row .whl-btn{font-size:16px;padding:15px 26px;box-shadow:0 14px 30px -14px rgba(14,42,32,.85)}
+.cta-row{display:flex;align-items:center;gap:14px;margin-top:18px}
+.cta-row .whl-btn{font-size:15px;padding:12px 22px;box-shadow:0 14px 30px -14px rgba(14,42,32,.85)}
 .cta-row .hint{font-size:12px;color:var(--ink-3);line-height:1.5}
 
 /* ===== rail screen 1 ===== */
@@ -337,22 +335,23 @@ body[data-screen="2"] .only1{display:none!important}
 .sig{border-radius:var(--rf);overflow:hidden;box-shadow:var(--sh-3);background:linear-gradient(150deg,var(--teal-deep),#123B2C 55%,#17553D);color:#fff;padding:24px 26px 22px;position:relative}
 .sig::before{content:"";position:absolute;inset:0;background:radial-gradient(460px 200px at 110% -30%,rgba(127,227,176,.14),transparent 60%);pointer-events:none}
 .sig.warnbg{background:linear-gradient(150deg,#2E1509,#4A2412 55%,#6B3A1E)}
-.sig__label{font-family:var(--label);font-weight:600;font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--teal-soft);margin-bottom:14px;position:relative}
-.sig.warnbg .sig__label{color:#FFC9A8}
-.sig__bars{display:flex;align-items:flex-end;gap:6px;height:46px;margin-bottom:14px;position:relative}
-.sig__bars i{width:14px;border-radius:4px;background:rgba(255,255,255,.13)}
-.sig__bars i:nth-child(1){height:15px}.sig__bars i:nth-child(2){height:25px}.sig__bars i:nth-child(3){height:35px}.sig__bars i:nth-child(4){height:46px}
-.sig__bars i.f{background:var(--teal-soft)}
-.sig__bars i.fa{background:#F3D488}
-.sig__bars i.fw{background:#FFA26B}
-.sig__bars i.pop{animation:pop .45s var(--ease)}
-@keyframes pop{0%{transform:scaleY(.6)}60%{transform:scaleY(1.12)}100%{transform:scaleY(1)}}
-.sig__bars .arrow{align-self:center;margin:0 8px;font-size:15px;color:rgba(255,255,255,.55)}
 .sig h3{color:#fff;font-size:26px;font-weight:900;position:relative}
 .sig .read{margin-top:9px;font-size:14.5px;line-height:1.6;color:rgba(255,255,255,.86);position:relative;max-width:560px}
 .sig .read b{color:#fff}
-.sig .ctx{margin-top:13px;font-size:11.5px;color:rgba(255,255,255,.55);position:relative}
 .sig .joined{display:inline-flex;align-items:center;gap:7px;margin-top:13px;background:rgba(127,227,176,.15);border:1px solid rgba(127,227,176,.4);border-radius:999px;padding:6px 13px;font-size:12px;color:#DFF7EA;position:relative}
+
+/* Signal card period selector: an inline <select> sitting inside the
+   savings row's small-caps label ("OVER [24] MONTHS"), styled to read as
+   text-with-a-dropdown rather than a form control. */
+.hv-stats select.sig-period{font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:5px;padding:1px 4px;margin:0 2px}
+.hv-stats select.sig-period:focus{outline:none;border-color:rgba(255,255,255,.5)}
+/* Sits under the stat row: says what the savings total actually counted
+   (every bill in the window, promo cliff included) and names any assumption
+   the household's missing answers forced. */
+.sig-note{margin-top:11px;font-size:12px;line-height:1.55;color:rgba(255,255,255,.62);position:relative;max-width:560px}
+.sig-cta{display:inline-block;margin-top:18px;font-family:var(--label);font-weight:700;font-size:14px;color:#0E2A20;background:var(--accent);border:none;border-radius:11px;padding:12px 20px;cursor:pointer;position:relative;transition:transform .15s}
+.sig-cta:hover{transform:translateY(-1px)}
+.sig-foot{margin-top:11px;font-size:11.5px;color:rgba(255,255,255,.55);position:relative}
 
 .recap{background:var(--paper);border:1px solid var(--line);border-radius:var(--rf);box-shadow:var(--sh-1);padding:20px 22px;margin-top:14px}
 .recap__head{display:flex;align-items:center;gap:10px}
@@ -415,6 +414,15 @@ body[data-screen="2"] .only1{display:none!important}
 .lt.lock .st{color:var(--ink-3);background:var(--mist)}
 .lt.lock:hover{border-color:#cdd7d1;transform:translateY(-1px)}
 .lt .st.law{color:var(--accent);background:var(--green-tint)}
+/* Law-tier rows get a soft tint of their own — one notch lighter than "got"
+   — so the eye can tell them from agreement rows without reading the pill;
+   the divider between tiers below reinforces the same three-way split. */
+.lt.lock.lawtier{border-color:#D7ECDF;background:#FAFDFB}
+.lt.lock.lawtier .no{background:var(--green-tint);color:var(--accent)}
+.lt.lock.lawtier:hover{border-color:#BFE3CF}
+.lt-div{height:1px;margin:15px 2px 6px;border-radius:1px}
+.lt-div--lawtier{background:linear-gradient(90deg,#BFE3CF,#BFE3CF 60%,transparent)}
+.lt-div--agreement{background:linear-gradient(90deg,var(--ink-3),var(--ink-3) 60%,transparent);opacity:.35}
 
 footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;color:var(--ink-3);line-height:1.7}
 
@@ -858,7 +866,7 @@ $('#cost').addEventListener('blur',e=>{
   }else{W.clearFieldError(e.target);e.target.value=String(r.value);S.cost=r.value;saveDraft();}
 });
 /* Discount: the monthly promo credit, kept separate from the charge above so
-   W.effectiveCost() can subtract it instead of the household doing that math
+   effCostDollars() can subtract it instead of the household doing that math
    themselves. Range allows $0 (the "no discount" case parseMoneyInRange would
    otherwise reject as too low). */
 $('#disc').addEventListener('input',e=>{S.disc=W.parseMoney(e.target.value)||0;saveDraft();});
@@ -1051,11 +1059,14 @@ async function railJoin(inputEl,rowEl,doneEl){const em=inputEl.value.trim();
   return true;}
 
 /* Everything the backend stores for a lead, in the shapes it expects.
-   Postal is always the uppercase FSA plus the full code when we have it; the
-   verdict travels with the lead so sales sees the number the user saw. */
+   Postal is always the uppercase FSA plus the full code when we have it;
+   the signal band travels with the lead so sales sees the number the user
+   saw. verdict/benchmark* are retired with the old scoring — signalBand/
+   signalBasePriceCents/signalConfidence are the new equivalents; the
+   backend ignores unknown keys, same as multiPromo/periods below. */
 function leadPayload(){
-  const sc=W.score({cost:S.cost,discount:S.disc,speed:S.spd,tech:S.tech,provider:S.prov,promoEnd:S.pdate,promoExpired:S.expired,provinceCode:S.provinceCode});
-  const eff=W.effectiveCost({cost:S.cost,discount:S.disc,promoExpired:S.expired});
+  const base=baseLookup();
+  const r=bandFor(defaultPeriodMonths());
   return {
     pc:S.pc||'',postalFull:S.pcFull||'',province:S.province||'',provinceCode:S.provinceCode||'',
     prov:S.prov,cost:S.cost||'',spd:S.spd||'',tech:S.tech,
@@ -1070,13 +1081,11 @@ function leadPayload(){
     /* The "you'd switch for" tier buttons are gone from the form; the field
        stays in the payload so the backend contract doesn't change. */
     switchFor:'',
-    effectiveCost:eff.value,
-    verdict:sc.state,verdictReason:sc.reason||'',
-    benchmarkScope:sc.benchmark?sc.benchmark.scope:'',
-    benchmarkPrice:sc.benchmark?sc.benchmark.price:'',
-    benchmarkLevel:sc.benchmark?sc.benchmark.level:'',
-    benchmarkSample:sc.benchmark?sc.benchmark.sample:'',
-    benchmarkCaveat:sc.caveat||'',
+    effectiveCost:effCostDollars(),
+    signalBand:r.bandId,
+    signalSavingsCents:r.savingsCents!=null?r.savingsCents:'',
+    signalBasePriceCents:base?base.basePriceCents:'',
+    signalConfidence:base?base.confidence:'',
     file:S.file||''
   };
 }
@@ -1409,109 +1418,224 @@ function rememberBill(){
   W.session.billSave(bill).then(()=>W.checkup.clear(),()=>{});
 }
 
-/* ---------- signal ----------
-   Scoring lives in whollar-core.js. The important change is that a missing
-   speed, a missing benchmark or a contradictory discount now produce an
-   explicit "unknown" state instead of a confident Strong/Fair/Weak verdict
-   built on an invented number.
+/* ---------- signal (five-band engine) ----------
+   Replaces the old weak/fair/strong/cliff verdict. Band selection and every
+   figure on the card come from W.selectBand()/W.signalBaseFor()/
+   W.contractQuote() (whollar-core.js) -- deterministic, no AI-generated
+   values anywhere in this path. Currency is integer cents end to end and
+   only formatted to dollars at render (moneyC below).
 
-   COPY RULE: the card never states a specific price or an advertised-market
-   average in prose \u2014 those numbers already show once, plainly, in the
-   hv-stats row. Copy here stays qualitative (below/near/above the going
-   rate) regardless of which benchmark level answered. */
+   Division of labour: signalBaseFor answers "what does this speed go for
+   around here", selectBand turns today's gap into the verdict, and
+   contractQuote turns the household's contract into a per-cycle price
+   schedule so the savings total counts each bill at what it will really be
+   -- promo months at the promo price, post-cliff months at the full rate.
+   Only the total moved; the five bands and their copy are unchanged. */
 const money=n=>W.money(n);
 const monthName=d=>W.monthName(d);
-function currentScore(){
-  return W.score({cost:S.cost,discount:S.disc,speed:S.spd,tech:S.tech,provider:S.prov,promoEnd:S.pdate,promoExpired:S.expired,provinceCode:S.provinceCode});
+const moneyC=c=>money((c||0)/100);
+
+/* What the household actually pays today, clamped so a discount that meets
+   or exceeds the charge never goes negative. (This used to be
+   W.effectiveCost(), removed with the old scoring -- nothing else called
+   it.) */
+function effCostDollars(){
+  const charge=Number(S.cost)||0,disc=Number(S.disc)||0;
+  if(S.expired||disc<=0)return charge;
+  if(disc>=charge)return charge;
+  return charge-disc;
 }
-function effCost(){return W.effectiveCost({cost:S.cost,discount:S.disc,promoExpired:S.expired}).value;}
-const BAR=f=>'<div class="sig__bars">'+[0,1,2,3].map(i=>'<i class="'+(f[i]||'')+' pop"></i>').join('')+'</div>';
-
-const STATES={
-strong:sc=>({bars:BAR(['f','f','f','f']),h:'Strong deal',read:'You sit comfortably <b>below the going rate</b> for this. The play now is <b>keeping it past renewal</b>, exactly what a pooled bid is for.'}),
-fair:sc=>({bars:BAR(['f','f','fa','']),h:'Fair deal',read:'You\u2019re <b>close to the going rate</b> for what you get: not a crisis, not a deal. \u201cClose\u201d is what group bids beat, without you making a single call.'}),
-weak:sc=>({bars:BAR(['fw','','','']),cls:'warnbg',h:'Weak deal',read:'You\u2019re paying <b>well above the going rate</b> for this, and that gap compounds every month. Your cohort\u2019s bid is built to close it.'}),
-cliff:sc=>({bars:'<div class="sig__bars"><i class="f pop"></i><i class="f pop"></i><i class="f pop"></i><i class="f pop"></i><span class="arrow">\u2192</span><i class="fw pop"></i><i></i><i></i><i></i></div>',cls:'warnbg',h:'Cliff ahead',read:'Your promo ends around <b>'+monthName(S.pdate)+'</b>. The reset lands on autopay, usually 30\u201360% higher \u2014 the time to pool is <b>before</b> it hits.'}),
-/* Honest fallback. Previously: "Not sure" speed silently scored against an
-   invented $60 benchmark, and a discount larger than the charge scored as
-   "Strong deal. You pay $0/mo". */
-unknown:sc=>{
-  const why={
-    'no-speed':'We can\u2019t compare your price without your <b>download speed</b>: the same $85 is a great deal at 1 Gbps and a poor one at 50 Mbps. Add your speed above and we\u2019ll score it.',
-    'no-cost':'Add your <b>monthly charge</b> above and we\u2019ll compare it.',
-    'no-benchmark':'We don\u2019t hold advertised plans for that combination yet, so we won\u2019t guess at a verdict.'
-  }[sc.reason]||'We don\u2019t have enough of your bill to score it yet.';
-  return {bars:BAR(['fa','','','']),h:'Not enough to score',read:why+'<br><br>Your cohort still forms on your postal code and renewal date, so joining works either way.'};
-}};
-
-function verdict(){return currentScore().state;}
-
-/* ---------- hero card ----------
-   The verdict states are unchanged (strong/fair/weak/cliff/unknown, scored in
-   whollar-core.js); what changed is the clothes they wear. Each state maps to
-   one of three card treatments — above the going rate, a rise is coming,
-   below/near the going rate — with a badge, a plain-language headline and the
-   three numbers that matter. The old STATES read copy stays as the body. */
-const HERO_BADGE={strong:'Below the going rate',fair:'Near the going rate',weak:'Above the going rate',cliff:'A rise is coming',unknown:'Not enough to score'};
-function heroHead(k,sc){
-  if(k==='weak')return 'You pay more than '+W.escapeHtml(S.province||'your area')+' pays for the same service.';
-  if(k==='strong')return 'You pay less than '+W.escapeHtml(S.province||'your area')+' pays for the same service.';
-  if(k==='fair')return 'You pay about the going rate for what you get.';
-  if(k==='cliff')return 'In '+monthName(S.pdate)+' your promo ends and the price resets.';
-  return 'We need one more number to score this.';
+/* #tech <option> value -> the lookup's connectionType. DSL/fixed-wireless/
+   satellite/not-sure have no specific-type rows in the sheet and fall
+   straight to the terrestrial pool inside W.signalBaseFor(). */
+function connTypeFor(){
+  return {'Cable (TV coax jack)':'cable','Fibre (thin glass line)':'fibre'}[S.tech]||null;
 }
-/* Two numbers only — what you pay now and the projection over the term. The
-   going-rate figure is deliberately not repeated here: the verdict copy
-   already carries it. Month-by-month rows, when filled, ARE the projection —
-   the household typed the exact amounts, so no term guess is needed. */
-function heroStats(){
-  if(!S.cost)return '';
-  const eff=effCost();
+/* The schedule's term. A stated contract length wins: the month-by-month
+   rows describe the promo ladder INSIDE a term, not the term itself, and
+   nine months of typed rows on a 24-month agreement must not shrink the
+   window to nine. The rows stand in as the term only when no length was
+   given. 0 means "no term to work with" (month-to-month, "not sure", or
+   nothing chosen) and puts the card in forward-projection mode. */
+function scheduleTermMonths(){
+  if(+S.clen>0)return +S.clen;
   const p=periodsSummary();
-  const term=p?p.months:((+S.clen>0)?+S.clen:24);
-  /* Second stat is a projected SAVING, not a total-paid figure: term months
-     times the gap between what the household pays now and the cheapest
-     advertised floor in their area (W.basePriceFor, built from
-     PlanSavvy-Pricing.xlsx). Clamped at zero — a household already at or
-     below the floor has no gap to close, and that is a real outcome, not an
-     error. Falls back to the old total-paid framing only if no floor price
-     is available at all (should not happen once whollar-base-pricing.js has
-     loaded; defensive only).
+  return p?p.months:0;
+}
+function defaultPeriodMonths(){
+  return scheduleTermMonths()||24;
+}
+function baseLookup(){
+  if(!S.pc||!S.spd||S.spd==='0')return null;
+  return W.signalBaseFor({fsa:S.pc,provinceCode:S.provinceCode,speedMbps:Number(S.spd),connectionType:connTypeFor()});
+}
+/* Billing cycles already gone by on a contract that started on `startStr`.
+   Cheap enough to recompute; the cap is a runaway guard, not a real limit. */
+function elapsedCycles(startStr){
+  const d=W.parseDateLocal(startStr);if(!d)return 0;
+  const t=new Date();t.setHours(0,0,0,0);
+  let n=0;while(n<600&&W.addMonths(d,n)<=t)n++;
+  return n;
+}
+/* Feeds W.contractQuote() from the form. Two modes, and which one applies
+   changes what the savings row is allowed to claim:
 
-     The discount dies with the promo: when a promo end date is on file, the
-     discounted rate is charged only for the months until that date, and every
-     month after it is billed at the full regular rate. Promo ends in 4 months
-     on a 24-month horizon → 4 discounted months + 20 at full price. Manual
-     month-by-month rows (p) already encode their own periods and are used
-     as-is; an unknown promo date keeps the flat behaviour, since there is no
-     date to split on. */
-  let discMonths=term;
-  if(!S.expired&&+S.disc>0&&S.pdate){
-    const dd=W.daysUntil(S.pdate);
-    if(dd!=null)discMonths=Math.max(0,Math.min(term,Math.ceil(dd/30.4375)));
+   AGREEMENT  a stated term and a stated start, with months still to run.
+              The window is what is actually left on the agreement -- not a
+              number the visitor picked -- so the card drops the period
+              selector and names the remainder.
+   FORWARD    everything else (month-to-month, term or start withheld, or a
+              term that has already run out). Projects the chosen window
+              forward, anchored to the real start date when there is one so
+              the promo cliff still lands on the right cycle.
+
+   The form collects Q09 as a discount AMOUNT (so does the bill OCR); the
+   engine wants the promo PRICE, hence charge - discount here. */
+function contractView(horizonMonths){
+  const charge=Number(S.cost)||0;
+  if(!(charge>0))return null;
+  const base=baseLookup(),disc=Number(S.disc)||0;
+  const anchored=(S.cstart&&!S.cstartIdk)?S.cstart:null;
+  const shared={
+    regularPriceCents:Math.round(charge*100),
+    discountPriceCents:disc>0?Math.round((charge-disc)*100):null,
+    promoEnd:S.pdateIdk?null:S.pdate,
+    periods:(S.periods||[]).map(p=>({priceCents:Math.round(p.a*100),months:p.m})),
+    basePriceCents:base?base.basePriceCents:null
+  };
+  const term=scheduleTermMonths();
+  if(term>0&&anchored){
+    const q=W.contractQuote({...shared,termMonths:term,contractStart:anchored});
+    if(q&&q.months.remaining>0)return {quote:q,agreement:true};
   }
-  const totalPaid=p?p.total:(eff*discMonths+(+S.cost)*(term-discMonths));
-  const base=W.basePriceFor?W.basePriceFor(S.provinceCode,S.spd):null;
-  const second=base&&base.price>0
-    ?{label:'Could save over '+term+' months',value:Math.max(0,Math.round(totalPaid-base.price*term))}
-    :{label:'Over '+term+' months',value:Math.round(totalPaid)};
-  return '<div class="hv-stats">'
-    +'<div><small>You pay now</small><b>'+money(eff)+'/mo</b></div>'
-    +'<div><small>'+second.label+'</small><b>'+money(second.value)+'</b></div>'
-    +'</div>';
+  const win=horizonMonths>0?horizonMonths:24;
+  if(anchored){
+    const el=elapsedCycles(anchored);
+    return {quote:W.contractQuote({...shared,termMonths:el+win,contractStart:anchored,horizonMonths:win}),agreement:false};
+  }
+  return {quote:W.contractQuote({...shared,termMonths:win,contractStart:null,horizonMonths:win}),agreement:false};
 }
-function setSig(k,sc){
-  sc=sc||currentScore();
-  const s=STATES[k](sc);
-  $('#sig').className='sig '+(k==='unknown'?'neut':(s.cls||''));
-  $('#sig').innerHTML='<span class="hv-badge">'+HERO_BADGE[k]+'</span><h3>'+heroHead(k,sc)+'</h3>'+heroStats()+'<p class="read">'+s.read+'</p>'
-    /* Territories fall back to a southern reference, which is barely a
-       comparison at all. Say so rather than letting the verdict stand bare. */
-    +(sc.caveat==='territory'?'<p class="ctx" style="opacity:.8"><b>Note:</b> northern pricing works differently from the rest of Canada and we hold few northern plans, so treat this as rough. Your cohort still forms on your postal code.</p>':'')
-    +(sc.caveat==='thin-sample'?'<p class="ctx" style="opacity:.8"><b>Note:</b> only a couple of advertised plans match your exact combination, so this comparison is thinner than usual.</p>':'')
-    +(S.joined?'<span class="joined">&#10003; You\u2019re on the '+W.escapeHtml(S.pc?S.pc+' ':'')+'waitlist</span>':'');
+/* Re-run on every render AND every period-selector change -- pure, cheap,
+   no reason to cache. */
+function bandFor(periodMonths){
+  const base=baseLookup();
+  const v=contractView(periodMonths);
+  const q=v?v.quote:null;
+  return W.selectBand({
+    userPriceCents:Math.round(effCostDollars()*100),
+    basePriceCents:base?base.basePriceCents:null,
+    periodMonths:periodMonths,
+    onPromo:!!(S.pdate&&!S.expired&&!S.pdateIdk),
+    promoEndDate:S.pdate,
+    /* Term-aware total. Null falls W.selectBand back to periodMonths x
+       today's gap, which is only right when the price never moves. */
+    scheduleSavingsCents:(q&&q.forward)?q.forward.savingsCents:null
+  });
 }
 
+/* Copy verbatim from the signal-card spec. {fsa}/{promoMonthYear} are filled
+   in at render; body/cta are functions only where they interpolate {fsa}.
+   NOTE: band 3's copy below is also what guardrail 1 (a lookup miss) shows,
+   with the benchmark and savings rows suppressed -- its headline ("paying
+   what everyone else pays") assumes a benchmark exists, which is slightly
+   off for the true no-data case, but the spec is explicit ("render band 3
+   copy") and this does that literally rather than improvising different
+   wording for a state the spec didn't give its own text. */
+const BAND_COPY={
+  1:{pill:'ABOVE TYPICAL FOR YOUR SPEED',warn:true,
+    head:'You’re paying well over what this speed goes for near you.',
+    body:fsa=>'Calling to ask for that back gets you a retention script. Arriving with every other '+fsa+' household that’s ready to move gets you a bid. Joining is free and you can walk away from any offer.',
+    cta:fsa=>'Join your '+fsa+' cohort'},
+  2:{pill:'SLIGHTLY ABOVE TYPICAL',warn:false,
+    head:'A little over the mark, not enough to notice on one bill.',
+    body:()=>'Gaps this size are the ones nobody bothers to fight, which is why they last for years. Pooling costs you nothing and puts the effort on the providers instead.',
+    cta:fsa=>'Join your '+fsa+' cohort'},
+  3:{pill:'RIGHT AT TYPICAL',warn:false,
+    head:'You’re paying what everyone else pays. That’s the ceiling on shopping alone.',
+    body:()=>'Typical is the best price a single household can find, because every advertised rate is built for winning you one at a time. A cohort is a block that has already decided to move, so providers bid for it differently. That’s the only way this number gets better.',
+    cta:()=>'See what the cohort brings back'},
+  4:{pill:'BELOW TYPICAL',warn:false,
+    head:'You’re in a good position. A cohort can still improve it.',
+    body:()=>'Being under typical means you’ve already beaten what one household can shop for. Group bids are priced for a block of households, not one, which is a different starting point than anything you can find yourself. And when rates drift up, which they do about once a year, you’ll be sitting inside a cohort instead of finding out from a bill.',
+    cta:fsa=>'Join my '+fsa+' cohort'},
+  5:{pill:'WELL BELOW TYPICAL · FOR NOW',warn:true,
+    head:'This is promo pricing. Promo pricing has an end date.',
+    body:()=>'The day it expires is the day you’re worth competing for, and it’s a short window. Cohorts form around that date, so joining now means offers reach you before the higher rate does.',
+    cta:my=>'Hold my spot for '+my}
+};
+
+let cardPeriodMonths=null; // live period-selector state; reset to the default each renderResults()
+
+function periodOptionsHtml(current){
+  const opts=[...new Set([12,24,36,current])].sort((a,b)=>a-b);
+  return opts.map(o=>'<option value="'+o+'"'+(o===current?' selected':'')+'>'+o+'</option>').join('');
+}
+/* The savings figure is a sum over billing cycles, not months x today's gap,
+   so when a price change sits inside the window the number is bigger than
+   the arithmetic a visitor would do in their head. Say why, or it reads as
+   an error. Also flags the promo length we had to assume. */
+function sigNote(q){
+  if(!q||!q.forward)return '';
+  const bits=[];
+  if(q.flags.priceChangesInHorizon){
+    bits.push('Counts every bill in that window at what you’ll actually be charged, including the jump when your promo ends.');
+  }
+  if(q.flags.assumedPromoMonths){
+    /* The engine runs the assumed window forward from the cycle they're in
+       now, not from the contract start -- so the copy has to say "from here",
+       not "from the start of your agreement". */
+    bits.push('You didn’t have your promo end date, so this assumes it runs the usual '+q.flags.assumedPromoMonths+' more months from here. Finding the real date is the single thing that sharpens this number most.');
+  }
+  return bits.length?'<p class="sig-note">'+bits.join(' ')+'</p>':'';
+}
+function setSig(){
+  const v=contractView(cardPeriodMonths!=null?cardPeriodMonths:defaultPeriodMonths());
+  const q=v?v.quote:null;
+  /* An agreement with months left sets its own window: the remainder is a
+     fact about the household, not a figure to pick from a dropdown. */
+  const agreement=!!(v&&v.agreement&&q);
+  const period=agreement?q.months.horizon
+    :(cardPeriodMonths!=null?cardPeriodMonths:defaultPeriodMonths());
+  const r=bandFor(period);
+  const copy=BAND_COPY[r.bandId];
+  const base=r.showBenchmarkRow?baseLookup():null;
+  const fsa=W.escapeHtml(S.pc||'');
+  const speedLbl=(S.spd&&S.spd!=='0')?(+S.spd>=1500?'1500':S.spd):'';
+  const promoMY=S.pdate?monthName(S.pdate):'';
+  const periodLbl=agreement
+    ?'<small>OVER YOUR REMAINING '+period+' MONTH'+(period===1?'':'S')+'</small>'
+    :'<small>OVER <select class="sig-period" id="sig-period">'+periodOptionsHtml(period)+'</select> MONTHS</small>';
+
+  $('#sig').className='sig '+(copy.warn?'warnbg':'');
+  $('#sig').innerHTML='<span class="hv-badge">'+copy.pill+'</span><h3>'+copy.head+'</h3>'
+    +'<div class="hv-stats">'
+      +'<div><small>YOU PAY NOW</small><b>'+money(effCostDollars())+'/mo</b></div>'
+      +(r.showBenchmarkRow&&base?'<div><small>TYPICAL IN '+fsa+' AT '+speedLbl+' MBPS</small><b>'+moneyC(base.basePriceCents)+'/mo</b></div>':'')
+      +(r.showPromoDateRow?'<div><small>WHEN IT ENDS</small><b>'+promoMY+'</b></div>'
+        :(r.showSavingsRow?'<div>'+periodLbl+'<b id="sig-savings">'+moneyC(r.savingsCents)+'</b></div>':''))
+    +'</div>'
+    +(r.showSavingsRow?sigNote(q):'')
+    +'<p class="read">'+copy.body(fsa)+'</p>'
+    +'<button type="button" class="sig-cta" id="sig-cta">'+copy.cta(r.showPromoDateRow?promoMY:fsa)+'</button>'
+    +'<p class="sig-foot">Joining is free. You’re never obligated to accept an offer.</p>'
+    +(S.joined?'<span class="joined">&#10003; You’re on the '+fsa+' waitlist</span>':'');
+
+  const sel=$('#sig-period');
+  if(sel)sel.addEventListener('change',e=>{
+    cardPeriodMonths=+e.target.value;
+    /* The window moves the savings figure AND its footnote (a longer window
+       can pull the promo cliff inside it), so re-render the card rather than
+       patching one number. */
+    setSig();
+    /* innerHTML replaced the <select> the change came from; put the caret
+       back on its replacement so keyboard use isn't dumped to the top. */
+    const again=$('#sig-period');if(again)again.focus();
+  });
+  $('#sig-cta').addEventListener('click',()=>{
+    const j=$('#join2');if(j)j.scrollIntoView({behavior:'smooth',block:'center'});
+    const cta=$('#j2-cta');if(cta)setTimeout(()=>cta.focus(),350);
+  });
+}
 /* ---------- recap ---------- */
 const RIC={pin:'<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',bld:'<rect x="4" y="3" width="12" height="18" rx="2"/><path d="M8 7h4M8 11h4M8 15h4M16 9h4v12h-4"/>',dol:'<circle cx="12" cy="12" r="9"/><path d="M12 7v10M15 9.5c0-1.4-1.3-2.5-3-2.5s-3 .9-3 2.2c0 3 6 1.6 6 4.6 0 1.3-1.3 2.2-3 2.2s-3-1.1-3-2.5"/>',gau:'<path d="M4 14a8 8 0 1 1 16 0"/><path d="M12 14l4-4"/><circle cx="12" cy="14" r="1.4"/>',plg:'<path d="M9 3v5M15 3v5M7 8h10v4a5 5 0 0 1-10 0V8Z"/><path d="M12 17v4"/>',cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>',tag:'<path d="M3 12V4h8l9 9-8 8-9-9Z"/><circle cx="7.5" cy="8.5" r="1.4"/>',clp:'<path d="M8 12l6.5-6.5a3.5 3.5 0 0 1 5 5L11 19a5.5 5.5 0 0 1-8-7.6L10.5 4"/>'};
 let rvI=0;
@@ -1519,8 +1643,8 @@ let rvI=0;
    postal code are user-controlled and land in innerHTML. */
 function rv(label,val,target,hot,ic){rvI++;return '<button class="rv'+(hot?' hotv':'')+'" type="button" data-t="'+target+'" style="animation-delay:'+(rvI*55)+'ms"><span class="ric"><svg viewBox="0 0 24 24" aria-hidden="true">'+(RIC[ic]||RIC.tag)+'</svg></span><span style="min-width:0"><small>'+W.escapeHtml(label)+'</small><b>'+W.escapeHtml(val)+'</b></span><svg class="pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3l4 4L8 20l-5 1 1-5L17 3z"/></svg></button>';}
 function renderResults(){
-  const sc=currentScore();
-  setSig(sc.state,sc);
+  cardPeriodMonths=null;
+  setSig();
   const sp=!S.spd?'Not given':(S.spd==='0'?'Not sure':(+S.spd>=1500?'1.5 Gig+':(+S.spd>=1000?'1 Gig':S.spd+' Mbps')));
   let promoVal='None / not sure',hot=false;
   if(S.pdateIdk)promoVal='Not sure yet';
@@ -1570,11 +1694,23 @@ function renderLevers(){
   ];
   /* Three tiers: yours first, then the $0-by-law rows, then the agreement
      rows. Re-sorted on every render since "got" tracks live form state, so a
-     row promotes to the top the moment that field is filled in. */
-  const Ls=L.filter(l=>l[2]).concat(L.filter(l=>!l[2]&&l[3]),L.filter(l=>!l[2]&&!l[3]));
-  $('#lev-list').innerHTML=Ls.map((l,i)=>{
-    const got=l[2];const law=l[3];
-    return '<div class="lt '+(got?'got':'lock')+'"><span class="no">'+String(i+1).padStart(2,'0')+'</span><span style="min-width:0"><b>'+l[0]+'</b><span>'+l[1]+'</span></span><span class="st'+(law?' law':'')+'">'+(law?law:(got?'\u2713 yours':'agreement'))+'</span></div>';
+     row promotes to the top the moment that field is filled in. Grouped (not
+     just sorted) so a coloured divider can mark where one tier ends and the
+     next begins \u2014 any tier can be empty depending on what's filled in, so
+     the divider only appears between two tiers that both have rows. */
+  const tiers=[
+    {cls:'yours',items:L.filter(l=>l[2])},
+    {cls:'lawtier',items:L.filter(l=>!l[2]&&l[3])},
+    {cls:'agreement',items:L.filter(l=>!l[2]&&!l[3])}
+  ].filter(t=>t.items.length);
+  let i=0;
+  $('#lev-list').innerHTML=tiers.map((t,ti)=>{
+    const rows=t.items.map(l=>{
+      i++;
+      const got=l[2];const law=l[3];
+      return '<div class="lt '+(got?'got':('lock '+t.cls))+'"><span class="no">'+String(i).padStart(2,'0')+'</span><span style="min-width:0"><b>'+l[0]+'</b><span>'+l[1]+'</span></span><span class="st'+(law?' law':'')+'">'+(law?law:(got?'\u2713 yours':'agreement'))+'</span></div>';
+    }).join('');
+    return (ti>0?'<div class="lt-div lt-div--'+t.cls+'"></div>':'')+rows;
   }).join('');
   $$('#lev-list .lt.lock').forEach(t=>t.addEventListener('click',()=>{
     const d=$('#deep');d.classList.add('pulse');d.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>d.classList.remove('pulse'),1600);}));
