@@ -297,6 +297,14 @@
      '0' is not a tier. It used to map to an invented $60 benchmark and produce
      a confident verdict for someone who had just said they didn't know their
      speed; it returns null instead. */
+  /* Direct advertised quotes for tiers the PlanSavvy sheet has no rows for.
+     Source: Bell Pure Fibre offer, Aug 2026 — 1.5 Gbps $60/mo and 3 Gbps
+     $65/mo (both plus tax, 2-year price guarantee; $55 with a Rogers/Fido
+     mobile plan). The form buckets everything ≥1.22 Gbps into the 1500
+     tier, so the two quotes pool into one mean. Replace with sheet rows
+     the moment PlanSavvy lists these tiers. */
+  W.BASE_TIER_QUOTES = { '1500': [62.5, 2] };
+
   W.benchmarkFor = function (input) {
     var opts = input || {};
     var tier = W.speedTier(opts.speed === '0' ? null : opts.speed);
@@ -308,6 +316,10 @@
     if (!hit || !(hit[0] > 0)) {
       hit = W.BASE_BY_TIER ? W.BASE_BY_TIER[String(tier)] : null;
       level = 'F'; scope = 'national';
+    }
+    if (!hit || !(hit[0] > 0)) {
+      hit = W.BASE_TIER_QUOTES ? W.BASE_TIER_QUOTES[String(tier)] : null;
+      level = 'G'; scope = 'national';
     }
     if (!hit || !(hit[0] > 0)) return null;
 

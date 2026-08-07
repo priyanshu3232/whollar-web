@@ -20,7 +20,7 @@
 <script src="/js/device-router.js?v=20260806a"></script>
 <script src="/js/whollar-benchmarks.js?v=20260806"></script>
 <script src="/js/whollar-base-pricing.js?v=20260807"></script>
-<script src="/js/whollar-core.js?v=20260807"></script>
+<script src="/js/whollar-core.js?v=20260807b"></script>
 <title>Check if you’re overpaying for internet · Whollar</title>
 <meta name="description" content="Enter your internet bill and speed to see how your price compares to the national advertised range for your tier, and when your promo discount ends.">
 <link rel="canonical" href="https://www.whollar.ca/bill-checkup">
@@ -1476,8 +1476,21 @@ function heroStats(){
      below the floor has no gap to close, and that is a real outcome, not an
      error. Falls back to the old total-paid framing only if no floor price
      is available at all (should not happen once whollar-base-pricing.js has
-     loaded; defensive only). */
-  const totalPaid=p?p.total:eff*term;
+     loaded; defensive only).
+
+     The discount dies with the promo: when a promo end date is on file, the
+     discounted rate is charged only for the months until that date, and every
+     month after it is billed at the full regular rate. Promo ends in 4 months
+     on a 24-month horizon → 4 discounted months + 20 at full price. Manual
+     month-by-month rows (p) already encode their own periods and are used
+     as-is; an unknown promo date keeps the flat behaviour, since there is no
+     date to split on. */
+  let discMonths=term;
+  if(!S.expired&&+S.disc>0&&S.pdate){
+    const dd=W.daysUntil(S.pdate);
+    if(dd!=null)discMonths=Math.max(0,Math.min(term,Math.ceil(dd/30.4375)));
+  }
+  const totalPaid=p?p.total:(eff*discMonths+(+S.cost)*(term-discMonths));
   const base=W.basePriceFor?W.basePriceFor(S.provinceCode,S.spd):null;
   const second=base&&base.price>0
     ?{label:'Could save over '+term+' months',value:Math.max(0,Math.round(totalPaid-base.price*term))}
