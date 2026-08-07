@@ -651,6 +651,8 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
           <div class="rgrid" id="rgrid"></div>
         </section>
 
+        <section class="join2" id="join2"></section>
+
         <section class="deep" id="deep">
           <h4>Want the deep read?</h4>
           <p>The cliff, the reset date, the clauses that move your number. They're written in your paperwork. Share your agreement or a few more bills and we'll decode every line.</p>
@@ -670,8 +672,6 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
           </div>
           <div class="ddone" id="ddone">&#10003;&nbsp; Received. <b>You'll see your results in your email shortly.</b></div>
         </section>
-
-        <section class="join2" id="join2"></section>
       </div>
     </div>
 
@@ -1544,7 +1544,7 @@ function renderResults(){
   renderLevers();
   const j2=$('#join2');
   if(S.joined){j2.innerHTML='<h3>&#10003; You\u2019re on the '+W.escapeHtml(S.pc?S.pc+' ':'')+'waitlist</h3><p>We\u2019ll write the moment your cohort opens, and you\u2019ll be first to hear where Whollar goes next.</p>';}
-  else{j2.innerHTML='<h3>'+(S.pc?'Put the '+W.escapeHtml(S.pc)+' cohort to work':'Get your number, the easy way')+'</h3><p>Join to shrink your bill, and to build a market where prices finally have to explain themselves. Internet first; more to come.</p><div class="gerow" id="j2row"><label class="whl-sr" for="j2-email">Email address to join</label><input type="email" id="j2-email" placeholder="you@example.com" autocomplete="email" maxlength="254" inputmode="email"><button class="whl-btn" type="button" id="j2-join">Join</button></div><p class="wl__consent" style="margin-top:9px;color:#CFE2D5">By joining you agree to receive email about your cohort and offers, and accept our <a href="/terms" target="_blank" rel="noopener noreferrer" style="color:#7FE3B0">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style="color:#7FE3B0">Privacy&nbsp;Policy</a>. Unsubscribe any time.</p><div class="gdone" id="j2done">&#10003;&nbsp; You\u2019re in. We\u2019ll write when your cohort opens.</div>';
+  else{j2.innerHTML='<h3>'+(S.pc?'Join the '+W.escapeHtml(S.pc)+' cohort':'Join the cohort')+'</h3><p>Households in '+(S.pc?W.escapeHtml(S.pc):'your area')+' get pooled together, then ISPs bid to win the group. Free to join, and you\u2019re never obligated to take an offer.</p><div class="gerow" id="j2row"><label class="whl-sr" for="j2-email">Email address to join</label><input type="email" id="j2-email" placeholder="you@example.com" autocomplete="email" maxlength="254" inputmode="email"><button class="whl-btn" type="button" id="j2-join">Join the cohort</button></div><p class="wl__consent" style="margin-top:9px;color:#CFE2D5">By joining you agree to receive email about your cohort and any offers it attracts, and accept our <a href="/terms" target="_blank" rel="noopener noreferrer" style="color:#7FE3B0">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style="color:#7FE3B0">Privacy&nbsp;Policy</a>. Unsubscribe any time.</p><div class="gdone" id="j2done">&#10003;&nbsp; You\u2019re in. We\u2019ll write when your cohort opens.</div>';
     $('#j2-join').addEventListener('click',()=>{railJoin($('#j2-email'),$('#j2row'),$('#j2done')).then(ok=>{if(ok)renderResults();});});
     if(S.email)$('#j2-email').value=S.email;}
   if(S.email)$('#deep-email').value=$('#deep-email').value||S.email;
