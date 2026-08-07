@@ -252,27 +252,21 @@
   /* ================================================================== *
    * 4. BENCHMARK
    * ------------------------------------------------------------------
-   * The reference prices come from "Whollar Pricing Model.xlsx" (6,803
-   * advertised Canadian home-internet plans), aggregated at build time into
-   * js/whollar-benchmarks.js by scripts/build-benchmarks.mjs. That file must
-   * be loaded BEFORE this one; if it is missing, benchmarkFor() returns null
-   * and every result renders the "not enough to score" state rather than
-   * inventing a number.
+   * The reference prices come from the PlanSavvy list ("PlanSavvy-Pricing
+   * .xlsx", the twelve lowest-priced advertised plans per province,
+   * source: plansavvy.ai), aggregated at build time into
+   * js/whollar-base-pricing.js by scripts/build-base-pricing.mjs. That file
+   * must be loaded BEFORE this one; if it is missing, benchmarkFor() returns
+   * null and every result renders the "not enough to score" state rather
+   * than inventing a number.
    *
-   * Lookup is a cascade from most to least specific. The first level that has
-   * data wins, and the level that answered travels with the result so the UI
-   * can say what the comparison was actually against:
+   * js/whollar-benchmarks.js (the old scraped-market aggregate) still ships
+   * because it defines SPEED_TIERS / SPEED_EDGES, but its price tables are
+   * no longer consulted anywhere: PlanSavvy is the one price reference.
    *
-   *   A  province + provider + connection type + speed tier
-   *   B  province + connection type + speed tier      ← drops the provider
-   *   C  connection type + speed tier                 ← drops the province
-   *   D  province + provider + speed tier             (no tech; excl. satellite)
-   *   E  province + speed tier                        (excl. satellite)
-   *   F  speed tier                                   (excl. satellite)
-   *
-   * Dropping the provider first is the specified behaviour: four of the eight
-   * named providers on the form (Rogers, Shaw, Eastlink, SaskTel) have no rows
-   * in the dataset at all, so level B is the common path for them.
+   * Lookup: province + speed tier first ('E'), then the tier pooled across
+   * every province ('F'). The level travels with the result so the UI can
+   * say what the comparison was actually against.
    * ================================================================== */
 
   /* Bucket a raw Mbps figure to one of the eight tiers the form offers. Used
@@ -286,53 +280,48 @@
   };
 
   /* input: { provinceCode, provider, tech, speed }
-     - provider / tech are the raw <option> values from #prov / #tech
+     - provider / tech are accepted for compatibility but no longer keyed on:
+       the PlanSavvy sheet has no provider/tech granularity worth using.
      - speed is the #spd value ('25'…'1500', or '0' meaning "not sure")
      returns { price, sample, level, scope, tier, … } or null.
+
+     SOURCE: the PlanSavvy list (js/whollar-base-pricing.js, built from
+     "PlanSavvy-Pricing.xlsx" — the twelve lowest-priced advertised plans per
+     province). This is the ONE price reference the site scores against; the
+     old scraped-market table in js/whollar-benchmarks.js is no longer
+     consulted for prices (that file still ships for its SPEED_TIERS/EDGES
+     constants). Cascade: province + tier, then the tier pooled nationally.
+     A tier the sheet has no rows for returns null — "not enough to score"
+     beats inventing a number.
 
      '0' is not a tier. It used to map to an invented $60 benchmark and produce
      a confident verdict for someone who had just said they didn't know their
      speed; it returns null instead. */
   W.benchmarkFor = function (input) {
-    var table = W.BENCHMARKS;
-    if (!table) return null;
-
     var opts = input || {};
     var tier = W.speedTier(opts.speed === '0' ? null : opts.speed);
     if (!tier) return null;
 
     var pv = opts.provinceCode || null;
-    var grp = opts.provider ? (W.PROVIDER_GROUPS || {})[opts.provider] || null : null;
-    var tech = opts.tech ? (W.TECH_GROUPS || {})[opts.tech] || null : null;
-
-    /* Ordered most specific → least. Each entry: [key, level, scope]. */
-    var chain = [];
-    if (pv && grp && tech) chain.push([['A', pv, grp, tech, tier].join('|'), 'A', 'province-provider-tech']);
-    if (pv && tech) chain.push([['B', pv, tech, tier].join('|'), 'B', 'province-tech']);
-    if (tech) chain.push([['C', tech, tier].join('|'), 'C', 'national-tech']);
-    if (pv && grp) chain.push([['D', pv, grp, tier].join('|'), 'D', 'province-provider']);
-    if (pv) chain.push([['E', pv, tier].join('|'), 'E', 'province']);
-    chain.push([['F', tier].join('|'), 'F', 'national']);
-
-    for (var i = 0; i < chain.length; i++) {
-      var hit = table[chain[i][0]];
-      if (hit && hit[0] > 0) {
-        return {
-          price: hit[0],
-          sample: hit[1],
-          level: chain[i][1],
-          scope: chain[i][2],
-          tier: tier,
-          provinceCode: chain[i][1] === 'C' || chain[i][1] === 'F' ? null : pv,
-          providerGroup: (chain[i][1] === 'A' || chain[i][1] === 'D') ? grp : null,
-          techGroup: (chain[i][1] === 'A' || chain[i][1] === 'B' || chain[i][1] === 'C') ? tech : null,
-          /* True when we had to drop the provider the household actually named:
-             the fallback the spec calls for, worth surfacing. */
-          providerFellBack: !!grp && chain[i][1] !== 'A' && chain[i][1] !== 'D'
-        };
-      }
+    var hit = (pv && W.BASE_BY_PROVINCE_TIER) ? W.BASE_BY_PROVINCE_TIER[pv + '|' + tier] : null;
+    var level = 'E', scope = 'province';
+    if (!hit || !(hit[0] > 0)) {
+      hit = W.BASE_BY_TIER ? W.BASE_BY_TIER[String(tier)] : null;
+      level = 'F'; scope = 'national';
     }
-    return null;
+    if (!hit || !(hit[0] > 0)) return null;
+
+    return {
+      price: hit[0],
+      sample: hit[1],
+      level: level,
+      scope: scope,
+      tier: tier,
+      provinceCode: scope === 'province' ? pv : null,
+      providerGroup: null,
+      techGroup: null,
+      providerFellBack: false
+    };
   };
 
   /* Northern internet pricing bears no relation to the southern market
@@ -358,14 +347,17 @@
    * tech-blind aggregate, so those three always take the fallback.
    * ------------------------------------------------------------------ */
   W.p10For = function (provinceCode) {
-    var byProv = W.P10_BY_PROVINCE || null;
+    /* Now answered from the PlanSavvy list too (mean of the province's twelve
+       cheapest advertised plans), so the homepage estimator and the checkup
+       score against the same sheet. Field names kept for callers. */
+    var byProv = W.BASE_BY_PROVINCE || null;
     var hit = (byProv && provinceCode) ? byProv[provinceCode] : null;
     if (hit && hit[0] > 0) {
-      return { monthly: hit[0], decileRows: hit[1], poolRows: hit[2], scope: 'province', provinceCode: provinceCode };
+      return { monthly: hit[0], decileRows: hit[1], poolRows: hit[1], scope: 'province', provinceCode: provinceCode };
     }
-    var nat = W.P10_NATIONAL || null;
+    var nat = W.BASE_NATIONAL || null;
     if (nat && nat[0] > 0) {
-      return { monthly: nat[0], decileRows: nat[1], poolRows: nat[2], scope: 'national', provinceCode: null };
+      return { monthly: nat[0], decileRows: nat[1], poolRows: nat[1], scope: 'national', provinceCode: null };
     }
     return null;
   };
@@ -531,7 +523,10 @@
     /* Flags for comparisons that are materially weaker than the verdict looks,
        so the UI can qualify rather than state flat. */
     var caveat = null;
-    if (W.isTerritory(input.provinceCode) && bench.level !== 'A' && bench.level !== 'B') caveat = 'territory';
+    /* The PlanSavvy sheet carries real NT/NU/YT rows, so a province-level hit
+       for a territory is a genuine northern comparison; only the national
+       fallback still deserves the flag. */
+    if (W.isTerritory(input.provinceCode) && bench.scope !== 'province') caveat = 'territory';
     else if (bench.sample < 3) caveat = 'thin-sample';
 
     return {
