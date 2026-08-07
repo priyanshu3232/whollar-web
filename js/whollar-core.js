@@ -400,6 +400,52 @@
     };
   };
 
+  /* ------------------------------------------------------------------ *
+   * Base price (floor reference for the "you could save" projection)
+   *
+   * Source: "PlanSavvy-Pricing.xlsx" (Internet Plans sheet — the dozen
+   * lowest-priced advertised plans per province), aggregated at build time
+   * into js/whollar-base-pricing.js by scripts/build-base-pricing.mjs.
+   *
+   * This is a SEPARATE reference from benchmarkFor(): benchmarkFor answers
+   * "what does the market typically charge for this exact tier/tech/
+   * provider" (what decides the weak/fair/strong verdict — unchanged).
+   * basePriceFor answers "what is the cheapest advertised floor in this
+   * household's area" — the number a cohort is actually bidding toward —
+   * and unlike benchmarkFor it is always available: a cliff verdict carries
+   * no benchmark at all (score() returns early on the date check, before any
+   * benchmark lookup), so it is what the savings projection uses instead.
+   *
+   * Cascade, most to least specific:
+   *   province + speed tier   → that province's plans at this tier
+   *   province                → every plan listed for that province
+   *   speed tier (national)   → this tier pooled across every province
+   *   national                → every plan in the sheet
+   * ------------------------------------------------------------------ */
+  W.basePriceFor = function (provinceCode, speedRaw) {
+    var byPT = W.BASE_BY_PROVINCE_TIER, byProv = W.BASE_BY_PROVINCE,
+      byTier = W.BASE_BY_TIER, nat = W.BASE_NATIONAL;
+    if (!byPT && !byProv && !byTier && !nat) return null;
+
+    var tier = W.speedTier(speedRaw === '0' ? null : speedRaw);
+    var pv = provinceCode || null;
+
+    if (pv && tier && byPT) {
+      var hitPT = byPT[pv + '|' + tier];
+      if (hitPT && hitPT[0] > 0) return { price: hitPT[0], sample: hitPT[1], level: 'province-tier', provinceCode: pv, tier: tier };
+    }
+    if (pv && byProv) {
+      var hitP = byProv[pv];
+      if (hitP && hitP[0] > 0) return { price: hitP[0], sample: hitP[1], level: 'province', provinceCode: pv, tier: tier };
+    }
+    if (tier && byTier) {
+      var hitT = byTier[String(tier)];
+      if (hitT && hitT[0] > 0) return { price: hitT[0], sample: hitT[1], level: 'tier', provinceCode: null, tier: tier };
+    }
+    if (nat && nat[0] > 0) return { price: nat[0], sample: nat[1], level: 'national', provinceCode: null, tier: tier };
+    return null;
+  };
+
   /* ================================================================== *
    * 5. SCORING
    * ------------------------------------------------------------------
