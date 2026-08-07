@@ -169,7 +169,20 @@ const BILL_EXTRACTION_TOOL = {
       },
       monthlyChargeDollars: {
         ...nullable({ type: 'number' }),
-        description: 'Total monthly charge before tax, in dollars (e.g. 89.99).'
+        // The GROSS figure, deliberately not the "Total due" line: the frontend
+        // subtracts discountAmountDollars from this itself (effectiveCost =
+        // monthlyChargeDollars - discountAmountDollars), so if this were already
+        // net of the promo credit the discount would be subtracted twice.
+        description:
+          'The GROSS total monthly charge in dollars, before tax AND before the promotional ' +
+          'discount is subtracted. Sum every recurring line item (the plan/service charge, ' +
+          'equipment or modem rental, and any other recurring add-ons) but do NOT subtract the ' +
+          '"Savings" / "Promotional credit" line — that amount belongs only in ' +
+          'discountAmountDollars. If the bill shows just one total and it is already net of the ' +
+          'promo credit (a "Total due" sitting below a "Savings" line), add the credit back in: ' +
+          'monthlyChargeDollars = that total + discountAmountDollars. Example: a $126.99 plan ' +
+          '+ $10 equipment rental, minus a $50 savings line, showing "Total due $86.99", is ' +
+          'monthlyChargeDollars 136.99 (not 86.99).'
       },
       downloadSpeedMbps: {
         ...nullable({
@@ -251,6 +264,10 @@ async function extractBillFields(file) {
       'You extract structured billing fields from Canadian home-internet bills. ' +
       'If a field is ambiguous, missing, or you are not confident, return null for that field ' +
       'rather than guessing — a wrong auto-filled value is worse than an empty form field. ' +
+      'Every field is either null or an actual value from its allowed type — never a placeholder ' +
+      'string such as "unknown", "n/a", "<UNKNOWN>" or "". If the uploaded file is not a home-' +
+      'internet bill at all (a receipt, an unrelated document or photo, a bill for a different ' +
+      'service), return null for every single field rather than inventing one. ' +
       'Treat discounts carefully: only time-limited promotional credits count as the discount ' +
       'and promo end date. Bundle/multi-service, autopay, loyalty and one-time credits are ' +
       'permanent or unrelated to a promo period — leave them out of both fields entirely.',

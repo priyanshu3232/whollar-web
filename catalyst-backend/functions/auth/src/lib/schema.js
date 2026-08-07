@@ -144,6 +144,8 @@ const TABLES = Object.freeze({
     // datetime column would force an invented day and time onto it.
     promo_end_date:   'varchar(10)',
     promo_expired:    'int',
+    // Monthly promo credit, money-as-string like monthly_cost above.
+    discount_amount:  'varchar(16)',
     // Same month-granular 'YYYY-MM-DD' / 'YYYY-MM' shape as promo_end_date.
     contract_start_date: 'varchar(10)',
     // The form's <select> values as typed: '12'|'24'|'36'|'0'|'-1'.

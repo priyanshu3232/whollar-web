@@ -105,6 +105,7 @@ function publicBill(row) {
     tech: row.access_tech || null,
     promoEnd: row.promo_end_date || null,
     promoExpired: Boolean(Number(row.promo_expired || 0)),
+    discount: row.discount_amount || null,
     contractStart: row.contract_start_date || null,
     contractLength: row.contract_length || null,
     threshold: row.switch_threshold || null,
@@ -151,7 +152,7 @@ async function latestLead(catalystApp, user) {
       const rows = await datastore.query(
         catalystApp, LEADS_TABLE,
         `SELECT ROWID, Provider, MonthlyCost, DownloadSpeed, AccessTech, ` +
-        `PromoEndDate, PromoExpired, ContractStartDate, ContractLength, ` +
+        `PromoEndDate, PromoExpired, DiscountAmount, ContractStartDate, ContractLength, ` +
         `SwitchThreshold, SubmittedAt, CREATEDTIME ` +
         `FROM ${LEADS_TABLE} WHERE Email = ${datastore.lit(email)} ` +
         `ORDER BY ROWID DESC LIMIT ${LEAD_WINDOW}`
@@ -212,6 +213,7 @@ function fromLead(lead) {
     access_tech: str(lead.AccessTech, 32),
     promo_end_date: promoEnd(lead.PromoEndDate),
     promo_expired: truthy(lead.PromoExpired) ? 1 : 0,
+    discount_amount: money(lead.DiscountAmount),
     contract_start_date: promoEnd(lead.ContractStartDate),
     contract_length: str(lead.ContractLength, 8),
     switch_threshold: str(lead.SwitchThreshold, 64),
@@ -299,6 +301,7 @@ function mount(router) {
       access_tech: str(b.tech, 32),
       promo_end_date: promoEnd(b.promoEnd),
       promo_expired: truthy(b.promoExpired) ? 1 : 0,
+      discount_amount: money(b.discount),
       // Same month-granular shape as promo_end_date; promoEnd() validates both.
       contract_start_date: promoEnd(b.contractStart),
       contract_length: str(b.contractLength, 8),
