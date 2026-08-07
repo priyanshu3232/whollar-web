@@ -48,14 +48,14 @@ const { canRevealCode } = require('./otp');
  * a bad day, or the timing alone becomes the oracle. The failure is recorded on
  * the audit row instead, which is where `/dev/events` will show it.
  */
-async function issueCode(req, cfg, email, purpose) {
+async function issueCode(req, cfg, email, purpose, firstName = null) {
   const { code, ttlMinutes } = await challenges.start(req.catalyst, req, { email, purpose });
   // The wording follows what the code is FOR, not the challenge purpose string.
   // 'login_mfa' is a second factor on a sign-in, and an email telling someone to
   // "finish creating your Whollar account" when they were signing into an
   // account they have had for a year reads as though something is wrong.
   const message = mailer.otpEmail({
-    code, purpose: purpose === 'signup' ? 'signup' : 'login', ttlMinutes,
+    code, purpose: purpose === 'signup' ? 'signup' : 'login', ttlMinutes, firstName,
   });
 
   let delivered = false;
@@ -150,7 +150,9 @@ function mount(router, cfg) {
       try {
         await mailer.send(cfg, {
           to: email,
-          ...mailer.existingAccountEmail({ appBaseUrl: cfg.APP_BASE_URL }),
+          ...mailer.existingAccountEmail({
+            appBaseUrl: cfg.APP_BASE_URL, firstName: existing.first_name,
+          }),
         });
       } catch (err) {
         console.error(JSON.stringify({
@@ -184,7 +186,7 @@ function mount(router, cfg) {
       });
 
     await credentials.set(req.catalyst, user.user_id, password);
-    const issued = await issueCode(req, cfg, email, 'signup');
+    const issued = await issueCode(req, cfg, email, 'signup', user.first_name);
 
     audit.recordAsync(req.catalyst, req, {
       type: 'signup.start', outcome: 'success', email, userId: user.user_id,
@@ -352,7 +354,7 @@ function mount(router, cfg) {
     if (user.status === 'pending') {
       // Correct password, unproven address. Send a fresh code so the dead end
       // comes with the way out of it.
-      const issued = await issueCode(req, cfg, email, 'signup');
+      const issued = await issueCode(req, cfg, email, 'signup', user.first_name);
       audit.recordAsync(req.catalyst, req, {
         type: 'login', outcome: 'failure', email, userId: user.user_id,
         detail: { reason: 'email_unverified', delivered: issued.delivered },
@@ -375,7 +377,7 @@ function mount(router, cfg) {
     // The password is proven. Deliberately no session, no cookie, and nothing
     // in the response that a later step could be talked out of requiring: the
     // only thing this hands back is "we emailed you".
-    const issued = await issueCode(req, cfg, email, 'login_mfa');
+    const issued = await issueCode(req, cfg, email, 'login_mfa', user.first_name);
 
     audit.recordAsync(req.catalyst, req, {
       type: 'login.challenge', outcome: 'success', email, userId: user.user_id,
