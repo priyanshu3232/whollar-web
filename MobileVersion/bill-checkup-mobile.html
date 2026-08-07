@@ -1552,10 +1552,10 @@ function renderLevers(){
     ['Provider type','Same physical line, 20\u201340% apart on billing.',!!S.prov],
     ['Add-ons & QoS','Static IP, mesh, priority support: rarely contractual.',false]
   ];
-  /* Yours first, then everything still agreement/law: re-sorted on every
-     render since "got" tracks live form state, so a row promotes to the
-     top the moment that field is filled in. */
-  const Ls=L.filter(l=>l[2]).concat(L.filter(l=>!l[2]));
+  /* Three tiers: yours first, then the $0-by-law rows, then the agreement
+     rows. Re-sorted on every render since "got" tracks live form state, so a
+     row promotes to the top the moment that field is filled in. */
+  const Ls=L.filter(l=>l[2]).concat(L.filter(l=>!l[2]&&l[3]),L.filter(l=>!l[2]&&!l[3]));
   $('#lev-list').innerHTML=Ls.map((l,i)=>{
     const got=l[2];const law=l[3];
     return '<div class="lt '+(got?'got':'lock')+'"><span class="no">'+String(i+1).padStart(2,'0')+'</span><span style="min-width:0"><b>'+l[0]+'</b><span>'+l[1]+'</span></span><span class="st'+(law?' law':'')+'">'+(law?law:(got?'\u2713 yours':'agreement'))+'</span></div>';
