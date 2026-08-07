@@ -199,7 +199,6 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .pchips span{font-size:11.5px;font-weight:700;background:#EDE8DB;border-radius:999px;padding:4px 11px;color:#3A453E}
 .phero .tlink{margin-left:auto;margin-top:0}
 .hr2{height:1px;background:var(--line);margin:16px 0 12px}
-.sigline{font-size:12.5px;color:var(--accent-deep);font-weight:600;margin-top:5px}
 .siglabel{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#8C4622}
 .sigbars{display:flex;align-items:center;gap:5px;margin:9px 0 10px}
 .sigbars i{width:26px;height:9px;border-radius:5px;background:#E9D5C2;display:block}
@@ -259,7 +258,6 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .cluster svg{width:100%;max-width:430px;height:auto;display:block}
 .progline{display:flex;justify-content:space-between;font-size:13px;color:var(--sub);max-width:430px}
 .progline b{font-family:var(--mono);color:var(--ink)}
-.youline{font-size:12px;color:var(--terra);font-weight:650;margin-top:5px}
 .bidrows{display:flex;flex-direction:column;gap:8px;margin:13px 0}
 .bidrow{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 14px}
 .bidrow .dot{width:10px;height:10px;border-radius:50%}
@@ -496,17 +494,99 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .rtag.live{background:var(--mint);color:var(--accent-deep)}
 .rtag.prov{background:var(--terra-soft);color:#8C4622}
 @media (max-width:560px){.rrow{flex-wrap:wrap}.rrow .cnt{margin-left:0;width:100%;text-align:left;order:3}}
+
+/* ===== visitor / pre-join surface (ported from member dashboard v10) ===== */
+.vfirst{border-color:#E7CFB9}
+.upl{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;border:2px dashed #C9C3B2;border-radius:14px;padding:20px 16px;font-weight:650;font-size:14px;color:var(--accent-deep);background:#F7F3E8;cursor:pointer;margin-top:6px}
+.upl:hover{border-color:var(--accent);background:var(--mint)}
+.upl svg{width:22px;height:22px}
+.orline{display:flex;align-items:center;gap:12px;margin:14px 0 10px;color:#949E95;font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.orline::before,.orline::after{content:"";flex:1;height:1px;background:var(--line)}
+.ffields{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.ffields label{display:block;font-size:11px;font-weight:700;color:var(--sub);margin-bottom:4px}
+.ffields input,.ffields select{width:100%;font:inherit;font-size:14px;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:9px 11px}
+.vres{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+.vres>div:first-child{flex:1;min-width:230px}
+.vnum{background:#F7F3E8;border:1px solid var(--line);border-radius:14px;padding:13px 18px;text-align:center}
+.vnum b{display:block;font-family:var(--disp);font-size:29px;color:#8C4622}
+.vnum span{font-size:11px;color:var(--sub);font-weight:600}
+.demochip{font-family:var(--mono);font-size:9.5px;background:#F2E3D6;color:#8C4622;border-radius:6px;padding:2px 7px;margin-left:6px;letter-spacing:0;text-transform:none;vertical-align:1px}
+.elig{margin-top:10px;background:var(--mint);border-left:3px solid var(--accent);border-radius:0 10px 10px 0;padding:9px 13px;font-size:13px;color:#2E3A33}
+.modal{position:fixed;inset:0;background:rgba(26,37,32,.45);backdrop-filter:blur(3px);display:grid;place-items:center;padding:18px;z-index:90}
+.modal[hidden]{display:none}
+.mbox{background:var(--paper);border:1px solid var(--line);border-radius:20px;max-width:560px;width:100%;max-height:88vh;overflow:auto;padding:22px 24px;box-shadow:0 30px 70px rgba(26,37,32,.3)}
+.mhead{display:flex;align-items:center;gap:12px}
+.mhead h3{font-size:20px}
+.mx{margin-left:auto;font-size:22px;line-height:1;color:var(--sub);padding:4px 9px;border-radius:9px}
+.mx:hover{background:#EDE8DB}
+.msub{font-size:13.5px;color:var(--sub);margin:6px 0 4px;max-width:56ch}
+.plabel{display:block;font-size:12px;font-weight:700;color:var(--ink);margin:15px 0 7px}
+.plabel .opt{font-weight:600;color:#949E95;font-size:11px}
+.pchips button{border:1.5px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;background:#fff;color:#3A453E;cursor:pointer}
+.pchips button.on{background:var(--mint);border-color:var(--accent);color:var(--accent-deep)}
+.pchips.pvert{flex-direction:column;align-items:stretch}
+.pchips.pvert button{text-align:left;border-radius:12px}
+.pfnote{margin-top:9px;background:#F7F3E8;border-left:3px solid #C29B3C;border-radius:0 10px 10px 0;padding:9px 13px;font-size:12.5px;color:var(--sub)}
+.pfhint{font-size:12px;color:#949E95;margin-top:8px}
+.minput{width:100%;font:inherit;font-size:14px;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:2px}
+.prefls{list-style:none;margin:8px 0 10px;padding:0;display:flex;flex-direction:column;gap:6px}
+.prefls li{font-size:12.5px;color:#2E3A33;padding-left:16px;position:relative}
+.prefls li::before{content:"";position:absolute;left:0;top:7px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.urgent{background:#F8EDE0;border:1px solid #E7CFB9;border-radius:12px;padding:11px 14px;font-size:13.5px;color:#6E4630;margin-bottom:14px}
+.savedbox{background:var(--mint);border:1px solid #CBDCC9;border-radius:12px;padding:12px 15px;font-size:13.5px;color:#2E3A33;margin:10px 0}
+.duo{display:grid;grid-template-columns:1fr 1.25fr;gap:12px;margin:14px 0 4px}
+.duocell{border:1.5px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:3px;position:relative}
+.duocell .dl{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--sub)}
+.duocell b{font-family:var(--disp);font-size:26px}
+.duocell .ds{font-size:12.5px;color:var(--sub)}
+.duocell.now{background:#F7F3E8}
+.duocell.win{background:var(--mint);border-color:var(--accent)}
+.duocell.win b{color:var(--accent-deep)}
+.savetag{position:absolute;top:-11px;right:12px;background:var(--terra);color:#fff;font-size:11px;font-weight:700;border-radius:999px;padding:3px 11px}
+.savehero{text-align:center;padding:6px 2px}
+.bignum{display:block;font-family:var(--disp);font-size:40px;color:var(--accent-deep);margin:8px 0 2px}
+.subnum{display:block;font-size:14px;color:var(--sub);margin-bottom:12px}
+.saverows{list-style:none;margin:0;padding:0;text-align:left;display:flex;flex-direction:column;gap:7px}
+.saverows li{font-size:13px;color:#2E3A33;background:#F7F3E8;border-radius:10px;padding:9px 13px}
+.fbtext{width:100%;font:inherit;font-size:13px;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;resize:vertical;margin-top:8px}
+.vtrio{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.arr2{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:center}
+.arrright h3{font-size:21px}
+.cfform{margin-top:18px;border-top:1px dashed var(--line);padding-top:16px}
+.inv-wrap{display:flex;justify-content:center}
+.inv{width:100%;max-width:300px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 26px rgba(26,37,32,.09);padding:15px 16px 13px;font-family:var(--mono);font-size:11.5px;color:var(--ink);position:relative;overflow:hidden}
+.inv::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--accent-deep),var(--terra))}
+.inv h5{font-family:var(--body);font-weight:600;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#949E95;margin:0 0 10px}
+.inv .il{display:flex;justify-content:space-between;gap:10px;padding:4.5px 0;opacity:0;transform:translateY(4px);transition:opacity .4s,transform .4s}
+.inv.p0 .il,.inv.p1 .il,.inv.p2 .il{opacity:1;transform:none}
+.inv .il em{font-style:normal;color:#3A453E}
+.inv .il.disc em,.inv .il.disc b{color:var(--terra)}
+.inv .il.disc small{display:block;font-size:9.5px;color:#949E95}
+.inv .il b{font-weight:600}
+.inv .plus7{display:inline-block;font-size:9px;color:#8C4622;background:#F2E3D6;border-radius:999px;padding:1px 6px;margin-left:6px;opacity:0;transition:opacity .3s}
+.inv.p1 .plus7,.inv.p2 .plus7{opacity:1}
+.inv .il.disc{position:relative}
+.inv.p2 .il.disc em,.inv.p2 .il.disc b{text-decoration:line-through;color:#949E95}
+.inv .stamp{position:absolute;right:44px;top:50%;transform:translateY(-50%) rotate(-8deg) scale(1.6);border:1.5px solid #8C4622;color:#8C4622;font-family:var(--body);font-weight:600;font-size:9px;letter-spacing:.12em;padding:1px 6px;border-radius:4px;opacity:0;transition:opacity .25s,transform .25s}
+.inv.p2 .stamp{opacity:1;transform:translateY(-50%) rotate(-8deg) scale(1)}
+.inv .tot{display:flex;justify-content:space-between;border-top:1px dashed var(--line);margin-top:8px;padding-top:8px;font-weight:600}
+.inv .tot b{font-family:var(--disp);font-size:15px;transition:color .3s}
+.inv.p2 .tot b{color:#8C4622}
+.inv-cap{font-size:10.5px;color:#949E95;text-align:center;margin-top:9px;line-height:1.5}
+.cc__art svg{position:absolute;inset:0;width:100%;height:100%}
+@media (max-width:760px){.arr2{grid-template-columns:1fr}}
+@media (max-width:640px){.duo{grid-template-columns:1fr}.ffields{grid-template-columns:1fr}}
 </style>
 <!-- WHOLLAR-FOOTER-CSS:START (generated by scripts/build-footer.mjs) -->
 <style id="whl-footer-css">
 .whl-footer{margin:0;background:#0A2018;color:#CFE8D6;border-top:1px solid rgba(255,255,255,.08);padding:40px 0 calc(30px + env(safe-area-inset-bottom));font-family:Inter,'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14.5px;line-height:1.5;text-align:left}
 .whl-footer__wrap{max-width:1340px;margin:0 auto;padding:0 24px}
 .whl-footer__top{display:grid;grid-template-columns:1fr auto 1fr;gap:28px;align-items:start;padding-bottom:30px;border-bottom:1px solid rgba(255,255,255,.12)}
-.whl-footer__brand{max-width:300px}
+.whl-footer__brand{max-width:340px}
 .whl-footer__row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .whl-footer__mk{width:30px;height:30px;border-radius:9px;flex:none;display:block}
 .whl-footer__wm{font-family:'Satoshi','Hanken Grotesk','Bricolage Grotesque',Inter,system-ui,sans-serif;font-weight:800;font-size:20px;letter-spacing:-.01em;color:#fff}
-.whl-footer__brand p{margin:0;font-size:14px;line-height:1.5;color:#9FC1BF;font-style:normal}
+.whl-footer__brand p{margin:0;font-size:14px;line-height:1.5;color:#9FC1BF;font-style:normal;white-space:nowrap}
 .whl-footer__cols{display:flex;gap:96px;flex-wrap:wrap;margin:0 auto}
 .whl-footer__col{display:flex;flex-direction:column;gap:11px}
 .whl-footer__col a{color:#CFE8D6;text-decoration:none;font-size:14.5px;font-weight:400;border:0}
@@ -520,6 +600,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
   .whl-footer__cols{gap:48px;margin:0}
 }
 @media(max-width:560px){.whl-footer__cols{gap:34px}}
+@media(max-width:380px){.whl-footer__brand p{font-size:11.5px}}
 </style>
 <!-- WHOLLAR-FOOTER-CSS:END -->
 </head>
@@ -595,8 +676,13 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
           </div>
         </section>
 
-        
+        <!-- Pre-join surface: painted by renderVisitorX() for the arrive /
+             result / waitlist states. Still behind the login guard: "visitor"
+             here means a signed-in member with no bill or no cohort yet, not
+             an anonymous visitor. -->
+        <div id="visitor-home" hidden></div>
 
+        <div id="member-home">
         <div class="grid2">
           <!-- campaign card -->
           <section class="card" aria-label="Your campaign">
@@ -714,6 +800,36 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               </svg></div>
               <button class="btn ghost" type="button" id="reddit">Join us on Reddit</button>
             </section>
+        </div>
+        </div>
+
+        <!-- region row: London East counts repaint from CAMPS; the bells on
+             the other cards call POST /campaigns/notify -->
+        <div class="rowhead"><h3>Campaigns near you</h3><button class="all" type="button" id="viewall">How regions open &rarr;</button></div>
+        <div class="crow">
+          <div class="cc" id="cc-first">
+            <span class="badge live" id="regbadge">Your cohort &middot; Forming</span>
+            <span class="cc__art"><svg viewBox="0 0 240 104" preserveAspectRatio="xMidYMax slice"><rect width="240" height="104" fill="#E4F4EC"/><g fill="#C4D8C6"><path d="M14 104V72l18-13 18 13v32Z"/><path d="M120 104V68l20-15 20 15v36Z"/></g><g fill="#1E9E63" opacity=".85"><path d="M64 104V68l19-14 19 14v36Z"/><path d="M170 104V74l17-12 17 12v30Z"/></g><g fill="#2B3A33"><path d="M214 104V78l12-9 12 9v26Z"/></g></svg></span>
+            <span class="cc__b"><b>London East</b><span class="m">Autumn cohort &middot; closes Sep 12</span><span class="miniprog"><i id="regprog" style="width:61%"></i></span><span class="mono" id="regmono">61 of 100 households</span></span>
+          </div>
+          <div class="cc">
+            <span class="badge soon">Opens after this round</span>
+            <button class="bell" type="button" data-bell="London North" aria-label="Notify me when London North opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>
+            <span class="cc__art"><svg viewBox="0 0 240 104" preserveAspectRatio="xMidYMax slice"><rect width="240" height="104" fill="#F1EEE5"/><g fill="#D3DCCD"><path d="M20 104V70l19-14 19 14v34Z"/><path d="M126 104V76l16-12 16 12v28Z"/></g><g fill="#9DBEA2"><path d="M72 104V72l18-13 18 13v32Z"/><path d="M178 104V70l19-14 19 14v34Z"/></g></svg></span>
+            <span class="cc__b"><b>London North</b><span class="m">Next opening in your city</span><span class="mono">We'll text you the day it opens</span></span>
+          </div>
+          <div class="cc">
+            <span class="badge soon">Waitlist forming</span>
+            <button class="bell" type="button" data-bell="Chatham-Kent" aria-label="Notify me when Chatham-Kent opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>
+            <span class="cc__art"><svg viewBox="0 0 240 104" preserveAspectRatio="xMidYMax slice"><rect width="240" height="104" fill="#F7E7DD"/><g fill="#E5CFB9"><path d="M26 104V74l17-12 17 12v30Z"/><path d="M132 104V70l19-14 19 14v34Z"/></g><g fill="#CE9A72"><path d="M80 104V76l16-12 16 12v28Z"/><path d="M186 104V74l17-12 17 12v30Z"/></g></svg></span>
+            <span class="cc__b"><b>Chatham-Kent</b><span class="m">Neighbours are gathering</span><span class="mono">Invite yours to speed it up</span></span>
+          </div>
+          <div class="cc">
+            <span class="badge soon">Waitlist forming</span>
+            <button class="bell" type="button" data-bell="Windsor" aria-label="Notify me when Windsor opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>
+            <span class="cc__art"><svg viewBox="0 0 240 104" preserveAspectRatio="xMidYMax slice"><rect width="240" height="104" fill="#EAF0E9"/><g fill="#C7D4CB"><path d="M18 104V70l18-13 18 13v34Z"/><path d="M124 104V72l17-12 17 12v30Z"/></g><g fill="#84AC96"><path d="M70 104V68l19-14 19 14v36Z"/><path d="M176 104V70l18-13 18 13v34Z"/></g></svg></span>
+            <span class="cc__b"><b>Windsor</b><span class="m">Neighbours are gathering</span><span class="mono">One launch per region</span></span>
+          </div>
         </div>
       </section>
 
@@ -906,6 +1022,8 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
   </div>
 </div>
 
+<div class="modal" id="modal" hidden><div class="mbox" role="dialog" aria-modal="true" aria-label="Whollar dialog"><div id="mbody"></div></div></div>
+
 <div class="toast" id="toast" role="status"></div>
 <button class="ctl-t" type="button" id="ctl-toggle" aria-expanded="false" aria-controls="ctl">Prototype controls</button>
 <div class="ctl" id="ctl" aria-label="Prototype controls">
@@ -1020,6 +1138,35 @@ var FEED={
 };
 var PILL={forming:'Forming',locked:'Locked',bidding:'Bidding live',offers:'Offers in',confirm:'Confirm',switching:'Switching',done:'Switched'};
 var TL={forming:'close',locked:'close',bidding:'bid',offers:'offer',confirm:'offer',switching:'switch',done:'switch'};
+
+/* ================= extended state space (ported from v10) =================
+   Three "visitor" states render into #visitor-home (arrive: no bill yet;
+   result: bill but no cohort; waitlist: cohort not open) and are DERIVED from
+   the member's real bill + campaigns at boot. Three off-rail states (closing,
+   passed, short) pin to a rail position via RAILMAP. States the backend can't
+   drive yet (closing, locked, offers, passed, confirm, switching, done,
+   short) are reachable only through the ?demo=1 controls. */
+var VIS=['arrive','result','waitlist'];
+var RAILMAP={closing:0,passed:3,short:0};
+var ALL=[['arrive','First visit'],['result','Checked, not joined'],['waitlist','Region not open'],
+ ['forming','Forming'],['closing','Join closing'],['locked','Locked'],['bidding','Bidding'],
+ ['offers','Offer in'],['passed','Passed'],['confirm','Confirm'],['switching','Switching'],
+ ['done','Done'],['short','Did not fill']];
+PILL.closing='Join closes Friday';PILL.passed='Passed, no cost';PILL.short='Did not fill';
+TL.closing='close';TL.passed='offer';TL.short='close';
+FEED.closing=[['Sep 8','89 of 100: joining closes Friday 5 PM']];
+FEED.passed=[['Today','You passed on the offer. Nothing changes, nothing owed.']];
+FEED.short=[['Sep 12','Cohort closed at 74 of 100: rolled into the Winter window']];
+S.joined=false;S.checkup=null;S.prefs=null;S.pass=null;
+
+/* The single winning offer shown by the offers state (demo numbers until the
+   backend exposes member-readable bids). */
+var WIN={name:'Northline Internet',price:54.5,speed:'500 Mbps',guar:'Price guaranteed 24 months',
+ after:'$69 regular rate after, told up front',inc:'Install, modem and in-home WiFi included',bids:3};
+var MEDIAN=67; /* demo going-rate figure, labelled as such in the result card */
+
+/* Feed entries pushed by the member's own actions (join, pass, save offer). */
+var EXTRA=[];
 
 /* ---------- campaigns: the surface shared with providers ----------
    Seeded with the numbers the cards always showed, then overwritten by
@@ -1347,8 +1494,27 @@ function ratecardDone(){
   RATED=true;
   var card=$('#ratecard');
   if(!card)return;
-  card.innerHTML='<span class="eyebrow">One minute, once</span><h3>Noted, thank you</h3><p class="cardnote">Your rating stays private and is never shown to bidding providers. It helps us see which providers actually keep households happy, by region.</p>';
+  /* Rated -> ask for two lines of open feedback (v10). It lands in
+     user_events via POST /me/event, kind 'rating'. */
+  card.innerHTML='<span class="eyebrow">'+esc(ratecardProvider())+' rated ✓</span><h3>Anything we should fix or build?</h3>'
+  +'<p class="cardnote">Two lines is plenty. This goes to the team, not to a form nobody reads.</p>'
+  +'<textarea class="fbtext" rows="3" placeholder="What’s working, what’s missing, what’s confusing…" aria-label="Feedback"></textarea>'
+  +'<button class="btn ghost" type="button" id="fbgo" style="width:100%;justify-content:center;margin-top:9px">Send it</button>';
 }
+function ratecardThanks(){
+  var card=$('#ratecard');
+  if(!card)return;
+  card.innerHTML='<span class="eyebrow">Heard</span><h3>Thank you</h3><p class="cardnote">It lands with a person, not a void. If it needs a reply, you’ll get one. Your rating stays private and is never shown to bidding providers.</p>';
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest('#fbgo'))return;
+  var ta=$('#ratecard .fbtext');
+  var txt=String((ta&&ta.value)||'').trim();
+  if(!txt){toast('Two lines is plenty, but it needs at least one.');return}
+  if(W&&W.session&&W.session.event)W.session.event('rating',{note:txt.slice(0,2000)}).then(null,function(){});
+  ratecardThanks();
+  toast('Sent to the team. Thank you.');
+});
 
 /* Keeping it alive: a dashboard left open across a month boundary, or a bill
    uploaded in another tab, both have to move this number without a reload. */
@@ -1557,7 +1723,7 @@ window.addEventListener('focus',refreshCliff);
     W.session.billSave(payload).then(function(resp){
       busy=false;btn.disabled=false;btn.textContent=orig;
       MEMBER=W.member.patch({bill:(resp&&resp.bill)||payload})||MEMBER;
-      paintCliff();paintBill();paintChecklist();buPrefill();render();
+      paintCliff();paintBill();paintChecklist();buPrefill();applyDerived();
       toast('Bill saved to your file.');
     },function(err){
       busy=false;btn.disabled=false;btn.textContent=orig;
@@ -1681,7 +1847,7 @@ window.addEventListener('focus',refreshCliff);
       MEMBER=W.member.patch({bill:(resp&&resp.bill)||mergedPayload(patch)})||MEMBER;
       paintCliff();paintBill();paintChecklist();
       if(window.buPrefill)buPrefill();
-      render();
+      applyDerived();
       toast('Saved to your file.');
     },function(err){
       saving=false;
@@ -1928,8 +2094,6 @@ function tplForming(){
   +'<p class="p">Cohorts get bid on when providers can see real demand. Every dot is a household; every neighbour who joins strengthens the number your whole cohort gets.</p>'
   +'<div class="cluster">'+dotCluster()+'</div>'
   +'<div class="progline"><span><b>'+S.cohort.have+'</b> of <b>'+S.cohort.need+'</b> households</span><span>opens the auction at '+S.cohort.need+'</span></div>'
-  +'<div class="youline">The orange dot is you.</div>'
-  +'<div class="sigline">Signal: likely below your current rate. The real number is the output of real bids.</div>'
   +'<div style="margin-top:15px"><button class="btn" type="button" data-act="invite">Invite a neighbour</button></div>';
 }
 function tplLocked(){
@@ -1946,30 +2110,28 @@ function tplBidding(){
   +'<div class="bidrows">'+rows+'</div>'
   +'<span class="cdl">Bidding closes in <b id="cd"></b></span>';
 }
+/* One winning offer for the whole cohort (v10): the auction produces a single
+   best bid against the cohort's standard terms, compared against the member's
+   own bill when one is on file. */
 function tplOffers(){
   if(S.sub==='stayed'){
     return '<h3>Staying put, noted</h3>'
     +'<p class="p">You keep your current plan and pay nothing, ever. We\u2019ll check in before your next promo cliff, and your spot in the next cohort is held.</p>'
     +'<button class="btn ghost" type="button" data-act="unstay">Back to my offers</button>';
   }
-  var minP=Math.min.apply(null,OFFERS.map(function(o){return o.price}));
-  var cards=OFFERS.map(function(o){
-    var save=S.member.bill-o.price;
-    return '<div class="offer'+(S.chosen===o.id?' sel':'')+'">'
-    +(o.price===minP?'<span class="lowchip">Lowest bid</span>':'')
-    +'<span class="on">'+o.name+'</span>'
-    +'<span class="price">'+money(o.price)+'<small>/mo</small></span>'
-    +'<span class="spec">'+o.speed+' &middot; '+o.term+'</span>'
-    +'<span class="spec">'+o.note+'</span>'
-    +'<span class="save">Saves '+money(save)+'/mo vs your bill</span>'
-    +'<button class="btn" type="button" data-take="'+o.id+'">Take this offer</button>'
-    +'</div>';
-  }).join('');
-  return '<h3>Your offers are in</h3>'
-  +'<p class="p">Seeing them is free. Taking one is a <b>'+dep()+' deposit</b>, and it comes back on your first bill.</p>'
-  +'<div class="offers">'+cards+'</div>'
-  +'<div class="oblig"><b>You\u2019re never obligated.</b> Take an offer, or stay put and pay nothing, ever. Offers stand until <b>September 24</b>.</div>'
-  +'<div style="margin-top:12px"><button class="btn ghost" type="button" data-act="stay">Stay put instead</button></div>';
+  var o=OFFERS[0];var save=S.member.bill-o.price;
+  var c=S.checkup||{};
+  return '<h3>Your cohort\u2019s winning offer is in</h3>'
+  +'<p class="p">'+WIN.bids+' partners bid, sealed. This was the best against the cohort\u2019s standard terms, and it\u2019s the same offer for all '+S.cohort.locked+' households.</p>'
+  +'<div class="duo">'
+  +'<div class="duocell now"><span class="dl">Your bill today</span><b>'+money(S.member.bill)+'/mo</b><span class="ds">'+esc(c.prov||'Your provider')+(c.speed?' \u00b7 '+esc(c.speed):'')+'</span><span class="ds">'+(c.promo&&c.promo!=='Not sure'?'Resets around '+esc(c.promo):'Promo reset not set')+'</span></div>'
+  +'<div class="duocell win"><span class="dl">'+esc(WIN.name)+'</span><b>'+money(o.price)+'/mo</b><span class="ds">'+esc(WIN.speed)+' \u00b7 '+esc(WIN.guar.toLowerCase())+'</span><span class="ds">'+esc(WIN.after)+'</span><span class="ds">'+esc(WIN.inc)+'</span><span class="savetag">saves '+money(save)+'/mo</span></div>'
+  +'</div>'
+  +'<div class="oblig"><b>You\u2019re never obligated.</b> Take it with a '+dep()+' refundable deposit, or pass and pay nothing, ever. It stands until <b>Sep 24</b>.</div>'
+  +'<div style="margin-top:13px;display:flex;gap:10px;flex-wrap:wrap">'
+  +'<button class="btn terra" type="button" data-take="a">Take this offer</button>'
+  +'<button class="btn ghost" type="button" data-act="pass">Pass on it</button>'
+  +'<button class="finelink" type="button" data-act="whopart">Who is '+esc(WIN.name)+'?</button></div>';
 }
 function tplConfirm(){
   var o=OFFERS.filter(function(x){return x.id===S.chosen})[0]||OFFERS[0];
@@ -2010,7 +2172,9 @@ var TPL={forming:tplForming,locked:tplLocked,bidding:tplBidding,offers:tplOffers
 
 /* ---------- render ---------- */
 function render(){
-  var idx=STATES.indexOf(S.state);
+  /* Visitor states paint #visitor-home and skip the campaign card entirely. */
+  if(routeVisitor()){paintHistory();return}
+  var idx=(S.state in RAILMAP)?RAILMAP[S.state]:STATES.indexOf(S.state);
   $$('.rn').forEach(function(n,i){
     n.classList.remove('past','now');
     if(i<idx)n.classList.add('past');
@@ -2019,7 +2183,7 @@ function render(){
   $('#railfill').style.width=(idx/(STATES.length-1)*100)+'%';
   var pill=$('#statepill');
   pill.textContent=S.sub==='stayed'?'Staying put':PILL[S.state];
-  pill.className='statepill'+((S.state==='confirm'||S.sub==='stayed')?' warm':'');
+  pill.className='statepill'+((S.state==='confirm'||S.state==='closing'||S.state==='passed'||S.state==='short'||S.sub==='stayed')?' warm':'');
   cdStop();
   $('#panel').innerHTML=TPL[S.state]();
   if(S.state==='bidding')cdStart();
@@ -2028,7 +2192,12 @@ function render(){
   if(hot)hot.classList.add('hot');
   var items=[];
   for(var i=0;i<=idx;i++){(FEED[STATES[i]]||[]).forEach(function(f){items.push(f)})}
+  if(S.state in RAILMAP)(FEED[S.state]||[]).forEach(function(f){items.push(f)});
+  EXTRA.forEach(function(f){items.push(f)});
   $('#feed').innerHTML=items.map(function(f){return '<li><span class="when">'+esc(f[0])+'</span>'+esc(f[1])+'</li>'}).reverse().join('');
+  var badge=$('#regbadge');if(badge){badge.textContent='Your cohort · '+(S.sub==='stayed'?'Staying put':PILL[S.state]);badge.classList.add('live')}
+  var rm=$('#regmono');if(rm)rm.textContent=S.state==='forming'||S.state==='closing'?(S.cohort.have+' of '+S.cohort.need+' households'):(S.cohort.locked+' households, '+String(PILL[S.state]||'').toLowerCase());
+  var rp=$('#regprog');if(rp)rp.style.width=Math.min(100,Math.round(S.cohort.have/S.cohort.need*100))+'%';
   paintHistory();
   $$('#sts button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-goto')===S.state)});
 }
@@ -2036,6 +2205,13 @@ function go(state){
   S.state=state;
   if(state!=='offers')S.sub=null;
   if((state==='confirm'||state==='switching'||state==='done')&&!S.chosen)S.chosen='a';
+  /* Demo jumps into member states need the member-side fixtures a real member
+     would have accumulated; never fabricate them outside ?demo=1. */
+  if(DEMO&&VIS.indexOf(state)<0&&!S.joined){
+    S.joined=true;
+    if(!S.prefs)S.prefs={when:'win',speed:'keep',tech:'either',bundle:'no',building:'house',avoid:[]};
+    if(!S.checkup)S.checkup={prov:'Rogers',bill:S.member.bill||92,speed:'500 Mbps',promo:'Nov 2026'};
+  }
   render();
 }
 
@@ -2049,7 +2225,7 @@ $('#panel').addEventListener('click',function(e){
   if(act==='unstay'){S.sub=null;render();return}
   if(act==='backoffers'){go('offers');return}
   if(act==='invite'){copyRef();return}
-  if(t.id==='paydep'){t.disabled=true;t.textContent='Placing deposit\u2026';setTimeout(function(){go('switching');toast('Deposit placed: '+dep()+', credited to your first bill.')},reduce?350:900);return}
+  if(t.id==='paydep'){t.disabled=true;t.textContent='Placing deposit\u2026';setTimeout(function(){go('switching');openSavings();toast('Deposit placed: '+dep()+', credited to your first bill.')},reduce?350:900);return}
 });
 $('#panel').addEventListener('change',function(e){
   if(e.target.id==='consent'){var b=$('#paydep');if(b)b.disabled=!e.target.checked}
@@ -2186,10 +2362,30 @@ document.addEventListener('click',function(e){
 });
 $('#c-text').addEventListener('click',function(){toast('Prototype: opens your messages.')});
 $('#c-mail').addEventListener('click',function(){location.href='mailto:info@whollar.com'});
+/* Notify bells: a region card's bell sets a real opening-day alert via
+   POST /campaigns/notify (idempotent server-side; never downgrades a join).
+   Bells with no matching campaign (Mobile cohorts, Streaming tracking) log
+   an interest event instead. Same graceful degradation as joins. */
 document.addEventListener('click',function(e){
   var b=e.target.closest('[data-bell]');if(!b)return;
+  var name=b.getAttribute('data-bell');
   b.classList.add('on');
-  toast('Noted. We\u2019ll text you the day '+b.getAttribute('data-bell')+' opens.');
+  var c=null;
+  for(var i=0;i<CAMPS.length;i++)if(CAMPS[i].region===name){c=CAMPS[i];break}
+  var done=function(){toast('Noted. We\u2019ll text you the day '+name+' opens.')};
+  if(c&&W&&W.session&&W.session.campaignNotify){
+    W.session.campaignNotify(c.id).then(function(r){
+      if(r&&r.campaign)applyCampaign(r.campaign);else if(!c.you)c.you='alert';
+      paintHistory();done();
+    },function(err){
+      if(offlineish(err)){if(!c.you)c.you='alert';paintHistory();done();return}
+      b.classList.remove('on');
+      toast(err.message||'That didn\u2019t save. Please try again.');
+    });
+  }else{
+    if(W&&W.session&&W.session.event)W.session.event('interest',{topic:name}).then(null,function(){});
+    done();
+  }
 });
 $('#q').addEventListener('keydown',function(e){
   if(e.key==='Enter'){e.preventDefault();toast('Prototype: search lands with multi-region campaigns.')}
@@ -2239,7 +2435,7 @@ var KMETA=[
   ['the-487-problem','Saving money','The cheaper plan is already running on the same cables. Here is why almost nobody asks for it, and why that is not your fault.','~6 min read','A man slumped over a desk scattered with banknotes and coins'],
   ['promo-cliff','Saving money','The number that won you as a customer was never the number you were going to keep paying.','~5 min read','Stacks of coins climbing in steps beneath a rising green arrow'],
   ['whole-street-switch','How it works','One household has no leverage. A thousand households have an auction.','~5 min read','A quiet residential street of houses at sunset'],
-  ['same-cable','Saving money','A reseller sells you the incumbent’s own line for a fraction of the price. Here is the math.','~5 min read','Colourful network cables plugged into the same switch, one unplugged'],
+  ['same-cable','Saving money','A reseller sells you the incumbent’s own line for a fraction of the price. Here is the math.','~5 min read','An overhead view of a customer paying cash and receiving an itemized receipt'],
   ['where-the-money-goes','Explainers','63 cents of every retail dollar never stays with the company you pay.','~5 min read','Ascending stacks of gold coins beneath a rising arrow'],
   ['negotiate-your-bill','Saving money','The retention script that works, the leverage that matters, and the ceiling nobody mentions.','~6 min read','A man mid-conversation on a corded desk phone, gesturing with one hand'],
   ['win-back-offer','Explainers','The discount only appears when you try to leave. That timing is the whole story.','~5 min read','A call-centre agent wearing a headset at a bank of monitors'],
@@ -2266,14 +2462,520 @@ $('#klist').innerHTML=BLOGS.map(function(b,i){
   +'</span></a>'
 }).join('');
 
+/* ================= v10 port: visitor surface, prefs, pass, win ================= */
+
+/* ---------- generic modal ---------- */
+var modal=$('#modal');
+function openModal(html){$('#mbody').innerHTML=html;modal.hidden=false;document.body.style.overflow='hidden'}
+function closeModal(){modal.hidden=true;document.body.style.overflow=''}
+modal.addEventListener('click',function(e){if(e.target===modal||e.target.closest('[data-mclose]'))closeModal()});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!modal.hidden)closeModal()});
+
+/* ---------- chips helper (prefs + pass modals) ---------- */
+document.addEventListener('click',function(e){
+  var c=e.target.closest('.pchips button');if(!c)return;
+  var grp=c.parentElement;
+  if(grp.getAttribute('data-multi')==='1'){c.classList.toggle('on')}
+  else{$$('button',grp).forEach(function(x){x.classList.remove('on')});c.classList.add('on')}
+  if(grp.id==='pf-bundle'){var n=$('#bundlenote');if(n)n.hidden=c.getAttribute('data-v')!=='yes'}
+  if(grp.id==='pf-building'){var n2=$('#bldgnote');if(n2)n2.hidden=c.getAttribute('data-v')!=='bulk'}
+});
+function chipVal(id){var b=$('#'+id+' button.on');return b?b.getAttribute('data-v'):null}
+function chipVals(id){return $$('#'+id+' button.on').map(function(b){return b.getAttribute('data-v')})}
+
+/* ---------- the member's own numbers for the visitor cards ----------
+   S.checkup mirrors MEMBER.bill so the result card, the offer duo and the
+   pass modal all quote the member's real provider and price. */
+function syncCheckupFromBill(){
+  var b=MEMBER&&MEMBER.bill;
+  if(b&&(b.provider||b.monthly)){
+    S.checkup={prov:b.provider||'your provider',bill:Number(b.monthly)||0,
+      speed:fmtSpeed(b.speed)||'',promo:fmtPromoEnd(b)||'Not sure'};
+    var n=Number(b.monthly);
+    if(isFinite(n)&&n>0)S.member.bill=n;
+  }
+}
+
+/* ---------- state derivation: what the account can prove ----------
+   arrive    no bill on file
+   result    bill, but no cohort joined
+   waitlist  joined a cohort that hasn't opened (planned/waitlist)
+   forming   joined a forming cohort
+   bidding   joined a cohort at auction
+   done      joined a cohort that closed
+   Everything else has no server-side representation yet and stays demo-only.
+   TOURED flips on the first ?demo=1 jump so a late server sync can't snap a
+   demo tour back to the derived state. */
+var TOURED=false;
+/* Set the moment this member joins through the prefs modal, so the derived
+   state holds 'forming' while the join request is still in flight (or the
+   campaigns backend is degraded). Never set from seed data. */
+var OPTJOIN=false;
+function joinedCamp(){
+  for(var i=0;i<CAMPS.length;i++)if(CAMPS[i].you==='joined'||CAMPS[i].you==='waitlist')return CAMPS[i];
+  return null;
+}
+function deriveState(){
+  var bill=MEMBER&&MEMBER.bill;
+  var hasBill=!!(bill&&(bill.provider||bill.monthly||bill.promoEnd));
+  /* Only a LIVE campaigns answer can prove a join: the seeded CAMPS mark
+     london-east as joined for the demo, and deriving from that would show
+     every real member a cohort they never joined. */
+  var c=CAMPLIVE?joinedCamp():null;
+  if(!c)return OPTJOIN?'forming':(hasBill?'result':'arrive');
+  if(c.you==='waitlist')return 'waitlist';
+  switch(c.kind){
+    case 'planned':case 'waitlist':return 'waitlist';
+    case 'forming':return 'forming';
+    case 'auction':return 'bidding';
+    case 'closed':case 'archived':return 'done';
+    default:return hasBill?'result':'arrive';
+  }
+}
+function applyDerived(){
+  syncCheckupFromBill();
+  if(!TOURED){
+    S.state=deriveState();
+    S.joined=VIS.indexOf(S.state)<0;
+  }
+  render();
+}
+
+/* ---------- hello line per state ---------- */
+var HELLOSUB={arrive:'Let’s find out what your bill should be.',
+ result:'Here’s your result, and the cohort that acts on it.',
+ waitlist:'Your region is gathering. Here’s where it stands.',
+ passed:'You passed, and that’s a fine answer. Here’s where things stand.',
+ short:'This window didn’t fill. Here’s exactly what happens instead.',
+ closing:'Your cohort locks Friday. Last calls.'};
+function helloSub(){
+  var p=$('.hello p');if(p)p.textContent=HELLOSUB[S.state]||'Here is where your cohort stands, and what happens next.';
+}
+
+/* ---------- shared tiles for the visitor layout ---------- */
+function refCode(){return 'WHL-'+(FIRST?FIRST.toUpperCase():'W')+'-7'}
+function referralHTML(){
+  return '<section class="card" aria-label="Referral">'
+  +'<span class="eyebrow">Refer anyone, anywhere</span><h3>Every referral moves a cohort</h3>'
+  +'<p class="cardnote">Neighbours strengthen the cohort here. Friends anywhere else speed up their own region’s launch. Either way, someone’s bill gets better.</p>'
+  +'<div class="codebox"><code class="refc">'+esc(refCode())+'</code><button class="copybtn copyrefc" type="button">Copy</button></div>'
+  +'</section>';
+}
+function readsCardHTML(){
+  var lis=BLOGS.slice(0,3).map(function(b,i){
+    var m=KMETA[i], img='/images/resources/'+m[0];
+    return '<li><a href="/blog/'+b[2]+'">'
+    +'<span class="rthumb"><img src="'+img+'.webp" srcset="'+img+'.webp 800w, '+img+'@2x.webp 1600w" sizes="56px" alt="'+esc(m[4])+'" loading="lazy" decoding="async" width="800" height="533"></span>'
+    +'<span class="rtxt">'+esc(b[0])+'<small>'+b[1]+'</small></span></a></li>';
+  }).join('');
+  return '<section class="card" aria-label="Worth a read"><span class="eyebrow">Worth a read</span><ul class="reads">'+lis+'</ul><button class="tlink" type="button" data-nav="knowledge">See all &rarr;</button></section>';
+}
+function redditCardHTML(){
+  return '<section class="card" aria-label="The member room">'
+  +'<span class="eyebrow">The member room</span><h3>Talk to other members</h3>'
+  +'<p class="cardnote">Hosted on Reddit while we’re small: bill wins, provider stories, and each cohort’s own thread the day bidding starts.</p>'
+  +'<button class="btn ghost redditgo" type="button">Join us on Reddit</button></section>';
+}
+document.addEventListener('click',function(e){
+  if(e.target.closest('.copyrefc')){try{navigator.clipboard.writeText(refCode())}catch(err){}toast('Code copied: '+refCode());return}
+  if(e.target.closest('.redditgo'))toast('Prototype: this will open the member subreddit.');
+});
+
+/* ---------- animated invoice (the promo-cliff story, from the checkup) ---------- */
+function invoiceHTML(){
+  return '<div class="inv-wrap"><div class="inv invA" aria-label="A real bill, animated">'
+  +'<h5>Internet · monthly statement</h5>'
+  +'<div class="il"><em>Gigabit 1.5 plan <span class="plus7">+$7 by letter</span></em><b class="inv-plan">$126.99</b></div>'
+  +'<div class="il disc"><em>Savings: Internet Discount<small>ends May 21/26</small></em><b>&minus;$70.00</b><span class="stamp">Expired</span></div>'
+  +'<div class="il"><em>Wi‑Fi equipment</em><b>$10.00</b></div>'
+  +'<div class="il"><em>Pod rental</em><b>$7.00</b></div>'
+  +'<div class="tot"><em>Total before tax</em><b class="inv-tot">$73.99</b></div>'
+  +'</div></div>'
+  +'<p class="inv-cap">A real household’s statements, Jan to May 2026, anonymized. The discount expired, <b>nobody called to warn them.</b></p>';
+}
+function tween(el,from,to,ms){
+  var t0=null;
+  function f(t){
+    if(!document.contains(el))return;
+    if(t0===null)t0=t;
+    var p=Math.min(1,(t-t0)/ms),v=from+(to-from)*(p*p*(3-2*p));
+    el.textContent='$'+v.toFixed(2);
+    if(p<1)requestAnimationFrame(f);
+  }
+  requestAnimationFrame(f);
+}
+var invT=null;
+function invCycle(){
+  var el=$('.invA');
+  if(!el){invT=null;return}
+  if(reduce){
+    el.classList.add('p0','p1','p2');
+    $('.inv-plan',el).textContent='$133.99';$('.inv-tot',el).textContent='$150.99';
+    return;
+  }
+  el.className='inv invA';
+  $('.inv-plan',el).textContent='$126.99';$('.inv-tot',el).textContent='$73.99';
+  setTimeout(function(){var e2=$('.invA');if(e2)e2.classList.add('p0')},200);
+  setTimeout(function(){var e2=$('.invA');if(!e2)return;e2.classList.add('p1');tween($('.inv-plan',e2),126.99,133.99,600);tween($('.inv-tot',e2),73.99,80.99,600)},2400);
+  setTimeout(function(){var e2=$('.invA');if(!e2)return;e2.classList.add('p2');tween($('.inv-tot',e2),80.99,150.99,1100)},4600);
+  invT=setTimeout(invCycle,9200);
+}
+function invKick(){if(invT)clearTimeout(invT);invCycle()}
+
+/* ---------- visitor: arrive (animation + CTA, real bill form behind it) ---------- */
+function rvArriveX(){
+  return '<section class="card vfirst" aria-label="Check if you are overpaying">'
+  +'<div class="arr2">'
+  +'<div class="arrleft">'+invoiceHTML()+'</div>'
+  +'<div class="arrright">'
+  +'<span class="eyebrow" style="color:#8C4622">Two minutes, free, private</span>'
+  +'<h3>Is your bill quietly doing this?</h3>'
+  +'<p class="cardnote">Promos expire without a call, the jump lands on autopay, and most households notice a statement or two later. Find out where yours stands and what it should cost.</p>'
+  +'<button class="btn terra" type="button" id="cf-open">Check if I’m overpaying</button>'
+  +'<p class="fnote">Your bill stays private. Bidding partners only ever see cohort aggregates, never you.</p>'
+  +'</div></div>'
+  +'<div class="cfform" id="cfform" hidden>'
+  +'<button class="upl" type="button" id="upbill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg>Add your bill · we read the rest</button>'
+  +'<div class="orline"><span>or tell us</span></div>'
+  +'<div class="ffields">'
+  +'<div><label>Current provider</label><select id="cf-prov"><option value="">Choose&hellip;</option><option>Rogers</option><option>Bell</option><option>Telus</option><option>Shaw</option><option>Vid&eacute;otron</option><option>Cogeco</option><option>Eastlink</option><option>SaskTel</option><option>An independent (oxio, TekSavvy&hellip;)</option><option>Other / not sure</option></select></div>'
+  +'<div><label>Monthly charge ($)</label><input id="cf-bill" type="number" placeholder="90" min="10" step="1" inputmode="numeric"></div>'
+  +'<div><label>Speed</label><select id="cf-speed"><option value="">Not sure</option><option value="100">100 Mbps or less</option><option value="300">300 Mbps</option><option value="500">500 Mbps</option><option value="1000">1 Gig or faster</option></select></div>'
+  +'<div><label>Promo ends (if any)</label><input id="cf-promo" type="month"></div>'
+  +'</div>'
+  +'<button class="btn terra" type="button" id="cf-go" style="width:100%;justify-content:center;margin-top:14px">See my result</button>'
+  +'</div>'
+  +'</section>'
+  +'<section class="card" style="margin-top:16px" aria-label="How Whollar works">'
+  +'<span class="eyebrow">While you’re here</span><h3>How this works, in one breath</h3>'
+  +'<p class="cardnote">Households pool by region and renewal timing. Providers bid sealed for the whole cohort. You see the winning offer, and you take it or you don’t. Free either way, because providers pay us only when a switch completes.</p>'
+  +'</section>';
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest('#cf-open'))return;
+  var f=$('#cfform');if(!f)return;
+  f.hidden=false;
+  e.target.closest('#cf-open').style.display='none';
+  f.scrollIntoView({behavior:reduce?'auto':'smooth',block:'center'});
+});
+
+/* ---------- visitor: result ---------- */
+function rvResult(){
+  var c=S.checkup||{prov:'your provider',bill:0,speed:'',promo:'Not sure'};
+  var over=c.bill?Math.max(0,c.bill-MEDIAN):0;
+  var le=campById('london-east');
+  var have=le?le.members:61,need=le?(le.target||100):100;
+  return '<section class="card vfirst" aria-label="Your result">'
+  +'<div class="vres"><div>'
+  +'<span class="eyebrow" style="color:#8C4622">Your checkup result <span class="demochip">going rate is a demo figure</span></span>'
+  +'<h3>'+(over>0?('Likely overpaying by about '+money(over)+'/mo'):'You’re close to the market, for now')+'</h3>'
+  +'<p class="cardnote">'+(over>0?('Households like yours around here typically pay about '+money(MEDIAN)+(c.speed?' for '+esc(c.speed):'')+'. Yours is '+money(c.bill)+(c.promo!=='Not sure'?', and your promo reset lands around '+esc(c.promo)+', which usually pushes it higher.':'.')):'Your promo is doing its job today. '+(c.promo!=='Not sure'?'The reset around '+esc(c.promo)+' is when that changes, and a cohort is how you get ahead of it.':'Add your promo end date and we’ll flag the reset before it lands.'))+'</p>'
+  +'</div>'+(c.bill?'<div class="vnum"><b>'+money(c.bill)+'</b><span>your bill /mo</span></div>':'')+'</div>'
+  +'</section>'
+  +'<section class="card" style="margin-top:16px" aria-label="Cohort you can join">'
+  +'<span class="eyebrow">Open in your area</span><h3>London East · Autumn cohort</h3>'
+  +'<p class="cardnote">'+have+' of '+need+' households in. Joining closes <b>Sep 12</b>, sealed bidding runs <b>Sep 15 to 17</b>, and the winning offer lands by <b>Sep 24</b>.</p>'
+  +'<div class="elig">'+(c.promo==='Not sure'
+    ?'Add your promo end date and we’ll check the timing works for you.'
+    :'Offer lands Sep 24 · your reset is around '+esc(c.promo)+' · <b>good timing: the offer beats your cliff.</b>')+'</div>'
+  +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">'
+  +'<button class="btn terra" type="button" data-choose="le">Choose this cohort</button>'
+  +'<button class="btn ghost" type="button" data-act="whyfree">Why it’s free</button>'
+  +'</div>'
+  +'<p class="fnote">Joining is free and never obligates you. You’ll answer six quick questions so bids fit what you actually want.</p>'
+  +'</section>';
+}
+
+/* ---------- visitor: waitlist (their own cohort's numbers when joined) ---------- */
+function rvWaitlist(){
+  var c=joinedCamp();
+  var region=c?c.region:'Your region';
+  var have=c?c.members:38,need=c?(c.target||100):100;
+  var pct=Math.min(100,Math.round(have/need*100));
+  return '<section class="card vfirst" aria-label="Your region">'
+  +'<span class="eyebrow">'+esc(region)+'</span><h3>Your region isn’t open yet, and here’s exactly why</h3>'
+  +'<p class="cardnote">A cohort opens when enough households with renewal timing like yours are in: that’s what makes providers bid properly. '+esc(region)+' is at <b>'+have+' of the '+need+'</b> it takes.</p>'
+  +'<div class="miniprog" style="max-width:340px"><i style="width:'+pct+'%"></i></div>'
+  +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">'
+  +'<button class="btn terra" type="button" data-act="wnotify">Text me the day it opens</button>'
+  +'<button class="btn ghost" type="button" data-act="invite">Invite neighbours to speed it up</button>'
+  +'</div>'
+  +'<p class="fnote">Your checkup result and cliff watch stay active meanwhile: we’ll flag your reset about two months out either way.</p>'
+  +'</section>';
+}
+
+/* ---------- visitor layout: main + aside + shared tiles ---------- */
+function renderVisitorX(){
+  var main=S.state==='arrive'?rvArriveX():(S.state==='result'?rvResult():rvWaitlist());
+  $('#visitor-home').innerHTML='<div class="grid2"><div class="vmain">'+main+'</div>'
+   +'<aside class="aside">'+referralHTML()+'</aside></div>'
+   +'<div class="trio vtrio">'+readsCardHTML()+redditCardHTML()+'</div>';
+  if(S.state==='arrive')invKick();
+}
+
+/* ---------- visitor router (called at the top of render) ---------- */
+function routeVisitor(){
+  helloSub();
+  var isVis=VIS.indexOf(S.state)>-1;
+  $('#member-home').hidden=isVis;
+  $('#visitor-home').hidden=!isVis;
+  /* No bill yet (arrive) or nothing to time against (waitlist): the deal
+     signal card would only repeat the card beside it. */
+  var cliff=$('.cliff');if(cliff)cliff.style.display=(S.state==='arrive'||S.state==='waitlist')?'none':'';
+  var pc=$('#prefscard');if(pc)pc.remove();
+  if(!isVis&&S.joined&&S.prefs){
+    var aside=$('#member-home .aside');
+    if(aside)aside.insertAdjacentHTML('afterbegin',prefsCard());
+  }
+  syncRegions();
+  $$('#sts button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-goto')===S.state)});
+  if(isVis){renderVisitorX();return true}
+  return false;
+}
+
+/* ---------- region row sync (the London East card doubles as the join CTA) ---------- */
+function syncRegions(){
+  var first=$('#cc-first');if(!first)return;
+  var badge=$('#regbadge'),btn=$('#ccjoin');
+  if(!S.joined&&VIS.indexOf(S.state)>-1){
+    badge.textContent=S.state==='waitlist'?'Elsewhere · open to join':'Open to join · closes Sep 12';
+    badge.classList.add('live');
+    if(!btn&&S.state==='result'){
+      var b=document.createElement('button');
+      b.className='btn terra ccbtn';b.id='ccjoin';b.type='button';b.textContent='Choose this cohort';
+      b.setAttribute('data-choose','le');
+      first.querySelector('.cc__b').appendChild(b);
+    }
+    if(btn&&S.state!=='result')btn.remove();
+  }else{
+    if(btn)btn.remove();
+  }
+}
+
+/* ---------- visitor events: the bill form writes through the real pipeline ---------- */
+document.addEventListener('click',function(e){
+  if(e.target.closest('#upbill')){
+    /* The real upload lives in the bills view: same OCR pipeline as the
+       checkup, nothing faked. Opening the picker directly keeps it one tap. */
+    nav('bills');
+    var bf=$('#bu-file');if(bf)bf.click();
+    return;
+  }
+  if(e.target.closest('#cf-go')){
+    var monthly=parseFloat($('#cf-bill').value);
+    if(!isFinite(monthly)||monthly<=0){toast('Add your monthly charge first, e.g. 90.');return}
+    var r=W.parseMoneyInRange(String(monthly),W.BILL_MIN,W.BILL_MAX);
+    if(!r.ok){toast(r.reason==='low'?'That looks too low for a monthly internet bill.':'That looks too high for a monthly internet bill.');return}
+    var promoEnd=$('#cf-promo').value||null; /* type=month -> 'YYYY-MM' */
+    var end=parsePromoEnd(promoEnd);
+    var payload={
+      provider:$('#cf-prov').value||null,
+      monthly:r.value,
+      speed:$('#cf-speed').value||null,
+      tech:null,promoEnd:promoEnd,discount:null,threshold:null,
+      promoExpired:end?end.getTime()<Date.now():false,
+      source:'dashboard'
+    };
+    var btn=$('#cf-go');btn.disabled=true;btn.textContent='Checking…';
+    var apply=function(bill){
+      MEMBER=W.member.patch({bill:bill})||MEMBER;
+      paintCliff();paintBill();paintChecklist();
+      if(window.buPrefill)buPrefill();
+      applyDerived();
+      toast('Saved to your file.');
+    };
+    W.session.billSave(payload).then(function(resp){
+      apply((resp&&resp.bill)||payload);
+    },function(err){
+      btn.disabled=false;btn.textContent='See my result';
+      if(err&&err.code==='FORBIDDEN'){W.member.clear();toSignIn();return}
+      if(offlineish(err)){apply(payload);return}
+      toast((err&&err.message)||'Couldn’t save that. Try again.');
+    });
+    return;
+  }
+  if(e.target.closest('[data-act="whyfree"]')){toast('Providers pay Whollar only when a switch completes. You never pay, and you’re never obligated.');return}
+  if(e.target.closest('[data-act="wnotify"]')){
+    var c=joinedCamp();
+    var done=function(){toast('Noted. We’ll text you the day '+(c?c.region:'your region')+' opens.')};
+    if(c&&W&&W.session&&W.session.campaignNotify){W.session.campaignNotify(c.id).then(done,done)}else done();
+    return;
+  }
+  var ch=e.target.closest('[data-choose]');
+  if(ch){openPrefs();return}
+});
+
+/* ---------- preferences: six questions -> the cohort brief ----------
+   Saved to the account via POST /me/prefs under the `interests` key (the only
+   member-writable keys are alerts/interests/notify), and joining London East
+   goes through the same doJoin() the campaign cards use. */
+function chip(v,l,on){return '<button type="button" data-v="'+esc(v)+'"'+(on?' class="on"':'')+'>'+l+'</button>'}
+function openPrefs(edit){
+  var p=S.prefs||{};
+  openModal('<div class="mhead"><h3>'+(edit?'Your preferences':'Six quick questions')+'</h3><button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
+  +'<p class="msub">Bids fit better when partners know what the cohort actually wants. This shapes the auction; it never obligates you.</p>'
+  +'<label class="plabel">When would you actually switch?</label>'
+  +'<div class="pchips" id="pf-when">'+chip('win','As soon as my cohort wins',p.when==='win'||!p.when)+chip('cliff','Only near my promo cliff',p.when==='cliff')+chip('watch','Just watching for now',p.when==='watch')+'</div>'
+  +'<label class="plabel">Speed you want</label>'
+  +'<div class="pchips" id="pf-speed">'+chip('keep','Keep what I have',p.speed==='keep'||!p.speed)+chip('up','Move up to 1 Gig',p.speed==='up')+chip('cheap','Whatever’s cheapest',p.speed==='cheap')+'</div>'
+  +'<label class="plabel">Connection type</label>'
+  +'<div class="pchips" id="pf-tech">'+chip('either','Either',!p.tech||p.tech==='either')+chip('fibre','Fibre only',p.tech==='fibre')+chip('cable','Cable is fine',p.tech==='cable')+'</div>'
+  +'<label class="plabel">Does your internet share a bill with TV, mobile or home phone?</label>'
+  +'<div class="pchips" id="pf-bundle">'+chip('no','No, internet only',p.bundle!=='yes')+chip('yes','Yes, it’s bundled',p.bundle==='yes')+'</div>'
+  +'<div class="pfnote" id="bundlenote" '+(p.bundle==='yes'?'':'hidden')+'>Good to know. First cohorts price internet on its own, so we’ll check what leaving the bundle does to the rest of your bill before you ever have to decide.</div>'
+  +'<label class="plabel">Your building</label>'
+  +'<div class="pchips" id="pf-building">'+chip('house','House',!p.building||p.building==='house')+chip('unit','Condo or apartment, I pick my own internet',p.building==='unit')+chip('bulk','My building controls the internet',p.building==='bulk')+'</div>'
+  +'<div class="pfnote" id="bldgnote" '+(p.building==='bulk'?'':'hidden')+'>Then switching runs through your building, not around it. We’ll flag this cohort as informational for you and can talk to your board or landlord: that’s often a hundred households in one decision.</div>'
+  +'<label class="plabel">Partners you’d rather avoid <span class="opt">optional</span></label>'
+  +'<div class="pchips" id="pf-avoid" data-multi="1">'+['Bell','Rogers','Cogeco','TekSavvy','Start.ca'].map(function(n){return chip(n,n,(p.avoid||[]).indexOf(n)>-1)}).join('')+'</div>'
+  +'<p class="pfhint">This shapes bids, it doesn’t bind them: whoever wins, you still see the offer and you can still say no.</p>'
+  +'<button class="btn terra" type="button" id="pf-save" style="width:100%;justify-content:center;margin-top:16px">'+(edit?'Save preferences':'Join London East · free')+'</button>'
+  +'<p class="fnote" style="text-align:center">No card, no commitment. A deposit only ever appears if you accept a winning offer later.</p>');
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest('#pf-save'))return;
+  var wasJoined=S.joined;
+  S.prefs={when:chipVal('pf-when'),speed:chipVal('pf-speed'),tech:chipVal('pf-tech'),
+    bundle:chipVal('pf-bundle'),building:chipVal('pf-building'),avoid:chipVals('pf-avoid')};
+  if(W&&W.session&&W.session.prefsSave){
+    W.session.prefsSave({interests:S.prefs}).then(null,function(){/* kept locally; retried on next save */});
+  }
+  closeModal();
+  if(!wasJoined){
+    S.joined=true;OPTJOIN=true;
+    EXTRA.push(['Today','You joined London East · Autumn, preferences on file']);
+    var le=campById('london-east');
+    if(le&&le.you!=='joined'&&le.you!=='waitlist')doJoin('london-east');
+    S.state=deriveState();
+    render();
+  }else{
+    render();
+    toast('Preferences saved to your cohort brief.');
+  }
+});
+
+/* ---------- preferences summary card (member aside) ---------- */
+var PLBL={win:'Switch when the cohort wins',cliff:'Switch near my cliff',watch:'Watching for now',
+ keep:'Keep my current speed',up:'Move up to 1 Gig',cheap:'Cheapest wins',
+ either:'Fibre or cable',fibre:'Fibre only',cable:'Cable is fine'};
+function prefsCard(){
+  if(!S.joined||!S.prefs)return '';
+  var p=S.prefs;
+  var rows=[PLBL[p.when],PLBL[p.speed],PLBL[p.tech],
+    p.bundle==='yes'?'Bundled bill, flagged':'Internet-only bill',
+    p.building==='bulk'?'Building-controlled, informational':(p.building==='unit'?'Condo or apartment':'House')].filter(Boolean);
+  if(p.avoid&&p.avoid.length)rows.push('Rather avoid: '+p.avoid.join(', '));
+  return '<section class="card" aria-label="Your preferences" id="prefscard">'
+  +'<span class="eyebrow">On the brief</span><h3>Your preferences</h3>'
+  +'<ul class="prefls">'+rows.map(function(r2){return '<li>'+esc(r2)+'</li>'}).join('')+'</ul>'
+  +'<button class="tlink" type="button" id="editprefs">Edit →</button>'
+  +'</section>';
+}
+document.addEventListener('click',function(e){if(e.target.closest('#editprefs'))openPrefs(true)});
+
+/* ---------- pass flow ---------- */
+function openPass(){
+  openModal('<div class="mhead"><h3>Passing is a fine answer</h3><button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
+  +'<p class="msub">Nothing changes and nothing is owed. One question, because it makes the next auction sharper: why pass?</p>'
+  +'<div class="pchips pvert" id="ps-why">'
+  +chip('stay','Happy enough with '+esc((S.checkup||{}).prov||'my provider'),true)
+  +chip('save','They came back with a better offer when I mentioned leaving')
+  +chip('price','The savings aren’t worth the hassle')
+  +chip('time','Bad timing for me right now')
+  +'</div>'
+  +'<div id="ps-savewrap" hidden><label class="plabel">What number did they give you? <span class="opt">optional, it stays private</span></label>'
+  +'<input class="minput" id="ps-amt" type="number" placeholder="e.g. 60" min="1" step="0.5" inputmode="decimal"></div>'
+  +'<label class="plabel" style="margin-top:14px">Keep looking for you?</label>'
+  +'<div class="pchips" id="ps-next">'+chip('yes','Yes, roll me into the Winter cohort · free',true)+chip('no','No, just watch my cliff')+'</div>'
+  +'<button class="btn terra" type="button" id="ps-go" style="width:100%;justify-content:center;margin-top:16px">Confirm my pass</button>'
+  +'<p class="fnote" style="text-align:center">Your spot costs nothing to keep. The offer stands until Sep 24 if you change your mind.</p>');
+}
+document.addEventListener('click',function(e){
+  var wb=e.target.closest('#ps-why button');
+  if(wb){var sw=$('#ps-savewrap');if(sw)sw.hidden=wb.getAttribute('data-v')!=='save'}
+  if(e.target.closest('#ps-go')){
+    S.pass={why:chipVal('ps-why'),amt:parseFloat(($('#ps-amt')||{}).value)||null,next:chipVal('ps-next')==='yes'};
+    if(W&&W.session&&W.session.event){
+      W.session.event('interest',{action:'pass',why:S.pass.why,saveOffer:S.pass.amt,nextCohort:S.pass.next}).then(null,function(){});
+    }
+    closeModal();
+    if(S.pass.amt)EXTRA.push(['Today','You logged '+((S.checkup||{}).prov||'your provider')+'’s save offer: '+money(S.pass.amt)+'/mo']);
+    go('passed');
+  }
+});
+function tplPassed(){
+  var p=S.pass||{next:true};
+  var save=p.amt?'<div class="savedbox"><b>'+esc((S.checkup||{}).prov||'Your provider')+' offered you '+money(p.amt)+'/mo when you pushed.</b> That’s the cohort working even when you stay: the credible exit is what moved them. Logged privately, never shown to bidders.</div>':'';
+  return '<h3>Passed. Nothing changes, nothing owed.</h3>'
+  +'<p class="p">You keep your plan and your standing. The winning offer stands until <b>Sep 24</b> if you rethink it.</p>'
+  +save
+  +(p.next
+    ?'<p class="p"><b>You’re in the Winter cohort.</b> Same region, next window. We’ll flag your promo cliff about two months out so the timing works in your favour next round.</p>'
+    :'<p class="p">We’ll keep watching your promo cliff and flag it about two months out. Rejoin any time, free.</p>')
+  +'<div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">'
+  +'<button class="btn ghost" type="button" data-act="backoffers">Reconsider the offer</button>'
+  +'<button class="btn ghost" type="button" data-act="invite">Invite a neighbour</button></div>';
+}
+
+/* ---------- closing + short ---------- */
+function tplClosing(){
+  if(DEMO)S.cohort.have=89; /* demo staging only: never stomp a synced count */
+  return '<div class="urgent"><b>Joining closes Friday, Sep 12 at 5 PM.</b> '+S.cohort.have+' of '+S.cohort.need+' in. This is a real deadline: the brief freezes so partners can price it.</div>'
+  +tplForming()
+  +'<div style="margin-top:12px"><button class="btn ghost" type="button" data-act="editprefs2">Confirm your preferences before the freeze</button></div>';
+}
+function tplShort(){
+  return '<h3>74 of 100: this window didn’t fill</h3>'
+  +'<p class="p">We hold the line at 100 because a thin cohort gets thin bids, and a mediocre first offer helps nobody. So we don’t auction it: <b>everyone rolls into the Winter cohort automatically</b>, spot and preferences intact.</p>'
+  +'<p class="p">Winter opens <b>Nov 3</b>, and your cliff watch runs meanwhile. The fastest way to make Winter certain is the button below.</p>'
+  +'<div style="margin-top:12px"><button class="btn" type="button" data-act="invite">Invite a neighbour</button></div>';
+}
+TPL.closing=tplClosing;TPL.passed=tplPassed;TPL.short=tplShort;
+
+/* ---------- savings dialog after the deposit ---------- */
+function openSavings(){
+  var o=OFFERS.filter(function(x){return x.id===S.chosen})[0]||OFFERS[0];
+  var mo=S.member.bill-o.price;
+  openModal('<div class="savehero"><span class="eyebrow" style="color:#8C4622">Locked in <span class="demochip">demo numbers</span></span>'
+  +'<b class="bignum">'+money(mo)+'/mo less</b>'
+  +'<span class="subnum">about '+money(Math.round(mo*12))+' over the next year</span>'
+  +'<ul class="saverows"><li>Your bill: '+money(S.member.bill)+' → <b>'+money(o.price)+'/mo</b> · '+esc(WIN.guar.toLowerCase())+'</li>'
+  +'<li>'+esc(WIN.after)+'</li>'
+  +'<li>Your '+dep()+' deposit is credited to your first bill</li></ul>'
+  +'<button class="btn terra" type="button" data-mclose style="width:100%;justify-content:center;margin-top:14px">See what happens next</button></div>');
+}
+
+/* ---------- extra panel actions (offers/passed panels) ---------- */
+$('#panel').addEventListener('click',function(e){
+  var t=e.target.closest('button');if(!t)return;
+  var act=t.getAttribute('data-act');
+  if(act==='pass'){openPass();return}
+  if(act==='whopart'){toast('Partner profile: an independent serving SW Ontario since 2011. Full profiles land with the real build.');return}
+  if(act==='editprefs2'){openPrefs(true);return}
+});
+$('#viewall').addEventListener('click',function(){toast('One launch per region: a city opens when enough neighbours are in.')});
+
+/* ---------- server sync: preferences already on the account ---------- */
+if(W&&W.session&&W.session.prefsGet){
+  W.session.prefsGet().then(function(prefs){
+    if(prefs&&prefs.interests&&!S.prefs){S.prefs=prefs.interests;render()}
+  });
+}
+/* ================= end v10 port ================= */
+
 /* ---------- demo controls: only with ?demo=1 ---------- */
 var DEMO=new URLSearchParams(location.search).get('demo')==='1';
 if(DEMO){
-  var LBL={forming:'Forming',locked:'Locked',bidding:'Bidding',offers:'Offers',confirm:'Confirm',switching:'Switching',done:'Done'};
-  STATES.forEach(function(s){
+  ALL.forEach(function(pair){
     var b=document.createElement('button');
-    b.type='button';b.textContent=LBL[s];b.setAttribute('data-goto',s);
-    b.addEventListener('click',function(){go(s)});
+    b.type='button';b.textContent=pair[1];b.setAttribute('data-goto',pair[0]);
+    b.addEventListener('click',function(){
+      /* The first demo jump owns the state from here on: a late server sync
+         must not snap the tour back to the derived state. */
+      TOURED=true;
+      if(VIS.indexOf(pair[0])>-1){S.joined=false;S.prefs=null;S.pass=null;if(pair[0]==='arrive')S.checkup=null;S.state=pair[0];render()}
+      else go(pair[0]);
+    });
     $('#sts').appendChild(b);
   });
   $('#ctl-toggle').addEventListener('click',function(){
@@ -2287,15 +2989,19 @@ if(DEMO){
     render();
   });
   $('#rst').addEventListener('click',function(){
-    S.state='forming';S.sub=null;S.chosen=null;S.deposit=10;
-    $('#cfg-dep').value=10;cdSecs=26*3600+14*60+9;render();nav('dashboard');
+    TOURED=false;OPTJOIN=false;
+    S.sub=null;S.chosen=null;S.deposit=10;S.joined=false;S.checkup=null;S.prefs=null;S.pass=null;
+    EXTRA.length=0;$('#cfg-dep').value=10;cdSecs=26*3600+14*60+9;
+    applyDerived();nav('dashboard');
   });
 }else{
   var ctlT=$('#ctl-toggle'); if(ctlT)ctlT.parentNode.removeChild(ctlT);
   var ctlP=$('#ctl'); if(ctlP)ctlP.parentNode.removeChild(ctlP);
 }
 
-render();
+/* First paint: derive the real state from whatever this browser already
+   knows (the server syncs below refine it). */
+applyDerived();
 
 /* ---------- server sync: the account's bill, not this browser's ----------
    The boot guard above only calls adopt() when the local record is MISSING,
@@ -2312,7 +3018,7 @@ if(W&&W.session&&W.session.syncBill){
     paintBill();
     paintChecklist();
     buPrefill();
-    render();
+    applyDerived();
   });
 }
 
@@ -2337,7 +3043,7 @@ if(W&&W.session&&W.session.campaignsList){
     CAMPLIVE=Boolean(r.live);
     (r.campaigns||[]).forEach(applyCampaign);
     syncCohortFromCamps();
-    render();
+    applyDerived();
   });
 }
 })();
