@@ -45,6 +45,10 @@
 :root{
   --teal:#0E2A20; --teal-deep:#0A2018; --teal-bright:#178A5A; --teal-soft:#7FE3B0;
   --accent:#1E9E63; --accent-hover:#178A5A;
+  /* Filled-pill background. --accent behind white text is only 3.4:1 and
+     --accent-hover 4.35:1, both under the WCAG AA 4.5:1 floor at the 9.5px
+     the lever pills use; this clears it at 5.6:1. */
+  --accent-deep:#14764D;
   --cream:#FAF8F3; --paper:#ffffff; --mist:#F6F4EE;
   --ink:#2B3A33; --ink-2:#54625B;
   /* --ink-3 was #8A968F, which is 2.6–3.1:1 against every background here and
@@ -419,21 +423,30 @@ body[data-screen="2"] .only1{display:none!important}
 .lt b{display:block;font-family:var(--disp);font-weight:700;font-size:13px;color:var(--teal)}
 .lt span{font-size:11px;color:var(--ink-3);line-height:1.45;display:block;margin-top:1px}
 .lt .st{margin-left:auto;flex:none;font-family:var(--label);font-weight:600;font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;border-radius:999px;padding:3px 8px;white-space:nowrap}
-.lt.got{border-color:#BFE3CF;background:#F7FCF9}
-.lt.got .no{background:var(--green-tint);color:var(--accent)}
-.lt.got .st{color:var(--accent);background:var(--green-tint)}
+/* Three tiers, three TREATMENTS — filled, outlined, neutral — not three
+   shades of one. Shade alone had "yours" (#F7FCF9 card, green-tint pill) and
+   "$0 by law" (#FAFDFB card, the same green-tint pill) one notch apart, so at
+   arm's length the two groups were one group. The 3px left rail carries the
+   split on its own; the pill fill confirms it. Rail width is taken out of
+   padding-left so body text stays aligned down all three tiers. */
+.lt.got{border-color:#BFE3CF;background:#F2FAF5;border-left:3px solid var(--accent);padding-left:10px}
+.lt.got .no{background:var(--green-tint);color:var(--accent-deep)}
+.lt.got .st{color:#fff;background:var(--accent-deep)}
 .lt.lock{cursor:pointer}
 .lt.lock .st{color:var(--ink-3);background:var(--mist)}
 .lt.lock:hover{border-color:#cdd7d1;transform:translateY(-1px)}
-.lt .st.law{color:var(--accent);background:var(--green-tint)}
-/* Law-tier rows get a soft tint of their own — one notch lighter than "got"
-   — so the eye can tell them from agreement rows without reading the pill;
-   the divider between tiers below reinforces the same three-way split. */
-.lt.lock.lawtier{border-color:#D7ECDF;background:#FAFDFB}
-.lt.lock.lawtier .no{background:var(--green-tint);color:var(--accent)}
-.lt.lock.lawtier:hover{border-color:#BFE3CF}
+.lt .st.law{color:var(--accent-deep);background:var(--paper);box-shadow:inset 0 0 0 1.5px #A8D9BE}
+/* Middle tier: outlined, not tinted. A row here is a fact about the law, not
+   something the household told us, so it stays on paper and states its case
+   with a ring — same hue family as "yours", opposite fill. That also keeps it
+   clear of the agreement rows below, which carry no rail and no green at all.
+   :hover needs its own rule: .lt.lock:hover ties this selector on specificity
+   and loses on order. */
+.lt.lock.lawtier{border-color:#DDE6E1;background:var(--paper);border-left:3px solid #A8D9BE;padding-left:10px}
+.lt.lock.lawtier .no{background:var(--paper);color:var(--accent-deep);box-shadow:inset 0 0 0 1.5px #CFE8DA}
+.lt.lock.lawtier:hover{border-color:#cdd7d1;border-left-color:var(--accent)}
 .lt-div{height:1px;margin:15px 2px 6px;border-radius:1px}
-.lt-div--lawtier{background:linear-gradient(90deg,#BFE3CF,#BFE3CF 60%,transparent)}
+.lt-div--lawtier{background:linear-gradient(90deg,#A8D9BE,#A8D9BE 60%,transparent)}
 .lt-div--agreement{background:linear-gradient(90deg,var(--ink-3),var(--ink-3) 60%,transparent);opacity:.35}
 
 footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;color:var(--ink-3);line-height:1.7}
