@@ -1354,7 +1354,7 @@ $('#checkup-form').addEventListener('submit',async e=>{
   screen(2);           /* switches under the overlay, so nothing flashes */
   await hideCalc();
   busy(btn,false);
-  if(joinErr)submitErr($('#j2-join'),joinErr,true);
+  if(joinErr)submitErr($('#j2-cta'),joinErr,true);
   else if(S.joined){
     /* No thank-you overlay here: the results screen is the payoff, and the
        join2 card already confirms the waitlist spot inline. */
@@ -1544,9 +1544,12 @@ function renderResults(){
   renderLevers();
   const j2=$('#join2');
   if(S.joined){j2.innerHTML='<h3>&#10003; You\u2019re on the '+W.escapeHtml(S.pc?S.pc+' ':'')+'waitlist</h3><p>We\u2019ll write the moment your cohort opens, and you\u2019ll be first to hear where Whollar goes next.</p>';}
-  else{j2.innerHTML='<h3>'+(S.pc?'Join the '+W.escapeHtml(S.pc)+' cohort':'Join the cohort')+'</h3><p>Households in '+(S.pc?W.escapeHtml(S.pc):'your area')+' get pooled together, then ISPs bid to win the group. Free to join, and you\u2019re never obligated to take an offer.</p><div class="gerow" id="j2row"><label class="whl-sr" for="j2-email">Email address to join</label><input type="email" id="j2-email" placeholder="you@example.com" autocomplete="email" maxlength="254" inputmode="email"><button class="whl-btn" type="button" id="j2-join">Join the cohort</button></div><p class="wl__consent" style="margin-top:9px;color:#CFE2D5">By joining you agree to receive email about your cohort and any offers it attracts, and accept our <a href="/terms" target="_blank" rel="noopener noreferrer" style="color:#7FE3B0">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style="color:#7FE3B0">Privacy&nbsp;Policy</a>. Unsubscribe any time.</p><div class="gdone" id="j2done">&#10003;&nbsp; You\u2019re in. We\u2019ll write when your cohort opens.</div>';
-    $('#j2-join').addEventListener('click',()=>{railJoin($('#j2-email'),$('#j2row'),$('#j2done')).then(ok=>{if(ok)renderResults();});});
-    if(S.email)$('#j2-email').value=S.email;}
+  /* One CTA, no inline email capture: joining means creating an account, and
+     account creation lives on /waitlist/ (the same entry point the sign-in
+     page links to). The checkup handoff (W.checkup.save) already carries this
+     bill to whatever account they create. Consent copy belongs to the signup
+     form itself, so none is repeated here. */
+  else{j2.innerHTML='<h3>'+(S.pc?'Join the '+W.escapeHtml(S.pc)+' cohort':'Join the cohort')+'</h3><p>Households in '+(S.pc?W.escapeHtml(S.pc):'your area')+' get pooled together, then ISPs bid to win the group. Free to join, and you\u2019re never obligated to take an offer.</p><a class="whl-btn" id="j2-cta" href="/MobileVersion/join-the-first-cohort-mobile" style="margin-top:4px">Join the cohort</a>';}
   if(S.email)$('#deep-email').value=$('#deep-email').value||S.email;
 }
 
