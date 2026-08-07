@@ -297,6 +297,16 @@ function monthsBetween(startISO, endISO) {
 
 var r2 = function (n) { return Math.round(n * 100) / 100; };
 
+/** Add n months to an ISO date, clamping the day (Jan 31 + 1mo -> Feb 28/29). */
+function addMonths(iso, n) {
+  var d = new Date(iso + 'T00:00:00Z');
+  var day = d.getUTCDate();
+  var target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + n, 1));
+  var last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(day, last));
+  return target.toISOString().slice(0, 10);
+}
+
 function calculateCheckup(input) {
   var T = input.contractLengthMonths;
   var today = input.today || new Date().toISOString().slice(0, 10);
@@ -371,15 +381,24 @@ function calculateCheckup(input) {
   var totalBenchmark = b * T;
   var totalSavings = Math.max(0, totalPaid - totalBenchmark);
 
+  /* The cliff's calendar date follows the same anchor the schedule was built
+     on: the contract start when it was given, today otherwise. */
+  var anchor = input.contractStartDate || today;
   var cliff = null;
   for (var m = 1; m < T; m++) {
-    if (schedule[m] > schedule[m - 1]) { cliff = { month: m, from: schedule[m - 1], to: schedule[m] }; break; }
+    if (schedule[m] > schedule[m - 1]) {
+      var date = anchor ? addMonths(anchor, m) : null;
+      var monthsAway = date ? monthsBetween(today, date) - 1 : null;
+      cliff = { month: m, date: date, monthsAway: monthsAway, from: schedule[m - 1], to: schedule[m] };
+      break;
+    }
   }
 
   return {
     currentMonthly: schedule[0],
     postPromoPrice: postPromoPrice,
     benchmarkMonthly: b,
+    downloadMbps: input.downloadMbps,
     benchmark: benchmark,
     termMonths: T,
     promoMonths: covered,
@@ -393,12 +412,134 @@ function calculateCheckup(input) {
   };
 }
 
+/* ------------------------------------------------------------------ *
+ * Result card content layer
+ *
+ * One function turns a CheckupResult into everything the card says; the
+ * component renders it and branches on nothing. The case is chosen on ONE
+ * number, overPct = totalSavings / totalBenchmark -- a ratio, not dollars,
+ * because dollars scale with the term ($400 over 12 months and $400 over 36
+ * are different situations that would otherwise grade the same).
+ *
+ * Hard rules, enforced by tests:
+ *   - NEVER name the benchmark provider or plan. That is the lead: naming it
+ *     hands the household the answer and they leave without joining.
+ *   - Never "typical", never "list price" -- the sheet is the 12 cheapest
+ *     plans per province, so "best rate" / "advertised plans" is the only
+ *     defensible phrasing.
+ *   - Never tie price to cohort size. The price is settled at the bid.
+ *   - Never $0 in a savings slot; drop the stat instead.
+ *   - The promo cliff is a note, the speed-data gap is a caveat. Neither is
+ *     a case and neither changes which case fires.
+ * ------------------------------------------------------------------ */
+
+/** "$4,140.36", "$50" -- decimals only when the amount has cents. */
+function money(n) {
+  return '$' + n.toLocaleString('en-CA', {
+    minimumFractionDigits: n % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2
+  });
+}
+
+/** "Dec 2026". UTC on purpose: the ISO date is calendar data, not a moment. */
+function shortDate(iso) {
+  return new Date(iso + 'T00:00:00Z').toLocaleDateString('en-CA', {
+    month: 'short', year: 'numeric', timeZone: 'UTC'
+  });
+}
+
+/** Case chosen on one number: overPct = totalSavings / totalBenchmark. */
+function buildCard(r, fsa) {
+  var overPct = r.totalBenchmark > 0 ? r.totalSavings / r.totalBenchmark : 0;
+  var multiple = r.totalPaid / r.totalBenchmark;
+  var cta = 'Join your ' + fsa + ' cohort';
+  var ctaSub = 'No switching fee for members. Walk away from any offer.';
+
+  /* Shown on every case. The savings figure is measured against publicly
+     advertised plans, NOT Wholler's own price, which lands lower and is
+     settled later. Without this line the card implies the number on screen
+     is the best available outcome, when it is the starting point. It is
+     also the only conversion argument on no_saving. */
+  var basis = 'Savings measured against publicly advertised plans. Cohort pricing lands below that.';
+
+  var note = r.cliff
+    ? 'Your promo ends ' + (r.cliff.date ? shortDate(r.cliff.date) : 'soon') + '. '
+      + 'The bill goes to ' + money(r.cliff.to) + '.'
+    : undefined;
+
+  var caveat = r.benchmark.matched === 'below_requested_speed'
+    ? 'Nothing we track in ' + r.benchmark.province + ' hits ' + r.downloadMbps + ' Mbps. Treat this as a floor.'
+    : undefined;
+
+  var payNow = { label: 'You pay now', value: money(r.currentMonthly) + '/mo' };
+  var couldSave = {
+    label: 'You could save',
+    value: money(r.totalSavings),
+    sub: 'over ' + r.termMonths + ' months'
+  };
+
+  if (r.totalSavings <= 0 || overPct < 0.02) {
+    return {
+      case: 'no_saving',
+      tone: 'good',
+      badge: 'Already well priced',
+      headline: "You're not overpaying on advertised rates.",
+      stats: [payNow],
+      body: "You beat the advertised plans on your own. That's where a cohort starts, not where it ends.",
+      basis: basis, note: note, caveat: caveat,
+      cta: cta + ' anyway',
+      ctaSub: ctaSub
+    };
+  }
+
+  if (overPct < 0.15) {
+    return {
+      case: 'small_saving',
+      tone: 'neutral',
+      badge: 'A little above the best rate',
+      headline: "You're close, but not on the best rate.",
+      stats: [payNow, couldSave],
+      body: 'Small enough to ignore each month, which is why it lasts ' + r.termMonths + ' months.',
+      basis: basis, note: note, caveat: caveat,
+      cta: cta, ctaSub: ctaSub
+    };
+  }
+
+  if (overPct < 0.5) {
+    return {
+      case: 'moderate_saving',
+      tone: 'warn',
+      badge: 'Above the best rate',
+      headline: "You're paying more than you need to.",
+      stats: [payNow, couldSave],
+      body: 'Calling gets you a retention script. Arriving with every other ' + fsa + ' household ready to move gets you a bid.',
+      basis: basis, note: note, caveat: caveat,
+      cta: cta, ctaSub: ctaSub
+    };
+  }
+
+  return {
+    case: 'big_saving',
+    tone: 'alert',
+    badge: 'Well above the best rate',
+    headline: "You're paying " + multiple.toFixed(1) + '× the best rate for your speed.',
+    stats: [payNow, couldSave],
+    body: "That's not a negotiation, it's a plan you drifted onto. Calling gets you a retention script. Arriving with your whole " + fsa + ' block gets you a bid.',
+    basis: basis, note: note, caveat: caveat,
+    cta: cta, ctaSub: ctaSub
+  };
+}
+
 var API = {
   INTERNET_PLANS: INTERNET_PLANS,
   provinceFromPostalCode: provinceFromPostalCode,
   lookupBenchmark: lookupBenchmark,
   monthsBetween: monthsBetween,
-  calculateCheckup: calculateCheckup
+  addMonths: addMonths,
+  calculateCheckup: calculateCheckup,
+  buildCard: buildCard,
+  money: money,
+  shortDate: shortDate
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;

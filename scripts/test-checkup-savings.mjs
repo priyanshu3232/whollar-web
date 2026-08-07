@@ -10,7 +10,8 @@ import { dirname, join } from 'node:path';
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const { calculateCheckup, lookupBenchmark, monthsBetween, provinceFromPostalCode } =
+const { calculateCheckup, lookupBenchmark, monthsBetween, provinceFromPostalCode,
+        buildCard, money, INTERNET_PLANS } =
   require(join(ROOT, 'js/checkup-savings.js'));
 
 let failed = 0;
@@ -46,7 +47,7 @@ eq('2 monthsBetween', monthsBetween('2025-06-08', '2026-11-26'), 18);
   eq('3 promoMonths', r.promoMonths, 18);
   eq('3 totalPaid', r.totalPaid, 5760);
   eq('3 totalSavings', r.totalSavings, 4140.36);
-  eq('3 cliff', r.cliff, { month: 18, from: 120, to: 200 });
+  eq('3 cliff', r.cliff, { month: 18, date: '2026-12-08', monthsAway: 4, from: 120, to: 200 });
 }
 
 /* 4 — GOLDEN multi-promo */
@@ -123,6 +124,91 @@ eq('12 Jan31->Mar01', monthsBetween('2025-01-31', '2025-03-01'), 2);
   const r = calculateCheckup({ ...GOLDEN, currentPrice: 60, discountAmount: 80 });
   eq('14 warning', r.warnings.some((w) => w.includes('post-promo price')), true);
   eq('14 postPromo still derived', r.postPromoPrice, 140);
+}
+
+/* ================= Result-card content layer (13 tests) ================= */
+
+/* Flat-price helper: run a real checkup with no promo. */
+const flat = (price, term) => calculateCheckup({
+  postalCode: 'L5V 1A9', downloadMbps: 100, currentPrice: price,
+  discountAmount: 0, contractLengthMonths: term, promoEndDate: null, today: '2026-08-08',
+});
+const allText = (c) => [c.badge, c.headline, c.body, c.basis, c.note || '', c.caveat || '',
+  c.cta, c.ctaSub, ...c.stats.flatMap((s) => [s.label, s.value, s.sub || ''])].join(' | ');
+
+/* C1 — $50 vs $38.95 over 36 months -> moderate_saving */
+const c1 = buildCard(flat(50, 36), 'L5V');
+eq('C1 case', c1.case, 'moderate_saving');
+
+/* C2 — $42 vs $38.95 over 24 months -> small_saving */
+const c2 = buildCard(flat(42, 24), 'L5V');
+eq('C2 case', c2.case, 'small_saving');
+
+/* C3 — $35 vs $38.95 -> no_saving: ONE stat, "anyway" CTA, no $0 anywhere */
+const c3 = buildCard(flat(35, 24), 'L5V');
+eq('C3 case', c3.case, 'no_saving');
+eq('C3 one stat', c3.stats.length, 1);
+eq('C3 cta', c3.cta.endsWith('anyway'), true);
+eq('C3 no $0', allText(c3).includes('$0'), false);
+
+/* C4 — $130 vs $44.99 -> big_saving with the multiple in the headline */
+const c4 = buildCard(calculateCheckup({
+  postalCode: 'L5V 1A9', downloadMbps: 500, currentPrice: 130,
+  discountAmount: 0, contractLengthMonths: 24, promoEndDate: null, today: '2026-08-08',
+}), 'L5V');
+eq('C4 case', c4.case, 'big_saving');
+eq('C4 multiple', c4.headline.includes('2.9×'), true);
+
+/* C5 — the golden promo scenario: big_saving, note present, case unmoved by it */
+const c5r = calculateCheckup(GOLDEN);
+const c5 = buildCard(c5r, 'L5V');
+eq('C5 case', c5.case, 'big_saving');
+eq('C5 note', c5.note, 'Your promo ends Dec 2026. The bill goes to $200.');
+
+/* C6 — below_requested_speed sets the caveat; case still chosen on overPct */
+const c6 = buildCard(calculateCheckup({
+  postalCode: 'X1A 0A1', downloadMbps: 2000, currentPrice: 300,
+  discountAmount: 0, contractLengthMonths: 24, promoEndDate: null, today: '2026-08-08',
+}), 'X1A');
+eq('C6 caveat', c6.caveat, 'Nothing we track in Northwest Territories hits 2000 Mbps. Treat this as a floor.');
+
+/* C7 — basis line on every case, identical */
+const cards = [c1, c2, c3, c4, c5, c6];
+eq('C7 basis identical', new Set(cards.map((c) => c.basis)).size, 1);
+eq('C7 basis non-empty', cards.every((c) => c.basis.length > 0), true);
+
+/* C8 — ctaSub on every case */
+eq('C8 ctaSub', cards.every((c) => c.ctaSub.includes('No switching fee')), true);
+
+/* C9 — banned vocabulary */
+eq('C9 banned words', cards.every((c) => !/typical|list price/i.test(allText(c))), true);
+
+/* C10 — no provider or plan name from the sheet may appear */
+{
+  const names = Object.values(INTERNET_PLANS).flat()
+    .flatMap((p) => [p.provider, p.plan]);
+  const leaked = cards.filter((c) => names.some((n) => allText(c).includes(n)));
+  eq('C10 no plan names', leaked.map((c) => c.case), []);
+}
+
+/* C11 — never tie price to cohort size */
+eq('C11 no headcount pricing',
+  cards.every((c) => !/more members|cohort fills|the bigger the|headcount/i.test(allText(c))), true);
+
+/* C12 — money formatting */
+eq('C12 money(4140.36)', money(4140.36), '$4,140.36');
+eq('C12 money(50)', money(50), '$50');
+
+/* C13 — band boundaries land in the HIGHER band (synthetic results) */
+{
+  const fake = (savings, bench) => ({
+    currentMonthly: 50, totalSavings: savings, totalBenchmark: bench,
+    totalPaid: bench + savings, termMonths: 24, cliff: null,
+    benchmark: { matched: 'at_or_above_speed', province: 'Ontario' }, downloadMbps: 100,
+  });
+  eq('C13 0.02 -> small', buildCard(fake(2, 100), 'L5V').case, 'small_saving');
+  eq('C13 0.15 -> moderate', buildCard(fake(15, 100), 'L5V').case, 'moderate_saving');
+  eq('C13 0.50 -> big', buildCard(fake(50, 100), 'L5V').case, 'big_saving');
 }
 
 if (failed) { console.error(`\n${failed} assertion(s) failed`); process.exit(1); }

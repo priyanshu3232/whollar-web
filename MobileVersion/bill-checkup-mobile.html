@@ -21,7 +21,7 @@
 <script src="/js/whollar-fsa-cities.js?v=20260807"></script>
 <script src="/js/whollar-signal-lookup.js?v=20260807"></script>
 <script src="/js/whollar-core.js?v=20260808a"></script>
-<script src="/js/checkup-savings.js?v=20260808"></script>
+<script src="/js/checkup-savings.js?v=20260808b"></script>
 <title>Check if you’re overpaying for internet · Whollar</title>
 <meta name="description" content="Enter your internet bill and speed to see how your price compares to the national advertised range for your tier, and when your promo discount ends.">
 <link rel="canonical" href="https://www.whollar.ca/bill-checkup">
@@ -336,6 +336,12 @@ body[data-screen="2"] .only1{display:none!important}
 .sig{border-radius:var(--rf);overflow:hidden;box-shadow:var(--sh-3);background:linear-gradient(150deg,var(--teal-deep),#123B2C 55%,#17553D);color:#fff;padding:24px 26px 22px;position:relative}
 .sig::before{content:"";position:absolute;inset:0;background:radial-gradient(460px 200px at 110% -30%,rgba(127,227,176,.14),transparent 60%);pointer-events:none}
 .sig.warnbg{background:linear-gradient(150deg,#2E1509,#4A2412 55%,#6B3A1E)}
+/* Four card tones: alert keeps the rust above, warn sits between rust and
+   green, neut is a grey-green for the small/no-data cards, good = default. */
+.sig.warnsoft{background:linear-gradient(150deg,#332614,#4A3A1E 55%,#5C4A24)}
+.sig.warnsoft .hv-badge{color:#FFE3B0}
+.sig.neut{background:linear-gradient(150deg,#22312B,#2E4038 55%,#37493F)}
+.sig.neut .hv-badge{color:#CFE2D5}
 .sig h3{color:#fff;font-size:26px;font-weight:900;position:relative}
 .sig .read{margin-top:9px;font-size:14.5px;line-height:1.6;color:rgba(255,255,255,.86);position:relative;max-width:560px}
 .sig .read b{color:#fff}
@@ -347,6 +353,9 @@ body[data-screen="2"] .only1{display:none!important}
 .hv-stats .hv-sub{display:block;font-size:11.5px;color:rgba(255,255,255,.6);margin-top:3px}
 .sig-prov{margin-top:11px;font-size:12.5px;line-height:1.55;color:rgba(255,255,255,.72);position:relative;max-width:560px}
 .sig-prov+.sig-prov{margin-top:5px}
+/* The speed-gap caveat: visually distinct from the body so "treat this as a
+   floor" reads as a data note, not more sales copy. */
+.sig-caveat{margin-top:11px;font-size:12.5px;line-height:1.55;color:#FFD9A8;background:rgba(255,255,255,.07);border-left:3px solid rgba(255,217,168,.55);border-radius:0 9px 9px 0;padding:8px 12px;position:relative;max-width:560px}
 .sig-edit{border:none;background:none;padding:0;font:inherit;font-weight:700;color:#9FF0C6;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 /* Sits under the stat row: says what the savings total actually counted
    (every bill in the window, promo cliff included) and names any assumption
@@ -1074,9 +1083,11 @@ async function railJoin(inputEl,rowEl,doneEl){const em=inputEl.value.trim();
    backend ignores unknown keys, same as multiPromo/periods below. */
 function leadPayload(){
   /* The signal* keys predate the savings engine; the names stay so the
-     backend/CRM contract doesn't move. band: 1 = paying above the best
-     available rate, 4 = at or below it, 3 = not enough data to compare. */
+     backend/CRM contract doesn't move. band mirrors the card case: 1 big,
+     2 moderate, 3 small, 4 none; '' when there was no data to compare.
+     checkupCase is the card's stable id, doubling as the analytics name. */
   const r=runCheckup();
+  const card=r?WhollarSavings.buildCard(r,S.pc||''):null;
   return {
     pc:S.pc||'',postalFull:S.pcFull||'',province:S.province||'',provinceCode:S.provinceCode||'',
     prov:S.prov,cost:S.cost||'',spd:S.spd||'',tech:S.tech,
@@ -1092,7 +1103,8 @@ function leadPayload(){
        stays in the payload so the backend contract doesn't change. */
     switchFor:'',
     effectiveCost:effCostDollars(),
-    signalBand:r?(r.totalSavings>0?1:4):3,
+    checkupCase:card?card.case:'',
+    signalBand:card?({big_saving:1,moderate_saving:2,small_saving:3,no_saving:4})[card.case]:'',
     signalSavingsCents:r?Math.round(r.totalSavings*100):'',
     signalBasePriceCents:r?Math.round(r.benchmarkMonthly*100):'',
     signalConfidence:r?r.benchmark.matched:'',
@@ -1447,7 +1459,9 @@ function rememberBill(){
    plan in the household's PROVINCE at >= their speed, from the embedded
    PlanSavvy sheet -- best available price, never "typical", and never a
    speed downgrade. */
-const money=n=>W.money(n);
+/* WhollarSavings.money: "$4,140.36" but "$50" -- cents only when non-zero,
+   which keeps the recap grid and the card speaking one format. */
+const money=n=>WhollarSavings.money(n);
 const monthName=d=>W.monthName(d);
 
 /* What the household pays today. Under the new semantics that IS Q03,
@@ -1466,10 +1480,6 @@ function scheduleTermMonths(){
   const p=periodsSummary();
   return p?p.months:0;
 }
-/* Was the term the household's own answer, or our 24-month stand-in? The
-   card's savings subtitle must not claim "your contract" for a default. */
-function termStated(){return scheduleTermMonths()>0;}
-
 /* Build the engine input straight from form state and run it. Returns null
    when there is nothing to stand on: no postal code, speed withheld or
    "not sure", no monthly charge, or a postal the province map rejects.
@@ -1494,76 +1504,58 @@ function runCheckup(){
   catch(e){return null;}
 }
 
-/* Card copy. Three states now, picked by the savings total rather than a
-   gap-vs-typical band: paying above the best available rate, at or below
-   it, or nothing to compare against yet. */
-const CARD_COPY={
-  save:{pill:'ABOVE THE BEST AVAILABLE RATE',warn:true,
-    head:'Your contract adds up to more than the best available rate.',
-    body:fsa=>'Calling to ask for that back gets you a retention script. Arriving with every other '+fsa+' household that’s ready to move gets you a bid. Joining is free and you can walk away from any offer.',
-    cta:fsa=>'Join your '+fsa+' cohort'},
-  even:{pill:'AT OR BELOW THE BEST AVAILABLE RATE',warn:false,
-    head:'You’re in a good position. A cohort can still improve it.',
-    body:()=>'Being at or under the best available rate means you’ve already beaten what one household can shop for. Group bids are priced for a block of households, not one, which is a different starting point than anything you can find yourself. And when rates drift up, which they do about once a year, you’ll be sitting inside a cohort instead of finding out from a bill.',
-    cta:fsa=>'Join my '+fsa+' cohort'},
-  nodata:{pill:'YOUR CONTRACT, ADDED UP',warn:false,
-    head:'Add your speed and postal code and the comparison appears right here.',
-    body:()=>'The price check runs against the best advertised rate for your speed in your province. It needs your postal code for the province, your speed for the tier, and your monthly charge for the math.',
-    cta:fsa=>fsa?'Join your '+fsa+' cohort':'Join the cohort'}
+/* The card's words all come from WhollarSavings.buildCard() -- four cases
+   picked on totalSavings/totalBenchmark, plus the always-on basis line and
+   the conditional cliff note / speed caveat. This function renders the
+   CardContent and branches on nothing except the no-data fallback (postal,
+   speed or charge missing), which buildCard by design has no case for. */
+const NODATA_CARD={
+  tone:'neutral',badge:'Your contract, added up',
+  headline:'Add your speed and postal code and the comparison appears right here.',
+  stats:[],
+  body:'The price check runs against the best advertised rates for your speed in your province. It needs your postal code for the province, your speed for the tier, and your monthly charge for the math.',
+  basis:null,note:null,caveat:null,
+  cta:null, // filled at render, needs the FSA
+  ctaSub:'No switching fee for members. Walk away from any offer.'
 };
-
-/* "December 2026" for the bill the cliff lands on. The schedule is anchored
-   to the contract start when it was given, today otherwise (same anchor the
-   engine used to count promo cycles). */
-function cliffDateLabel(cliffMonth){
-  const anchor=(S.cstart&&!S.cstartIdk)?S.cstart:(new Date()).toISOString().slice(0,10);
-  const d0=W.parseDateLocal(anchor);if(!d0)return '';
-  const d=W.addMonths(d0,cliffMonth);
-  return d.toLocaleDateString('en-CA',{month:'long',year:'numeric'});
-}
+const esc=W.escapeHtml;
 function setSig(){
   const r=runCheckup();
-  const fsa=W.escapeHtml(S.pc||'');
-  const copy=!r?CARD_COPY.nodata:(r.totalSavings>0?CARD_COPY.save:CARD_COPY.even);
+  const fsa=S.pc||'';
+  const card=r?WhollarSavings.buildCard(r,fsa)
+    :{...NODATA_CARD,cta:fsa?'Join your '+fsa+' cohort':'Join the cohort'};
+  const tone={alert:'warnbg',warn:'warnsoft',neutral:'neut',good:''}[card.tone]||'';
 
-  /* The two stats. The savings figure is suppressed at 0 -- an at-or-below-
-     market card with "$0" on it reads as a bug, not a result. */
-  let stats='<div><small>YOU PAY NOW</small><b>'+money(effCostDollars())+'/mo</b></div>';
-  if(r&&r.totalSavings>0){
-    const termSub=termStated()
-      ?'over your '+r.termMonths+'-month contract'
-      :'over the next '+r.termMonths+' months';
-    stats+='<div><small>YOU COULD SAVE</small><b>'+money(r.totalSavings)+'</b><span class="hv-sub">'+termSub+'</span></div>';
+  let stats='';
+  if(!card.stats.length){
+    stats='<div><small>YOU PAY NOW</small><b>'+money(effCostDollars())+'/mo</b></div>';
+  }else{
+    stats=card.stats.map(s=>'<div><small>'+esc(s.label)+'</small><b>'+esc(s.value)+'</b>'
+      +(s.sub?'<span class="hv-sub">'+esc(s.sub)+'</span>':'')+'</div>').join('');
   }
 
-  /* Provenance: the two lines that make the number defensible. The benchmark
-     plan by name, and the cliff with its date and both amounts. */
-  let prov='';
+  let lines='';
+  if(card.note)lines+='<p class="sig-prov">'+esc(card.note)+'</p>';
+  if(card.caveat)lines+='<p class="sig-caveat">'+esc(card.caveat)+'</p>';
+  if(card.basis)lines+='<p class="sig-note">'+esc(card.basis)+'</p>';
+  /* The engine's warnings that matter to the reader: the assumed promo
+     window gets an edit link back to the form. */
   if(r){
-    const b=r.benchmark;
-    prov+=b.matched==='below_requested_speed'
-      ?'<p class="sig-prov">No plan in '+W.escapeHtml(b.province)+' lists '+Number(S.spd)+' Mbps, so this compares against the fastest sold there: '+W.escapeHtml(b.provider+' '+b.plan)+' ('+b.mbps+' Mbps) at '+money(b.monthly)+'/mo.</p>'
-      :'<p class="sig-prov">Best available in '+W.escapeHtml(b.province)+' at '+b.mbps+' Mbps is '+W.escapeHtml(b.provider+' '+b.plan)+' at '+money(b.monthly)+'/mo.</p>';
-    if(r.cliff){
-      const when=cliffDateLabel(r.cliff.month);
-      prov+='<p class="sig-prov">Your promo covers '+r.promoMonths+' month'+(r.promoMonths===1?'':'s')+', then your bill jumps from '+money(r.cliff.from)+' to '+money(r.cliff.to)+(when?' in '+when:'')+'.</p>';
-    }
-    const notes=r.warnings.filter(w=>w!=='A promo end date was given but the discount is $0.');
+    const notes=r.warnings.filter(w=>w.includes('assumed 12 months'));
     if(notes.length){
-      prov+='<p class="sig-note">'+notes.map(W.escapeHtml).join(' ')
-        +(notes.some(w=>w.includes('assumed 12 months'))?' <button type="button" class="sig-edit" id="sig-edit-promo">Add the real date</button>':'')
-        +'</p>';
+      lines+='<p class="sig-note">'+notes.map(esc).join(' ')
+        +' <button type="button" class="sig-edit" id="sig-edit-promo">Add the real date</button></p>';
     }
   }
 
-  $('#sig').className='sig '+(copy.warn?'warnbg':(!r?'neut':''));
-  $('#sig').innerHTML='<span class="hv-badge">'+copy.pill+'</span><h3>'+copy.head+'</h3>'
+  $('#sig').className='sig '+tone;
+  $('#sig').innerHTML='<span class="hv-badge">'+esc(card.badge)+'</span><h3>'+esc(card.headline)+'</h3>'
     +'<div class="hv-stats">'+stats+'</div>'
-    +prov
-    +'<p class="read">'+copy.body(fsa)+'</p>'
-    +'<button type="button" class="sig-cta" id="sig-cta">'+copy.cta(fsa)+'</button>'
-    +'<p class="sig-foot">Joining is free. You’re never obligated to accept an offer.</p>'
-    +(S.joined?'<span class="joined">&#10003; You’re on the '+fsa+' waitlist</span>':'');
+    +lines
+    +'<p class="read">'+esc(card.body)+'</p>'
+    +'<button type="button" class="sig-cta" id="sig-cta">'+esc(card.cta)+'</button>'
+    +'<p class="sig-foot">'+esc(card.ctaSub)+'</p>'
+    +(S.joined?'<span class="joined">&#10003; You’re on the '+esc(fsa)+' waitlist</span>':'');
 
   const editPromo=$('#sig-edit-promo');
   if(editPromo)editPromo.addEventListener('click',()=>{
