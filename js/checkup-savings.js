@@ -1,0 +1,406 @@
+/* Whollar checkup savings engine.
+ *
+ * FIELD SEMANTICS (the 2026-08-08 fix, see the savings-logic spec):
+ *   currentPrice   = what the household pays TODAY, while the promo runs
+ *   discountAmount = the monthly amount being taken OFF the bill
+ *   postPromoPrice = currentPrice + discountAmount   (DERIVED, not entered)
+ * A household paying 120 with an 80 discount jumps UP to 200 when the promo
+ * dies. The previous engine treated 120 as the rack rate and 80 as the promo
+ * price; both readings were wrong.
+ *
+ * If the promo has already expired, today's price IS the rack rate and the
+ * derivation flips:
+ *   promo running -> promoPrice = current,             postPromo = current + discount
+ *   promo ended   -> promoPrice = current - discount,  postPromo = current
+ *
+ * Benchmark: cheapest plan in the household's PROVINCE that delivers at least
+ * the requested speed. The dataset is the 12 cheapest plans per province from
+ * PlanSavvy-Pricing.xlsx > "Internet Plans" (Aug 2026, plansavvy.ai), so it is
+ * "best available price", never "typical". There is NO city or FSA pricing in
+ * the source; anything finer than province would be invented.
+ *
+ * Loaded by bill-checkup.html as window.WhollarSavings, and by the node test
+ * runner (scripts/test-checkup-savings.mjs) via require().
+ */
+(function () {
+'use strict';
+
+/* ------------------------------------------------------------------ *
+ * Plans data
+ * AUTO-GENERATED from PlanSavvy-Pricing.xlsx > 'Internet Plans'
+ * 12 lowest-priced internet plans per province, August 2026.
+ * Regenerate when the workbook updates.
+ * ------------------------------------------------------------------ */
+var INTERNET_PLANS = {
+  'British Columbia': [
+    { provider: 'TekSavvy', plan: 'Cable 30', mbps: 30, price: 32.95 },
+    { provider: 'TekSavvy', plan: 'Cable 100', mbps: 100, price: 38.95 },
+    { provider: 'VMedia', plan: 'Cable 30', mbps: 30, price: 38.95 },
+    { provider: 'VMedia', plan: 'Cable 100', mbps: 100, price: 44.95 },
+    { provider: 'VMedia', plan: 'FTTN 50', mbps: 50, price: 47.95 },
+    { provider: 'Oxio', plan: 'Internet 30', mbps: 30, price: 48.0 },
+    { provider: 'Xplore', plan: 'Fixed Wireless LTE 25', mbps: 25, price: 50.0 },
+    { provider: 'Novus', plan: 'Internet 100', mbps: 100, price: 50.0 },
+    { provider: 'Oxio', plan: 'Internet 100', mbps: 100, price: 52.0 },
+    { provider: 'Novus', plan: 'Internet 1000', mbps: 1000, price: 55.0 },
+    { provider: 'Xplore', plan: 'Fixed Wireless 5G 50', mbps: 50, price: 60.0 },
+    { provider: 'Oxio', plan: 'Internet 120', mbps: 120, price: 63.0 }
+  ],
+  'Alberta': [
+    { provider: 'TekSavvy', plan: 'Cable 30', mbps: 30, price: 32.95 },
+    { provider: 'TekSavvy', plan: 'Cable 100', mbps: 100, price: 38.95 },
+    { provider: 'VMedia', plan: 'Cable 30', mbps: 30, price: 38.95 },
+    { provider: 'VMedia', plan: 'Cable 100', mbps: 100, price: 44.95 },
+    { provider: 'VMedia', plan: 'FTTN 50', mbps: 50, price: 47.95 },
+    { provider: 'Oxio', plan: 'Internet 30', mbps: 30, price: 48.0 },
+    { provider: 'Xplore', plan: 'Fixed Wireless LTE 25', mbps: 25, price: 50.0 },
+    { provider: 'Oxio', plan: 'Internet 100', mbps: 100, price: 52.0 },
+    { provider: 'Xplore', plan: 'Fixed Wireless 5G 50', mbps: 50, price: 60.0 },
+    { provider: 'Oxio', plan: 'Internet 120', mbps: 120, price: 63.0 },
+    { provider: 'Eastlink', plan: 'Internet 150', mbps: 150, price: 65.0 },
+    { provider: 'TekSavvy', plan: 'Cable 1 Gig', mbps: 1000, price: 68.95 }
+  ],
+  'Saskatchewan': [
+    { provider: 'TekSavvy', plan: 'Cable 30', mbps: 30, price: 32.95 },
+    { provider: 'TekSavvy', plan: 'Cable 100', mbps: 100, price: 38.95 },
+    { provider: 'VMedia', plan: 'Cable 30', mbps: 30, price: 38.95 },
+    { provider: 'VMedia', plan: 'Cable 100', mbps: 100, price: 44.95 },
+    { provider: 'VMedia', plan: 'FTTN 50', mbps: 50, price: 47.95 },
+    { provider: 'Oxio', plan: 'Internet 30', mbps: 30, price: 48.0 },
+    { provider: 'Xplore', plan: 'Fixed Wireless LTE 25', mbps: 25, price: 50.0 },
+    { provider: 'Oxio', plan: 'Internet 100', mbps: 100, price: 52.0 },
+    { provider: 'Xplore', plan: 'Fixed Wireless 5G 50', mbps: 50, price: 60.0 },
+    { provider: 'Oxio', plan: 'Internet 120', mbps: 120, price: 63.0 },
+    { provider: 'TekSavvy', plan: 'Cable 1 Gig', mbps: 1000, price: 68.95 },
+    { provider: 'Shaw / Rogers', plan: 'Xfinity Starter 100 (West)', mbps: 100, price: 70.0 }
+  ],
+  'Manitoba': [
+    { provider: 'TekSavvy', plan: 'Cable 30', mbps: 30, price: 32.95 },
+    { provider: 'TekSavvy', plan: 'Cable 100', mbps: 100, price: 38.95 },
+    { provider: 'VMedia', plan: 'Cable 30', mbps: 30, price: 38.95 },
+    { provider: 'VMedia', plan: 'Cable 100', mbps: 100, price: 44.95 },
+    { provider: 'VMedia', plan: 'FTTN 50', mbps: 50, price: 47.95 },
+    { provider: 'Oxio', plan: 'Internet 30', mbps: 30, price: 48.0 },
+    { provider: 'Xplore', plan: 'Fixed Wireless LTE 25', mbps: 25, price: 50.0 },
+    { provider: 'Oxio', plan: 'Internet 100', mbps: 100, price: 52.0 },
+    { provider: 'Bell MTS', plan: 'Fibe 50', mbps: 50, price: 60.0 },
+    { provider: 'Xplore', plan: 'Fixed Wireless 5G 50', mbps: 50, price: 60.0 },
+    { provider: 'Oxio', plan: 'Internet 120', mbps: 120, price: 63.0 },
+    { provider: 'TekSavvy', plan: 'Cable 1 Gig', mbps: 1000, price: 68.95 }
+  ],
+  'Ontario': [
+    { provider: 'TekSavvy', plan: 'Cable 30', mbps: 30, price: 32.95 },
+    { provider: 'TekSavvy', plan: 'Cable 100', mbps: 100, price: 38.95 },
+    { provider: 'VMedia', plan: 'Cable 30', mbps: 30, price: 38.95 },
+    { provider: 'Start.ca', plan: 'Home Fibre 50', mbps: 50, price: 39.0 },
+    { provider: 'Carrytel', plan: 'Internet 100', mbps: 100, price: 39.99 },
+    { provider: 'VMedia', plan: 'Cable 100', mbps: 100, price: 44.95 },
+    { provider: 'Carrytel', plan: 'Internet 500', mbps: 500, price: 44.99 },
+    { provider: 'Fizz', plan: 'Internet 100', mbps: 100, price: 45.0 },
+    { provider: 'Start.ca', plan: 'Home Fibre 100', mbps: 100, price: 45.0 },
+    { provider: 'VMedia', plan: 'FTTN 50', mbps: 50, price: 47.95 },
+    { provider: 'Oxio', plan: 'Internet 30', mbps: 30, price: 48.0 },
+    { provider: 'EBOX', plan: 'FTTN 50', mbps: 50, price: 49.95 }
+  ],
+  'Quebec': [
+    { provider: 'TekSavvy', plan: 'Cable 30', mbps: 30, price: 32.95 },
+    { provider: 'Bravo Telecom', plan: 'Internet 10', mbps: 10, price: 36.0 },
+    { provider: 'TekSavvy', plan: 'Cable 100', mbps: 100, price: 38.95 },
+    { provider: 'VMedia', plan: 'Cable 30', mbps: 30, price: 38.95 },
+    { provider: 'Carrytel', plan: 'Internet 100', mbps: 100, price: 39.99 },
+    { provider: 'VMedia', plan: 'Cable 100', mbps: 100, price: 44.95 },
+    { provider: 'Carrytel', plan: 'Internet 500', mbps: 500, price: 44.99 },
+    { provider: 'Fizz', plan: 'Internet 100', mbps: 100, price: 45.0 },
+    { provider: 'Bravo Telecom', plan: 'Internet 60', mbps: 60, price: 46.0 },
+    { provider: 'VMedia', plan: 'FTTN 50', mbps: 50, price: 47.95 },
+    { provider: 'Oxio', plan: 'Internet 30', mbps: 30, price: 48.0 },
+    { provider: 'EBOX', plan: 'FTTN 50', mbps: 50, price: 49.95 }
+  ],
+  'New Brunswick': [
+    { provider: 'TekSavvy', plan: 'Cable 30', mbps: 30, price: 32.95 },
+    { provider: 'TekSavvy', plan: 'Cable 100', mbps: 100, price: 38.95 },
+    { provider: 'VMedia', plan: 'Cable 30', mbps: 30, price: 38.95 },
+    { provider: 'VMedia', plan: 'Cable 100', mbps: 100, price: 44.95 },
+    { provider: 'VMedia', plan: 'FTTN 50', mbps: 50, price: 47.95 },
+    { provider: 'Xplore', plan: 'Fixed Wireless LTE 25', mbps: 25, price: 50.0 },
+    { provider: 'Bell', plan: 'Fibe 50', mbps: 50, price: 60.0 },
+    { provider: 'Xplore', plan: 'Fixed Wireless 5G 50', mbps: 50, price: 60.0 },
+    { provider: 'Eastlink', plan: 'Internet 150', mbps: 150, price: 65.0 },
+    { provider: 'TekSavvy', plan: 'Cable 1 Gig', mbps: 1000, price: 68.95 },
+    { provider: 'TekSavvy', plan: 'Fibre 500', mbps: 500, price: 74.95 },
+    { provider: 'Bell', plan: 'Fibe 150', mbps: 150, price: 75.0 }
+  ],
+  'Nova Scotia': [
+    { provider: 'TekSavvy', plan: 'Cable 30', mbps: 30, price: 32.95 },
+    { provider: 'TekSavvy', plan: 'Cable 100', mbps: 100, price: 38.95 },
+    { provider: 'VMedia', plan: 'Cable 30', mbps: 30, price: 38.95 },
+    { provider: 'VMedia', plan: 'Cable 100', mbps: 100, price: 44.95 },
+    { provider: 'VMedia', plan: 'FTTN 50', mbps: 50, price: 47.95 },
+    { provider: 'Xplore', plan: 'Fixed Wireless LTE 25', mbps: 25, price: 50.0 },
+    { provider: 'Bell', plan: 'Fibe 50', mbps: 50, price: 60.0 },
+    { provider: 'Xplore', plan: 'Fixed Wireless 5G 50', mbps: 50, price: 60.0 },
+    { provider: 'Purple Cow', plan: 'Internet 100', mbps: 100, price: 60.0 },
+    { provider: 'Purple Cow', plan: 'Purple Fibre 500', mbps: 500, price: 60.0 },
+    { provider: 'Eastlink', plan: 'Internet 150', mbps: 150, price: 65.0 },
+    { provider: 'TekSavvy', plan: 'Cable 1 Gig', mbps: 1000, price: 68.95 }
+  ],
+  'Prince Edward Island': [
+    { provider: 'TekSavvy', plan: 'Cable 30', mbps: 30, price: 32.95 },
+    { provider: 'TekSavvy', plan: 'Cable 100', mbps: 100, price: 38.95 },
+    { provider: 'VMedia', plan: 'Cable 30', mbps: 30, price: 38.95 },
+    { provider: 'VMedia', plan: 'Cable 100', mbps: 100, price: 44.95 },
+    { provider: 'VMedia', plan: 'FTTN 50', mbps: 50, price: 47.95 },
+    { provider: 'Xplore', plan: 'Fixed Wireless LTE 25', mbps: 25, price: 50.0 },
+    { provider: 'Bell', plan: 'Fibe 50', mbps: 50, price: 60.0 },
+    { provider: 'Xplore', plan: 'Fixed Wireless 5G 50', mbps: 50, price: 60.0 },
+    { provider: 'Purple Cow', plan: 'Internet 100', mbps: 100, price: 60.0 },
+    { provider: 'Purple Cow', plan: 'Purple Fibre 500', mbps: 500, price: 60.0 },
+    { provider: 'Eastlink', plan: 'Internet 150', mbps: 150, price: 65.0 },
+    { provider: 'TekSavvy', plan: 'Cable 1 Gig', mbps: 1000, price: 68.95 }
+  ],
+  'Newfoundland and Labrador': [
+    { provider: 'TekSavvy', plan: 'Cable 30', mbps: 30, price: 32.95 },
+    { provider: 'TekSavvy', plan: 'Cable 100', mbps: 100, price: 38.95 },
+    { provider: 'VMedia', plan: 'Cable 30', mbps: 30, price: 38.95 },
+    { provider: 'VMedia', plan: 'Cable 100', mbps: 100, price: 44.95 },
+    { provider: 'VMedia', plan: 'FTTN 50', mbps: 50, price: 47.95 },
+    { provider: 'Xplore', plan: 'Fixed Wireless LTE 25', mbps: 25, price: 50.0 },
+    { provider: 'Bell', plan: 'Fibe 50', mbps: 50, price: 60.0 },
+    { provider: 'Xplore', plan: 'Fixed Wireless 5G 50', mbps: 50, price: 60.0 },
+    { provider: 'Purple Cow', plan: 'Internet 100', mbps: 100, price: 60.0 },
+    { provider: 'Purple Cow', plan: 'Purple Fibre 500', mbps: 500, price: 60.0 },
+    { provider: 'Eastlink', plan: 'Internet 150', mbps: 150, price: 65.0 },
+    { provider: 'TekSavvy', plan: 'Cable 1 Gig', mbps: 1000, price: 68.95 }
+  ],
+  'Northwest Territories': [
+    { provider: 'Xplore', plan: 'Fixed Wireless LTE 25', mbps: 25, price: 50.0 },
+    { provider: 'Xplore', plan: 'Fixed Wireless 5G 50', mbps: 50, price: 60.0 },
+    { provider: 'Starlink', plan: 'Residential 100', mbps: 100, price: 75.0 },
+    { provider: 'Xplore', plan: 'Fixed Wireless 5G 100', mbps: 100, price: 80.0 },
+    { provider: 'Xplore', plan: 'Satellite 50 (350 GB)', mbps: 50, price: 100.0 },
+    { provider: 'Starlink', plan: 'Roam Unlimited', mbps: 150, price: 110.0 },
+    { provider: 'Starlink', plan: 'Residential 200', mbps: 200, price: 115.0 },
+    { provider: 'Northwestel', plan: 'Unlimited Internet 50', mbps: 50, price: 129.95 },
+    { provider: 'Xplore', plan: 'Satellite 100 (500 GB)', mbps: 100, price: 130.0 },
+    { provider: 'Starlink', plan: 'Residential Max', mbps: 400, price: 150.0 },
+    { provider: 'Northwestel', plan: 'Unlimited Internet 300', mbps: 300, price: 199.95 },
+    { provider: 'Northwestel', plan: '1 Gigabit', mbps: 1000, price: 219.95 }
+  ],
+  'Yukon': [
+    { provider: 'Xplore', plan: 'Fixed Wireless LTE 25', mbps: 25, price: 50.0 },
+    { provider: 'Xplore', plan: 'Fixed Wireless 5G 50', mbps: 50, price: 60.0 },
+    { provider: 'Starlink', plan: 'Residential 100', mbps: 100, price: 75.0 },
+    { provider: 'Xplore', plan: 'Fixed Wireless 5G 100', mbps: 100, price: 80.0 },
+    { provider: 'Xplore', plan: 'Satellite 50 (350 GB)', mbps: 50, price: 100.0 },
+    { provider: 'Starlink', plan: 'Roam Unlimited', mbps: 150, price: 110.0 },
+    { provider: 'Starlink', plan: 'Residential 200', mbps: 200, price: 115.0 },
+    { provider: 'Northwestel', plan: 'Unlimited Internet 50', mbps: 50, price: 129.95 },
+    { provider: 'Xplore', plan: 'Satellite 100 (500 GB)', mbps: 100, price: 130.0 },
+    { provider: 'Starlink', plan: 'Residential Max', mbps: 400, price: 150.0 },
+    { provider: 'Northwestel', plan: 'Unlimited Internet 300', mbps: 300, price: 199.95 },
+    { provider: 'Northwestel', plan: '1 Gigabit', mbps: 1000, price: 219.95 }
+  ],
+  'Nunavut': [
+    { provider: 'Xplore', plan: 'Fixed Wireless LTE 25', mbps: 25, price: 50.0 },
+    { provider: 'Xplore', plan: 'Fixed Wireless 5G 50', mbps: 50, price: 60.0 },
+    { provider: 'Starlink', plan: 'Residential 100', mbps: 100, price: 75.0 },
+    { provider: 'Xplore', plan: 'Fixed Wireless 5G 100', mbps: 100, price: 80.0 },
+    { provider: 'Xplore', plan: 'Satellite 50 (350 GB)', mbps: 50, price: 100.0 },
+    { provider: 'Starlink', plan: 'Roam Unlimited', mbps: 150, price: 110.0 },
+    { provider: 'Starlink', plan: 'Residential 200', mbps: 200, price: 115.0 },
+    { provider: 'Northwestel', plan: 'Unlimited Internet 50', mbps: 50, price: 129.95 },
+    { provider: 'Xplore', plan: 'Satellite 100 (500 GB)', mbps: 100, price: 130.0 },
+    { provider: 'Starlink', plan: 'Residential Max', mbps: 400, price: 150.0 },
+    { provider: 'Northwestel', plan: 'Unlimited Internet 300', mbps: 300, price: 199.95 },
+    { provider: 'Northwestel', plan: '1 Gigabit', mbps: 1000, price: 219.95 }
+  ]
+};
+
+/* ------------------------------------------------------------------ *
+ * Benchmark lookup
+ * ------------------------------------------------------------------ */
+
+/* FSA first letter -> province. Canada Post allocation. */
+var FSA_PROVINCE = {
+  A: 'Newfoundland and Labrador',
+  B: 'Nova Scotia',
+  C: 'Prince Edward Island',
+  E: 'New Brunswick',
+  G: 'Quebec', H: 'Quebec', J: 'Quebec',
+  K: 'Ontario', L: 'Ontario', M: 'Ontario', N: 'Ontario', P: 'Ontario',
+  R: 'Manitoba',
+  S: 'Saskatchewan',
+  T: 'Alberta',
+  V: 'British Columbia',
+  X: 'Northwest Territories', // also Nunavut, see below
+  Y: 'Yukon'
+};
+
+/* X is shared by NT and NU. These NU prefixes disambiguate. */
+var NUNAVUT_FSAS = { X0A: 1, X0B: 1, X0C: 1 };
+
+function provinceFromPostalCode(postal) {
+  var fsa = String(postal || '').replace(/\s+/g, '').toUpperCase().slice(0, 3);
+  if (fsa.length < 3) return null;
+  if (NUNAVUT_FSAS[fsa]) return 'Nunavut';
+  return FSA_PROVINCE[fsa[0]] || null;
+}
+
+function toBenchmark(p, province) {
+  return { monthly: p.price, provider: p.provider, plan: p.plan, mbps: p.mbps, province: province };
+}
+
+/**
+ * Rule: cheapest plan in the province that delivers AT LEAST the requested
+ * speed. The >= is required; a saving must never come from a speed downgrade.
+ * Fallback when nothing in the province reaches the speed: cheapest plan at
+ * the highest speed available, flagged so the UI can caveat.
+ */
+function lookupBenchmark(postal, downloadMbps) {
+  var province = provinceFromPostalCode(postal);
+  if (!province) return null;
+
+  var pool = INTERNET_PLANS[province];
+  if (!pool || !pool.length) return null;
+
+  var atOrAbove = pool.filter(function (p) { return p.mbps >= downloadMbps; });
+  if (atOrAbove.length) {
+    var best = atOrAbove.reduce(function (a, b) { return b.price < a.price ? b : a; });
+    var out = toBenchmark(best, province);
+    out.matched = 'at_or_above_speed';
+    return out;
+  }
+
+  var topSpeed = Math.max.apply(null, pool.map(function (p) { return p.mbps; }));
+  var fb = pool
+    .filter(function (p) { return p.mbps === topSpeed; })
+    .reduce(function (a, b) { return b.price < a.price ? b : a; });
+  var out2 = toBenchmark(fb, province);
+  out2.matched = 'below_requested_speed';
+  return out2;
+}
+
+/* ------------------------------------------------------------------ *
+ * Savings math
+ * ------------------------------------------------------------------ */
+
+/** Whole billing cycles from start to end, anchored on the start day-of-month.
+ *  A cycle counts if it BEGINS before `end`. Month-end starts (Jan 31) clamp
+ *  naturally: the day-of-month comparison is all the anchor needs. */
+function monthsBetween(startISO, endISO) {
+  var s = new Date(startISO + 'T00:00:00Z');
+  var e = new Date(endISO + 'T00:00:00Z');
+  var n = (e.getUTCFullYear() - s.getUTCFullYear()) * 12 + (e.getUTCMonth() - s.getUTCMonth());
+  if (e.getUTCDate() < s.getUTCDate()) n -= 1;
+  return Math.max(0, n + 1);
+}
+
+var r2 = function (n) { return Math.round(n * 100) / 100; };
+
+function calculateCheckup(input) {
+  var T = input.contractLengthMonths;
+  var today = input.today || new Date().toISOString().slice(0, 10);
+  var warnings = [];
+
+  var benchmark = lookupBenchmark(input.postalCode, input.downloadMbps);
+  if (!benchmark) throw new Error('No benchmark plan for that postal code and speed');
+  var b = benchmark.monthly;
+
+  var discount = Number(input.discountAmount) || 0;
+
+  /* --- Resolve promo window ---------------------------------------- */
+  var promoMonths = 0;
+  if (input.contractStartDate && input.promoEndDate) {
+    promoMonths = Math.min(T, monthsBetween(input.contractStartDate, input.promoEndDate));
+  } else if (!input.contractStartDate && input.promoEndDate) {
+    /* Start withheld but the end is known: anchor cycles to today, so the
+       schedule is a forward projection that still lands the cliff. */
+    promoMonths = Math.min(T, monthsBetween(today, input.promoEndDate));
+  } else if (input.promoEndDate === null && discount > 0) {
+    promoMonths = Math.min(T, 12);
+    warnings.push('Promo length unknown, assumed 12 months.');
+  }
+
+  var promoActive = input.promoEndDate ? input.promoEndDate > today : promoMonths > 0;
+
+  /* --- Resolve the two price levels ---------------------------------
+     currentPrice is what they pay TODAY. Which level that is depends on
+     whether the promo is still running. */
+  var promoPrice, postPromoPrice;
+  if (input.postPromoPrice != null) {
+    postPromoPrice = input.postPromoPrice;  // preferred: asked directly
+    promoPrice = input.currentPrice;
+  } else if (promoActive) {
+    promoPrice = input.currentPrice;                       // e.g. 120
+    postPromoPrice = input.currentPrice + discount;        // 120 + 80 = 200
+  } else {
+    postPromoPrice = input.currentPrice;                   // promo already gone
+    promoPrice = Math.max(0, input.currentPrice - discount);
+  }
+
+  if (discount < 0) warnings.push('Discount amount cannot be negative.');
+  if (discount === 0 && promoMonths > 0 && input.promoEndDate)
+    warnings.push('A promo end date was given but the discount is $0.');
+  if (discount > input.currentPrice)
+    warnings.push('The discount is larger than what you pay. Did you enter the post-promo price by mistake?');
+
+  /* --- Build the schedule ------------------------------------------ */
+  var schedule = [];
+  var periods =
+    input.promoPeriods && input.promoPeriods.length > 0
+      ? input.promoPeriods.filter(function (p) { return p.months > 0; })
+      : promoMonths > 0
+        ? [{ monthlyAmount: promoPrice, months: promoMonths }]
+        : [];
+
+  for (var i = 0; i < periods.length; i++) {
+    for (var k = 0; k < periods[i].months && schedule.length < T; k++) {
+      schedule.push(periods[i].monthlyAmount);
+    }
+  }
+  var covered = schedule.length;
+  while (schedule.length < T) schedule.push(postPromoPrice);
+
+  if (input.promoPeriods && input.promoPeriods.length > 0 && covered < T)
+    warnings.push(covered + ' of ' + T + ' months entered, remainder assumed at $' + postPromoPrice + '.');
+
+  /* --- Math ---------------------------------------------------------
+     Clamp at zero, never abs(): a month priced below the benchmark must
+     REDUCE the total, not add to it. */
+  var totalPaid = schedule.reduce(function (a, x) { return a + x; }, 0);
+  var totalBenchmark = b * T;
+  var totalSavings = Math.max(0, totalPaid - totalBenchmark);
+
+  var cliff = null;
+  for (var m = 1; m < T; m++) {
+    if (schedule[m] > schedule[m - 1]) { cliff = { month: m, from: schedule[m - 1], to: schedule[m] }; break; }
+  }
+
+  return {
+    currentMonthly: schedule[0],
+    postPromoPrice: postPromoPrice,
+    benchmarkMonthly: b,
+    benchmark: benchmark,
+    termMonths: T,
+    promoMonths: covered,
+    promoActive: promoActive,
+    totalPaid: r2(totalPaid),
+    totalBenchmark: r2(totalBenchmark),
+    totalSavings: r2(totalSavings),
+    cliff: cliff,
+    schedule: schedule,
+    warnings: warnings
+  };
+}
+
+var API = {
+  INTERNET_PLANS: INTERNET_PLANS,
+  provinceFromPostalCode: provinceFromPostalCode,
+  lookupBenchmark: lookupBenchmark,
+  monthsBetween: monthsBetween,
+  calculateCheckup: calculateCheckup
+};
+
+if (typeof module !== 'undefined' && module.exports) module.exports = API;
+if (typeof window !== 'undefined') window.WhollarSavings = API;
+})();
