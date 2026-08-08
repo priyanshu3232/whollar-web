@@ -1,0 +1,29 @@
+Whollar FSA -> city coverage summary
+Built: 2026-08-07
+Source: GeoNames.org CA.txt (http://download.geonames.org/export/zip/CA.zip), CC BY 4.0 license (credit: geonames.org)
+Not the authoritative Canada Post Postal Code Conversion File (that is paid/licensed).
+
+Source rows read:    1657
+Rows dropped:        0 (non-CA / unrecognised province / empty place name)
+Distinct FSAs mapped: 1652
+
+Coverage vs. real Canadian FSAs: Canada has roughly 1600-1,800 assigned
+forward sortation areas (the exact count shifts slightly over time as Canada
+Post adds new ones). This dataset's 1652 FSAs represents essentially
+full coverage of that range (~100%+), since GeoNames' free export
+already contains one entry per assigned FSA rather than a sample.
+
+By province: AB=155, BC=192, MB=67, NB=111, NL=35, NS=77, NT=3, NU=3, ON=527, PE=7, QC=422, SK=50, YT=3
+
+Data-quality caveats:
+- This is GeoNames' free/CC-licensed export, not the paid Canada Post file --
+  treat it as a best-effort mapping, not a source of truth.
+- GeoNames sometimes groups genuinely distinct municipalities under one
+  metro-area label (e.g. North Vancouver / West Vancouver FSAs both resolve
+  to "Vancouver" here, because that is what GeoNames' own admin2 column says
+  for those rows).
+- A few rural/district FSAs resolve to a district/region name rather than a
+  specific town (e.g. some Ontario "County" or Quebec administrative-region
+  FSAs), because GeoNames' own admin2 column reports the district there.
+- City name spelling/casing is taken directly from GeoNames and not
+  independently verified against any other source.

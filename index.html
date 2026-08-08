@@ -5,11 +5,15 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="/js/device-router.js?v=20260806"></script>
-<!-- Benchmarks before core, as on /bill-checkup: core reads the tables at call
-     time but the estimator below needs them present on first paint. -->
+<script src="/js/device-router.js?v=20260806a"></script>
+<!-- Benchmarks + base pricing before core, as on /bill-checkup: core reads the
+     tables at call time but the estimator below needs them present on first
+     paint. estimateAnnualSavings() has read from whollar-base-pricing.js
+     since PlanSavvy replaced the scraped benchmark — without this tag every
+     estimate silently returns null and the widget shows nothing at all. -->
 <script src="/js/whollar-benchmarks.js?v=20260806"></script>
-<script src="/js/whollar-core.js?v=20260806"></script>
+<script src="/js/whollar-base-pricing.js?v=20260807c"></script>
+<script src="/js/whollar-core.js?v=20260808a"></script>
 
 
 <title>Whollar: wholesale prices on home internet</title>
@@ -1545,11 +1549,11 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
 .whl-footer{margin:0;background:#0A2018;color:#CFE8D6;border-top:1px solid rgba(255,255,255,.08);padding:40px 0 calc(30px + env(safe-area-inset-bottom));font-family:Inter,'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14.5px;line-height:1.5;text-align:left}
 .whl-footer__wrap{max-width:1340px;margin:0 auto;padding:0 24px}
 .whl-footer__top{display:grid;grid-template-columns:1fr auto 1fr;gap:28px;align-items:start;padding-bottom:30px;border-bottom:1px solid rgba(255,255,255,.12)}
-.whl-footer__brand{max-width:300px}
+.whl-footer__brand{max-width:340px}
 .whl-footer__row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .whl-footer__mk{width:30px;height:30px;border-radius:9px;flex:none;display:block}
 .whl-footer__wm{font-family:'Satoshi','Hanken Grotesk','Bricolage Grotesque',Inter,system-ui,sans-serif;font-weight:800;font-size:20px;letter-spacing:-.01em;color:#fff}
-.whl-footer__brand p{margin:0;font-size:14px;line-height:1.5;color:#9FC1BF;font-style:normal}
+.whl-footer__brand p{margin:0;font-size:14px;line-height:1.5;color:#9FC1BF;font-style:normal;white-space:nowrap}
 .whl-footer__cols{display:flex;gap:96px;flex-wrap:wrap;margin:0 auto}
 .whl-footer__col{display:flex;flex-direction:column;gap:11px}
 .whl-footer__col a{color:#CFE8D6;text-decoration:none;font-size:14.5px;font-weight:400;border:0}
@@ -1563,6 +1567,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .whl-footer__cols{gap:48px;margin:0}
 }
 @media(max-width:560px){.whl-footer__cols{gap:34px}}
+@media(max-width:380px){.whl-footer__brand p{font-size:11.5px}}
 </style>
 <!-- WHOLLAR-FOOTER-CSS:END -->
 </head>
@@ -2055,7 +2060,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
       <div class="whl-reveal">
         <span class="whl-eyebrow">Quick estimate</span>
         <h2 class="whl-h2">What could you save?</h2>
-        <p class="whl-est__note">A typical outcome based on average cohort savings, not a quote and not specific to your address. Your real number comes from the detailed checkup, where we compare your actual plan.</p>
+        <p class="whl-est__note">Based on the single lowest advertised price in your province, not an average. Your real number comes from the detailed checkup, where we compare your actual plan.</p>
       </div>
       <div class="whl-card whl-est__card whl-reveal">
         <label class="whl-est__lbl" for="whl-bill-num"><span>Your current monthly internet bill</span><span class="whl-est__billwrap">$<input class="whl-est__bill-input" id="whl-bill-num" type="text" inputmode="numeric" value="90" data-bill-input="" aria-label="Type your current monthly internet bill"></span></label>
@@ -2068,6 +2073,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
           <div class="whl-est__out">
             <div class="pre">Households like yours typically save</div>
             <div class="whl-est__num"><b data-save="">$230</b><span>/ year</span></div>
+            <p data-save-note style="font-size:12px;color:#8A968F;margin-top:8px;display:none">This is the maximum possible saving — the lowest advertised price we found in your area. Your actual offer may vary.</p>
           </div>
           <a class="whl-btn whl-btn--lg whl-btn--block" href="/bill-checkup" style="margin-top:18px">Click here to check detailed view</a>
         </div>
@@ -2815,6 +2821,12 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   function onScroll(){ if(header) header.classList.toggle('is-scrolled', window.scrollY > 8); }
   window.addEventListener('scroll', onScroll, {passive:true}); onScroll();
 
+  /* logo -> top: #top targets the sticky header itself, whose
+     getBoundingClientRect().top is always 0, so the browser's native
+     anchor-scroll sees "already there" and never moves the page. */
+  var logo = document.querySelector('.whl-logo[href="#top"]');
+  if(logo){ logo.addEventListener('click', function(e){ e.preventDefault(); window.scrollTo({top:0, behavior:'smooth'}); }); }
+
   /* mobile nav toggle */
   var burger = document.querySelector('[data-burger]');
   var mobnav = document.querySelector('[data-mobnav]');
@@ -2854,14 +2866,17 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   var estResult = document.querySelector('[data-est-result]');
   var savePre = estResult ? estResult.querySelector('.pre') : null;
   var saveUnit = save ? save.parentNode.querySelector('span') : null;
+  var saveNote = document.querySelector('[data-save-note]');
   var BMIN=40, BMAX=160;
-  /* The number is twelve months of the household's bill minus twelve months at
-     the bottom-decile advertised price for their province, which is why the
-     postal code is required before it will calculate. Both the decile figures
-     and the arithmetic live in whollar-core.js / whollar-benchmarks.js so this
-     page and /bill-checkup cannot drift apart. It is still an estimate against
-     a province-wide pool, not a like-for-like quote at the household's own
-     speed; the detailed checkup is where that comparison happens.
+  /* The number is twelve months of the household's bill minus twelve months
+     at the single cheapest advertised plan in their province
+     (WHOLLAR.estimateAnnualSavings -> minBasePriceFor, the PlanSavvy list) —
+     the postal code decides the province, so it is required before this
+     will calculate. That makes this a MAXIMUM possible saving, not a typical
+     one (the widget's own copy says so); no speed/tech input is collected,
+     so it cannot be a like-for-like comparison the way the full checkup is.
+     Both live in whollar-core.js so this page and /bill-checkup cannot drift
+     apart.
 
      Replaces a flat 21% of the annual bill that ignored the postal code
      entirely. */
@@ -2873,15 +2888,17 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
      showing "$0 / year" under "typically save" would read as a bug. */
   function renderEstimate(v, animate){
     var est = estimateFor(v);
-    if(!est){ if(savePre) savePre.textContent='Enter your postal code for an estimate'; if(save) save.textContent=''; if(saveUnit) saveUnit.style.display='none'; return; }
+    if(!est){ if(savePre) savePre.textContent='Enter your postal code for an estimate'; if(save) save.textContent=''; if(saveUnit) saveUnit.style.display='none'; if(saveNote) saveNote.style.display='none'; return; }
     if(est.atOrBelow){
       if(savePre) savePre.textContent='You are already at or below the going rate near you';
       if(save) save.textContent='';
       if(saveUnit) saveUnit.style.display='none';
+      if(saveNote) saveNote.style.display='none';
       return;
     }
     if(savePre) savePre.textContent='Households like yours typically save';
     if(saveUnit) saveUnit.style.display='';
+    if(saveNote) saveNote.style.display='';
     var target = Math.round(est.saving/10)*10;
     if(!animate){ save.textContent='$'+target.toLocaleString('en-CA'); return; }
     var dur=700, t0=performance.now();
@@ -2936,7 +2953,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
         estResult.classList.add('is-shown');
         var est=estimateFor(parseInt(bill.value,10));
         var target=savedFor(parseInt(bill.value,10));
-        try{ if(parsed){ fetch(window.WHOLLAR.API+'/calculator-estimate',{method:'POST',body:JSON.stringify({postal:parsed.full,fsa:parsed.fsa,province:parsed.province,provinceCode:parsed.provinceCode,monthlyBill:Number(bill.value),estimatedAnnualSavings:target,estimateBasis:est?('p10-'+est.scope+'-'+est.referenceMonthly):'no-reference'})}).catch(function(){}); } }catch(e){}
+        try{ if(parsed){ fetch(window.WHOLLAR.API+'/calculator-estimate',{method:'POST',body:JSON.stringify({postal:parsed.full,fsa:parsed.fsa,province:parsed.province,provinceCode:parsed.provinceCode,monthlyBill:Number(bill.value),estimatedAnnualSavings:target,estimateBasis:est?('min-'+est.scope+'-'+est.referenceMonthly):'no-reference'})}).catch(function(){}); } }catch(e){}
         var reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
         renderEstimate(parseInt(bill.value,10), !reduce);
         calcBtn.style.display='none';

@@ -52,12 +52,12 @@ const LOGIN_PURPOSE = 'provider_login';
  * `/provider/signup` must answer identically whether the provider is having a
  * bad day, or the timing becomes the oracle the response body refuses to be.
  */
-async function issueCode(req, cfg, email, purpose = PURPOSE) {
+async function issueCode(req, cfg, email, purpose = PURPOSE, firstName = null) {
   const { code, ttlMinutes } = await challenges.start(req.catalyst, req, { email, purpose });
   // Wording follows what the code is for. A partner signing in must not be told
   // to "finish creating your Whollar account".
   const message = mailer.otpEmail({
-    code, purpose: purpose === PURPOSE ? 'signup' : 'login', ttlMinutes,
+    code, purpose: purpose === PURPOSE ? 'signup' : 'login', ttlMinutes, firstName,
   });
 
   let delivered = false;
@@ -156,7 +156,9 @@ function mount(router, cfg) {
     });
     await orgs.addMember(req.catalyst, { userId: user.user_id, orgId: org.org_id });
 
-    const { code, ttlMinutes, delivered, sendError } = await issueCode(req, cfg, email);
+    const { code, ttlMinutes, delivered, sendError } = await issueCode(
+      req, cfg, email, PURPOSE, user.first_name
+    );
 
     audit.recordAsync(req.catalyst, req, {
       type: 'provider.signup', outcome: 'success', email, userId: user.user_id,
@@ -290,7 +292,7 @@ function mount(router, cfg) {
     // Password proven; second factor sent. Nothing about the org — not its name,
     // not its approval state — is in this response, because none of it has been
     // earned yet.
-    const issued = await issueCode(req, cfg, email, LOGIN_PURPOSE);
+    const issued = await issueCode(req, cfg, email, LOGIN_PURPOSE, user.first_name);
 
     audit.recordAsync(req.catalyst, req, {
       type: 'provider.login.challenge', outcome: 'success', email, userId: user.user_id,

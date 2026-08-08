@@ -62,7 +62,7 @@ app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
   }
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
@@ -200,6 +200,58 @@ const json = v => JSON.stringify(v ?? null);
 // Catalyst DateTime columns expect "YYYY-MM-DD HH:MM:SS" (UTC), not ISO 8601.
 const catalystNow = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
 
+/* ---- The join page's "do you have any of these too?" list ----
+ *
+ * It arrives in two shapes and used to survive only one. With a bill attached
+ * the request is multipart and submitForm() JSON-encodes every object field;
+ * without one it is application/json and express.json has ALREADY parsed the
+ * list into a real array. JSON.parse(array) stringifies its argument to
+ * "[object Object]" and throws, so every submission without an attachment
+ * stored an empty list — silently, because the throw was swallowed.
+ */
+const parseServices = v => {
+  if (Array.isArray(v)) return v;
+  const s = str(v);
+  if (!s) return [];
+  try {
+    const parsed = JSON.parse(s);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+// Keep in step with the data-svc keys in waitlist/index.html.
+const SERVICE_LABELS = {
+  ott: 'OTT / streaming channels',
+  tv: 'TV plan',
+  security: 'Home security',
+  mobile: 'Cell phone plans',
+  doorbell: 'Video doorbells',
+  other: 'Something else'
+};
+
+/* One readable line for the CRM: "TV plan, Cell phone plans x3, Something else
+ * (garage camera)". The rows are objects ({service, count, detail}), so the
+ * old services.join(', ') handed sales "[object Object], [object Object]".
+ * Bare strings are still accepted: older payloads sent them, and the Services
+ * column holds whatever shape was current when the row was written. */
+const servicesForCrm = list => (Array.isArray(list) ? list : [])
+  .map(item => {
+    if (typeof item === 'string') return SERVICE_LABELS[item] || str(item);
+    if (!item || typeof item !== 'object') return '';
+    const key = str(item.service);
+    const label = SERVICE_LABELS[key] || key;
+    if (!label) return '';
+    const count = Number(item.count);
+    const detail = str(item.detail);
+    return label
+      + (Number.isFinite(count) && count > 1 ? ` x${count}` : '')
+      + (detail ? ` (${detail.slice(0, 80)})` : '');
+  })
+  .filter(Boolean)
+  .join(', ');
+
 /* ------------------------------------------------------------------ *
  * Canonical formats
  * ------------------------------------------------------------------
@@ -305,6 +357,32 @@ async function insert(catalystApp, tableName, row) {
   return table.insertRow(row);
 }
 
+// Same as insert(), but tolerant of a named set of columns not existing yet
+// in the live table — a schema change routinely ships in code before the
+// column is added by hand in the Catalyst console (see catalyst-backend/
+// scripts/create-tables.md). Rather than fail the whole submission on a gap
+// in optional columns, retry once with them dropped, so the lead is still
+// captured; the original error is logged so the gap stays visible.
+async function insertTolerant(catalystApp, tableName, row, optionalKeys) {
+  try {
+    return await insert(catalystApp, tableName, row);
+  } catch (err) {
+    if (!optionalKeys || !optionalKeys.length) throw err;
+    const stripped = { ...row };
+    for (const k of optionalKeys) delete stripped[k];
+    try {
+      const saved = await insert(catalystApp, tableName, stripped);
+      console.error(
+        `[formSubmit] ${tableName} insert only succeeded after dropping ${optionalKeys.join(', ')} — ` +
+        `add these columns in the Catalyst console (create-tables.md). Original error:`, err
+      );
+      return saved;
+    } catch (err2) {
+      throw err; // neither attempt worked — surface the ORIGINAL error, it's the real one
+    }
+  }
+}
+
 // Queue a submission for the CRM sync worker (the crmSync cron function reads
 // CrmSyncQueue and pushes rows into Zoho CRM). Best-effort by design: it must
 // NEVER throw into the request path — the submission is already saved, so a
@@ -383,15 +461,27 @@ app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSe
   const email = str(b.email);
   if (!isEmail(email)) { discardUpload(req); return badRequest(res, 'A valid email is required.'); }
 
-  let services = [];
-  try { services = b.services ? JSON.parse(b.services) : []; } catch { services = []; }
+  const services = parseServices(b.services);
 
   try {
     const catalystApp = catalyst.initialize(req);
     const file = await storeFile(catalystApp, req.file);
     const postal = normalizePostal(b.fsa || b.postalFull);
+    // Deliberately NOT widened to match the form. Stage 2 only ever appears to
+    // a member who signed up and verified a code seconds earlier, so every
+    // answer it collects has an owner keyed on user_id: the bill fields go to
+    // member_bills via POST /me/bill, the services checklist to user_prefs via
+    // POST /me/prefs, and the name, postal code and province are already on
+    // the users row that signup wrote. This table is the CRM's lead trail and
+    // the fallback the auth function reads when that member write is lost —
+    // copying identity columns into it would duplicate PII to no end, and
+    // crmSync reads the payload below rather than these columns anyway.
     const row = await insert(catalystApp, 'WaitlistDetails', {
-      Email: email,
+      // Lowercased for the same reason as BillCheckupSubmissions.Email: the
+      // auth function's fallback finds this row by exact match against the
+      // member's email_normalized, and ZCQL has no LOWER(). The CRM payload
+      // below keeps the address exactly as they typed it.
+      Email: emailKey(email),
       FSA: postal.fsa,
       Provider: orNull(str(b.provider)),
       MonthlyCost: toNumber(b.cost),
@@ -409,9 +499,12 @@ app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSe
         emailKey: emailKey(email),
         provider: str(b.provider), cost: toNumber(b.cost), speed: str(b.speed),
         promoEnd: str(b.promoEnd), threshold: str(b.threshold),
+        discount: toNumber(b.discount),
+        contractStart: str(b.contractStart) || null,
+        contractLength: str(b.contractLength) || null,
         fsa: postal.fsa, postal: postal.full,
         province: str(b.province) || null, provinceCode: str(b.provinceCode) || null,
-        services: Array.isArray(services) ? services.join(', ') : '',
+        services: servicesForCrm(services),
         billFileName: file?.name ?? (req.fileRejected ? `[rejected: ${req.fileRejected}]` : null),
         ...consentFrom(b, req)
       }
@@ -448,7 +541,7 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
     const catalystApp = catalyst.initialize(req);
     const file = await storeFile(catalystApp, req.file);
     const postal = normalizePostal(b.pc || b.postalFull);
-    const row = await insert(catalystApp, 'BillCheckupSubmissions', {
+    const row = await insertTolerant(catalystApp, 'BillCheckupSubmissions', {
       // Lowercased so GET /me/bill's exact-match adoption (ZCQL has no LOWER)
       // finds this row via the member's email_normalized. CRM keeps the raw
       // casing in its own payload below.
@@ -463,11 +556,13 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
       MonthsToRenewal: b.pmo != null && b.pmo !== '' ? parseInt(b.pmo, 10) : null,
       PromoExpired: str(b.expired) === 'true',
       DiscountAmount: toNumber(b.disc),
+      ContractStartDate: orNull(str(b.contractStart)),
+      ContractLength: orNull(str(b.contractLength)),
       SwitchThreshold: orNull(str(b.switchFor)),
       BillFileId: orNull(file?.id ?? null),
       BillFileName: orNull(file?.name ?? (req.fileRejected ? `[rejected: ${req.fileRejected}]` : null)),
       SubmittedAt: catalystNow()
-    });
+    }, ['ContractStartDate', 'ContractLength']);
     await enqueueCrm(catalystApp, {
       source: 'BillCheckupSubmissions', rowId: row.ROWID, email, leadType: 'consumer',
       data: {
@@ -475,10 +570,12 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
         via: str(b.via) || 'form',
         fsa: postal.fsa, postal: postal.full,
         province: str(b.province) || null, provinceCode: str(b.provinceCode) || null,
-        provider: str(b.prov), cost: toNumber(b.cost), speed: str(b.spd),
+        provider: str(b.prov), cost: toNumber(b.cost), discount: toNumber(b.disc), speed: str(b.spd),
         tech: str(b.tech), promoEnd: str(b.pdate),
         monthsToRenewal: b.pmo != null && b.pmo !== '' ? parseInt(b.pmo, 10) : null,
-        discount: toNumber(b.disc), threshold: str(b.switchFor),
+        contractStart: str(b.contractStart) || null,
+        contractLength: str(b.contractLength) || null,
+        threshold: str(b.switchFor),
         // What the visitor was actually shown. Without these, sales sees the
         // gross charge and has no idea which of the four verdicts appeared on
         // screen — the number the conversation has to start from.
@@ -504,6 +601,47 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
   }
 });
 
+// Bill checkup — real pooling counts for the loading interstitial's
+// "N households already pooling" / "N near you" line, which used to be a
+// hardcoded placeholder (1,284 / 37) that never moved. Read-only, no PII in
+// the response — counts only.
+//
+// ZCQL refuses any LIMIT over 300 (a hard Catalyst ceiling, not a choice
+// made here), so a table past that size reports a capped "300+" rather than
+// an exact count — the same convention the admin diagnostics endpoint uses
+// for the same reason. That is an honest floor, not a wrong number.
+// (FSA_RE — the real Canadian first/third-letter charset — is declared
+// above, next to normalizePostal().)
+const COUNT_CAP = 300;
+
+async function countRows(catalystApp, table, whereSql) {
+  const sql = `SELECT ROWID FROM ${table}${whereSql ? ' WHERE ' + whereSql : ''} LIMIT ${COUNT_CAP}`;
+  const rows = await catalystApp.zcql().executeZCQLQuery(sql);
+  const n = (rows || []).length;
+  return { count: n, capped: n >= COUNT_CAP };
+}
+
+app.get('/pooling-count', limit({ key: 'pooling-count', max: 120, windowSec: 3600 }), async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const total = await countRows(catalystApp, 'BillCheckupSubmissions');
+
+    let fsa = null;
+    const fsaParam = str(req.query.fsa).toUpperCase();
+    // Whitelisted against FSA_RE before it ever reaches the query string, so
+    // this interpolation carries only 3 already-validated alphanumeric chars
+    // — never raw user input.
+    if (FSA_RE.test(fsaParam)) {
+      const r = await countRows(catalystApp, 'BillCheckupSubmissions', `PostalFSA = '${fsaParam}'`);
+      fsa = { code: fsaParam, ...r };
+    }
+
+    res.status(200).json({ ok: true, total, fsa });
+  } catch (err) {
+    serverError(res, err, 'pooling-count');
+  }
+});
+
 // Bill checkup — "deep read" request (attach agreement/more bills + note).
 // Table: DeepReadRequests
 app.post('/deep-read', limit({ key: 'deep-read', max: 10, windowSec: 3600 }), guardUpload(upload.array('files', 5)), async (req, res) => {
@@ -524,7 +662,8 @@ app.post('/deep-read', limit({ key: 'deep-read', max: 10, windowSec: 3600 }), gu
       province: orNull(str(b.province)), provinceCode: orNull(str(b.provinceCode)),
       prov: orNull(str(b.prov)), cost: toNumber(b.cost),
       spd: orNull(str(b.spd)), tech: orNull(str(b.tech)), pdate: orNull(str(b.pdate)),
-      disc: toNumber(b.disc), effectiveCost: toNumber(b.effectiveCost),
+      contractStart: orNull(str(b.contractStart)), contractLength: orNull(str(b.contractLength)),
+      effectiveCost: toNumber(b.effectiveCost),
       verdict: orNull(str(b.verdict))
     };
     const row = await insert(catalystApp, 'DeepReadRequests', {
@@ -543,7 +682,8 @@ app.post('/deep-read', limit({ key: 'deep-read', max: 10, windowSec: 3600 }), gu
         fsa: postal.fsa, postal: postal.full,
         province: str(b.province) || null, provinceCode: str(b.provinceCode) || null,
         provider: str(b.prov), cost: toNumber(b.cost),
-        speed: str(b.spd), tech: str(b.tech), promoEnd: str(b.pdate), discount: toNumber(b.disc),
+        speed: str(b.spd), tech: str(b.tech), promoEnd: str(b.pdate),
+        contractStart: str(b.contractStart) || null, contractLength: str(b.contractLength) || null,
         effectiveCost: toNumber(b.effectiveCost), verdict: str(b.verdict) || null,
         ...consentFrom(b, req)
       }

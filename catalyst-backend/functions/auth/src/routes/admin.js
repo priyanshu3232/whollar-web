@@ -157,8 +157,8 @@ const LEAD_TABLES = Object.freeze({
   WaitlistDetails: ['Email', 'FSA', 'Provider', 'MonthlyCost', 'DownloadSpeed', 'PromoEndDate',
     'SwitchThreshold', 'Services', 'BillFileName', 'SubmittedAt'],
   BillCheckupSubmissions: ['Email', 'Via', 'PostalFSA', 'Provider', 'MonthlyCost', 'DownloadSpeed',
-    'AccessTech', 'PromoEndDate', 'MonthsToRenewal', 'PromoExpired', 'DiscountAmount',
-    'SwitchThreshold', 'BillFileName', 'SubmittedAt'],
+    'AccessTech', 'PromoEndDate', 'MonthsToRenewal', 'PromoExpired', 'ContractStartDate',
+    'ContractLength', 'SwitchThreshold', 'BillFileName', 'SubmittedAt'],
   DeepReadRequests: ['Email', 'Note', 'FileNames', 'SubmittedAt'],
   PartnerApplications: ['Role', 'FirstName', 'LastName', 'Company', 'Email', 'Phone', 'Provinces',
     'AccessTech', 'LegalName', 'ProviderType', 'BusinessNumber', 'Brands', 'Signatory',
@@ -197,7 +197,13 @@ function mount(router, cfg) {
     await ratelimit.enforceFor(req.catalyst, req, email, { key: 'admin.start.email', max: 5, windowSec: 3600 });
 
     const { code, ttlMinutes } = await challenges.start(req.catalyst, req, { email, purpose: PURPOSE });
-    const message = mailer.otpEmail({ code, purpose: 'login', ttlMinutes });
+    // Best-effort personalisation; a miss or a lookup failure sends the same
+    // email with the bare greeting.
+    const known = await users.findByEmail(req.catalyst, email).catch(() => null);
+    const message = mailer.otpEmail({
+      code, purpose: 'login', ttlMinutes,
+      firstName: known ? known.first_name : null,
+    });
 
     let delivered = false;
     let sendError = null;
@@ -787,7 +793,10 @@ function mount(router, cfg) {
     return org;
   }
 
-  /** Email every active person in the org. Best-effort, recorded per address. */
+  /**
+   * Email every active person in the org. Best-effort, recorded per address.
+   * buildMessage receives the recipient so each copy can greet them by name.
+   */
   async function notifyOrgUsers(req, org, buildMessage) {
     const memberships = await orgs.membersOf(req.catalyst, org.org_id).catch(() => []);
     const outcomes = [];
@@ -795,7 +804,7 @@ function mount(router, cfg) {
       const u = await users.findById(req.catalyst, m.user_id).catch(() => null);
       if (!u || u.status !== 'active') continue;
       try {
-        await mailer.send(cfg, { to: u.email_normalized, ...buildMessage() });
+        await mailer.send(cfg, { to: u.email_normalized, ...buildMessage(u) });
         outcomes.push({ user: u.user_id, delivered: true });
       } catch (err) {
         outcomes.push({ user: u.user_id, delivered: false });
@@ -824,9 +833,10 @@ function mount(router, cfg) {
       approved_at: datastore.nowDb(),
     });
 
-    const mailed = await notifyOrgUsers(req, org, () =>
+    const mailed = await notifyOrgUsers(req, org, (u) =>
       mailer.providerDecisionEmail({
         approved: true, orgName: org.legal_name, appBaseUrl: cfg.APP_BASE_URL,
+        firstName: u.first_name,
       }));
 
     await audit.record(req.catalyst, req, {
@@ -862,9 +872,10 @@ function mount(router, cfg) {
       });
     }
 
-    const mailed = await notifyOrgUsers(req, org, () =>
+    const mailed = await notifyOrgUsers(req, org, (u) =>
       mailer.providerDecisionEmail({
         approved: false, orgName: org.legal_name, reason, appBaseUrl: cfg.APP_BASE_URL,
+        firstName: u.first_name,
       }));
 
     await audit.record(req.catalyst, req, {

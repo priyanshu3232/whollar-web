@@ -42,11 +42,11 @@ const CSS = `${CSS_START}
 .whl-footer{margin:0;background:#0A2018;color:#CFE8D6;border-top:1px solid rgba(255,255,255,.08);padding:40px 0 calc(30px + env(safe-area-inset-bottom));font-family:Inter,'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14.5px;line-height:1.5;text-align:left}
 .whl-footer__wrap{max-width:1340px;margin:0 auto;padding:0 24px}
 .whl-footer__top{display:grid;grid-template-columns:1fr auto 1fr;gap:28px;align-items:start;padding-bottom:30px;border-bottom:1px solid rgba(255,255,255,.12)}
-.whl-footer__brand{max-width:300px}
+.whl-footer__brand{max-width:340px}
 .whl-footer__row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .whl-footer__mk{width:30px;height:30px;border-radius:9px;flex:none;display:block}
 .whl-footer__wm{font-family:'Satoshi','Hanken Grotesk','Bricolage Grotesque',Inter,system-ui,sans-serif;font-weight:800;font-size:20px;letter-spacing:-.01em;color:#fff}
-.whl-footer__brand p{margin:0;font-size:14px;line-height:1.5;color:#9FC1BF;font-style:normal}
+.whl-footer__brand p{margin:0;font-size:14px;line-height:1.5;color:#9FC1BF;font-style:normal;white-space:nowrap}
 .whl-footer__cols{display:flex;gap:96px;flex-wrap:wrap;margin:0 auto}
 .whl-footer__col{display:flex;flex-direction:column;gap:11px}
 .whl-footer__col a{color:#CFE8D6;text-decoration:none;font-size:14.5px;font-weight:400;border:0}
@@ -60,6 +60,7 @@ const CSS = `${CSS_START}
   .whl-footer__cols{gap:48px;margin:0}
 }
 @media(max-width:560px){.whl-footer__cols{gap:34px}}
+@media(max-width:380px){.whl-footer__brand p{font-size:11.5px}}
 </style>
 ${CSS_END}`;
 
@@ -138,7 +139,8 @@ const BLOG_SLUGS = [
   'collective-switching-internet-canada', 'teksavvy-vs-rogers-same-cable',
   'internet-bill-breakdown-canada', 'negotiate-internet-bill-canada',
   'internet-retention-offer-win-back', 'independent-internet-providers-canada',
-  'collective-switching-energy-proof', 'big-three-telecom-canada'
+  'collective-switching-energy-proof', 'big-three-telecom-canada',
+  'crtc-internet-prices-canada'
 ];
 
 /* current: which nav link is marked aria-current on this page. */

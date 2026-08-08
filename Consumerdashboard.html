@@ -1,0 +1,1718 @@
+<!doctype html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Whollar · Member dashboard v10 (prototype)</title>
+<meta name="description" content="Whollar member dashboard prototype: your cohort, your promo cliff, your offers. Demo data.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='18' y1='14' x2='102' y2='106' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%230E2A20'/%3E%3Cstop offset='1' stop-color='%231E9E63'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='6' y='6' width='108' height='108' rx='32' fill='url(%23g)'/%3E%3Cpath d='M34 42h52M34 42l26 38M86 42l-26 38' stroke='%23fff' stroke-width='5' stroke-linecap='round' stroke-linejoin='round' opacity='.85'/%3E%3Ccircle cx='34' cy='42' r='11' fill='%23fff'/%3E%3Ccircle cx='86' cy='42' r='11' fill='%23fff'/%3E%3Ccircle cx='60' cy='80' r='11' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1A2520; --ink2:#131C17; --accent:#2C6A4E; --accent-deep:#1E4D38; --mint:#E4EDE2;
+  --glow:#A9D3B6; --terra:#B0512B; --terra-soft:#F2E3D6; --paper:#F1EDE2; --card:#FCFAF5;
+  --line:#E1DBCB; --sub:#5B655C; --disp:'Bricolage Grotesque',system-ui,sans-serif;
+  --body:'Inter',system-ui,sans-serif; --mono:'Space Mono',ui-monospace,monospace;
+  --panew:264px; --panec:78px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--body);background:var(--paper);color:var(--ink);font-size:15.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+a{color:var(--accent-deep);text-decoration:none}
+:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px;border-radius:8px}
+h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
+.mono{font-family:var(--mono)}
+
+/* ================= app frame (v2 skeleton) ================= */
+.app{display:grid;grid-template-columns:var(--panew) 1fr;min-height:100vh;transition:grid-template-columns .28s ease}
+.app.collapsed{grid-template-columns:var(--panec) 1fr}
+.pane{background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow:hidden}
+.pane__top{display:flex;align-items:center;gap:10px;padding:18px 18px 14px}
+.pane__top svg{width:36px;height:36px;flex:none}
+.pane__top b{font-family:var(--disp);font-weight:800;font-size:20px;white-space:nowrap}
+.pnav{display:flex;flex-direction:column;gap:4px;padding:8px 12px;flex:1}
+.pnav button{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:12px;font-size:14.5px;font-weight:600;color:#3A453E;text-align:left;white-space:nowrap;transition:background .15s}
+.pnav button svg{width:19px;height:19px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.pnav button:hover{background:#EDE8DB}
+.pnav button.on{background:var(--mint);color:var(--accent-deep);box-shadow:inset 3px 0 0 var(--accent)}
+.app.collapsed .pane__top b,.app.collapsed .pnav button span,.app.collapsed .pane__foot{display:none}
+.app.collapsed .pnav button{justify-content:center;padding:12px 0}
+.overlay{display:none}
+.top{display:flex;align-items:center;gap:16px;padding:14px clamp(16px,3vw,30px);background:rgba(250,248,243,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30}
+.burger{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:#3A453E}
+.burger:hover{background:#EDE8DB}
+.burger svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.greet{font-family:var(--disp);font-weight:800;font-size:clamp(17px,2.2vw,21px);white-space:nowrap}
+.search{flex:1;max-width:520px;margin-left:auto;position:relative}
+.search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:16px;height:16px;stroke:#949E95;fill:none;stroke-width:2;stroke-linecap:round}
+.search input{width:100%;font:inherit;font-size:14px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:10px 14px 10px 38px}
+.search input:focus{outline:none;border-color:var(--accent)}
+.ava{width:38px;height:38px;border-radius:50%;background:linear-gradient(140deg,var(--ink),var(--accent));color:#fff;display:grid;place-items:center;font-size:13px;font-weight:700;font-family:var(--disp);flex:none}
+.main{min-width:0}
+.search{min-width:0}
+.search input{min-width:0}
+.content{padding:clamp(18px,2.8vw,30px);max-width:1180px;width:100%;margin:0 auto}
+.view{display:none}
+.view.on{display:block}
+.vhead{margin-bottom:16px}
+.vhead h2{font-size:clamp(21px,2.8vw,27px);font-weight:800}
+.vhead p{color:var(--sub);font-size:14px;margin-top:2px}
+
+/* ---------- shared card language (v1 look) ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:clamp(17px,2.5vw,25px);box-shadow:0 1px 2px rgba(26,37,32,.04),0 8px 24px rgba(26,37,32,.05)}
+.eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--accent-deep)}
+.card h3{font-size:17.5px;font-weight:750;margin:2px 0 4px}
+.card .cardnote{font-size:13px;color:var(--sub)}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.view.on .card,.view.on .cliff,.view.on .cc{animation:rise .5s ease both}
+.view.on .aside .card:nth-child(2){animation-delay:.06s}
+.view.on .aside .card:nth-child(3){animation-delay:.12s}
+.view.on .aside .card:nth-child(4){animation-delay:.18s}
+.view.on .aside .card:nth-child(5){animation-delay:.24s}
+.view.on .aside .card:nth-child(6){animation-delay:.3s}
+.view.on .cc:nth-child(2){animation-delay:.07s}
+.view.on .cc:nth-child(3){animation-delay:.14s}
+.view.on .cc:nth-child(4){animation-delay:.21s}
+
+/* ---------- cliff banner (v1, plus step motif) ---------- */
+.hello{margin-bottom:14px}
+.hello h1{font-size:clamp(23px,3.2vw,30px);font-weight:800}
+.hello p{color:var(--sub);font-size:14.5px;margin-top:2px}
+
+
+
+
+
+
+
+
+.cliff{position:relative;overflow:hidden;background:linear-gradient(120deg,#F8EDE0,#F2E3D6);border:1px solid #E7CFB9;border-radius:20px;padding:clamp(18px,3vw,26px);display:flex;gap:clamp(16px,3vw,34px);align-items:center;flex-wrap:wrap;margin-bottom:20px;box-shadow:0 1px 2px rgba(26,37,32,.05),0 10px 30px rgba(140,70,34,.07)}
+.cliff .step{position:absolute;right:200px;top:0;bottom:0;width:230px;pointer-events:none;opacity:.4}
+.sigblock{position:relative;flex:1;min-width:260px}
+.cliff h2{font-size:clamp(19px,2.5vw,24px);font-weight:750;margin-bottom:6px}
+.cliff .read{font-size:14.5px;color:#6E4630;max-width:56ch}
+.cliff .ctx{font-family:var(--mono);font-size:12px;color:#8C4622;margin-top:10px}
+.cliffchip{position:relative;background:var(--card);border:1px solid #E7CFB9;border-radius:16px;padding:16px 20px;text-align:center;min-width:170px;box-shadow:0 2px 8px rgba(140,70,34,.08)}
+.cliffchip b{display:block;font-family:var(--mono);font-size:26px;color:var(--terra);line-height:1.1}
+.cliffchip span{font-size:12.5px;color:#8C4622;font-weight:600}
+@media (max-width:1100px){.cliff .step{display:none}}
+.ochips{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+.ochips button{border:1.5px solid var(--line);border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:600;color:#3A453E;transition:background .15s}
+.ochips button:hover{background:#EDE8DB}
+.ochips button.on{background:var(--mint);border-color:var(--accent);color:var(--accent-deep)}
+.olabel{font-size:12px;font-weight:700;color:var(--sub);display:block;margin:10px 0 5px}
+.osel{width:100%;font:inherit;font-size:13.5px;background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;color:var(--ink)}
+.osel:focus{outline:none;border-color:var(--accent)}
+.trio{display:grid;grid-template-columns:repeat(auto-fit,minmax(262px,1fr));gap:16px;margin-top:20px}
+.trio > .card{display:flex;flex-direction:column}
+.trio > .card > :last-child{margin-top:auto}
+.pane__prof{display:flex;align-items:center;gap:10px;margin:8px 12px 14px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--card);text-align:left;transition:background .15s}
+.pane__prof:hover{background:#EDE8DB}
+.pane__prof.on{background:var(--mint);border-color:#CBDCC9}
+.ava2{width:34px;height:34px;border-radius:50%;background:linear-gradient(140deg,#1E4D38,var(--accent));color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700;font-family:var(--disp);flex:none}
+.pp{flex:1;min-width:0}
+.pp b{display:block;font-size:13.5px;font-family:var(--disp);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ppbar{display:block;height:5px;background:#E7E2D3;border-radius:3px;margin:5px 0 3px;overflow:hidden}
+.ppbar i{display:block;height:100%;width:0;background:var(--accent);border-radius:3px;transition:width .5s ease}
+.pp small{font-size:11px;color:var(--sub)}
+.chev{width:15px;height:15px;stroke:#949E95;fill:none;stroke-width:2;flex:none}
+.app.collapsed .pane__prof{justify-content:center;padding:10px 0;border:0;background:none;margin:8px 6px 12px}
+.app.collapsed .pane__prof .pp,.app.collapsed .pane__prof .chev{display:none}
+.profrow{display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.ring{width:96px;height:96px;flex:none}
+.ring circle{fill:none;stroke-width:8}
+.ring__bg{stroke:#E7E2D3}
+.ring__fg{stroke:var(--accent);stroke-linecap:round;transform:rotate(-90deg);transform-origin:42px 42px;stroke-dasharray:213.6;stroke-dashoffset:213.6;transition:stroke-dashoffset .6s ease}
+.ring text{font-family:var(--mono);font-size:15px;font-weight:700;fill:var(--ink);text-anchor:middle}
+.cklist{flex:1;min-width:220px;display:flex;flex-direction:column;gap:7px}
+.ck{display:flex;align-items:center;gap:9px;font-size:13.5px}
+.ck i{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:800;flex:none}
+.ck.dn i{background:var(--mint);color:var(--accent-deep)}
+.ck.md i{background:#EDE8DB;color:#949E95}
+.ck .tlink{margin-left:auto;margin-top:0;font-size:12.5px}
+.pi{list-style:none;margin-top:12px;display:flex;flex-direction:column}
+.pi li{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.pi span{color:var(--sub);width:64px;flex:none;font-size:13px}
+.pi b{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pi .tlink{margin-left:auto;margin-top:0}
+.tog{display:flex;align-items:center;gap:11px;padding:9px 0;font-size:13.5px;color:#3A453E;cursor:pointer;position:relative}
+.tog input{position:absolute;opacity:0;pointer-events:none}
+.tog i{width:38px;height:22px;border-radius:999px;background:#D9D2BF;position:relative;flex:none;transition:background .2s}
+.tog i::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#FCFAF5;transition:left .2s;box-shadow:0 1px 3px rgba(26,37,32,.25)}
+.tog input:checked + i{background:var(--accent)}
+.tog input:checked + i::after{left:19px}
+.reads li a{display:flex;gap:11px;align-items:center}
+.rthumb{width:44px;height:44px;border-radius:10px;overflow:hidden;flex:none;border:1px solid var(--line)}
+.rthumb svg{display:block;width:100%;height:100%}
+.rtxt{min-width:0}
+.rtxt small{display:block;font-family:var(--mono);font-size:11px;color:var(--sub);font-weight:400;margin-top:3px}
+.kcard{display:flex;gap:13px;align-items:flex-start}
+.kthumb{width:52px;height:52px;border-radius:12px;overflow:hidden;flex:none;border:1px solid var(--line)}
+.kthumb svg{display:block;width:100%;height:100%}
+.ktxt{min-width:0}
+.phone{display:flex;justify-content:center;margin:14px 0}
+.phone svg{width:min(150px,60%);height:auto;filter:drop-shadow(0 6px 14px rgba(26,37,32,.12))}
+.phero{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:20px}
+.ring--av{width:84px;height:84px}
+.avtxt{font-family:var(--disp);font-size:19px;font-weight:800;fill:var(--ink);text-anchor:middle}
+.pmeta{flex:1;min-width:220px}
+.pmeta h2{font-size:clamp(20px,2.6vw,25px);font-weight:800}
+.pctchip{font-family:var(--mono);font-size:12px;background:var(--mint);color:var(--accent-deep);border:1px solid #CBDCC9;border-radius:999px;padding:3px 10px;vertical-align:4px;margin-left:8px}
+.psub{color:var(--sub);font-size:13.5px;margin-top:3px}
+.pchips{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.pchips span{font-size:11.5px;font-weight:700;background:#EDE8DB;border-radius:999px;padding:4px 11px;color:#3A453E}
+.phero .tlink{margin-left:auto;margin-top:0}
+.hr2{height:1px;background:var(--line);margin:16px 0 12px}
+.sigline{font-size:12.5px;color:var(--accent-deep);font-weight:600;margin-top:5px}
+.siglabel{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#8C4622}
+.sigbars{display:flex;align-items:center;gap:5px;margin:9px 0 10px}
+.sigbars i{width:26px;height:9px;border-radius:5px;background:#E9D5C2;display:block}
+.sigbars i.f{background:var(--accent)}
+.sigbars i.w{background:var(--terra)}
+.sigbars .arr{font-family:var(--mono);color:#8C4622;font-size:13px;margin:0 2px}
+
+
+
+
+
+
+
+/* ---------- dashboard grid (v1) ---------- */
+.grid2{display:grid;grid-template-columns:1.62fr 1fr;gap:20px;align-items:start}
+.grid2>*{min-width:0}
+.camp__head{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.camp__head h3{font-size:clamp(20px,2.7vw,25px);font-weight:800}
+.camp__head .sub{font-size:13px;color:var(--sub);margin-top:2px}
+.statepill{margin-left:auto;font-size:12.5px;font-weight:700;padding:6px 14px 6px 12px;border-radius:999px;background:var(--mint);color:var(--accent-deep);border:1px solid #CBDCC9;white-space:nowrap}
+.statepill::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:7px}
+.statepill.warm{background:var(--terra-soft);color:#8C4622;border-color:#E7CFB9}
+.rail{position:relative;display:flex;justify-content:space-between;margin:4px 2px 24px;overflow-x:auto;padding:4px 2px 2px}
+.rail::before{content:"";position:absolute;left:14px;right:14px;top:15px;height:3px;background:var(--line);border-radius:2px}
+.rail__fill{position:absolute;left:14px;top:15px;height:3px;background:var(--accent);border-radius:2px;width:0;transition:width .5s ease}
+.rn{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:7px;min-width:60px;flex:1}
+.rn i{width:26px;height:26px;border-radius:50%;background:#fff;border:3px solid var(--line);display:grid;place-items:center}
+.rn i::after{content:"";width:8px;height:8px;border-radius:50%;background:transparent}
+.rn span{font-size:11px;font-weight:600;color:#949E95;text-align:center}
+.rn.past i{border-color:var(--accent);background:var(--accent)}
+.rn.past i::after{content:"\2713";width:auto;height:auto;border-radius:0;background:none;color:#fff;font-size:12px;font-weight:800;line-height:1}
+.rn.past span{color:var(--accent-deep)}
+.rn.now i{border-color:var(--accent);animation:pulse 2.2s ease-in-out infinite}
+.rn.now i::after{background:var(--accent)}
+.rn.now span{color:var(--ink);font-weight:700}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(44,106,78,.35)}55%{box-shadow:0 0 0 8px rgba(44,106,78,0)}}
+.panel{background:#F7F3E8;border:1px solid var(--line);border-radius:16px;padding:clamp(15px,2.2vw,21px);min-height:236px}
+.panel h3{font-size:18.5px;font-weight:750;margin-bottom:6px}
+.panel .p{font-size:14.5px;color:#3A453E;max-width:62ch;margin-bottom:13px}
+.cluster{margin:14px 0 8px}
+.cluster svg{width:100%;max-width:430px;height:auto;display:block}
+.progline{display:flex;justify-content:space-between;font-size:13px;color:var(--sub);max-width:430px}
+.progline b{font-family:var(--mono);color:var(--ink)}
+.youline{font-size:12px;color:var(--terra);font-weight:650;margin-top:5px}
+.bidrows{display:flex;flex-direction:column;gap:8px;margin:13px 0}
+.bidrow{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.bidrow .dot{width:10px;height:10px;border-radius:50%}
+.bidrow b{font-size:14px}
+.bidrow .masked{margin-left:auto;font-family:var(--mono);font-size:13px;color:#949E95;background:#EDE8DB;border-radius:8px;padding:4px 10px;letter-spacing:2px}
+.cdl{font-family:var(--mono);font-size:14px;background:var(--mint);border:1px solid #CBDCC9;display:inline-flex;gap:8px;align-items:center;border-radius:10px;padding:8px 14px}
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--terra);color:#fff;font-weight:650;font-size:14.5px;border-radius:12px;padding:11px 20px;transition:background .2s,transform .12s}
+.btn:hover{background:#96421F}
+.btn:active{transform:translateY(1px)}
+.btn:not(.ghost){box-shadow:0 2px 8px rgba(176,81,43,.28)}
+.btn.terra{background:var(--terra)}
+.btn.terra:hover{background:#96421F}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid #C9C3B2}
+.btn.ghost:hover{background:#EDE8DB}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.offers{display:grid;grid-template-columns:repeat(auto-fit,minmax(172px,1fr));gap:11px;margin:15px 0 12px}
+.offer{position:relative;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:15px;display:flex;flex-direction:column;gap:4px}
+.offer.sel{border-color:var(--accent);box-shadow:0 0 0 3px rgba(44,106,78,.14)}
+.lowchip{position:absolute;top:-9px;right:12px;font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;background:var(--accent-deep);color:#fff;border-radius:999px;padding:3px 9px;box-shadow:0 2px 6px rgba(26,37,32,.2)}
+.offer .on{font-size:12.5px;font-weight:700;color:var(--sub)}
+.offer .price{font-family:var(--mono);font-size:24px;font-weight:700}
+.offer .price small{font-size:12px;color:var(--sub);font-weight:400}
+.offer .spec{font-size:12.5px;color:var(--sub)}
+.offer .save{font-size:12.5px;font-weight:700;color:var(--accent-deep);margin-top:2px}
+.offer .btn{margin-top:9px;justify-content:center;padding:9px 8px;font-size:13px}
+.oblig{background:var(--mint);border:1px solid #CBDCC9;border-radius:12px;padding:11px 15px;font-size:13.5px;color:#1E3A2C;margin-top:11px}
+.oblig b{color:var(--accent-deep)}
+.confbox{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin:13px 0}
+.confbox .row{display:flex;justify-content:space-between;gap:12px;font-size:14px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.confbox .row:last-child{border-bottom:0}
+.confbox .row b{font-family:var(--mono)}
+.consent{display:flex;gap:11px;align-items:flex-start;font-size:13.5px;color:#3A453E;margin:13px 0;max-width:62ch}
+.consent input{width:18px;height:18px;accent-color:var(--accent);margin-top:2px;flex:none}
+.finelink{font-size:13px;color:var(--sub);font-weight:500;margin-left:14px}
+.checks{display:flex;flex-direction:column;gap:11px;margin:15px 0}
+.check{display:flex;gap:12px;align-items:flex-start;font-size:14.5px}
+.check i{width:24px;height:24px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700}
+.check.dn i{background:var(--accent);color:#fff}
+.check.on i{background:var(--mint);color:var(--accent-deep);border:2px solid var(--accent)}
+.check.td i{background:#EDE8DB;color:#949E95}
+.check span small{display:block;color:var(--sub);font-size:12.5px}
+.donebox{display:flex;gap:16px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin:13px 0;flex-wrap:wrap}
+.donebox .big{font-family:var(--mono);font-size:23px;font-weight:700;color:var(--accent-deep)}
+.tl{margin-top:20px}
+.tl h4,.feed h4{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--sub);margin-bottom:11px}
+.tl__row{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.tn2{flex:1;min-width:100px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.tn2 b{display:block;font-size:12px;font-weight:700}
+.tn2 span{font-family:var(--mono);font-size:11px;color:var(--sub)}
+.tn2.hot{border-color:var(--accent);background:var(--mint)}
+.tn2.cliffed{border-color:#E7CFB9;background:var(--terra-soft)}
+.tn2.cliffed b{color:#8C4622}
+.feed{margin-top:20px}
+.feed ul{list-style:none;display:flex;flex-direction:column}
+.feed li{position:relative;padding:0 0 13px 22px;font-size:13.5px;color:#3A453E}
+.feed li::before{content:"";position:absolute;left:5px;top:7px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.feed li::after{content:"";position:absolute;left:8.5px;top:17px;bottom:-2px;width:1.5px;background:var(--line)}
+.feed li:last-child::after{display:none}
+.feed li .when{font-family:var(--mono);font-size:11px;color:var(--sub);display:block}
+
+/* ---------- aside (v1) ---------- */
+.aside{display:flex;flex-direction:column;gap:16px}
+.meter .mrow{display:flex;justify-content:space-between;font-size:13px;color:var(--sub);margin:12px 0 7px}
+.meter .mrow b{color:var(--accent-deep)}
+.segs{display:flex;gap:4px}
+.segs i{flex:1;height:8px;border-radius:4px;background:#E7E2D3}
+.segs i.f{background:var(--accent)}
+.flds{list-style:none;margin:12px 0 4px;display:flex;flex-direction:column;gap:8px}
+.flds li{display:flex;align-items:center;gap:10px;font-size:14px}
+.flds .tick{width:20px;height:20px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700}
+.flds .ok{background:var(--mint);color:var(--accent-deep)}
+.flds .no{background:#EDE8DB;color:#949E95}
+.flds .val{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--sub)}
+.soon{font-size:10.5px;font-weight:700;letter-spacing:.05em;background:var(--terra-soft);color:#8C4622;border-radius:6px;padding:2px 7px;margin-left:6px}
+.fnote{font-size:12.5px;color:var(--sub);margin-top:10px}
+.codebox{display:flex;gap:8px;margin:12px 0 8px}
+.codebox code{flex:1;font-family:var(--mono);font-size:14.5px;letter-spacing:1px;background:var(--paper);border:1.5px dashed #C9C3B2;border-radius:10px;padding:10px 14px;text-align:center}
+.copybtn{background:var(--accent-deep);color:#fff;border-radius:10px;padding:0 16px;font-weight:650;font-size:13.5px}
+.copybtn:hover{background:#17402E}
+.aspects{display:flex;flex-direction:column;gap:9px;margin:12px 0}
+.aspect{display:flex;align-items:center;gap:10px;font-size:13.5px}
+.aspect span{width:74px;flex:none;color:#3A453E;font-weight:600}
+.dots{display:flex;gap:5px}
+.dots button{width:20px;height:20px;border-radius:50%;background:#E7E2D3;transition:transform .15s}
+.dots button:hover{transform:scale(1.12)}
+.dots button.on{background:var(--accent)}
+.reads{list-style:none;margin-top:10px;display:flex;flex-direction:column;gap:10px}
+.reads a{display:block;font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.4}
+.reads a:hover{color:var(--accent-deep)}
+.reads small{font-family:var(--mono);font-size:11px;color:var(--sub)}
+
+/* ---------- region row (v2, tamed) ---------- */
+.rowhead{display:flex;align-items:baseline;gap:12px;margin:26px 0 12px}
+.rowhead h3{font-size:19px;font-weight:750}
+.rowhead .all{margin-left:auto;font-size:13.5px;font-weight:650;color:var(--accent-deep)}
+.crow{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:14px}
+.cc{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s,transform .15s;position:relative;text-align:left}
+.cc:hover{box-shadow:0 10px 26px rgba(26,37,32,.1);transform:translateY(-2px)}
+.cc__art{height:104px;position:relative;background:var(--mint)}
+.cc__art svg{position:absolute;inset:0;width:100%;height:100%}
+.badge{position:absolute;top:10px;left:10px;z-index:1;font-size:11px;font-weight:700;background:#fff;border-radius:999px;padding:5px 11px;box-shadow:0 3px 10px rgba(26,37,32,.12)}
+.badge.live{color:var(--accent-deep)}
+.badge.live::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-right:6px}
+.badge.soon{color:#8C4622}
+.bell{position:absolute;top:8px;right:8px;z-index:1;width:32px;height:32px;border-radius:50%;background:#fff;display:grid;place-items:center;box-shadow:0 3px 10px rgba(26,37,32,.12);color:#3A453E}
+.bell svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.bell.on{background:var(--accent);color:#fff}
+.cc__b{padding:13px 15px 15px}
+.cc__b b{font-family:var(--disp);font-size:15.5px;font-weight:750;display:block}
+.cc__b .m{font-size:12.5px;color:var(--sub);margin-top:3px}
+.cc__b .mono{font-size:11.5px;color:var(--accent-deep);margin-top:7px;display:block}
+.miniprog{height:6px;background:#E7E2D3;border-radius:4px;margin-top:9px;overflow:hidden}
+.miniprog i{display:block;height:100%;background:var(--accent);border-radius:4px}
+
+/* ---------- other views ---------- */
+.klist{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:13px}
+.kcard{background:#fff;border:1px solid var(--line);border-radius:16px;padding:17px;display:block;transition:box-shadow .2s,transform .15s}
+.kcard:hover{box-shadow:0 10px 24px rgba(26,37,32,.09);transform:translateY(-2px);text-decoration:none}
+.kcard b{font-family:var(--disp);font-size:15px;font-weight:700;color:var(--ink);display:block;line-height:1.35}
+.kcard small{font-family:var(--mono);font-size:11px;color:var(--sub);display:block;margin-top:8px}
+.empty{text-align:center;padding:clamp(34px,6vw,60px) 20px}
+.empty svg{width:74px;height:74px;margin-bottom:14px}
+.empty h3{font-size:20px;font-weight:750;margin-bottom:6px}
+.empty p{color:var(--sub);font-size:14.5px;max-width:46ch;margin:0 auto 18px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.tile h4{font-family:var(--disp);font-size:15.5px;font-weight:750;margin:2px 0 4px}
+.tile .tn{font-size:13px;color:var(--sub)}
+.tile.dark{background:var(--ink);border-color:var(--ink);color:#E7EFE4}
+.tile.dark h4{color:#fff}
+.tile.dark .tn{color:#B5CDB9}
+.tile.dark b{color:var(--glow)}
+.tlink{font-size:13.5px;font-weight:650;color:var(--accent-deep);margin-top:10px;display:inline-block}
+
+/* ---------- toast & controls ---------- */
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;font-size:13.5px;font-weight:600;border-radius:12px;padding:11px 18px;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:70}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.ctl-t{position:fixed;right:20px;bottom:20px;z-index:60;background:var(--ink);color:#fff;font-weight:650;font-size:13px;border-radius:999px;padding:11px 18px;box-shadow:0 8px 24px rgba(26,37,32,.28)}
+.ctl{position:fixed;right:20px;bottom:70px;z-index:60;width:250px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 16px 40px rgba(26,37,32,.18);display:none}
+.ctl.open{display:block}
+.ctl h5{font-family:var(--disp);font-size:13.5px;margin-bottom:2px}
+.ctl .demo{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#8C4622;background:var(--terra-soft);border-radius:6px;padding:2px 7px;display:inline-block;margin-bottom:10px}
+.ctl .sts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px}
+.ctl .sts button{font-size:12px;font-weight:600;border:1.5px solid var(--line);border-radius:8px;padding:6px 4px;color:#3A453E}
+.ctl .sts button.on{background:var(--mint);border-color:var(--accent);color:var(--accent-deep)}
+.ctl label{font-size:12px;font-weight:700;color:var(--sub);display:block;margin-bottom:4px}
+.ctl input{width:100%;font-family:var(--mono);font-size:14px;border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:10px}
+.ctl input:focus{outline:none;border-color:var(--accent)}
+.ctl .rst{font-size:12px;color:var(--sub);font-weight:600;text-decoration:underline}
+
+/* ---------- responsive ---------- */
+@media (max-width:920px){
+  .app,.app.collapsed{grid-template-columns:1fr}
+  .pane{position:fixed;left:0;top:0;bottom:0;width:min(78vw,300px);z-index:80;transform:translateX(-102%);transition:transform .28s ease;box-shadow:14px 0 40px rgba(26,37,32,.18)}
+  .app.paneopen .pane{transform:translateX(0)}
+  .app.collapsed .pane__top b,.app.collapsed .pnav button span,.app.collapsed .pane__foot{display:initial}
+  .app.collapsed .pane__prof .pp,.app.collapsed .pane__prof .chev{display:initial}
+  .app.collapsed .pane__prof{justify-content:flex-start;padding:10px 12px;border:1px solid var(--line);background:var(--card);margin:8px 12px 14px}
+  .app.collapsed .pnav button{justify-content:flex-start;padding:11px 13px}
+  .overlay{display:block;position:fixed;inset:0;background:rgba(26,37,32,.4);z-index:75;opacity:0;pointer-events:none;transition:opacity .25s}
+  .app.paneopen .overlay{opacity:1;pointer-events:auto}
+  .greet{display:none}
+  .cliffchip{width:100%}
+  .grid2{grid-template-columns:1fr}
+    }
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+
+/* ===== v9 additions ===== */
+.vfirst{border-color:#E7CFB9}
+.upl{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;border:2px dashed #C9C3B2;border-radius:14px;padding:20px 16px;font-weight:650;font-size:14px;color:#1E4D38;background:#F7F3E8;cursor:pointer;margin-top:6px}
+.upl:hover{border-color:#2C6A4E;background:#EFF3EA}
+.upl svg{width:22px;height:22px}
+.orline{display:flex;align-items:center;gap:12px;margin:14px 0 10px;color:#949E95;font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.orline::before,.orline::after{content:"";flex:1;height:1px;background:#E1DBCB}
+.ffields{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.ffields label{display:block;font-size:11px;font-weight:700;color:#5B655C;margin-bottom:4px}
+.ffields input,.ffields select{width:100%;font:inherit;font-size:14px;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:9px 11px}
+.vres{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+.vres>div:first-child{flex:1;min-width:230px}
+.vnum{background:#F7F3E8;border:1px solid #E1DBCB;border-radius:14px;padding:13px 18px;text-align:center}
+.vnum b{display:block;font-family:'Bricolage Grotesque',sans-serif;font-size:29px;color:#8C4622}
+.vnum span{font-size:11px;color:#5B655C;font-weight:600}
+.demochip{font-family:'Space Mono',monospace;font-size:9.5px;background:#F2E8DA;color:#8C4622;border-radius:6px;padding:2px 7px;margin-left:6px;letter-spacing:0;text-transform:none;vertical-align:1px}
+.elig{margin-top:10px;background:#EFF3EA;border-left:3px solid #2C6A4E;border-radius:0 10px 10px 0;padding:9px 13px;font-size:13px;color:#2E3A33}
+.modal{position:fixed;inset:0;background:rgba(26,37,32,.45);backdrop-filter:blur(3px);display:grid;place-items:center;padding:18px;z-index:90}
+.modal[hidden]{display:none}
+.mbox{background:#FCFAF5;border:1px solid #E1DBCB;border-radius:20px;max-width:560px;width:100%;max-height:88vh;overflow:auto;padding:22px 24px;box-shadow:0 30px 70px rgba(26,37,32,.3)}
+.mhead{display:flex;align-items:center;gap:12px}
+.mhead h3{font-size:20px}
+.mx{margin-left:auto;font-size:22px;line-height:1;color:#5B655C;padding:4px 9px;border-radius:9px}
+.mx:hover{background:#EDE8DB}
+.msub{font-size:13.5px;color:#5B655C;margin:6px 0 4px;max-width:56ch}
+.plabel{display:block;font-size:12px;font-weight:700;color:#1A2520;margin:15px 0 7px}
+.plabel .opt{font-weight:600;color:#949E95;font-size:11px}
+.pchips{display:flex;flex-wrap:wrap;gap:8px}
+.pchips button{border:1.5px solid #E1DBCB;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;background:#fff;color:#3A453E;cursor:pointer}
+.pchips button.on{background:#E4EDE2;border-color:#2C6A4E;color:#1E4D38}
+.pchips.pvert{flex-direction:column;align-items:stretch}
+.pchips.pvert button{text-align:left;border-radius:12px}
+.pfnote{margin-top:9px;background:#F7F3E8;border-left:3px solid #C29B3C;border-radius:0 10px 10px 0;padding:9px 13px;font-size:12.5px;color:#5B655C}
+.pfhint{font-size:12px;color:#949E95;margin-top:8px}
+.minput{width:100%;font:inherit;font-size:14px;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:10px 12px;margin-top:2px}
+.prefls{list-style:none;margin:8px 0 10px;padding:0;display:flex;flex-direction:column;gap:6px}
+.prefls li{font-size:12.5px;color:#2E3A33;padding-left:16px;position:relative}
+.prefls li::before{content:"";position:absolute;left:0;top:7px;width:6px;height:6px;border-radius:50%;background:#2C6A4E}
+.urgent{background:#F8EDE0;border:1px solid #E7CFB9;border-radius:12px;padding:11px 14px;font-size:13.5px;color:#6E4630;margin-bottom:14px}
+.savedbox{background:#EFF3EA;border:1px solid #CBDCC9;border-radius:12px;padding:12px 15px;font-size:13.5px;color:#2E3A33;margin:10px 0}
+.duo{display:grid;grid-template-columns:1fr 1.25fr;gap:12px;margin:14px 0 4px}
+.duocell{border:1.5px solid #E1DBCB;border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:3px;position:relative}
+.duocell .dl{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#5B655C}
+.duocell b{font-family:'Bricolage Grotesque',sans-serif;font-size:26px}
+.duocell .ds{font-size:12.5px;color:#5B655C}
+.duocell.now{background:#F7F3E8}
+.duocell.win{background:#EFF3EA;border-color:#2C6A4E}
+.duocell.win b{color:#1E4D38}
+.savetag{position:absolute;top:-11px;right:12px;background:#B0512B;color:#fff;font-size:11px;font-weight:700;border-radius:999px;padding:3px 11px}
+.savehero{text-align:center;padding:6px 2px}
+.bignum{display:block;font-family:'Bricolage Grotesque',sans-serif;font-size:40px;color:#1E4D38;margin:8px 0 2px}
+.subnum{display:block;font-size:14px;color:#5B655C;margin-bottom:12px}
+.saverows{list-style:none;margin:0;padding:0;text-align:left;display:flex;flex-direction:column;gap:7px}
+.saverows li{font-size:13px;color:#2E3A33;background:#F7F3E8;border-radius:10px;padding:9px 13px}
+.ccbtn{margin-top:10px;justify-content:center}
+@media (max-width:640px){.duo{grid-template-columns:1fr}.ffields{grid-template-columns:1fr}}
+
+
+/* ===== v10 additions ===== */
+#tlwrap h4{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#5B655C;margin:0 0 14px}
+.tline{position:relative;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding-top:4px}
+.tltrack,.tlfill{position:absolute;top:12px;left:calc(10% + 0px);right:10%;height:3px;border-radius:99px;background:#E1DBCB}
+.tlfill{background:#2C6A4E;right:auto;transition:width .4s}
+.tltrack{width:80%}
+.tlfill{max-width:80%}
+.tn3{position:relative;text-align:center;padding-top:26px}
+.tn3 i{position:absolute;top:3px;left:50%;transform:translateX(-50%);width:19px;height:19px;border-radius:50%;background:#FCFAF5;border:2.5px solid #C9C3B2;display:grid;place-items:center;font-size:9.5px;font-weight:800;color:#fff;font-style:normal;z-index:2}
+.tn3.past i{background:#2C6A4E;border-color:#2C6A4E}
+.tn3.now i{border-color:#B0512B;background:#FCFAF5;box-shadow:0 0 0 4px rgba(176,81,43,.14)}
+.tn3.now i::after{content:"";width:7px;height:7px;border-radius:50%;background:#B0512B}
+.tn3 b{display:block;font-family:'Bricolage Grotesque',sans-serif;font-size:12.5px;color:#1A2520;line-height:1.25}
+.tn3 span{display:block;font-family:'Space Mono',monospace;font-size:10.5px;color:#5B655C;margin-top:2px}
+.tn3.now b{color:#8C4622}
+.tn3.cliffn i{border-color:#B0512B;background:#F2E3D6}
+.tn3.cliffn b{color:#8C4622}
+.tlcap{font-size:11.5px;color:#949E95;margin-top:12px}
+@media (max-width:640px){
+  .tline{grid-template-columns:1fr;gap:0}
+  .tltrack,.tlfill{left:9px;right:auto;top:8px;bottom:8px;width:3px;height:auto}
+  .tlfill{transition:height .4s;height:0;max-width:none}
+  .tn3{text-align:left;padding:7px 0 7px 32px}
+  .tn3 i{left:0;transform:none;top:8px}
+}
+.fbtext{width:100%;font:inherit;font-size:13px;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:9px 11px;resize:vertical;margin-top:8px}
+.vtrio{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.arr2{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:center}
+.arrright h3{font-size:21px}
+.cfform{margin-top:18px;border-top:1px dashed #E1DBCB;padding-top:16px}
+.inv-wrap{display:flex;justify-content:center}
+.inv{width:100%;max-width:300px;background:#fff;border:1px solid #E1DBCB;border-radius:12px;box-shadow:0 10px 26px rgba(26,37,32,.09);padding:15px 16px 13px;font-family:'Space Mono',monospace;font-size:11.5px;color:#1A2520;position:relative;overflow:hidden}
+.inv::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#1E4D38,#B0512B)}
+.inv h5{font-family:'Inter',sans-serif;font-weight:600;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#949E95;margin:0 0 10px}
+.inv .il{display:flex;justify-content:space-between;gap:10px;padding:4.5px 0;opacity:0;transform:translateY(4px);transition:opacity .4s,transform .4s}
+.inv.p0 .il,.inv.p1 .il,.inv.p2 .il{opacity:1;transform:none}
+.inv .il em{font-style:normal;color:#3A453E}
+.inv .il.disc em,.inv .il.disc b{color:#B0512B}
+.inv .il.disc small{display:block;font-size:9.5px;color:#949E95}
+.inv .il b{font-weight:600}
+.inv .plus7{display:inline-block;font-size:9px;color:#8C4622;background:#F2E3D6;border-radius:999px;padding:1px 6px;margin-left:6px;opacity:0;transition:opacity .3s}
+.inv.p1 .plus7,.inv.p2 .plus7{opacity:1}
+.inv .il.disc{position:relative}
+.inv.p2 .il.disc em,.inv.p2 .il.disc b{text-decoration:line-through;color:#949E95}
+.inv .stamp{position:absolute;right:44px;top:50%;transform:translateY(-50%) rotate(-8deg) scale(1.6);border:1.5px solid #8C4622;color:#8C4622;font-family:'Inter',sans-serif;font-weight:600;font-size:9px;letter-spacing:.12em;padding:1px 6px;border-radius:4px;opacity:0;transition:opacity .25s,transform .25s}
+.inv.p2 .stamp{opacity:1;transform:translateY(-50%) rotate(-8deg) scale(1)}
+.inv .tot{display:flex;justify-content:space-between;border-top:1px dashed #E1DBCB;margin-top:8px;padding-top:8px;font-weight:600}
+.inv .tot b{font-family:'Bricolage Grotesque',sans-serif;font-size:15px;transition:color .3s}
+.inv.p2 .tot b{color:#8C4622}
+.inv-cap{font-size:10.5px;color:#949E95;text-align:center;margin-top:9px;line-height:1.5}
+@media (max-width:760px){.arr2{grid-template-columns:1fr}}
+
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ============ left pane ============ -->
+  <aside class="pane" id="pane" aria-label="Navigation">
+    <div class="pane__top">
+      <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
+      <b>Whollar</b>
+    </div>
+    <nav class="pnav" id="pnav">
+      <button type="button" data-view="dashboard" class="on"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/></svg><span>Home</span></button>
+      <button type="button" data-view="bills"><svg viewBox="0 0 24 24"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2Z"/><path d="M9 8h6M9 12h6"/></svg><span>My bills</span></button>
+      <button type="button" data-view="knowledge"><svg viewBox="0 0 24 24"><path d="M12 5c-2-1.6-4.6-2-8-2v16c3.4 0 6 .4 8 2 2-1.6 4.6-2 8-2V3c-3.4 0-6 .4-8 2Z"/><path d="M12 5v16"/></svg><span>Knowledge centre</span></button>
+      <button type="button" data-view="history"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span>Campaign history</span></button>
+      <button type="button" data-view="contact"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 1 0-3 6.2L21 19Z"/></svg><span>Contact us</span></button>
+    </nav>
+    <button class="pane__prof" type="button" data-nav="profile" id="paneprof" aria-label="Your profile">
+      <span class="ava2">PM</span>
+      <span class="pp"><b>Priya M.</b><span class="ppbar"><i id="ppfill"></i></span><small id="pplabel">Profile</small></span>
+      <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+    </button>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+
+  <!-- ============ main ============ -->
+  <div class="main">
+    <header class="top">
+      <button class="burger" id="burger" type="button" aria-label="Toggle navigation pane" aria-expanded="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <span class="greet" id="greet">Good morning, Priya</span>
+      <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search campaigns, providers, postal codes" aria-label="Search"></div>
+      <button class="ava" type="button" data-nav="profile" aria-label="Your profile">PM</button>
+    </header>
+
+    <div class="content">
+
+      <!-- ======== dashboard (v1 body) ======== -->
+      <section class="view on" data-v="dashboard">
+        <div class="hello">
+          <h1 id="hello-h">Morning, Priya.</h1>
+          <p>Here is where your cohort stands, and what happens next.</p>
+        </div>
+
+        <div id="visitor-home" hidden></div>
+
+        <section class="cliff" aria-label="Your deal signal">
+          <svg class="step" viewBox="0 0 300 160" aria-hidden="true" fill="none" preserveAspectRatio="xMaxYMid meet">
+            <path d="M0 118 H120 V118" stroke="#B0512B" stroke-width="2.5" opacity=".35"/>
+            <path d="M120 118 V46 H300" stroke="#B0512B" stroke-width="2.5" stroke-dasharray="5 6" opacity=".45"/>
+            <circle cx="120" cy="118" r="5" fill="#B0512B" opacity=".6"/>
+            <text x="132" y="38" font-family="Space Mono,monospace" font-size="11" fill="#8C4622" opacity=".8">the reset</text>
+          </svg>
+          <div class="sigblock">
+            <div class="siglabel">Your deal signal</div>
+            <div class="sigbars" aria-hidden="true"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><span class="arr">&rarr;</span><i class="w"></i><i></i><i></i></div>
+            <h2>Cliff ahead: your promo ends around November 2026.</h2>
+            <p class="read">Fine today. Then your promo resets, and resets usually land 30 to 60% higher, on autopay. Your cohort is timed to close bidding before your jump.</p>
+            <p class="ctx">Rogers &middot; $92/mo &middot; 500 Mbps &middot; London East</p>
+          </div>
+          <div class="cliffchip"><b>4</b><span>months to your promo cliff</span></div>
+        </section>
+
+        
+
+        <div id="member-home">
+        <div class="grid2">
+          <!-- campaign card -->
+          <section class="card" aria-label="Your campaign">
+            <div class="camp__head">
+              <div>
+                <span class="eyebrow">Your campaign</span>
+                <h3>London East &middot; Autumn cohort</h3>
+                <p class="sub">Households pooled by region and renewal timing, bid on as one.</p>
+              </div>
+              <span class="statepill" id="statepill">Forming</span>
+            </div>
+            <div class="rail" role="list" aria-label="Cohort journey">
+              <span class="rail__fill" id="railfill"></span>
+              <span class="rn" role="listitem"><i></i><span>Forming</span></span>
+              <span class="rn" role="listitem"><i></i><span>Locked</span></span>
+              <span class="rn" role="listitem"><i></i><span>Bidding</span></span>
+              <span class="rn" role="listitem"><i></i><span>Offers</span></span>
+              <span class="rn" role="listitem"><i></i><span>Confirm</span></span>
+              <span class="rn" role="listitem"><i></i><span>Switching</span></span>
+              <span class="rn" role="listitem"><i></i><span>Done</span></span>
+            </div>
+            <div class="panel" id="panel" aria-live="polite"></div>
+            <div class="tl" id="tlwrap"></div>
+            <div class="feed"><h4>Activity</h4><ul id="feed"></ul></div>
+          </section>
+
+          <!-- aside (v1 stack) -->
+          <aside class="aside">
+            
+            <section class="card" aria-label="Your switch file">
+              <span class="eyebrow">Your switch file</span>
+              <h3>What providers bid against</h3>
+              <div class="meter">
+                <div class="mrow"><span>Spot strength</span><b>Strong</b></div>
+                <div class="segs" aria-hidden="true"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i></div>
+              </div>
+              <ul class="flds">
+                <li><span class="tick ok">&#10003;</span>Current provider<span class="val">Rogers</span></li>
+                <li><span class="tick ok">&#10003;</span>Monthly charge<span class="val">$92</span></li>
+                <li><span class="tick ok">&#10003;</span>Promo end date<span class="val">Nov 2026</span></li>
+                <li><span class="tick no">&middot;</span>Latest bill upload<span class="val">Add</span></li>
+                <li><span class="tick no">&middot;</span>Mobile bill<span class="soon">Soon</span><span class="val">Track its cliff too</span></li>
+              </ul>
+              <p class="fnote">Private, always: bidding providers never see your provider or your price. <button class="tlink" type="button" data-nav="bills" style="margin-top:0">Open my bills &rarr;</button></p>
+            </section>
+
+            <section class="card" aria-label="Strengthen your cohort">
+              <span class="eyebrow">Refer anyone, anywhere</span>
+              <h3>Every referral moves a cohort</h3>
+              <p class="cardnote">Neighbours strengthen your cohort directly. Friends anywhere else speed up their own region's launch. Either way, someone's bill gets better.</p>
+              <div class="codebox"><code id="refcode">WHL-PRIYA-7</code><button class="copybtn" type="button" id="copyref">Copy</button></div>
+              <p class="fnote">3 people have joined with your code so far.</p>
+            </section>
+
+            <section class="card ratecardc" aria-label="Rate your provider"></section>
+
+            
+
+            
+
+            
+
+          </aside>
+        </div>
+
+        <div class="trio">
+<section class="card" aria-label="Report an outage" id="outagecard">
+              <span class="eyebrow" style="color:#8C4622">Connection trouble?</span>
+              <h3>Report an outage</h3>
+              <p class="cardnote">Tell us what's happening. We'll check whether other London East members are seeing it too, and if it keeps up, we'll raise it with your provider for you.</p>
+              <div class="ochips" id="ochips" role="group" aria-label="What is happening">
+                <button type="button" data-o="Internet down" class="on">Internet down</button>
+                <button type="button" data-o="Slow speeds">Slow speeds</button>
+                <button type="button" data-o="Keeps dropping">Keeps dropping</button>
+              </div>
+              <label class="olabel" for="osince">Since when</label>
+              <select id="osince" class="osel">
+                <option>Just now</option>
+                <option>Past hour</option>
+                <option>Today</option>
+                <option>Since yesterday</option>
+              </select>
+              <p class="fnote">Reporting for London East, from your switch file.</p>
+              <button class="btn" type="button" id="osend" style="width:100%;justify-content:center">Report it</button>
+            </section>
+<section class="card" aria-label="Worth a read">
+              <span class="eyebrow">Worth a read</span>
+              <ul class="reads" id="reads"></ul>
+              <button class="tlink" type="button" data-nav="knowledge">See all &rarr;</button>
+            </section>
+<section class="card" aria-label="The member room">
+              <span class="eyebrow">The member room</span>
+              <h3>Talk to other members</h3>
+              <p class="cardnote">Hosted on Reddit while we're small. Your cohort gets its own thread the day bidding starts.</p>
+              <div class="phone" aria-hidden="true"><svg viewBox="0 0 150 196">
+                <rect x="4" y="4" width="142" height="188" rx="20" fill="#FCFAF5" stroke="#1A2520" stroke-width="3"/>
+                <rect x="16" y="18" width="118" height="16" rx="8" fill="#EDE8DB"/>
+                <text x="26" y="30" font-family="Space Mono,monospace" font-size="9.5" fill="#1E4D38">r/whollar</text>
+                <g><rect x="16" y="44" width="118" height="42" rx="9" fill="#E4EDE2"/>
+                  <path d="M26 66l5-6 5 6" stroke="#2C6A4E" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                  <rect x="44" y="52" width="76" height="5" rx="2.5" fill="#2C6A4E" opacity=".7"/>
+                  <rect x="44" y="63" width="58" height="5" rx="2.5" fill="#949E95"/>
+                  <rect x="44" y="74" width="40" height="5" rx="2.5" fill="#949E95" opacity=".6"/></g>
+                <g><rect x="16" y="94" width="118" height="42" rx="9" fill="#F2E8DA"/>
+                  <path d="M26 116l5-6 5 6" stroke="#B0512B" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                  <rect x="44" y="102" width="70" height="5" rx="2.5" fill="#B0512B" opacity=".7"/>
+                  <rect x="44" y="113" width="62" height="5" rx="2.5" fill="#949E95"/>
+                  <rect x="44" y="124" width="34" height="5" rx="2.5" fill="#949E95" opacity=".6"/></g>
+                <g><rect x="16" y="144" width="118" height="34" rx="9" fill="#E8ECE3"/>
+                  <path d="M26 164l5-6 5 6" stroke="#2C6A4E" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                  <rect x="44" y="152" width="64" height="5" rx="2.5" fill="#2C6A4E" opacity=".6"/>
+                  <rect x="44" y="163" width="48" height="5" rx="2.5" fill="#949E95"/></g>
+              </svg></div>
+              <button class="btn ghost" type="button" id="reddit">Join us on Reddit</button>
+            </section>
+        </div>
+        </div>
+
+        <!-- region row -->
+        <div class="rowhead"><h3>Campaigns near you</h3><button class="all" type="button" id="viewall">How regions open &rarr;</button></div>
+        <div class="crow">
+          <div class="cc" id="cc-first">
+            <span class="badge live" id="regbadge">Your cohort &middot; Forming</span>
+            <span class="cc__art"><svg viewBox="0 0 240 104" preserveAspectRatio="xMidYMax slice"><rect width="240" height="104" fill="#E4EDE2"/><g fill="#C4D8C6"><path d="M14 104V72l18-13 18 13v32Z"/><path d="M120 104V68l20-15 20 15v36Z"/></g><g fill="#2C6A4E" opacity=".85"><path d="M64 104V68l19-14 19 14v36Z"/><path d="M170 104V74l17-12 17 12v30Z"/></g><g fill="#1A2520"><path d="M214 104V78l12-9 12 9v26Z"/></g></svg></span>
+            <span class="cc__b"><b>London East</b><span class="m">Autumn cohort &middot; closes Sep 12</span><span class="miniprog"><i style="width:61%"></i></span><span class="mono" id="regmono">61 of 100 households</span></span>
+          </div>
+          <div class="cc">
+            <span class="badge soon">Opens after this round</span>
+            <button class="bell" type="button" data-bell="London North" aria-label="Notify me when London North opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>
+            <span class="cc__art"><svg viewBox="0 0 240 104" preserveAspectRatio="xMidYMax slice"><rect width="240" height="104" fill="#EDE8DB"/><g fill="#D3DCCD"><path d="M20 104V70l19-14 19 14v34Z"/><path d="M126 104V76l16-12 16 12v28Z"/></g><g fill="#9DBEA2"><path d="M72 104V72l18-13 18 13v32Z"/><path d="M178 104V70l19-14 19 14v34Z"/></g></svg></span>
+            <span class="cc__b"><b>London North</b><span class="m">Next opening in your city</span><span class="mono">We'll text you the day it opens</span></span>
+          </div>
+          <div class="cc">
+            <span class="badge soon">Waitlist forming</span>
+            <button class="bell" type="button" data-bell="Chatham-Kent" aria-label="Notify me when Chatham-Kent opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>
+            <span class="cc__art"><svg viewBox="0 0 240 104" preserveAspectRatio="xMidYMax slice"><rect width="240" height="104" fill="#F2E8DA"/><g fill="#E5CFB9"><path d="M26 104V74l17-12 17 12v30Z"/><path d="M132 104V70l19-14 19 14v34Z"/></g><g fill="#CE9A72"><path d="M80 104V76l16-12 16 12v28Z"/><path d="M186 104V74l17-12 17 12v30Z"/></g></svg></span>
+            <span class="cc__b"><b>Chatham-Kent</b><span class="m">Neighbours are gathering</span><span class="mono">Invite yours to speed it up</span></span>
+          </div>
+          <div class="cc">
+            <span class="badge soon">Waitlist forming</span>
+            <button class="bell" type="button" data-bell="Windsor" aria-label="Notify me when Windsor opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>
+            <span class="cc__art"><svg viewBox="0 0 240 104" preserveAspectRatio="xMidYMax slice"><rect width="240" height="104" fill="#E8ECE3"/><g fill="#C7D4CB"><path d="M18 104V70l18-13 18 13v34Z"/><path d="M124 104V72l17-12 17 12v30Z"/></g><g fill="#84AC96"><path d="M70 104V68l19-14 19 14v36Z"/><path d="M176 104V70l18-13 18 13v34Z"/></g></svg></span>
+            <span class="cc__b"><b>Windsor</b><span class="m">Neighbours are gathering</span><span class="mono">One launch per region</span></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======== my bills ======== -->
+      <section class="view" data-v="bills">
+        <div class="vhead"><h2>My bills</h2><p>Every promo cliff in one file. Internet today, the rest of the household next.</p></div>
+        <div class="grid2">
+          <section class="card" aria-label="Your switch file">
+            <span class="eyebrow">Your switch file &middot; Home internet</span>
+            <h3>What providers bid against</h3>
+            <div class="meter">
+              <div class="mrow"><span>Spot strength</span><b>Strong</b></div>
+              <div class="segs" aria-hidden="true"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i></div>
+            </div>
+            <ul class="flds">
+              <li><span class="tick ok">&#10003;</span>Current provider<span class="val">Rogers</span></li>
+              <li><span class="tick ok">&#10003;</span>Monthly charge<span class="val">$92</span></li>
+              <li><span class="tick ok">&#10003;</span>Download speed<span class="val">500 Mbps</span></li>
+              <li><span class="tick ok">&#10003;</span>Promo end date<span class="val">Nov 2026</span></li>
+              <li><span class="tick ok">&#10003;</span>Switch threshold<span class="val">$25+/mo</span></li>
+              <li><span class="tick no">&middot;</span>Latest bill upload<span class="val">Add</span></li>
+            </ul>
+            <p class="fnote">We can't place you in a cohort without your renewal month. Everything here stays private: bidding providers never see your provider or your price.</p>
+          </section>
+          <aside class="aside">
+            <section class="card">
+              <span class="eyebrow">Coming to your file</span>
+              <h3>Mobile <span class="soon">Soon</span></h3>
+              <p class="cardnote">Same promo cliff pattern, same pooled fix. Add yours and we'll flag the reset before it lands.</p>
+              <button class="btn ghost" type="button" data-bell="Mobile cohorts" style="margin-top:12px">Put me first in line</button>
+            </section>
+            <section class="card">
+              <span class="eyebrow">Coming to your file</span>
+              <h3>Streaming <span class="soon">Soon</span></h3>
+              <p class="cardnote">Quiet price bumps, flagged the month they happen.</p>
+              <button class="btn ghost" type="button" data-bell="Streaming tracking" style="margin-top:12px">Put me first in line</button>
+            </section>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ======== knowledge centre ======== -->
+      <section class="view" data-v="knowledge">
+        <div class="vhead"><h2>Knowledge centre</h2><p>How this market really prices you, in plain Canadian English.</p></div>
+        <div class="klist" id="klist"></div>
+      </section>
+
+      <!-- ======== campaign history ======== -->
+      <section class="view" data-v="history">
+        <div class="vhead"><h2>Campaign history</h2></div>
+        <div class="card empty">
+          <svg viewBox="0 0 80 80" fill="none" aria-hidden="true"><circle cx="40" cy="40" r="34" stroke="#CBDCC9" stroke-width="3"/><path d="M40 22v18l12 8" stroke="#2C6A4E" stroke-width="3.5" stroke-linecap="round"/></svg>
+          <h3>Nothing here yet, on purpose</h3>
+          <p>Your first campaign is still in play. Every campaign you finish lands here with its outcome, its winning offer, and what it changed on your bill.</p>
+          <button class="btn" type="button" data-nav="dashboard">Back to my campaign</button>
+        </div>
+      </section>
+
+      <!-- ======== profile ======== -->
+      <section class="view" data-v="profile">
+        <div class="card phero" aria-label="Your profile">
+          <div class="pav">
+            <svg class="ring ring--av" viewBox="0 0 84 84" role="img" aria-label="Profile completion"><circle class="ring__bg" cx="42" cy="42" r="34"/><circle class="ring__fg" id="ringfg" cx="42" cy="42" r="34"/><text x="42" y="49" class="avtxt">PM</text></svg>
+          </div>
+          <div class="pmeta">
+            <h2>Priya M. <span class="pctchip" id="pctchip"></span></h2>
+            <p class="psub">Member since July 2026 &middot; London East (N5Y)</p>
+            <div class="pchips"><span>Founding member</span><span>Autumn cohort</span><span>Spot: Strong</span></div>
+          </div>
+          <button class="tlink" type="button" id="pf-signout">Sign out</button>
+        </div>
+        <div class="grid2">
+          <div>
+            <section class="card" aria-label="Finish your file">
+              <span class="eyebrow">Finish your file</span>
+              <h3>Next: add your latest bill</h3>
+              <p class="cardnote">Two minutes, and your file moves to <b id="nextpct"></b>. A complete file is what lets us place you well: providers bid on cohorts they can trust.</p>
+              <button class="btn" type="button" data-nav="bills" style="margin-top:12px">Add my bill</button>
+              <div class="hr2"></div>
+              <div class="cklist" id="cklist"></div>
+            </section>
+            <section class="card" style="margin-top:16px" aria-label="Account details">
+              <span class="eyebrow">Account details</span>
+              <ul class="pi">
+                <li><span>Name</span><b>Priya M.</b><button class="tlink" type="button" data-edit="name">Edit</button></li>
+                <li><span>Email</span><b>priya@example.ca</b><button class="tlink" type="button" data-edit="email">Edit</button></li>
+                <li><span>Mobile</span><b>+1 519 &middot;&middot;&middot; &middot;&middot;42</b><button class="tlink" type="button" data-edit="mobile">Edit</button></li>
+                <li><span>Region</span><b>London East (N5Y)</b><button class="tlink" type="button" data-edit="region">Edit</button></li>
+              </ul>
+            </section>
+          </div>
+          <aside class="aside">
+            <section class="card" aria-label="Notifications">
+              <span class="eyebrow">Notifications</span>
+              <h3>How we reach you</h3>
+              <label class="tog"><input type="checkbox" checked><i></i><span>Text me at every campaign step</span></label>
+              <label class="tog"><input type="checkbox" checked><i></i><span>Promo cliff reminders</span></label>
+              <label class="tog"><input type="checkbox" checked><i></i><span>Outage updates for my area</span></label>
+              <label class="tog"><input type="checkbox"><i></i><span>New region openings</span></label>
+              <p class="fnote">The texts are how you'll know to look; this dashboard is where they land.</p>
+            </section>
+            <section class="card" aria-label="Your data">
+              <span class="eyebrow">Your data</span>
+              <h3>Yours, fully</h3>
+              <p class="cardnote">Download everything we hold about you, or delete your account and everything goes with it.</p>
+              <button class="tlink" type="button" id="dl-data" style="margin-top:8px">Download my data &rarr;</button><br>
+              <button class="tlink" type="button" id="del-acct">Delete my account &rarr;</button>
+            </section>
+            <section class="card" aria-label="Your region">
+              <span class="eyebrow">Your region</span>
+              <h3>London East</h3>
+              <p class="cardnote">One launch per region. Yours is the active cohort, timed to your renewal month.</p>
+            </section>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ======== contact ======== -->
+      <section class="view" data-v="contact">
+        <div class="vhead"><h2>Contact us</h2><p>A person, not a ticket queue.</p></div>
+        <div class="tiles">
+          <div class="card tile">
+            <span class="eyebrow">Your concierge</span>
+            <h4>Text or email, we answer</h4>
+            <p class="tn">Switching questions, bill questions, or just what happens next. Weekdays, usually within the hour.</p>
+            <button class="tlink" type="button" id="c-text">Text us &rarr;</button><br>
+            <button class="tlink" type="button" id="c-mail">Email us &rarr;</button>
+          </div>
+          <div class="card tile dark">
+            <h4>Mid-switch?</h4>
+            <p class="tn">If anything looks off during your install week, reply to any of our texts. <b>Your old plan never ends until the new one works.</b></p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal" hidden><div class="mbox" role="dialog" aria-modal="true" aria-label="Whollar dialog"><div id="mbody"></div></div></div>
+
+<div class="toast" id="toast" role="status"></div>
+<button class="ctl-t" type="button" id="ctl-toggle" aria-expanded="false" aria-controls="ctl">Prototype controls</button>
+<div class="ctl" id="ctl" aria-label="Prototype controls">
+  <h5>Prototype controls</h5>
+  <span class="demo">Demo data</span>
+  <label>Jump to state</label>
+  <div class="sts" id="sts"></div>
+  <label for="cfg-dep">Deposit amount ($)</label>
+  <input id="cfg-dep" type="number" min="0" step="1" value="10" inputmode="numeric">
+  <button class="rst" type="button" id="rst">Reset demo</button>
+</div>
+
+<script>
+(function(){
+"use strict";
+var $=function(s,c){return (c||document).querySelector(s)};
+var $$=function(s,c){return Array.prototype.slice.call((c||document).querySelectorAll(s))};
+var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var mobile=function(){return window.innerWidth<=920};
+
+/* ---------- demo state ---------- */
+var STATES=['forming','locked','bidding','offers','confirm','switching','done'];
+var S={state:'forming',sub:null,deposit:10,chosen:null,member:{bill:92},cohort:{have:61,need:100,locked:112,you:16}};
+var OFFERS=[
+  {id:'a',name:'Provider A',price:54.5,speed:'500 Mbps',term:'24 months',note:'Install included'},
+  {id:'b',name:'Provider B',price:58,speed:'1 Gig',term:'24 months',note:'Modem included'},
+  {id:'c',name:'Provider C',price:61,speed:'500 Mbps',term:'No term',note:'Leave anytime'}
+];
+var FEED={
+  forming:[['Aug 4','Cohort opened for London East'],['Today','61 of 100 households in']],
+  locked:[['Sep 12','Cohort locked at 112 households']],
+  bidding:[['Sep 15','3 providers joined the auction'],['Sep 15','Bidding opened, bids sealed']],
+  offers:[['Sep 17','Bidding closed: 3 offers in']],
+  confirm:[['Today','You chose an offer']],
+  switching:[['Today','Deposit placed, your concierge started the switch']],
+  done:[['Oct 8','Install complete'],['Oct 9','Deposit credited to your first bill']]
+};
+var PILL={forming:'Forming',locked:'Locked',bidding:'Bidding live',offers:'Offers in',confirm:'Confirm',switching:'Switching',done:'Switched'};
+var TL={forming:'close',locked:'close',bidding:'bid',offers:'offer',confirm:'offer',switching:'switch',done:'switch'};
+/* ================= v9 scenario engine additions ================= */
+
+/* ---------- extended state space ---------- */
+var VIS=['arrive','result','waitlist'];
+var RAILMAP={closing:0,passed:3,short:0};
+var ALL=[['arrive','First visit'],['result','Checked, not joined'],['waitlist','Region not open'],
+ ['forming','Forming'],['closing','Join closing'],['locked','Locked'],['bidding','Bidding'],
+ ['offers','Offer in'],['passed','Passed'],['confirm','Confirm'],['switching','Switching'],
+ ['done','Done'],['short','Did not fill']];
+PILL.closing='Join closes Friday';PILL.passed='Passed, no cost';PILL.short='Did not fill';
+TL.closing='close';TL.passed='offer';TL.short='close';
+FEED.closing=[['Sep 8','89 of 100: joining closes Friday 5 PM']];
+FEED.passed=[['Today','You passed on the offer. Nothing changes, nothing owed.']];
+FEED.short=[['Sep 12','Cohort closed at 74 of 100: rolled into the Winter window']];
+S.joined=false;S.checkup=null;S.prefs=null;S.pass=null;S.state='arrive';
+
+var WIN={name:'Northline Internet',price:54.5,speed:'500 Mbps',guar:'Price guaranteed 24 months',
+ after:'$69 regular rate after, told up front',inc:'Install, modem and in-home WiFi included',bids:3};
+var MEDIAN=67; /* demo figure */
+
+
+var BLOGS=[
+  ['The $487 problem: why most Canadians overpay for internet and never say a word','5 min','the-487-problem'],
+  ['The promo cliff: why your internet bill quietly climbs after 12 to 24 months','6 min','the-promo-cliff'],
+  ['What if your whole street switched internet at once?','4 min','whole-street-switched'],
+  ['Same cable, half the price: the internet markup hiding in plain sight','6 min','same-cable-half-the-price'],
+  ['Where your $90 internet bill actually goes','5 min','where-your-bill-goes'],
+  ['How to negotiate your internet bill in Canada, and where it quietly fails','7 min','negotiate-internet-bill-canada'],
+  ['The win-back offer: what the retention desk is really telling you','5 min','the-win-back-offer'],
+  ['Independent, incumbent, or flanker: who actually sells you internet in Canada','6 min','who-sells-you-internet'],
+  ['1.5 million households already did this. It just was not for internet.','5 min','collective-switching-precedent'],
+  ['How three companies came to own most of Canadian internet','7 min','how-three-companies-own-internet']
+];
+
+/* ---------- helpers ---------- */
+function money(v){return '$'+(v%1===0?v:v.toFixed(2))}
+function dep(){return money(S.deposit)}
+function toast(msg){var t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._x);toast._x=setTimeout(function(){t.classList.remove('show')},2400)}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+
+/* ---------- greeting ---------- */
+(function(){
+  var h=new Date().getHours();
+  var g=h<12?'Good morning':(h<17?'Good afternoon':'Good evening');
+  var s=h<12?'Morning':(h<17?'Afternoon':'Evening');
+  $('#greet').textContent=g+', Priya';
+  $('#hello-h').textContent=s+', Priya.';
+})();
+
+/* ---------- pane / views ---------- */
+var app=$('#app');
+function nav(view){
+  $$('.view').forEach(function(v){v.classList.toggle('on',v.getAttribute('data-v')===view)});
+  $$('#pnav button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-view')===view)});
+  var pp=$('#paneprof'); if(pp)pp.classList.toggle('on',view==='profile');
+  if(mobile())app.classList.remove('paneopen');
+  window.scrollTo(0,0);
+}
+$('#pnav').addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;nav(b.getAttribute('data-view'));
+});
+$('#burger').addEventListener('click',function(){
+  if(mobile()){app.classList.toggle('paneopen')}
+  else{app.classList.toggle('collapsed')}
+  this.setAttribute('aria-expanded',app.classList.contains('collapsed')?'false':'true');
+});
+$('#overlay').addEventListener('click',function(){app.classList.remove('paneopen')});
+document.addEventListener('click',function(e){
+  var t=e.target.closest('[data-nav]');if(!t)return;
+  nav(t.getAttribute('data-nav'));
+});
+
+/* ---------- countdown ---------- */
+var cdSecs=26*3600+14*60+9,cdTimer=null;
+function cdFmt(t){var h=Math.floor(t/3600),m=Math.floor(t%3600/60),s=t%60;var p=function(n){return (n<10?'0':'')+n};return p(h)+':'+p(m)+':'+p(s)}
+function cdStart(){cdStop();var el=$('#cd');if(!el)return;el.textContent=cdFmt(cdSecs);if(reduce)return;cdTimer=setInterval(function(){cdSecs=Math.max(0,cdSecs-1);var e=$('#cd');if(e)e.textContent=cdFmt(cdSecs);else cdStop()},1000)}
+function cdStop(){if(cdTimer){clearInterval(cdTimer);cdTimer=null}}
+
+/* ---------- dot cluster (forming) ---------- */
+function dotCluster(){
+  var cols=20,rows=5,gap=21,r=6.5,pad=10;
+  var w=pad*2+(cols-1)*gap,h=pad*2+(rows-1)*gap;
+  var out='<svg viewBox="0 0 '+w+' '+(h+2)+'" role="img" aria-label="'+S.cohort.have+' of '+S.cohort.need+' households in your cohort">';
+  for(var i=0;i<S.cohort.need;i++){
+    var cx=pad+(i%cols)*gap, cy=pad+Math.floor(i/cols)*gap;
+    if(i===S.cohort.you){out+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(r+1)+'" fill="#B0512B"/>'}
+    else if(i<S.cohort.have){out+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="#2C6A4E" opacity=".9"/>'}
+    else{out+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="#C9C3B2" stroke-width="1.6"/>'}
+  }
+  return out+'</svg>';
+}
+
+/* ---------- panel templates ---------- */
+function tplForming(){
+  return '<h3>Forming: the more of you, the sharper the bid</h3>'
+  +'<p class="p">Cohorts get bid on when providers can see real demand. Every dot is a household; every neighbour who joins strengthens the number your whole cohort gets.</p>'
+  +'<div class="cluster">'+dotCluster()+'</div>'
+  +'<div class="progline"><span><b>'+S.cohort.have+'</b> of <b>'+S.cohort.need+'</b> households</span><span>opens the auction at '+S.cohort.need+'</span></div>'
+  +'<div class="youline">The orange dot is you.</div>'
+  +'<div class="sigline">Signal: likely below your current rate. The real number is the output of real bids.</div>'
+  +'<div style="margin-top:15px"><button class="btn" type="button" data-act="invite">Invite a neighbour</button></div>';
+}
+function tplLocked(){
+  return '<h3>Locked: '+S.cohort.locked+' households, sealed</h3>'
+  +'<p class="p">Your cohort is closed and the auction brief is with providers: how many households, which speeds, and the renewal window. Never your names, your current providers, or what you pay today.</p>'
+  +'<p class="p">Bidding opens <b>September 15</b>. We\u2019ll text you when it does.</p>';
+}
+function tplBidding(){
+  var rows=[['#2C6A4E','Provider A'],['#5B7290','Provider B'],['#C08A3E','Provider C']].map(function(r){
+    return '<div class="bidrow"><span class="dot" style="background:'+r[0]+'"></span><b>'+r[1]+'</b><span class="masked">&bull;&bull;&bull;&bull;</span></div>'
+  }).join('');
+  return '<h3>Bidding: 3 providers at the table</h3>'
+  +'<p class="p">Bids stay sealed until the window closes, so each provider competes on its best number, not on each other\u2019s.</p>'
+  +'<div class="bidrows">'+rows+'</div>'
+  +'<span class="cdl">Bidding closes in <b id="cd"></b></span>';
+}
+function tplOffers(){
+  if(S.sub==='stayed'){
+    return '<h3>Staying put, noted</h3>'
+    +'<p class="p">You keep your current plan and pay nothing, ever. We\u2019ll check in before your next promo cliff, and your spot in the next cohort is held.</p>'
+    +'<button class="btn ghost" type="button" data-act="unstay">Back to my offers</button>';
+  }
+  var minP=Math.min.apply(null,OFFERS.map(function(o){return o.price}));
+  var cards=OFFERS.map(function(o){
+    var save=S.member.bill-o.price;
+    return '<div class="offer'+(S.chosen===o.id?' sel':'')+'">'
+    +(o.price===minP?'<span class="lowchip">Lowest bid</span>':'')
+    +'<span class="on">'+o.name+'</span>'
+    +'<span class="price">'+money(o.price)+'<small>/mo</small></span>'
+    +'<span class="spec">'+o.speed+' &middot; '+o.term+'</span>'
+    +'<span class="spec">'+o.note+'</span>'
+    +'<span class="save">Saves '+money(save)+'/mo vs your bill</span>'
+    +'<button class="btn" type="button" data-take="'+o.id+'">Take this offer</button>'
+    +'</div>';
+  }).join('');
+  return '<h3>Your offers are in</h3>'
+  +'<p class="p">Seeing them is free. Taking one is a <b>'+dep()+' deposit</b>, and it comes back on your first bill.</p>'
+  +'<div class="offers">'+cards+'</div>'
+  +'<div class="oblig"><b>You\u2019re never obligated.</b> Take an offer, or stay put and pay nothing, ever. Offers stand until <b>September 24</b>.</div>'
+  +'<div style="margin-top:12px"><button class="btn ghost" type="button" data-act="stay">Stay put instead</button></div>';
+}
+function tplConfirm(){
+  var o=OFFERS.filter(function(x){return x.id===S.chosen})[0]||OFFERS[0];
+  var save=S.member.bill-o.price;
+  return '<h3>Confirm with a '+dep()+' deposit</h3>'
+  +'<p class="p">The deposit is what makes your yes count: providers price cohorts on confirmed households, and confirmed is what gets you this number.</p>'
+  +'<div class="confbox">'
+  +'<div class="row"><span>Your pick</span><b>'+o.name+'</b></div>'
+  +'<div class="row"><span>New bill</span><b>'+money(o.price)+'/mo &middot; '+o.speed+'</b></div>'
+  +'<div class="row"><span>Against your current bill</span><b>saves '+money(save)+'/mo</b></div>'
+  +'<div class="row"><span>Deposit today</span><b>'+dep()+', credited to your first bill</b></div>'
+  +'</div>'
+  +'<label class="consent"><input type="checkbox" id="consent"><span>I understand the '+dep()+' deposit is credited to my first bill when my switch completes, and refunded automatically if it doesn\u2019t.</span></label>'
+  +'<button class="btn terra" type="button" id="paydep" disabled>Place '+dep()+' deposit</button>'
+  +'<button class="finelink" type="button" data-act="backoffers">Back to offers</button>';
+}
+function tplSwitching(){
+  var o=OFFERS.filter(function(x){return x.id===S.chosen})[0]||OFFERS[0];
+  return '<h3>Your concierge has it from here</h3>'
+  +'<p class="p">You do nothing. We confirm each step by text, and your old plan only ends once the new one works.</p>'
+  +'<div class="checks">'
+  +'<div class="check dn"><i>&#10003;</i><span>'+o.name+' notified<small>Your cohort rate is on file.</small></span></div>'
+  +'<div class="check on"><i>&bull;</i><span>Install booked<small>Wednesday, October 8, morning window.</small></span></div>'
+  +'<div class="check td"><i>&middot;</i><span>Old plan closed<small>Only after your new connection is live.</small></span></div>'
+  +'</div>';
+}
+function tplDone(){
+  var o=OFFERS.filter(function(x){return x.id===S.chosen})[0]||OFFERS[0];
+  var save=S.member.bill-o.price;
+  return '<h3>Switched. That\u2019s the whole point.</h3>'
+  +'<div class="donebox">'
+  +'<span class="big">'+money(o.price)+'/mo</span>'
+  +'<span style="font-size:14px;color:#3A453E">'+o.name+' &middot; '+o.speed+'<br>Saving <b>'+money(save)+'/mo</b> against your old bill.</span>'
+  +'</div>'
+  +'<p class="p">Your '+dep()+' deposit is credited to your first bill. We\u2019ll flag your next promo cliff about two months out, for this and any bill you add.</p>';
+}
+var TPL={forming:tplForming,locked:tplLocked,bidding:tplBidding,offers:tplOffers,confirm:tplConfirm,switching:tplSwitching,done:tplDone,
+ closing:function(){return tplClosing()},passed:function(){return tplPassed()},short:function(){return tplShort()}};
+
+/* ---------- render ---------- */
+function render(){
+  if(routeVisitor())return;
+  var idx=(S.state in RAILMAP)?RAILMAP[S.state]:STATES.indexOf(S.state);
+  $$('.rn').forEach(function(n,i){
+    n.classList.remove('past','now');
+    if(i<idx)n.classList.add('past');
+    if(i===idx)n.classList.add('now');
+  });
+  $('#railfill').style.width=(idx/(STATES.length-1)*100)+'%';
+  var pill=$('#statepill');
+  pill.textContent=S.sub==='stayed'?'Staying put':PILL[S.state];
+  pill.className='statepill'+((S.state==='confirm'||S.state==='closing'||S.state==='passed'||S.state==='short'||S.sub==='stayed')?' warm':'');
+  cdStop();
+  $('#panel').innerHTML=TPL[S.state]();
+  if(S.state==='bidding')cdStart();
+  renderTimeline();
+  var items=[];
+  for(var i=0;i<=idx;i++){(FEED[STATES[i]]||[]).forEach(function(f){items.push(f)})}
+  if(S.state in RAILMAP)(FEED[S.state]||[]).forEach(function(f){items.push(f)});
+  EXTRA.forEach(function(f){items.push(f)});
+  $('#feed').innerHTML=items.map(function(f){return '<li><span class="when">'+esc(f[0])+'</span>'+esc(f[1])+'</li>'}).reverse().join('');
+  var badge=$('#regbadge');if(badge)badge.textContent='Your cohort \u00b7 '+(S.sub==='stayed'?'Staying put':PILL[S.state]);
+  var rm=$('#regmono');if(rm)rm.textContent=S.state==='forming'?(S.cohort.have+' of '+S.cohort.need+' households'):(S.cohort.locked+' households, '+PILL[S.state].toLowerCase());
+  $$('#sts button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-goto')===S.state)});
+}
+function go(state){
+  S.state=state;
+  if(state!=='closing')S.cohort.have=state==='forming'&&S.joined?62:(state==='forming'?61:S.cohort.have);
+  if(state!=='offers')S.sub=null;
+  if((state==='confirm'||state==='switching'||state==='done')&&!S.chosen)S.chosen='a';
+  if(['forming','closing','locked','bidding','offers','confirm','switching','done','passed','short'].indexOf(state)>-1&&!S.joined){
+    S.joined=true;
+    if(!S.prefs)S.prefs={when:'win',speed:'keep',tech:'either',bundle:'no',building:'house',avoid:[]};
+    if(!S.checkup)S.checkup={prov:'Rogers',bill:92,speed:'500 Mbps',promo:'Nov 2026'};
+  }
+  render();
+}
+
+/* ---------- events ---------- */
+$('#panel').addEventListener('click',function(e){
+  var t=e.target.closest('button');if(!t)return;
+  var take=t.getAttribute('data-take');
+  var act=t.getAttribute('data-act');
+  if(take){S.chosen=take;go('confirm');return}
+  if(act==='stay'){S.sub='stayed';render();return}
+  if(act==='unstay'){S.sub=null;render();return}
+  if(act==='backoffers'){go('offers');return}
+  if(act==='invite'){copyRef();return}
+  if(t.id==='paydep'){t.disabled=true;t.textContent='Placing deposit\u2026';setTimeout(function(){go('switching');openSavings();toast('Deposit placed: '+dep()+', credited to your first bill.')},reduce?350:900);return}
+});
+$('#panel').addEventListener('change',function(e){
+  if(e.target.id==='consent'){var b=$('#paydep');if(b)b.disabled=!e.target.checked}
+});
+function copyRef(){
+  var code=$('#refcode').textContent;
+  try{navigator.clipboard.writeText(code)}catch(err){}
+  toast('Code copied: '+code);
+}
+$('#copyref').addEventListener('click',copyRef);
+$('#reddit').addEventListener('click',function(){toast('Prototype: this will open the member subreddit.')});
+$('#viewall').addEventListener('click',function(){toast('One launch per region: a city opens when enough neighbours are in.')});
+$('#c-text').addEventListener('click',function(){toast('Prototype: opens your messages.')});
+$('#c-mail').addEventListener('click',function(){toast('Prototype: opens your mail app.')});
+document.addEventListener('click',function(e){
+  var b=e.target.closest('[data-bell]');if(!b)return;
+  b.classList.add('on');
+  toast('Noted. We\u2019ll text you the day '+b.getAttribute('data-bell')+' opens.');
+});
+$('#q').addEventListener('keydown',function(e){
+  if(e.key==='Enter'){e.preventDefault();toast('Prototype: search lands with multi-region campaigns.')}
+});
+
+/* ---------- profile ---------- */
+var PROF=[['Email verified',1],['Mobile verified',1],['Home address',1],['Current provider',1],['Promo end date',1],['Switch threshold',1],['Latest bill upload',0],['Mobile bill',0]];
+(function(){
+  var done=PROF.filter(function(p){return p[1]}).length, pct=Math.round(done/PROF.length*100);
+  var C=213.6;
+  var fg=$('#ringfg'); if(fg)fg.style.strokeDashoffset=(C*(1-pct/100)).toFixed(1);
+  var pc=$('#pctchip'); if(pc)pc.textContent=pct+'% complete';
+  var np=$('#nextpct'); if(np)np.textContent=Math.round((done+1)/PROF.length*100)+'%';
+  var pf=$('#ppfill'); if(pf)pf.style.width=pct+'%';
+  var pl=$('#pplabel'); if(pl)pl.textContent='Profile '+pct+'% complete';
+  var ck=$('#cklist');
+  if(ck)ck.innerHTML=PROF.map(function(p){
+    return '<div class="ck '+(p[1]?'dn':'md')+'"><i>'+(p[1]?'\u2713':'\u00b7')+'</i><span>'+p[0]+'</span>'+(p[1]?'':'<button class="tlink" type="button" data-nav="bills">Add</button>')+'</div>';
+  }).join('');
+})();
+document.addEventListener('change',function(e){
+  if(e.target.closest('.tog'))toast('Preference saved.');
+});
+document.addEventListener('click',function(e){
+  if(e.target.closest('[data-edit]')){toast('Prototype: editing lands with accounts.');return}
+  if(e.target.closest('#pf-signout'))toast('Prototype: sign out.');
+  if(e.target.closest('#dl-data'))toast('Prototype: your data export will land by email.');
+  if(e.target.closest('#del-acct'))toast('Prototype: deletion flow, with a real confirm step.');
+});
+
+/* ---------- outage report ---------- */
+var EXTRA=[];
+var oc=$('#ochips');
+if(oc)oc.addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;
+  $$('button',oc).forEach(function(x){x.classList.remove('on')});
+  b.classList.add('on');
+});
+var osend=$('#osend');
+if(osend)osend.addEventListener('click',function(){
+  var what=($('.ochips button.on')||{}).getAttribute?$('.ochips button.on').getAttribute('data-o'):'Internet down';
+  var since=$('#osince').value;
+  EXTRA.push(['Today','You reported: '+what.toLowerCase()+', '+since.toLowerCase()+'. We\u2019re checking your area.']);
+  $('#outagecard').innerHTML='<span class="eyebrow" style="color:#8C4622">Connection trouble?</span>'
+   +'<h3>Logged. We\u2019re on it.</h3>'
+   +'<p class="cardnote">We\u2019re checking reports from other London East members and will text you if it\u2019s more than just you. If it keeps up, we\u2019ll raise it with Rogers on your behalf, that\u2019s what the concierge is for.</p>';
+  toast('Outage logged: '+what+'. We\u2019ll text you what we find.');
+  render();
+});
+
+/* ---------- blog thumbnails ---------- */
+var TH_BG=['#E4EDE2','#F2E8DA','#E8ECE3'];
+var TH=[
+'<text x="24" y="32" font-family="Space Mono,monospace" font-size="22" font-weight="700" fill="#B0512B" text-anchor="middle">$</text>',
+'<path d="M8 34h12v-9h10v-9h10" stroke="#B0512B" stroke-width="3" fill="none" stroke-linecap="round"/>',
+'<g fill="#2C6A4E"><path d="M6 38v-9l6-5 6 5v9Z"/><path d="M19 38v-11l6-5 6 5v11Z" opacity=".75"/><path d="M32 38v-8l5-4 5 4v8Z" opacity=".5"/></g>',
+'<path d="M8 24h14m0 0 12-8m-12 8 12 8" stroke="#2C6A4E" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="8" cy="24" r="3.5" fill="#B0512B"/>',
+'<circle cx="24" cy="24" r="13" fill="none" stroke="#2C6A4E" stroke-width="3"/><path d="M24 24V11M24 24l10 7" stroke="#B0512B" stroke-width="3" stroke-linecap="round"/>',
+'<rect x="7" y="12" width="20" height="13" rx="5" fill="#2C6A4E"/><rect x="20" y="24" width="20" height="12" rx="5" fill="none" stroke="#B0512B" stroke-width="2.5"/>',
+'<path d="M34 12a13 13 0 1 0 3 12" stroke="#2C6A4E" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M37 8v9h-9" stroke="#B0512B" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+'<g stroke-linecap="round" stroke-width="4"><path d="M9 15h30" stroke="#2C6A4E"/><path d="M9 24h20" stroke="#B0512B"/><path d="M9 33h12" stroke="#2C6A4E" opacity=".6"/></g>',
+'<g fill="#2C6A4E"><circle cx="14" cy="16" r="3.4"/><circle cx="24" cy="14" r="3.4"/><circle cx="34" cy="17" r="3.4"/><circle cx="13" cy="27" r="3.4"/><circle cx="24" cy="25" r="3.4" fill="#B0512B"/><circle cx="35" cy="28" r="3.4"/><circle cx="18" cy="36" r="3.4"/><circle cx="30" cy="36" r="3.4"/></g>',
+'<g fill="none" stroke-width="3.2"><circle cx="13" cy="24" r="6.6" stroke="#2C6A4E"/><circle cx="24" cy="24" r="6.6" stroke="#B0512B"/><circle cx="35" cy="24" r="6.6" stroke="#2C6A4E"/></g>'];
+function thumb(i){return '<svg viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" fill="'+TH_BG[i%3]+'"/>'+TH[i]+'</svg>'}
+
+/* ---------- reads + knowledge ---------- */
+$('#reads').innerHTML=BLOGS.slice(0,3).map(function(b,i){
+  return '<li><a href="blog/'+b[2]+'.html"><span class="rthumb">'+thumb(i)+'</span><span class="rtxt">'+esc(b[0])+'<small>'+b[1]+'</small></span></a></li>'
+}).join('');
+$('#klist').innerHTML=BLOGS.map(function(b,i){
+  return '<a class="kcard" href="blog/'+b[2]+'.html"><span class="kthumb">'+thumb(i)+'</span><span class="ktxt"><b>'+esc(b[0])+'</b><small>'+b[1]+' read</small></span></a>'
+}).join('');
+
+/* ---------- demo controls ---------- */
+ALL.forEach(function(pair){
+  var b=document.createElement('button');
+  b.type='button';b.textContent=pair[1];b.setAttribute('data-goto',pair[0]);
+  b.addEventListener('click',function(){
+    if(VIS.indexOf(pair[0])>-1){S.joined=false;S.prefs=null;S.pass=null;if(pair[0]==='arrive')S.checkup=null;S.state=pair[0];render()}
+    else go(pair[0]);
+  });
+  $('#sts').appendChild(b);
+});
+$('#ctl-toggle').addEventListener('click',function(){
+  var open=$('#ctl').classList.toggle('open');
+  this.setAttribute('aria-expanded',open?'true':'false');
+});
+$('#cfg-dep').addEventListener('input',function(){
+  var v=parseFloat(this.value);
+  if(isNaN(v)||v<0)v=0;
+  S.deposit=v;
+  render();
+});
+$('#rst').addEventListener('click',function(){
+  S.state='arrive';S.sub=null;S.chosen=null;S.deposit=10;S.joined=false;S.checkup=null;S.prefs=null;S.pass=null;S.cohort.have=61;
+  EXTRA.length=0;$('#cfg-dep').value=10;cdSecs=26*3600+14*60+9;render();nav('dashboard');
+});
+
+/* ---------- generic modal ---------- */
+var modal=$('#modal');
+function openModal(html){$('#mbody').innerHTML=html;modal.hidden=false;document.body.style.overflow='hidden'}
+function closeModal(){modal.hidden=true;document.body.style.overflow=''}
+modal.addEventListener('click',function(e){if(e.target===modal||e.target.closest('[data-mclose]'))closeModal()});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!modal.hidden)closeModal()});
+
+/* ---------- chips helper ---------- */
+document.addEventListener('click',function(e){
+  var c=e.target.closest('.pchips button');if(!c)return;
+  var grp=c.parentElement;
+  if(grp.getAttribute('data-multi')==='1'){c.classList.toggle('on')}
+  else{$$('button',grp).forEach(function(x){x.classList.remove('on')});c.classList.add('on')}
+  if(grp.id==='pf-bundle'){var n=$('#bundlenote');if(n)n.hidden=c.getAttribute('data-v')!=='yes'}
+  if(grp.id==='pf-building'){var n2=$('#bldgnote');if(n2)n2.hidden=c.getAttribute('data-v')!=='bulk'}
+});
+function chipVal(id){var b=$('#'+id+' button.on');return b?b.getAttribute('data-v'):null}
+function chipVals(id){return $$('#'+id+' button.on').map(function(b){return b.getAttribute('data-v')})}
+
+/* ---------- visitor: arrive ---------- */
+function rvArrive(){
+  return '<section class="card vfirst" aria-label="Check if you are overpaying">'
+  +'<span class="eyebrow" style="color:#8C4622">Two minutes, no signup after this</span>'
+  +'<h3>First, let\u2019s see if you\u2019re overpaying</h3>'
+  +'<p class="cardnote">Your answer decides everything else on this page. The fastest way is a photo or PDF of your bill; the fields below work too.</p>'
+  +'<button class="upl" type="button" id="upbill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg>Add your bill \u00b7 we read the rest</button>'
+  +'<div class="orline"><span>or tell us</span></div>'
+  +'<div class="ffields">'
+  +'<div><label>Current provider</label><select id="cf-prov"><option>Rogers</option><option>Bell</option><option>TekSavvy</option><option>Cogeco</option><option>Start.ca</option><option>Other</option></select></div>'
+  +'<div><label>Monthly charge ($)</label><input id="cf-bill" type="number" value="92" min="10" step="1" inputmode="numeric"></div>'
+  +'<div><label>Speed</label><select id="cf-speed"><option>500 Mbps</option><option>1 Gig</option><option>Under 500</option><option>Not sure</option></select></div>'
+  +'<div><label>Promo ends</label><select id="cf-promo"><option>Not sure</option><option selected>Nov 2026</option><option>Dec 2026</option><option>Jan 2027</option><option>Feb 2027</option><option>No promo</option></select></div>'
+  +'</div>'
+  +'<button class="btn terra" type="button" id="cf-go" style="width:100%;justify-content:center;margin-top:14px">See my result</button>'
+  +'<p class="fnote">Your bill stays private. Bidding partners only ever see cohort aggregates, never you.</p>'
+  +'</section>'
+  +'<section class="card" style="margin-top:16px" aria-label="How Whollar works">'
+  +'<span class="eyebrow">While you\u2019re here</span><h3>How this works, in one breath</h3>'
+  +'<p class="cardnote">Households pool by region and renewal timing. Providers bid sealed for the whole cohort. You see the winning offer, and you take it or you don\u2019t. Free either way, because providers pay us only when a switch completes.</p>'
+  +'</section>';
+}
+
+/* ---------- visitor: result ---------- */
+function rvResult(){
+  var c=S.checkup||{prov:'Rogers',bill:92,speed:'500 Mbps',promo:'Nov 2026'};
+  var over=Math.max(0,c.bill-MEDIAN);
+  return '<section class="card vfirst" aria-label="Your result">'
+  +'<div class="vres"><div>'
+  +'<span class="eyebrow" style="color:#8C4622">Your checkup result <span class="demochip">demo numbers</span></span>'
+  +'<h3>'+(over>0?('Likely overpaying by about '+money(over)+'/mo'):'You\u2019re close to the market, for now')+'</h3>'
+  +'<p class="cardnote">'+(over>0?('Households like yours around here typically pay about '+money(MEDIAN)+' for '+esc(c.speed)+'. Yours is '+money(c.bill)+', and your promo reset lands around '+esc(c.promo)+', which usually pushes it higher.'):'Your promo is doing its job today. The reset around '+esc(c.promo)+' is when that changes, and a cohort is how you get ahead of it.')+'</p>'
+  +'</div><div class="vnum"><b>'+money(c.bill)+'</b><span>your bill /mo</span></div></div>'
+  +'</section>'
+  +'<section class="card" style="margin-top:16px" aria-label="Cohort you can join">'
+  +'<span class="eyebrow">Open in your area</span><h3>London East \u00b7 Autumn cohort</h3>'
+  +'<p class="cardnote">61 of 100 households in. Joining closes <b>Sep 12</b>, sealed bidding runs <b>Sep 15 to 17</b>, and the winning offer lands by <b>Sep 24</b>.</p>'
+  +'<div class="elig">'+(c.promo==='Not sure'
+    ?'Add your promo end date and we\u2019ll check the timing works for you.'
+    :'Offer lands Sep 24 \u00b7 your reset is around '+esc(c.promo)+' \u00b7 <b>good timing: the offer beats your cliff.</b>')+'</div>'
+  +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">'
+  +'<button class="btn terra" type="button" data-choose="le">Choose this cohort</button>'
+  +'<button class="btn ghost" type="button" data-act="whyfree">Why it\u2019s free</button>'
+  +'</div>'
+  +'<p class="fnote">Joining is free and never obligates you. You\u2019ll answer six quick questions so bids fit what you actually want.</p>'
+  +'</section>';
+}
+
+/* ---------- visitor: waitlist ---------- */
+function rvWaitlist(){
+  return '<section class="card vfirst" aria-label="Your region">'
+  +'<span class="eyebrow">Sarnia</span><h3>Your region isn\u2019t open yet, and here\u2019s exactly why</h3>'
+  +'<p class="cardnote">A cohort opens when enough households with renewal timing like yours are in: that\u2019s what makes providers bid properly. Sarnia is at <b>38 of the 100</b> it takes.</p>'
+  +'<div class="miniprog" style="max-width:340px"><i style="width:38%"></i></div>'
+  +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">'
+  +'<button class="btn terra" type="button" data-act="wnotify">Text me the day it opens</button>'
+  +'<button class="btn ghost" type="button" data-act="invite">Invite neighbours to speed it up</button>'
+  +'</div>'
+  +'<p class="fnote">Your checkup result and cliff watch stay active meanwhile: we\u2019ll flag your reset about two months out either way.</p>'
+  +'</section>';
+}
+
+function renderVisitor(){
+  var v=$('#visitor-home');
+  v.innerHTML=S.state==='arrive'?rvArrive():(S.state==='result'?rvResult():rvWaitlist());
+}
+
+/* ---------- visitor events ---------- */
+document.addEventListener('click',function(e){
+  if(e.target.closest('#upbill')){
+    toast('Bill read: Rogers \u00b7 $92 \u00b7 500 Mbps \u00b7 promo ends Nov 2026.');
+    S.checkup={prov:'Rogers',bill:92,speed:'500 Mbps',promo:'Nov 2026'};
+    S.member.bill=92;go('result');return;
+  }
+  if(e.target.closest('#cf-go')){
+    var bill=parseFloat($('#cf-bill').value)||92;
+    S.checkup={prov:$('#cf-prov').value,bill:bill,speed:$('#cf-speed').value,promo:$('#cf-promo').value};
+    S.member.bill=bill;go('result');return;
+  }
+  if(e.target.closest('[data-act="whyfree"]')){toast('Providers pay Whollar only when a switch completes. You never pay, and you\u2019re never obligated.');return}
+  if(e.target.closest('[data-act="wnotify"]')){toast('Noted. We\u2019ll text you the day Sarnia opens.');return}
+  var ch=e.target.closest('[data-choose]');
+  if(ch){openPrefs();return}
+});
+
+/* ---------- preferences form ---------- */
+function chip(v,l,on){return '<button type="button" data-v="'+v+'"'+(on?' class="on"':'')+'>'+l+'</button>'}
+function openPrefs(edit){
+  var p=S.prefs||{};
+  openModal('<div class="mhead"><h3>'+(edit?'Your preferences':'Six quick questions')+'</h3><button class="mx" type="button" data-mclose aria-label="Close">\u00d7</button></div>'
+  +'<p class="msub">Bids fit better when partners know what the cohort actually wants. This shapes the auction; it never obligates you.</p>'
+  +'<label class="plabel">When would you actually switch?</label>'
+  +'<div class="pchips" id="pf-when">'+chip('win','As soon as my cohort wins',p.when==='win'||!p.when)+chip('cliff','Only near my promo cliff',p.when==='cliff')+chip('watch','Just watching for now',p.when==='watch')+'</div>'
+  +'<label class="plabel">Speed you want</label>'
+  +'<div class="pchips" id="pf-speed">'+chip('keep','Keep 500 Mbps',p.speed==='keep'||!p.speed)+chip('up','Move up to 1 Gig',p.speed==='up')+chip('cheap','Whatever\u2019s cheapest',p.speed==='cheap')+'</div>'
+  +'<label class="plabel">Connection type</label>'
+  +'<div class="pchips" id="pf-tech">'+chip('either','Either',!p.tech||p.tech==='either')+chip('fibre','Fibre only',p.tech==='fibre')+chip('cable','Cable is fine',p.tech==='cable')+'</div>'
+  +'<label class="plabel">Does your internet share a bill with TV, mobile or home phone?</label>'
+  +'<div class="pchips" id="pf-bundle">'+chip('no','No, internet only',p.bundle!=='yes')+chip('yes','Yes, it\u2019s bundled',p.bundle==='yes')+'</div>'
+  +'<div class="pfnote" id="bundlenote" '+(p.bundle==='yes'?'':'hidden')+'>Good to know. First cohorts price internet on its own, so we\u2019ll check what leaving the bundle does to the rest of your bill before you ever have to decide.</div>'
+  +'<label class="plabel">Your building</label>'
+  +'<div class="pchips" id="pf-building">'+chip('house','House',!p.building||p.building==='house')+chip('unit','Condo or apartment, I pick my own internet',p.building==='unit')+chip('bulk','My building controls the internet',p.building==='bulk')+'</div>'
+  +'<div class="pfnote" id="bldgnote" '+(p.building==='bulk'?'':'hidden')+'>Then switching runs through your building, not around it. We\u2019ll flag this cohort as informational for you and can talk to your board or landlord: that\u2019s often a hundred households in one decision.</div>'
+  +'<label class="plabel">Partners you\u2019d rather avoid <span class="opt">optional</span></label>'
+  +'<div class="pchips" id="pf-avoid" data-multi="1">'+['Bell','Rogers','Cogeco','TekSavvy','Start.ca'].map(function(n){return chip(n,n,(p.avoid||[]).indexOf(n)>-1)}).join('')+'</div>'
+  +'<p class="pfhint">This shapes bids, it doesn\u2019t bind them: whoever wins, you still see the offer and you can still say no.</p>'
+  +'<button class="btn terra" type="button" id="pf-save" style="width:100%;justify-content:center;margin-top:16px">'+(edit?'Save preferences':'Join London East \u00b7 free')+'</button>'
+  +'<p class="fnote" style="text-align:center">No card, no commitment. A deposit only ever appears if you accept a winning offer later.</p>');
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest('#pf-save'))return;
+  var wasEdit=S.joined;
+  S.prefs={when:chipVal('pf-when'),speed:chipVal('pf-speed'),tech:chipVal('pf-tech'),
+    bundle:chipVal('pf-bundle'),building:chipVal('pf-building'),avoid:chipVals('pf-avoid')};
+  closeModal();
+  if(!wasEdit){S.joined=true;EXTRA.push(['Today','You joined London East \u00b7 Autumn, preferences on file']);go('forming');toast('You\u2019re in. 62 of 100 now, and your preferences are on the brief.')}
+  else{render();toast('Preferences saved to your cohort brief.')}
+});
+
+/* ---------- preferences summary card (aside) ---------- */
+var PLBL={win:'Switch when the cohort wins',cliff:'Switch near my cliff',watch:'Watching for now',
+ keep:'Keep 500 Mbps',up:'Move up to 1 Gig',cheap:'Cheapest wins',
+ either:'Fibre or cable',fibre:'Fibre only',cable:'Cable is fine'};
+function prefsCard(){
+  if(!S.joined||!S.prefs)return '';
+  var p=S.prefs;
+  var rows=[PLBL[p.when],PLBL[p.speed],PLBL[p.tech],
+    p.bundle==='yes'?'Bundled bill, flagged':'Internet-only bill',
+    p.building==='bulk'?'Building-controlled, informational':(p.building==='unit'?'Condo or apartment':'House')];
+  if(p.avoid&&p.avoid.length)rows.push('Rather avoid: '+p.avoid.join(', '));
+  return '<section class="card" aria-label="Your preferences" id="prefscard">'
+  +'<span class="eyebrow">On the brief</span><h3>Your preferences</h3>'
+  +'<ul class="prefls">'+rows.map(function(r){return '<li>'+esc(r)+'</li>'}).join('')+'</ul>'
+  +'<button class="tlink" type="button" id="editprefs">Edit \u2192</button>'
+  +'</section>';
+}
+document.addEventListener('click',function(e){if(e.target.closest('#editprefs'))openPrefs(true)});
+
+/* ---------- pass flow ---------- */
+function openPass(){
+  openModal('<div class="mhead"><h3>Passing is a fine answer</h3><button class="mx" type="button" data-mclose aria-label="Close">\u00d7</button></div>'
+  +'<p class="msub">Nothing changes and nothing is owed. One question, because it makes the next auction sharper: why pass?</p>'
+  +'<div class="pchips pvert" id="ps-why">'
+  +chip('stay','Happy enough with '+esc((S.checkup||{}).prov||'my provider'),true)
+  +chip('save','They came back with a better offer when I mentioned leaving')
+  +chip('price','The savings aren\u2019t worth the hassle')
+  +chip('time','Bad timing for me right now')
+  +'</div>'
+  +'<div id="ps-savewrap" hidden><label class="plabel">What number did they give you? <span class="opt">optional, it stays private</span></label>'
+  +'<input class="minput" id="ps-amt" type="number" placeholder="e.g. 60" min="1" step="0.5" inputmode="decimal"></div>'
+  +'<label class="plabel" style="margin-top:14px">Keep looking for you?</label>'
+  +'<div class="pchips" id="ps-next">'+chip('yes','Yes, roll me into the Winter cohort \u00b7 free',true)+chip('no','No, just watch my cliff')+'</div>'
+  +'<button class="btn terra" type="button" id="ps-go" style="width:100%;justify-content:center;margin-top:16px">Confirm my pass</button>'
+  +'<p class="fnote" style="text-align:center">Your spot costs nothing to keep. The offer stands until Sep 24 if you change your mind.</p>');
+}
+document.addEventListener('click',function(e){
+  var w=e.target.closest('#ps-why button');
+  if(w){var sw=$('#ps-savewrap');if(sw)sw.hidden=w.getAttribute('data-v')!=='save'}
+  if(e.target.closest('#ps-go')){
+    S.pass={why:chipVal('ps-why'),amt:parseFloat(($('#ps-amt')||{}).value)||null,next:chipVal('ps-next')==='yes'};
+    closeModal();
+    if(S.pass.amt)EXTRA.push(['Today','You logged '+esc((S.checkup||{}).prov||'your provider')+'\u2019s save offer: '+money(S.pass.amt)+'/mo']);
+    go('passed');
+  }
+});
+function tplPassed(){
+  var p=S.pass||{next:true};
+  var save=p.amt?'<div class="savedbox"><b>'+esc((S.checkup||{}).prov||'Your provider')+' offered you '+money(p.amt)+'/mo when you pushed.</b> That\u2019s the cohort working even when you stay: the credible exit is what moved them. Logged privately, never shown to bidders.</div>':'';
+  return '<h3>Passed. Nothing changes, nothing owed.</h3>'
+  +'<p class="p">You keep your plan and your standing. The winning offer stands until <b>Sep 24</b> if you rethink it.</p>'
+  +save
+  +(p.next
+    ?'<p class="p"><b>You\u2019re in the Winter cohort.</b> Same region, next window. We\u2019ll flag your promo cliff about two months out so the timing works in your favour next round.</p>'
+    :'<p class="p">We\u2019ll keep watching your promo cliff and flag it about two months out. Rejoin any time, free.</p>')
+  +'<div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">'
+  +'<button class="btn ghost" type="button" data-act="backoffers">Reconsider the offer</button>'
+  +'<button class="btn ghost" type="button" data-act="invite">Invite a neighbour</button></div>';
+}
+
+/* ---------- closing + short ---------- */
+function tplClosing(){
+  S.cohort.have=89;
+  return '<div class="urgent"><b>Joining closes Friday, Sep 12 at 5 PM.</b> 89 of 100 in. This is a real deadline: the brief freezes so partners can price it.</div>'
+  +tplForming()
+  +'<div style="margin-top:12px"><button class="btn ghost" type="button" data-act="editprefs2">Confirm your preferences before the freeze</button></div>';
+}
+function tplShort(){
+  return '<h3>74 of 100: this window didn\u2019t fill</h3>'
+  +'<p class="p">We hold the line at 100 because a thin cohort gets thin bids, and a mediocre first offer helps nobody. So we don\u2019t auction it: <b>everyone rolls into the Winter cohort automatically</b>, spot and preferences intact.</p>'
+  +'<p class="p">Winter opens <b>Nov 3</b>, and your cliff watch runs meanwhile. The fastest way to make Winter certain is the button below.</p>'
+  +'<div style="margin-top:12px"><button class="btn" type="button" data-act="invite">Invite a neighbour</button></div>';
+}
+
+/* ---------- savings dialog after deposit ---------- */
+function openSavings(){
+  var o=OFFERS.filter(function(x){return x.id===S.chosen})[0]||OFFERS[0];
+  var mo=S.member.bill-o.price;
+  openModal('<div class="savehero"><span class="eyebrow" style="color:#8C4622">Locked in <span class="demochip">demo numbers</span></span>'
+  +'<b class="bignum">'+money(mo)+'/mo less</b>'
+  +'<span class="subnum">about '+money(Math.round(mo*12))+' over the next year</span>'
+  +'<ul class="saverows"><li>Your bill: '+money(S.member.bill)+' \u2192 <b>'+money(o.price)+'/mo</b> \u00b7 '+esc(WIN.guar.toLowerCase())+'</li>'
+  +'<li>'+esc(WIN.after)+'</li>'
+  +'<li>Your '+dep()+' deposit is credited to your first bill</li></ul>'
+  +'<button class="btn terra" type="button" data-mclose style="width:100%;justify-content:center;margin-top:14px">See what happens next</button></div>');
+}
+
+/* ---------- single-winner offer ---------- */
+function tplOffers(){
+  var o=OFFERS[0];var save=S.member.bill-o.price;
+  return '<h3>Your cohort\u2019s winning offer is in</h3>'
+  +'<p class="p">'+WIN.bids+' partners bid, sealed. This was the best against the cohort\u2019s standard terms, and it\u2019s the same offer for all 112 households.</p>'
+  +'<div class="duo">'
+  +'<div class="duocell now"><span class="dl">Your bill today</span><b>'+money(S.member.bill)+'/mo</b><span class="ds">'+esc((S.checkup||{}).prov||'Rogers')+' \u00b7 '+esc((S.checkup||{}).speed||'500 Mbps')+'</span><span class="ds">Resets around '+esc((S.checkup||{}).promo||'Nov 2026')+'</span></div>'
+  +'<div class="duocell win"><span class="dl">'+esc(WIN.name)+'</span><b>'+money(o.price)+'/mo</b><span class="ds">'+esc(WIN.speed)+' \u00b7 '+esc(WIN.guar.toLowerCase())+'</span><span class="ds">'+esc(WIN.after)+'</span><span class="ds">'+esc(WIN.inc)+'</span><span class="savetag">saves '+money(save)+'/mo</span></div>'
+  +'</div>'
+  +'<div class="oblig"><b>You\u2019re never obligated.</b> Take it with a '+dep()+' refundable deposit, or pass and pay nothing, ever. It stands until <b>Sep 24</b>.</div>'
+  +'<div style="margin-top:13px;display:flex;gap:10px;flex-wrap:wrap">'
+  +'<button class="btn terra" type="button" data-take="a">Take this offer</button>'
+  +'<button class="btn ghost" type="button" data-act="pass">Pass on it</button>'
+  +'<button class="finelink" type="button" data-act="whopart">Who is '+esc(WIN.name)+'?</button></div>';
+}
+
+/* ---------- extra panel actions ---------- */
+$('#panel').addEventListener('click',function(e){
+  var t=e.target.closest('button');if(!t)return;
+  var act=t.getAttribute('data-act');
+  if(act==='pass'){openPass();return}
+  if(act==='whopart'){toast('Partner profile: an independent serving SW Ontario since 2011. Full profiles land with the real build.');return}
+  if(act==='editprefs2'){openPrefs(true);return}
+});
+
+/* ---------- region row sync ---------- */
+function syncRegions(){
+  var first=$('#cc-first');if(!first)return;
+  var badge=$('#regbadge'),mono=$('#regmono'),btn=$('#ccjoin');
+  if(!S.joined&&VIS.indexOf(S.state)>-1){
+    badge.textContent=S.state==='waitlist'?'Elsewhere \u00b7 open to join':'Open to join \u00b7 closes Sep 12';
+    badge.classList.add('live');
+    if(!btn&&S.state==='result'){
+      var b=document.createElement('button');
+      b.className='btn terra ccbtn';b.id='ccjoin';b.type='button';b.textContent='Choose this cohort';
+      b.setAttribute('data-choose','le');
+      first.querySelector('.cc__b').appendChild(b);
+    }
+    if(btn&&S.state!=='result')btn.remove();
+  }else{
+    if(btn)btn.remove();
+  }
+}
+
+/* ---------- hello line per state ---------- */
+var HELLOSUB={arrive:'Let\u2019s find out what your bill should be.',
+ result:'Here\u2019s your result, and the cohort that acts on it.',
+ waitlist:'Your region is gathering. Here\u2019s where it stands.',
+ passed:'You passed, and that\u2019s a fine answer. Here\u2019s where things stand.',
+ short:'This window didn\u2019t fill. Here\u2019s exactly what happens instead.',
+ closing:'Your cohort locks Friday. Last calls.'};
+function helloSub(){
+  var p=$('.hello p');if(p)p.textContent=HELLOSUB[S.state]||'Here is where your cohort stands, and what happens next.';
+}
+
+/* ---------- visitor router (called at top of render) ---------- */
+function routeVisitor(){
+  helloSub();
+  var isVis=VIS.indexOf(S.state)>-1;
+  $('#member-home').hidden=isVis;
+  $('#visitor-home').hidden=!isVis;
+  var cliff=$('.cliff');if(cliff)cliff.style.display=(S.state==='arrive'||S.state==='waitlist')?'none':'';
+  var pc=$('#prefscard');if(pc)pc.remove();
+  if(!isVis&&S.joined){
+    var aside=$('#member-home .aside');
+    if(aside)aside.insertAdjacentHTML('afterbegin',prefsCard());
+  }
+  if(!isVis)syncRate();
+  syncRegions();
+  $$('#sts button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-goto')===S.state)});
+  if(isVis){renderVisitorX();return true}
+  return false;
+}
+/* ================= end v9 additions ================= */
+/* ================= v10 additions ================= */
+
+/* ---------- your dates: rendered timeline ---------- */
+var DATES=[['close','Cohort closes','Sep 12'],['bid','Bidding runs','Sep 15 to 17'],['offer','Offer lands','Sep 24'],['switch','Switch window','October'],['cliff','Your promo cliff','November']];
+function renderTimeline(){
+  var wrap=$('#tlwrap');if(!wrap)return;
+  var hot=TL[S.state]||'close';
+  var hi=DATES.map(function(d){return d[0]}).indexOf(hot);if(hi<0)hi=0;
+  var nodes=DATES.map(function(d,i){
+    var cls=i<hi?'past':(i===hi?'now':'');
+    if(d[0]==='cliff')cls+=' cliffn';
+    return '<div class="tn3 '+cls+'" data-t="'+d[0]+'"><i>'+(i<hi?'\u2713':'')+'</i><b>'+d[1]+'</b><span>'+d[2]+'</span></div>';
+  }).join('');
+  wrap.innerHTML='<h4>Your dates</h4><div class="tline"><span class="tltrack"></span><span class="tlfill" style="width:'+(hi/(DATES.length-1)*100)+'%"></span>'+nodes+'</div>'
+   +'<p class="tlcap">One clock for everything: your texts, this page, and the partners\u2019 bidding desk all read the same dates.</p>';
+}
+
+/* ---------- rating everywhere, feedback after ---------- */
+S.rated=false;S.fbsent=false;
+function rateCardHTML(){
+  var prov=esc((S.checkup||{}).prov||'Rogers');
+  if(!S.rated){
+    return '<span class="eyebrow">One minute, once</span><h3>Rate '+prov+', privately</h3>'
+    +'<div class="aspects">'
+    +'<div class="aspect"><span>Price</span><div class="dots" data-a="price"></div></div>'
+    +'<div class="aspect"><span>Reliability</span><div class="dots" data-a="rel"></div></div>'
+    +'<div class="aspect"><span>Support</span><div class="dots" data-a="sup"></div></div>'
+    +'<div class="aspect"><span>Speed</span><div class="dots" data-a="spd"></div></div>'
+    +'</div>'
+    +'<button class="btn ghost ratego" type="button" style="width:100%;justify-content:center">Send rating</button>'
+    +'<p class="fnote">Never shown to bidding partners. Published only once enough members have rated, so one voice can\u2019t be picked out.</p>';
+  }
+  if(S.fbsent){
+    return '<span class="eyebrow">Heard</span><h3>Thank you</h3><p class="cardnote">It lands with a person, not a void. If it needs a reply, you\u2019ll get one.</p>';
+  }
+  return '<span class="eyebrow">'+prov+' rated \u2713</span><h3>Anything we should fix or build?</h3>'
+  +'<p class="cardnote">Two lines is plenty. This goes to the team, not to a form nobody reads.</p>'
+  +'<textarea class="fbtext" rows="3" placeholder="What\u2019s working, what\u2019s missing, what\u2019s confusing\u2026" aria-label="Feedback"></textarea>'
+  +'<button class="btn ghost fbgo" type="button" style="width:100%;justify-content:center;margin-top:9px">Send it</button>';
+}
+function syncRate(){
+  $$('.ratecardc').forEach(function(c){
+    c.innerHTML=rateCardHTML();
+    $$('.dots',c).forEach(function(d){
+      if(d.children.length)return;
+      for(var i=1;i<=5;i++){
+        var b=document.createElement('button');
+        b.type='button';b.setAttribute('data-v',i);
+        b.setAttribute('aria-label',d.getAttribute('data-a')+' rating '+i+' of 5');
+        d.appendChild(b);
+      }
+    });
+  });
+}
+document.addEventListener('click',function(e){
+  var db=e.target.closest('.dots button');
+  if(db){
+    var d=db.parentElement,v=+db.getAttribute('data-v');
+    $$('button',d).forEach(function(x,i){x.classList.toggle('on',i<v)});
+    return;
+  }
+  if(e.target.closest('.ratego')){
+    S.rated=true;syncRate();
+    toast('Rating noted, privately. Thank you.');
+    return;
+  }
+  if(e.target.closest('.fbgo')){
+    S.fbsent=true;syncRate();
+    toast('Sent to the team. Thank you.');
+  }
+});
+
+/* ---------- shared tiles for visitor pages ---------- */
+function referralHTML(){
+  return '<section class="card" aria-label="Referral">'
+  +'<span class="eyebrow">Refer anyone, anywhere</span><h3>Every referral moves a cohort</h3>'
+  +'<p class="cardnote">Neighbours strengthen the cohort here. Friends anywhere else speed up their own region\u2019s launch. Either way, someone\u2019s bill gets better.</p>'
+  +'<div class="codebox"><code class="refc">WHL-PRIYA-7</code><button class="copybtn copyrefc" type="button">Copy</button></div>'
+  +'</section>';
+}
+function readsCardHTML(){
+  var lis=BLOGS.slice(0,3).map(function(b,i){
+    return '<li><a href="blog/'+b[2]+'.html"><span class="rthumb">'+thumb(i)+'</span><span class="rtxt">'+esc(b[0])+'<small>'+b[1]+'</small></span></a></li>';
+  }).join('');
+  return '<section class="card" aria-label="Worth a read"><span class="eyebrow">Worth a read</span><ul class="reads">'+lis+'</ul><button class="tlink" type="button" data-nav="knowledge">See all &rarr;</button></section>';
+}
+function redditCardHTML(){
+  return '<section class="card" aria-label="The member room">'
+  +'<span class="eyebrow">The member room</span><h3>Talk to other members</h3>'
+  +'<p class="cardnote">Hosted on Reddit while we\u2019re small: bill wins, provider stories, and each cohort\u2019s own thread the day bidding starts.</p>'
+  +'<button class="btn ghost redditgo" type="button">Join us on Reddit</button></section>';
+}
+document.addEventListener('click',function(e){
+  if(e.target.closest('.copyrefc')){try{navigator.clipboard.writeText('WHL-PRIYA-7')}catch(err){}toast('Code copied: WHL-PRIYA-7');return}
+  if(e.target.closest('.redditgo'))toast('Prototype: this will open the member subreddit.');
+});
+
+/* ---------- animated invoice (ported from the checkup) ---------- */
+function invoiceHTML(){
+  return '<div class="inv-wrap"><div class="inv invA" aria-label="A real bill, animated">'
+  +'<h5>Internet \u00b7 monthly statement</h5>'
+  +'<div class="il"><em>Gigabit 1.5 plan <span class="plus7">+$7 by letter</span></em><b class="inv-plan">$126.99</b></div>'
+  +'<div class="il disc"><em>Savings: Internet Discount<small>ends May 21/26</small></em><b>&minus;$70.00</b><span class="stamp">Expired</span></div>'
+  +'<div class="il"><em>Wi\u2011Fi equipment</em><b>$10.00</b></div>'
+  +'<div class="il"><em>Pod rental</em><b>$7.00</b></div>'
+  +'<div class="tot"><em>Total before tax</em><b class="inv-tot">$73.99</b></div>'
+  +'</div></div>'
+  +'<p class="inv-cap">A real household\u2019s statements, Jan to May 2026, anonymized. The discount expired, <b>nobody called to warn them.</b></p>';
+}
+function tween(el,from,to,ms){
+  var t0=null;
+  function f(t){
+    if(!document.contains(el))return;
+    if(t0===null)t0=t;
+    var p=Math.min(1,(t-t0)/ms),v=from+(to-from)*(p*p*(3-2*p));
+    el.textContent='$'+v.toFixed(2);
+    if(p<1)requestAnimationFrame(f);
+  }
+  requestAnimationFrame(f);
+}
+function invCycle(){
+  var el=$('.invA');
+  if(el){
+    if(reduce){
+      el.classList.add('p0','p1','p2');
+      $('.inv-plan',el).textContent='$133.99';$('.inv-tot',el).textContent='$150.99';
+      return;
+    }
+    el.className='inv invA';
+    $('.inv-plan',el).textContent='$126.99';$('.inv-tot',el).textContent='$73.99';
+    setTimeout(function(){var e=$('.invA');if(e)e.classList.add('p0')},200);
+    setTimeout(function(){var e=$('.invA');if(!e)return;e.classList.add('p1');tween($('.inv-plan',e),126.99,133.99,600);tween($('.inv-tot',e),73.99,80.99,600)},2400);
+    setTimeout(function(){var e=$('.invA');if(!e)return;e.classList.add('p2');tween($('.inv-tot',e),80.99,150.99,1100)},4600);
+  }
+  invT=setTimeout(invCycle,9200);
+}
+var invT=null;
+function invKick(){if(invT)clearTimeout(invT);invCycle()}
+invCycle();
+
+/* ---------- arrive v10: animation + CTA, form behind it ---------- */
+function rvArriveX(){
+  return '<section class="card vfirst" aria-label="Check if you are overpaying">'
+  +'<div class="arr2">'
+  +'<div class="arrleft">'+invoiceHTML()+'</div>'
+  +'<div class="arrright">'
+  +'<span class="eyebrow" style="color:#8C4622">Two minutes, free, private</span>'
+  +'<h3>Is your bill quietly doing this?</h3>'
+  +'<p class="cardnote">Promos expire without a call, the jump lands on autopay, and most households notice a statement or two later. Find out where yours stands and what it should cost.</p>'
+  +'<button class="btn terra" type="button" id="cf-open">Check if I\u2019m overpaying</button>'
+  +'<p class="fnote">Your bill stays private. Bidding partners only ever see cohort aggregates, never you.</p>'
+  +'</div></div>'
+  +'<div class="cfform" id="cfform" hidden>'
+  +'<button class="upl" type="button" id="upbill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg>Add your bill \u00b7 we read the rest</button>'
+  +'<div class="orline"><span>or tell us</span></div>'
+  +'<div class="ffields">'
+  +'<div><label>Current provider</label><select id="cf-prov"><option>Rogers</option><option>Bell</option><option>TekSavvy</option><option>Cogeco</option><option>Start.ca</option><option>Other</option></select></div>'
+  +'<div><label>Monthly charge ($)</label><input id="cf-bill" type="number" value="92" min="10" step="1" inputmode="numeric"></div>'
+  +'<div><label>Speed</label><select id="cf-speed"><option>500 Mbps</option><option>1 Gig</option><option>Under 500</option><option>Not sure</option></select></div>'
+  +'<div><label>Promo ends</label><select id="cf-promo"><option>Not sure</option><option selected>Nov 2026</option><option>Dec 2026</option><option>Jan 2027</option><option>Feb 2027</option><option>No promo</option></select></div>'
+  +'</div>'
+  +'<button class="btn terra" type="button" id="cf-go" style="width:100%;justify-content:center;margin-top:14px">See my result</button>'
+  +'</div>'
+  +'</section>'
+  +'<section class="card" style="margin-top:16px" aria-label="How Whollar works">'
+  +'<span class="eyebrow">While you\u2019re here</span><h3>How this works, in one breath</h3>'
+  +'<p class="cardnote">Households pool by region and renewal timing. Providers bid sealed for the whole cohort. You see the winning offer, and you take it or you don\u2019t. Free either way, because providers pay us only when a switch completes.</p>'
+  +'</section>';
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest('#cf-open'))return;
+  var f=$('#cfform');if(!f)return;
+  f.hidden=false;
+  e.target.closest('#cf-open').style.display='none';
+  f.scrollIntoView({behavior:reduce?'auto':'smooth',block:'center'});
+});
+
+/* ---------- visitor layout: main + aside + shared tiles ---------- */
+function renderVisitorX(){
+  var main=S.state==='arrive'?rvArriveX():(S.state==='result'?rvResult():rvWaitlist());
+  $('#visitor-home').innerHTML='<div class="grid2"><div class="vmain">'+main+'</div>'
+   +'<aside class="aside"><section class="card ratecardc" aria-label="Rate your provider"></section>'+referralHTML()+'</aside></div>'
+   +'<div class="trio vtrio">'+readsCardHTML()+redditCardHTML()+'</div>';
+  syncRate();
+  if(S.state==='arrive')invKick();
+}
+/* ================= end v10 additions ================= */
+
+
+render();
+})();
+</script>
+</body>
+</html>

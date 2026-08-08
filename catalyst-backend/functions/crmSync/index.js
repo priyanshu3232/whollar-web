@@ -273,6 +273,14 @@ function updateFields(source, data) {
   return fields;
 }
 
+// The contract-length <select> values, as both forms send them. '0' and '-1'
+// are answers, not lengths, and reading "Contract length: -1" off a lead is
+// worse than reading nothing.
+const CONTRACT_LENGTH = {
+  '0': 'No contract / month-to-month',
+  '-1': 'Not sure'
+};
+
 function noteFor(source, email, data, isProd, dropped) {
   const meta = SOURCE_META[source] || { label: source };
   const devTag = isProd ? '' : '[DEV] ';
@@ -312,13 +320,30 @@ function noteFor(source, email, data, isProd, dropped) {
   }
 
   add('Provider', data.provider);
-  add('Monthly charge (before discount)', money(data.cost));
-  add('Effective monthly cost (what they pay today)', money(data.effectiveCost));
+  // What `cost` means changed on 2026-08-08: it is now the net figure the
+  // household pays TODAY, promo included, not the regular price. The label
+  // said "before discount" for two days after that, which is the one reading
+  // a rep must not take from it. `effectiveCost` is the same number by that
+  // definition, so it only earns a line when it actually differs.
+  add('Monthly charge (what they pay today)', money(data.cost));
+  if (data.effectiveCost !== undefined && data.effectiveCost !== null
+      && Number(data.effectiveCost) !== Number(data.cost)) {
+    add('Effective monthly cost', money(data.effectiveCost));
+  }
   add('Download speed', data.speed);
   add('Access tech', data.tech);
   add('Promo end', data.promoEnd);
   add('Months to renewal', data.monthsToRenewal);
   add('Discount', money(data.discount));
+  // The number the conversation is actually about: what the bill becomes when
+  // the promo lapses. Derived rather than collected, because the form asks
+  // what they pay now and how much is taken off, not the sum of the two.
+  if (Number(data.discount) > 0 && Number(data.cost) > 0) {
+    add('Price after the promo ends', money(Number(data.cost) + Number(data.discount)));
+  }
+  add('Contract start', data.contractStart);
+  add('Contract length', CONTRACT_LENGTH[String(data.contractLength)]
+    || (data.contractLength ? `${data.contractLength} months` : null));
   add('Switch threshold', data.threshold);
   // One geography block, in one format: "A1A 1A1" plus the FSA and province.
   add('Postal code', data.postal);

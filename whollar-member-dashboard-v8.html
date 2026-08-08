@@ -98,13 +98,6 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .cliffchip b{display:block;font-family:var(--mono);font-size:26px;color:var(--terra);line-height:1.1}
 .cliffchip span{font-size:12.5px;color:#8C4622;font-weight:600}
 @media (max-width:1100px){.cliff .step{display:none}}
-.ochips{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
-.ochips button{border:1.5px solid var(--line);border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:600;color:#3A453E;transition:background .15s}
-.ochips button:hover{background:#EDE8DB}
-.ochips button.on{background:var(--mint);border-color:var(--accent);color:var(--accent-deep)}
-.olabel{font-size:12px;font-weight:700;color:var(--sub);display:block;margin:10px 0 5px}
-.osel{width:100%;font:inherit;font-size:13.5px;background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;color:var(--ink)}
-.osel:focus{outline:none;border-color:var(--accent)}
 .trio{display:grid;grid-template-columns:repeat(auto-fit,minmax(262px,1fr));gap:16px;margin-top:20px}
 .trio > .card{display:flex;flex-direction:column}
 .trio > .card > :last-child{margin-top:auto}
@@ -165,7 +158,6 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .pchips span{font-size:11.5px;font-weight:700;background:#EDE8DB;border-radius:999px;padding:4px 11px;color:#3A453E}
 .phero .tlink{margin-left:auto;margin-top:0}
 .hr2{height:1px;background:var(--line);margin:16px 0 12px}
-.sigline{font-size:12.5px;color:var(--accent-deep);font-weight:600;margin-top:5px}
 .siglabel{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#8C4622}
 .sigbars{display:flex;align-items:center;gap:5px;margin:9px 0 10px}
 .sigbars i{width:26px;height:9px;border-radius:5px;background:#E9D5C2;display:block}
@@ -209,7 +201,6 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .cluster svg{width:100%;max-width:430px;height:auto;display:block}
 .progline{display:flex;justify-content:space-between;font-size:13px;color:var(--sub);max-width:430px}
 .progline b{font-family:var(--mono);color:var(--ink)}
-.youline{font-size:12px;color:var(--terra);font-weight:650;margin-top:5px}
 .bidrows{display:flex;flex-direction:column;gap:8px;margin:13px 0}
 .bidrow{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 14px}
 .bidrow .dot{width:10px;height:10px;border-radius:50%}
@@ -527,25 +518,6 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
         </div>
 
         <div class="trio">
-<section class="card" aria-label="Report an outage" id="outagecard">
-              <span class="eyebrow" style="color:#8C4622">Connection trouble?</span>
-              <h3>Report an outage</h3>
-              <p class="cardnote">Tell us what's happening. We'll check whether other London East members are seeing it too, and if it keeps up, we'll raise it with your provider for you.</p>
-              <div class="ochips" id="ochips" role="group" aria-label="What is happening">
-                <button type="button" data-o="Internet down" class="on">Internet down</button>
-                <button type="button" data-o="Slow speeds">Slow speeds</button>
-                <button type="button" data-o="Keeps dropping">Keeps dropping</button>
-              </div>
-              <label class="olabel" for="osince">Since when</label>
-              <select id="osince" class="osel">
-                <option>Just now</option>
-                <option>Past hour</option>
-                <option>Today</option>
-                <option>Since yesterday</option>
-              </select>
-              <p class="fnote">Reporting for London East, from your switch file.</p>
-              <button class="btn" type="button" id="osend" style="width:100%;justify-content:center">Report it</button>
-            </section>
 <section class="card" aria-label="Worth a read">
               <span class="eyebrow">Worth a read</span>
               <ul class="reads" id="reads"></ul>
@@ -859,8 +831,6 @@ function tplForming(){
   +'<p class="p">Cohorts get bid on when providers can see real demand. Every dot is a household; every neighbour who joins strengthens the number your whole cohort gets.</p>'
   +'<div class="cluster">'+dotCluster()+'</div>'
   +'<div class="progline"><span><b>'+S.cohort.have+'</b> of <b>'+S.cohort.need+'</b> households</span><span>opens the auction at '+S.cohort.need+'</span></div>'
-  +'<div class="youline">The orange dot is you.</div>'
-  +'<div class="sigline">Signal: likely below your current rate. The real number is the output of real bids.</div>'
   +'<div style="margin-top:15px"><button class="btn" type="button" data-act="invite">Invite a neighbour</button></div>';
 }
 function tplLocked(){
@@ -959,7 +929,6 @@ function render(){
   if(hot)hot.classList.add('hot');
   var items=[];
   for(var i=0;i<=idx;i++){(FEED[STATES[i]]||[]).forEach(function(f){items.push(f)})}
-  EXTRA.forEach(function(f){items.push(f)});
   $('#feed').innerHTML=items.map(function(f){return '<li><span class="when">'+esc(f[0])+'</span>'+esc(f[1])+'</li>'}).reverse().join('');
   var badge=$('#regbadge');if(badge)badge.textContent='Your cohort \u00b7 '+(S.sub==='stayed'?'Staying put':PILL[S.state]);
   var rm=$('#regmono');if(rm)rm.textContent=S.state==='forming'?(S.cohort.have+' of '+S.cohort.need+' households'):(S.cohort.locked+' households, '+PILL[S.state].toLowerCase());
@@ -1045,26 +1014,6 @@ document.addEventListener('click',function(e){
   if(e.target.closest('#pf-signout'))toast('Prototype: sign out.');
   if(e.target.closest('#dl-data'))toast('Prototype: your data export will land by email.');
   if(e.target.closest('#del-acct'))toast('Prototype: deletion flow, with a real confirm step.');
-});
-
-/* ---------- outage report ---------- */
-var EXTRA=[];
-var oc=$('#ochips');
-if(oc)oc.addEventListener('click',function(e){
-  var b=e.target.closest('button');if(!b)return;
-  $$('button',oc).forEach(function(x){x.classList.remove('on')});
-  b.classList.add('on');
-});
-var osend=$('#osend');
-if(osend)osend.addEventListener('click',function(){
-  var what=($('.ochips button.on')||{}).getAttribute?$('.ochips button.on').getAttribute('data-o'):'Internet down';
-  var since=$('#osince').value;
-  EXTRA.push(['Today','You reported: '+what.toLowerCase()+', '+since.toLowerCase()+'. We\u2019re checking your area.']);
-  $('#outagecard').innerHTML='<span class="eyebrow" style="color:#8C4622">Connection trouble?</span>'
-   +'<h3>Logged. We\u2019re on it.</h3>'
-   +'<p class="cardnote">We\u2019re checking reports from other London East members and will text you if it\u2019s more than just you. If it keeps up, we\u2019ll raise it with Rogers on your behalf, that\u2019s what the concierge is for.</p>';
-  toast('Outage logged: '+what+'. We\u2019ll text you what we find.');
-  render();
 });
 
 /* ---------- blog thumbnails ---------- */

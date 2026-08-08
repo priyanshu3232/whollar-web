@@ -38,12 +38,28 @@ const { wrap, badRequest, unauthorized, forbidden } = require('../lib/errors');
 const TABLE = 'member_bills';
 
 /**
- * The public checkup's lead table, owned by the formSubmit function and
- * created in the console long before this file existed. Read-only here, and
- * only inside the backfill; column names are its PascalCase, not our
- * snake_case.
+ * The public lead tables, owned by the formSubmit function and created in the
+ * console long before this file existed. Read-only here, and only inside the
+ * backfill; column names are their PascalCase, not our snake_case.
+ *
+ * Two of them, tried in this order:
+ *
+ *   BillCheckupSubmissions  the checkup — nine questions, the richest reading
+ *                           anyone gives us, and the primary path.
+ *   WaitlistDetails         stage 2 of the join page, which asks a subset of
+ *                           the same questions right after signup.
+ *
+ * The join page POSTs its answers straight to `/me/bill` (it is same-origin
+ * and the member is signed in by the time that form appears), so this second
+ * table is the same kind of safety net the first one is: it catches the
+ * submission whose member write was lost to a closed tab or a dropped
+ * connection. It is consulted only when the checkup table has nothing, rather
+ * than merged newest-wins across both — the checkup asks strictly more, and a
+ * second query on every dashboard load to occasionally prefer the thinner
+ * answer is a bad trade.
  */
 const LEADS_TABLE = 'BillCheckupSubmissions';
+const WAITLIST_TABLE = 'WaitlistDetails';
 
 /* ------------------------------------------------------------------ *
  * Field hygiene
@@ -106,6 +122,8 @@ function publicBill(row) {
     promoEnd: row.promo_end_date || null,
     promoExpired: Boolean(Number(row.promo_expired || 0)),
     discount: row.discount_amount || null,
+    contractStart: row.contract_start_date || null,
+    contractLength: row.contract_length || null,
     threshold: row.switch_threshold || null,
     source: row.source || null,
     updatedAt: row.updated_at || null,
@@ -117,8 +135,8 @@ function publicBill(row) {
  * ------------------------------------------------------------------ */
 
 /**
- * The latest lead this member's email left in the public checkup that actually
- * carries a bill, or null.
+ * The latest lead this member's email left in either public table that
+ * actually carries a bill, or null.
  *
  * Reads a short window rather than one row, because the newest lead is often
  * not the informative one: the checkup's quick-join rail files a lead as soon
@@ -128,42 +146,89 @@ function publicBill(row) {
  * the member's real checkup would stay invisible on every subsequent load.
  *
  * Tries the address exactly as they typed it at signup and its lowercased
- * form. The checkup route now lowercases Email on write, so the normalized
+ * form. Both lead routes now lowercase Email on write, so the normalized
  * candidate matches every new row; rows written before that change kept the
  * visitor's casing, and ZCQL offers no LOWER(), so one of those cased a third
  * way is simply not found. That is an accepted miss: the pending-handoff path
  * on the client covers the same-device case regardless of casing.
  *
- * Every failure returns null. The lead table belongs to another function; it
- * being renamed, empty, or mid-migration must degrade to "no earlier checkup",
- * never to a 500 on the member's dashboard.
+ * Every failure returns null. The lead tables belong to another function; one
+ * being renamed, empty, or mid-migration must degrade to "no earlier reading",
+ * never to a 500 on the member's dashboard. That is also why each source
+ * carries a reduced column list: the newest columns are added to the live
+ * tables by hand, and a SELECT naming one that does not exist yet fails
+ * wholesale. Falling back to the columns that predate the change keeps the
+ * older fields adoptable in the window between a deploy and the console edit.
+ *
+ * Returns { row, fields, source } — `source` being the tag written to
+ * member_bills so a later reader can tell which table an adopted row came
+ * from.
  */
 const LEAD_WINDOW = 5;
+
+const LEAD_SOURCES = [
+  {
+    table: LEADS_TABLE,
+    source: 'bill-checkup-backfill',
+    map: fromLead,
+    columns: [
+      ['Provider', 'MonthlyCost', 'DownloadSpeed', 'AccessTech', 'PromoEndDate',
+        'PromoExpired', 'DiscountAmount', 'ContractStartDate', 'ContractLength',
+        'SwitchThreshold'],
+      ['Provider', 'MonthlyCost', 'DownloadSpeed', 'AccessTech', 'PromoEndDate',
+        'PromoExpired', 'DiscountAmount', 'SwitchThreshold'],
+    ],
+  },
+  {
+    table: WAITLIST_TABLE,
+    source: 'waitlist-backfill',
+    map: fromWaitlistLead,
+    // One list, because this table is not being widened: the join form's
+    // discount and contract answers go to member_bills directly and are not
+    // copied here. A recovered row is therefore the five fields below and not
+    // the whole picture, which is the right trade for a path that only runs
+    // when the member's own write was lost.
+    columns: [
+      ['Provider', 'MonthlyCost', 'DownloadSpeed', 'PromoEndDate', 'SwitchThreshold'],
+    ],
+  },
+];
 
 async function latestLead(catalystApp, user) {
   const candidates = [...new Set(
     [user.email_display, user.email_normalized].filter(Boolean)
   )];
 
-  for (const email of candidates) {
-    try {
-      const rows = await datastore.query(
-        catalystApp, LEADS_TABLE,
-        `SELECT ROWID, Provider, MonthlyCost, DownloadSpeed, AccessTech, ` +
-        `PromoEndDate, PromoExpired, DiscountAmount, SwitchThreshold, ` +
-        `SubmittedAt, CREATEDTIME ` +
-        `FROM ${LEADS_TABLE} WHERE Email = ${datastore.lit(email)} ` +
-        `ORDER BY ROWID DESC LIMIT ${LEAD_WINDOW}`
-      );
-      for (const row of rows) {
-        if (hasSubstance(fromLead(row))) return row;
+  for (const src of LEAD_SOURCES) {
+    for (const email of candidates) {
+      for (const columns of src.columns) {
+        try {
+          const rows = await datastore.query(
+            catalystApp, src.table,
+            `SELECT ROWID, ${columns.join(', ')}, SubmittedAt, CREATEDTIME ` +
+            `FROM ${src.table} WHERE Email = ${datastore.lit(email)} ` +
+            `ORDER BY ROWID DESC LIMIT ${LEAD_WINDOW}`
+          );
+          for (const row of rows) {
+            const fields = src.map(row);
+            if (hasSubstance(fields)) return { row, fields, source: src.source };
+          }
+          // The query worked, so the narrower column list would only find the
+          // same rows with less on them. Move on to the next address.
+          break;
+        } catch (err) {
+          // lit() rejecting an odd address, a column not added in the console
+          // yet, or the table missing: not found — fall through rather than
+          // aborting the search. Logged (without the address) so a renamed
+          // column doesn't masquerade as "this member never ran a checkup"
+          // forever.
+          console.warn(JSON.stringify({
+            evt: 'member.bill.lead_lookup_failed',
+            table: src.table,
+            message: err && err.message,
+          }));
+        }
       }
-    } catch (err) {
-      // lit() rejecting an odd address, or the table missing: not found —
-      // fall through to the next candidate rather than aborting the search.
-      // Logged (without the address) so a renamed column doesn't masquerade
-      // as "this member never ran a checkup" forever.
-      console.warn(JSON.stringify({ evt: 'member.bill.lead_lookup_failed', message: err && err.message }));
     }
   }
   return null;
@@ -202,7 +267,7 @@ function leadIsNewer(lead, row) {
   return at.getTime() > held.getTime();
 }
 
-/** A lead row reshaped into a member_bills row (without user_id/source). */
+/** A checkup lead row reshaped into a member_bills row (no user_id/source). */
 function fromLead(lead) {
   return {
     provider: str(lead.Provider, 100),
@@ -212,6 +277,33 @@ function fromLead(lead) {
     promo_end_date: promoEnd(lead.PromoEndDate),
     promo_expired: truthy(lead.PromoExpired) ? 1 : 0,
     discount_amount: money(lead.DiscountAmount),
+    contract_start_date: promoEnd(lead.ContractStartDate),
+    contract_length: str(lead.ContractLength, 8),
+    switch_threshold: str(lead.SwitchThreshold, 64),
+  };
+}
+
+/**
+ * A WaitlistDetails row reshaped the same way.
+ *
+ * Only the five fields that table holds. The join form asks more than that —
+ * access technology, the expired-promo flag, the discount and the contract
+ * dates — but those reach the member through POST /me/bill rather than being
+ * duplicated into the lead row, so they come back empty here instead of being
+ * guessed at. `promo_expired` is 0 rather than null because the column is a
+ * flag the dashboard reads as a boolean.
+ */
+function fromWaitlistLead(lead) {
+  return {
+    provider: str(lead.Provider, 100),
+    monthly_cost: money(lead.MonthlyCost),
+    download_speed: str(lead.DownloadSpeed, 16),
+    access_tech: null,
+    promo_end_date: promoEnd(lead.PromoEndDate),
+    promo_expired: 0,
+    discount_amount: null,
+    contract_start_date: null,
+    contract_length: null,
     switch_threshold: str(lead.SwitchThreshold, 64),
   };
 }
@@ -241,16 +333,17 @@ function mount(router) {
 
     let row = await datastore.findBy(req.catalyst, TABLE, 'user_id', user.user_id);
 
-    // The lead table is consulted when we hold nothing, and when what we hold
-    // could be superseded by a checkup run since. See the file header.
+    // The lead tables are consulted when we hold nothing, and when what we
+    // hold could be superseded by a reading given since. See the file header.
     // latestLead only ever returns a lead with a bill in it, so the only
     // question left here is which of the two readings is more recent.
     if (!row || adoptable(row)) {
-      const lead = await latestLead(req.catalyst, user);
-      if (lead && (!row || leadIsNewer(lead, row))) {
+      const found = await latestLead(req.catalyst, user);
+      const lead = found && found.row;
+      if (found && (!row || leadIsNewer(lead, row))) {
         const adopted = {
-          ...fromLead(lead),
-          source: 'bill-checkup-backfill',
+          ...found.fields,
+          source: found.source,
           updated_at: datastore.nowDb(),
         };
         try {
@@ -264,7 +357,11 @@ function mount(router) {
             outcome: 'success',
             userId: user.user_id,
             email: user.email_normalized,
-            detail: { lead_rowid: String(lead.ROWID), replaced: Boolean(row) },
+            detail: {
+              lead_rowid: String(lead.ROWID),
+              lead_source: found.source,
+              replaced: Boolean(row),
+            },
           });
           row = { ...(row || {}), ...adopted };
         } catch {
@@ -298,6 +395,9 @@ function mount(router) {
       promo_end_date: promoEnd(b.promoEnd),
       promo_expired: truthy(b.promoExpired) ? 1 : 0,
       discount_amount: money(b.discount),
+      // Same month-granular shape as promo_end_date; promoEnd() validates both.
+      contract_start_date: promoEnd(b.contractStart),
+      contract_length: str(b.contractLength, 8),
       switch_threshold: str(b.threshold, 64),
     };
 
@@ -307,7 +407,12 @@ function mount(router) {
       });
     }
 
-    const source = b.source === 'dashboard' ? 'dashboard' : 'bill-checkup';
+    // Where this reading came from, for the line the dashboard prints under
+    // the switch file and for adoptable() below. An unknown value is treated
+    // as the checkup rather than refused: the tag is provenance, not
+    // authorisation, and a caller inventing one must not cost the member
+    // their save.
+    const source = ['dashboard', 'waitlist'].includes(b.source) ? b.source : 'bill-checkup';
     const existing = await datastore.findBy(
       req.catalyst, TABLE, 'user_id', user.user_id, ['ROWID', 'user_id']
     );
