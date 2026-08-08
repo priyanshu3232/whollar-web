@@ -19,7 +19,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="/js/device-router.js?v=20260806a"></script>
 <script src="/js/whollar-fsa-cities.js?v=20260807"></script>
-<script src="/js/whollar-signal-lookup.js?v=20260807"></script>
 <script src="/js/whollar-core.js?v=20260808a"></script>
 <script src="/js/checkup-savings.js?v=20260808b"></script>
 <title>Check if you’re overpaying for internet · Whollar</title>
@@ -413,6 +412,17 @@ body[data-screen="2"] .only1{display:none!important}
 .join2 h3{color:#fff;font-size:18px;font-weight:900;position:relative}
 .join2 p{font-size:13px;color:rgba(255,255,255,.75);margin-top:5px;line-height:1.55;position:relative}
 .join2 .gerow{margin-top:13px}
+/* The card's own background IS var(--teal) — the exact colour .whl-btn fills
+   with — so the button's shape sat at 1.23:1 against it and only the white
+   label read as anything at all. Filled accent instead, the same treatment
+   .sig-cta uses for the other button that lives on a dark card. Label is
+   --teal-deep, not #0E2A20: 4.97:1 on accent where #0E2A20 is 4.47:1, under
+   the AA floor at this size. */
+.join2 .whl-btn{margin-top:14px;background:var(--accent);color:var(--teal-deep);font-weight:700;box-shadow:0 8px 22px -8px rgba(30,158,99,.6)}
+.join2 .whl-btn:hover{background:var(--teal-soft);color:var(--teal-deep);transform:translateY(-1px);box-shadow:0 10px 26px -8px rgba(127,227,176,.55)}
+.join2 .whl-btn svg{transition:transform .18s}
+.join2 .whl-btn:hover svg{transform:translateX(3px)}
+.join2 .whl-btn:focus-visible{outline:2px solid var(--teal-soft);outline-offset:3px}
 
 /* 11 levers */
 .lev{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-1);padding:18px}
@@ -615,7 +625,7 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
             <span class="noted">Noted &mdash; worth finding. See below.</span>
           </div>
           <div class="f q" data-live>
-            <div class="qhead"><span class="qno">09</span><label for="disc">How much is taken off each month</label></div>
+            <div class="qhead"><span class="qno">09</span><label for="disc">Discount/waiver</label></div>
             <input id="disc" placeholder="$ 0" inputmode="decimal" maxlength="12" autocomplete="off">
             <p class="whl-fielderr" id="disc-err" role="alert" style="display:none"></p>
           </div>
@@ -901,7 +911,7 @@ $('#disc').addEventListener('input',e=>{S.disc=W.parseMoney(e.target.value)||0;s
 $('#disc').addEventListener('blur',e=>{
   if(!e.target.value.trim())return;
   const r=W.parseMoneyInRange(e.target.value,0,W.BILL_MAX);
-  if(!r.ok){W.fieldError(e.target,'Enter your discount as a number, e.g. 15.');return;}
+  if(!r.ok){W.fieldError(e.target,'Enter your discount/waiver as a number, e.g. 15.');return;}
   W.clearFieldError(e.target);e.target.value=String(r.value);S.disc=r.value;saveDraft();
   if(S.cost&&r.value>S.cost){
     W.fieldError(e.target,'That’s more than what you pay each month. If $'+r.value+' is what the bill goes to after the promo, enter the amount taken off instead.');
@@ -1379,7 +1389,7 @@ $('#checkup-form').addEventListener('submit',async e=>{
   const discRaw=$('#disc').value.trim();
   if(discRaw){
     const discR=W.parseMoneyInRange(discRaw,0,W.BILL_MAX);
-    if(!discR.ok){W.fieldError($('#disc'),'Enter your discount as a number, e.g. 15.');return;}
+    if(!discR.ok){W.fieldError($('#disc'),'Enter your discount/waiver as a number, e.g. 15.');return;}
     /* discount > charge is allowed (see the blur handler): it warns there but
        must never hold the results hostage here. */
     S.disc=discR.value;
@@ -1615,7 +1625,7 @@ function renderResults(){
      page links to). The checkup handoff (W.checkup.save) already carries this
      bill to whatever account they create. Consent copy belongs to the signup
      form itself, so none is repeated here. */
-  else{j2.innerHTML='<h3>'+(S.pc?'Join the '+W.escapeHtml(S.pc)+' cohort':'Join the cohort')+'</h3><p>Households in '+(S.pc?W.escapeHtml(S.pc):'your area')+' get pooled together, then ISPs bid to win the group. Free to join, and you\u2019re never obligated to take an offer.</p><a class="whl-btn" id="j2-cta" href="/MobileVersion/join-the-first-cohort-mobile" style="margin-top:4px">Join the cohort</a>';}
+  else{j2.innerHTML='<h3>'+(S.pc?'Join the '+W.escapeHtml(S.pc)+' cohort':'Join the cohort')+'</h3><p>Households in '+(S.pc?W.escapeHtml(S.pc):'your area')+' get pooled together, then ISPs bid to win the group. Free to join, and you\u2019re never obligated to take an offer.</p><a class="whl-btn" id="j2-cta" href="/MobileVersion/join-the-first-cohort-mobile">Join the cohort<svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>';}
   if(S.email)$('#deep-email').value=$('#deep-email').value||S.email;
 }
 
