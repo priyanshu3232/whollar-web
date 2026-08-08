@@ -432,7 +432,7 @@ body[data-screen="2"] .only1{display:none!important}
 .lt .st{margin-left:auto;flex:none;font-family:var(--label);font-weight:600;font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;border-radius:999px;padding:3px 8px;white-space:nowrap}
 /* Three tiers, three TREATMENTS — filled, outlined, neutral — not three
    shades of one. Shade alone had "yours" (#F7FCF9 card, green-tint pill) and
-   "$0 by law" (#FAFDFB card, the same green-tint pill) one notch apart, so at
+   "$0 with Whollar" (#FAFDFB card, the same green-tint pill) one notch apart, so
    arm's length the two groups were one group. The 3px left rail carries the
    split on its own; the pill fill confirms it. Rail width is taken out of
    padding-left so body text stays aligned down all three tiers. */
@@ -442,18 +442,19 @@ body[data-screen="2"] .only1{display:none!important}
 .lt.lock{cursor:pointer}
 .lt.lock .st{color:var(--ink-3);background:var(--mist)}
 .lt.lock:hover{border-color:#cdd7d1;transform:translateY(-1px)}
-.lt .st.law{color:var(--accent-deep);background:var(--paper);box-shadow:inset 0 0 0 1.5px #A8D9BE}
-/* Middle tier: outlined, not tinted. A row here is a fact about the law, not
-   something the household told us, so it stays on paper and states its case
-   with a ring — same hue family as "yours", opposite fill. That also keeps it
-   clear of the agreement rows below, which carry no rail and no green at all.
+.lt .st.free{color:var(--accent-deep);background:var(--paper);box-shadow:inset 0 0 0 1.5px #A8D9BE}
+/* Middle tier: outlined, not tinted. A row here is a cost Whollar takes off
+   the table, not something the household told us, so it stays on paper and
+   states its case with a ring — same hue family as "yours", opposite fill.
+   That also keeps it clear of the agreement rows below, which carry no rail
+   and no green at all.
    :hover needs its own rule: .lt.lock:hover ties this selector on specificity
    and loses on order. */
-.lt.lock.lawtier{border-color:#DDE6E1;background:var(--paper);border-left:3px solid #A8D9BE;padding-left:10px}
-.lt.lock.lawtier .no{background:var(--paper);color:var(--accent-deep);box-shadow:inset 0 0 0 1.5px #CFE8DA}
-.lt.lock.lawtier:hover{border-color:#cdd7d1;border-left-color:var(--accent)}
+.lt.lock.whollar{border-color:#DDE6E1;background:var(--paper);border-left:3px solid #A8D9BE;padding-left:10px}
+.lt.lock.whollar .no{background:var(--paper);color:var(--accent-deep);box-shadow:inset 0 0 0 1.5px #CFE8DA}
+.lt.lock.whollar:hover{border-color:#cdd7d1;border-left-color:var(--accent)}
 .lt-div{height:1px;margin:15px 2px 6px;border-radius:1px}
-.lt-div--lawtier{background:linear-gradient(90deg,#A8D9BE,#A8D9BE 60%,transparent)}
+.lt-div--whollar{background:linear-gradient(90deg,#A8D9BE,#A8D9BE 60%,transparent)}
 .lt-div--agreement{background:linear-gradient(90deg,var(--ink-3),var(--ink-3) 60%,transparent);opacity:.35}
 
 footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;color:var(--ink-3);line-height:1.7}
@@ -1633,31 +1634,32 @@ function renderLevers(){
     ['Access technology','Fibre, cable, 5G, DSL: same speed, different price.',!!S.tech],
     ['Address / postal code','Decides who can even reach your door.',!!S.pc],
     ['Promo vs. regular rate','The cliff: the single biggest driver of overpayment.',!!S.pdate],
-    ['Contract & exit terms','Early-exit fees: banned since June 2026.',false,'$0 by law'],
+    ['Contract & exit terms','Exit fees are $0 on every Whollar switch.',false,'$0 with Whollar'],
     ['Equipment rental','$5\u201315/mo for the box, free at most independents.',false],
-    ['Install & activation','One-time fees: banned since June 2026.',false,'$0 by law'],
+    ['Install & activation','Setup and activation are $0 on every Whollar switch.',false,'$0 with Whollar'],
     ['Data caps & overage','\u201cUnlimited\u201d sometimes means deprioritised.',false],
     ['Bundling','Stated savings often evaporate under audit.',false],
     ['Provider type','Same physical line, 20\u201340% apart on billing.',!!S.prov],
     ['Add-ons & QoS','Static IP, mesh, priority support: rarely contractual.',false]
   ];
-  /* Three tiers: yours first, then the $0-by-law rows, then the agreement
-     rows. Re-sorted on every render since "got" tracks live form state, so a
+  /* Three tiers: yours first, then the rows Whollar zeroes out, then the
+     agreement rows. Re-sorted on every render since "got" tracks live form
+     state, so a
      row promotes to the top the moment that field is filled in. Grouped (not
      just sorted) so a coloured divider can mark where one tier ends and the
      next begins \u2014 any tier can be empty depending on what's filled in, so
      the divider only appears between two tiers that both have rows. */
   const tiers=[
     {cls:'yours',items:L.filter(l=>l[2])},
-    {cls:'lawtier',items:L.filter(l=>!l[2]&&l[3])},
+    {cls:'whollar',items:L.filter(l=>!l[2]&&l[3])},
     {cls:'agreement',items:L.filter(l=>!l[2]&&!l[3])}
   ].filter(t=>t.items.length);
   let i=0;
   $('#lev-list').innerHTML=tiers.map((t,ti)=>{
     const rows=t.items.map(l=>{
       i++;
-      const got=l[2];const law=l[3];
-      return '<div class="lt '+(got?'got':('lock '+t.cls))+'"><span class="no">'+String(i).padStart(2,'0')+'</span><span style="min-width:0"><b>'+l[0]+'</b><span>'+l[1]+'</span></span><span class="st'+(law?' law':'')+'">'+(law?law:(got?'\u2713 yours':'agreement'))+'</span></div>';
+      const got=l[2];const free=l[3];
+      return '<div class="lt '+(got?'got':('lock '+t.cls))+'"><span class="no">'+String(i).padStart(2,'0')+'</span><span style="min-width:0"><b>'+l[0]+'</b><span>'+l[1]+'</span></span><span class="st'+(free?' free':'')+'">'+(free?free:(got?'\u2713 yours':'agreement'))+'</span></div>';
     }).join('');
     return (ti>0?'<div class="lt-div lt-div--'+t.cls+'"></div>':'')+rows;
   }).join('');
