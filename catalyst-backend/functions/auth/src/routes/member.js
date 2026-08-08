@@ -183,9 +183,12 @@ const LEAD_SOURCES = [
     table: WAITLIST_TABLE,
     source: 'waitlist-backfill',
     map: fromWaitlistLead,
+    // One list, because this table is not being widened: the join form's
+    // discount and contract answers go to member_bills directly and are not
+    // copied here. A recovered row is therefore the five fields below and not
+    // the whole picture, which is the right trade for a path that only runs
+    // when the member's own write was lost.
     columns: [
-      ['Provider', 'MonthlyCost', 'DownloadSpeed', 'PromoEndDate', 'DiscountAmount',
-        'ContractStartDate', 'ContractLength', 'SwitchThreshold'],
       ['Provider', 'MonthlyCost', 'DownloadSpeed', 'PromoEndDate', 'SwitchThreshold'],
     ],
   },
@@ -283,10 +286,12 @@ function fromLead(lead) {
 /**
  * A WaitlistDetails row reshaped the same way.
  *
- * The join form asks a subset of the checkup's questions: there is no "how it
- * reaches your house" and no expired-promo flag, so those two come back empty
- * rather than being guessed at. `promo_expired` is 0 rather than null because
- * the column is a flag the dashboard reads as a boolean.
+ * Only the five fields that table holds. The join form asks more than that —
+ * access technology, the expired-promo flag, the discount and the contract
+ * dates — but those reach the member through POST /me/bill rather than being
+ * duplicated into the lead row, so they come back empty here instead of being
+ * guessed at. `promo_expired` is 0 rather than null because the column is a
+ * flag the dashboard reads as a boolean.
  */
 function fromWaitlistLead(lead) {
   return {
@@ -296,9 +301,9 @@ function fromWaitlistLead(lead) {
     access_tech: null,
     promo_end_date: promoEnd(lead.PromoEndDate),
     promo_expired: 0,
-    discount_amount: money(lead.DiscountAmount),
-    contract_start_date: promoEnd(lead.ContractStartDate),
-    contract_length: str(lead.ContractLength, 8),
+    discount_amount: null,
+    contract_start_date: null,
+    contract_length: null,
     switch_threshold: str(lead.SwitchThreshold, 64),
   };
 }

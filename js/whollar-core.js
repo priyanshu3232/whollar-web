@@ -1729,7 +1729,7 @@
       }).catch(function () { return {}; });
     },
 
-    /** Merge preference keys ('alerts', 'interests', 'notify'). -> { ok, prefs } */
+    /** Merge preference keys ('alerts', 'interests', 'notify', 'services'). -> { ok, prefs } */
     prefsSave: function (patch) { return authPost('/me/prefs', patch); },
 
     /** Record feedback: { kind: 'rating'|'outage'|'interest'|'provider-notify',

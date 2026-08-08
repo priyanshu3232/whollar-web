@@ -1248,6 +1248,17 @@ document.addEventListener('DOMContentLoaded',function(){
       if(!W.session||!W.session.billSave)return Promise.resolve();
       return W.session.billSave(bill).catch(()=>{});
     }
+
+    /* The services checklist, saved to the account rather than only to the
+       lead row. What else a household buys is a standing fact about them, not
+       a snapshot of this form, and the lead row is keyed by an email string
+       while this is keyed by user_id. Same best-effort rule as the bill. */
+    function saveMemberServices(){
+      const list=S.details.services||[];
+      if(!list.length)return Promise.resolve();
+      if(!W.session||!W.session.prefsSave)return Promise.resolve();
+      return W.session.prefsSave({services:list}).catch(()=>{});
+    }
     /* Stage 2 sits lower down the page than the card that replaces it, so on a
        phone the confirmation lands off-screen and saving looks like nothing
        happened. Jumped rather than smooth-scrolled: the thank-you popup locks
@@ -1264,7 +1275,7 @@ document.addEventListener('DOMContentLoaded',function(){
       try{
         await submitForm('/waitlist-details',{firstName:S.name,lastName:S.last,email:S.email,fsa:S.fsa,postalFull:S.postalFull||'',province:S.province||'',provinceCode:S.provinceCode||'',...S.details},{billFile:$('#s-file').files[0]||null});
       }catch(err){busy(btn,false);submitErr(btn,err);return;}
-      await saveMemberBill();
+      await Promise.all([saveMemberBill(),saveMemberServices()]);
       busy(btn,false);
       showJoinDone();
       showThankYou();

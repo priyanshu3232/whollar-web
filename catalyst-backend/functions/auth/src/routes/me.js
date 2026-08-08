@@ -139,13 +139,20 @@ function mount(router) {
 
   /**
    * Merge preference keys. The caller owns whole top-level keys ('alerts',
-   * 'interests', 'notify') and sends complete values for them. -> { ok, prefs }
+   * 'interests', 'notify', 'services') and sends complete values for them.
+   * -> { ok, prefs }
+   *
+   * 'services' is the join page's "do you have any of these too?" checklist:
+   * [{ service, count, detail }]. It belongs to the account rather than to the
+   * lead row that also records it, because it is a standing fact about the
+   * household — what else they buy, and therefore what else a cohort could
+   * ever be bid for — not a snapshot of one form submission.
    */
   router.post('/me/prefs', wrap(async (req, res) => {
     const user = requireUser(req);
     const body = req.body || {};
     const patch = {};
-    for (const key of ['alerts', 'interests', 'notify']) {
+    for (const key of ['alerts', 'interests', 'notify', 'services']) {
       if (key in body) patch[key] = body[key];
     }
     if (!Object.keys(patch).length) throw badRequest('Nothing to save.');

@@ -306,44 +306,82 @@ the moment the route is deployed, not an optional enhancement.
 
 ---
 
-## 14. Columns to add to two tables that already exist
+## 14. Two columns to add to `BillCheckupSubmissions`
 
-These two belong to the marketing-site family under **Do not touch** below.
-The tables themselves are already there and already collecting; what follows is
-column *additions*, which is the one edit that family does take. Nothing here
-drops or renames anything.
+That table belongs to the marketing-site family under **Do not touch** below.
+It is already there and already collecting; what follows is a column
+*addition*, which is the one edit that family does take. Nothing here drops or
+renames anything.
 
-Both functions tolerate these columns being missing — the insert retries
-without them and logs why, and the auth function's lead lookup falls back to
-the older column list. So the site keeps working before you do this; it just
-keeps discarding the answers listed here.
-
-**`BillCheckupSubmissions`** — the checkup started asking these on 2026-08-06
-and has had nowhere to put them since:
+The checkup started asking these two questions on 2026-08-06 and has had
+nowhere to put the answers since:
 
 | Column | Type | Length | Unique | Mandatory | Notes |
 |---|---|---|:--:|:--:|---|
 | `ContractStartDate` | Var Char | 10 | | | `YYYY-MM-DD` |
 | `ContractLength` | Var Char | 8 | | | `12` \| `24` \| `36` \| `0` \| `-1` |
 
-**`WaitlistDetails`** — stage 2 of the join page now asks the same six bill
-questions the checkup does, and the row could not previously be read on its own
-(only the FSA was kept, so the full postal code and the name lived only in
-`users` and in the CRM payload):
+The write tolerates them being missing — the insert retries without them and
+logs why — so the site keeps working before you do this; it just keeps
+discarding those two answers. The matching `contract_start_date` /
+`contract_length` on `member_bills` are in section 11 above.
 
-| Column | Type | Length | Unique | Mandatory | PII | Notes |
-|---|---|---|:--:|:--:|:--:|---|
-| `FirstName` | Var Char | 100 | | | ✅ | |
-| `LastName` | Var Char | 100 | | | ✅ | |
-| `PostalCode` | Var Char | 10 | | | ✅ | full `A1A 1A1`; `FSA` stays as it is |
-| `ProvinceCode` | Var Char | 2 | | | | |
-| `DiscountAmount` | Number | — | | | | monthly promo credit |
-| `ContractStartDate` | Var Char | 10 | | | | `YYYY-MM-DD` |
-| `ContractLength` | Var Char | 8 | | | | as above |
+`MonthlyCost` here, and `monthly_cost` on `member_bills`, mean the price paid
+**today**, promo included. That meaning changed on 2026-08-08 and the column
+did not. Anything reading either as a regular or list price is reading it wrong.
 
-`MonthlyCost` in both tables means the price paid **today**, promo included —
-its meaning changed on 2026-08-08 and the column did not. Anything reading it
-as a regular/list price is reading it wrong.
+### `WaitlistDetails` is deliberately NOT being widened
+
+Stage 2 of the join page ("Want it to count for more?") asks seven bill
+questions and a services checklist, which is more than that table has columns
+for. It stays as it is anyway, because by the time that form is on screen the
+visitor is a signed-in member — signup and the emailed code both completed
+seconds earlier — so every answer has an owner keyed on `user_id`:
+
+| What stage 2 collects | Where it belongs | Written by |
+|---|---|---|
+| provider, price, speed, promo end, discount, contract start + length, switch threshold | `member_bills` | `POST /me/bill`, `source: 'waitlist'` |
+| the services checklist | `user_prefs`, under the `services` key | `POST /me/prefs` |
+| first name, last name, postal code, province | `users` | `POST /signup`, already |
+| the attached bill file | Catalyst file store, id on the lead row | `/waitlist-details` |
+
+What remains in `WaitlistDetails` is the CRM's lead trail and the fallback
+`GET /me/bill` reads when the member write above was lost — five bill fields,
+the services JSON, and the file id. Copying names and postal codes into it
+would duplicate PII into a table that is not the record of them, and `crmSync`
+reads the queued payload rather than these columns regardless.
+
+## 15. `user_prefs` and `user_events`
+
+Both are declared in `src/lib/schema.js` and verified by `/health/diagnostics`,
+but were never written up here. No action if they already exist — check with
+the queries below before creating anything.
+
+`user_prefs` — one JSON blob per account, member or provider alike. A blob and
+not columns because these keys change with the product and a console-only
+schema cannot keep up; nothing ever filters on a preference. Current top-level
+keys: `alerts`, `interests`, `notify`, `services`.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `pref_key` | Var Char | 64 | ✅ | ✅ | `users.user_id` |
+| `prefs` | Text | — | | ✅ | JSON object |
+| `updated_at` | DateTime | — | | ✅ | |
+
+`user_events` — append-only feedback from the dashboards: provider ratings,
+outage reports, "first in line" interest, a partner's opening-day alerts.
+Write-only from the product; the admin console reads it.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `user_id` | Var Char | 64 | | ✅ | |
+| `user_type` | Var Char | 16 | | | |
+| `kind` | Var Char | 32 | | ✅ | `rating` \| `outage` \| `interest` \| `provider-notify` |
+| `payload` | Text | — | | | JSON, never filtered on |
+| `created_at` | DateTime | — | | ✅ | |
+
+Reads degrade to empty when `user_prefs` is missing, so toggles render their
+defaults; writes throw a clear "not available" rather than a generic 500.
 
 ---
 
@@ -376,13 +414,13 @@ SELECT user_id, email_normalized, user_type, status FROM users LIMIT 1;
 SELECT session_id, token_hash, expires_at, revoked_at FROM sessions LIMIT 1;
 ```
 
-And the section 14 additions, which fail loudly until the columns exist:
+And sections 14 and 15, which fail loudly until the columns and tables exist:
 
 ```sql
 SELECT ContractStartDate, ContractLength FROM BillCheckupSubmissions LIMIT 1;
-SELECT FirstName, LastName, PostalCode, ProvinceCode, DiscountAmount,
-       ContractStartDate, ContractLength FROM WaitlistDetails LIMIT 1;
 SELECT contract_start_date, contract_length FROM member_bills LIMIT 1;
+SELECT pref_key, prefs FROM user_prefs LIMIT 1;
+SELECT user_id, kind, payload FROM user_events LIMIT 1;
 ```
 
 If `users` or `sessions` errors on the bare `SELECT` above, the table name may

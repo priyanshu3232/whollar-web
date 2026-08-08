@@ -467,35 +467,32 @@ app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSe
     const catalystApp = catalyst.initialize(req);
     const file = await storeFile(catalystApp, req.file);
     const postal = normalizePostal(b.fsa || b.postalFull);
-    const row = await insertTolerant(catalystApp, 'WaitlistDetails', {
+    // Deliberately NOT widened to match the form. Stage 2 only ever appears to
+    // a member who signed up and verified a code seconds earlier, so every
+    // answer it collects has an owner keyed on user_id: the bill fields go to
+    // member_bills via POST /me/bill, the services checklist to user_prefs via
+    // POST /me/prefs, and the name, postal code and province are already on
+    // the users row that signup wrote. This table is the CRM's lead trail and
+    // the fallback the auth function reads when that member write is lost —
+    // copying identity columns into it would duplicate PII to no end, and
+    // crmSync reads the payload below rather than these columns anyway.
+    const row = await insert(catalystApp, 'WaitlistDetails', {
       // Lowercased for the same reason as BillCheckupSubmissions.Email: the
-      // auth function adopts this row by exact match against the member's
-      // email_normalized, and ZCQL has no LOWER(). The CRM payload below keeps
-      // the address exactly as they typed it.
+      // auth function's fallback finds this row by exact match against the
+      // member's email_normalized, and ZCQL has no LOWER(). The CRM payload
+      // below keeps the address exactly as they typed it.
       Email: emailKey(email),
-      FirstName: orNull(str(b.firstName)),
-      LastName: orNull(str(b.lastName)),
       FSA: postal.fsa,
-      // The full code, not just the FSA it starts with. Both are stored: the
-      // FSA is what a cohort is keyed on and is queried on its own, and
-      // re-deriving it from a column that is null whenever only three
-      // characters were given would make every cohort query a special case.
-      PostalCode: postal.full,
-      ProvinceCode: orNull(str(b.provinceCode)),
       Provider: orNull(str(b.provider)),
       MonthlyCost: toNumber(b.cost),
       DownloadSpeed: orNull(str(b.speed)),
       PromoEndDate: orNull(str(b.promoEnd)),
-      DiscountAmount: toNumber(b.discount),
-      ContractStartDate: orNull(str(b.contractStart)),
-      ContractLength: orNull(str(b.contractLength)),
       SwitchThreshold: orNull(str(b.threshold)),
       Services: json(services),
       BillFileId: orNull(file?.id ?? null),
       BillFileName: orNull(file?.name ?? (req.fileRejected ? `[rejected: ${req.fileRejected}]` : null)),
       SubmittedAt: catalystNow()
-    }, ['FirstName', 'LastName', 'PostalCode', 'ProvinceCode',
-      'DiscountAmount', 'ContractStartDate', 'ContractLength']);
+    });
     await enqueueCrm(catalystApp, {
       source: 'WaitlistDetails', rowId: row.ROWID, email, leadType: 'consumer',
       data: {
