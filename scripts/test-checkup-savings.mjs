@@ -60,12 +60,35 @@ eq('2 monthsBetween', monthsBetween('2025-06-08', '2026-11-26'), 18);
   eq('4 totalSavings', r.totalSavings, 2385.24);
 }
 
-/* 5 — promo already expired: today's price is the rack rate */
+/* 5 — promo already expired: SAME derivation as promo-active (Q03 is the
+   with-discount price by definition, post-promo = Q03 + Q09), and "you pay
+   now" is today's month of the schedule, which is the rack rate. The old
+   expired branch read Q03 as the rack rate and told a $120-with-$90-off
+   household they pay $30/mo. */
 {
   const r = calculateCheckup({ ...GOLDEN, promoEndDate: '2026-05-26' });
   eq('5 promoActive', r.promoActive, false);
-  eq('5 promoPrice (schedule[0])', r.schedule[0], 40);   // current - discount
-  eq('5 postPromo', r.postPromoPrice, 120);              // current
+  eq('5 promoPrice (schedule[0])', r.schedule[0], 120);  // Q03, as always
+  eq('5 postPromo', r.postPromoPrice, 200);              // Q03 + Q09, as always
+  eq('5 currentMonthly is today, not month 1', r.currentMonthly, 200);
+}
+
+/* 5b — the reported case: $120 after a $90 discount, promo expired Dec 2025,
+   24-month contract from Jan 2025. Pays $210 today; the card says so in the
+   past tense. */
+{
+  const r = calculateCheckup({
+    postalCode: 'L5V 1A9', downloadMbps: 1500, currentPrice: 120, discountAmount: 90,
+    contractLengthMonths: 24, contractStartDate: '2025-01-15', promoEndDate: '2025-12-15',
+    today: '2026-08-08',
+  });
+  eq('5b postPromo', r.postPromoPrice, 210);
+  eq('5b currentMonthly', r.currentMonthly, 210);
+  eq('5b totalPaid', r.totalPaid, 12 * 120 + 12 * 210);
+  const card = buildCard(r, 'L5V');
+  eq('5b past tense', card.note.startsWith('Your promo ended'), true);
+  eq('5b went to 210', card.note.includes('went to $210'), true);
+  eq('5b pay-now stat', card.stats[0].value, '$210/mo');
 }
 
 /* 6 — discount 0: flat schedule, no cliff */

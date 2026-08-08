@@ -334,18 +334,22 @@ function calculateCheckup(input) {
   var promoActive = input.promoEndDate ? input.promoEndDate > today : promoMonths > 0;
 
   /* --- Resolve the two price levels ---------------------------------
-     currentPrice is what they pay TODAY. Which level that is depends on
-     whether the promo is still running. */
+     ONE rule, promo dead or alive: Q03 is the price WITH the discount
+     applied, Q09 is the amount taken off, so the post-promo price is
+     always Q03 + Q09. There used to be an expired-promo branch here that
+     read Q03 as the rack rate and back-derived the promo price — so a
+     household that typed $120 with a $90 discount was told they pay
+     $30/mo and that the bill "goes to $120", when the truth is they paid
+     $120 and the bill went to $210. Whether the promo is over changes
+     which of these two numbers is on this month's bill (see the schedule
+     and currentMonthly below), never how they are derived. */
   var promoPrice, postPromoPrice;
   if (input.postPromoPrice != null) {
     postPromoPrice = input.postPromoPrice;  // preferred: asked directly
     promoPrice = input.currentPrice;
-  } else if (promoActive) {
-    promoPrice = input.currentPrice;                       // e.g. 120
-    postPromoPrice = input.currentPrice + discount;        // 120 + 80 = 200
   } else {
-    postPromoPrice = input.currentPrice;                   // promo already gone
-    promoPrice = Math.max(0, input.currentPrice - discount);
+    promoPrice = input.currentPrice;                       // e.g. 120
+    postPromoPrice = input.currentPrice + discount;        // 120 + 90 = 210
   }
 
   if (discount < 0) warnings.push('Discount amount cannot be negative.');
@@ -394,8 +398,18 @@ function calculateCheckup(input) {
     }
   }
 
+  /* "You pay now" is the price at TODAY'S month of the schedule, not the
+     schedule's first month. With a contract start those differ the moment
+     the promo has expired: month 1 was the promo price, this month is the
+     rack rate. Clamped into the term so a contract that has already run
+     out reads its final price rather than off the end of the array. */
+  var elapsed = 0;
+  if (input.contractStartDate) {
+    elapsed = Math.min(T - 1, Math.max(0, monthsBetween(input.contractStartDate, today) - 1));
+  }
+
   return {
-    currentMonthly: schedule[0],
+    currentMonthly: schedule[elapsed],
     postPromoPrice: postPromoPrice,
     benchmarkMonthly: b,
     downloadMbps: input.downloadMbps,
@@ -462,10 +476,17 @@ function buildCard(r, fsa) {
      also the only conversion argument on no_saving. */
   var basis = 'Savings measured against publicly advertised plans. Cohort pricing lands below that.';
 
-  var note = r.cliff
-    ? 'Your promo ends ' + (r.cliff.date ? shortDate(r.cliff.date) : 'soon') + '. '
-      + 'The bill goes to ' + money(r.cliff.to) + '.'
-    : undefined;
+  /* Tense follows promoActive: a cliff that already happened is a fact on
+     their statements ("ended … went to"), not a forecast — the old copy
+     told a household in August that their promo "ends" the previous May. */
+  var note;
+  if (r.cliff) {
+    note = r.promoActive
+      ? 'Your promo ends ' + (r.cliff.date ? shortDate(r.cliff.date) : 'soon') + '. '
+        + 'The bill goes to ' + money(r.cliff.to) + '.'
+      : 'Your promo ended' + (r.cliff.date ? ' ' + shortDate(r.cliff.date) : '') + '. '
+        + 'The bill went to ' + money(r.cliff.to) + ', and it stays there until something changes it.';
+  }
 
   var caveat = r.benchmark.matched === 'below_requested_speed'
     ? 'Nothing we track in ' + r.benchmark.province + ' hits ' + r.downloadMbps + ' Mbps. Treat this as a floor.'
