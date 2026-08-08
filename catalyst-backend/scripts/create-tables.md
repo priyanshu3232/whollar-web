@@ -245,8 +245,10 @@ covers a checkup whose own save never arrived). A row with
 | `promo_end_date` | Var Char | 10 | | | | `YYYY-MM-DD` or `YYYY-MM`; month-granular user input, not a DateTime |
 | `promo_expired` | Int | — | | | | 0 \| 1 |
 | `discount_amount` | Var Char | 16 | | | | number as a string |
+| `contract_start_date` | Var Char | 10 | | | | same month-granular shape as `promo_end_date` |
+| `contract_length` | Var Char | 8 | | | | the form's `<select>` value: `12` \| `24` \| `36` \| `0` \| `-1` |
 | `switch_threshold` | Var Char | 64 | | | | e.g. `$25+/mo` |
-| `source` | Var Char | 32 | | ✅ | | `bill-checkup` \| `bill-checkup-backfill` \| `dashboard` |
+| `source` | Var Char | 32 | | ✅ | | `bill-checkup` \| `bill-checkup-backfill` \| `waitlist` \| `waitlist-backfill` \| `dashboard` |
 | `updated_at` | DateTime | — | | ✅ | | |
 
 A bill is a household's private pricing detail, so treat the whole row the way
@@ -304,6 +306,47 @@ the moment the route is deployed, not an optional enhancement.
 
 ---
 
+## 14. Columns to add to two tables that already exist
+
+These two belong to the marketing-site family under **Do not touch** below.
+The tables themselves are already there and already collecting; what follows is
+column *additions*, which is the one edit that family does take. Nothing here
+drops or renames anything.
+
+Both functions tolerate these columns being missing — the insert retries
+without them and logs why, and the auth function's lead lookup falls back to
+the older column list. So the site keeps working before you do this; it just
+keeps discarding the answers listed here.
+
+**`BillCheckupSubmissions`** — the checkup started asking these on 2026-08-06
+and has had nowhere to put them since:
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `ContractStartDate` | Var Char | 10 | | | `YYYY-MM-DD` |
+| `ContractLength` | Var Char | 8 | | | `12` \| `24` \| `36` \| `0` \| `-1` |
+
+**`WaitlistDetails`** — stage 2 of the join page now asks the same six bill
+questions the checkup does, and the row could not previously be read on its own
+(only the FSA was kept, so the full postal code and the name lived only in
+`users` and in the CRM payload):
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `FirstName` | Var Char | 100 | | | ✅ | |
+| `LastName` | Var Char | 100 | | | ✅ | |
+| `PostalCode` | Var Char | 10 | | | ✅ | full `A1A 1A1`; `FSA` stays as it is |
+| `ProvinceCode` | Var Char | 2 | | | | |
+| `DiscountAmount` | Number | — | | | | monthly promo credit |
+| `ContractStartDate` | Var Char | 10 | | | | `YYYY-MM-DD` |
+| `ContractLength` | Var Char | 8 | | | | as above |
+
+`MonthlyCost` in both tables means the price paid **today**, promo included —
+its meaning changed on 2026-08-08 and the column did not. Anything reading it
+as a regular/list price is reading it wrong.
+
+---
+
 ## Verify
 
 In the console: **Data Store → ZCQL** (or **Explore**), and run each of these.
@@ -331,6 +374,15 @@ Then one that exercises the column names the hot path depends on:
 ```sql
 SELECT user_id, email_normalized, user_type, status FROM users LIMIT 1;
 SELECT session_id, token_hash, expires_at, revoked_at FROM sessions LIMIT 1;
+```
+
+And the section 14 additions, which fail loudly until the columns exist:
+
+```sql
+SELECT ContractStartDate, ContractLength FROM BillCheckupSubmissions LIMIT 1;
+SELECT FirstName, LastName, PostalCode, ProvinceCode, DiscountAmount,
+       ContractStartDate, ContractLength FROM WaitlistDetails LIMIT 1;
+SELECT contract_start_date, contract_length FROM member_bills LIMIT 1;
 ```
 
 If `users` or `sessions` errors on the bare `SELECT` above, the table name may

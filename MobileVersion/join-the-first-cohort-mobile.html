@@ -721,12 +721,24 @@
         <div class="j2f">
           <div><label for="s-prov">Provider</label>
             <select id="s-prov" data-m><option value="">Choose&hellip;</option><option>Rogers</option><option>Bell</option><option>Telus</option><option>Shaw</option><option>Vid&eacute;otron</option><option>Cogeco</option><option>Eastlink</option><option>SaskTel</option><option>An independent</option><option>Other</option></select></div>
-          <div><label for="s-cost">Monthly charge</label>
+          <!-- Same six questions the checkup asks, worded identically on
+               purpose: both forms write the SAME member_bills row, and that
+               write is a replacement rather than a merge. A shorter form here
+               would blank whatever the checkup had already learned. "Current
+               price" is the net figure paid TODAY, promo included, exactly as
+               bill-checkup.html's q03 means it. -->
+          <div><label for="s-cost">Current price (after all discounts)</label>
             <input id="s-cost" placeholder="$ / mo" inputmode="decimal" data-m></div>
           <div><label for="s-spd">Download speed</label>
             <select id="s-spd" data-m><option value="">Choose&hellip;</option><option>25 or less</option><option>50</option><option>100</option><option>150</option><option>300</option><option>500</option><option>1 Gig</option><option>1.5 Gig+</option><option>Not sure</option></select></div>
           <div><label for="s-date">Promo ends</label>
             <input id="s-date" type="date" data-m></div>
+          <div><label for="s-disc">Discount/waiver</label>
+            <input id="s-disc" placeholder="$ / mo off" inputmode="decimal" data-m></div>
+          <div><label for="s-cstart">Contract start date</label>
+            <input id="s-cstart" type="date" data-m></div>
+          <div><label for="s-clen">Length of contract</label>
+            <select id="s-clen" data-m><option value="">Choose&hellip;</option><option value="12">12 months</option><option value="24">24 months</option><option value="36">36 months</option><option value="0">No contract / month-to-month</option><option value="-1">Not sure</option></select></div>
           <div class="full"><label>You'd switch for</label>
             <div class="thr" id="thr"><button type="button">$10+/mo</button><button type="button">$25+/mo</button><button type="button">Just curious</button></div></div>
           <div class="full"><label class="jupl" for="s-file">
@@ -1165,14 +1177,22 @@ document.addEventListener('DOMContentLoaded',function(){
       if(parseFloat(($('#s-cost').value||'').replace(/[^0-9.]/g,'')))n++;
       if($('#s-spd').value)n++;
       if($('#s-date').value)n++;
+      if(parseFloat(($('#s-disc').value||'').replace(/[^0-9.]/g,'')))n++;
+      if($('#s-cstart').value)n++;
+      if($('#s-clen').value)n++;
       if($$('#thr button.on').length)n++;
       if(S.details.file)n++;
       if($$('#svc .svcrow.on').length)n++;
       return n;}
+    /* The ten questions plus the joining itself, which is the first bar and
+       is why nobody ever sees an empty meter. The eight segments are that
+       ratio rather than one-per-answer: adding a question must not silently
+       start overflowing the bar. */
+    const SPOT_TOTAL=11;
     function meter(){
-      const n=1+filledCount();
-      $$('#segs i').forEach((s,i)=>s.classList.toggle('f',i<n));
-      $('#m-label').textContent=n<=2?'Held':n<=5?'Useful':'Bid‑ready';}
+      const n=1+filledCount(),segs=$$('#segs i'),fill=Math.round(n/SPOT_TOTAL*segs.length);
+      segs.forEach((s,i)=>s.classList.toggle('f',i<fill));
+      $('#m-label').textContent=n<=3?'Held':n<=7?'Useful':'Bid‑ready';}
     $$('[data-m]').forEach(el=>{el.addEventListener('input',meter);el.addEventListener('change',meter);});
     $$('#thr button').forEach(b=>b.addEventListener('click',()=>{
       $$('#thr button').forEach(x=>x.classList.remove('on'));b.classList.add('on');meter();}));
@@ -1202,8 +1222,32 @@ document.addEventListener('DOMContentLoaded',function(){
       $('#s-filename').textContent=chk.code==='heic'?('✓ '+f.name+' (HEIC, we’ll open it by hand)'):('✓ '+f.name);
       meter();});
     function collect(){S.details={provider:$('#s-prov').value,cost:$('#s-cost').value,speed:$('#s-spd').value,
-      promoEnd:$('#s-date').value,threshold:($$('#thr button.on')[0]||{}).textContent||null,
+      promoEnd:$('#s-date').value,discount:$('#s-disc').value,contractStart:$('#s-cstart').value,
+      contractLength:$('#s-clen').value,threshold:($$('#thr button.on')[0]||{}).textContent||null,
       file:S.details.file||null,services:collectServices()};}
+
+    /* The same answers, written a second time to the member's own record.
+       The lead row is the CRM's copy and is keyed by an email string; this is
+       the one the signed-in dashboard reads, keyed by user_id. Two calls
+       because the two live in different functions: the lead goes cross-origin
+       to formSubmit, where no session cookie can travel, and /me/bill is
+       same-origin through the /api/auth rewrite. The member is signed in by
+       the time this form appears, the code step minted the session, so the
+       usual reason this fails is a dropped connection, and a failure here
+       must not retract a lead that already saved. GET /me/bill adopts the
+       WaitlistDetails row when it does. */
+    function saveMemberBill(){
+      const d=S.details;
+      const bill={provider:d.provider||null,monthly:d.cost||null,speed:d.speed||null,
+        promoEnd:d.promoEnd||null,discount:d.discount||null,contractStart:d.contractStart||null,
+        contractLength:d.contractLength||null,threshold:d.threshold||null,source:'waitlist'};
+      /* Mirrors the server's own "is there a bill in here at all" rule, so
+         skipping every question costs a round trip and a 400 rather than
+         being sent anyway. */
+      if(!bill.provider&&!bill.monthly&&!bill.speed&&!bill.promoEnd)return Promise.resolve();
+      if(!W.session||!W.session.billSave)return Promise.resolve();
+      return W.session.billSave(bill).catch(()=>{});
+    }
     /* Stage 2 sits lower down the page than the card that replaces it, so on a
        phone the confirmation lands off-screen and saving looks like nothing
        happened. Jumped rather than smooth-scrolled: the thank-you popup locks
@@ -1220,6 +1264,7 @@ document.addEventListener('DOMContentLoaded',function(){
       try{
         await submitForm('/waitlist-details',{firstName:S.name,lastName:S.last,email:S.email,fsa:S.fsa,postalFull:S.postalFull||'',province:S.province||'',provinceCode:S.provinceCode||'',...S.details},{billFile:$('#s-file').files[0]||null});
       }catch(err){busy(btn,false);submitErr(btn,err);return;}
+      await saveMemberBill();
       busy(btn,false);
       showJoinDone();
       showThankYou();

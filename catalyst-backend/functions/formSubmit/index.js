@@ -200,6 +200,58 @@ const json = v => JSON.stringify(v ?? null);
 // Catalyst DateTime columns expect "YYYY-MM-DD HH:MM:SS" (UTC), not ISO 8601.
 const catalystNow = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
 
+/* ---- The join page's "do you have any of these too?" list ----
+ *
+ * It arrives in two shapes and used to survive only one. With a bill attached
+ * the request is multipart and submitForm() JSON-encodes every object field;
+ * without one it is application/json and express.json has ALREADY parsed the
+ * list into a real array. JSON.parse(array) stringifies its argument to
+ * "[object Object]" and throws, so every submission without an attachment
+ * stored an empty list — silently, because the throw was swallowed.
+ */
+const parseServices = v => {
+  if (Array.isArray(v)) return v;
+  const s = str(v);
+  if (!s) return [];
+  try {
+    const parsed = JSON.parse(s);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+// Keep in step with the data-svc keys in waitlist/index.html.
+const SERVICE_LABELS = {
+  ott: 'OTT / streaming channels',
+  tv: 'TV plan',
+  security: 'Home security',
+  mobile: 'Cell phone plans',
+  doorbell: 'Video doorbells',
+  other: 'Something else'
+};
+
+/* One readable line for the CRM: "TV plan, Cell phone plans x3, Something else
+ * (garage camera)". The rows are objects ({service, count, detail}), so the
+ * old services.join(', ') handed sales "[object Object], [object Object]".
+ * Bare strings are still accepted: older payloads sent them, and the Services
+ * column holds whatever shape was current when the row was written. */
+const servicesForCrm = list => (Array.isArray(list) ? list : [])
+  .map(item => {
+    if (typeof item === 'string') return SERVICE_LABELS[item] || str(item);
+    if (!item || typeof item !== 'object') return '';
+    const key = str(item.service);
+    const label = SERVICE_LABELS[key] || key;
+    if (!label) return '';
+    const count = Number(item.count);
+    const detail = str(item.detail);
+    return label
+      + (Number.isFinite(count) && count > 1 ? ` x${count}` : '')
+      + (detail ? ` (${detail.slice(0, 80)})` : '');
+  })
+  .filter(Boolean)
+  .join(', ');
+
 /* ------------------------------------------------------------------ *
  * Canonical formats
  * ------------------------------------------------------------------
@@ -409,35 +461,53 @@ app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSe
   const email = str(b.email);
   if (!isEmail(email)) { discardUpload(req); return badRequest(res, 'A valid email is required.'); }
 
-  let services = [];
-  try { services = b.services ? JSON.parse(b.services) : []; } catch { services = []; }
+  const services = parseServices(b.services);
 
   try {
     const catalystApp = catalyst.initialize(req);
     const file = await storeFile(catalystApp, req.file);
     const postal = normalizePostal(b.fsa || b.postalFull);
-    const row = await insert(catalystApp, 'WaitlistDetails', {
-      Email: email,
+    const row = await insertTolerant(catalystApp, 'WaitlistDetails', {
+      // Lowercased for the same reason as BillCheckupSubmissions.Email: the
+      // auth function adopts this row by exact match against the member's
+      // email_normalized, and ZCQL has no LOWER(). The CRM payload below keeps
+      // the address exactly as they typed it.
+      Email: emailKey(email),
+      FirstName: orNull(str(b.firstName)),
+      LastName: orNull(str(b.lastName)),
       FSA: postal.fsa,
+      // The full code, not just the FSA it starts with. Both are stored: the
+      // FSA is what a cohort is keyed on and is queried on its own, and
+      // re-deriving it from a column that is null whenever only three
+      // characters were given would make every cohort query a special case.
+      PostalCode: postal.full,
+      ProvinceCode: orNull(str(b.provinceCode)),
       Provider: orNull(str(b.provider)),
       MonthlyCost: toNumber(b.cost),
       DownloadSpeed: orNull(str(b.speed)),
       PromoEndDate: orNull(str(b.promoEnd)),
+      DiscountAmount: toNumber(b.discount),
+      ContractStartDate: orNull(str(b.contractStart)),
+      ContractLength: orNull(str(b.contractLength)),
       SwitchThreshold: orNull(str(b.threshold)),
       Services: json(services),
       BillFileId: orNull(file?.id ?? null),
       BillFileName: orNull(file?.name ?? (req.fileRejected ? `[rejected: ${req.fileRejected}]` : null)),
       SubmittedAt: catalystNow()
-    });
+    }, ['FirstName', 'LastName', 'PostalCode', 'ProvinceCode',
+      'DiscountAmount', 'ContractStartDate', 'ContractLength']);
     await enqueueCrm(catalystApp, {
       source: 'WaitlistDetails', rowId: row.ROWID, email, leadType: 'consumer',
       data: {
         emailKey: emailKey(email),
         provider: str(b.provider), cost: toNumber(b.cost), speed: str(b.speed),
         promoEnd: str(b.promoEnd), threshold: str(b.threshold),
+        discount: toNumber(b.discount),
+        contractStart: str(b.contractStart) || null,
+        contractLength: str(b.contractLength) || null,
         fsa: postal.fsa, postal: postal.full,
         province: str(b.province) || null, provinceCode: str(b.provinceCode) || null,
-        services: Array.isArray(services) ? services.join(', ') : '',
+        services: servicesForCrm(services),
         billFileName: file?.name ?? (req.fileRejected ? `[rejected: ${req.fileRejected}]` : null),
         ...consentFrom(b, req)
       }

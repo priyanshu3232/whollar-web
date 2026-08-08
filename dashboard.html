@@ -1438,7 +1438,13 @@ function fmtBillDate(raw){
 function paintBillSource(bill){
   $$('[data-bill-src]').forEach(function(el){
     if(!bill){el.hidden=true;el.textContent='';return;}
-    var label=bill.source==='dashboard'?'From your bill upload here':'From your bill checkup';
+    /* Five sources reach this row: the member's own edit here, the public
+       checkup (direct or adopted from its lead table), and stage 2 of the
+       join page (likewise). Adopted rows are not labelled as such — where we
+       read it from is our plumbing, not something the member told us. */
+    var label=bill.source==='dashboard'?'From your bill upload here'
+      :(bill.source==='waitlist'||bill.source==='waitlist-backfill')?'From your join details'
+      :'From your bill checkup';
     var d=fmtBillDate(bill.updatedAt);
     el.innerHTML=esc(label)+(d?' &middot; <b>'+esc(d)+'</b>':'');
     el.hidden=false;
