@@ -1000,7 +1000,7 @@ function mpPaint(){
 }
 function mbmShow(on){mbmEl.classList.toggle('on',on);mpPaint();}
 $('#mp-yes').addEventListener('click',()=>{S.multiPromo='yes';mbmShow(true);saveDraft();});
-$('#mp-no').addEventListener('click',()=>{S.multiPromo='no';mpPaint();saveDraft();});
+$('#mp-no').addEventListener('click',()=>{S.multiPromo='no';mbmShow(false);saveDraft();});
 $('#mp-toggle').addEventListener('click',()=>mbmShow(!mbmEl.classList.contains('on')));
 function addPeriodRow(a,m){
   const row=document.createElement('div');row.className='mbm__row';
@@ -1430,7 +1430,11 @@ $('#checkup-form').addEventListener('submit',async e=>{
   screen(2);           /* switches under the overlay, so nothing flashes */
   await hideCalc();
   busy(btn,false);
-  if(joinErr)submitErr($('#j2-cta'),joinErr,true);
+  /* For a member, #join2 is now the "saved to your dashboard" receipt, not
+     the join-a-cohort card submitErr() was written for — a failure on this
+     vestigial lead POST must not stamp an error under a success message that
+     is about a different save (/me/bill, in rememberBill()). */
+  if(joinErr&&!MEMBER_EMAIL)submitErr($('#j2-cta'),joinErr,true);
   else if(S.joined){
     /* No thank-you overlay here: the results screen is the payoff, and the
        join2 card already confirms the waitlist spot inline. */
