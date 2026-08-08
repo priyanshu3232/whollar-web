@@ -541,6 +541,50 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .saverows{list-style:none;margin:0;padding:0;text-align:left;display:flex;flex-direction:column;gap:7px}
 .saverows li{font-size:13px;color:#2E3A33;background:#F7F3E8;border-radius:10px;padding:9px 13px}
 .fbtext{width:100%;font:inherit;font-size:13px;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;resize:vertical;margin-top:8px}
+/* ---- "why it's free": the money path, drawn, then the four reasons ---- */
+.wf h3{font-size:23px;margin:5px 0 7px;max-width:24ch}
+.wfflow{display:grid;grid-template-columns:1fr 58px 1fr 58px 1fr;margin:16px 0 8px}
+.wfn{border:1.5px solid var(--line);border-radius:14px;background:#fff;padding:11px 9px;text-align:center;display:flex;flex-direction:column;justify-content:center;gap:3px}
+.wfn span{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#949E95}
+.wfn b{font-family:var(--disp);font-size:13.5px;line-height:1.25}
+.wfn.you{background:var(--mint);border-color:#BFE3D0}
+.wfn.you b{font-size:26px;color:var(--accent-deep)}
+.wfn.pay{background:var(--terra-soft);border-color:#E7CFB9}
+.wfn.pay b{color:#8C4622}
+.wfc{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:0 6px}
+.wfc .ln{position:relative;width:100%;height:2px;border-radius:2px}
+.wfc .ln.dash{background:repeating-linear-gradient(90deg,#C7C1B2 0 4px,transparent 4px 8px)}
+.wfc .ln.fee{background:var(--terra)}
+/* arrowhead points back at Whollar: the money moves from the provider, never from you */
+.wfc .ln.fee::before{content:"";position:absolute;left:-4px;top:-4px;width:0;height:0;border:5px solid transparent;border-right-color:var(--terra);border-left:0}
+.wfc em{font-style:normal;font-family:var(--mono);font-size:9px;line-height:1.3;color:#949E95;text-align:center}
+.wfcap{font-size:11.5px;color:#949E95;text-align:center;margin-bottom:16px}
+.wfr{display:flex;flex-direction:column;gap:12px;margin:0 0 14px}
+.wfrow{display:flex;gap:11px;align-items:flex-start}
+.wfi{flex:none;width:26px;height:26px;border-radius:8px;background:var(--mint);display:grid;place-items:center;margin-top:1px}
+.wfi svg{width:14px;height:14px;stroke:var(--accent-deep);fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.wfrow h4{font-family:var(--body);font-size:13.5px;font-weight:700;margin-bottom:2px}
+.wfrow p{font-size:13px;color:var(--sub)}
+.wfbars{background:#F7F3E8;border-radius:12px;padding:11px 13px;margin-top:9px}
+.wfbar+.wfbar{margin-top:9px}
+/* direct child only: the estimate chip is a span too, and blockifying it
+   would kick it onto its own line */
+.wfbar>span{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:11.5px;color:var(--sub);margin-bottom:5px}
+.wfbar b{font-weight:400}
+.wfbar em .demochip{margin-left:5px}
+.wfbar em{font-style:normal;font-family:var(--disp);font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap}
+.wftrack{height:9px;border-radius:999px;background:#EAE3D6;overflow:hidden}
+.wftrack i{display:block;height:100%;border-radius:999px}
+.wffoot{text-align:center;font-size:12px;color:#949E95;margin-top:10px}
+@media (max-width:560px){
+  .wf h3{font-size:20px;max-width:none}
+  .wfflow{grid-template-columns:1fr}
+  .wfn{padding:9px}
+  .wfc{flex-direction:row;gap:10px;padding:7px 0}
+  .wfc .ln{width:2px;height:26px;flex:none}
+  .wfc .ln.dash{background:repeating-linear-gradient(180deg,#C7C1B2 0 4px,transparent 4px 8px)}
+  .wfc .ln.fee::before{left:-4px;top:-5px;border:5px solid transparent;border-bottom-color:var(--terra);border-right-color:transparent;border-top:0}
+}
 .vtrio{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
 .arr2{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:center}
 .arrright h3{font-size:21px}
@@ -729,14 +773,6 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               <p class="fnote">Private, always: bidding providers never see your provider or your price. <button class="tlink" type="button" data-nav="bills" style="margin-top:0">Open my bills &rarr;</button></p>
             </section>
 
-            <section class="card" aria-label="Strengthen your cohort">
-              <span class="eyebrow">Refer anyone, anywhere</span>
-              <h3>Every referral moves a cohort</h3>
-              <p class="cardnote">Neighbours strengthen your cohort directly. Friends anywhere else speed up their own region's launch. Either way, someone's bill gets better.</p>
-              <div class="codebox"><code id="refcode">WHL-PRIYA-7</code><button class="copybtn" type="button" id="copyref">Copy</button></div>
-              <p class="fnote">3 people have joined with your code so far.</p>
-            </section>
-
             <section class="card" aria-label="Rate your provider" id="ratecard">
               <span class="eyebrow">One minute, once</span>
               <h3>Rate Rogers, privately</h3>
@@ -750,11 +786,13 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               <p class="fnote">Never shown to bidding providers.</p>
             </section>
 
-            
-
-            
-
-            
+            <section class="card" aria-label="Strengthen your cohort">
+              <span class="eyebrow">Refer anyone, anywhere</span>
+              <h3>Every referral moves a cohort</h3>
+              <p class="cardnote">Neighbours strengthen your cohort directly. Friends anywhere else speed up their own region's launch. Either way, someone's bill gets better.</p>
+              <div class="codebox"><code id="refcode">WHL-PRIYA-7</code><button class="copybtn" type="button" id="copyref">Copy</button></div>
+              <p class="fnote">3 people have joined with your code so far.</p>
+            </section>
 
           </aside>
         </div>
@@ -2583,6 +2621,9 @@ document.addEventListener('click',function(e){
   else{$$('button',grp).forEach(function(x){x.classList.remove('on')});c.classList.add('on')}
   if(grp.id==='pf-bundle'){var n=$('#bundlenote');if(n)n.hidden=c.getAttribute('data-v')!=='yes'}
   if(grp.id==='pf-building'){var n2=$('#bldgnote');if(n2)n2.hidden=c.getAttribute('data-v')!=='bulk'}
+  if(grp.id==='pf-avoid'&&c.getAttribute('data-v')==='__other__'){
+    var oi=$('#pf-avoid-other');if(oi){oi.hidden=!c.classList.contains('on');if(!oi.hidden)oi.focus()}
+  }
 });
 function chipVal(id){var b=$('#'+id+' button.on');return b?b.getAttribute('data-v'):null}
 function chipVals(id){return $$('#'+id+' button.on').map(function(b){return b.getAttribute('data-v')})}
@@ -2844,12 +2885,60 @@ function syncRegions(){
   }
 }
 
+/* ---------- "why it's free": the one objection this ghost button exists to answer ----------
+   A toast couldn't carry it. The money path is the argument: nothing leaves the
+   household at any point, and the provider only pays after a switch sticks. The
+   deposit gets named here on purpose, because a claim of "free" that quietly
+   skips it is the kind of thing people go looking for. */
+function wfRow(h,p,extra){
+  return '<div class="wfrow"><div class="wfi"><svg viewBox="0 0 20 20"><path d="M4 10.5 8 14.5 16 5.5"/></svg></div>'
+  +'<div><h4>'+h+'</h4><p>'+p+'</p>'+(extra||'')+'</div></div>';
+}
+function openWhyFree(){
+  var le=campById('london-east');
+  var have=le?le.members:61,need=le?(le.target||100):100;
+  openModal('<div class="wf">'
+  +'<div class="mhead"><span class="eyebrow">Why it’s free</span><button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
+  +'<h3>Providers pay for this. You never do.</h3>'
+  +'<p class="msub">Whollar earns when a provider wins your business, not when you join. That’s what keeps this free, and it’s why our incentives point where yours do.</p>'
+
+  +'<div class="wfflow">'
+  +'<div class="wfn you"><span>You pay</span><b>$0</b></div>'
+  +'<div class="wfc"><i class="ln dash"></i><em>nothing,<br>ever</em></div>'
+  +'<div class="wfn"><span>Whollar</span><b>runs the sealed auction</b></div>'
+  +'<div class="wfc"><i class="ln fee"></i><em>success<br>fee</em></div>'
+  +'<div class="wfn pay"><span>Winning provider</span><b>pays, after you switch</b></div>'
+  +'</div>'
+  +'<p class="wfcap">Money only ever moves along the orange arrow, and only once a switch completes.</p>'
+
+  +'<div class="wfr">'
+  +wfRow('They pay only when they win','A provider pays us a success fee once your switch completes and holds. No switch, no fee. That’s the entire business model.')
+  +wfRow('A cohort costs them less than the customers they buy today',
+     'That gap is the room they have to bid hard for your group instead of spending it on ads.',
+     '<div class="wfbars">'
+     +'<div class="wfbar"><span><b>Winning a household the usual way</b><em>$300–$600 <span class="demochip">estimate</span></em></span><div class="wftrack"><i style="width:100%;background:#C2643B"></i></div></div>'
+     +'<div class="wfbar"><span><b>Winning one through a cohort</b><em>a fraction of it</em></span><div class="wftrack"><i style="width:19%;background:var(--accent)"></i></div></div>'
+     +'</div>')
+  +wfRow('You’re never sold as a lead','Bidding partners see cohort aggregates, never you. Your details aren’t shopped around, and the provider that wins is the only one that ever gets them.')
+  +wfRow('No obligation, at any point','You read the winning offer and take it or leave it. Nothing is signed, charged, or switched without you saying yes.')
+  +'</div>'
+
+  +'<div class="savedbox">In plain terms: <b>your cohort is the leverage.</b> '+have+' households heading for the same renewal window are worth fighting for in a way one household never is. Providers cover the cost of that fight. You cover nothing.</div>'
+  +'<p class="fnote">The only money that ever leaves your side is the '+dep()+' refundable deposit, and only if you accept a winning offer: credited to your first bill, refunded automatically if the switch doesn’t complete.</p>'
+  +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">'
+  +'<button class="btn terra" type="button" data-choose="le">Makes sense, join the cohort</button>'
+  +'<button class="btn ghost" type="button" data-mclose>Back to my cohort</button>'
+  +'</div>'
+  +'<p class="wffoot">Still curious? <a href="/#how" target="_blank" rel="noopener">Read the full breakdown</a></p>'
+  +'</div>');
+}
+
 /* ---------- visitor events ----------
    The checkup's own writes (the pending handoff, W.member.patch, POST /me/bill)
    all happen on /bill-checkup. Coming back here, applyDerived() reads the bill
    that landed and the card flips from "arrive" to "result" on its own. */
 document.addEventListener('click',function(e){
-  if(e.target.closest('[data-act="whyfree"]')){toast('Providers pay Whollar only when a switch completes. You never pay, and you’re never obligated.');return}
+  if(e.target.closest('[data-act="whyfree"]')){openWhyFree();return}
   if(e.target.closest('[data-act="wnotify"]')){
     var c=joinedCamp();
     var done=function(){toast('Noted. We’ll text you the day '+(c?c.region:'your region')+' opens.')};
@@ -2865,8 +2954,10 @@ document.addEventListener('click',function(e){
    member-writable keys are alerts/interests/notify), and joining London East
    goes through the same doJoin() the campaign cards use. */
 function chip(v,l,on){return '<button type="button" data-v="'+esc(v)+'"'+(on?' class="on"':'')+'>'+l+'</button>'}
+var AVOID_KNOWN=['Bell','Rogers','Cogeco','TekSavvy','Start.ca'];
 function openPrefs(edit){
   var p=S.prefs||{};
+  var avoidOther=(p.avoid||[]).filter(function(n){return AVOID_KNOWN.indexOf(n)<0}).join(', ');
   openModal('<div class="mhead"><h3>'+(edit?'Your preferences':'Six quick questions')+'</h3><button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
   +'<p class="msub">Bids fit better when partners know what the cohort actually wants. This shapes the auction; it never obligates you.</p>'
   +'<label class="plabel">When would you actually switch?</label>'
@@ -2882,7 +2973,8 @@ function openPrefs(edit){
   +'<div class="pchips" id="pf-building">'+chip('house','House',!p.building||p.building==='house')+chip('unit','Condo or apartment, I pick my own internet',p.building==='unit')+chip('bulk','My building controls the internet',p.building==='bulk')+'</div>'
   +'<div class="pfnote" id="bldgnote" '+(p.building==='bulk'?'':'hidden')+'>Then switching runs through your building, not around it. We’ll flag this cohort as informational for you and can talk to your board or landlord: that’s often a hundred households in one decision.</div>'
   +'<label class="plabel">Partners you’d rather avoid <span class="opt">optional</span></label>'
-  +'<div class="pchips" id="pf-avoid" data-multi="1">'+['Bell','Rogers','Cogeco','TekSavvy','Start.ca'].map(function(n){return chip(n,n,(p.avoid||[]).indexOf(n)>-1)}).join('')+'</div>'
+  +'<div class="pchips" id="pf-avoid" data-multi="1">'+['Bell','Rogers','Cogeco','TekSavvy','Start.ca'].map(function(n){return chip(n,n,(p.avoid||[]).indexOf(n)>-1)}).join('')+chip('__other__','Other',!!avoidOther)+'</div>'
+  +'<input type="text" class="minput" id="pf-avoid-other" placeholder="Who else?" maxlength="120" value="'+esc(avoidOther)+'" '+(avoidOther?'':'hidden')+'>'
   +'<p class="pfhint">This shapes bids, it doesn’t bind them: whoever wins, you still see the offer and you can still say no.</p>'
   +'<button class="btn terra" type="button" id="pf-save" style="width:100%;justify-content:center;margin-top:16px">'+(edit?'Save preferences':'Join London East · free')+'</button>'
   +'<p class="fnote" style="text-align:center">No card, no commitment. A deposit only ever appears if you accept a winning offer later.</p>');
@@ -2890,10 +2982,18 @@ function openPrefs(edit){
 document.addEventListener('click',function(e){
   if(!e.target.closest('#pf-save'))return;
   var wasJoined=S.joined;
+  var avoid=chipVals('pf-avoid').filter(function(v){return v!=='__other__'});
+  var avoidOtherEl=$('#pf-avoid-other');
+  if(avoidOtherEl&&!avoidOtherEl.hidden){
+    String(avoidOtherEl.value||'').split(',').map(function(s){return s.trim()}).filter(Boolean).forEach(function(s){avoid.push(s)});
+  }
   S.prefs={when:chipVal('pf-when'),speed:chipVal('pf-speed'),tech:chipVal('pf-tech'),
-    bundle:chipVal('pf-bundle'),building:chipVal('pf-building'),avoid:chipVals('pf-avoid')};
+    bundle:chipVal('pf-bundle'),building:chipVal('pf-building'),avoid:avoid};
   if(W&&W.session&&W.session.prefsSave){
     W.session.prefsSave({interests:S.prefs}).then(null,function(){/* kept locally; retried on next save */});
+  }
+  if(W&&W.session&&W.session.event){
+    W.session.event('interest',{action:wasJoined?'prefs-edit':'prefs-join',prefs:S.prefs}).then(null,function(){/* best-effort audit trail */});
   }
   closeModal();
   if(!wasJoined){
