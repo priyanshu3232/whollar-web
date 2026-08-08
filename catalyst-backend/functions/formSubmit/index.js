@@ -31,7 +31,16 @@ const isDevOrigin = (origin) =>
 // *.vercel.app suffix (which would let any attacker-hosted Vercel page drive
 // browser requests at this backend). Preview URLs look like
 // whollar-web-<hash>-<team>.vercel.app / whollar-web-git-<branch>-…
+//
+// The review alias is named separately and exactly, because it does NOT match
+// the pattern above: it is whollar-staging-1w, not whollar-web-*. Without it
+// every submit from the review link failed CORS, and the page said so — an
+// accurate message that read as a bug in the site rather than a gap in this
+// list. One stable alias only; per-deploy preview URLs change every push, and
+// widening the pattern to cover them would re-open the whole suffix.
+const STAGING_ORIGIN = 'https://whollar-staging-1w.vercel.app';
 const isVercelOrigin = (origin) =>
+  origin === STAGING_ORIGIN ||
   /^https:\/\/whollar-web[a-z0-9-]*\.vercel\.app$/.test(origin);
 
 // Dev origins (localhost / Origin:null) are allowed only when this function is
