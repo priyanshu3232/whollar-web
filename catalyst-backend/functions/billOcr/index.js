@@ -258,8 +258,9 @@ async function billContentBlock(file) {
 async function extractBillFields(file) {
   const billBlock = await billContentBlock(file);
   const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5',
+    model: 'claude-sonnet-5',
     max_tokens: 4096,
+    thinking: { type: 'disabled' },
     system:
       'You extract structured billing fields from Canadian home-internet bills. ' +
       'If a field is ambiguous, missing, or you are not confident, return null for that field ' +
