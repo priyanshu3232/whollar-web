@@ -818,6 +818,20 @@ const W=window.WHOLLAR;
    and the standalone snapshot, and the three copies had already drifted. */
 const S={pc:null,pcFull:null,province:null,provinceCode:null,prov:'',cost:0,disc:0,spd:null,tech:'',pdate:null,pmo:0,expired:false,joined:false,file:null,email:'',cstart:null,clen:'',cstartIdk:false,pdateIdk:false,multiPromo:null,periods:[]};
 
+/* The signed-in lane. The dashboard's "Check if I'm overpaying" links here with
+   ?from=dashboard, and members also arrive from the nav or a bookmark, so the
+   local member record is what decides — not the query string, which only
+   decides whether we offer a way BACK to the dashboard.
+
+   Nothing about the submit path changes: rememberBill() already POSTs to
+   /me/bill, which keys the row on users.user_id. What changes is the asking.
+   A member who has already told us their email should not be typing it into a
+   waitlist box to reach their own file, and the results screen should not be
+   selling them a cohort they can already join from their dashboard. */
+const MEMBER=(W.member&&W.member.read&&W.member.read())||null;
+const MEMBER_EMAIL=MEMBER&&MEMBER.email?String(MEMBER.email).trim():'';
+const FROM_DASH=(new URLSearchParams(location.search)).get('from')==='dashboard';
+
 const submitForm=(path,fields,files)=>W.submitForm(path,fields,files);
 const busy=(btn,on,label)=>W.busy(btn,on,label);
 
@@ -1068,7 +1082,9 @@ function restoreDraft(){
   const set=(sel,v)=>{if(v==null||v==='')return;const el=$(sel);if(!el)return;el.value=v;
     el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));};
   set('#pc',d.pc);set('#prov',d.prov);set('#cost',d.cost);set('#disc',d.disc);set('#spd',d.spd);
-  set('#tech',d.tech);set('#pdate',d.pdate);set('#email',d.email);
+  /* A member's address comes from their account, never from a draft another
+     visit left in this tab. */
+  set('#tech',d.tech);set('#pdate',d.pdate);if(!MEMBER_EMAIL)set('#email',d.email);
   set('#cstart',d.cstart);set('#clen',d.clen);
   if(d.cstartIdk)setIdk('cstart',true);
   if(d.pdateIdk)setIdk('pdate',true);
@@ -1470,6 +1486,18 @@ function rememberBill(){
      (signed out, or a dropped request) leaves the pending handoff in place for
      the next sign-in to push. A save that lands clears it. */
   W.session.billSave(bill).then(()=>W.checkup.clear(),()=>{});
+
+  /* Q01 is the one answer member_bills has no column for, because it isn't a
+     fact about the bill — the postal code decides which cohort the household
+     is pooled into, so it belongs to the account (users.postal_code, and the
+     FSA the server derives from it). Members only: /me/profile 401s for
+     everyone else, and a visitor's postal code travels on the lead instead.
+     Fire-and-forget like the bill above, and the local patch keeps the
+     dashboard's account card from lagging a round trip behind. */
+  if(MEMBER_EMAIL&&S.pcFull){
+    W.member.patch({postal:S.pcFull,province:S.province||null,provinceCode:S.provinceCode||null,fsa:S.pc||null});
+    W.session.profileSave({postalCode:S.pcFull,provinceCode:S.provinceCode||null}).then(null,()=>{});
+  }
 }
 
 /* ---------- savings engine (checkup-savings.js) ----------
@@ -1620,7 +1648,11 @@ function renderResults(){
   $$('#rgrid .rv').forEach(b=>b.addEventListener('click',()=>{screen(1);const el=document.getElementById(b.dataset.t);if(el)setTimeout(()=>el.focus(),350);}));
   renderLevers();
   const j2=$('#join2');
-  if(S.joined){j2.innerHTML='<h3>&#10003; You\u2019re on the '+W.escapeHtml(S.pc?S.pc+' ':'')+'waitlist</h3><p>We\u2019ll write the moment your cohort opens, and you\u2019ll be first to hear where Whollar goes next.</p>';}
+  /* A member is already in. The card that sells the cohort to a stranger is
+     the wrong card for them, so it becomes the receipt: where the numbers went,
+     and the way back. The id stays j2-cta because submitErr() anchors on it. */
+  if(MEMBER_EMAIL){j2.innerHTML='<h3>&#10003; Saved to your Whollar file</h3><p>These numbers are on your account now, so your cliff watch and any cohort you join are working from them. Run this again whenever your bill changes and it replaces them.</p><a class="whl-btn" id="j2-cta" href="/dashboard">Back to my dashboard<svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>';}
+  else if(S.joined){j2.innerHTML='<h3>&#10003; You\u2019re on the '+W.escapeHtml(S.pc?S.pc+' ':'')+'waitlist</h3><p>We\u2019ll write the moment your cohort opens, and you\u2019ll be first to hear where Whollar goes next.</p>';}
   /* One CTA, no inline email capture: joining means creating an account, and
      account creation lives on /waitlist/ (the same entry point the sign-in
      page links to). The checkup handoff (W.checkup.save) already carries this
@@ -1684,6 +1716,65 @@ function invLoop(){
   setTimeout(invLoop,9200);}
 if(matchMedia('(prefers-reduced-motion: reduce)').matches){inv.classList.add('p0','p1','p2');invPlan.textContent='$133.99';invTot.textContent='$150.99';}
 else invLoop();
+
+/* ---------- signed-in members ----------
+   Runs before restoreDraft() on purpose: a draft is what this person typed in
+   this tab, so it must win over anything we fill in for them. restoreDraft()
+   skips empty values, so it overwrites the prefill and never blanks it. */
+function memberLane(){
+  if(!MEMBER_EMAIL)return;
+
+  /* The way back. The nav's "Join the cohort" is meaningless to someone who
+     already has an account, whichever door they came through. */
+  const back=$('.whl-nav__back');
+  if(back&&FROM_DASH){back.href='/dashboard';back.innerHTML='&larr; Back to my dashboard';}
+  const navCta=$('.whl-nav .whl-btn');
+  if(navCta){navCta.href='/dashboard';navCta.textContent='My dashboard';}
+
+  /* The email box becomes a statement of fact. It stays a real input (the
+     submit reads #email, the draft writes it, and the rail join reuses it) but
+     it is theirs and not editable here: the address on the account is what
+     /me/bill and the lead table both key on, and letting them type a different
+     one would split their own record in two. The consent line stays exactly
+     where it was — hiding the disclosure while still sending consent:true
+     would be recording a permission we stopped showing. */
+  const em=$('#email');
+  if(em){
+    em.value=MEMBER_EMAIL;
+    em.readOnly=true;
+    em.setAttribute('aria-readonly','true');
+    em.style.background='#F3F1EA';em.style.color='var(--ink-soft,#5A6560)';em.style.cursor='default';
+    const lab=$('label[for="email"]');
+    if(lab)lab.textContent='Your Whollar account';
+    const note=document.createElement('p');
+    note.style.cssText='margin:6px 0 0;font-size:12.5px;font-weight:600;color:var(--teal-soft)';
+    note.textContent='Signed in · your answers save to your file, on every device.';
+    em.parentNode.appendChild(note);
+  }
+  const hint=$('.cta-row .hint');
+  if(hint)hint.textContent='About 30 seconds. It saves to your Whollar file.';
+
+  /* Prefill from the bill already on their file, so "check again" is an edit
+     and not a retype. Only the fields member_bills actually holds; the date
+     inputs refuse a month-granular 'YYYY-MM', which is a shape /me/bill does
+     store, so those are set only when a full date came back. A <select> given
+     a value it has no option for lands on empty, which is the right answer for
+     a provider or speed we no longer offer. */
+  const b=MEMBER.bill;
+  if(!b||typeof b!=='object')return;
+  const set=(sel,v)=>{if(v==null||v==='')return;const el=$(sel);if(!el)return;el.value=v;
+    el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));};
+  const fullDate=v=>(typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v))?v:'';
+  set('#prov',b.provider);
+  set('#cost',b.monthly);
+  set('#disc',b.discount);
+  set('#spd',b.speed==null?'':String(b.speed));
+  set('#tech',b.tech);
+  set('#pdate',fullDate(b.promoEnd));
+  set('#cstart',fullDate(b.contractStart));
+  set('#clen',b.contractLength==null?'':String(b.contractLength));
+}
+memberLane();
 
 /* Restore anything typed before a refresh. Runs last so every listener above
    is attached and the restored values flow through the same validation. */
