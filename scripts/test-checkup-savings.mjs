@@ -240,13 +240,17 @@ eq('C6 caveat', c6.caveat,
   + 'This compares a slower plan, so the real gap is likely smaller.');
 
 /* C6b — a tier-sourced benchmark is a real price at the speed asked for, so
-   it must NOT raise the "treat this as a floor" caveat. */
+   it must NOT raise the "treat this as a floor" caveat. Its basis line must
+   also say so: it is a reference rate, not one of the advertised plans the
+   standard basis line claims to track. */
 {
   const c = buildCard(calculateCheckup({
     postalCode: 'X1A 0A1', downloadMbps: 1500, currentPrice: 300,
     discountAmount: 0, contractLengthMonths: 24, promoEndDate: null, today: '2026-08-08',
   }), 'X1A');
   eq('C6b no caveat on tier', c.caveat, undefined);
+  eq('C6b tier basis', c.basis,
+    "Measured against a reference rate for this speed — we don't track an advertised plan this fast in your area.");
 }
 
 /* C7 — basis line on every case, identical */

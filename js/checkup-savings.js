@@ -513,8 +513,15 @@ function buildCard(r, fsa) {
      advertised plans we hold, NOT Whollar's own price, which lands lower and
      is settled later. Without this line the card implies the number on screen
      is the best available outcome, when it is the starting point. It is also
-     the only conversion argument on no_saving. */
-  var basis = 'Measured against the lowest prices we track in your area.';
+     the only conversion argument on no_saving.
+
+     A high_speed_tier match is a reference rate, not an advertised plan we
+     actually track — the workbook carries no 1.5/3 Gbps row for this
+     province, so the standard "lowest prices we track" phrasing would claim
+     a plan that isn't there. */
+  var basis = r.benchmark.matched === 'high_speed_tier'
+    ? "Measured against a reference rate for this speed — we don't track an advertised plan this fast in your area."
+    : 'Measured against the lowest prices we track in your area.';
 
   /* Tense follows promoActive: a cliff that already happened is a fact on
      their statements ("ended … is"), not a forecast — the old copy told a
