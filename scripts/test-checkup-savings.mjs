@@ -47,7 +47,7 @@ eq('2 monthsBetween', monthsBetween('2025-06-08', '2026-11-26'), 18);
   eq('3 promoMonths', r.promoMonths, 18);
   eq('3 totalPaid', r.totalPaid, 5760);
   eq('3 totalSavings', r.totalSavings, 4140.36);
-  eq('3 cliff', r.cliff, { month: 18, date: '2026-12-08', monthsAway: 4, from: 120, to: 200 });
+  eq('3 cliff', r.cliff, { month: 18, date: '2026-12-08', monthsAway: 3, from: 120, to: 200 });
 }
 
 /* 4 — GOLDEN multi-promo */
@@ -84,7 +84,7 @@ eq('2 monthsBetween', monthsBetween('2025-06-08', '2026-11-26'), 18);
   });
   eq('5b postPromo', r.postPromoPrice, 210);
   eq('5b currentMonthly', r.currentMonthly, 210);
-  eq('5b totalPaid', r.totalPaid, 12 * 120 + 12 * 210);
+  eq('5b totalPaid', r.totalPaid, 11 * 120 + 13 * 210);
   const card = buildCard(r, 'L5V');
   eq('5b past tense', card.note.startsWith('Your promotion ended'), true);
   eq('5b rate is 210', card.note.includes('The rate is $210/mo and stays there'), true);
@@ -159,6 +159,23 @@ eq('10 X0A 1H0', provinceFromPostalCode('X0A 1H0'), 'Nunavut');
 /* 12 — month-end anchor clamps */
 eq('12 Jan31->Feb28', monthsBetween('2025-01-31', '2025-02-28'), 1);
 eq('12 Jan31->Mar01', monthsBetween('2025-01-31', '2025-03-01'), 2);
+
+/* 12b — same-day-of-month boundary: a promo running exactly 12 months from
+   start to end must count as 12, not 13. This is the off-by-one regression
+   (fixed 2026-08-10): the old code only decremented when the end day-of-month
+   was strictly LESS than the start day-of-month, so an equal day-of-month
+   boundary fell through and got counted twice. */
+eq('12b Jan15->Jan15 +1y', monthsBetween('2026-01-15', '2027-01-15'), 12);
+eq('12b Jan01->Jan01 +1y', monthsBetween('2026-01-01', '2027-01-01'), 12);
+{
+  const r = calculateCheckup({
+    postalCode: 'L5V 1A9', downloadMbps: 500, currentPrice: 120, discountAmount: 80,
+    contractLengthMonths: 24, contractStartDate: '2026-01-15', promoEndDate: '2027-01-15',
+    today: '2026-08-08',
+  });
+  eq('12b promoMonths', r.promoMonths, 12);
+  eq('12b cliff date === promo end date', r.cliff.date, '2027-01-15');
+}
 
 /* 13 — promo end unknown: assume 12 months, warn */
 {

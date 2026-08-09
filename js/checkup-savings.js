@@ -329,7 +329,7 @@ function monthsBetween(startISO, endISO) {
   var s = new Date(startISO + 'T00:00:00Z');
   var e = new Date(endISO + 'T00:00:00Z');
   var n = (e.getUTCFullYear() - s.getUTCFullYear()) * 12 + (e.getUTCMonth() - s.getUTCMonth());
-  if (e.getUTCDate() < s.getUTCDate()) n -= 1;
+  if (e.getUTCDate() <= s.getUTCDate()) n -= 1;
   return Math.max(0, n + 1);
 }
 
