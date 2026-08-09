@@ -58,6 +58,12 @@ jobs:
       - name: Checkup plan pool matches the PlanSavvy spreadsheet
         run: node scripts/build-plan-pool.mjs --check
 
+      # Fails when the committed checkup-50-test-results.csv fixture no
+      # longer matches a fresh run of the 50-case harness — i.e. an engine
+      # change shifted savings/card/cliff numbers and nobody reviewed it.
+      - name: Checkup 50-case fixture matches the engine
+        run: node scripts/test-checkup-50-cases.mjs --check
+
       # The shared module every form and the scoring engine now depend on.
       - name: Shared core parses
         run: node --check js/whollar-core.js
