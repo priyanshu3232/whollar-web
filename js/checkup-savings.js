@@ -100,7 +100,7 @@ var INTERNET_PLANS = {
     { provider: 'Start.ca', plan: 'Home Fibre 100', mbps: 100, price: 45.0 },
     { provider: 'VMedia', plan: 'FTTN 50', mbps: 50, price: 47.95 },
     { provider: 'Oxio', plan: 'Internet 30', mbps: 30, price: 48.0 },
-    { provider: 'EBOX', plan: 'FTTN 50', mbps: 50, price: 49.95 }
+    { provider: 'Bell', plan: 'Fibe 1.5 Gig (w/ Rogers or Fido mobile)', mbps: 1500, price: 55.0 }
   ],
   'Quebec': [
     { provider: 'TekSavvy', plan: 'Cable 30', mbps: 30, price: 32.95 },
@@ -217,6 +217,25 @@ var INTERNET_PLANS = {
 };
 
 /* ------------------------------------------------------------------ *
+ * High-speed tiers the workbook does not price
+ *
+ * PlanSavvy-Pricing.xlsx tops out at 1 Gbps in most provinces and carries no
+ * 1.5 Gbps or 3 Gbps row anywhere. Without these, a household on one of those
+ * speeds fell straight through to `below_requested_speed` and got measured
+ * against a slower, pricier plan — a gigabit household in NT was benchmarked
+ * at $219.95 when 1.5 Gbps sells for $55.
+ *
+ * These are reference monthly rates for the two tiers, applied ONLY when the
+ * province pool cannot reach the requested speed. They never compete with a
+ * real provincial plan that already qualifies, so nothing below 1 Gbps moves.
+ * Update alongside the workbook.
+ * ------------------------------------------------------------------ */
+var HIGH_SPEED_TIERS = [
+  { mbps: 1500, price: 55.0 },
+  { mbps: 3000, price: 65.0 }
+];
+
+/* ------------------------------------------------------------------ *
  * Benchmark lookup
  * ------------------------------------------------------------------ */
 
@@ -269,6 +288,25 @@ function lookupBenchmark(postal, downloadMbps) {
     var out = toBenchmark(best, province);
     out.matched = 'at_or_above_speed';
     return out;
+  }
+
+  /* Nothing in the province reaches the speed. Before degrading to a slower
+     plan, take the cheapest 1.5/3 Gbps tier that does — those speeds are real
+     and purchasable, the workbook just doesn't carry a row for them. */
+  var tier = HIGH_SPEED_TIERS
+    .filter(function (t) { return t.mbps >= downloadMbps; })
+    .reduce(function (a, t) { return !a || t.price < a.price ? t : a; }, null);
+  if (tier) {
+    return {
+      monthly: tier.price,
+      /* A reference rate, not a named plan. Null on purpose: there is no
+         provider to leak, and the card must never name one anyway. */
+      provider: null,
+      plan: null,
+      mbps: tier.mbps,
+      province: province,
+      matched: 'high_speed_tier'
+    };
   }
 
   var topSpeed = Math.max.apply(null, pool.map(function (p) { return p.mbps; }));
@@ -465,31 +503,30 @@ function shortDate(iso) {
 /** Case chosen on one number: overPct = totalSavings / totalBenchmark. */
 function buildCard(r, fsa) {
   var overPct = r.totalBenchmark > 0 ? r.totalSavings / r.totalBenchmark : 0;
-  var multiple = r.totalPaid / r.totalBenchmark;
   var cta = 'Join your ' + fsa + ' cohort';
-  var ctaSub = 'No switching fee for members. Walk away from any offer.';
 
-  /* Shown on every case. The savings figure is measured against publicly
-     advertised plans, NOT Wholler's own price, which lands lower and is
-     settled later. Without this line the card implies the number on screen
-     is the best available outcome, when it is the starting point. It is
-     also the only conversion argument on no_saving. */
-  var basis = 'Savings measured against publicly advertised plans. Cohort pricing lands below that.';
+  /* Shown on every case. The savings figure is measured against the cheapest
+     advertised plans we hold, NOT Whollar's own price, which lands lower and
+     is settled later. Without this line the card implies the number on screen
+     is the best available outcome, when it is the starting point. It is also
+     the only conversion argument on no_saving. */
+  var basis = 'Measured against the lowest prices we track in your area.';
 
   /* Tense follows promoActive: a cliff that already happened is a fact on
-     their statements ("ended … went to"), not a forecast — the old copy
-     told a household in August that their promo "ends" the previous May. */
+     their statements ("ended … is"), not a forecast — the old copy told a
+     household in August that their promo "ends" the previous May. */
   var note;
   if (r.cliff) {
     note = r.promoActive
-      ? 'Your promo ends ' + (r.cliff.date ? shortDate(r.cliff.date) : 'soon') + '. '
-        + 'The bill goes to ' + money(r.cliff.to) + '.'
-      : 'Your promo ended' + (r.cliff.date ? ' ' + shortDate(r.cliff.date) : '') + '. '
-        + 'The bill went to ' + money(r.cliff.to) + ', and it stays there until something changes it.';
+      ? 'Your promotion ends ' + (r.cliff.date ? shortDate(r.cliff.date) : 'soon') + '. '
+        + 'The rate goes to ' + money(r.cliff.to) + '/mo.'
+      : 'Your promotion ended' + (r.cliff.date ? ' ' + shortDate(r.cliff.date) : '') + '. '
+        + 'The rate is ' + money(r.cliff.to) + '/mo and stays there.';
   }
 
   var caveat = r.benchmark.matched === 'below_requested_speed'
-    ? 'Nothing we track in ' + r.benchmark.province + ' hits ' + r.downloadMbps + ' Mbps. Treat this as a floor.'
+    ? 'Speed note. No plan we track in ' + r.benchmark.province + ' reaches ' + r.downloadMbps
+      + ' Mbps. This compares a slower plan, so the real gap is likely smaller.'
     : undefined;
 
   var payNow = { label: 'You pay now', value: money(r.currentMonthly) + '/mo' };
@@ -503,13 +540,12 @@ function buildCard(r, fsa) {
     return {
       case: 'no_saving',
       tone: 'good',
-      badge: 'Already well priced',
-      headline: "You're not overpaying on advertised rates.",
+      headline: 'This is a decent price. A cohort goes lower.',
       stats: [payNow],
-      body: "You beat the advertised plans on your own. That's where a cohort starts, not where it ends.",
+      body: 'You are doing decently on what you pay now. Once you join, providers bid for the whole of '
+        + fsa + ' at once, and that price may take you further than where you are today.',
       basis: basis, note: note, caveat: caveat,
-      cta: cta + ' anyway',
-      ctaSub: ctaSub
+      cta: cta
     };
   }
 
@@ -517,12 +553,13 @@ function buildCard(r, fsa) {
     return {
       case: 'small_saving',
       tone: 'neutral',
-      badge: 'A little above the best rate',
-      headline: "You're close, but not on the best rate.",
+      headline: 'There is more room here than your bill suggests.',
       stats: [payNow, couldSave],
-      body: 'Small enough to ignore each month, which is why it lasts ' + r.termMonths + ' months.',
+      body: 'A gap this small survives because nobody changes providers over it, and providers count on that. '
+        + 'In a cohort nobody has to. The price is settled at the bid, and a bid has to beat what every household in '
+        + fsa + ' could already get on its own.',
       basis: basis, note: note, caveat: caveat,
-      cta: cta, ctaSub: ctaSub
+      cta: cta
     };
   }
 
@@ -530,29 +567,32 @@ function buildCard(r, fsa) {
     return {
       case: 'moderate_saving',
       tone: 'warn',
-      badge: 'Above the best rate',
-      headline: "You're paying more than you need to.",
+      headline: 'You are paying more than you need to, and it will not correct itself.',
       stats: [payNow, couldSave],
-      body: 'Calling gets you a retention script. Arriving with every other ' + fsa + ' household ready to move gets you a bid.',
+      body: 'On your own the call ends at a retention desk, where the script is written to hold you with the '
+        + 'smallest discount that works. A cohort is not offered a script. It is offered a bid, because every '
+        + fsa + ' household is on the table at once.',
       basis: basis, note: note, caveat: caveat,
-      cta: cta, ctaSub: ctaSub
+      cta: cta
     };
   }
 
   return {
     case: 'big_saving',
     tone: 'alert',
-    badge: 'Well above the best rate',
-    headline: "You're paying " + multiple.toFixed(1) + '× the best rate for your speed.',
+    headline: 'Your speed does not cost this much.',
     stats: [payNow, couldSave],
-    body: "That's not a negotiation, it's a plan you drifted onto. Calling gets you a retention script. Arriving with your whole " + fsa + ' block gets you a bid.',
+    body: 'No one chose this price for you. A promotion ended, the number moved up, and nothing on the bill '
+      + 'announced it. Left alone, a gap this size simply continues. In a cohort it gets challenged, and a bid '
+      + 'that does not beat what you pay now does not win.',
     basis: basis, note: note, caveat: caveat,
-    cta: cta, ctaSub: ctaSub
+    cta: cta
   };
 }
 
 var API = {
   INTERNET_PLANS: INTERNET_PLANS,
+  HIGH_SPEED_TIERS: HIGH_SPEED_TIERS,
   provinceFromPostalCode: provinceFromPostalCode,
   lookupBenchmark: lookupBenchmark,
   monthsBetween: monthsBetween,

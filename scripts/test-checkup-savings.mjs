@@ -86,8 +86,8 @@ eq('2 monthsBetween', monthsBetween('2025-06-08', '2026-11-26'), 18);
   eq('5b currentMonthly', r.currentMonthly, 210);
   eq('5b totalPaid', r.totalPaid, 12 * 120 + 12 * 210);
   const card = buildCard(r, 'L5V');
-  eq('5b past tense', card.note.startsWith('Your promo ended'), true);
-  eq('5b went to 210', card.note.includes('went to $210'), true);
+  eq('5b past tense', card.note.startsWith('Your promotion ended'), true);
+  eq('5b rate is 210', card.note.includes('The rate is $210/mo and stays there'), true);
   eq('5b pay-now stat', card.stats[0].value, '$210/mo');
 }
 
@@ -124,11 +124,36 @@ eq('2 monthsBetween', monthsBetween('2025-06-08', '2026-11-26'), 18);
 /* 10 — X0A is Nunavut */
 eq('10 X0A 1H0', provinceFromPostalCode('X0A 1H0'), 'Nunavut');
 
-/* 11 — speed above every plan in the province */
+/* 11 — speed above every plan AND above every high-speed tier */
 {
-  const b = lookupBenchmark('X1A 0A1', 2000); // Northwest Territories, top plan 1000
+  const b = lookupBenchmark('X1A 0A1', 5000); // Northwest Territories, top plan 1000
   eq('11 matched flag', b.matched, 'below_requested_speed');
   eq('11 fallback plan speed', b.mbps, 1000);
+}
+
+/* 11b — 1.5/3 Gbps: the workbook prices neither, so the tier table fills the
+   gap instead of degrading to a slower provincial plan. */
+{
+  const t15 = lookupBenchmark('X1A 0A1', 1500);
+  eq('11b 1.5G matched', t15.matched, 'high_speed_tier');
+  eq('11b 1.5G price', t15.monthly, 55);
+  eq('11b 1.5G no provider named', t15.provider, null);
+
+  const t30 = lookupBenchmark('V6B 1A1', 3000); // BC, top plan 1000
+  eq('11b 3G matched', t30.matched, 'high_speed_tier');
+  eq('11b 3G price', t30.monthly, 65);
+
+  /* 2 Gbps has no tier of its own: the next tier up that clears it wins. */
+  eq('11b 2G rounds up to 3G tier', lookupBenchmark('V6B 1A1', 2000).monthly, 65);
+
+  /* A real provincial plan that already clears the speed still wins: the
+     tiers are a gap-filler, never a competitor. */
+  const on = lookupBenchmark('N6A 1A1', 1500); // Ontario carries a 1500 plan
+  eq('11b province plan wins', on.matched, 'at_or_above_speed');
+
+  /* Nothing under a gig may move because of this. */
+  eq('11b 100M unmoved', lookupBenchmark('N6A 1A1', 100).monthly, 38.95);
+  eq('11b 1000M unmoved', lookupBenchmark('X1A 0A1', 1000).monthly, 219.95);
 }
 
 /* 12 — month-end anchor clamps */
@@ -156,8 +181,8 @@ const flat = (price, term) => calculateCheckup({
   postalCode: 'L5V 1A9', downloadMbps: 100, currentPrice: price,
   discountAmount: 0, contractLengthMonths: term, promoEndDate: null, today: '2026-08-08',
 });
-const allText = (c) => [c.badge, c.headline, c.body, c.basis, c.note || '', c.caveat || '',
-  c.cta, c.ctaSub, ...c.stats.flatMap((s) => [s.label, s.value, s.sub || ''])].join(' | ');
+const allText = (c) => [c.headline, c.body, c.basis, c.note || '', c.caveat || '',
+  c.cta, ...c.stats.flatMap((s) => [s.label, s.value, s.sub || ''])].join(' | ');
 
 /* C1 — $50 vs $38.95 over 36 months -> moderate_saving */
 const c1 = buildCard(flat(50, 36), 'L5V');
@@ -167,11 +192,11 @@ eq('C1 case', c1.case, 'moderate_saving');
 const c2 = buildCard(flat(42, 24), 'L5V');
 eq('C2 case', c2.case, 'small_saving');
 
-/* C3 — $35 vs $38.95 -> no_saving: ONE stat, "anyway" CTA, no $0 anywhere */
+/* C3 — $35 vs $38.95 -> no_saving: ONE stat, no $0 anywhere */
 const c3 = buildCard(flat(35, 24), 'L5V');
 eq('C3 case', c3.case, 'no_saving');
 eq('C3 one stat', c3.stats.length, 1);
-eq('C3 cta', c3.cta.endsWith('anyway'), true);
+eq('C3 cta', c3.cta, 'Join your L5V cohort');
 eq('C3 no $0', allText(c3).includes('$0'), false);
 
 /* C4 — $130 vs $44.99 -> big_saving with the multiple in the headline */
@@ -180,28 +205,43 @@ const c4 = buildCard(calculateCheckup({
   discountAmount: 0, contractLengthMonths: 24, promoEndDate: null, today: '2026-08-08',
 }), 'L5V');
 eq('C4 case', c4.case, 'big_saving');
-eq('C4 multiple', c4.headline.includes('2.9×'), true);
+eq('C4 headline', c4.headline, 'Your speed does not cost this much.');
 
 /* C5 — the golden promo scenario: big_saving, note present, case unmoved by it */
 const c5r = calculateCheckup(GOLDEN);
 const c5 = buildCard(c5r, 'L5V');
 eq('C5 case', c5.case, 'big_saving');
-eq('C5 note', c5.note, 'Your promo ends Dec 2026. The bill goes to $200.');
+eq('C5 note', c5.note, 'Your promotion ends Dec 2026. The rate goes to $200/mo.');
 
 /* C6 — below_requested_speed sets the caveat; case still chosen on overPct */
 const c6 = buildCard(calculateCheckup({
-  postalCode: 'X1A 0A1', downloadMbps: 2000, currentPrice: 300,
+  postalCode: 'X1A 0A1', downloadMbps: 5000, currentPrice: 300,
   discountAmount: 0, contractLengthMonths: 24, promoEndDate: null, today: '2026-08-08',
 }), 'X1A');
-eq('C6 caveat', c6.caveat, 'Nothing we track in Northwest Territories hits 2000 Mbps. Treat this as a floor.');
+eq('C6 caveat', c6.caveat,
+  'Speed note. No plan we track in Northwest Territories reaches 5000 Mbps. '
+  + 'This compares a slower plan, so the real gap is likely smaller.');
+
+/* C6b — a tier-sourced benchmark is a real price at the speed asked for, so
+   it must NOT raise the "treat this as a floor" caveat. */
+{
+  const c = buildCard(calculateCheckup({
+    postalCode: 'X1A 0A1', downloadMbps: 1500, currentPrice: 300,
+    discountAmount: 0, contractLengthMonths: 24, promoEndDate: null, today: '2026-08-08',
+  }), 'X1A');
+  eq('C6b no caveat on tier', c.caveat, undefined);
+}
 
 /* C7 — basis line on every case, identical */
 const cards = [c1, c2, c3, c4, c5, c6];
 eq('C7 basis identical', new Set(cards.map((c) => c.basis)).size, 1);
 eq('C7 basis non-empty', cards.every((c) => c.basis.length > 0), true);
 
-/* C8 — ctaSub on every case */
-eq('C8 ctaSub', cards.every((c) => c.ctaSub.includes('No switching fee')), true);
+/* C8 — the card carries no eyebrow badge and no line under the button: both
+   were dropped, and a stray one reappearing means a case was hand-edited. */
+eq('C8 no badge', cards.every((c) => c.badge === undefined), true);
+eq('C8 no ctaSub', cards.every((c) => c.ctaSub === undefined), true);
+eq('C8 cta on every case', cards.every((c) => c.cta === 'Join your L5V cohort' || c.cta === 'Join your X1A cohort'), true);
 
 /* C9 — banned vocabulary */
 eq('C9 banned words', cards.every((c) => !/typical|list price/i.test(allText(c))), true);
