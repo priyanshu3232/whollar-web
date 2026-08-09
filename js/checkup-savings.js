@@ -27,10 +27,13 @@
 
 /* ------------------------------------------------------------------ *
  * Plans data
- * AUTO-GENERATED from PlanSavvy-Pricing.xlsx > 'Internet Plans'
+ * AUTO-GENERATED from PlanSavvy-Pricing.xlsx > 'Internet Plans'.
  * 12 lowest-priced internet plans per province, August 2026.
- * Regenerate when the workbook updates.
+ * Regenerate with: node scripts/build-plan-pool.mjs
+ * Do NOT hand-edit the block between the markers below — it will be
+ * overwritten. Edit the workbook instead, then re-run the script.
  * ------------------------------------------------------------------ */
+/* GENERATED:PLANS start */
 var INTERNET_PLANS = {
   'British Columbia': [
     { provider: 'TekSavvy', plan: 'Cable 30', mbps: 30, price: 32.95 },
@@ -215,6 +218,7 @@ var INTERNET_PLANS = {
     { provider: 'Northwestel', plan: '1 Gigabit', mbps: 1000, price: 219.95 }
   ]
 };
+/* GENERATED:PLANS end */
 
 /* ------------------------------------------------------------------ *
  * High-speed tiers the workbook does not price

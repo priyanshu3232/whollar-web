@@ -19,6 +19,7 @@ on:
       - "scripts/**"
       - "MobileVersion/**"
       - "Whollar Pricing Model.xlsx"
+      - "PlanSavvy-Pricing.xlsx"
   pull_request:
     paths:
       - "**.html"
@@ -26,6 +27,7 @@ on:
       - "scripts/**"
       - "MobileVersion/**"
       - "Whollar Pricing Model.xlsx"
+      - "PlanSavvy-Pricing.xlsx"
   workflow_dispatch:
 
 jobs:
@@ -49,6 +51,12 @@ jobs:
       # source + CSS overlay would generate — i.e. someone edited one side only.
       - name: Mobile pages are in sync with their desktop sources
         run: node scripts/build-mobile-pages.mjs --check
+
+      # Fails when INTERNET_PLANS in js/checkup-savings.js no longer matches
+      # what "PlanSavvy-Pricing.xlsx" > 'Internet Plans' would produce — i.e.
+      # the sheet was updated but the embedded benchmark data wasn't.
+      - name: Checkup plan pool matches the PlanSavvy spreadsheet
+        run: node scripts/build-plan-pool.mjs --check
 
       # The shared module every form and the scoring engine now depend on.
       - name: Shared core parses
