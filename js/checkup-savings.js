@@ -359,6 +359,8 @@ function calculateCheckup(input) {
   var b = benchmark.monthly;
 
   var discount = Number(input.discountAmount) || 0;
+  if (discount < 0) warnings.push('Discount amount cannot be negative.');
+  discount = Math.max(0, discount);
 
   /* --- Resolve promo window ---------------------------------------- */
   var promoMonths = 0;
@@ -394,7 +396,6 @@ function calculateCheckup(input) {
     postPromoPrice = input.currentPrice + discount;        // 120 + 90 = 210
   }
 
-  if (discount < 0) warnings.push('Discount amount cannot be negative.');
   if (discount === 0 && promoMonths > 0 && input.promoEndDate)
     warnings.push('A promo end date was given but the discount is $0.');
   if (discount > input.currentPrice)

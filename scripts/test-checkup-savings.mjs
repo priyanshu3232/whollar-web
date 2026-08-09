@@ -191,6 +191,14 @@ eq('12b Jan01->Jan01 +1y', monthsBetween('2026-01-01', '2027-01-01'), 12);
   eq('14 postPromo still derived', r.postPromoPrice, 140);
 }
 
+/* 15 — negative discount: warn, but clamp to 0 so the promo never gets
+   CHEAPER when it expires ($80 in, -$10 "discount" used to yield $70). */
+{
+  const r = calculateCheckup({ ...GOLDEN, currentPrice: 80, discountAmount: -10 });
+  eq('15 warning', r.warnings.some((w) => w.includes('cannot be negative')), true);
+  eq('15 postPromo clamped', r.postPromoPrice, 80);
+}
+
 /* ================= Result-card content layer (13 tests) ================= */
 
 /* Flat-price helper: run a real checkup with no promo. */
