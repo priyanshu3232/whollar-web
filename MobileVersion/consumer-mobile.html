@@ -1193,7 +1193,9 @@ img,svg{display:block}
 .whl-reveal.is-in{opacity:1;transform:none}
 @keyframes wh-twinkle{0%,100%{opacity:.35;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
 .whl-cta10-btn:hover{transform:translateY(-2px)}
-.whl-cta10-ghost:hover{background:rgba(255,255,255,.18)}
+.whl-cta10-ghost{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.whl-cta10-ghost:hover{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.36)}
+.whl-cta10-ghost:active{transform:scale(.97);background:rgba(255,255,255,.16)}
 /* entrance stagger on card grids */
 .whl-pgrid .whl-reveal.is-in:nth-child(2),.whl-cards4 .whl-reveal.is-in:nth-child(2){transition-delay:.06s}
 .whl-pgrid .whl-reveal.is-in:nth-child(3),.whl-cards4 .whl-reveal.is-in:nth-child(3){transition-delay:.12s}
@@ -1828,11 +1830,20 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   #whero .col-scene{
     position:relative;
     z-index:2;
-    transform:scale(.82);
+    transform:scale(.74);
     transform-origin:top center;
-    margin-top:-64px;
-    margin-bottom:-90px;
+    margin-top:-120px;
+    margin-bottom:-130px;
   }
+  /* the sticky bottom bar already offers this same action everywhere on mobile,
+     so the in-hero ghost button is a redundant duplicate that gets clipped first
+     on short real-device viewports (in-app browser chrome, etc.) */
+  #whero .col-cta .btn--ghost{display:none}
+  #whero .col-cta{gap:8px; padding-bottom:0}
+  #whero .kicker{margin-top:0}
+  /* secondary link, already reachable from the footer; drop it here so the
+     primary CTA clears the sticky bar on shorter real-device viewports */
+  #whero .providers{display:none}
 }
 </style>
 
@@ -3117,8 +3128,8 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
 <!-- ADVOCATE: ongoing value after signup -->
 <section class="whl-section">
   <div class="whl-wrap">
-    <div class="whl-faq-layout" style="align-items:center;column-gap:72px">
-      <div class="whl-head whl-reveal">
+    <div class="whl-faq-layout" style="align-items:center;column-gap:72px;row-gap:16px">
+      <div class="whl-head whl-reveal" style="margin-bottom:0">
         <span class="whl-eyebrow">More than a one-time deal</span>
         <h2 class="whl-h2">Whollar becomes your internet advocate.</h2>
         <p class="whl-lead" style="margin-top:16px;color:var(--ink-2)">Join once and you never have to think about it again.</p>
@@ -3258,7 +3269,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
       <p style="font-size:18.5px;line-height:1.6;color:rgba(255,255,255,0.72);max-width:520px;margin:0 auto 36px;">Join the households putting an end to the loyalty tax. Check your bill in two minutes. You'll never negotiate alone again.</p>
       <div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:center;">
         <a href="/MobileVersion/bill-checkup-mobile" class="whl-cta10-btn" style="display:inline-flex;align-items:center;gap:9px;background:#fff;color:var(--ink);font-size:16.5px;font-weight:600;padding:16px 30px;border-radius:13px;text-decoration:none;transition:transform .2s;">Check if I'm overpaying<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
-        <a href="/MobileVersion/join-the-first-cohort-mobile" class="whl-cta10-ghost" style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.1);color:#fff;font-size:16.5px;font-weight:500;padding:16px 26px;border-radius:13px;text-decoration:none;border:1px solid rgba(255,255,255,0.18);transition:background .2s;">Join the cohort</a>
+        <a href="/MobileVersion/join-the-first-cohort-mobile" class="whl-cta10-ghost" style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);color:#fff;font-size:16.5px;font-weight:600;padding:16px 26px;border-radius:13px;text-decoration:none;border:1.5px solid rgba(255,255,255,0.3);transition:background .2s,border-color .2s,transform .15s;">Join the cohort</a>
       </div>
       <div style="margin-top:26px;display:flex;flex-wrap:wrap;gap:20px;justify-content:center;color:rgba(255,255,255,0.62);font-size:13.5px;">
         <span>Private &amp; secure</span><span style="opacity:.4;">·</span><span>You always choose</span>
