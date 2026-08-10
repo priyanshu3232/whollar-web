@@ -1566,9 +1566,8 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .whl-bottombar{
     position:fixed;left:0;right:0;bottom:0;z-index:90;
     padding:12px 20px calc(12px + env(safe-area-inset-bottom));
-    background:rgba(250,248,243,.92);backdrop-filter:blur(12px);border-top:1px solid var(--line);
-    transform:translateY(130%);transition:transform .3s cubic-bezier(.16,1,.3,1)}
-  .whl-bottombar.show{transform:translateY(0)}
+    background:rgba(250,248,243,.92);backdrop-filter:blur(12px);border-top:1px solid var(--line)}
+  .whl-bottombar.is-hidden{display:none}
   .whl-bottombar .whl-btn{width:100%;font-size:16px;padding:15px}
 
   /* ---------- HERO ---------- */
@@ -1823,6 +1822,17 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   #whero .col-scene{margin-top:-38px}
 
 
+@media(max-width:768px){
+  #whero .whero-mapspace{height:40px}
+  #whero .col-scene{
+    position:relative;
+    z-index:2;
+    transform:scale(.82);
+    transform-origin:top center;
+    margin-top:-64px;
+    margin-bottom:-90px;
+  }
+}
 </style>
 
 <style id="mobile-only-shell">
@@ -1887,7 +1897,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
       <a href="/MobileVersion/resources-mobile">Resources</a>
       <a href="/contact">Contact</a>
     </nav>
-    <a class="whl-btn whl-btn--outline" href="/whollar-login-consumer">Log in</a><a class="whl-btn whl-header__cta" href="/MobileVersion/join-the-first-cohort-mobile">Get started free</a>
+    <a class="whl-btn whl-btn--outline" href="/whollar-login-consumer">Log in</a><a class="whl-btn whl-header__cta" href="/MobileVersion/join-the-first-cohort-mobile">Join the First Cohort</a>
     <button class="whl-burger" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="whl-mobnav" data-burger="">
       <span></span><span></span><span></span>
     </button>
@@ -1898,7 +1908,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
     <a href="#faq" data-mobnav-link="">FAQ</a>
     <a href="/MobileVersion/resources-mobile" data-mobnav-link="">Resources</a>
     <a href="/contact" data-mobnav-link="">Contact</a>
-    <a class="whl-btn whl-btn--outline whl-btn--block" href="/whollar-login-consumer" data-mobnav-link="">Log in</a><a class="whl-btn whl-btn--block" href="/MobileVersion/join-the-first-cohort-mobile" data-mobnav-link="">Get started free</a>
+    <a class="whl-btn whl-btn--outline whl-btn--block" href="/whollar-login-consumer" data-mobnav-link="">Log in</a><a class="whl-btn whl-btn--block" href="/MobileVersion/join-the-first-cohort-mobile" data-mobnav-link="">Join the First Cohort</a>
   </nav>
 </header>
 
@@ -2033,7 +2043,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
           <a class="btn btn--primary" href="/MobileVersion/bill-checkup-mobile">Check if I'm overpaying
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="13 6 19 12 13 18"></polyline></svg>
           </a>
-          <a class="btn btn--ghost" href="/MobileVersion/join-the-first-cohort-mobile">Get started free
+          <a class="btn btn--ghost" href="/MobileVersion/join-the-first-cohort-mobile">Join the First Cohort
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="13 6 19 12 13 18"></polyline></svg>
           </a>
         </div>
@@ -2062,7 +2072,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="13 6 19 12 13 18"></polyline></svg>
           </a>
           <a class="whl-btn whl-btn--lg whl-hero__cta whl-hero__cta--ghost" href="/MobileVersion/join-the-first-cohort-mobile">
-            Get started free
+            Join the First Cohort
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="13 6 19 12 13 18"></polyline></svg>
           </a>
         </div>
@@ -3110,7 +3120,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
       <div class="whl-head whl-reveal">
         <span class="whl-eyebrow">More than a one-time deal</span>
         <h2 class="whl-h2">Whollar becomes your internet advocate.</h2>
-        <p class="whl-lead" style="margin-top:16px;color:var(--ink-2)">Join once and you never have to think about it again. We watch your renewal dates, run the next negotiation for you, and step in when something goes wrong, quietly in the background.</p>
+        <p class="whl-lead" style="margin-top:16px;color:var(--ink-2)">Join once and you never have to think about it again.</p>
       </div>
       <div class="whl-reveal" style="display:flex;flex-direction:column;gap:16px">
         <div class="whl-card" style="padding:19px 22px;display:flex;gap:15px;align-items:flex-start">
@@ -3696,39 +3706,17 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
     });
   });
 
-  /* --- sticky bottom CTA bar --- */
+  /* --- sticky bottom CTA bar: always on screen, no scroll-direction toggling --- */
   var bar = document.createElement('div');
   bar.className = 'whl-bottombar';
-  bar.innerHTML = '<a class="whl-btn whl-btn--block" href="/MobileVersion/join-the-first-cohort-mobile">Get started free</a>';
+  bar.innerHTML = '<a class="whl-btn whl-btn--block" href="/MobileVersion/join-the-first-cohort-mobile">Join the First Cohort</a>';
   document.body.appendChild(bar);
-  var hero = document.querySelector('.whl-hero');
-  var footer = document.querySelector('.whl-footer');
-  var finalCta = document.getElementById('cta');
-  var lastY = window.scrollY, shown = false;
-  function heroBottom(){ return hero ? hero.offsetTop + hero.offsetHeight - 60 : 500; }
-  function nearEnd(){
-    /* hide when the final CTA or footer is on screen (redundant with bar) */
-    var ref = finalCta || footer; if(!ref) return false;
-    return ref.getBoundingClientRect().top < window.innerHeight * 0.9;
-  }
   function updateBar(){
-    if(!mq.matches){ bar.classList.remove('show'); return; }
-    if(mobnav && mobnav.classList.contains('is-open')){ bar.classList.remove('show'); return; }
-    var y = window.scrollY;
-    var pastHero = y > heroBottom();
-    var scrollingUp = y < lastY - 2;
-    var scrollingDown = y > lastY + 2;
-    if(pastHero && !nearEnd()){
-      if(scrollingUp) shown = true;
-      else if(scrollingDown) shown = false;
-    } else {
-      shown = false;
-    }
-    bar.classList.toggle('show', shown);
-    lastY = y;
+    var hide = !mq.matches || (mobnav && mobnav.classList.contains('is-open'));
+    bar.classList.toggle('is-hidden', hide);
   }
-  window.addEventListener('scroll', updateBar, {passive:true});
   window.addEventListener('resize', updateBar);
+  if(mobnav){ new MutationObserver(updateBar).observe(mobnav, {attributes:true, attributeFilter:['class']}); }
   updateBar();
 
   /* --- "hard parts" swipe carousel: dot indicators --- */
