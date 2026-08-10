@@ -445,6 +445,16 @@ body[data-screen="2"] .only1{display:none!important}
 .lt.lock.whollar{border-color:#DDE6E1;background:var(--paper);border-left:3px solid #A8D9BE;padding-left:10px}
 .lt.lock.whollar .no{background:var(--paper);color:var(--accent-deep);box-shadow:inset 0 0 0 1.5px #CFE8DA}
 .lt.lock.whollar:hover{border-color:#cdd7d1;border-left-color:var(--accent)}
+/* One label per tier, directly above its first row. The three groups look
+   alike otherwise, and the badge on each row ("yours" / "$0 with Whollar" /
+   "agreement") says what a row is without saying why it sits where it does. */
+.lt-head{display:flex;align-items:center;gap:7px;font-family:var(--label);font-weight:600;font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);margin:16px 2px 3px}
+.lt-head::before{content:"";flex:none;width:5px;height:5px;border-radius:50%;background:currentColor}
+.lt-head--yours{color:var(--accent-deep)}
+.lt-head--whollar{color:#5E9C7C}
+/* The divider already opened the gap; the label must not open a second one. */
+.lt-div+.lt-head{margin-top:0}
+.lt-head:first-child{margin-top:13px}
 .lt-div{height:1px;margin:15px 2px 6px;border-radius:1px}
 .lt-div--whollar{background:linear-gradient(90deg,#A8D9BE,#A8D9BE 60%,transparent)}
 .lt-div--agreement{background:linear-gradient(90deg,var(--ink-3),var(--ink-3) 60%,transparent);opacity:.35}
@@ -1686,9 +1696,9 @@ function renderLevers(){
      next begins \u2014 any tier can be empty depending on what's filled in, so
      the divider only appears between two tiers that both have rows. */
   const tiers=[
-    {cls:'yours',items:L.filter(l=>l[2])},
-    {cls:'whollar',items:L.filter(l=>!l[2]&&l[3])},
-    {cls:'agreement',items:L.filter(l=>!l[2]&&!l[3])}
+    {cls:'yours',head:'You already set these',items:L.filter(l=>l[2])},
+    {cls:'whollar',head:'What every Whollar switch includes',items:L.filter(l=>!l[2]&&l[3])},
+    {cls:'agreement',head:'Only your agreement can answer these',items:L.filter(l=>!l[2]&&!l[3])}
   ].filter(t=>t.items.length);
   let i=0;
   $('#lev-list').innerHTML=tiers.map((t,ti)=>{
@@ -1697,7 +1707,8 @@ function renderLevers(){
       const got=l[2];const free=l[3];
       return '<div class="lt '+(got?'got':('lock '+t.cls))+'"><span class="no">'+String(i).padStart(2,'0')+'</span><span style="min-width:0"><b>'+l[0]+'</b><span>'+l[1]+'</span></span><span class="st'+(free?' free':'')+'">'+(free?free:(got?'\u2713 yours':'agreement'))+'</span></div>';
     }).join('');
-    return (ti>0?'<div class="lt-div lt-div--'+t.cls+'"></div>':'')+rows;
+    return (ti>0?'<div class="lt-div lt-div--'+t.cls+'"></div>':'')
+      +'<p class="lt-head lt-head--'+t.cls+'">'+t.head+'</p>'+rows;
   }).join('');
   $$('#lev-list .lt.lock').forEach(t=>t.addEventListener('click',()=>{
     const d=$('#deep');d.classList.add('pulse');d.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>d.classList.remove('pulse'),1600);}));

@@ -76,6 +76,16 @@
     {
       "source": "/api/auth/:path*",
       "destination": "https://whollar-110003037934.development.catalystserverless.ca/server/auth/:path*"
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "provider.whollar.ca" }],
+      "destination": "/provider-dashboard"
+    },
+    {
+      "source": "/login",
+      "has": [{ "type": "host", "value": "provider.whollar.ca" }],
+      "destination": "/whollar-login-provider"
     }
   ],
   "redirects": [

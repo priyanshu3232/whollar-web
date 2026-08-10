@@ -12,21 +12,18 @@
 const NAME = 'whollar_session';
 
 /**
- * Cookies are HOST-ONLY: no `Domain` attribute at all.
+ * Cookies are host-only unless `COOKIE_DOMAIN` names a parent domain.
  *
- * This is what makes the same code work in production, on a Vercel preview and
- * on localhost without configuration. A `Domain=.whollar.ca` cookie is simply
- * not settable from a `*.vercel.app` preview, so pinning the domain would mean
- * auth could never be tested anywhere but production.
+ * Host-only (no `Domain` attribute) is what makes the same code work on a
+ * Vercel preview and on localhost without configuration: a `Domain=.whollar.ca`
+ * cookie is simply not settable from a `*.vercel.app` preview. `COOKIE_DOMAIN`
+ * is `localhost` in those environments, which keeps this behavior.
  *
- * Host-only is also the stricter choice: the cookie goes to `www.whollar.ca`
- * and to nothing else — not to a sibling subdomain, not to the apex. Nothing is
- * lost by that here, because the apex 308s to `www` and no visitor stays on it.
- *
- * `COOKIE_DOMAIN` is still validated in config, and comes back into use at the
- * point `api.whollar.ca` fronts the function directly: at that moment the API
- * and the site stop sharing a host and the cookie has to be scoped to the
- * parent domain to reach both.
+ * In production it is `.whollar.ca`, so the cookie reaches every subdomain —
+ * `www.whollar.ca` and `provider.whollar.ca` alike, sharing one session. That
+ * is deliberately broader than the old host-only scoping: the tradeoff is a
+ * cookie a compromised sibling subdomain could also read, accepted so a
+ * partner signed in on `provider.whollar.ca` doesn't need a second cookie.
  */
 
 /**
@@ -51,11 +48,18 @@ function isSecureRequest(req) {
  */
 const SAME_SITE = 'Lax';
 
+/** `cfg.COOKIE_DOMAIN` of `localhost` means host-only: no `Domain` attribute. */
+function domainAttr(cfg) {
+  const d = cfg && cfg.COOKIE_DOMAIN;
+  return d && d !== 'localhost' ? d : null;
+}
+
 function serialize(name, value, attrs) {
   const parts = [`${name}=${value}`];
   if (attrs.maxAge !== undefined) parts.push(`Max-Age=${Math.floor(attrs.maxAge)}`);
   if (attrs.expires) parts.push(`Expires=${attrs.expires.toUTCString()}`);
   parts.push(`Path=${attrs.path || '/'}`);
+  if (attrs.domain) parts.push(`Domain=${attrs.domain}`);
   parts.push(`SameSite=${attrs.sameSite || SAME_SITE}`);
   if (attrs.httpOnly !== false) parts.push('HttpOnly');
   if (attrs.secure) parts.push('Secure');
@@ -92,6 +96,7 @@ function set(req, res, value, ttlMs) {
     httpOnly: true,
     sameSite: SAME_SITE,
     path: '/',
+    domain: domainAttr(req.app.get('cfg')),
   }));
 }
 
@@ -108,6 +113,7 @@ function clear(req, res) {
     httpOnly: true,
     sameSite: SAME_SITE,
     path: '/',
+    domain: domainAttr(req.app.get('cfg')),
   }));
 }
 
