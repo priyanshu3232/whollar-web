@@ -1846,9 +1846,10 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   #whero .col-cta .btn--ghost{display:none}
   #whero .col-cta{gap:8px; padding-bottom:0}
   #whero .kicker{margin-top:0}
-  /* secondary link, already reachable from the footer; drop it here so the
-     primary CTA clears the sticky bar on shorter real-device viewports */
-  #whero .providers{display:none}
+  /* keep the provider path visible under the primary CTA, but compact — one
+     short text line, so the CTA still clears the sticky bar on short
+     real-device viewports (the reason the ghost button above stays dropped) */
+  #whero .providers{font-size:13.5px; gap:7px; justify-content:center; margin-top:2px}
 }
 </style>
 
