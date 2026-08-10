@@ -1317,6 +1317,14 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
 .sf-wrap .sf-tile .tstat .cap{font-size:13.5px;color:var(--ink-soft);margin-top:8px;line-height:1.4}
 .sf-wrap [data-reveal]{opacity:0;transform:translateY(22px);transition:opacity .6s cubic-bezier(.4,0,.2,1),transform .6s cubic-bezier(.4,0,.2,1)}
 .sf-wrap [data-reveal].in{opacity:1;transform:none}
+/* Tiles hinge up in lockstep with the Reddit-card carousel swipe. JS writes
+   transform/opacity/height inline every frame, so tiles must not shrink to a
+   collapsed container and must not transition mid-scrub — only the settled
+   state (all cards seen) is allowed to ease back to natural layout. */
+.sf-wrap .sf-tiles--linked{perspective:900px}
+.sf-wrap .sf-tiles--linked .sf-tile{flex:none;transform-origin:center bottom;backface-visibility:hidden;will-change:transform,opacity;transition:none}
+.sf-wrap .sf-tiles--linked.tiles-settled{transition:height .3s ease-out}
+.sf-wrap .sf-tiles--linked.tiles-settled .sf-tile{transition:transform .3s ease-out,opacity .3s ease-out}
 
 /* was (max-width:720px) */
 
@@ -2268,7 +2276,10 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
     var idx=0, timer=null, paused=false, resumeT=null, scrollT=null;
     function setDots(n){ for(var i=0;i<dotEls.length;i++) dotEls[i].classList.toggle('on',i===n); }
     function go(n){ var c=cards(); if(!c.length) return; idx=(n+c.length)%c.length; var t=c[idx]; wrap.scrollTo({left:t.offsetLeft-wrap.offsetLeft,behavior:'smooth'}); setDots(idx); }
-    function tick(){ if(!paused && mq.matches && document.visibilityState==='visible') go(idx+1); }
+    /* Advance to the last card and stop — no wrap-around. The pain tiles below
+       flip up with scroll progress, so looping back to card 0 would tear all
+       four of them down again mid-read. */
+    function tick(){ if(paused || !mq.matches || document.visibilityState!=='visible') return; if(idx>=cards().length-1){ stop(); return; } go(idx+1); }
     function start(){ stop(); if(mq.matches && !reducedM) timer=setInterval(tick,5000); }
     function stop(){ if(timer){clearInterval(timer);timer=null;} }
     function pauseNow(){ paused=true; clearTimeout(resumeT); resumeT=setTimeout(function(){paused=false;},6500); }
@@ -2297,12 +2308,75 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
      icon:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'}
   ];
   var tilesEl=document.getElementById('sf-tiles');
+  /* No data-reveal on the tiles: their reveal is driven by carousel scroll
+     progress below, not by the IntersectionObserver — the [data-reveal]
+     transition would lag every scrubbed frame by 600ms. */
   tilesEl.innerHTML=pains.map(function(p){
-    return '<article class="sf-tile" data-reveal>'+
+    return '<article class="sf-tile">'+
       '<div class="tmid"><div class="thead"><div class="ticon"><svg viewBox="0 0 24 24">'+p.icon+'</svg></div><h3>'+p.title+'</h3></div><p>'+p.body+'</p></div>'+
       '<div class="tstat"><div class="num">'+p.num+'</div><div class="cap">'+p.cap+'</div></div>'+
     '</article>';
   }).join('');
+
+  /* --- Tiles hinge up as the carousel above is swiped (scroll-LINKED: the
+     carousel's scroll position is the animation's playhead, so stopping
+     mid-swipe freezes the tiles mid-flip and swiping back rewinds them).
+     Past the end of the carousel they settle into the plain static column. --- */
+  (function(){
+    var cars=document.getElementById('sf-mobile-cards');
+    var box=document.getElementById('sf-tiles');
+    var tiles=Array.prototype.slice.call(box?box.querySelectorAll('.sf-tile'):[]);
+    if(!cars||tiles.length<2) return;
+    /* Reduced motion: no flip, no collapsed gap — the static column from the start. */
+    if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+    var N=tiles.length, SPAN=0.55, step=(1-SPAN)/(N-1);
+    var max=0, gap=0, heights=[], settled=false, raf=0;
+    box.classList.add('sf-tiles--linked');
+    function clamp(v,a,b){return v<a?a:v>b?b:v;}
+    /* transform never changes offsetHeight, so mid-flip measurement is safe */
+    function measure(){
+      max=cars.scrollWidth-cars.clientWidth;
+      gap=parseFloat(getComputedStyle(box).rowGap)||0;
+      heights=tiles.map(function(el){return el.offsetHeight;});
+    }
+    function settle(on){
+      if(on===settled) return;
+      settled=on;
+      box.classList.toggle('tiles-settled',on);
+      if(on){
+        tiles.forEach(function(el){el.style.transform='';el.style.opacity='';});
+        box.style.height=heights.reduce(function(s,h){return s+h;},0)+gap*(N-1)+'px';
+      }
+    }
+    function update(){
+      raf=0;
+      if(max<=0){settle(true);return;}
+      var p=clamp(cars.scrollLeft/max,0,1);
+      if(p>=0.99){settle(true);return;}
+      if(settled&&p>0.96) return; /* hysteresis: keep the settled state until .96 */
+      settle(false);
+      var h=0,e0=0;
+      tiles.forEach(function(el,i){
+        var t=clamp((p-i*step)/SPAN,0,1);
+        var e=1-Math.pow(1-t,3);
+        if(i===0)e0=e;
+        el.style.transform='translateY('+((1-e)*28)+'px) rotateX('+((1-e)*-72)+'deg)';
+        el.style.opacity=e;
+        h+=(heights[i]+gap)*e;
+      });
+      /* tile 0 always leads, so e0 is the largest e: at p→1 this lands exactly
+         on the natural column height and the CTA below never jumps */
+      box.style.height=Math.max(0,h-gap*e0)+'px';
+    }
+    function queue(){ if(!raf) raf=requestAnimationFrame(update); }
+    cars.addEventListener('scroll',queue,{passive:true});
+    ['resize','orientationchange'].forEach(function(ev){
+      window.addEventListener(ev,function(){measure();if(settled){settled=false;settle(true);}queue();},{passive:true});
+    });
+    measure();
+    update();
+  })();
+
   var reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
   var items=Array.prototype.slice.call(document.querySelectorAll('.sf-wrap [data-reveal]'));
   if(reduced){items.forEach(function(el){el.classList.add('in');});return;}
