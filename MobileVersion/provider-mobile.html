@@ -935,8 +935,8 @@
   <section id="top" style="padding:32px 22px 16px" data-screen-label="Hero">
     <div style="display:inline-flex; align-items:center; gap:8px; background:#E3F0E6; border-radius:100px; padding:7px 14px; font-family:'IBM Plex Sans',sans-serif; font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--green); font-weight:600">
       <span style="width:7px; height:7px; border-radius:50%; background:#1E9E63; animation:wpulse 2.4s ease-in-out infinite"></span>Wholesale demand, whole&nbsp;dollar</div>
-    <h1 style="font-family:'Hanken Grotesk',sans-serif; font-weight:900; font-size:clamp(31px, 8.7vw, 41px); line-height:1.04; letter-spacing:-0.03em; color:var(--ink); margin:20px 0 16px; text-wrap:balance">The Future of Broadband Acquisition Doesn't <span style="color:var(--green)">Start With Advertising.</span></h1>
-    <p style="font-size:clamp(15px, 4.1vw, 17.5px); line-height:1.65; color:var(--body); margin:0 0 12px; text-wrap:pretty">Providers spend millions on the same clicks and uncertain leads. Whollar pools verified households ready to switch. You win them in one sealed bid.</p>
+    <h1 style="font-family:'Hanken Grotesk',sans-serif; font-weight:900; font-size:clamp(31px, 8.7vw, 41px); line-height:1.04; letter-spacing:-0.03em; color:var(--ink); margin:20px 0 16px; width:100%">The Future of Broadband Acquisition Doesn't <span style="color:var(--green)">Start With Advertising.</span></h1>
+    <p style="font-size:clamp(15px, 4.1vw, 17.5px); line-height:1.65; color:var(--body); margin:0 0 12px; width:100%">Providers spend millions on the same clicks and uncertain leads. Whollar pools verified households ready to switch. You win them in one sealed bid.</p>
     <div data-hero-scene="" style="position:relative; width:100%; aspect-ratio:540/810; margin-top:-36px"></div>
     <div style="display:flex; flex-direction:column; gap:11px; margin-top:28px">
       <a href="/MobileVersion/become-a-partner-mobile" style="display:flex; align-items:center; justify-content:center; background:var(--ink); color:var(--paper); padding:16px 28px; border-radius:100px; font-weight:600; font-size:15px">Become a founding partner</a>
@@ -1126,7 +1126,7 @@
           <h2 style="font-family:'Hanken Grotesk',sans-serif; font-weight:900; font-size:27px; letter-spacing:-0.03em; line-height:1.08; color:var(--paper); margin:0; text-wrap:balance">Join Canada’s next broadband acquisition model <span style="color:var(--green-bright)">before your region opens without you</span></h2>
           <div style="display:flex; flex-direction:column; gap:11px; margin-top:44px">
             <a href="/MobileVersion/become-a-partner-mobile" style="display:flex; align-items:center; justify-content:center; background:var(--paper); color:var(--ink); padding:16px 28px; border-radius:100px; font-weight:600; font-size:15px">Become a founding partner</a>
-            <a href="mailto:info@whollar.com" style="display:flex; align-items:center; justify-content:center; border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.05); color:var(--paper); padding:16px 28px; border-radius:100px; font-weight:600; font-size:15px">Schedule a Strategy Call</a>
+            <a href="https://calendly.com/hubcart99/30min" target="_blank" rel="noopener" style="display:flex; align-items:center; justify-content:center; border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.05); color:var(--paper); padding:16px 28px; border-radius:100px; font-weight:600; font-size:15px">Schedule a Strategy Call</a>
           </div>
         </div>
       </div>
@@ -1548,7 +1548,10 @@ class Component extends DCLogic {
       const icon = this.q('summary > span', d);
       const sync = () => { if (icon) icon.style.transform = d.open ? 'rotate(180deg)' : 'rotate(0deg)'; };
       sync();
-      d.addEventListener('toggle', sync);
+      d.addEventListener('toggle', () => {
+        if (d.open) this.qa('details', el).forEach(o => { if (o !== d && o.open) o.open = false; });
+        sync();
+      });
     });
   }
 

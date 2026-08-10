@@ -1567,6 +1567,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .whl-mobnav.is-open a:nth-child(3){transition-delay:.14s}
   .whl-mobnav.is-open a:nth-child(4){transition-delay:.18s}
   .whl-mobnav.is-open a:nth-child(5){transition-delay:.22s}
+  .whl-mobnav.is-open a:nth-child(6){transition-delay:.26s}
   .whl-mobnav a.whl-btn{margin-top:auto;font-size:17px;padding:16px;border-bottom:none;border-radius:14px}
   body.whl-noscroll{overflow:hidden;position:relative;height:100vh}
 
@@ -1926,6 +1927,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
     <a href="#faq" data-mobnav-link="">FAQ</a>
     <a href="/MobileVersion/resources-mobile" data-mobnav-link="">Resources</a>
     <a href="/contact" data-mobnav-link="">Contact</a>
+    <a href="/MobileVersion/provider-mobile" data-mobnav-link="" style="color:var(--accent)">For providers</a>
     <a class="whl-btn whl-btn--outline whl-btn--block" href="/whollar-login-consumer" data-mobnav-link="">Log in</a><a class="whl-btn whl-btn--block" href="/MobileVersion/join-the-first-cohort-mobile" data-mobnav-link="">Join the First Cohort</a>
   </nav>
 </header>
@@ -3461,6 +3463,14 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
     var btn = item.querySelector('.whl-faq__q');
     btn.addEventListener('click', function(){
       var open = item.getAttribute('data-open') === 'true';
+      if(!open){
+        document.querySelectorAll('[data-faqwrap] .whl-faq[data-open="true"]').forEach(function(other){
+          if(other === item) return;
+          other.setAttribute('data-open','false');
+          var ob = other.querySelector('.whl-faq__q');
+          if(ob) ob.setAttribute('aria-expanded','false');
+        });
+      }
       item.setAttribute('data-open', open ? 'false':'true');
       btn.setAttribute('aria-expanded', open ? 'false':'true');
     });
