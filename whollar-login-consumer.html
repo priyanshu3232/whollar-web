@@ -52,7 +52,11 @@ button{font-family:var(--body)}
 
 /* ---------- brand panel ---------- */
 .brand{background:linear-gradient(158deg,var(--teal-deep) 0%,#123B2C 54%,#17553D 100%);color:#fff;position:relative;overflow:hidden;display:flex;flex-direction:column;padding:38px 46px 44px}
-@media(max-width:900px){.brand{padding:26px 26px 30px}}
+@media(max-width:900px){
+  .brand{padding:26px 26px 30px}
+  .form-pane{flex-direction:column;padding-top:26px}
+  .switchtop{position:static;align-self:flex-end;margin-bottom:16px}
+}
 .brand::after{content:"";position:absolute;right:-160px;top:-120px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(127,227,176,.16),transparent 62%);pointer-events:none}
 .mark{display:flex;align-items:center;gap:10px;position:relative;z-index:2;color:inherit;text-decoration:none}
 .mark svg{width:34px;height:34px;flex:none;display:block}
