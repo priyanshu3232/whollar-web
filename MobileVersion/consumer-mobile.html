@@ -1559,6 +1559,10 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .whl-mobnav.is-open a:nth-child(3){transition-delay:.14s}
   .whl-mobnav.is-open a:nth-child(4){transition-delay:.18s}
   .whl-mobnav.is-open a:nth-child(5){transition-delay:.22s}
+  .whl-mobnav.is-open a:nth-child(6){transition-delay:.26s}
+  .whl-mobnav a.whl-mobnav__alt{
+    display:flex;align-items:center;gap:8px;color:var(--accent);font-size:22px;
+    border-bottom:none;padding-top:22px}
   .whl-mobnav a.whl-btn{margin-top:auto;font-size:17px;padding:16px;border-bottom:none;border-radius:14px}
   body.whl-noscroll{overflow:hidden;position:relative;height:100vh}
 
@@ -1898,6 +1902,9 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
     <a href="#faq" data-mobnav-link="">FAQ</a>
     <a href="/MobileVersion/resources-mobile" data-mobnav-link="">Resources</a>
     <a href="/contact" data-mobnav-link="">Contact</a>
+    <a class="whl-mobnav__alt" href="/MobileVersion/provider-mobile" data-mobnav-link="">For providers
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="13 6 19 12 13 18"></polyline></svg>
+    </a>
     <a class="whl-btn whl-btn--outline whl-btn--block" href="/whollar-login-consumer" data-mobnav-link="">Log in</a><a class="whl-btn whl-btn--block" href="/MobileVersion/join-the-first-cohort-mobile" data-mobnav-link="">Get started free</a>
   </nav>
 </header>
@@ -3363,13 +3370,20 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
   var crowd = document.getElementById('whl-crowd');
   if(crowd){ var f=document.createDocumentFragment(); for(var i=0;i<56;i++){ var s=document.createElement('i'); f.appendChild(s);} crowd.appendChild(f); }
 
-  /* FAQ accordion */
-  document.querySelectorAll('[data-faqwrap] .whl-faq').forEach(function(item){
+  /* FAQ accordion — one open at a time */
+  var faqItems = document.querySelectorAll('[data-faqwrap] .whl-faq');
+  function setFaq(item, open){
+    item.setAttribute('data-open', open ? 'true':'false');
+    var q = item.querySelector('.whl-faq__q');
+    if(q) q.setAttribute('aria-expanded', open ? 'true':'false');
+  }
+  faqItems.forEach(function(item){
     var btn = item.querySelector('.whl-faq__q');
+    if(!btn) return;
     btn.addEventListener('click', function(){
       var open = item.getAttribute('data-open') === 'true';
-      item.setAttribute('data-open', open ? 'false':'true');
-      btn.setAttribute('aria-expanded', open ? 'false':'true');
+      faqItems.forEach(function(other){ if(other !== item) setFaq(other, false); });
+      setFaq(item, !open);
     });
   });
 
@@ -3677,24 +3691,6 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
   if(mobnav){ mobnav.querySelectorAll('[data-mobnav-link]').forEach(function(a){ a.addEventListener('click', function(){ setTimeout(syncLock,0); }); }); }
   /* close on Escape */
   document.addEventListener('keydown', function(e){ if(e.key==='Escape' && mobnav && mobnav.classList.contains('is-open') && burger){ burger.click(); } });
-
-  /* --- FAQ: enforce one-open-at-a-time --- */
-  var faqItems = document.querySelectorAll('[data-faqwrap] .whl-faq');
-  faqItems.forEach(function(item){
-    var btn = item.querySelector('.whl-faq__q');
-    if(!btn) return;
-    btn.addEventListener('click', function(){
-      /* the existing handler toggles THIS item; we just collapse the others */
-      var willOpen = item.getAttribute('data-open') !== 'true'; /* pre-existing handler runs too; read post-state next tick */
-      setTimeout(function(){
-        if(item.getAttribute('data-open') === 'true'){
-          faqItems.forEach(function(other){
-            if(other !== item){ other.setAttribute('data-open','false'); var b=other.querySelector('.whl-faq__q'); if(b) b.setAttribute('aria-expanded','false'); }
-          });
-        }
-      }, 0);
-    });
-  });
 
   /* --- sticky bottom CTA bar --- */
   var bar = document.createElement('div');
