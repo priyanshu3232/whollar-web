@@ -202,6 +202,19 @@ const TABLES = Object.freeze({
     sort_order:      'int',
     updated_by:      'varchar(64)',
     updated_at:      'datetime',
+    // The auction calendar. All seven are OPTIONAL: a cohort with no dates
+    // behaves exactly as it did before they existed, because `kind` and
+    // `bidding_open` remain the authority. lib/catalog.js derives the
+    // partner-facing stage from these on every read, for DISPLAY only, and
+    // requireBiddingOpen reads bidding_closes_at as a close-only backstop.
+    // Dates may close a bid window; they may never open one.
+    announce_at:       'datetime', // brief fixed, coverage-matched partners told
+    bidding_opens_at:  'datetime',
+    bidding_closes_at: 'datetime', // the one with teeth: past it, bids refuse
+    offers_at:         'datetime', // winning offer goes to each household
+    decision_at:       'datetime', // household confirmations lock
+    switch_window_at:  'datetime', // installs and transfers run
+    reconcile_at:      'datetime', // final counts settle
   },
   user_prefs: {
     // One JSON blob of preferences per account, member or provider alike:

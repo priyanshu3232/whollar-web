@@ -78,6 +78,20 @@ jobs:
       - name: Contract schedule engine unit tests
         run: node --test scripts/test-contract-quote.mjs
 
+      # The cohort auction stage, derived on read from the campaign calendar.
+      # Pure (campaign, now) -> stage, so it needs no database and no clock,
+      # which is exactly why stage is derived rather than written by a
+      # scheduler. Guards the boundaries that decide whether a bid window is
+      # shown as open.
+      - name: Campaign stage unit tests
+        run: node --test scripts/test-campaign-stage.mjs
+
+      # The route guards. These decide whether an unapproved organisation can
+      # place a bid, and they were copy-pasted across four route files before
+      # being extracted into lib/guards.js. This is what stops the fifth copy.
+      - name: Route guard unit tests
+        run: node --test scripts/test-guards.mjs
+
       - name: Device router parses
         run: node --check js/device-router.js
 

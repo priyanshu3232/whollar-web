@@ -26,45 +26,20 @@ const users = require('../lib/users');
 const catalog = require('../lib/catalog');
 const audit = require('../lib/audit');
 const { requireBiddingOpen } = require('./campaigns');
-const { wrap, badRequest, unauthorized, forbidden, AppError } = require('../lib/errors');
+const { requirePartner: guardPartner, requireApproved } = require('../lib/guards');
+const { money } = require('../lib/money');
+const { wrap, badRequest, forbidden, AppError } = require('../lib/errors');
 
 const BIDS = 'provider_bids';
 const COVERAGE = 'provider_coverage';
 
 const TECHS = new Set(['cable', 'fibre', 'fwa', 'dsl']);
 
-/** The signed-in partner and their org context, or a refusal. */
-async function requirePartner(req) {
-  if (!req.auth) throw unauthorized('Please sign in again.');
-  if (req.auth.user.user_type !== 'provider') {
-    throw forbidden('This account is not a provider account.', {
-      logDetail: 'non-provider hit /provider desk route',
-    });
-  }
-  const context = await orgs.contextFor(req.catalyst, req.auth.user.user_id);
-  if (!context) {
-    throw forbidden('This account is not attached to an organisation.', {
-      logDetail: 'provider with no membership hit desk route',
-    });
-  }
-  return { user: req.auth.user, context };
-}
-
-function requireApproved(context) {
-  if (!context.approved) {
-    throw forbidden('Your organisation is still under review — this opens the moment it is approved.', {
-      logDetail: `unapproved org ${context.orgId} hit a gated desk route`,
-    });
-  }
-}
-
-/** A dollar amount as a canonical string — same contract as member bills. */
-function money(value, max) {
-  if (value === null || value === undefined || value === '') return null;
-  const n = Number(String(value).replace(/[$,\s]/g, ''));
-  if (!Number.isFinite(n) || n <= 0 || n > max) return null;
-  return String(Math.round(n * 100) / 100);
-}
+/* The guards moved to lib/guards.js when the partner console added five more
+   route files that need the same three checks. Behaviour is unchanged, with
+   one exception noted there: the "still under review" message lost an em dash,
+   which the house style forbids in anything a partner reads. */
+const requirePartner = (req) => guardPartner(req, 'a /provider desk route');
 
 const str = (v, max) => {
   const s = String(v == null ? '' : v).trim().slice(0, max);

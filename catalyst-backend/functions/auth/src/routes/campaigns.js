@@ -33,7 +33,8 @@ const datastore = require('../lib/datastore');
 const audit = require('../lib/audit');
 const catalog = require('../lib/catalog');
 const siteconfig = require('../lib/siteconfig');
-const { wrap, badRequest, unauthorized, forbidden, AppError } = require('../lib/errors');
+const guards = require('../lib/guards');
+const { wrap, badRequest, AppError } = require('../lib/errors');
 
 const TABLE = 'campaign_members';
 const { JOIN_STATUS } = catalog;
@@ -93,25 +94,13 @@ const visible = (list) => list.filter((c) => c.kind !== 'archived');
  * Guards
  * ------------------------------------------------------------------ */
 
-function requireMember(req) {
-  if (!req.auth) throw unauthorized('Please sign in again.');
-  if (req.auth.user.user_type !== 'member') {
-    throw forbidden('This account is not a member account.', {
-      logDetail: 'non-member hit /campaigns',
-    });
-  }
-  return req.auth.user;
-}
-
-function requireProvider(req) {
-  if (!req.auth) throw unauthorized('Please sign in again.');
-  if (req.auth.user.user_type !== 'provider') {
-    throw forbidden('This account is not a provider account.', {
-      logDetail: 'non-provider hit /provider/campaigns',
-    });
-  }
-  return req.auth.user;
-}
+/* Both moved to lib/guards.js, which is now the only place any of these are
+   written. Note requireProvider is the WEAK provider gate: signed in and of
+   type provider, with no org context and no approval check. That is correct
+   here, because /provider/campaigns returns counts that are the same for every
+   partner. Anything scoped to one org's own data wants requirePartner. */
+const requireMember = (req) => guards.requireMember(req, '/campaigns');
+const requireProvider = (req) => guards.requireProvider(req, '/provider/campaigns');
 
 /** The catalog entry the body names, or a 400 that says what is on offer. */
 function campaignFrom(cat, body) {
@@ -142,6 +131,30 @@ async function requireBiddingOpen(catalystApp, campaign) {
   if (campaign.kind !== 'auction' || !campaign.biddingOpen) {
     throw new AppError('CONFLICT', 'Bidding is not open on this campaign.', {
       logDetail: `bid refused: kind=${campaign.kind} bidding_open=${campaign.biddingOpen}`,
+    });
+  }
+  /**
+   * The deadline backstop.
+   *
+   * Closing an auction is otherwise a manual admin action: someone has to flip
+   * bidding_open at the stated minute. Nobody is at a keyboard at 5pm on the
+   * day every cohort closes, so without this a sealed auction stays open past
+   * its own published deadline, and a late bid is accepted against partners
+   * who respected it.
+   *
+   * This is not a scheduler and does not need one. It fails safe in both
+   * directions: no date means the previous behaviour exactly, and a passed
+   * date means refuse. A missed manual close becomes a stale label on a desk
+   * instead of an accepted late bid.
+   *
+   * Note this reads the CLOSE date only. Bidding still does not OPEN on a
+   * date; it opens when an admin says so. Dates may close a window, never
+   * open one, so a mistyped date cannot let anyone in early.
+   */
+  const closesAt = campaign.dates && campaign.dates.bidding_closes_at;
+  if (closesAt && Date.now() >= closesAt) {
+    throw new AppError('CONFLICT', 'Bidding has closed on this cohort.', {
+      logDetail: `bid refused: past bidding_closes_at by ${Date.now() - closesAt}ms`,
     });
   }
 }
@@ -341,8 +354,18 @@ function mount(router) {
     const rows = await allRows(req.catalyst);
     const counts = rows ? tally(rows) : {};
     const enabled = await siteconfig.getValue(req.catalyst, 'bidding_enabled') !== false;
+
+    /* One clock reading for the whole response, so two campaigns in the same
+       payload cannot be staged against times a millisecond apart, and so the
+       serverTime the console offsets from is the same instant the stages were
+       computed at. Derived here rather than inside catalog.load(), which is
+       memoized for 60 seconds: a stage may never be up to a minute stale, and
+       the minute it would be stale in is the one before bidding closes. */
+    const now = Date.now();
+
     res.status(200).json({
       ok: true,
+      serverTime: now,
       live: rows !== null,
       bidding: {
         enabled,
@@ -350,6 +373,7 @@ function mount(router) {
       },
       campaigns: visible(cat.list).map((c) => {
         const t = counts[c.id] || { signups: 0, watching: 0 };
+        const s = catalog.publicStage(c, now);
         return {
           id: c.id,
           region: c.region,
@@ -361,6 +385,16 @@ function mount(router) {
           signups: t.signups,
           watching: t.watching,
           bidding_open: enabled && c.kind === 'auction' && Boolean(c.biddingOpen),
+          /* DISPLAY ONLY, and server owned. The console renders this and must
+             never recompute it: a browser clock a few minutes fast would
+             otherwise disagree with the server about whether a sealed window
+             is open. Authorisation stays with bidding_open above and with
+             requireBiddingOpen on the write path. */
+          stage: s.stage,
+          stageLabel: s.stageLabel,
+          nextAt: s.next ? s.next.at : null,
+          nextWhat: s.next ? s.next.what : null,
+          dates: c.dates || {},
         };
       }),
     });

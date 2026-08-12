@@ -17,8 +17,9 @@
  *
  * COVERS: the four boot-guard paths (signed out, approved, pending, expired),
  * the one that must NOT sign anyone out (a network failure), the router across
- * all 11 views, four widths, and the burger's two behaviours. The 16-fixture
- * matrix arrives with the fixture layer.
+ * all 11 views, four widths, the burger's two behaviours, the completeness of
+ * the 67-endpoint register, all 17 fixture states, and the fixture layer
+ * declining to install off localhost.
  */
 
 import { chromium } from 'playwright-core';
@@ -26,6 +27,28 @@ import { chromium } from 'playwright-core';
 const BASE = (process.argv[2] || 'http://localhost:3000').replace(/\/+$/, '');
 let pass = 0, fail = 0;
 const ok = (c, label) => { c ? (pass++, console.log(`  ok    ${label}`)) : (fail++, console.log(`  FAIL  ${label}`)); };
+
+/**
+ * Only OUR errors count.
+ *
+ * Google Fonts intermittently 404s a woff2 from fonts.gstatic.com, which the
+ * browser reports as a console error and which has nothing to do with this
+ * code. Counting it made the suite fail about one run in three on a different
+ * fixture each time, and a suite that cries wolf is a suite people stop
+ * reading. Errors are attributed by the URL they came from, so a genuine
+ * failure in our own scripts still fails.
+ *
+ * Fonts are deliberately NOT blocked outright: the overflow assertions measure
+ * real text, and falling back to system metrics would change what they measure.
+ */
+const ours = (msg) => {
+  const url = (msg.location && msg.location().url) || '';
+  return !url || url.startsWith(BASE);
+};
+const collect = (page, sink) => {
+  page.on('console', m => { if (m.type() === 'error' && ours(m)) sink.push(m.text()); });
+  page.on('pageerror', e => sink.push(String(e)));
+};
 
 /* A partner record shaped like the one whollar-login-provider.html writes. */
 const REC = { emailKey: 'sam@northline.ca', email: 'sam@northline.ca', firstName: 'Sam', lastName: 'Kaur' };
@@ -71,7 +94,7 @@ console.log('\n1. signed out: no flash, redirected to sign-in with ?next');
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ authenticated: false }) });
   });
   const p = await c.newPage();
-  p.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  collect(p, errors);
   await p.goto(`${BASE}/provider-console`, { waitUntil: 'domcontentloaded' });
   const hidden = await p.evaluate(() => document.documentElement.style.visibility);
   ok(hidden === 'hidden', 'document hidden while the server is asked');
@@ -90,7 +113,7 @@ console.log('\n2. signed in, approved: console renders on real payload');
 {
   const c = await ctx(browser, { record: REC, me: APPROVED });
   const p = await c.newPage();
-  p.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  collect(p, errors);
   await p.goto(`${BASE}/provider-console`, { waitUntil: 'networkidle' });
   ok(!/whollar-login-provider/.test(p.url()), 'stayed on the console');
   ok((await p.textContent('#paneorg')) === 'Northline Internet', 'org name from /provider/me, not the email domain');
@@ -163,7 +186,7 @@ console.log('\n7. navigation reaches all 11 views');
 {
   const c = await ctx(browser, { record: REC, me: APPROVED });
   const p = await c.newPage();
-  p.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  collect(p, errors);
   await p.goto(`${BASE}/provider-console`, { waitUntil: 'networkidle' });
   const views = ['overview', 'desk', 'plan', 'bids', 'billing', 'coverage', 'delivery', 'perf', 'contracts', 'pending', 'account'];
   let shown = 0;
@@ -253,8 +276,7 @@ console.log('\n11. every fixture renders, with no console error');
     const fc = await ctx(browser, { record: REC, me: APPROVED });
     const fp = await fc.newPage();
     const errs = [];
-    fp.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
-    fp.on('pageerror', e => errs.push(String(e)));
+    collect(fp, errs);
     await fp.goto(`${BASE}/provider-console?fixture=${name}`, { waitUntil: 'networkidle' });
     await fp.waitForTimeout(120);
     const installed = await fp.evaluate(() => window.WHOLLAR.console.fixture && window.WHOLLAR.console.fixture.name);

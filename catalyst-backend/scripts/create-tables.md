@@ -264,8 +264,10 @@ console only ever reads **counts** from this table — no member identity
 crosses to providers.
 
 Written by `POST /campaigns/join|leave|notify`, read by `GET /campaigns`
-(member) and `GET /provider/campaigns` (partner). The campaign catalog itself
-is code (`routes/campaigns.js`), not a table — only membership lives here.
+(member) and `GET /provider/campaigns` (partner). Only membership lives here;
+the campaign catalog itself is the `campaigns` table, section 16. It used to be
+a code constant in `routes/campaigns.js`, and that constant survives as the
+fallback `src/lib/catalog.js` uses whenever the table is missing or empty.
 
 | Column | Type | Length | Unique | Mandatory | PII | Notes |
 |---|---|---|:--:|:--:|:--:|---|
@@ -385,6 +387,116 @@ defaults; writes throw a clear "not available" rather than a generic 500.
 
 ---
 
+## 16. `campaigns`, `site_config`, `provider_bids`, `provider_coverage`
+
+**These four were live in code and undocumented here.** All four are declared
+in `src/lib/schema.js` and reported by `/health/diagnostics`, and all four are
+written by deployed routes. Rule 1 above says this file is the only record of
+what a hand-created table must contain, so the omission meant that recreating
+this environment from scratch, or standing Production up, would have produced
+a site that looked fine and silently fell back to defaults. Section 12 of this
+file still said "the campaign catalog itself is code, not a table"; it has not
+been true since the admin console shipped.
+
+Nothing here is a new instruction if the tables already exist. Check with the
+Verify queries first.
+
+### `campaigns`
+
+The catalog, promoted from a code constant so that "open bidding on Windsor" is
+an ops decision rather than a deploy. `src/lib/catalog.js` reads it with a 60
+second memo and **falls back to the code catalog when the table is missing or
+empty**, which is why its absence has been invisible.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `campaign_id` | Var Char | 64 | ✅ | ✅ | slug, immutable once created |
+| `region` | Var Char | 100 | | ✅ | |
+| `sub` | Var Char | 100 | | | e.g. `Autumn cohort` |
+| `kind` | Var Char | 16 | | ✅ | `planned` \| `waitlist` \| `forming` \| `auction` \| `closed` \| `archived` |
+| `target` | Int | — | | | households the cohort is aiming at |
+| `seed_members` | Int | — | | | |
+| `seed_households` | Int | — | | | |
+| `bidding_open` | Boolean | — | | | only meaningful while `kind = auction` |
+| `sort_order` | Int | — | | | |
+| `updated_by` | Var Char | 64 | | | |
+| `updated_at` | DateTime | — | | | |
+
+**The auction calendar, seven columns, all optional.** A cohort with none of
+them behaves exactly as it did before they existed, because `kind` and
+`bidding_open` remain the authority. `src/lib/catalog.js` derives the
+partner-facing stage from these on every read, for **display only**.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `announce_at` | DateTime | — | | | brief fixed, coverage-matched partners told |
+| `bidding_opens_at` | DateTime | — | | | |
+| `bidding_closes_at` | DateTime | — | | | **the one with teeth**, see below |
+| `offers_at` | DateTime | — | | | winning offer goes to each household |
+| `decision_at` | DateTime | — | | | household confirmations lock |
+| `switch_window_at` | DateTime | — | | | installs and transfers run |
+| `reconcile_at` | DateTime | — | | | final counts settle |
+
+`bidding_closes_at` is the only one that changes behaviour rather than
+labelling. `requireBiddingOpen()` refuses a bid once it has passed, so a cohort
+cannot stay open past its own published deadline just because nobody was at a
+keyboard to flip `bidding_open` at 5pm. **Dates may close a bid window and may
+never open one**: bidding still opens only when an admin says so, so a mistyped
+date cannot let anyone in early.
+
+### `site_config`
+
+One row per tunable. Read by `/public/config` (60s cacheable) and written by
+the admin console. `bidding_enabled` is the global bidding kill switch.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `config_key` | Var Char | 64 | ✅ | ✅ | |
+| `value` | Var Char | 255 | | | stored over the code default |
+| `updated_by` | Var Char | 64 | | | |
+| `updated_at` | DateTime | — | | | |
+
+### `provider_bids`
+
+One live sealed bid per (campaign, org). Rule 4 above: Catalyst's unique
+constraint is per column, so the pair is flattened into `bid_key`.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `bid_key` | Var Char | 130 | ✅ | ✅ | `${campaign_id}:${org_id}` |
+| `campaign_id` | Var Char | 64 | | ✅ | |
+| `org_id` | Var Char | 64 | | ✅ | |
+| `price` | Var Char | 16 | | ✅ | money as a string, see rule 3 |
+| `speed` | Var Char | 32 | | | |
+| `term` | Var Char | 16 | | | |
+| `includes` | Var Char | 255 | | | CSV |
+| `completion` | Var Char | 16 | | | |
+| `status` | Var Char | 16 | | ✅ | `sealed` |
+| `updated_by` | Var Char | 64 | | | |
+| `updated_at` | DateTime | — | | | |
+
+### `provider_coverage`
+
+The regions an org claims, and what it can render there.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `coverage_key` | Var Char | 130 | ✅ | ✅ | `${org_id}:${region-slug}` |
+| `org_id` | Var Char | 64 | | ✅ | |
+| `region` | Var Char | 100 | | ✅ | as typed |
+| `techs` | Var Char | 64 | | | CSV of `cable` \| `fibre` \| `fwa` \| `dsl` |
+| `speed` | Var Char | 32 | | | |
+| `lead` | Var Char | 64 | | | install lead time |
+| `status` | Var Char | 16 | | ✅ | `verifying` \| `active` \| `soon` \| `rejected` |
+| `updated_at` | DateTime | — | | | |
+
+> **Known gap, not a schema problem.** New rows land `verifying` and **no route
+> anywhere moves them on**, so `active` is currently unreachable. The admin
+> verify and reject routes are outstanding work. Until they exist, a partner
+> who declares a region never sees a cohort in it.
+
+---
+
 ## Verify
 
 In the console: **Data Store → ZCQL** (or **Explore**), and run each of these.
@@ -405,6 +517,10 @@ SELECT ROWID FROM auth_events LIMIT 1;
 SELECT ROWID FROM member_bills LIMIT 1;
 SELECT ROWID FROM campaign_members LIMIT 1;
 SELECT ROWID FROM provider_ratings LIMIT 1;
+SELECT ROWID FROM campaigns LIMIT 1;
+SELECT ROWID FROM site_config LIMIT 1;
+SELECT ROWID FROM provider_bids LIMIT 1;
+SELECT ROWID FROM provider_coverage LIMIT 1;
 ```
 
 Then one that exercises the column names the hot path depends on:
@@ -421,6 +537,13 @@ SELECT ContractStartDate, ContractLength FROM BillCheckupSubmissions LIMIT 1;
 SELECT contract_start_date, contract_length FROM member_bills LIMIT 1;
 SELECT pref_key, prefs FROM user_prefs LIMIT 1;
 SELECT user_id, kind, payload FROM user_events LIMIT 1;
+SELECT bid_key, campaign_id, org_id, status FROM provider_bids LIMIT 1;
+SELECT coverage_key, org_id, region, status FROM provider_coverage LIMIT 1;
+-- The auction calendar. Errors here mean section 16's seven columns are
+-- missing, which is silent: stage falls back to kind + bidding_open, and
+-- bidding never auto-closes at its published deadline.
+SELECT announce_at, bidding_opens_at, bidding_closes_at, offers_at,
+       decision_at, switch_window_at, reconcile_at FROM campaigns LIMIT 1;
 ```
 
 If `users` or `sessions` errors on the bare `SELECT` above, the table name may
