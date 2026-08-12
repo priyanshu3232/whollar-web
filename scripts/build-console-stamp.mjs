@@ -38,6 +38,7 @@ const CHECK = process.argv.includes('--check');
 const PAGE = 'provider-console.html';
 const SCRIPTS = [
   'js/whollar-console-contract.js',
+  'js/whollar-console-api.js',
   'js/whollar-provider-console.js'
 ];
 

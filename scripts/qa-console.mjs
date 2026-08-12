@@ -218,6 +218,78 @@ console.log('\n9. burger: collapses on desktop, overlays on mobile');
   await c.close();
 }
 
+console.log('\n10. the endpoint register is complete');
+{
+  const c = await ctx(browser, { record: REC, me: APPROVED });
+  const p = await c.newPage();
+  await p.goto(`${BASE}/provider-console`, { waitUntil: 'networkidle' });
+  const reg = await p.evaluate(() => {
+    const a = window.WHOLLAR.console.api;
+    return { total: a.__count, live: a.__implemented, pending: a.__pending.length };
+  });
+  ok(reg.total === 67, `67 endpoints present (${reg.total})`);
+  ok(reg.live + reg.pending === reg.total, `every one is either live or a tagged stub (${reg.live} live, ${reg.pending} stubbed)`);
+  /* A stub must fail the way the server will, or views learn the wrong error path. */
+  const stub = await p.evaluate(() =>
+    window.WHOLLAR.console.api.statements().then(() => null, e => ({ code: e.code, status: e.status })));
+  ok(stub && stub.code === 'NOT_IMPLEMENTED' && stub.status === 501, 'a stub rejects as NOT_IMPLEMENTED/501, like the server will');
+  await c.close();
+}
+
+console.log('\n11. every fixture renders, with no console error');
+{
+  const c = await ctx(browser, { record: REC, me: APPROVED });
+  const p = await c.newPage();
+  await p.goto(`${BASE}/provider-console`, { waitUntil: 'networkidle' });
+  const names = await p.evaluate(async () => {
+    await new Promise(r => { const s = document.createElement('script'); s.src = '/js/console-fixtures.js'; s.onload = r; s.onerror = r; document.head.appendChild(s); });
+    return window.WHOLLAR.console.fixtures ? window.WHOLLAR.console.fixtures.names : [];
+  });
+  ok(names.length >= 16, `fixture states defined (${names.length})`);
+  await c.close();
+
+  let clean = 0;
+  for (const name of names) {
+    const fc = await ctx(browser, { record: REC, me: APPROVED });
+    const fp = await fc.newPage();
+    const errs = [];
+    fp.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
+    fp.on('pageerror', e => errs.push(String(e)));
+    await fp.goto(`${BASE}/provider-console?fixture=${name}`, { waitUntil: 'networkidle' });
+    await fp.waitForTimeout(120);
+    const installed = await fp.evaluate(() => window.WHOLLAR.console.fixture && window.WHOLLAR.console.fixture.name);
+    const painted = await fp.evaluate(() => (document.querySelector('section.view.on')?.textContent || '').trim().length);
+    if (installed === name && painted > 20 && !errs.length) clean++;
+    else console.log(`        ${name}: installed=${installed} painted=${painted} errors=${errs.length}${errs[0] ? ' :: ' + errs[0].slice(0, 90) : ''}`);
+    await fc.close();
+  }
+  ok(clean === names.length, `all ${names.length} fixtures install and render clean (${clean}/${names.length})`);
+}
+
+console.log('\n12. fixture mode cannot escape localhost');
+{
+  /* The real guarantee is .vercelignore: the file is not uploaded, so it 404s
+     in every deployed environment. Assert the SECOND belt here, that the
+     module refuses to install when the hostname is not local, by loading it
+     under a hostname that is not. */
+  const c = await ctx(browser, { record: REC, me: APPROVED });
+  const p = await c.newPage();
+  await p.goto(`${BASE}/provider-console`, { waitUntil: 'networkidle' });
+  const refused = await p.evaluate(async () => {
+    const src = await (await fetch('/js/console-fixtures.js')).text();
+    // Run it with a non-local hostname and see whether it installs.
+    const fake = { WHOLLAR: window.WHOLLAR, location: { hostname: 'www.whollar.ca', search: '?fixture=won', hash: '' }, console: { warn() {} } };
+    const before = window.WHOLLAR.console.fixtures;
+    new Function('window', 'globalThis', src).call(fake, fake, fake);
+    return window.WHOLLAR.console.fixtures === before;
+  });
+  ok(refused, 'the module declines to install on a non-local hostname');
+
+  const ignored = await fetch(`${BASE}/js/console-fixtures.js`).then(r => r.status);
+  ok(ignored === 200, 'and it is still served locally, where it is meant to work');
+  await c.close();
+}
+
 await browser.close();
 const uniq = [...new Set(errors)];
 if (uniq.length) { console.log('\nconsole errors:'); uniq.forEach(e => console.log('  ! ' + e.slice(0, 160))); }

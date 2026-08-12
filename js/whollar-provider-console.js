@@ -40,6 +40,10 @@
   if (W.console.boot) return;
 
   var C = W.console.C;
+  /* Every server call goes through the register, never through W.session
+     directly. One path means the fixture layer can replace all 67 at once,
+     and a view can never half-mock. */
+  var api = W.console.api;
 
   var $ = function (s, c) { return (c || document).querySelector(s); };
   var $$ = function (s, c) { return Array.prototype.slice.call((c || document).querySelectorAll(s)); };
@@ -329,7 +333,7 @@
         var el = $('[data-notify="' + n[0] + '"]');
         next[n[0]] = el ? el.checked : true;
       });
-      W.session.prefsSave({ notify: next }).then(function () {
+      api.prefsSave({ notify: next }).then(function () {
         P.prefs = P.prefs || {};
         P.prefs.notify = next;
         toast('Preference saved.');
@@ -347,7 +351,7 @@
          localStorage alone leaves the cookie alive, and the boot guard would
          adopt() it on the next visit and sign the visitor straight back in. */
       var done = function () { location.replace('/whollar-login-provider'); };
-      W.session.end('partner').then(done, done);
+      api.signOut().then(done, done);
     });
   }
 
@@ -369,7 +373,7 @@
      belongs to someone else, and the console must not keep painting. A network
      failure is NOT that, and must not sign anyone out. */
   function revalidate() {
-    return W.session.providerMe().then(function (r) {
+    return api.me().then(function (r) {
       C.check('providerMe', r);
       P.user = r.user || P.user;
       P.org = r.org || P.org;
@@ -387,7 +391,7 @@
   }
 
   function loadPrefs() {
-    return W.session.prefsGet().then(function (p) {
+    return api.prefs().then(function (p) {
       P.prefs = p || {};
       renderAccount();
     }, function () { P.prefs = {}; });
@@ -397,7 +401,31 @@
    * boot
    * ================================================================== */
 
-  W.console.boot = function (partner) {
+  /* Fixture mode, and the three conditions on it.
+     The file itself is in .vercelignore, so it does not exist in any deployed
+     environment and this request 404s there. These checks are a second belt,
+     and they are cheap. */
+  function loadFixtures() {
+    var q;
+    try { q = new URLSearchParams(location.search).get('fixture'); } catch (e) { q = null; }
+    var local = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    if (!q || !local) return Promise.resolve();
+    return new Promise(function (done) {
+      var s = document.createElement('script');
+      s.src = '/js/console-fixtures.js';
+      /* Resolve either way. A missing fixture file must not stop the console
+         booting; it should boot against the real API, which is exactly what
+         happens on a preview deploy where the file is absent by design. */
+      s.onload = function () { done(); };
+      s.onerror = function () {
+        if (root.console) root.console.warn('[whollar] no fixture file here; booting against the real API');
+        done();
+      };
+      document.head.appendChild(s);
+    });
+  }
+
+  function start(partner) {
     P.partner = partner || {};
     P.user = {
       firstName: P.partner.firstName, lastName: P.partner.lastName, email: P.partner.email
@@ -406,6 +434,10 @@
     /* Assume NOT approved until the server says otherwise. The opposite default
        flashes a full console at a partner who is still under review. */
     P.approved = false;
+
+    /* Re-read the register: under fixtures every one of the 67 was replaced,
+       and this module captured the object at load time. */
+    api = W.console.api;
 
     /* Strict contract checking is a local-development tool. In production a
        shape mismatch is reported and the view degrades. */
@@ -427,6 +459,13 @@
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'visible') revalidate();
     });
+  }
+
+  /* Fixtures install before anything renders. Rendering first and swapping
+     after would show one frame of real data inside a fixture run, which is the
+     kind of thing that makes a demo look flaky and a bug look intermittent. */
+  W.console.boot = function (partner) {
+    return loadFixtures().then(function () { start(partner); });
   };
 
   /* Exposed for the QA harness and for the fixture layer to swap. */

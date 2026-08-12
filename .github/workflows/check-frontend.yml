@@ -105,6 +105,13 @@ jobs:
       - name: Console cache stamps match their scripts
         run: node scripts/build-console-stamp.mjs --check
 
+      # Em dashes and the banned terminology, scoped to the console files where
+      # the count is currently zero. Scoped rather than repo-wide on purpose:
+      # older pages carry hundreds of em dashes, and a gate that is red on day
+      # one gets switched off on day one.
+      - name: Console copy rules
+        run: node scripts/check-console-copy.mjs
+
       # Catches an unclosed brace or a stray character inside any inline
       # <script>, including the ones inside the self-unpacking bundle pages,
       # where a syntax error blanks the whole page.
