@@ -3774,31 +3774,11 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
   bar.className = 'whl-bottombar';
   bar.innerHTML = '<a class="whl-btn whl-btn--block" href="/MobileVersion/join-the-first-cohort-mobile">Join the First Cohort</a>';
   document.body.appendChild(bar);
-  var hero = document.querySelector('.whl-hero');
-  var footer = document.querySelector('.whl-footer');
-  var finalCta = document.getElementById('cta');
-  var lastY = window.scrollY, shown = false;
-  function heroBottom(){ return hero ? hero.offsetTop + hero.offsetHeight - 60 : 500; }
-  function nearEnd(){
-    /* hide when the final CTA or footer is on screen (redundant with bar) */
-    var ref = finalCta || footer; if(!ref) return false;
-    return ref.getBoundingClientRect().top < window.innerHeight * 0.9;
-  }
+  /* the pill stays put: it is not tied to scroll position or direction, and only
+     steps aside for the full-screen menu */
   function updateBar(){
-    if(!mq.matches){ bar.classList.remove('show'); return; }
-    if(mobnav && mobnav.classList.contains('is-open')){ bar.classList.remove('show'); return; }
-    var y = window.scrollY;
-    var pastHero = y > heroBottom();
-    var scrollingUp = y < lastY - 2;
-    var scrollingDown = y > lastY + 2;
-    if(pastHero && !nearEnd()){
-      if(scrollingUp) shown = true;
-      else if(scrollingDown) shown = false;
-    } else {
-      shown = false;
-    }
-    bar.classList.toggle('show', shown);
-    lastY = y;
+    var visible = mq.matches && !(mobnav && mobnav.classList.contains('is-open'));
+    bar.classList.toggle('show', visible);
   }
   window.addEventListener('scroll', updateBar, {passive:true});
   window.addEventListener('resize', updateBar);
