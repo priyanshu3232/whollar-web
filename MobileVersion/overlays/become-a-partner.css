@@ -13,10 +13,10 @@
   .whl-nav__back{font-size:13px}
   .split{min-height:0}
   .hs-left{min-height:0}
-  .hs-left__in{padding:38px 22px 42px}
+  .hs-left__in{padding:26px 22px 30px}
   .hs-left h1{font-size:29px;line-height:1.08}
-  .hs-left .sub{font-size:14.5px;margin-top:13px}
-  .hpts{margin-top:22px;gap:15px}
+  .hs-left .sub{display:none}
+  .hpts{margin-top:16px;gap:12px}
   .hs-left__mark{width:200px;height:200px;right:-55px;bottom:-55px}
   .hs-right{padding:6px 0 40px}
   .form-pane{padding:24px 18px 28px}

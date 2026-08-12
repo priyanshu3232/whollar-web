@@ -1591,7 +1591,10 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
     background:none;backdrop-filter:none;-webkit-backdrop-filter:none;border-top:none;
     transform:translate(-50%,150%);transition:transform .32s cubic-bezier(.16,1,.3,1)}
   .whl-bottombar.show{transform:translate(-50%,0)}
-  .whl-bottombar .whl-btn{width:auto;font-size:15.5px;padding:14px 30px;box-shadow:0 14px 32px rgba(10,32,24,.32)}
+  /* same treatment as the provider page's fixed pill: green fill, fully round,
+     green-tinted shadow. At 0,2,0 this outranks .whl-btn's teal/13px radius and
+     .whl-btn:hover (0,2,0, earlier), so the fill survives a touch-hold too. */
+  .whl-bottombar .whl-btn{width:auto;background:#178A5A;color:#FFFEFB;border-radius:100px;font-size:15px;font-weight:600;padding:15px 28px;white-space:nowrap;box-shadow:0 14px 32px -10px rgba(23,138,90,.6)}
 
   /* ---------- HERO ---------- */
   .whl-hero__grid{grid-template-columns:minmax(0,1fr);gap:30px;min-width:0}
@@ -1691,6 +1694,15 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   /* big-idea comparison card (inline 3-col grid) → stack + point arrow down */
   [style*="0.8fr auto 1.2fr"]{grid-template-columns:1fr!important;gap:18px!important;padding:28px 22px!important;text-align:center}
   [style*="0.8fr auto 1.2fr"]>div:nth-child(2){transform:rotate(90deg);justify-self:center}
+
+  /* founding-member cohort cards: desktop's 24px gap and 34/32 padding waste a
+     phone screen once the copy is short. The base rules live in #est-cohort-css,
+     which comes later in the document, so these carry the .whl-wrap parent
+     (0,2,0 / 0,3,0) to outrank them instead of !important. */
+  .whl-wrap .whl-cohort-cards{gap:12px}
+  .whl-wrap .whl-cohort-cards .cc{padding:20px 20px 18px}
+  .whl-wrap .whl-cohort-cards .cc__ey{margin-bottom:10px}
+  .whl-wrap .whl-cohort-cards .cc__t{margin-bottom:8px}
 
 
 
@@ -3278,9 +3290,9 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
       </div>
     </div>
     <div class="whl-cohort-cards whl-reveal">
-      <div class="cc"><span class="cc__ey">01 · For the curious</span><h3 class="cc__t">Be first to what's next</h3><p class="cc__b">Internet is chapter one. The next markets are already on our map, sealed until launch, and founding members hear it before a word goes public.</p></div>
-      <div class="cc"><span class="cc__ey">02 · For the believers</span><h3 class="cc__t">Let's make pricing honest, together</h3><p class="cc__b">Honest pricing isn't a favour providers grant. It's what happens when enough households ask the same question at the same time.</p></div>
-      <div class="cc"><span class="cc__ey">03 · For the savers</span><h3 class="cc__t">New connection or a lower bill</h3><p class="cc__b">Setting up a new place, or done overpaying at the old one? Either way, providers bid for your street and the group price is yours to take.</p></div>
+      <div class="cc"><span class="cc__ey">01 · For the curious</span><h3 class="cc__t">Be first to what's next</h3><p class="cc__b">Internet is chapter one. The next markets are already on our map, and founding members hear it first.</p></div>
+      <div class="cc"><span class="cc__ey">02 · For the believers</span><h3 class="cc__t">Let's make pricing honest, together</h3><p class="cc__b">Honest pricing isn't a favour providers grant. It's what happens when enough households ask at the same time.</p></div>
+      <div class="cc"><span class="cc__ey">03 · For the savers</span><h3 class="cc__t">New connection or a lower bill</h3><p class="cc__b">New place, or done overpaying at the old one? Either way, providers bid for your street and the group price is yours.</p></div>
     </div>
   </div>
 </section>
