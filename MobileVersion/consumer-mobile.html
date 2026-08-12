@@ -519,7 +519,6 @@ img,svg{display:block}
 /* was (max-width:880px) */
 .whl-hard{gap:32px}
 
-.whl-journey{display:none}
 
 .whl-hard__left{flex:1 1 420px;min-width:0;display:flex;flex-direction:column;gap:6px}
 .whl-hard__step{display:flex;flex-direction:column;justify-content:center;gap:14px;min-height:36vh;padding:18px 20px;border-radius:20px;cursor:pointer;background:transparent;border:1px solid transparent;opacity:.5;box-shadow:none;transform:scale(.985);transition:background .4s var(--ease),border-color .4s var(--ease),opacity .4s var(--ease),box-shadow .4s var(--ease),transform .4s var(--ease)}
@@ -1232,6 +1231,9 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .whl-reveal{opacity:1;transform:none}
   .whl-hero__bg{display:none}
   .whl-hub__flow{display:none}
+  /* The carousel never auto-advances here, so a dwell meter would be measuring nothing. The
+     rule above already covers its transition and the track's scroll-behavior. */
+  .wc-dot-fill{display:none}
 }
 
 /* ===== Reddit marquee + Sound Familiar: new design ===== */
@@ -1454,11 +1456,60 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   /* ---------- "HARD PARTS" → mobile vertical timeline ("One connected journey") ---------- */
   .whl-hard__left,.whl-hard__right,.whl-hard__dots{display:none!important}
   .whl-hard{margin-top:28px;gap:0}
-  .whl-journey{display:block;position:relative;padding-left:8px}
-  .whl-jn__line{position:absolute;left:21px;top:22px;bottom:40px;width:2px;background:#C9C4EE;z-index:0}
-  .whl-jn__step{position:relative;display:block;padding-left:52px;margin-bottom:26px}
-  .whl-jn__step:last-child{margin-bottom:0}
-  .whl-jn__node{position:absolute;left:7px;top:6px;width:30px;height:30px;border-radius:50%;background:#534AB7;color:#fff;font-family:var(--disp);font-weight:700;font-size:12px;display:grid;place-items:center;z-index:2;box-shadow:0 2px 8px rgba(83,74,183,.35)}
+  /* ---------- WHY WHOLLAR carousel ----------
+     Transport is a native horizontal scroll-snap track rather than a transform slider, so
+     momentum, rubber-banding and gesture interruption are the platform's job and not ours.
+     The track is full-bleed: .whl-wrap contributes a 20px page gutter, the negative inline
+     margin cancels it, and the track's own 20px padding puts it back. A card can therefore
+     snap flush to the page gutter while the next one peeks past the screen edge.
+     Peek maths at a 390px viewport: the track content box is 390 - 40 = 350, a slide is
+     350 - 24 = 326, so the next slide begins at 20 + 326 + 12 = 358 and shows 390 - 358 = 32px.
+     That 24px is PEEK + GAP - GUTTER, so the three config numbers stay in one relationship. */
+  .wc{--wc-spruce:#1B4D3E;width:100%}
+  .wc-viewport{overflow:hidden;margin-inline:-20px}
+  .wc-track{
+    display:flex;gap:12px;margin:0;padding:4px 20px 8px;list-style:none;
+    overflow-x:auto;overscroll-behavior-x:contain;
+    scroll-snap-type:x mandatory;scroll-padding-inline:20px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none;
+  }
+  .wc-track::-webkit-scrollbar{display:none}
+  .wc-track:focus-visible{outline:2px solid var(--wc-spruce);outline-offset:2px;border-radius:22px}
+  /* scroll-snap-stop:always is load-bearing: without it a fast flick crosses two or three
+     cards and the dots desynchronise from the settled slide. */
+  .wc-slide{
+    flex:0 0 auto;width:calc(100% - 24px);max-width:520px;
+    scroll-snap-align:start;scroll-snap-stop:always;display:flex;
+  }
+  .wc-card{width:100%;justify-content:flex-start}
+  .wc-num{
+    font-family:'SF Mono',Menlo,Consolas,monospace;font-size:12px;letter-spacing:.08em;
+    color:var(--wc-spruce);opacity:.55;display:block;margin-bottom:12px;
+  }
+  .wc-dots{display:flex;justify-content:center;align-items:center;gap:4px;margin-top:20px}
+  .wc-dot{
+    position:relative;appearance:none;-webkit-appearance:none;border:0;background:none;
+    padding:0;margin:0;line-height:0;cursor:pointer;
+  }
+  /* The visual row keeps its 4px rhythm while this pseudo-element carries the 44px touch
+     target. It is part of the button's own box, so it hit-tests as the button. Neighbouring
+     targets overlap only in their outer margins, where the nearer dot is the obvious intent. */
+  .wc-dot::after{content:'';position:absolute;top:50%;left:50%;width:44px;height:44px;transform:translate(-50%,-50%)}
+  .wc-dot:focus-visible{outline:2px solid var(--wc-spruce);outline-offset:2px;border-radius:100px}
+  .wc-dot-visual{
+    position:relative;overflow:hidden;display:block;width:8px;height:8px;border-radius:100px;
+    background:rgba(27,77,62,.22);transition:width .26s ease,background .26s ease;
+  }
+  .wc-dot.is-active .wc-dot-visual{width:24px;background:var(--wc-spruce)}
+  /* Dwell progress. A class toggle plus a CSS transition, never rAF. The duration comes from
+     a custom property so WC.AUTOPLAY_MS in the script stays the single source of truth. */
+  .wc-dot-fill{
+    position:absolute;inset:0;border-radius:inherit;background:var(--accent);
+    transform:scaleX(0);transform-origin:left;
+    transition:transform var(--wc-fill-ms,5000ms) linear;
+  }
+  .wc-dot-fill.is-filling{transform:scaleX(1)}
+  .wc-dot:not(.is-active) .wc-dot-fill{display:none}
   .whl-jn__card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:20px 20px 20px;box-shadow:0 1px 2px rgba(16,40,34,.05),0 18px 36px -28px rgba(16,40,34,.5)}
   .whl-jn__head{display:flex;align-items:flex-start;gap:13px;margin-bottom:12px}
   .whl-jn__ic{flex:none;width:44px;height:44px;border-radius:13px;background:rgba(30,158,99,.12);color:var(--accent);display:grid;place-items:center}
@@ -1676,9 +1727,6 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .whl-home-lottie{width:92px!important;height:92px!important;margin-bottom:-6px!important}
   [style*="grid-template-columns:1fr 1fr"]{gap:12px!important}
 
-  /* WHY WHOLLAR timeline: green numbers (matches reddit tiles) */
-  .whl-jn__node{background:#1B4D3E!important;box-shadow:0 2px 8px rgba(27,77,62,.35)!important}
-  .whl-jn__line{background:rgba(27,77,62,.28)!important}
 
   /* tighten section spacing */
   .whl-how .whl-wrap{padding-top:44px;padding-bottom:30px}
@@ -2690,79 +2738,89 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
     </div>
 
     <div class="whl-hard whl-reveal" data-hard="">
-      <!-- MOBILE ONLY: "One connected journey" vertical timeline -->
-      <div class="whl-journey" aria-hidden="false">
-        <div class="whl-jn__line"></div>
-
-        <div class="whl-jn__step">
-          <span class="whl-jn__node">01</span>
-          <div class="whl-jn__card">
-            <div class="whl-jn__head">
-              <span class="whl-jn__ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M8 9h8M8 13h5"></path></svg></span>
-              <h3>You never negotiate</h3>
-            </div>
-            <p>No scripts, no arguing, no pretending you'll cancel. The group's size does the talking.</p>
-            <div class="whl-jn__proof">
-              <div class="whl-jn__proofrow">
-                <div><div class="whl-jn__plabel">Bids closed. New street low</div><div class="whl-jn__price"><s>$94</s> <b>$58</b><em>/mo</em></div></div>
-                <span class="whl-jn__save">Save $432/yr</span>
-              </div>
-            </div>
-          </div>
+      <!-- WHY WHOLLAR carousel. The four cards rotate right to left on one scroll-snap
+           track. The vertical spine and the gutter number circles are gone: each card
+           now carries its own number as a mono eyebrow, so no information is lost.
+           Card innards below are unchanged, only rehomed and re-indented. -->
+      <!-- role="region" so aria-roledescription is actually honoured: on a bare div with no role
+           there is no role name for it to relabel and assistive tech drops it. -->
+      <div class="wc" data-wc="" role="region" aria-roledescription="carousel" aria-label="Why Whollar">
+        <div class="wc-viewport">
+          <ul class="wc-track" id="wcTrack" tabindex="0">
+            <li class="wc-slide" role="group" aria-roledescription="slide" aria-label="1 of 4" id="wc-slide-1">
+              <article class="wc-card whl-jn__card">
+                <span class="wc-num">01</span>
+                <div class="whl-jn__head">
+                  <span class="whl-jn__ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M8 9h8M8 13h5"></path></svg></span>
+                  <h3>You never negotiate</h3>
+                </div>
+                <p>No scripts, no arguing, no pretending you'll cancel. The group's size does the talking.</p>
+                <div class="whl-jn__proof">
+                  <div class="whl-jn__proofrow">
+                    <div><div class="whl-jn__plabel">Bids closed. New street low</div><div class="whl-jn__price"><s>$94</s> <b>$58</b><em>/mo</em></div></div>
+                    <span class="whl-jn__save">Save $432/yr</span>
+                  </div>
+                </div>
+              </article>
+            </li>
+            <li class="wc-slide" role="group" aria-roledescription="slide" aria-label="2 of 4" id="wc-slide-2">
+              <article class="wc-card whl-jn__card">
+                <span class="wc-num">02</span>
+                <div class="whl-jn__head">
+                  <span class="whl-jn__ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"></path></svg></span>
+                  <h3>You never wait on hold</h3>
+                </div>
+                <p>No menus, no hold music, no afternoon lost to a retention department. We handle every call.</p>
+                <div class="whl-jn__proof">
+                  <div class="whl-jn__plabel whl-jn__plabel--icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Time you'd spend on hold</div>
+                  <div class="whl-jn__hold"><s>3:59:59</s><span class="whl-jn__arrow">→</span><b>0:00</b></div>
+                  <div class="whl-jn__pcap">We wait on hold, you never pick up the phone.</div>
+                </div>
+              </article>
+            </li>
+            <li class="wc-slide" role="group" aria-roledescription="slide" aria-label="3 of 4" id="wc-slide-3">
+              <article class="wc-card whl-jn__card">
+                <span class="wc-num">03</span>
+                <div class="whl-jn__head">
+                  <span class="whl-jn__ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18M12 14v4M9.5 16h5"></path></svg></span>
+                  <h3>You always know when promos expire</h3>
+                </div>
+                <p>We track every renewal date and tell you before the price quietly jumps.</p>
+                <div class="whl-jn__proof">
+                  <div class="whl-jn__notif">
+                    <span class="whl-jn__star"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#e0a72b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 6.5 7 .9-5 4.8 1.3 7L12 18l-6.6 3.2 1.3-7-5-4.8 7-.9z"></path></svg></span>
+                    <span class="whl-jn__brand"><span class="whl-jn__bmark"></span>Whollar</span>
+                    <span class="whl-jn__time">9:14 am</span>
+                  </div>
+                  <div class="whl-jn__notifrow">
+                    <div class="whl-jn__notiftext">Your Bell promo ends in 30 days</div>
+                    <span class="whl-jn__expires">Expires soon</span>
+                  </div>
+                </div>
+              </article>
+            </li>
+            <li class="wc-slide" role="group" aria-roledescription="slide" aria-label="4 of 4" id="wc-slide-4">
+              <article class="wc-card whl-jn__card">
+                <span class="wc-num">04</span>
+                <div class="whl-jn__head">
+                  <span class="whl-jn__ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>
+                  <h3>A real concierge handles the switch</h3>
+                </div>
+                <p>A person, not a chatbot, manages the paperwork, the switch and the follow-up.</p>
+                <div class="whl-jn__proof">
+                  <div class="whl-jn__evt"><span class="whl-jn__evtsq"></span>Technician visit for Installation/Switch</div>
+                  <div class="whl-jn__evtline"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Tue, Jul 1 · 10:00 AM to 12:00 PM</div>
+                  <div class="whl-jn__evtline"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>47 Maple Cres, Ottawa, ON K1Z 7B3</div>
+                </div>
+              </article>
+            </li>
+          </ul>
         </div>
-
-        <div class="whl-jn__step">
-          <span class="whl-jn__node">02</span>
-          <div class="whl-jn__card">
-            <div class="whl-jn__head">
-              <span class="whl-jn__ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"></path></svg></span>
-              <h3>You never wait on hold</h3>
-            </div>
-            <p>No menus, no hold music, no afternoon lost to a retention department. We handle every call.</p>
-            <div class="whl-jn__proof">
-              <div class="whl-jn__plabel whl-jn__plabel--icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Time you'd spend on hold</div>
-              <div class="whl-jn__hold"><s>3:59:59</s><span class="whl-jn__arrow">→</span><b>0:00</b></div>
-              <div class="whl-jn__pcap">We wait on hold, you never pick up the phone.</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="whl-jn__step">
-          <span class="whl-jn__node">03</span>
-          <div class="whl-jn__card">
-            <div class="whl-jn__head">
-              <span class="whl-jn__ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18M12 14v4M9.5 16h5"></path></svg></span>
-              <h3>You always know when promos expire</h3>
-            </div>
-            <p>We track every renewal date and tell you before the price quietly jumps.</p>
-            <div class="whl-jn__proof">
-              <div class="whl-jn__notif">
-                <span class="whl-jn__star"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#e0a72b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 6.5 7 .9-5 4.8 1.3 7L12 18l-6.6 3.2 1.3-7-5-4.8 7-.9z"></path></svg></span>
-                <span class="whl-jn__brand"><span class="whl-jn__bmark"></span>Whollar</span>
-                <span class="whl-jn__time">9:14 am</span>
-              </div>
-              <div class="whl-jn__notifrow">
-                <div class="whl-jn__notiftext">Your Bell promo ends in 30 days</div>
-                <span class="whl-jn__expires">Expires soon</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="whl-jn__step">
-          <span class="whl-jn__node">04</span>
-          <div class="whl-jn__card">
-            <div class="whl-jn__head">
-              <span class="whl-jn__ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>
-              <h3>A real concierge handles the switch</h3>
-            </div>
-            <p>A person, not a chatbot, manages the paperwork, the switch and the follow-up.</p>
-            <div class="whl-jn__proof">
-              <div class="whl-jn__evt"><span class="whl-jn__evtsq"></span>Technician visit for Installation/Switch</div>
-              <div class="whl-jn__evtline"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Tue, Jul 1 · 10:00 AM to 12:00 PM</div>
-              <div class="whl-jn__evtline"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>47 Maple Cres, Ottawa, ON K1Z 7B3</div>
-            </div>
-          </div>
+        <div class="wc-dots" role="tablist" aria-label="Choose slide">
+          <button class="wc-dot is-active" type="button" role="tab" aria-selected="true" aria-controls="wc-slide-1" aria-label="Slide 1: You never negotiate"><span class="wc-dot-visual"><span class="wc-dot-fill"></span></span></button>
+          <button class="wc-dot" type="button" role="tab" aria-selected="false" aria-controls="wc-slide-2" aria-label="Slide 2: You never wait on hold"><span class="wc-dot-visual"><span class="wc-dot-fill"></span></span></button>
+          <button class="wc-dot" type="button" role="tab" aria-selected="false" aria-controls="wc-slide-3" aria-label="Slide 3: You always know when promos expire"><span class="wc-dot-visual"><span class="wc-dot-fill"></span></span></button>
+          <button class="wc-dot" type="button" role="tab" aria-selected="false" aria-controls="wc-slide-4" aria-label="Slide 4: A real concierge handles the switch"><span class="wc-dot-visual"><span class="wc-dot-fill"></span></span></button>
         </div>
       </div>
 
@@ -3131,6 +3189,382 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
     </div>
   </div>
 </section>
+
+<script>
+/* ===== WHY WHOLLAR carousel =====
+   Four cards on one native scroll-snap track, advancing right to left. The transport is the
+   browser's own horizontal scrolling, so momentum, rubber-banding, RTL and mid-gesture
+   interruption all behave natively. This script only decides when to advance, keeps the dots
+   honest, and hides the loop seam.
+
+   One deliberate deviation from the brief. TRANSITION_MS and its cubic-bezier cannot be applied
+   to scrollTo({behavior:'smooth'}): the duration and curve of native smooth scrolling belong to
+   the user agent and are not scriptable. Hand-animating scrollLeft would buy the exact curve at
+   the price of fighting scroll-snap and momentum, which is the trade this design rejects on
+   purpose. TRANSITION_MS is therefore kept for settle bookkeeping, not for the animation. */
+(function(){
+  var WC = {
+    AUTOPLAY_MS: 5000,
+    TRANSITION_MS: 520,
+    RESUME_DELAY_MS: 4000,
+    SETTLE_MS: 140,
+    PEEK_PX: 32,
+    GAP_PX: 12,
+    GUTTER_PX: 20,
+    DESKTOP_BREAKPOINT: 900,
+    VISIBILITY_THRESHOLD: 0.4
+  };
+
+  var root = document.querySelector('[data-wc]');
+  if(!root) return;
+
+  var mqDesktop = window.matchMedia('(min-width:' + WC.DESKTOP_BREAKPOINT + 'px)');
+  var mqHover   = window.matchMedia('(hover: hover) and (pointer: fine)');
+  var mqReduce  = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var hasScrollEnd = ('onscrollend' in window);
+
+  var track = null, slides = [], allSlides = [], dots = [], clone = null;
+  var offsets = [];
+  var index = 0;
+  var pauseReasons = new Set();
+  var timer = null, idleTimer = null, settleTimer = null, resizeTimer = null;
+  var rafId = null, pendingWrite = null;
+  var programmatic = false, isJumping = false, pointerDown = false;
+  var controller = null, io = null, started = false;
+
+  /* Single rAF latch. Every style write that a scroll event can trigger goes through here, so
+     a scroll handler never touches layout properties directly. */
+  function schedule(fn){
+    pendingWrite = fn;
+    if(rafId) return;
+    rafId = requestAnimationFrame(function(){
+      rafId = null;
+      var f = pendingWrite;
+      pendingWrite = null;
+      if(f) f();
+    });
+  }
+
+  /* ---------- dwell meter on the active dot ---------- */
+  function fillOf(i){
+    return (dots[i] ? dots[i].querySelector('.wc-dot-fill') : null);
+  }
+  function resetFill(i){
+    var f = fillOf(i);
+    if(!f) return;
+    f.classList.remove('is-filling');
+    f.style.transition = 'none';
+    f.style.transform  = 'scaleX(0)';
+    void f.offsetWidth;              /* commit the reset before a transition can pick it up */
+    f.style.transition = '';
+    f.style.transform  = '';
+  }
+  function startFill(i){
+    if(mqReduce.matches) return;
+    var f = fillOf(i);
+    if(!f) return;
+    resetFill(i);
+    f.classList.add('is-filling');
+  }
+  function freezeFill(i){
+    var f = fillOf(i);
+    if(!f) return;
+    var m = window.getComputedStyle(f).transform;
+    f.style.transition = 'none';
+    f.style.transform  = (m && m !== 'none') ? m : 'scaleX(0)';
+    f.classList.remove('is-filling');
+  }
+
+  /* ---------- pause bookkeeping ----------
+     A set of reasons rather than one flag, so two overlapping causes cannot resume each other
+     early: rotation restarts only once every reason has cleared. */
+  function stopTimer(){
+    if(timer){ clearInterval(timer); timer = null; }
+  }
+  function startTimer(){
+    if(timer || mqReduce.matches || pauseReasons.size) return;
+    startFill(index);
+    timer = setInterval(advance, WC.AUTOPLAY_MS);
+  }
+  function pause(reason){
+    pauseReasons.add(reason);
+    stopTimer();
+    schedule(function(){ freezeFill(index); });
+  }
+  function resume(reason){
+    pauseReasons.delete(reason);
+    if(pauseReasons.size === 0) startTimer();
+  }
+  /* Interaction holds rotation for the idle window. A fresh interaction restarts the window. */
+  function holdIdle(){
+    pauseReasons.add('idle');
+    stopTimer();
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(function(){ resume('idle'); }, WC.RESUME_DELAY_MS);
+  }
+
+  /* ---------- geometry ----------
+     Offsets come from rects, not from offsetLeft (whose reference is the nearest positioned
+     ancestor, not the track) and not from dividing by a slide width (which drifts once gap and
+     padding are in play). Cached here and refreshed on resize, never per scroll event. */
+  function measure(){
+    offsets = [];
+    if(!track) return;
+    var t = track.getBoundingClientRect();
+    var base = track.scrollLeft;
+    for(var i = 0; i < allSlides.length; i++){
+      var r = allSlides[i].getBoundingClientRect();
+      offsets.push(Math.round(base + (r.left - t.left) - WC.GUTTER_PX));
+    }
+  }
+  function nearestIndex(){
+    var pos = track.scrollLeft, best = 0, bestD = Infinity;
+    for(var i = 0; i < offsets.length; i++){
+      var d = Math.abs(offsets[i] - pos);
+      if(d < bestD){ bestD = d; best = i; }
+    }
+    return best;
+  }
+
+  function setActive(i){
+    var changed = (i !== index);
+    index = i;
+    for(var d = 0; d < dots.length; d++){
+      var on = (d === i);
+      dots[d].classList.toggle('is-active', on);
+      dots[d].setAttribute('aria-selected', on ? 'true' : 'false');
+      if(!on) resetFill(d);
+    }
+    if(timer && changed) startFill(i);
+  }
+
+  function goTo(i, smooth){
+    if(!offsets.length) measure();
+    var target = offsets[Math.max(0, Math.min(i, offsets.length - 1))];
+    if(typeof target !== 'number') return;
+    programmatic = true;
+    var behavior = (smooth && !mqReduce.matches) ? 'smooth' : 'auto';
+    if(track.scrollTo){ track.scrollTo({ left: target, behavior: behavior }); }
+    else { track.scrollLeft = target; }
+  }
+
+  /* From the last real slide we advance into the clone, which is pixel identical to slide 1, so
+     the travel stays leftward and never reads as a rewind. The dot for slide 1 lights as the
+     move begins; onSettled then swaps to the real slide 1 without animating. */
+  function advance(){
+    var next = index + 1;
+    setActive(next >= slides.length ? 0 : next);
+    goTo(next, true);
+  }
+
+  function jumpToStart(){
+    isJumping = true;
+    requestAnimationFrame(function(){
+      track.scrollLeft = offsets[0];
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){
+          isJumping = false;
+          programmatic = false;
+        });
+      });
+    });
+  }
+
+  function onSettled(){
+    if(isJumping || !started) return;
+    var best = nearestIndex();
+    var wasProgrammatic = programmatic;
+    programmatic = false;
+
+    if(best === slides.length){        /* settled on the clone */
+      setActive(0);
+      jumpToStart();
+    } else {
+      setActive(best);
+    }
+    if(!wasProgrammatic) holdIdle();   /* a user-driven scroll counts as an interaction */
+    resume('settling');
+  }
+
+  function addClone(){
+    if(clone) return;
+    clone = slides[0].cloneNode(true);
+    clone.classList.add('wc-clone');
+    clone.setAttribute('aria-hidden', 'true');
+    clone.removeAttribute('id');
+    clone.removeAttribute('role');
+    clone.removeAttribute('aria-label');
+    clone.removeAttribute('aria-roledescription');
+    if('inert' in clone){ clone.inert = true; }
+    var focusables = clone.querySelectorAll('a[href],button,input,select,textarea,[tabindex]');
+    for(var i = 0; i < focusables.length; i++){ focusables[i].setAttribute('tabindex', '-1'); }
+    track.appendChild(clone);
+  }
+
+  function init(){
+    if(started) return;                /* idempotent: never double-bind, never a second clone */
+    track = root.querySelector('.wc-track');
+    if(!track) return;
+    slides = Array.prototype.slice.call(track.querySelectorAll('.wc-slide:not(.wc-clone)'));
+    dots   = Array.prototype.slice.call(root.querySelectorAll('.wc-dot'));
+    if(slides.length < 2 || dots.length !== slides.length) return;
+
+    started = true;
+    controller = new AbortController();
+    var signal = controller.signal;
+    pauseReasons = new Set();
+    root.style.setProperty('--wc-fill-ms', WC.AUTOPLAY_MS + 'ms');
+
+    addClone();
+    allSlides = slides.concat([clone]);
+    index = 0;
+    track.scrollLeft = 0;
+    measure();
+
+    track.addEventListener('scroll', function(){
+      if(isJumping) return;
+      if(!programmatic) pause('settling');
+      if(!hasScrollEnd){
+        clearTimeout(settleTimer);
+        settleTimer = setTimeout(onSettled, WC.SETTLE_MS);
+      }
+    }, { passive: true, signal: signal });
+
+    if(hasScrollEnd){
+      track.addEventListener('scrollend', onSettled, { signal: signal });
+    }
+
+    track.addEventListener('pointerdown', function(){
+      pointerDown = true;
+      pause('pointer');
+      holdIdle();
+    }, { signal: signal });
+    function endPointer(){
+      if(!pointerDown) return;
+      pointerDown = false;
+      resume('pointer');
+      holdIdle();
+    }
+    window.addEventListener('pointerup', endPointer, { signal: signal });
+    window.addEventListener('pointercancel', endPointer, { signal: signal });
+
+    root.addEventListener('pointerenter', function(){
+      if(mqHover.matches) pause('hover');
+    }, { signal: signal });
+    root.addEventListener('pointerleave', function(){ resume('hover'); }, { signal: signal });
+
+    /* Only a keyboard-visible focus holds rotation open ended. The track carries tabindex="0",
+       so a tap or a click on it also focuses it, and counting that as the focus pause would
+       strand the carousel until the user happened to focus something else. A pointer-driven
+       focus therefore falls back to the ordinary idle hold. */
+    root.addEventListener('focusin', function(){
+      var el = document.activeElement, visible = true;
+      try { visible = !!(el && el.matches(':focus-visible')); } catch(err){ visible = true; }
+      if(visible) pause('focus'); else holdIdle();
+    }, { signal: signal });
+    root.addEventListener('focusout', function(){ resume('focus'); holdIdle(); }, { signal: signal });
+
+    track.addEventListener('keydown', function(e){
+      var target = null;
+      if(e.key === 'ArrowRight')     target = Math.min(index + 1, slides.length - 1);
+      else if(e.key === 'ArrowLeft') target = Math.max(index - 1, 0);
+      else if(e.key === 'Home')      target = 0;
+      else if(e.key === 'End')       target = slides.length - 1;
+      else return;
+      e.preventDefault();
+      holdIdle();
+      setActive(target);
+      goTo(target, true);
+    }, { signal: signal });
+
+    dots.forEach(function(dot, i){
+      dot.addEventListener('click', function(){
+        holdIdle();
+        setActive(i);
+        goTo(i, true);
+      }, { signal: signal });
+    });
+
+    document.addEventListener('visibilitychange', function(){
+      if(document.hidden) pause('hidden'); else resume('hidden');
+    }, { signal: signal });
+
+    window.addEventListener('resize', function(){
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function(){
+        measure();
+        goTo(index, false);
+      }, 150);
+    }, { signal: signal });
+
+    mqReduce.addEventListener('change', function(){
+      if(mqReduce.matches) pause('reduced'); else resume('reduced');
+    }, { signal: signal });
+
+    io = new IntersectionObserver(function(entries){
+      for(var i = 0; i < entries.length; i++){
+        if(entries[i].intersectionRatio < WC.VISIBILITY_THRESHOLD) pause('offscreen');
+        else resume('offscreen');
+      }
+    }, { threshold: [0, WC.VISIBILITY_THRESHOLD, 1] });
+    io.observe(root);
+
+    setActive(0);
+    if(mqReduce.matches) pause('reduced'); else startTimer();
+  }
+
+  function destroy(){
+    if(!started) return;
+    started = false;
+    if(controller){ controller.abort(); controller = null; }
+    if(io){ io.disconnect(); io = null; }
+    stopTimer();
+    clearTimeout(idleTimer);
+    clearTimeout(settleTimer);
+    clearTimeout(resizeTimer);
+    if(rafId){ cancelAnimationFrame(rafId); rafId = null; }
+    pendingWrite = null;
+    programmatic = false;
+    isJumping = false;
+    pointerDown = false;
+    if(clone && clone.parentNode){ clone.parentNode.removeChild(clone); }
+    clone = null;
+    allSlides = [];
+    offsets = [];
+    for(var i = 0; i < dots.length; i++){
+      var on = (i === 0);
+      dots[i].classList.toggle('is-active', on);
+      dots[i].setAttribute('aria-selected', on ? 'true' : 'false');
+      var f = dots[i].querySelector('.wc-dot-fill');
+      if(f){
+        f.classList.remove('is-filling');
+        f.style.transition = '';
+        f.style.transform  = '';
+      }
+    }
+    if(track) track.scrollLeft = 0;
+    index = 0;
+    pauseReasons = new Set();
+  }
+
+  /* This build has no stacked desktop layout to fall back to, so the carousel stays live at
+     every width and the slide width is capped in CSS instead. Crossing the breakpoint still
+     rebuilds, which re-measures after the reflow and keeps init/destroy honest. */
+  function onBreakpoint(){ destroy(); init(); }
+  if(mqDesktop.addEventListener) mqDesktop.addEventListener('change', onBreakpoint);
+  window.addEventListener('pagehide', destroy);
+
+  root.wcInit = init;
+  root.wcDestroy = destroy;
+  root.wcReasons = function(){ return Array.from(pauseReasons).concat(['timer='+!!timer,'prog='+programmatic,'jump='+isJumping]); };
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
 
 
 
