@@ -13,11 +13,15 @@ const anthropic = new Anthropic(); // reads ANTHROPIC_API_KEY from this function
  * CONFIG — keep in sync with functions/formSubmit/index.js
  * ------------------------------------------------------------------ */
 
+// The staging alias is the pre-merge review link, deployed from a personal
+// Vercel account, so it matches neither the live domains nor isVercelOrigin
+// below — see the longer note on formSubmit's copy of this list.
 const ALLOWED_ORIGINS = [
   'https://whollar.com',
   'https://www.whollar.com',
   'https://whollar.ca',
-  'https://www.whollar.ca'
+  'https://www.whollar.ca',
+  'https://whollar-staging-1w.vercel.app'
 ];
 
 // Local development: the marketing pages are plain HTML files, opened either
