@@ -1514,10 +1514,19 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   html,body{max-width:100%;overflow-x:hidden}
   *{-webkit-tap-highlight-color:transparent}
 
-  /* spacing rhythm */
+  /* spacing rhythm — desktop-scale section padding leaves phone-sized dead bands
+     between sections, so the vertical rhythm is tightened here */
   .whl-wrap{padding:0 20px}
-  .whl-section{padding:64px 0}
-  .whl-hero{padding-top:24px;padding-bottom:56px}
+  .whl-section{padding:40px 0}
+  .whl-hero{padding-top:24px;padding-bottom:40px}
+  .whl-how + .whl-section{padding-top:40px}
+  .whl-talk{padding:40px 0 44px}
+  .whl-logos{padding:22px 0}
+  /* a 46px heading margin plus the layout gap left a hole between every section
+     heading and its content — worth ~74px before the FAQ list alone */
+  .whl-head{margin-bottom:22px}
+  .whl-head--split{margin-bottom:24px}
+  .whl-faq-layout{gap:14px}
 
   /* mobile type scale */
   .whl-hero h1{font-size:clamp(32px,9.4vw,38px);line-height:1.08;letter-spacing:-.02em;margin-bottom:16px;text-wrap:balance}
@@ -1638,7 +1647,9 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .whl-talk__tile{min-height:56px}
 
   /* 'Sound familiar?' mobile spacing (carousel styles are shared in the ≤1024 block) */
-  .sf-wrap .pain-wrap{padding:0 20px 20px}
+  /* 110px of section padding under the last tile read as a blank band on a phone */
+  .sf-wrap .pain-sec{padding:18px 0 26px}
+  .sf-wrap .pain-wrap{padding:0 20px 8px}
   .sf-wrap .pain-wrap h2{margin-bottom:12px}
   .sf-mobile-cards{margin:0 -20px;padding:2px 20px 6px}
 
@@ -3201,9 +3212,9 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
       <div class="whl-head whl-reveal">
         <span class="whl-eyebrow">More than a one-time deal</span>
         <h2 class="whl-h2">Whollar becomes your internet advocate.</h2>
-        <p class="whl-lead" style="margin-top:16px;color:var(--ink-2)">Join once and you never have to think about it again. We watch your renewal dates, run the next negotiation for you, and step in when something goes wrong, quietly in the background.</p>
+        <p class="whl-lead" style="margin-top:10px;color:var(--ink-2)">Join once and forget it. We track your renewal dates, run the next negotiation, and step in when something goes wrong.</p>
       </div>
-      <div class="whl-reveal" style="display:flex;flex-direction:column;gap:16px">
+      <div class="whl-reveal" style="display:flex;flex-direction:column;gap:10px">
         <div class="whl-card" style="padding:19px 22px;display:flex;gap:15px;align-items:flex-start">
           <span style="flex:none;width:44px;height:44px;border-radius:12px;background:#e3f5f2;display:grid;place-items:center">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
@@ -3220,24 +3231,6 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
           <div>
             <h3 style="font-family:var(--disp);font-weight:700;font-size:17px;letter-spacing:-.01em;margin:0 0 4px">Future negotiations, handled</h3>
             <p style="color:var(--ink-2);font-size:14.5px;line-height:1.55;margin:0">When your term is up, we run the next round for you. You just approve the offer you like.</p>
-          </div>
-        </div>
-        <div class="whl-card" style="padding:19px 22px;display:flex;gap:15px;align-items:flex-start">
-          <span style="flex:none;width:44px;height:44px;border-radius:12px;background:#e3f5f2;display:grid;place-items:center">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21v-1a8 8 0 0 1 16 0v1"></path></svg>
-          </span>
-          <div>
-            <h3 style="font-family:var(--disp);font-weight:700;font-size:17px;letter-spacing:-.01em;margin:0 0 4px">Concierge support</h3>
-            <p style="color:var(--ink-2);font-size:14.5px;line-height:1.55;margin:0">A real person to help when you want to switch, pause, or just ask a question.</p>
-          </div>
-        </div>
-        <div class="whl-card" style="padding:19px 22px;display:flex;gap:15px;align-items:flex-start">
-          <span style="flex:none;width:44px;height:44px;border-radius:12px;background:#e3f5f2;display:grid;place-items:center">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-          </span>
-          <div>
-            <h3 style="font-family:var(--disp);font-weight:700;font-size:17px;letter-spacing:-.01em;margin:0 0 4px">Provider issue escalation</h3>
-            <p style="color:var(--ink-2);font-size:14.5px;line-height:1.55;margin:0">Service problem or billing error? We push it up the chain so you don't have to.</p>
           </div>
         </div>
         <div class="whl-card" style="padding:19px 22px;display:flex;gap:15px;align-items:flex-start">
