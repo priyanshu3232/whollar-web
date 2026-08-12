@@ -50,7 +50,17 @@ button{font-family:var(--body)}
 
 /* ---------- brand panel ---------- */
 .brand{background:linear-gradient(158deg,var(--teal-deep) 0%,#123B2C 54%,#17553D 100%);color:#fff;position:relative;overflow:hidden;display:flex;flex-direction:column;padding:38px 46px 44px}
-@media(max-width:900px){.brand{padding:26px 26px 30px}}
+@media(max-width:900px){
+  .brand{padding:26px 26px 30px}
+  /* The plain .trust / .switchtop rules further down are equal specificity and
+     later in source, so a bare selector here loses. Qualify both. */
+  .brand .brand__sub,.brand .trust{display:none}
+  .brand__mid{padding:22px 0 4px}
+  .coh{margin-top:24px}
+  .form-pane{flex-direction:column;padding-top:26px}
+  .form-pane .switchtop{position:static;align-self:stretch;width:100%;margin:0 0 22px;text-align:center;font-size:14.5px}
+  .form-pane .switchtop a{color:var(--teal-bright)}
+}
 .brand::after{content:"";position:absolute;right:-150px;bottom:-140px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,rgba(127,227,176,.16),transparent 62%);pointer-events:none}
 .mark{display:flex;align-items:center;gap:9px;position:relative;z-index:2;color:inherit;text-decoration:none}
 .mark b{font-family:var(--disp);font-weight:900;font-size:21px;color:#fff;letter-spacing:-.02em}

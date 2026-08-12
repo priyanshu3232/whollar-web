@@ -364,6 +364,7 @@ img,svg{display:block}
 .whl-mobnav a{padding:12px 4px;text-decoration:none;color:#54625B;font-weight:600;font-size:16px;border-radius:8px}
 .whl-mobnav a:not(.whl-btn):hover{color:var(--teal)}
 .whl-mobnav .whl-btn{margin-top:8px;justify-content:center}
+.whl-mobnav a.whl-btn{color:#F1ECDF}
 .whl-mobnav.is-open{display:flex}
 
 /* hero */
@@ -1207,6 +1208,10 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
 
   .whl-nav,.whl-header__cta{display:none}
   .whl-burger{display:flex}
+  /* with the nav and cohort CTA hidden, space-between strands Log in mid-header —
+     push it over so it sits next to the burger */
+  .whl-header__in{gap:10px}
+  .whl-header__in>.whl-btn--outline{margin-left:auto}
   .whl-hero__grid,.whl-power,.whl-esim,.whl-est{grid-template-columns:1fr;gap:34px}
   .whl-power__cards{grid-template-columns:1fr 1fr}
   .whl-pgrid{grid-template-columns:1fr 1fr}
@@ -1416,13 +1421,13 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
 .sf-rp-track{display:flex;flex-direction:column;animation:whl-rp-scroll 55s linear infinite;will-change:transform}
 .sf-rp-track .whl-rp__post{background:transparent!important;border-bottom:1px solid rgba(255,255,255,.07)!important}
 /* mobile-only reddit card carousel (shown ≤640px) */
-.sf-mobile-sub,.sf-mobile-cards,.sf-mobile-dots{display:none}
+.sf-mobile-sub,.sf-mobile-cards{display:none}
 /* 'Sound familiar?': phone frame → Reddit card carousel (≤1024px: tablet + mobile) */
 
 /* was (max-width:1024px) */
 
   .sf-wrap .sf-phone-col{display:none}
-  .sf-wrap .sf-problem-grid{grid-template-columns:1fr;gap:34px}
+  .sf-wrap .sf-problem-grid{grid-template-columns:1fr;gap:22px}
   .sf-wrap .sf-mobile-sub{display:block;color:var(--ink-soft,#54625B);font-size:16px;line-height:1.5;margin:0 0 26px}
   .sf-mobile-cards{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:2px 0 6px;align-items:stretch}
   .sf-mobile-cards::-webkit-scrollbar{display:none}
@@ -1437,9 +1442,6 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .sf-mcard__body{font-size:15px;line-height:1.55;color:#c7d5cd;margin:0 0 18px;flex:1;display:-webkit-box;-webkit-line-clamp:5;line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
   .sf-mcard__actions{display:flex;align-items:center;gap:20px;font-size:14px;color:#a7bbb0;font-weight:500}
   .sf-mcard__actions span{display:inline-flex;align-items:center;gap:5px}
-  .sf-mobile-dots{display:flex;justify-content:center;gap:8px;margin-top:18px}
-  .sf-mobile-dots i{width:7px;height:7px;border-radius:50%;background:#cfdad4;transition:transform .2s,background .2s;cursor:pointer}
-  .sf-mobile-dots i.on{background:var(--accent);transform:scale(1.35)}
 
 
 
@@ -1512,10 +1514,19 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   html,body{max-width:100%;overflow-x:hidden}
   *{-webkit-tap-highlight-color:transparent}
 
-  /* spacing rhythm */
+  /* spacing rhythm — desktop-scale section padding leaves phone-sized dead bands
+     between sections, so the vertical rhythm is tightened here */
   .whl-wrap{padding:0 20px}
-  .whl-section{padding:64px 0}
-  .whl-hero{padding-top:24px;padding-bottom:56px}
+  .whl-section{padding:40px 0}
+  .whl-hero{padding-top:24px;padding-bottom:40px}
+  .whl-how + .whl-section{padding-top:40px}
+  .whl-talk{padding:40px 0 44px}
+  .whl-logos{padding:22px 0}
+  /* a 46px heading margin plus the layout gap left a hole between every section
+     heading and its content — worth ~74px before the FAQ list alone */
+  .whl-head{margin-bottom:22px}
+  .whl-head--split{margin-bottom:24px}
+  .whl-faq-layout{gap:14px}
 
   /* mobile type scale */
   .whl-hero h1{font-size:clamp(32px,9.4vw,38px);line-height:1.08;letter-spacing:-.02em;margin-bottom:16px;text-wrap:balance}
@@ -1543,7 +1554,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
 
   .whl-mobnav{
     position:fixed;inset:0;width:100%;height:100dvh;max-height:none;overflow:auto;
-    display:flex;flex-direction:column;gap:0;padding:92px 24px calc(28px + env(safe-area-inset-bottom));
+    display:flex;flex-direction:column;gap:0;padding:86px 24px calc(40px + env(safe-area-inset-bottom));
     background:var(--paper,#FAF8F3);border:none;box-shadow:none;border-radius:0;
     transform:translateX(100%);transition:transform .3s cubic-bezier(.16,1,.3,1);
     visibility:visible;opacity:1;z-index:120;
@@ -1559,17 +1570,33 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .whl-mobnav.is-open a:nth-child(3){transition-delay:.14s}
   .whl-mobnav.is-open a:nth-child(4){transition-delay:.18s}
   .whl-mobnav.is-open a:nth-child(5){transition-delay:.22s}
-  .whl-mobnav a.whl-btn{margin-top:auto;font-size:17px;padding:16px;border-bottom:none;border-radius:14px}
+  .whl-mobnav.is-open a:nth-child(6){transition-delay:.26s}
+  /* matches the ink rule above at 0,3,1 and comes later, so the accent colour wins */
+  .whl-mobnav a[data-mobnav-link].whl-mobnav__alt{
+    display:flex;align-items:center;gap:8px;color:var(--accent);font-size:22px;
+    border-bottom:none;padding-top:22px}
+  /* both buttons carrying margin-top:auto split the free space and end up crowding each
+     other at the bottom — only the first of the pair should absorb it */
+  .whl-mobnav a.whl-btn{margin-top:12px;font-size:17px;padding:16px;border-bottom:none;border-radius:14px;color:#F1ECDF}
+  .whl-mobnav a.whl-btn:nth-last-of-type(2){margin-top:auto}
+  .whl-mobnav a.whl-btn--outline{background:transparent;color:var(--ink);border:1.5px solid rgba(14,42,32,.2)}
   body.whl-noscroll{overflow:hidden;position:relative;height:100vh}
 
-  /* ---------- STICKY BOTTOM CTA BAR ---------- */
+  /* ---------- STICKY BOTTOM CTA: a full-width pill ----------
+     The bar spans the phone frame (430px, the body cap) and the pill fills it, so the
+     tap target is the whole width rather than the length of the label.
+     Every transform here must carry the -50% that centres it — a transform without it
+     (the old .show rule) drops the centring and throws the pill to the right. */
   .whl-bottombar{
-    position:fixed;left:0;right:0;bottom:0;z-index:90;
-    padding:12px 20px calc(12px + env(safe-area-inset-bottom));
-    background:rgba(250,248,243,.92);backdrop-filter:blur(12px);border-top:1px solid var(--line);
-    transform:translateY(130%);transition:transform .3s cubic-bezier(.16,1,.3,1)}
-  .whl-bottombar.show{transform:translateY(0)}
-  .whl-bottombar .whl-btn{width:100%;font-size:16px;padding:15px}
+    position:fixed;left:50%;right:auto;bottom:0;z-index:90;width:100%;max-width:430px;
+    padding:10px 16px calc(12px + env(safe-area-inset-bottom));
+    background:none;backdrop-filter:none;-webkit-backdrop-filter:none;border-top:none;
+    transform:translate(-50%,150%);transition:transform .32s cubic-bezier(.16,1,.3,1)}
+  .whl-bottombar.show{transform:translate(-50%,0)}
+  /* same treatment as the provider page's fixed pill: green fill, fully round,
+     green-tinted shadow. At 0,2,0 this outranks .whl-btn's teal/13px radius and
+     .whl-btn:hover (0,2,0, earlier), so the fill survives a touch-hold too. */
+  .whl-bottombar .whl-btn{width:100%;background:#178A5A;color:#FFFEFB;border-radius:100px;font-size:15px;font-weight:600;padding:15px 28px;white-space:nowrap;box-shadow:0 14px 32px -10px rgba(23,138,90,.6)}
 
   /* ---------- HERO ---------- */
   .whl-hero__grid{grid-template-columns:minmax(0,1fr);gap:30px;min-width:0}
@@ -1625,7 +1652,9 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .whl-talk__tile{min-height:56px}
 
   /* 'Sound familiar?' mobile spacing (carousel styles are shared in the ≤1024 block) */
-  .sf-wrap .pain-wrap{padding:0 20px 20px}
+  /* 110px of section padding under the last tile read as a blank band on a phone */
+  .sf-wrap .pain-sec{padding:18px 0 26px}
+  .sf-wrap .pain-wrap{padding:0 20px 8px}
   .sf-wrap .pain-wrap h2{margin-bottom:12px}
   .sf-mobile-cards{margin:0 -20px;padding:2px 20px 6px}
 
@@ -1667,6 +1696,15 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   /* big-idea comparison card (inline 3-col grid) → stack + point arrow down */
   [style*="0.8fr auto 1.2fr"]{grid-template-columns:1fr!important;gap:18px!important;padding:28px 22px!important;text-align:center}
   [style*="0.8fr auto 1.2fr"]>div:nth-child(2){transform:rotate(90deg);justify-self:center}
+
+  /* founding-member cohort cards: desktop's 24px gap and 34/32 padding waste a
+     phone screen once the copy is short. The base rules live in #est-cohort-css,
+     which comes later in the document, so these carry the .whl-wrap parent
+     (0,2,0 / 0,3,0) to outrank them instead of !important. */
+  .whl-wrap .whl-cohort-cards{gap:12px}
+  .whl-wrap .whl-cohort-cards .cc{padding:20px 20px 18px}
+  .whl-wrap .whl-cohort-cards .cc__ey{margin-bottom:10px}
+  .whl-wrap .whl-cohort-cards .cc__t{margin-bottom:8px}
 
 
 
@@ -1820,7 +1858,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   #whero .col-cta{display:flex; flex-direction:column; gap:18px; padding-bottom:6px}
   #whero .col-cta .cta-row{margin-bottom:0}
   #whero .wrap{gap:26px}
-  #whero .col-scene{margin-top:-38px}
+  #whero .col-scene{margin-top:-160px}
 
 
 </style>
@@ -1828,7 +1866,10 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
 <style id="mobile-only-shell">
 html{background:#DCD8CF}
 body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0,0,0,.12);overflow-x:hidden}
-.whl-bottombar{left:50%!important;right:auto!important;transform:translateX(-50%);width:100%;max-width:430px}
+/* this rule sits after the mobile block above and matches its specificity, so it has to
+   repeat the full-width sizing or it silently shrinks the pill back to label width.
+   430px is the body cap: past that the bar would outgrow the simulated phone frame. */
+.whl-bottombar{left:50%!important;right:auto!important;width:100%;max-width:430px}
 </style>
 <!-- WHOLLAR-FOOTER-CSS:START (generated by scripts/build-footer.mjs) -->
 <style id="whl-footer-css">
@@ -1887,7 +1928,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
       <a href="/MobileVersion/resources-mobile">Resources</a>
       <a href="/contact">Contact</a>
     </nav>
-    <a class="whl-btn whl-btn--outline" href="/whollar-login-consumer">Log in</a><a class="whl-btn whl-header__cta" href="/MobileVersion/join-the-first-cohort-mobile">Get started free</a>
+    <a class="whl-btn whl-btn--outline" href="/whollar-login-consumer">Log in</a><a class="whl-btn whl-header__cta" href="/MobileVersion/join-the-first-cohort-mobile">Join the First Cohort</a>
     <button class="whl-burger" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="whl-mobnav" data-burger="">
       <span></span><span></span><span></span>
     </button>
@@ -1898,7 +1939,10 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
     <a href="#faq" data-mobnav-link="">FAQ</a>
     <a href="/MobileVersion/resources-mobile" data-mobnav-link="">Resources</a>
     <a href="/contact" data-mobnav-link="">Contact</a>
-    <a class="whl-btn whl-btn--outline whl-btn--block" href="/whollar-login-consumer" data-mobnav-link="">Log in</a><a class="whl-btn whl-btn--block" href="/MobileVersion/join-the-first-cohort-mobile" data-mobnav-link="">Get started free</a>
+    <a class="whl-mobnav__alt" href="/MobileVersion/provider-mobile" data-mobnav-link="">For providers
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="13 6 19 12 13 18"></polyline></svg>
+    </a>
+    <a class="whl-btn whl-btn--outline whl-btn--block" href="/whollar-login-consumer" data-mobnav-link="">Log in</a><a class="whl-btn whl-btn--block" href="/MobileVersion/join-the-first-cohort-mobile" data-mobnav-link="">Join the First Cohort</a>
   </nav>
 </header>
 
@@ -2033,7 +2077,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
           <a class="btn btn--primary" href="/MobileVersion/bill-checkup-mobile">Check if I'm overpaying
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="13 6 19 12 13 18"></polyline></svg>
           </a>
-          <a class="btn btn--ghost" href="/MobileVersion/join-the-first-cohort-mobile">Get started free
+          <a class="btn btn--ghost" href="/MobileVersion/join-the-first-cohort-mobile">Join the First Cohort
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="13 6 19 12 13 18"></polyline></svg>
           </a>
         </div>
@@ -2062,7 +2106,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="13 6 19 12 13 18"></polyline></svg>
           </a>
           <a class="whl-btn whl-btn--lg whl-hero__cta whl-hero__cta--ghost" href="/MobileVersion/join-the-first-cohort-mobile">
-            Get started free
+            Join the First Cohort
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="13 6 19 12 13 18"></polyline></svg>
           </a>
         </div>
@@ -2186,7 +2230,6 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
 
       <!-- Mobile: reddit cards as an auto-advancing L→R carousel (phone frame hidden ≤640px) -->
       <div class="sf-mobile-cards" id="sf-mobile-cards" aria-hidden="true"></div>
-      <div class="sf-mobile-dots" id="sf-mobile-dots" aria-hidden="true"></div>
 
       <!-- Right: tiles -->
       <div class="sf-tiles" id="sf-tiles"></div>
@@ -2236,20 +2279,12 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
       '</article>';
     }).join('');
 
-    var dots=document.getElementById('sf-mobile-dots'), dotEls=[];
     var cards=function(){return wrap.querySelectorAll('.sf-mcard');};
-    function buildDots(){
-      if(!dots) return; var c=cards(); dots.innerHTML='';
-      for(var i=0;i<c.length;i++){var d=document.createElement('i'); if(i===0)d.className='on'; (function(k){d.addEventListener('click',function(){pauseNow();go(k);});})(i); dots.appendChild(d);}
-      dotEls=Array.prototype.slice.call(dots.querySelectorAll('i'));
-    }
-    buildDots();
 
     var mq=window.matchMedia('(max-width:1024px)');
     var reducedM=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
     var idx=0, timer=null, paused=false, resumeT=null, scrollT=null;
-    function setDots(n){ for(var i=0;i<dotEls.length;i++) dotEls[i].classList.toggle('on',i===n); }
-    function go(n){ var c=cards(); if(!c.length) return; idx=(n+c.length)%c.length; var t=c[idx]; wrap.scrollTo({left:t.offsetLeft-wrap.offsetLeft,behavior:'smooth'}); setDots(idx); }
+    function go(n){ var c=cards(); if(!c.length) return; idx=(n+c.length)%c.length; var t=c[idx]; wrap.scrollTo({left:t.offsetLeft-wrap.offsetLeft,behavior:'smooth'}); }
     function tick(){ if(!paused && mq.matches && document.visibilityState==='visible') go(idx+1); }
     function start(){ stop(); if(mq.matches && !reducedM) timer=setInterval(tick,5000); }
     function stop(){ if(timer){clearInterval(timer);timer=null;} }
@@ -2260,7 +2295,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
       scrollT=setTimeout(function(){
         var c=cards(), mid=wrap.scrollLeft+wrap.clientWidth/2, best=0, bd=1e9;
         for(var i=0;i<c.length;i++){var cc=c[i].offsetLeft+c[i].offsetWidth/2, dd=Math.abs(cc-mid); if(dd<bd){bd=dd;best=i;}}
-        idx=best; setDots(best);
+        idx=best;
       },120);
     },{passive:true});
     if(mq.addEventListener) mq.addEventListener('change',function(){ if(mq.matches) start(); else stop(); });
@@ -2285,6 +2320,90 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
       '<div class="tstat"><div class="num">'+p.num+'</div><div class="cap">'+p.cap+'</div></div>'+
     '</article>';
   }).join('');
+
+  /* --- cycling rotation for the four pain tiles (runs only while the mobile card carousel is on screen) --- */
+  (function(){
+    var carousel=document.getElementById('sf-mobile-cards');
+    if(!carousel||!tilesEl||!('IntersectionObserver' in window)) return;
+    var order=Array.prototype.slice.call(tilesEl.querySelectorAll('.sf-tile'));
+    if(order.length<2) return;
+    var rotTimer=null, animating=false, carouselVisible=false;
+    var rmq=window.matchMedia('(prefers-reduced-motion: reduce)');
+    /* tiles below the fold never get their reveal class until scrolled to, and rotating a
+       transparent tile into view shows nothing — so reveal all four the moment we start. */
+    function revealAll(){
+      for(var i=0;i<order.length;i++) order[i].classList.add('in');
+    }
+    function flipReorder(mutate){
+      var tiles=Array.prototype.slice.call(tilesEl.querySelectorAll('.sf-tile'));
+      var before=tiles.map(function(t){return t.getBoundingClientRect().top;});
+      mutate();
+      var moved=[], deltas=[];
+      tiles.forEach(function(t,i){
+        var d=before[i]-t.getBoundingClientRect().top;
+        if(Math.abs(d)<0.5) return;
+        moved.push(t); deltas.push(d);
+      });
+      if(!moved.length) return;
+      animating=true;
+      moved.forEach(function(t,i){
+        t.style.transition='none';
+        t.style.transform='translateY('+deltas[i]+'px)';
+      });
+      void tilesEl.offsetHeight; /* force reflow so the inverse transform lands before transitioning */
+      var left=moved.length;
+      moved.forEach(function(t){
+        var settled=false;
+        function finish(){
+          if(settled) return; settled=true;
+          t.style.transition=''; t.style.transform='';
+          t.removeEventListener('transitionend',finish);
+          if(--left<=0) animating=false;
+        }
+        t.addEventListener('transitionend',finish);
+        setTimeout(finish,650); /* fallback if transitionend never fires */
+        t.style.transition='transform .5s cubic-bezier(.16,1,.3,1)';
+        t.style.transform='';
+      });
+    }
+    function cycle(){
+      if(animating) return;
+      flipReorder(function(){ tilesEl.appendChild(tilesEl.querySelector('.sf-tile')); });
+    }
+    function inNaturalOrder(){
+      var cur=Array.prototype.slice.call(tilesEl.querySelectorAll('.sf-tile'));
+      for(var i=0;i<order.length;i++){ if(cur[i]!==order[i]) return false; }
+      return true;
+    }
+    function restoreOrder(){
+      if(inNaturalOrder()) return;
+      var mutate=function(){ order.forEach(function(t){ tilesEl.appendChild(t); }); };
+      var r=tilesEl.getBoundingClientRect();
+      var onScreen=r.bottom>0 && r.top<window.innerHeight;
+      if(onScreen && !animating && !rmq.matches){ flipReorder(mutate); } else { mutate(); }
+    }
+    function sync(){
+      var run=carouselVisible && document.visibilityState==='visible' && !rmq.matches;
+      if(run){
+        if(!rotTimer){ revealAll(); rotTimer=setInterval(cycle,2600); }
+      } else {
+        if(rotTimer){ clearInterval(rotTimer); rotTimer=null; }
+        /* carousel gone (tiles standing alone) = settle signal: put tiles back in natural order */
+        if(!carouselVisible || rmq.matches) restoreOrder();
+      }
+    }
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.target===carousel) carouselVisible=e.isIntersecting;
+      });
+      sync();
+    },{threshold:[0,1]});
+    io.observe(carousel);
+    io.observe(tilesEl); /* threshold 1 fires when all four tiles are fully visible → sync() re-checks the settle state */
+    document.addEventListener('visibilitychange',sync);
+    if(rmq.addEventListener) rmq.addEventListener('change',sync);
+  })();
+
   var reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
   var items=Array.prototype.slice.call(document.querySelectorAll('.sf-wrap [data-reveal]'));
   if(reduced){items.forEach(function(el){el.classList.add('in');});return;}
@@ -3110,9 +3229,9 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
       <div class="whl-head whl-reveal">
         <span class="whl-eyebrow">More than a one-time deal</span>
         <h2 class="whl-h2">Whollar becomes your internet advocate.</h2>
-        <p class="whl-lead" style="margin-top:16px;color:var(--ink-2)">Join once and you never have to think about it again. We watch your renewal dates, run the next negotiation for you, and step in when something goes wrong, quietly in the background.</p>
+        <p class="whl-lead" style="margin-top:10px;color:var(--ink-2)">Join once and forget it. We track your renewal dates, run the next negotiation, and step in when something goes wrong.</p>
       </div>
-      <div class="whl-reveal" style="display:flex;flex-direction:column;gap:16px">
+      <div class="whl-reveal" style="display:flex;flex-direction:column;gap:10px">
         <div class="whl-card" style="padding:19px 22px;display:flex;gap:15px;align-items:flex-start">
           <span style="flex:none;width:44px;height:44px;border-radius:12px;background:#e3f5f2;display:grid;place-items:center">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
@@ -3129,24 +3248,6 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
           <div>
             <h3 style="font-family:var(--disp);font-weight:700;font-size:17px;letter-spacing:-.01em;margin:0 0 4px">Future negotiations, handled</h3>
             <p style="color:var(--ink-2);font-size:14.5px;line-height:1.55;margin:0">When your term is up, we run the next round for you. You just approve the offer you like.</p>
-          </div>
-        </div>
-        <div class="whl-card" style="padding:19px 22px;display:flex;gap:15px;align-items:flex-start">
-          <span style="flex:none;width:44px;height:44px;border-radius:12px;background:#e3f5f2;display:grid;place-items:center">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21v-1a8 8 0 0 1 16 0v1"></path></svg>
-          </span>
-          <div>
-            <h3 style="font-family:var(--disp);font-weight:700;font-size:17px;letter-spacing:-.01em;margin:0 0 4px">Concierge support</h3>
-            <p style="color:var(--ink-2);font-size:14.5px;line-height:1.55;margin:0">A real person to help when you want to switch, pause, or just ask a question.</p>
-          </div>
-        </div>
-        <div class="whl-card" style="padding:19px 22px;display:flex;gap:15px;align-items:flex-start">
-          <span style="flex:none;width:44px;height:44px;border-radius:12px;background:#e3f5f2;display:grid;place-items:center">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-          </span>
-          <div>
-            <h3 style="font-family:var(--disp);font-weight:700;font-size:17px;letter-spacing:-.01em;margin:0 0 4px">Provider issue escalation</h3>
-            <p style="color:var(--ink-2);font-size:14.5px;line-height:1.55;margin:0">Service problem or billing error? We push it up the chain so you don't have to.</p>
           </div>
         </div>
         <div class="whl-card" style="padding:19px 22px;display:flex;gap:15px;align-items:flex-start">
@@ -3194,9 +3295,9 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
       </div>
     </div>
     <div class="whl-cohort-cards whl-reveal">
-      <div class="cc"><span class="cc__ey">01 · For the curious</span><h3 class="cc__t">Be first to what's next</h3><p class="cc__b">Internet is chapter one. The next markets are already on our map, sealed until launch, and founding members hear it before a word goes public.</p></div>
-      <div class="cc"><span class="cc__ey">02 · For the believers</span><h3 class="cc__t">Let's make pricing honest, together</h3><p class="cc__b">Honest pricing isn't a favour providers grant. It's what happens when enough households ask the same question at the same time.</p></div>
-      <div class="cc"><span class="cc__ey">03 · For the savers</span><h3 class="cc__t">New connection or a lower bill</h3><p class="cc__b">Setting up a new place, or done overpaying at the old one? Either way, providers bid for your street and the group price is yours to take.</p></div>
+      <div class="cc"><span class="cc__ey">01 · For the curious</span><h3 class="cc__t">Be first to what's next</h3><p class="cc__b">Internet is chapter one. The next markets are already on our map, and founding members hear it first.</p></div>
+      <div class="cc"><span class="cc__ey">02 · For the believers</span><h3 class="cc__t">Let's make pricing honest, together</h3><p class="cc__b">Honest pricing isn't a favour providers grant. It's what happens when enough households ask at the same time.</p></div>
+      <div class="cc"><span class="cc__ey">03 · For the savers</span><h3 class="cc__t">New connection or a lower bill</h3><p class="cc__b">New place, or done overpaying at the old one? Either way, providers bid for your street and the group price is yours.</p></div>
     </div>
   </div>
 </section>
@@ -3363,13 +3464,20 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
   var crowd = document.getElementById('whl-crowd');
   if(crowd){ var f=document.createDocumentFragment(); for(var i=0;i<56;i++){ var s=document.createElement('i'); f.appendChild(s);} crowd.appendChild(f); }
 
-  /* FAQ accordion */
-  document.querySelectorAll('[data-faqwrap] .whl-faq').forEach(function(item){
+  /* FAQ accordion — one open at a time */
+  var faqItems = document.querySelectorAll('[data-faqwrap] .whl-faq');
+  function setFaq(item, open){
+    item.setAttribute('data-open', open ? 'true':'false');
+    var q = item.querySelector('.whl-faq__q');
+    if(q) q.setAttribute('aria-expanded', open ? 'true':'false');
+  }
+  faqItems.forEach(function(item){
     var btn = item.querySelector('.whl-faq__q');
+    if(!btn) return;
     btn.addEventListener('click', function(){
       var open = item.getAttribute('data-open') === 'true';
-      item.setAttribute('data-open', open ? 'false':'true');
-      btn.setAttribute('aria-expanded', open ? 'false':'true');
+      faqItems.forEach(function(other){ if(other !== item) setFaq(other, false); });
+      setFaq(item, !open);
     });
   });
 
@@ -3678,54 +3786,16 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
   /* close on Escape */
   document.addEventListener('keydown', function(e){ if(e.key==='Escape' && mobnav && mobnav.classList.contains('is-open') && burger){ burger.click(); } });
 
-  /* --- FAQ: enforce one-open-at-a-time --- */
-  var faqItems = document.querySelectorAll('[data-faqwrap] .whl-faq');
-  faqItems.forEach(function(item){
-    var btn = item.querySelector('.whl-faq__q');
-    if(!btn) return;
-    btn.addEventListener('click', function(){
-      /* the existing handler toggles THIS item; we just collapse the others */
-      var willOpen = item.getAttribute('data-open') !== 'true'; /* pre-existing handler runs too; read post-state next tick */
-      setTimeout(function(){
-        if(item.getAttribute('data-open') === 'true'){
-          faqItems.forEach(function(other){
-            if(other !== item){ other.setAttribute('data-open','false'); var b=other.querySelector('.whl-faq__q'); if(b) b.setAttribute('aria-expanded','false'); }
-          });
-        }
-      }, 0);
-    });
-  });
-
   /* --- sticky bottom CTA bar --- */
   var bar = document.createElement('div');
   bar.className = 'whl-bottombar';
-  bar.innerHTML = '<a class="whl-btn whl-btn--block" href="/MobileVersion/join-the-first-cohort-mobile">Get started free</a>';
+  bar.innerHTML = '<a class="whl-btn whl-btn--block" href="/MobileVersion/join-the-first-cohort-mobile">Join the First Cohort</a>';
   document.body.appendChild(bar);
-  var hero = document.querySelector('.whl-hero');
-  var footer = document.querySelector('.whl-footer');
-  var finalCta = document.getElementById('cta');
-  var lastY = window.scrollY, shown = false;
-  function heroBottom(){ return hero ? hero.offsetTop + hero.offsetHeight - 60 : 500; }
-  function nearEnd(){
-    /* hide when the final CTA or footer is on screen (redundant with bar) */
-    var ref = finalCta || footer; if(!ref) return false;
-    return ref.getBoundingClientRect().top < window.innerHeight * 0.9;
-  }
+  /* the pill stays put: it is not tied to scroll position or direction, and only
+     steps aside for the full-screen menu */
   function updateBar(){
-    if(!mq.matches){ bar.classList.remove('show'); return; }
-    if(mobnav && mobnav.classList.contains('is-open')){ bar.classList.remove('show'); return; }
-    var y = window.scrollY;
-    var pastHero = y > heroBottom();
-    var scrollingUp = y < lastY - 2;
-    var scrollingDown = y > lastY + 2;
-    if(pastHero && !nearEnd()){
-      if(scrollingUp) shown = true;
-      else if(scrollingDown) shown = false;
-    } else {
-      shown = false;
-    }
-    bar.classList.toggle('show', shown);
-    lastY = y;
+    var visible = mq.matches && !(mobnav && mobnav.classList.contains('is-open'));
+    bar.classList.toggle('show', visible);
   }
   window.addEventListener('scroll', updateBar, {passive:true});
   window.addEventListener('resize', updateBar);
