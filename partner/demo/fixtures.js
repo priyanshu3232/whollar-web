@@ -1,17 +1,22 @@
-/* Whollar partner console: the 17 fixture states.
+/* The 17 fixture states.
  *
- * SEVENTEEN, not the brief's sixteen. Fourteen are the prototype's SCEN array
- * (docs/prototype/provider-console-v12.html:1656-1671) and two are the brief's
- * additions (rejected application, coverage rejected). The seventeenth is
- * `open`, and it exists because the prototype had no fixture for it: its own
- * `open` scenario resets the clock while its first cohort closes 2h14m later,
- * so what that scenario actually renders is the CLOSING state, with the
- * countdown running and the row hot. A genuinely open cohort with a distant
- * close is a different render path and had no coverage. Splitting them is the
- * point of doing this from the data rather than from the scenario names.
+ * SEVENTEEN, not the brief's fourteen. Fourteen are the prototype's SCEN array
+ * (docs/prototype/provider-console-v12.html:1656-1671), two are additions the
+ * prototype cannot reach (a rejected application, a rejected region), and the
+ * seventeenth is `open`, which exists because the prototype had no fixture for
+ * it: its own `open` scenario resets the clock while its first cohort closes
+ * 2h14m later, so what that scenario actually renders is the CLOSING state,
+ * with the countdown running and the row hot. A genuinely open cohort with a
+ * distant close is a different render path and had no coverage at all.
+ * Splitting them is the point of doing this from the data rather than from the
+ * scenario names.
  *
- * NOT SHIPPED. This file is listed in .vercelignore, so it is never uploaded
- * to Vercel and the request 404s in every deployed environment regardless of
+ * A CLASSIC SCRIPT, deliberately, and not part of the bundle. It is loaded on
+ * demand by app.js and scripts/build-console.mjs skips demo/ entirely, so the
+ * fixture code cannot reach production even by accident of import.
+ *
+ * NOT SHIPPED. partner/demo is listed in .vercelignore, so it is never
+ * uploaded and the request 404s in every deployed environment regardless of
  * flags, hostname, or a bug in the gate below. That is the guarantee; the
  * runtime checks are a second belt, not the first.
  *
@@ -22,19 +27,24 @@
  * into the same data store the staging site reads.
  *
  *   node scripts/dev-server.mjs
- *   http://localhost:3000/provider-console?fixture=won
- *   http://localhost:3000/provider-console?fixture=won#delivery
+ *   http://localhost:3000/partner?fixture=won
+ *   http://localhost:3000/partner?fixture=won#delivery
  *
  * WHAT A FIXTURE IS. Real-shaped data on the real payload types, not the
  * prototype's demo constants. CAMPAIGNS, COVER, HBIDS, MONTHS and STREETS are
  * deliberately not ported: they encode the prototype's virtual clock and its
  * client-derived stage, and copying them would carry both into the real
- * console. Every timestamp here is relative to a server-supplied `serverTime`,
- * exactly as the API will deliver it.
+ * console.
  *
- * The api object is replaced WHOLESALE. There is no code path where a fixture
- * and a real call interleave, because partial mocking is how you get a demo
- * that passes and a production that does not.
+ * Three rules, each of which is a rule about the real API:
+ *
+ *   1. Nothing computes a stage. Every fixture states it outright, because the
+ *      server derives it. A fixture that computed stage from timestamps would
+ *      teach the client to compute stage from timestamps.
+ *   2. Timestamps are relative to a supplied serverTime, in epoch
+ *      milliseconds, exactly as the API delivers it.
+ *   3. The gated roster has no `orders` key at all, rather than an empty
+ *      array. See `won` versus `delivery`.
  */
 (function (root) {
   "use strict";
@@ -67,15 +77,12 @@
     return o;
   }
 
-  /* Stage is SERVER DERIVED. Fixtures state it outright rather than computing
-     it from timestamps, because a fixture that computed stage would let the
-     client learn to compute stage. */
   /* The shape must match routes/campaigns.js exactly, including the nested
      `dates` object keyed by the real column names. An earlier version of this
-     builder used flat closesAt/opensAt, which rendered fine and silently
-     killed every countdown, because the view reads dates.bidding_closes_at.
-     That is the whole failure mode fixtures exist to prevent, so the campaign
-     list now also has a C.check spec: see SPECS.campaignList. */
+     builder used a flat closesAt, which rendered fine and silently killed
+     every countdown, because the view reads dates.bidding_closes_at. That is
+     the whole failure mode fixtures exist to prevent, which is why the
+     campaign list also carries a contract spec. */
   function campaign(id, region, stage, over) {
     var dates = {
       announce_at: at(-21), bidding_opens_at: at(-14), bidding_closes_at: at(2),
@@ -83,10 +90,14 @@
     };
     for (var k in (over || {})) if (k in dates) { dates[k] = over[k]; delete over[k]; }
 
+    var LABEL = {
+      planned: 'Planned', announced: 'Announced', open: 'Open',
+      closing: 'Closing', offers_out: 'Offers out', decided: 'Decided'
+    };
     var c = {
       id: id, region: region, sub: 'Autumn cohort', coverageRegion: region,
       kind: stage === 'decided' ? 'closed' : 'auction',
-      stage: stage, stageLabel: (W.console.C.STAGE_LABEL[stage] || stage),
+      stage: stage, stageLabel: LABEL[stage] || stage,
       households: 64, members: 64, confirmed: 0,
       bidding_open: stage === 'open' || stage === 'closing',
       dates: dates
@@ -107,14 +118,14 @@
     return { ok: true, live: true, serverTime: NOW, coverage: rows };
   }
   var COV_ACTIVE = [
-    { region: 'North York', slug: 'north-york', status: 'active', techs: ['fibre', 'cable'], topSpeed: '1 Gig', leadTime: '5 business days' },
-    { region: 'Scarborough', slug: 'scarborough', status: 'active', techs: ['fibre', 'cable'], topSpeed: '1 Gig', leadTime: '5 business days' },
-    { region: 'Markham', slug: 'markham', status: 'verifying', techs: ['fibre'], topSpeed: '1 Gig', leadTime: '5 business days' }
+    { region: 'North York', slug: 'north-york', status: 'active', techs: ['fibre', 'cable'], speed: '1 Gig', lead: '5 business days' },
+    { region: 'Scarborough', slug: 'scarborough', status: 'active', techs: ['fibre', 'cable'], speed: '1 Gig', lead: '5 business days' },
+    { region: 'Markham', slug: 'markham', status: 'verifying', techs: ['fibre'], speed: '1 Gig', lead: '5 business days' }
   ];
 
   /* One order row. `addressLine` is present ONLY after the gate; the fixture
-     for a gated roster omits it, so a view can never be written against data
-     the server would not have sent. */
+     for a gated roster omits the rows entirely, so a view can never be written
+     against data the server would not have sent. */
   function order(i, state, over) {
     var o = {
       key: 'kw:hh-' + (1041 + i),
@@ -135,91 +146,109 @@
     while (out.length < n) out.push(order(i++, 'acc', { addressLine: (12 + i * 3) + ' Maple St' }));
     return out;
   }
+  var ORDER_STATES = ['acc', 'bkd', 'act', 'rel', 'noshow', 'access', 'linefail'];
   function counts(rows, total) {
     var c = { total: total != null ? total : rows.length };
-    W.console.C.ORDER_STATE.forEach(function (s) { c[s] = 0; });
+    ORDER_STATES.forEach(function (s) { c[s] = 0; });
     rows.forEach(function (r) { c[r.state]++; });
     c.exceptions = c.noshow + c.access + c.linefail;
     c.withheld = c.total - rows.length;
     return c;
   }
 
-  var appTasks = function (o) {
+  function tasks(o) {
     var t = { coverage: 'empty', registration: 'empty', documents: 'empty', agreement: 'empty', reference: 'empty' };
     for (var k in (o || {})) t[k] = o[k];
     return t;
-  };
+  }
 
   /* ---------------------------------------------------------------- *
    * the states
-   *
-   * Fourteen are the prototype's SCEN array (lines 1656-1671), carried over as
-   * data rather than as state mutations. Two are the brief's additions, which
-   * the prototype has no way to reach.
    * ---------------------------------------------------------------- */
 
   var S = {};
 
   S.pending = {
     label: 'Application in progress',
-    view: 'pending',
+    view: 'overview',
     me: { ok: true, serverTime: NOW, user: user(), org: org({ role: 'admin' }), approved: false },
-    application: { ok: true, serverTime: NOW, state: 'draft', tasks: appTasks(), submittedAt: null, decisionDueAt: null },
+    application: { ok: true, serverTime: NOW, state: 'draft', tasks: tasks(), submittedAt: null, decisionDueAt: null },
     coverage: coverage([]),
     campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [] }
   };
 
   S.review = {
-    label: 'Under review',
+    label: 'Under review, 48 hour clock running',
     view: 'pending',
     me: S.pending.me,
     application: {
       ok: true, serverTime: NOW, state: 'under_review',
-      tasks: appTasks({ coverage: 'cleared', registration: 'verifying', documents: 'verifying', agreement: 'cleared', reference: 'submitted' }),
+      tasks: tasks({ coverage: 'cleared', registration: 'verifying', documents: 'verifying', agreement: 'cleared', reference: 'submitted' }),
       submittedAt: NOW - 6 * H,
-      /* 48 hours from SUBMISSION, not from review pickup. */
+      /* 48 hours from COMPLETION, not from review pickup. */
       decisionDueAt: NOW - 6 * H + 2 * D
     },
     coverage: coverage(COV_ACTIVE),
     campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [] }
   };
 
-  /* NEW, not reachable in the prototype. A rejection has to say why, and has
-     to leave a route forward, or the console is a dead end. */
-  S.rejected = {
-    label: 'Application rejected',
+  /* One task flagged. Without this state a failed check is a silent stall: the
+     partner sees "under review" forever and never learns which number did not
+     match. */
+  S.infoneeded = {
+    label: 'Information needed',
     view: 'pending',
-    me: { ok: true, serverTime: NOW, user: user(), org: org(), approved: false, state: 'rejected' },
+    me: S.pending.me,
     application: {
-      ok: true, serverTime: NOW, state: 'rejected',
-      tasks: appTasks({ coverage: 'cleared', registration: 'flagged', documents: 'cleared', agreement: 'cleared', reference: 'cleared' }),
-      submittedAt: NOW - 3 * D, decidedAt: NOW - 1 * D,
-      rejectionReason: 'We could not confirm the CRTC registration number against the public register. If that number is wrong, reply to this and we will reopen the application.'
+      ok: true, serverTime: NOW, state: 'info_needed',
+      tasks: tasks({ coverage: 'cleared', registration: 'flagged', documents: 'cleared', agreement: 'cleared', reference: 'cleared' }),
+      submittedAt: NOW - 2 * D,
+      reviewNote: 'The CRTC registration number did not match the public register. If it is a typo, correct it and we will re-check the same day.'
     },
     coverage: coverage(COV_ACTIVE),
     campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [] }
   };
 
+  /* A rejection has to say why and leave a route forward, or the console is a
+     dead end. The prototype cannot reach this state at all. */
+  S.rejected = {
+    label: 'Application declined',
+    view: 'pending',
+    me: { ok: true, serverTime: NOW, user: user(), org: org(), approved: false, state: 'rejected' },
+    application: {
+      ok: true, serverTime: NOW, state: 'rejected',
+      tasks: tasks({ coverage: 'cleared', registration: 'flagged', documents: 'cleared', agreement: 'cleared', reference: 'cleared' }),
+      submittedAt: NOW - 3 * D, decidedAt: NOW - 1 * D, reapplyAfter: NOW + 60 * D,
+      decisionNote: 'We could not confirm the CRTC registration against the public register, and the operating reference did not respond within our window.'
+    },
+    coverage: coverage(COV_ACTIVE),
+    campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [] }
+  };
+
+  var APPROVED_ME = { ok: true, serverTime: NOW, user: user(), org: org(), approved: true };
+  var APPROVED_APP = { ok: true, serverTime: NOW, state: 'approved', tasks: tasks({ coverage: 'cleared', registration: 'cleared', documents: 'cleared', agreement: 'cleared', reference: 'cleared' }), submittedAt: NOW - 9 * D, decidedAt: NOW - 7 * D };
+
   S.first = {
     label: 'First login, no coverage yet',
     view: 'overview',
-    me: { ok: true, serverTime: NOW, user: user(), org: org(), approved: true },
+    me: APPROVED_ME, application: APPROVED_APP,
     coverage: coverage([]),
     campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [] },
     bids: { ok: true, serverTime: NOW, live: true, bids: [] }
   };
 
-  /* NEW. A declared region that failed serviceability. The prototype cannot
-     reach this because nothing in the backend moves a region off 'verifying'. */
+  /* A declared region that failed serviceability. Unreachable until the admin
+     verify and reject routes shipped: before that every region sat in
+     'verifying' forever. */
   S.covrejected = {
     label: 'Coverage rejected',
     view: 'coverage',
-    me: S.first.me,
+    me: APPROVED_ME, application: APPROVED_APP,
     coverage: coverage([
       COV_ACTIVE[0],
       {
-        region: 'Hamilton', slug: 'hamilton', status: 'rejected', techs: ['fibre'], topSpeed: '1 Gig',
-        rejectionReason: 'No facilities record for this footprint. If you serve it through a wholesale agreement, send us the agreement reference and we will re-check.'
+        region: 'Hamilton', slug: 'hamilton', status: 'rejected', techs: ['fibre'], speed: '1 Gig',
+        rejectionReason: 'No facilities record for this footprint.'
       }
     ]),
     campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [] }
@@ -228,7 +257,7 @@
   S.ready = {
     label: 'Ready, nothing open',
     view: 'desk',
-    me: S.first.me,
+    me: APPROVED_ME, application: APPROVED_APP,
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
@@ -240,7 +269,7 @@
   S.announced = {
     label: 'Cohort announced',
     view: 'desk',
-    me: S.first.me,
+    me: APPROVED_ME, application: APPROVED_APP,
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
@@ -250,9 +279,9 @@
   };
 
   S.open = {
-    label: 'Bidding open',
+    label: 'Bidding open, close still distant',
     view: 'desk',
-    me: S.first.me,
+    me: APPROVED_ME, application: APPROVED_APP,
     coverage: coverage(COV_ACTIVE),
     campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [campaign('kw', 'Scarborough', 'open')] },
     bids: { ok: true, serverTime: NOW, live: true, bids: [] }
@@ -263,7 +292,7 @@
   S.closing = {
     label: 'Closing inside 24 hours',
     view: 'desk',
-    me: S.first.me,
+    me: APPROVED_ME, application: APPROVED_APP,
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
@@ -282,11 +311,15 @@
     reductionPresentation: 'member', guaranteeMonths: 24, afterMode: 'new',
     equipment: 'inc', extraPodMonthly: '0.00', committedHouseholds: 64
   };
+  function bidIn(state) {
+    var b = {}; for (var k in SEALED_BID) b[k] = SEALED_BID[k];
+    b.state = state; return b;
+  }
 
   S.sealed = {
-    label: 'Bid sealed',
+    label: 'Bid sealed, improvable until close',
     view: 'desk',
-    me: S.first.me,
+    me: APPROVED_ME, application: APPROVED_APP,
     coverage: coverage(COV_ACTIVE),
     campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [campaign('kw', 'Scarborough', 'closing', { bidding_closes_at: at(1) })] },
     bids: { ok: true, serverTime: NOW, live: true, bids: [SEALED_BID] }
@@ -295,25 +328,25 @@
   S.offersout = {
     label: 'Offers out, nothing to do',
     view: 'desk',
-    me: S.first.me,
+    me: APPROVED_ME, application: APPROVED_APP,
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
       campaigns: [campaign('kw', 'Scarborough', 'offers_out', { bidding_closes_at: at(-1), decision_at: at(6), confirmed: 27, bidding_open: false })]
     },
-    bids: { ok: true, serverTime: NOW, live: true, bids: [{ ...SEALED_BID, state: 'locked' }] }
+    bids: { ok: true, serverTime: NOW, live: true, bids: [bidIn('locked')] }
   };
 
   S.won = {
     label: 'Won, roster gated',
     view: 'delivery',
-    me: S.first.me,
+    me: APPROVED_ME, application: APPROVED_APP,
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
       campaigns: [campaign('kw', 'Scarborough', 'decided', { confirmed: 41, bidding_open: false, decision_at: at(-1) })]
     },
-    bids: { ok: true, serverTime: NOW, live: true, bids: [{ ...SEALED_BID, state: 'won' }] },
+    bids: { ok: true, serverTime: NOW, live: true, bids: [bidIn('won')] },
     /* THE INTIMATION BOUNDARY. Counts, and no `orders` key at all. Not an
        empty array: absent is unambiguous, and a client cannot render rows that
        were never transmitted. */
@@ -327,26 +360,26 @@
   S.lost = {
     label: 'Not selected',
     view: 'desk',
-    me: S.first.me,
+    me: APPROVED_ME, application: APPROVED_APP,
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
       campaigns: [campaign('kw', 'Scarborough', 'decided', { bidding_open: false, decision_at: at(-1) })]
     },
-    bids: { ok: true, serverTime: NOW, live: true, bids: [{ ...SEALED_BID, state: 'not_selected' }] }
+    bids: { ok: true, serverTime: NOW, live: true, bids: [bidIn('not_selected')] }
   };
 
   var DELIVERY_ROWS = roster(41, { act: 9, rel: 1, bkd: 14, noshow: 1, access: 1, linefail: 1 });
   S.delivery = {
-    label: 'Delivery window',
+    label: 'Delivery window, exceptions live',
     view: 'delivery',
-    me: S.first.me,
+    me: APPROVED_ME, application: APPROVED_APP,
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
       campaigns: [campaign('kw', 'Scarborough', 'decided', { confirmed: 41, bidding_open: false, switch_window_at: at(11) })]
     },
-    bids: { ok: true, serverTime: NOW, live: true, bids: [{ ...SEALED_BID, state: 'won' }] },
+    bids: { ok: true, serverTime: NOW, live: true, bids: [bidIn('won')] },
     roster: {
       ok: true, serverTime: NOW,
       gate: { passed: true, checks: { award: true, billingReady: true, capacity: true, consent: true } },
@@ -359,14 +392,14 @@
   S.reconcile = {
     label: 'Reconciliation',
     view: 'billing',
-    me: S.first.me,
+    me: APPROVED_ME, application: APPROVED_APP,
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
       campaigns: [campaign('kw', 'Scarborough', 'decided', { confirmed: 41, bidding_open: false, reconcile_at: at(2) })]
     },
     roster: { ok: true, serverTime: NOW, gate: { passed: true }, counts: counts(RECON_ROWS), orders: RECON_ROWS },
-    /* Lines are DERIVED server side from activated orders, and arrive as data.
+    /* Lines are DERIVED server side from activated orders and arrive as data.
        The statement holds the frozen total at issue, so the reconciliation
        window can show the delta against the live derivation. */
     statement: {
@@ -383,7 +416,7 @@
   S.motion = {
     label: 'Long-running partner',
     view: 'perf',
-    me: S.first.me,
+    me: APPROVED_ME, application: APPROVED_APP,
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
@@ -398,7 +431,7 @@
         campaign('mk', 'Markham', 'open', { households: 58, bidding_closes_at: at(9) })
       ]
     },
-    bids: { ok: true, serverTime: NOW, live: true, bids: [{ ...SEALED_BID, state: 'won' }] },
+    bids: { ok: true, serverTime: NOW, live: true, bids: [bidIn('won')] },
     /* Every figure carries its claim class. Nothing renders unlabelled. */
     performance: {
       ok: true, serverTime: NOW,
@@ -416,12 +449,13 @@
     label: 'Payment issue, bidding paused',
     view: 'billing',
     me: { ok: true, serverTime: NOW, user: user(), org: org(), approved: true, state: 'bidding_paused' },
+    application: APPROVED_APP,
     coverage: coverage(COV_ACTIVE),
     campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [campaign('kw', 'Scarborough', 'open')] },
     billingStatus: {
       ok: true, serverTime: NOW, state: 'failed', biddingPaused: true,
       invoice: 'WH-2026-07', failedAt: at(-3), pausesAt: at(11),
-      message: 'Invoice WH-2026-07 payment failed. Bidding pauses 14 days after a failed invoice.'
+      message: 'Statement WH-2026-07 payment failed. Bidding pauses 14 days after a failed statement.'
     }
   };
 
@@ -434,7 +468,11 @@
      built against fixtures cannot come to rely on data the server will not
      send. */
   var ROUTE = {
-    me: 'me', application: 'application', applicationTimeline: 'application',
+    me: 'me',
+    application: 'application', applicationTimeline: 'application',
+    applicationRegistration: 'application', applicationAgreement: 'application',
+    applicationReference: 'application', applicationSubmit: 'application',
+    documents: 'documents',
     coverage: 'coverage', serviceability: 'coverage',
     campaigns: 'campaigns', campaign: 'campaigns', campaignsPlanned: 'campaigns',
     bids: 'bids', bid: 'bids',
@@ -451,7 +489,12 @@
       return null;
     }
     var api = W.console.api;
-    var live = { prefs: { ok: true, prefs: { notify: {} } }, prefsSave: { ok: true }, team: { ok: true, team: [] }, signOut: { ok: true } };
+    var live = {
+      prefs: { ok: true, prefs: { notify: {} } },
+      prefsSave: { ok: true },
+      team: { ok: true, team: [] },
+      signOut: { ok: true }
+    };
 
     Object.keys(api).forEach(function (k) {
       if (typeof api[k] !== 'function' || k.indexOf('__') === 0) return;
@@ -469,25 +512,14 @@
         })(k);
     });
 
-    /* Strict contract checking: under fixtures a shape mismatch is a bug in
-       code being written right now and should stop the developer. */
-    W.console.C.strict = true;
     W.console.fixture = { name: name, label: f.label, view: f.view };
     if (root.console) root.console.info('[whollar] fixture "' + name + '": ' + f.label);
     return f;
   }
 
-  W.console.fixtures = {
-    names: Object.keys(S),
-    states: S,
-    install: install
-  };
+  W.console.fixtures = { names: Object.keys(S), states: S, install: install };
 
   /* Auto-install from ?fixture=, before boot runs. */
   var q = new URLSearchParams(root.location.search).get('fixture');
-  if (q) {
-    var f = install(q);
-    /* Land on the view the state is about, unless the URL already says. */
-    if (f && f.view && !root.location.hash) root.location.hash = '#' + f.view;
-  }
+  if (q) install(q);
 })(typeof window !== 'undefined' ? window : globalThis);

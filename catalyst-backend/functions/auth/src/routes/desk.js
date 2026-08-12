@@ -29,6 +29,7 @@ const { requireBiddingOpen } = require('./campaigns');
 const { requirePartner: guardPartner, requireApproved } = require('../lib/guards');
 const { money } = require('../lib/money');
 const { wrap, badRequest, forbidden, AppError } = require('../lib/errors');
+const application = require('./application');
 
 const BIDS = 'provider_bids';
 const COVERAGE = 'provider_coverage';
@@ -70,20 +71,39 @@ function publicCoverage(row) {
     speed: row.speed || null,
     lead: row.lead || null,
     status: row.status,
+    /* A refused region MUST say why. "Not serviceable" with no reason leaves a
+       partner with nothing to act on, and the reason is an enum server side
+       because it feeds the serviceability figure on the performance page. */
+    rejectionReason: row.rejection_reason || null,
+    verifiedAt: row.verified_at || null,
     updatedAt: row.updated_at || null,
   };
 }
 
-/** Every coverage row for an org, or null when the table is not provisioned. */
+const COVERAGE_COLS = ['coverage_key', 'org_id', 'region', 'techs', 'speed', 'lead', 'status', 'updated_at'];
+const COVERAGE_COLS_V2 = COVERAGE_COLS.concat(['rejection_reason', 'verified_at']);
+
+/**
+ * Every coverage row for an org, or null when the table is not provisioned.
+ *
+ * TWO COLUMN LISTS, on purpose. Tables here are created BY HAND (there is no
+ * DDL API), so code and schema deploy separately and in either order. Asking
+ * for a column that does not exist yet throws, and the catch below would then
+ * report the whole table as unreadable: a partner would see "we could not read
+ * your coverage" for every region they own, because of two columns that only
+ * matter to one of them. So the extended list is tried first and the original
+ * is the fallback.
+ */
 async function coverageRows(catalystApp, orgId) {
+  const where = `org_id = ${datastore.lit(orgId)}`;
   try {
-    return await datastore.queryAll(
-      catalystApp, COVERAGE,
-      ['coverage_key', 'org_id', 'region', 'techs', 'speed', 'lead', 'status', 'updated_at'],
-      `org_id = ${datastore.lit(orgId)}`
-    );
+    return await datastore.queryAll(catalystApp, COVERAGE, COVERAGE_COLS_V2, where);
   } catch {
-    return null;
+    try {
+      return await datastore.queryAll(catalystApp, COVERAGE, COVERAGE_COLS, where);
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -315,6 +335,19 @@ function mount(router) {
         });
     }
 
+    /* Declaring a region IS application task one. Doing it here rather than
+       asking the console to call a second endpoint means the checklist cannot
+       disagree with the coverage table, which is the failure the prototype had
+       in the other direction: it tracked task completion in a client-side
+       object that a reload discarded.
+       Best effort, and deliberately so: the coverage row is the thing that
+       matters, and a partner who has declared a region must not be told the
+       declaration failed because a checklist row would not write. */
+    if (created) {
+      await application.setTask(req.catalyst, context.orgId, 'coverage', 'submitted')
+        .catch(() => { /* application tables not provisioned yet */ });
+    }
+
     audit.recordAsync(req.catalyst, req, {
       type: created ? 'provider.coverage.declare' : 'provider.coverage.update',
       outcome: 'success',
@@ -330,6 +363,30 @@ function mount(router) {
       coverage: (rows || []).map(publicCoverage),
     });
   }));
+
+  /**
+   * One region's serviceability state, for polling after a declaration.
+   *
+   * Serviceability is ASYNCHRONOUS and decided by an operator, not asserted by
+   * the party it advantages: a declaration lands 'verifying' and only
+   * /admin/providers/:orgId/coverage/:region/verify moves it on. Until that
+   * admin route existed, nothing anywhere wrote 'active', so every declared
+   * region sat in 'verifying' forever and no cohort ever reached any desk.
+   * That was the blocker under the whole console.
+   */
+  router.get('/provider/coverage/:region/serviceability', wrap(async (req, res) => {
+    const { context } = await requirePartner(req);
+    const regionSlug = slug(req.params.region);
+    if (!regionSlug) throw badRequest('Name the region.');
+
+    const rows = await coverageRows(req.catalyst, context.orgId);
+    if (rows === null) throw new AppError('SERVER_ERROR', 'Coverage is not available right now. Please try again shortly.');
+
+    const row = rows.find((r) => slug(r.region) === regionSlug);
+    if (!row) throw new AppError('NOT_FOUND', 'You have not declared that region.');
+
+    res.status(200).json({ ok: true, serverTime: Date.now(), coverage: publicCoverage(row) });
+  }));
 }
 
-module.exports = { mount, BIDS, COVERAGE };
+module.exports = { mount, BIDS, COVERAGE, publicCoverage, coverageRows, slug };

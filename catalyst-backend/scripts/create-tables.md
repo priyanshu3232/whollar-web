@@ -492,8 +492,143 @@ The regions an org claims, and what it can render there.
 
 > **Known gap, not a schema problem.** New rows land `verifying` and **no route
 > anywhere moves them on**, so `active` is currently unreachable. The admin
-> verify and reject routes are outstanding work. Until they exist, a partner
-> who declares a region never sees a cohort in it.
+> **Resolved.** `POST /admin/providers/:orgId/coverage/:region/verify` and
+> `.../reject` are the routes that were missing, and they are the only place
+> `active` is ever written. Add the two columns below before deploying them.
+
+**Two columns to add to `provider_coverage`.** Both optional, and the code
+falls back to the original column list if they are absent, so the table keeps
+working while you add them.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `rejection_reason` | Var Char | 255 | | | the sentence a refused partner is shown |
+| `verified_at` | DateTime | — | | | stamped by the admin verify route |
+
+---
+
+## 17. The founding partner application
+
+Five tables. The application is the partner's first screen and, until it
+clears, their only one.
+
+**Why one row per task rather than five columns on the application.** The
+screen says "each piece starts its own check the moment it lands". With five
+booleans that sentence is decoration: a submitted document and a cleared one
+look identical, and a partner whose registration was flagged sees "under
+review" forever with no idea which number did not match.
+
+### `provider_applications`
+
+One per org. `state` here is a **hint**, not the authority: `routes/application.js`
+derives the real state from the task rows plus `submitted_at` and `decided_at`,
+for the same reason the campaign stage is derived. A state written by whoever
+spoke last is a state nobody can reason about.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `application_id` | Var Char | 64 | ✅ | ✅ | `app-${org_id}` |
+| `org_id` | Var Char | 64 | ✅ | ✅ | one application per org |
+| `state` | Var Char | 16 | | ✅ | `draft` \| `submitted` \| `under_review` \| `info_needed` \| `approved` \| `rejected` |
+| `legal_name` | Var Char | 160 | | | |
+| `operating_name` | Var Char | 160 | | | |
+| `crtc_registration` | Var Char | 64 | | | checked against the public register by a person |
+| `business_number` | Var Char | 32 | | | optional at application time |
+| `submitted_at` | DateTime | — | | | **written once.** See below |
+| `decision_due_at` | DateTime | — | | | `submitted_at` + 48h |
+| `decided_at` | DateTime | — | | | |
+| `decision_note` | Var Char | 500 | | | shown verbatim on a declined application |
+| `review_note` | Var Char | 500 | | | shown when one task is flagged |
+| `reapply_after` | DateTime | — | | | |
+| `source` | Var Char | 16 | | | `self_serve` \| `outreach` \| `distributor` |
+| `role_route` | Var Char | 24 | | | carried from the public onboarding page |
+| `updated_at` | DateTime | — | | | |
+
+> **`submitted_at` is written only if unset, and that is load-bearing.** The
+> console calls submit the moment the fifth task lands, and a re-render or a
+> double click calls it again. Writing it unconditionally would move
+> `decision_due_at` every time, and that deadline is the one number on the
+> screen a partner is entitled to trust.
+
+### `application_tasks`
+
+One row per (org, task). Rule 4 applies: Catalyst's unique constraint is per
+column, so the pair is flattened into `task_key_org`.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `task_key_org` | Var Char | 200 | ✅ | ✅ | `${org_id}:${task_key}` |
+| `org_id` | Var Char | 64 | | ✅ | |
+| `task_key` | Var Char | 16 | | ✅ | `coverage` \| `registration` \| `documents` \| `agreement` \| `reference` |
+| `state` | Var Char | 16 | | ✅ | `empty` \| `submitted` \| `verifying` \| `cleared` \| `flagged` |
+| `completed_at` | DateTime | — | | | when the partner finished their half |
+| `checked_at` | DateTime | — | | | when a reviewer finished theirs |
+| `note` | Var Char | 500 | | | reviewer's note, or the consent hash for `agreement` |
+| `updated_at` | DateTime | — | | | |
+
+> A partner's own write can reach `submitted`, never `cleared`. Only
+> `registration` cleared by a reviewer means the CRTC number matched. A partner
+> able to clear their own check would make the vetting story decorative.
+> `agreement` is the exception: signing it IS the whole of that task.
+
+### `provider_documents`
+
+**PII.** The bytes never pass through the auth function: uploads go to the file
+store through a presigned URL and only the reference is stored here. Never a
+public bucket, never a guessable URL, and `retention_delete_after` is what
+makes the deletion promise on the application screen real.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `document_id` | Var Char | 64 | ✅ | ✅ | |
+| `org_id` | Var Char | 64 | | ✅ | |
+| `kind` | Var Char | 32 | | ✅ | `crtc_registration` \| `business_registration` \| `insurance` \| `other` |
+| `file_store_ref` | Var Char | 255 | | ✅ | |
+| `filename` | Var Char | 255 | | | as uploaded |
+| `bytes` | Int | — | | | |
+| `mime` | Var Char | 64 | | | |
+| `uploaded_by` | Var Char | 64 | | | `user_id` |
+| `uploaded_at` | DateTime | — | | | |
+| `review_state` | Var Char | 16 | | ✅ | `pending` \| `accepted` \| `rejected` |
+| `retention_delete_after` | DateTime | — | | | |
+
+### `provider_references`
+
+One contact, contacted once, told exactly why, **never added to any list**.
+That last part is a promise made on the application screen, so there is no
+marketing consent column here and there must not be one.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `reference_key` | Var Char | 200 | ✅ | ✅ | `${org_id}:ref` |
+| `org_id` | Var Char | 64 | | ✅ | |
+| `name_role` | Var Char | 160 | | ✅ | |
+| `email` | Var Char | 255 | | ✅ | |
+| `contacted_at` | DateTime | — | | | |
+| `response_state` | Var Char | 16 | | ✅ | `pending` \| `responded` \| `no_response` |
+| `updated_at` | DateTime | — | | | |
+
+### `coverage_verifications`
+
+Append only. Every serviceability decision, with who made it. Written **before**
+the `provider_coverage` row moves: if the row update then fails the region
+stays `verifying` and can be verified again, which is harmless. The reverse
+order would leave a region live with no record of who made it live, on the one
+decision that determines whether a partner can bid at all.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `coverage_key` | Var Char | 200 | | ✅ | matches `provider_coverage.coverage_key` |
+| `org_id` | Var Char | 64 | | ✅ | |
+| `region` | Var Char | 100 | | ✅ | as declared |
+| `result` | Var Char | 16 | | ✅ | `active` \| `rejected` |
+| `reason` | Var Char | 32 | | | `no_facilities` \| `outside_footprint` \| `tech_unsupported` \| `needs_evidence` |
+| `checked_by` | Var Char | 64 | | ✅ | admin `user_id` |
+| `checked_at` | DateTime | — | | ✅ | |
+
+> The reason is an **enum, not prose**, because it feeds the serviceability
+> accuracy figure that future auction briefs carry beside a partner's bid. Free
+> text would make that number unbuildable.
 
 ---
 
@@ -510,6 +645,12 @@ SELECT ROWID FROM credentials LIMIT 1;
 SELECT ROWID FROM sessions LIMIT 1;
 SELECT ROWID FROM auth_challenges LIMIT 1;
 SELECT ROWID FROM oauth_state LIMIT 1;
+SELECT ROWID FROM provider_applications LIMIT 1;
+SELECT ROWID FROM application_tasks LIMIT 1;
+SELECT ROWID FROM provider_documents LIMIT 1;
+SELECT ROWID FROM provider_references LIMIT 1;
+SELECT ROWID FROM coverage_verifications LIMIT 1;
+SELECT rejection_reason, verified_at FROM provider_coverage LIMIT 1;
 SELECT ROWID FROM consents LIMIT 1;
 SELECT ROWID FROM provider_orgs LIMIT 1;
 SELECT ROWID FROM provider_users LIMIT 1;

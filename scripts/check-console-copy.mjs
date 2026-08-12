@@ -21,13 +21,33 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const FILES = [
-  'provider-console.html',
-  'js/whollar-provider-console.js',
-  'js/whollar-console-contract.js',
-  'js/whollar-console-api.js',
-  'js/console-fixtures.js',
+  'partner/index.html',
+  'partner/app.css',
+  'partner/app.js',
+  'partner/core/api.js',
+  'partner/core/contract.js',
+  'partner/core/state.js',
+  'partner/core/router.js',
+  'partner/core/actions.js',
+  'partner/core/session.js',
+  'partner/core/time.js',
+  'partner/core/format.js',
+  'partner/core/toast.js',
+  'partner/core/modal.js',
+  'partner/components/banner.js',
+  'partner/components/emptystate.js',
+  'partner/components/gate.js',
+  'partner/components/rail.js',
+  'partner/components/tasks.js',
+  'partner/views/account.js',
+  'partner/views/application.js',
+  'partner/views/coverage.js',
+  'partner/views/desk.js',
+  'partner/views/overview.js',
+  'partner/views/placeholders.js',
+  'partner/demo/fixtures.js',
   'scripts/qa-console.mjs',
-  'scripts/build-console-stamp.mjs'
+  'scripts/build-console.mjs'
 ];
 
 /* Banned words. Each is paired with what to say instead, because a gate that

@@ -1,31 +1,25 @@
-<!doctype html>
-<html lang="en-CA">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Whollar &middot; Partner console</title>
-<!-- Signed-in surface behind a client-side guard. The guard keeps honest
-     visitors on the right page; the real authorisation is server side, on the
-     session-gated Catalyst calls this page makes. Nothing here is indexed. -->
-<meta name="robots" content="noindex,nofollow">
-<meta name="description" content="Whollar founding partner console: cohorts, sealed bids, delivery, and statements.">
+/* Partner console styles.
+ *
+ * Ported from the v12 prototype with every component class name preserved. QA
+ * selectors, screenshots and muscle memory all depend on them, and the design
+ * is signed off, so this file restyles nothing.
+ *
+ * TOKENS. Section 5.1 asks for the provider palette to be namespaced so a
+ * future theme change is one file. The namespaced names are the source; the
+ * short names below alias them, because every one of the 500 rules ported from
+ * the prototype references the short form and rewriting them all would be a
+ * 500-line diff that changes no pixels and breaks every review of this file
+ * against its source.
+ */
 
-<!-- Blocking, and first: the boot guard below runs during head parsing and
-     needs W.partner and W.session already defined. -->
-<script src="/js/whollar-core.js?v=20260808a"></script>
+:root{
+  --partner-ink:#17211B; --partner-forest:#12372B; --partner-forest2:#1E5741;
+  --partner-gold:#C29B3C; --partner-gold-deep:#A8842B; --partner-gold-soft:#F5EAD2;
+  --partner-tint:#E3EDE6; --partner-tintb:#CBDCCE; --partner-paper:#F1EDE2;
+  --partner-card:#FCFAF5; --partner-line:#E1DBCB; --partner-sub:#5B655C;
+  --partner-win:#1E5741; --partner-lose:#8C4622; --partner-lose-soft:#F2E3D6;
+}
 
-<!-- Deferred, so they download while the body parses and execute in order
-     after it, before DOMContentLoaded. The guard schedules boot on that
-     event, by which time console.boot exists and the DOM is ready. -->
-<script src="/js/whollar-console-contract.js?v=3fd5cef7" defer></script>
-<script src="/js/whollar-console-api.js?v=52f4416f" defer></script>
-<script src="/js/whollar-provider-console.js?v=d852f57e" defer></script>
-
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='18' y1='14' x2='102' y2='106' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%230E2A20'/%3E%3Cstop offset='1' stop-color='%231E9E63'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='6' y='6' width='108' height='108' rx='32' fill='url(%23g)'/%3E%3Cpath d='M34 42h52M34 42l26 38M86 42l-26 38' stroke='%23fff' stroke-width='5' stroke-linecap='round' stroke-linejoin='round' opacity='.85'/%3E%3Ccircle cx='34' cy='42' r='11' fill='%23fff'/%3E%3Ccircle cx='86' cy='42' r='11' fill='%23fff'/%3E%3Ccircle cx='60' cy='80' r='11' fill='%23fff'/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<style>
 :root{
   --ink:#17211B; --forest:#12372B; --forest2:#1E5741; --gold:#C29B3C; --gold-deep:#A8842B;
   --gold-soft:#F5EAD2; --tint:#E3EDE6; --tintb:#CBDCCE; --paper:#F1EDE2; --card:#FCFAF5;
@@ -513,257 +507,36 @@ tr.exp + tr.dwr{display:table-row}
   .funnel{grid-template-columns:repeat(2,1fr)}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-</style>
-
-<script>
-/* ---------- partner boot: front-end guard only, not security ----------
-   Ported from provider-dashboard.html, where each of these four pieces was
-   added to fix a separate reported bug. Keep them together.
-
-   This reads a localStorage key written by whollar-login-provider.html.
-   Anyone can set that key from a console, so it keeps honest visitors on the
-   right page and nothing more. The real numbers arrive through session-gated
-   Catalyst calls, which is where the actual authorisation lives.
-
-   Deliberately a different key from 'whollar.member': a household session
-   must not open the partner console.
-
-   It runs in <head>, not at the foot of <body> as the v3 console does,
-   because the shell chrome (pane, nav, header) is static markup and would
-   otherwise be free to paint before the guard got a vote. */
-(function () {
-  "use strict";
-  var W = window.WHOLLAR;
-
-  /* Carry where they were heading so sign-in returns them here rather than
-     dropping them on the console root. Read back through W.safeNext. */
-  function toSignIn() {
-    location.replace('/whollar-login-provider?next=' + encodeURIComponent(location.pathname + location.search));
-  }
-
-  var PARTNER = W.partner.read();
-  if (!PARTNER) {
-    /* An empty local record is NOT proof of being signed out. A verify that
-       completed in another tab sets the session cookie and writes nothing to
-       THIS tab's boot, so ask the server, with the page hidden, because the
-       console must not flash up at a visitor who turns out to be signed out. */
-    document.documentElement.style.visibility = 'hidden';
-    W.session.adopt('provider').then(function (rec) {
-      /* Reload rather than carry on: boot is never scheduled on this path, so
-         there is nothing left in this document that would render the console. */
-      if (rec) { location.reload(); return; }
-      toSignIn();
-    }, toSignIn);
-    return;
-  }
-
-  /* The guard above runs once, at parse time. A back-button restore from the
-     bfcache does NOT re-run it, so after signing out the browser would happily
-     repaint the fully rendered console. */
-  window.addEventListener('pageshow', function (e) {
-    if (e.persisted && !W.partner.read()) location.reload();
-  });
-  /* Signed out in another tab: don't leave a live console behind. */
-  window.addEventListener('storage', function (e) {
-    if ((!e.key || e.key === W.PARTNER_KEY) && !W.partner.read()) location.reload();
-  });
-
-  /* The deferred module scripts have not executed yet. They run after parsing
-     and before this event, so console.boot is defined by the time it fires. */
-  document.addEventListener('DOMContentLoaded', function () {
-    if (!W.console || typeof W.console.boot !== 'function') {
-      /* The module 404'd or threw. Say so rather than showing empty chrome
-         that looks like a partner with no cohorts. */
-      document.documentElement.style.visibility = '';
-      var el = document.getElementById('bootfail');
-      if (el) el.hidden = false;
-      return;
-    }
-    W.console.boot(PARTNER);
-  });
-})();
-</script>
-<!-- WHOLLAR-FOOTER-CSS:START (generated by scripts/build-footer.mjs) -->
-<style id="whl-footer-css">
-.whl-footer{margin:0;background:#0A2018;color:#CFE8D6;border-top:1px solid rgba(255,255,255,.08);padding:40px 0 calc(30px + env(safe-area-inset-bottom));font-family:Inter,'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14.5px;line-height:1.5;text-align:left}
-.whl-footer__wrap{max-width:1340px;margin:0 auto;padding:0 24px}
-.whl-footer__top{display:grid;grid-template-columns:1fr auto 1fr;gap:28px;align-items:start;padding-bottom:30px;border-bottom:1px solid rgba(255,255,255,.12)}
-.whl-footer__brand{max-width:340px}
-.whl-footer__row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-.whl-footer__mk{width:30px;height:30px;border-radius:9px;flex:none;display:block}
-.whl-footer__wm{font-family:'Satoshi','Hanken Grotesk','Bricolage Grotesque',Inter,system-ui,sans-serif;font-weight:800;font-size:20px;letter-spacing:-.01em;color:#fff}
-.whl-footer__brand p{margin:0;font-size:14px;line-height:1.5;color:#9FC1BF;font-style:normal;white-space:nowrap}
-.whl-footer__cols{display:flex;gap:96px;flex-wrap:wrap;margin:0 auto}
-.whl-footer__col{display:flex;flex-direction:column;gap:11px}
-.whl-footer__col a{color:#CFE8D6;text-decoration:none;font-size:14.5px;font-weight:400;border:0}
-.whl-footer__col a:hover{color:#fff}
-.whl-footer__col a[aria-current="page"]{color:#fff;font-weight:600}
-.whl-footer__bottom{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center;padding-top:22px}
-.whl-footer__bottom span{font-size:13px;color:#8FB39B}
-.whl-footer__made{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:#CFE8D6;font-weight:600}
-@media(max-width:880px){
-  .whl-footer__top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start}
-  .whl-footer__cols{gap:48px;margin:0}
-}
-@media(max-width:560px){.whl-footer__cols{gap:34px}}
-@media(max-width:380px){.whl-footer__brand p{font-size:11.5px}}
-</style>
-<!-- WHOLLAR-FOOTER-CSS:END -->
-</head>
-<body>
-
-<!-- renderBanner()'s host. In the prototype this sat before <!doctype html>,
-     which browsers silently recover from; it belongs inside body. -->
-<div id="mainbanner"></div>
-
-<div class="app" id="app">
-
-  <aside class="pane" aria-label="Navigation">
-    <div class="pane__top">
-      <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
-      <b>Whollar</b>
-    </div>
-    <span class="roompill">Partner console</span>
-    <nav class="pnav" id="pnav">
-      <button type="button" data-view="overview" class="on"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/></svg><span>Overview</span></button>
-      <button type="button" data-view="desk"><svg viewBox="0 0 24 24"><path d="M13 3 5 13h6l-1 8 8-10h-6Z"/></svg><span>Bid desk</span></button>
-      <button type="button" data-view="bids"><svg viewBox="0 0 24 24"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2Z"/><path d="M9 8h6M9 12h6"/></svg><span>My bids</span></button>
-      <button type="button" data-view="billing"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M7 15h4"/></svg><span>Billing</span></button>
-      <button type="button" data-view="delivery"><svg viewBox="0 0 24 24"><path d="M3 7h11v10H3zM14 10h4l3 3v4h-7z"/><circle cx="7" cy="19" r="1.6"/><circle cx="17" cy="19" r="1.6"/></svg><span>Delivery</span></button>
-      <button type="button" data-view="perf"><svg viewBox="0 0 24 24"><path d="M4 20V9M10 20V4M16 20v-8M21 20H3"/></svg><span>Performance</span></button>
-      <button type="button" data-view="contracts"><svg viewBox="0 0 24 24"><path d="M6 2h9l4 4v16H6z"/><path d="M14 2v5h5M9 12h6M9 16h6"/></svg><span>Contracts</span></button>
-      <button type="button" class="soon" aria-disabled="true"><svg viewBox="0 0 24 24"><path d="M8 8l-5 4 5 4M16 8l5 4-5 4"/></svg><span>API integration</span><em>Soon</em></button>
-      <button type="button" class="soon" aria-disabled="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 20c.7-3.6 3.3-5.4 6.5-5.4s5.8 1.8 6.5 5.4"/><circle cx="17.5" cy="9" r="2.6"/><path d="M15.5 14.8c2.9.2 5.2 1.8 5.9 5.2"/></svg><span>Team &amp; access</span><em>Soon</em></button>
-      <button type="button" data-view="coverage"><svg viewBox="0 0 24 24"><path d="m9 20-6-2V4l6 2 6-2 6 2v14l-6-2-6 2Z"/><path d="M9 6v14M15 4v14"/></svg><span>Coverage</span></button>
-    </nav>
-    <button class="pane__prof" type="button" data-nav="account" id="paneprof" aria-label="Account">
-      <span class="ava2" id="paneava"></span>
-      <span class="pp"><b id="paneorg"></b><small id="panerole"></small></span>
-      <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
-    </button>
-  </aside>
-  <div class="overlay" id="overlay"></div>
-
-  <div class="main">
-    <header class="top">
-      <button class="burger" id="burger" type="button" aria-label="Toggle navigation pane" aria-expanded="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
-      <span class="greet" id="greet"><span id="greetline"></span><small id="greetsub"></small></span>
-      <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search cohorts and regions" aria-label="Search cohorts" autocomplete="off"><div class="drop" id="qdrop"></div></div>
-      <button class="ava" type="button" data-nav="account" aria-label="Account" id="topava"></button>
-    </header>
-
-    <div class="content">
-
-      <section class="card" id="bootfail" hidden style="margin-bottom:16px">
-        <span class="eyebrow gld">Console did not load</span>
-        <h3>Something went wrong loading this page</h3>
-        <p class="cardnote">Reload to try again. If it keeps happening, email partners@whollar.ca and we will look at it.</p>
-      </section>
-
-      <!-- ============ overview ============ -->
-      <section class="view on" data-v="overview">
-        <div id="ov-body"></div>
-      </section>
-
-      <!-- ============ desk ============ -->
-      <section class="view" data-v="desk">
-        <div class="vhead"><h2>Bid desk</h2><p>Every auction in your coverage, its stage, and its clock.</p></div>
-        <div id="desk-body"></div>
-      </section>
-
-      <!-- ============ plan ============ -->
-      <section class="view" data-v="plan">
-        <div class="vhead"><button class="tlink" type="button" data-nav="desk">&larr; Bid desk</button></div>
-        <div id="plan-body"></div>
-      </section>
-
-      <!-- ============ bids ============ -->
-      <section class="view" data-v="bids">
-        <div class="vhead"><h2>My bids</h2><p>Every bid on record, with what it turned into.</p></div>
-        <div id="bids-body"></div>
-      </section>
-
-      <!-- ============ billing ============ -->
-      <section class="view" data-v="billing">
-        <div class="vhead"><h2>Billing</h2><p>Households, not leads: a success fee when a switch completes, and only then.</p></div>
-        <div id="billing-body"></div>
-      </section>
-
-      <!-- ============ coverage ============ -->
-      <section class="view" data-v="coverage">
-        <div class="vhead"><h2>Coverage</h2><p>Declare where you serve and what you can render there. Regions open as their cohorts form.</p></div>
-        <div id="cov-body"></div>
-      </section>
-
-      <!-- ============ delivery ============ -->
-      <section class="view" data-v="delivery">
-        <div class="vhead"><h2>Delivery</h2><p>Won cohorts become rosters: schedule, install, and only the live connections bill.</p></div>
-        <div id="del-body"></div>
-      </section>
-
-      <!-- ============ perf ============ -->
-      <section class="view" data-v="perf">
-        <div class="vhead"><h2>Performance</h2><p>The four numbers future briefs carry beside your bids, and what the auctions deliver.</p></div>
-        <div id="perf-body"></div>
-      </section>
-
-      <!-- ============ contracts ============ -->
-      <section class="view" data-v="contracts">
-        <div class="vhead"><h2>Contracts</h2><p>Everything binding, versioned, in one place.</p></div>
-        <div id="con-body"></div>
-      </section>
-
-      <!-- ============ pending ============ -->
-      <section class="view" data-v="pending">
-        <div class="vhead"><h2>Under review</h2><p>Your founding partner application, and the clock on it.</p></div>
-        <div id="pend-body"></div>
-      </section>
-
-      <!-- ============ account ============ -->
-      <section class="view" data-v="account">
-        <div class="vhead"><h2>Account</h2><p id="acct-sub"></p></div>
-        <div id="acct-body"></div>
-      </section>
 
 
-    </div>
-  </div>
-</div>
+/* ===== added with the /partner rebuild ===== */
 
-<div class="modal" id="modal" hidden><div class="mbox" role="dialog" aria-modal="true" aria-label="Dialog"><div id="mbody"></div></div></div>
-<div class="toast" id="toast" role="status"></div>
+/* A rejected or verifying region explains itself on the row below its own.
+   Constrained because the reason is prose and a full-width line of it is
+   unreadable next to a table. */
+.covwhy{margin:0 0 10px;max-width:70ch}
+.covspeed{width:100%;font:inherit;font-size:12.5px;border:1.5px solid var(--line);border-radius:9px;padding:7px 9px;background:#fff}
+.covdot.rej{background:var(--lose)}
 
-<!-- WHOLLAR-FOOTER:START (generated by scripts/build-footer.mjs) -->
-<footer class="whl-footer">
-  <div class="whl-footer__wrap">
-    <div class="whl-footer__top">
-      <div class="whl-footer__brand">
-        <div class="whl-footer__row"><svg class="whl-footer__mk" width="30" height="30" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Whollar"><defs><linearGradient id="whlFooterMark" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#whlFooterMark)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#FFFFFF"/><circle cx="86" cy="42" r="11" fill="#FFFFFF"/><circle cx="60" cy="80" r="11" fill="#FFFFFF"/></svg><span class="whl-footer__wm">Whollar</span></div>
-        <p>Wholesale buying power that saves you dollars</p>
-      </div>
-      <div class="whl-footer__cols">
-        <div class="whl-footer__col">
-        <a href="/#how">How it works</a>
-        <a href="/#why">Why us</a>
-        <a href="/#faq">FAQ</a>
-        <a href="/blog/">Resources</a>
-        <a href="/contact">Contact</a>
-        </div>
-        <div class="whl-footer__col">
-        <a href="/privacy">Privacy</a>
-        <a href="/terms">Terms</a>
-        <a href="/partners">For providers</a>
-        </div>
-      </div>
-    </div>
-    <div class="whl-footer__bottom">
-      <span>&copy; 2026 Whollar, now forming the first cohorts.</span>
-      <span class="whl-footer__made">Made in Canada
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="#1E9E63" aria-hidden="true"><path d="M12 2l1.6 4.3 4.4-1.2-2 4 3.5 2.4-4 1.3.6 4.4-3.7-2.2L12 22l-.4-3.3-3.7 2.2.6-4.4-4-1.3L4 9.1l-2-4 4.4 1.2z"/></svg>
-      </span>
-    </div>
-  </div>
-</footer>
-<!-- WHOLLAR-FOOTER:END -->
-</body>
-</html>
+/* A task whose own check has cleared shows the check state instead of an
+   action, because there is nothing left to do on it. */
+.taskstate{font-size:11.5px;font-weight:650;color:var(--sub);white-space:nowrap;margin-left:12px;flex:none}
+.task.flag i{background:var(--gold-soft);border-color:var(--gold);color:var(--gold-deep)}
+
+/* Save-on-blur indicator. Deliberately quiet and deliberately present: silent
+   autosave is indistinguishable from lost work. */
+.savedot{font-size:11.5px;font-weight:650;color:var(--forest2);margin-top:8px}
+.savedot::before{content:"\2713 ";}
+
+/* The banner. The review variant is informational, not an alert, so it does
+   not borrow the failure colour. */
+.alertbar.review{background:var(--forest);color:#EAF2EC}
+.bannerlink{color:#fff;text-decoration:underline}
+
+/* The gated review frame. Nav and search are hidden, and the card centres. */
+.gated .pane{display:none}
+.gated .app{display:block}
+.gated .top .search{visibility:hidden}
+.gated .content{width:100%;max-width:none}
+
+.opt2{font-weight:600;color:var(--sub);font-size:10px;text-transform:none;letter-spacing:0}

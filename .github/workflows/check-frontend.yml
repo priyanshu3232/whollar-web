@@ -16,6 +16,7 @@ on:
     paths:
       - "**.html"
       - "js/**"
+      - "partner/**"
       - "scripts/**"
       - "MobileVersion/**"
       - "Whollar Pricing Model.xlsx"
@@ -23,6 +24,7 @@ on:
     paths:
       - "**.html"
       - "js/**"
+      - "partner/**"
       - "scripts/**"
       - "MobileVersion/**"
       - "Whollar Pricing Model.xlsx"
@@ -95,29 +97,28 @@ jobs:
       - name: Device router parses
         run: node --check js/device-router.js
 
-      # The partner console ships as two classic scripts under /js, so unlike
-      # every other page its logic is NOT covered by the inline-script gate
-      # below. Without these two lines the console is the largest unchecked
-      # surface in the repo. Both no-op until the files land.
-      # NOTE the plain if/else. Writing this as
-      #   [ -f "$f" ] && node --check "$f" || echo "not present yet"
-      # looks equivalent and is not: a FAILING node --check makes the && branch
-      # false, so the || branch runs, and the step exits 0 on a syntax error.
-      - name: Partner console parses
-        run: |
-          for f in js/whollar-console-contract.js js/whollar-provider-console.js; do
-            if [ -f "$f" ]; then
-              echo "  $f"
-              node --check "$f"
-            else
-              echo "  $f (not present yet)"
-            fi
-          done
+      # The partner console is the one place in this repo with a build step.
+      # This single check covers three failures at once, which is why it is
+      # first: the module graph still resolves (an unimported or missing module
+      # is an error, not a shrug), the committed bundle matches its source, and
+      # the ?v= stamp in partner/index.html matches the bundle. /partner is
+      # cached 24h, so a changed console with an unchanged stamp means partners
+      # run new markup against old JavaScript for a day.
+      - name: Partner console bundle is current
+        run: node scripts/build-console.mjs --check
 
-      # /js is cached for 24h, so a changed console with an unchanged ?v= means
-      # partners run new markup against old JavaScript for up to a week.
-      - name: Console cache stamps match their scripts
-        run: node scripts/build-console-stamp.mjs --check
+      # And that the thing a browser actually loads parses as a CLASSIC script.
+      # This is what keeps the no-ESM rule true: partner/*.js is source and may
+      # contain imports, the bundle may not, and node --check is what says so.
+      - name: Partner console bundle parses
+        run: node --check partner/console.build.js
+
+      # The fixtures are a classic script loaded on demand, outside the bundle,
+      # so nothing above covers them. They are .vercelignore'd, which means a
+      # syntax error here would never fail a deploy and would only show up on
+      # someone's laptop mid-QA.
+      - name: Partner console fixtures parse
+        run: node --check partner/demo/fixtures.js
 
       # Em dashes and the banned terminology, scoped to the console files where
       # the count is currently zero. Scoped rather than repo-wide on purpose:

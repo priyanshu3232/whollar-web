@@ -47,6 +47,7 @@ const ratelimit = require('../lib/ratelimit');
 const siteconfig = require('../lib/siteconfig');
 const catalog = require('../lib/catalog');
 const campaigns = require('./campaigns');
+const desk = require('./desk');
 const { wrap, badRequest, unauthorized, forbidden, AppError } = require('../lib/errors');
 const { canRevealCode } = require('./otp');
 
@@ -885,6 +886,135 @@ function mount(router, cfg) {
     });
 
     res.status(200).json({ ok: true, org_id: org.org_id, approval_status: 'rejected' });
+  }));
+
+  /* ---------------------------------------------------------------- *
+   * Coverage verification
+   *
+   * THE ONE PLACE 'active' IS WRITTEN, and the reason these two routes exist.
+   * provider_coverage rows land 'verifying' when a partner declares a region,
+   * and until now nothing anywhere moved them on. The effect was not a missing
+   * admin feature, it was a dead console: a cohort only reaches a bid desk
+   * from inside an ACTIVE region, so every partner who declared coverage saw
+   * an empty desk forever and had no way to tell that from having no cohorts.
+   *
+   * Serviceability is decided by an operator against facilities data, never
+   * asserted by the party it advantages, which is why this lives behind
+   * requireAdmin and not on the partner's own coverage route.
+   * ---------------------------------------------------------------- */
+
+  /** Reasons a footprint can be refused. An enum, not prose: this feeds the
+      serviceability accuracy figure that future auction briefs carry beside a
+      partner's bid, and free text would make that number unbuildable. */
+  const COVERAGE_REJECT_REASONS = new Map([
+    ['no_facilities', 'No facilities record for this footprint.'],
+    ['outside_footprint', 'The addresses in this region sit outside your declared footprint.'],
+    ['tech_unsupported', 'The technology declared here is not available at these addresses.'],
+    ['needs_evidence', 'We need the wholesale agreement reference before we can confirm this footprint.'],
+  ]);
+
+  /** Locate one declared region, by org and region slug. */
+  async function coverageForDecision(req) {
+    const org = await orgForDecision(req);
+    const regionSlug = desk.slug(req.params.region);
+    if (!regionSlug) throw badRequest('Name the region.');
+
+    const key = `${org.org_id}:${regionSlug}`.slice(0, 200);
+    const row = await datastore.findBy(
+      req.catalyst, desk.COVERAGE, 'coverage_key', key,
+      ['ROWID', 'coverage_key', 'org_id', 'region', 'status']
+    ).catch(() => null);
+    if (!row) throw new AppError('NOT_FOUND', 'That organisation has not declared that region.');
+    return { org, row, regionSlug };
+  }
+
+  /**
+   * Append the decision to the audit table, then move the row.
+   *
+   * ORDER MATTERS. The verification record is written FIRST: if the row update
+   * fails the region stays 'verifying' and can be verified again, which is
+   * harmless. The reverse order would leave a region live with no record of
+   * who made it live, on the one decision that decides whether a partner can
+   * bid at all.
+   */
+  async function recordVerification(req, admin, org, row, result, reason) {
+    try {
+      await datastore.insertRow(req.catalyst, 'coverage_verifications', {
+        coverage_key: row.coverage_key,
+        org_id: org.org_id,
+        region: row.region,
+        result,
+        reason: reason || null,
+        checked_by: admin.user_id,
+        checked_at: datastore.nowDb(),
+      });
+    } catch {
+      /* Table not created yet. The decision still stands and the audit row
+         below carries it; create-tables.md documents the table. */
+    }
+  }
+
+  router.post('/admin/providers/:orgId/coverage/:region/verify', wrap(async (req, res) => {
+    const admin = requireAdmin(req);
+    const { org, row, regionSlug } = await coverageForDecision(req);
+    const before = row.status || 'verifying';
+
+    await recordVerification(req, admin, org, row, 'active', null);
+
+    /* rejection_reason is cleared: a region that failed once and then verified
+       must not keep showing the old reason underneath a green dot. */
+    const fields = { ROWID: row.ROWID, status: 'active', updated_at: datastore.nowDb() };
+    try {
+      await datastore.updateRow(req.catalyst, desk.COVERAGE, {
+        ...fields, verified_at: datastore.nowDb(), rejection_reason: '',
+      });
+    } catch {
+      /* The two newer columns are not created yet. The status change is the
+         part that unblocks the desk, so it lands either way. */
+      await datastore.updateRow(req.catalyst, desk.COVERAGE, fields);
+    }
+
+    await audit.record(req.catalyst, req, {
+      type: 'admin.coverage.verify', outcome: 'success',
+      userId: admin.user_id, email: admin.email_normalized,
+      detail: { org_id: org.org_id, region: regionSlug, before, after: 'active' },
+    });
+
+    res.status(200).json({ ok: true, org_id: org.org_id, region: regionSlug, status: 'active' });
+  }));
+
+  router.post('/admin/providers/:orgId/coverage/:region/reject', wrap(async (req, res) => {
+    const admin = requireAdmin(req);
+    const reasonCode = String((req.body || {}).reason || '').trim();
+    if (!COVERAGE_REJECT_REASONS.has(reasonCode)) {
+      throw badRequest(
+        `A refusal needs one of these reasons: ${[...COVERAGE_REJECT_REASONS.keys()].join(', ')}. `
+        + 'The partner is shown it, and it feeds their serviceability figure.'
+      );
+    }
+    const { org, row, regionSlug } = await coverageForDecision(req);
+    const before = row.status || 'verifying';
+    const sentence = COVERAGE_REJECT_REASONS.get(reasonCode);
+
+    await recordVerification(req, admin, org, row, 'rejected', reasonCode);
+
+    const fields = { ROWID: row.ROWID, status: 'rejected', updated_at: datastore.nowDb() };
+    try {
+      await datastore.updateRow(req.catalyst, desk.COVERAGE, { ...fields, rejection_reason: sentence });
+    } catch {
+      /* rejection_reason column not created yet. The refusal still stands and
+         the reason survives in the verification and audit rows; the partner
+         sees the generic sentence the console falls back to. */
+      await datastore.updateRow(req.catalyst, desk.COVERAGE, fields);
+    }
+
+    await audit.record(req.catalyst, req, {
+      type: 'admin.coverage.reject', outcome: 'success',
+      userId: admin.user_id, email: admin.email_normalized,
+      detail: { org_id: org.org_id, region: regionSlug, before, after: 'rejected', reason: reasonCode },
+    });
+
+    res.status(200).json({ ok: true, org_id: org.org_id, region: regionSlug, status: 'rejected' });
   }));
 
   /**

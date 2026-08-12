@@ -156,7 +156,7 @@ const PAGES = [
   { file: 'thank-you.html', current: null },
   { file: 'dashboard.html', current: null },
   { file: 'provider-dashboard.html', current: null },
-  { file: 'provider-console.html', current: null },
+  { file: 'partner/index.html', current: null },
   { file: 'whollar-login-consumer.html', current: null },
   { file: 'whollar-login-provider.html', current: null },
   { file: 'blog/index.html', current: 'resources' },

@@ -27,11 +27,13 @@ docs/prototype
 # The console's fixture states. Never deployed, which is what makes fixture
 # mode genuinely unreachable in production: the file is not uploaded, so the
 # request 404s regardless of query flags, hostname spoofing, or a bug in the
-# gate the fixtures carry. There is no bundler here to tree-shake it out, so
-# this line IS the mechanism. Fixture mode therefore works on localhost only,
-# which is also where it matters, since dev-server.mjs proxies to the live
-# Development backend and there is no local emulator.
-js/console-fixtures.js
+# gate the fixtures carry. scripts/build-console.mjs also skips demo/, so the
+# fixtures are not in the bundle either and cannot arrive by an accidental
+# import; this line covers the on-demand fetch that loads them. Fixture mode
+# therefore works on localhost only, which is also where it matters, since
+# dev-server.mjs proxies to the live Development backend and there is no local
+# emulator.
+partner/demo
 
 # Self-contained page snapshots for sharing/offline use. They are copies of the
 # live pages that do NOT receive fixes (their own README says edits don't flow

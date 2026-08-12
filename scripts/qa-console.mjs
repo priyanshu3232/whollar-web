@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Browser checks for the partner console (/provider-console).
+/* Browser checks for the partner console (/partner).
  *
  *   node scripts/dev-server.mjs          # in another shell, port 3000
  *   node scripts/qa-console.mjs
@@ -18,7 +18,7 @@
  * COVERS: the four boot-guard paths (signed out, approved, pending, expired),
  * the one that must NOT sign anyone out (a network failure), the router across
  * all 11 views, four widths, the burger's two behaviours, the completeness of
- * the 67-endpoint register, all 17 fixture states, and the fixture layer
+ * the 67-endpoint register, all 18 fixture states, and the fixture layer
  * declining to install off localhost.
  */
 
@@ -66,8 +66,18 @@ async function ctx(browser, { record = null, me = null, meStatus = 200 } = {}) {
      fall back on. It was also a live bug: the console grew three calls
      (coverage, campaigns, bids) that this file did not know about, and the
      symptom was `networkidle` never settling rather than anything saying so. */
+  /* The generic envelope carries the empty collections as well as ok/live.
+     Without them the payload is not contract-shaped, and on localhost the
+     contract layer is STRICT and throws, so every list route resolved as
+     "the table was unreadable" and three views rendered their failure state
+     instead of their empty one. The catch-all's job is to keep requests off
+     the network; it still has to answer in the shape the server answers in. */
   await c.route('**/api/auth/**', r =>
-    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, live: true, serverTime: Date.now() }) }));
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, live: true, serverTime: Date.now(), campaigns: [], bids: [], coverage: [] }),
+    }));
 
   await c.route('**/api/auth/provider/me', r =>
     r.fulfill({ status: meStatus, contentType: 'application/json', body: JSON.stringify(me || { error: { code: 'UNAUTHENTICATED', message: 'Please sign in again.' } }) }));
@@ -108,7 +118,7 @@ console.log('\n1. signed out: no flash, redirected to sign-in with ?next');
   });
   const p = await c.newPage();
   collect(p, errors);
-  await p.goto(`${BASE}/provider-console`, { waitUntil: 'domcontentloaded' });
+  await p.goto(`${BASE}/partner`, { waitUntil: 'domcontentloaded' });
   const hidden = await p.evaluate(() => document.documentElement.style.visibility);
   ok(hidden === 'hidden', 'document hidden while the server is asked');
   const chromePainted = await p.evaluate(() => {
@@ -118,7 +128,7 @@ console.log('\n1. signed out: no flash, redirected to sign-in with ?next');
   ok(chromePainted === 'hidden', 'the shell chrome is hidden too, so nothing flashes');
   await p.waitForURL(/whollar-login-provider/, { timeout: 8000 }).catch(() => {});
   ok(/whollar-login-provider/.test(p.url()), `redirected to sign-in (${p.url().replace(BASE, '')})`);
-  ok(/next=%2Fprovider-console/.test(p.url()), 'carries ?next=/provider-console');
+  ok(/next=%2Fpartner/.test(p.url()), 'carries ?next=/partner');
   await c.close();
 }
 
@@ -127,7 +137,7 @@ console.log('\n2. signed in, approved: console renders on real payload');
   const c = await ctx(browser, { record: REC, me: APPROVED });
   const p = await c.newPage();
   collect(p, errors);
-  await p.goto(`${BASE}/provider-console`, { waitUntil: 'networkidle' });
+  await p.goto(`${BASE}/partner`, { waitUntil: 'networkidle' });
   ok(!/whollar-login-provider/.test(p.url()), 'stayed on the console');
   ok((await p.textContent('#paneorg')) === 'Northline Internet', 'org name from /provider/me, not the email domain');
   ok(/Good (morning|afternoon|evening), Sam/.test(await p.textContent('#greetline')), 'greeting uses the real first name');
@@ -141,7 +151,7 @@ console.log('\n3. signed in, NOT approved: banner appears, copy is honest');
 {
   const c = await ctx(browser, { record: REC, me: PENDING });
   const p = await c.newPage();
-  await p.goto(`${BASE}/provider-console`, { waitUntil: 'networkidle' });
+  await p.goto(`${BASE}/partner`, { waitUntil: 'networkidle' });
   ok((await p.locator('#mainbanner .alertbar').count()) === 1, 'under-review banner renders');
   ok((await p.textContent('#panerole')) === 'Under review', 'pane role says under review');
   const desk = await p.textContent('#desk-body');
@@ -153,7 +163,7 @@ console.log('\n4. a 401 from /provider/me signs the tab out');
 {
   const c = await ctx(browser, { record: REC, meStatus: 401 });
   const p = await c.newPage();
-  await p.goto(`${BASE}/provider-console`, { waitUntil: 'domcontentloaded' });
+  await p.goto(`${BASE}/partner`, { waitUntil: 'domcontentloaded' });
   await p.waitForURL(/whollar-login-provider/, { timeout: 5000 }).catch(() => {});
   ok(/whollar-login-provider/.test(p.url()), 'bounced to sign-in on a definite 401');
   const left = await p.evaluate(() => localStorage.getItem('whollar.partner'));
@@ -172,7 +182,7 @@ console.log('\n5. a NETWORK failure must NOT sign anyone out');
     localStorage.setItem('whollar.partner', JSON.stringify(rec));
   }, REC);
   const p = await c.newPage();
-  await p.goto(`${BASE}/provider-console`, { waitUntil: 'domcontentloaded' });
+  await p.goto(`${BASE}/partner`, { waitUntil: 'domcontentloaded' });
   await p.waitForTimeout(1200);
   ok(!/whollar-login-provider/.test(p.url()), 'stayed signed in through a failed poll');
   ok((await p.textContent('#paneorg')).length > 0, 'chrome still painted from the local record');
@@ -183,7 +193,7 @@ console.log('\n6. cross-tab sign-out and bfcache');
 {
   const c = await ctx(browser, { record: REC, me: APPROVED });
   const p = await c.newPage();
-  await p.goto(`${BASE}/provider-console`, { waitUntil: 'networkidle' });
+  await p.goto(`${BASE}/partner`, { waitUntil: 'networkidle' });
   // Simulate another tab clearing the record, which fires `storage` here.
   await p.evaluate(() => {
     localStorage.removeItem('whollar.partner');
@@ -200,7 +210,7 @@ console.log('\n7. navigation reaches all 11 views');
   const c = await ctx(browser, { record: REC, me: APPROVED });
   const p = await c.newPage();
   collect(p, errors);
-  await p.goto(`${BASE}/provider-console`, { waitUntil: 'networkidle' });
+  await p.goto(`${BASE}/partner`, { waitUntil: 'networkidle' });
   const views = ['overview', 'desk', 'plan', 'bids', 'billing', 'coverage', 'delivery', 'perf', 'contracts', 'pending', 'account'];
   let shown = 0;
   for (const v of views) {
@@ -223,7 +233,7 @@ console.log('\n8. four widths, zero horizontal overflow');
     const c = await ctx(browser, { record: REC, me: APPROVED });
     const p = await c.newPage();
     await p.setViewportSize({ width: w, height: 900 });
-    await p.goto(`${BASE}/provider-console`, { waitUntil: 'networkidle' });
+    await p.goto(`${BASE}/partner`, { waitUntil: 'networkidle' });
     let worst = 0;
     for (const v of ['overview', 'desk', 'billing', 'account', 'perf']) {
       await p.evaluate(x => window.WHOLLAR.console.nav(x), v);
@@ -240,7 +250,7 @@ console.log('\n9. burger: collapses on desktop, overlays on mobile');
 {
   const c = await ctx(browser, { record: REC, me: APPROVED });
   const p = await c.newPage();
-  await p.goto(`${BASE}/provider-console`, { waitUntil: 'networkidle' });
+  await p.goto(`${BASE}/partner`, { waitUntil: 'networkidle' });
   await p.click('#burger');
   ok(await p.locator('#app.collapsed').count() === 1, 'desktop: pane collapses');
   await p.click('#burger');
@@ -258,7 +268,7 @@ console.log('\n10. the endpoint register is complete');
 {
   const c = await ctx(browser, { record: REC, me: APPROVED });
   const p = await c.newPage();
-  await p.goto(`${BASE}/provider-console`, { waitUntil: 'networkidle' });
+  await p.goto(`${BASE}/partner`, { waitUntil: 'networkidle' });
   const reg = await p.evaluate(() => {
     const a = window.WHOLLAR.console.api;
     return { total: a.__count, live: a.__implemented, pending: a.__pending.length };
@@ -276,12 +286,12 @@ console.log('\n11. every fixture renders, with no console error');
 {
   const c = await ctx(browser, { record: REC, me: APPROVED });
   const p = await c.newPage();
-  await p.goto(`${BASE}/provider-console`, { waitUntil: 'networkidle' });
+  await p.goto(`${BASE}/partner`, { waitUntil: 'networkidle' });
   const names = await p.evaluate(async () => {
-    await new Promise(r => { const s = document.createElement('script'); s.src = '/js/console-fixtures.js'; s.onload = r; s.onerror = r; document.head.appendChild(s); });
+    await new Promise(r => { const s = document.createElement('script'); s.src = '/partner/demo/fixtures.js'; s.onload = r; s.onerror = r; document.head.appendChild(s); });
     return window.WHOLLAR.console.fixtures ? window.WHOLLAR.console.fixtures.names : [];
   });
-  ok(names.length >= 16, `fixture states defined (${names.length})`);
+  ok(names.length >= 18, `fixture states defined (${names.length})`);
   await c.close();
 
   let clean = 0;
@@ -290,7 +300,7 @@ console.log('\n11. every fixture renders, with no console error');
     const fp = await fc.newPage();
     const errs = [];
     collect(fp, errs);
-    await fp.goto(`${BASE}/provider-console?fixture=${name}`, { waitUntil: 'networkidle' });
+    await fp.goto(`${BASE}/partner?fixture=${name}`, { waitUntil: 'networkidle' });
     await fp.waitForTimeout(120);
     const installed = await fp.evaluate(() => window.WHOLLAR.console.fixture && window.WHOLLAR.console.fixture.name);
     const painted = await fp.evaluate(() => (document.querySelector('section.view.on')?.textContent || '').trim().length);
@@ -301,7 +311,58 @@ console.log('\n11. every fixture renders, with no console error');
   ok(clean === names.length, `all ${names.length} fixtures install and render clean (${clean}/${names.length})`);
 }
 
-console.log('\n12. fixture mode cannot escape localhost');
+console.log('\n12. coverage is the gate, and it explains itself');
+{
+  /* The blocker this increment cleared. A region only produces a biddable
+     cohort once an admin verifies it, so both ends of that decision have to be
+     legible to the partner: a verifying region says a check is running, and a
+     rejected one says why. Silence on either reads as a broken console. */
+  const c = await ctx(browser, { record: REC, me: APPROVED });
+  const p = await c.newPage();
+  await p.goto(`${BASE}/partner?fixture=covrejected#coverage`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(120);
+  const cov = await p.locator('#cov-body').innerText();
+  ok(/Not serviceable/.test(cov), 'a rejected region is labelled, not silently absent');
+  ok(/Why:/.test(cov), 'and it says why');
+  ok(/partners@whollar\.ca/.test(cov), 'and leaves a route back');
+  await c.close();
+
+  const c2 = await ctx(browser, { record: REC, me: APPROVED });
+  const p2 = await c2.newPage();
+  await p2.goto(`${BASE}/partner?fixture=motion#desk`, { waitUntil: 'networkidle' });
+  await p2.waitForTimeout(120);
+  const desk = await p2.locator('#desk-body').innerText();
+  ok(/Verifies with Markham coverage/.test(desk), 'a cohort in an unverified region is locked, and names the region');
+  await c2.close();
+}
+
+console.log('\n13. the application checklist tracks per-task state');
+{
+  /* Five booleans would make "each piece starts its own check the moment it
+     lands" decoration. This asserts the difference is visible: one cleared
+     task and one still checking must not render identically. */
+  const c = await ctx(browser, { record: REC, me: APPROVED });
+  const p = await c.newPage();
+  await p.goto(`${BASE}/partner?fixture=review#pending`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(120);
+  const frame = await p.locator('#pend-body').innerText();
+  ok(/Serviceability check/.test(frame), 'the review frame lists the serviceability check');
+  ok(/decision lands by/i.test(frame), 'and names the decision date from decision_due_at');
+  const gated = await p.evaluate(() => document.body.classList.contains('gated'));
+  ok(gated, 'the frame is gated: no nav pane, no search');
+  await c.close();
+
+  const c2 = await ctx(browser, { record: REC, me: APPROVED });
+  const p2 = await c2.newPage();
+  await p2.goto(`${BASE}/partner?fixture=rejected#pending`, { waitUntil: 'networkidle' });
+  await p2.waitForTimeout(120);
+  const dec = await p2.locator('#pend-body').innerText();
+  ok(/could not approve/i.test(dec), 'a declined application says so');
+  ok(/apply again/i.test(dec), 'and leaves a route forward rather than a dead end');
+  await c2.close();
+}
+
+console.log('\n14. fixture mode cannot escape localhost');
 {
   /* The real guarantee is .vercelignore: the file is not uploaded, so it 404s
      in every deployed environment. Assert the SECOND belt here, that the
@@ -309,9 +370,9 @@ console.log('\n12. fixture mode cannot escape localhost');
      under a hostname that is not. */
   const c = await ctx(browser, { record: REC, me: APPROVED });
   const p = await c.newPage();
-  await p.goto(`${BASE}/provider-console`, { waitUntil: 'networkidle' });
+  await p.goto(`${BASE}/partner`, { waitUntil: 'networkidle' });
   const refused = await p.evaluate(async () => {
-    const src = await (await fetch('/js/console-fixtures.js')).text();
+    const src = await (await fetch('/partner/demo/fixtures.js')).text();
     // Run it with a non-local hostname and see whether it installs.
     const fake = { WHOLLAR: window.WHOLLAR, location: { hostname: 'www.whollar.ca', search: '?fixture=won', hash: '' }, console: { warn() {} } };
     const before = window.WHOLLAR.console.fixtures;
@@ -320,7 +381,7 @@ console.log('\n12. fixture mode cannot escape localhost');
   });
   ok(refused, 'the module declines to install on a non-local hostname');
 
-  const ignored = await fetch(`${BASE}/js/console-fixtures.js`).then(r => r.status);
+  const ignored = await fetch(`${BASE}/partner/demo/fixtures.js`).then(r => r.status);
   ok(ignored === 200, 'and it is still served locally, where it is meant to work');
   await c.close();
 }
