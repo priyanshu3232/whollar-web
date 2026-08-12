@@ -936,8 +936,11 @@
     <div style="display:inline-flex; align-items:center; gap:8px; background:#E3F0E6; border-radius:100px; padding:7px 14px; font-family:'IBM Plex Sans',sans-serif; font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--green); font-weight:600">
       <span style="width:7px; height:7px; border-radius:50%; background:#1E9E63; animation:wpulse 2.4s ease-in-out infinite"></span>Wholesale demand, whole&nbsp;dollar</div>
     <h1 style="font-family:'Hanken Grotesk',sans-serif; font-weight:900; font-size:clamp(31px, 8.7vw, 41px); line-height:1.04; letter-spacing:-0.03em; color:var(--ink); margin:12px 0 10px; width:100%">The Future of Broadband Acquisition Doesn't <span style="color:var(--green)">Start With Advertising.</span></h1>
-    <p style="font-size:clamp(15px, 4.1vw, 17.5px); line-height:1.65; color:var(--body); margin:0 0 10px; width:100%">Stop paying for clicks and cold leads. Whollar pools verified households and lets you win them in one sealed bid.</p>
-    <div data-hero-scene="" style="position:relative; width:74%; aspect-ratio:540/810; margin:-18px auto 0"></div>
+    <!-- The hero sub-paragraph is gone: the headline plus the scene carry the pitch on a
+         phone, and the scene takes the freed height. Full width (was 74%) makes it ~35%
+         larger, so the art's internal top whitespace scales too — hence -24px (was -18px)
+         to keep it tucked under the headline instead of floating away from it. -->
+    <div data-hero-scene="" style="position:relative; width:100%; aspect-ratio:540/810; margin:-24px auto 0"></div>
     <div style="display:flex; flex-direction:column; gap:11px; margin-top:20px">
       <a href="/MobileVersion/become-a-partner-mobile" style="display:flex; align-items:center; justify-content:center; background:var(--ink); color:var(--paper); padding:16px 28px; border-radius:100px; font-weight:600; font-size:15px">Become a founding partner</a>
       <a href="#how" style="display:flex; align-items:center; justify-content:center; border:1.5px solid rgba(12,42,36,.16); color:var(--ink); padding:15px 28px; border-radius:100px; font-weight:600; font-size:15px; background:transparent">See how it works</a>
@@ -1162,8 +1165,12 @@
 <!-- WHOLLAR-FOOTER:END -->
 
   <sc-if value="{{ bottomCta }}" hint-placeholder-val="{{ true }}">
-    <div data-bottombar="" style="position:fixed; left:50%; transform:translateX(-50%); bottom:0; z-index:40; width:auto; max-width:calc(100% - 32px); padding:10px 16px calc(12px + env(safe-area-inset-bottom)); background:none; opacity:1; pointer-events:auto">
-      <a href="#cta" style="display:flex; align-items:center; justify-content:center; white-space:nowrap; background:var(--green); color:#FFFEFB; padding:15px 28px; border-radius:100px; font-weight:600; font-size:15px; box-shadow:0 14px 32px -10px rgba(23,138,90,.6)">Become a founding partner</a>
+    <!-- Full-width pill: the bar spans the mobile root (520px cap) and the anchor fills it,
+         so the tap target is the whole width, not the length of the label. This page has no
+         global box-sizing reset, so both boxes declare border-box or the 16px/28px padding
+         is added on top of the 100% and the pill overflows the frame. -->
+    <div data-bottombar="" style="position:fixed; left:50%; transform:translateX(-50%); bottom:0; z-index:40; width:100%; max-width:520px; box-sizing:border-box; padding:10px 16px calc(12px + env(safe-area-inset-bottom)); background:none; opacity:1; pointer-events:auto">
+      <a href="#cta" style="display:flex; align-items:center; justify-content:center; white-space:nowrap; width:100%; box-sizing:border-box; background:var(--green); color:#FFFEFB; padding:15px 28px; border-radius:100px; font-weight:600; font-size:15px; box-shadow:0 14px 32px -10px rgba(23,138,90,.6)">Become a founding partner</a>
     </div>
   </sc-if>
 
