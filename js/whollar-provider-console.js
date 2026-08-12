@@ -51,7 +51,13 @@
   var esc = W.escapeHtml;
 
   /* Live partner context, filled by boot() and refreshed by revalidate(). */
-  var P = { partner: null, org: null, user: null, approved: false, prefs: null };
+  var P = {
+    partner: null, org: null, user: null, approved: false, prefs: null,
+    coverage: [],      /* GET /provider/coverage */
+    campaigns: [],     /* GET /provider/campaigns, stage included, server derived */
+    bids: {},          /* GET /provider/bids, keyed by campaign id */
+    intent: {}         /* "plan to bid", local until the endpoint exists */
+  };
 
   /* ================================================================== *
    * chrome: toast, modal
@@ -213,13 +219,6 @@
   function renderPlaceholders() {
     var gated = !P.approved;
 
-    $('#desk-body').innerHTML = soon(
-      gated ? 'Cohorts open when your application clears' : 'No cohorts open in your coverage yet',
-      gated
-        ? 'Auctions reach this desk from inside your declared coverage, once your application is approved. Declaring coverage now is what queues you for the first one.'
-        : 'An auction appears here the moment a cohort forms inside a region you have declared. You will get an email as well; nothing needs watching.',
-      '<button class="btn" type="button" data-nav="coverage">Declare your coverage</button>');
-
     $('#bids-body').innerHTML = soon(
       'Your first bid lands here',
       'Every bid you place sits on this record with everything it turned into: result, confirmed households, completed switches, fees.');
@@ -228,9 +227,6 @@
       'No statements yet, by design',
       'Bids are free. Winning is free. Confirmed households are free. The first line is the first activation with a clean line test.');
 
-    $('#cov-body').innerHTML = soon(
-      'Coverage is the next thing to build here',
-      'Declaring a region and the services you can render there is what makes cohorts visible to you. This view is being wired to the live coverage record now.');
 
     $('#del-body').innerHTML = soon(
       'Your first delivery board builds itself',
@@ -270,7 +266,394 @@
       'Every cohort has one timeline: announced, open, closed, offers out, decision, switching window, reconciliation. Open one from the bid desk.');
   }
 
-  /* ---------- account: the one view on real data this commit ---------- */
+  /* ================================================================== *
+   * coverage
+   *
+   * Coverage is the gate on everything else: a cohort only reaches a partner's
+   * desk from inside a region they have declared and that has verified. So
+   * this view is not a settings page, it is the thing that makes the desk
+   * non-empty, and it says so.
+   * ================================================================== */
+
+  /* The technologies desk.js accepts, in its own spelling. The console shows
+     the label; the wire carries the value. Getting this wrong is a 400. */
+  var TECHS = [['fibre', 'Fibre'], ['cable', 'Cable'], ['dsl', 'DSL'], ['fwa', 'Fixed wireless']];
+  var SPEEDS = ['500 Mbps', '1 Gig', '2.5 Gig'];
+  var LEAD_TIMES = ['5 business days', '7 business days', '10 business days'];
+
+  var covEdit = null;      /* region slug being edited inline, or null */
+  var covDraft = null;     /* chip state while editing, so a re-render keeps it */
+
+  function regionKey(s) {
+    return String(s || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  }
+  function covOf(region) {
+    var k = regionKey(region);
+    for (var i = 0; i < P.coverage.length; i++) if (regionKey(P.coverage[i].region) === k) return P.coverage[i];
+    return null;
+  }
+  function techLabel(v) {
+    for (var i = 0; i < TECHS.length; i++) if (TECHS[i][0] === v) return TECHS[i][1];
+    return v;
+  }
+  function svcStr(c) {
+    var t = (c.techs || []).map(techLabel).join(' · ');
+    return t + (c.speed ? (t ? ' · ' : '') + 'up to ' + c.speed : '');
+  }
+
+  var COV_STATE = {
+    active: ['', 'Active'],
+    verifying: ['pend', 'Verifying'],
+    soon: ['soon', 'Coming soon'],
+    rejected: ['pend', 'Not serviceable']
+  };
+
+  function renderCov() {
+    var host = $('#cov-body');
+    if (!host) return;
+
+    if (!P.coverage.length) {
+      host.innerHTML = '<section class="card"><div class="empty">'
+        + '<h3>Nothing declared yet, so nothing reaches your desk</h3>'
+        + '<p>Auctions are matched to partners by coverage. Name a region and the services you can render there, and cohorts forming inside it start appearing on your bid desk. Serviceability is checked against facilities data; you do not have to wait for that to declare more.</p>'
+        + '</div>' + covAddRow(true) + '</section>';
+      return;
+    }
+
+    var rows = P.coverage.map(function (c) {
+      var slug = regionKey(c.region);
+      var st = COV_STATE[c.status] || COV_STATE.verifying;
+      var openN = P.campaigns.filter(function (a) {
+        return regionKey(a.coverageRegion || a.region) === slug && (a.stage === 'open' || a.stage === 'closing');
+      }).length;
+
+      var main = '<tr><td><span class="rg" style="font-size:13.5px">' + esc(c.region) + '</span></td>'
+        + '<td><span class="covdot ' + st[0] + '"></span>' + st[1] + '</td>'
+        + '<td class="covsvc">' + esc(svcStr(c)) + '</td>'
+        + '<td class="num">' + (openN || '·') + '</td>'
+        + '<td style="white-space:nowrap">'
+        + (c.status === 'soon'
+          ? '<span class="mono" style="font-size:11px;color:var(--sub)">Queued for launch</span>'
+          : '<button class="tlink" type="button" data-covedit="' + esc(slug) + '">Edit services</button>')
+        + '</td></tr>';
+
+      /* A rejected region has to say why, or a partner has no way to act on
+         it. The prototype has no such state; the backend will carry a reason. */
+      if (c.status === 'rejected' && c.rejectionReason) {
+        main += '<tr><td colspan="5" style="padding-top:0">'
+          + '<p class="fnote" style="margin:0 0 10px;max-width:70ch"><b>Why:</b> ' + esc(c.rejectionReason) + '</p></td></tr>';
+      }
+
+      if (covEdit === slug) {
+        var chosen = covDraft || (c.techs || []).slice();
+        main += '<tr class="covedit"><td colspan="5"><div class="dh">Services in ' + esc(c.region) + '</div>'
+          + '<div class="cechips" data-ce="' + esc(slug) + '">'
+          + TECHS.map(function (t) {
+            return '<button type="button" data-t="' + t[0] + '" class="' + (chosen.indexOf(t[0]) > -1 ? 'on' : '') + '">' + t[1] + '</button>';
+          }).join('')
+          + '</div>'
+          + '<div class="ceform"><div><label>Top speed offered</label><select id="ce-speed">'
+          + SPEEDS.map(function (s) { return '<option' + (c.speed === s ? ' selected' : '') + '>' + s + '</option>'; }).join('')
+          + '</select></div>'
+          + '<div><label>Install lead time</label><select id="ce-lead">'
+          + LEAD_TIMES.map(function (s) { return '<option' + (c.lead === s ? ' selected' : '') + '>' + s + '</option>'; }).join('')
+          + '</select></div>'
+          + '<div><button class="btn forest" type="button" data-covsave="' + esc(slug) + '">Save</button></div></div></td></tr>';
+      }
+      return main;
+    }).join('');
+
+    host.innerHTML = '<section class="card" style="padding-top:14px" aria-label="Your regions">'
+      + '<div class="twrap"><table class="tbl">'
+      + '<thead><tr><th>Region</th><th>Status</th><th>Services declared</th><th class="num">Open</th><th></th></tr></thead>'
+      + '<tbody>' + rows + covAddRow(false) + '</tbody></table></div>'
+      + '<p class="fnote">State the areas you want to bid in and the services you can render there. New regions verify against serviceability before auctions appear.</p>'
+      + '</section>';
+  }
+
+  function covAddRow(standalone) {
+    var inner = '<td colspan="2"><input id="regin" type="text" placeholder="Add a region you want to bid in" aria-label="Add a region"></td>'
+      + '<td><div class="cechips" id="addtech" style="margin:0">'
+      + TECHS.map(function (t) { return '<button type="button" data-t="' + t[0] + '">' + t[1] + '</button>'; }).join('')
+      + '</div></td>'
+      + '<td><select id="addspeed" style="width:100%;font:inherit;font-size:12.5px;border:1.5px solid var(--line);border-radius:9px;padding:7px 9px;background:#fff">'
+      + SPEEDS.map(function (s) { return '<option>' + s + '</option>'; }).join('')
+      + '</select></td>'
+      + '<td><button class="btn forest" type="button" id="regadd" style="width:100%;justify-content:center">Declare</button></td>';
+    if (!standalone) return '<tr class="addrow">' + inner + '</tr>';
+    return '<div class="twrap" style="margin-top:14px"><table class="tbl"><tbody><tr class="addrow">' + inner + '</tr></tbody></table></div>';
+  }
+
+  function wireCoverage() {
+    document.addEventListener('click', function (e) {
+      var ed = e.target.closest('[data-covedit]');
+      if (ed) {
+        var slug = ed.getAttribute('data-covedit');
+        covEdit = covEdit === slug ? null : slug;
+        covDraft = null;
+        renderCov();
+        return;
+      }
+      /* Chip toggles are local until Save, and the draft is held outside the
+         DOM so a background refresh cannot silently discard a half-made edit. */
+      var chip = e.target.closest('.cechips button');
+      if (chip) {
+        chip.classList.toggle('on');
+        var wrap = chip.closest('.cechips');
+        if (wrap && wrap.getAttribute('data-ce')) {
+          covDraft = $$('button.on', wrap).map(function (b) { return b.getAttribute('data-t'); });
+        }
+        return;
+      }
+      var sv = e.target.closest('[data-covsave]');
+      if (sv) { saveCoverage(sv, sv.getAttribute('data-covsave')); return; }
+      if (e.target.closest('#regadd')) { addRegion(e.target.closest('#regadd')); }
+    });
+  }
+
+  function saveCoverage(btn, slug) {
+    var c = null;
+    for (var i = 0; i < P.coverage.length; i++) if (regionKey(P.coverage[i].region) === slug) c = P.coverage[i];
+    if (!c) return;
+    var techs = covDraft || (c.techs || []);
+    if (!techs.length) { toast('Pick at least one technology you serve there.'); return; }
+    if (!W.busy(btn, true, 'Saving')) return;
+    api.coverageUpdate({
+      region: c.region, techs: techs,
+      speed: $('#ce-speed') ? $('#ce-speed').value : c.speed,
+      lead: $('#ce-lead') ? $('#ce-lead').value : c.lead
+    }).then(function (r) {
+      P.coverage = r.coverage || P.coverage;
+      covEdit = null; covDraft = null;
+      W.busy(btn, false);
+      renderCov(); renderDesk();
+      toast('Services updated for ' + c.region + '.');
+    }, function (err) { W.busy(btn, false); failed(err); });
+  }
+
+  function addRegion(btn) {
+    var input = $('#regin');
+    var region = input ? input.value.trim() : '';
+    if (!region) { toast('Name the region first.'); return; }
+    var techs = $$('#addtech button.on').map(function (b) { return b.getAttribute('data-t'); });
+    if (!techs.length) { toast('Pick at least one technology you serve there.'); return; }
+    if (!W.busy(btn, true, 'Declaring')) return;
+    api.coverageDeclare({ region: region, techs: techs, speed: $('#addspeed').value })
+      .then(function (r) {
+        P.coverage = r.coverage || P.coverage;
+        W.busy(btn, false);
+        renderCov(); renderDesk();
+        toast(region + ' declared. Verifying serviceability against facilities data.');
+      }, function (err) { W.busy(btn, false); failed(err); });
+  }
+
+  /* Server messages are shown verbatim. lib/errors.js composes them on the
+     explicit assumption that pages do not rewrite them, and a 403 there says
+     "still under review", which is the real answer. */
+  function failed(err) {
+    toast((err && err.message) || 'That did not work. Try again.');
+    if (isAuthError(err)) bounce();
+  }
+
+  /* ================================================================== *
+   * bid desk
+   * ================================================================== */
+
+  /* The five rail positions. The server's sixth stage, 'planned', sits before
+     the rail starts and renders as a label with no rail at all. */
+  var RAIL = ['announced', 'open', 'closing', 'offers_out', 'decided'];
+
+  function railHTML(stage) {
+    var idx = RAIL.indexOf(stage);
+    var hot = stage === 'closing';
+    if (idx < 0) return '<div class="stlbl">Planned</div>';
+    var out = '<div class="minirail">';
+    for (var i = 0; i < 5; i++) {
+      out += '<span class="mr' + (i < idx ? ' past' : (i === idx ? ' now' : '')) + '"></span>';
+      if (i < 4) out += '<span class="mrl' + (i < idx ? ' past' : '') + '"></span>';
+    }
+    return out + '</div><div class="stlbl' + (hot ? ' hot' : '') + '">'
+      + esc(C.STAGE_LABEL[stage] || stage) + '</div>';
+  }
+
+  var MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function fmtD(ts) { var d = new Date(ts); return MN[d.getMonth()] + ' ' + d.getDate(); }
+  function cdFmt(ms) {
+    if (ms < 0) ms = 0;
+    var t = Math.floor(ms / 1000), h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60;
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return p(h) + ':' + p(m) + ':' + p(s);
+  }
+
+  var DAY = 86400000;
+
+  function renderDesk() {
+    var host = $('#desk-body');
+    if (!host) return;
+
+    var list = P.campaigns.slice().sort(function (a, b) {
+      return (a.closesAt || a.nextAt || Infinity) - (b.closesAt || b.nextAt || Infinity);
+    });
+
+    if (!list.length) {
+      /* Three different reasons a desk is empty, and they are not
+         interchangeable. Telling a partner whose application is still open
+         that no cohorts are forming would be false and would leave them with
+         nothing to do about it. */
+      if (!P.approved) {
+        host.innerHTML = soon(
+          'Cohorts open when your application clears',
+          'Auctions reach this desk from inside your declared coverage, once your application is approved. Declaring coverage now is what queues you for the first one.',
+          '<button class="btn" type="button" data-nav="coverage">Declare your coverage</button>');
+      } else if (!P.coverage.length) {
+        host.innerHTML = soon(
+          'Declare coverage and cohorts appear here',
+          'Auctions are matched to partners by coverage. Nothing reaches this desk until you have declared where you serve.',
+          '<button class="btn" type="button" data-nav="coverage">Declare your coverage</button>');
+      } else {
+        host.innerHTML = soon(
+          'No cohorts open in your coverage yet',
+          'A cohort appears the moment one forms inside a region you have declared. You will get an email too; nothing here needs watching.');
+      }
+      return;
+    }
+
+    var rows = list.map(function (a) {
+      var cov = covOf(a.coverageRegion || a.region);
+      var locked = !cov || cov.status !== 'active';
+      var st = a.stage;
+      var hot = st === 'closing';
+      var mine = P.bids[a.id];
+
+      var yours = mine
+        ? (st === 'decided'
+          ? '<span class="pill won">Won · ' + (a.confirmed || 0) + ' confirmed</span>'
+          : '<span class="pill sealed">Sealed</span>')
+        : '<span class="mono" style="color:#949E95">·</span>';
+
+      var closes = a.dates ? a.dates.bidding_closes_at : null;
+      var opens = a.dates ? a.dates.bidding_opens_at : null;
+      var decides = a.dates ? a.dates.decision_at : null;
+      var win;
+      if (st === 'planned' || st === 'announced') win = opens ? 'Opens ' + fmtD(opens) : 'Date to come';
+      else if (st === 'open' || st === 'closing') {
+        win = closes ? 'Closes ' + fmtD(closes) : 'Open now';
+        /* The countdown offsets from the server clock, never from this one. */
+        if (closes && W.console.clock.until(closes) <= DAY) {
+          win += ' · <span data-until="' + closes + '">' + cdFmt(W.console.clock.until(closes)) + '</span>';
+        }
+      } else if (st === 'offers_out') win = decides ? 'Decides ' + fmtD(decides) : 'With households';
+      else win = decides ? 'Closed ' + fmtD(decides) : 'Closed';
+
+      var act;
+      if (locked) {
+        act = '<span class="lockedtag">Verifies with ' + esc(a.coverageRegion || a.region) + ' coverage</span>';
+      } else if (st === 'planned' || st === 'announced') {
+        act = '<button class="btn ghost" type="button" data-intent="' + esc(a.id) + '">'
+          + (P.intent[a.id] ? 'On your slate ✓' : 'Plan to bid') + '</button>';
+      } else if (st === 'open' || st === 'closing') {
+        act = '<button class="btn' + (mine ? ' ghost' : '') + '" type="button" data-open="' + esc(a.id) + '">'
+          + (mine ? 'View' : 'Review and bid') + '</button>';
+      } else {
+        act = '<button class="btn ghost" type="button" data-open="' + esc(a.id) + '">View</button>';
+      }
+
+      return '<tr data-row="' + esc(a.id) + '"' + (locked ? ' class="locked"' : '') + '>'
+        + '<td><span class="rg">' + esc(a.region) + '<small>' + esc(a.sub || '') + '</small></span></td>'
+        + '<td class="num">' + (a.households != null ? a.households : '·') + '</td>'
+        + '<td>' + railHTML(st) + '</td>'
+        + '<td><span class="closecell' + (hot ? ' hot' : '') + '">' + win + '</span></td>'
+        + '<td>' + yours + '</td>'
+        + '<td style="text-align:right">' + act + '</td></tr>'
+        + '<tr class="dwr" data-dwr="' + esc(a.id) + '"><td colspan="6"><div class="dgrid">'
+        + briefHTML(a, cov) + ticketHTML(a) + '</div></td></tr>';
+    }).join('');
+
+    host.innerHTML = '<section class="card" style="padding-top:14px" aria-label="Open auctions">'
+      + '<div class="twrap"><table class="tbl">'
+      + '<thead><tr><th>Cohort</th><th class="num">Households</th><th>Stage</th><th>Window</th><th>Your bid</th><th></th></tr></thead>'
+      + '<tbody>' + rows + '</tbody></table></div>'
+      + '<p class="fnote">You see an auction because it sits inside your declared coverage.</p>'
+      + '</section>';
+  }
+
+  /* The brief. Aggregates only: no household is identifiable from anything
+     here, and nothing on this panel crosses the intimation boundary. */
+  function briefHTML(a, cov) {
+    function mix(arr) {
+      if (!arr || !arr.length) return '<b class="mono" style="color:var(--sub)">not yet published</b>';
+      var tot = arr.reduce(function (t, x) { return t + x[1]; }, 0) || 1;
+      var bars = arr.map(function (x) { return '<i style="width:' + Math.round(x[1] / tot * 88) + 'px"></i>'; }).join('');
+      var lab = arr.map(function (x) { return esc(x[0]) + ' ' + x[1] + '%'; }).join(' · ');
+      return '<span class="mixin">' + bars + '<em>' + lab + '</em></span>';
+    }
+    var covline = cov
+      ? '<b>' + esc(svcStr(cov)) + '</b>'
+      : '<b style="color:#8C3B1B">Not declared</b> <button class="tlink" type="button" data-nav="coverage">Declare →</button>';
+
+    return '<div class="brief"><div class="dh">The auction brief</div><div class="dl">'
+      + '<div class="r"><span>Households</span><b>' + (a.households != null ? a.households : '·') + '</b></div>'
+      + '<div class="r"><span>Renewal window</span><b>' + esc(a.renewalWindow || 'not yet published') + '</b></div>'
+      + '<div class="r"><span>Speed demand</span>' + mix(a.speedDemand) + '</div>'
+      + '<div class="r"><span>Plant mix</span>' + mix(a.plantMix) + '</div>'
+      + '<div class="r"><span>Your coverage here</span>' + covline + '</div>'
+      + '</div>'
+      + '<p class="fnote">Aggregates only.</p></div>';
+  }
+
+  /* The ticket arrives with the bid form. Until then the drawer still opens,
+     because the brief is worth reading on its own. */
+  function ticketHTML(a) {
+    var mine = P.bids[a.id];
+    if (mine) {
+      return '<div class="tkt"><div class="dh">Your sealed bid</div>'
+        + '<div class="receipt"><b>Sealed.</b> Improvable until close. No withdrawals.</div></div>';
+    }
+    if (a.stage === 'offers_out') {
+      return '<div class="tkt"><div class="dh">Bids closed</div><div class="receipt">'
+        + 'Offers are out to every household, individually. There is nothing for you to do, and no way to see another partner’s bid.'
+        + '</div></div>';
+    }
+    return '<div class="tkt"><div class="dh">Set terms</div><div class="receipt">'
+      + 'The sealed bid form is the next thing being built here. The brief beside this is live.'
+      + '</div></div>';
+  }
+
+  function wireDesk() {
+    document.addEventListener('click', function (e) {
+      var o = e.target.closest('[data-open]');
+      if (o) {
+        var row = $('tr[data-row="' + o.getAttribute('data-open') + '"]');
+        if (row) row.classList.toggle('exp');
+        return;
+      }
+      var it = e.target.closest('[data-intent]');
+      if (it) {
+        var id = it.getAttribute('data-intent');
+        P.intent[id] = !P.intent[id];
+        renderDesk();
+        toast(P.intent[id]
+          ? 'On your slate. The brief and every date land on your calendar.'
+          : 'Taken off your slate.');
+      }
+    });
+  }
+
+  /* One ticking clock for every countdown on the page, offset from the
+     server's. Only runs while something is actually counting down. */
+  var tickTimer = null;
+  function startTicking() {
+    if (tickTimer) return;
+    tickTimer = setInterval(function () {
+      var els = $$('[data-until]');
+      if (!els.length) { clearInterval(tickTimer); tickTimer = null; return; }
+      els.forEach(function (el) {
+        el.textContent = cdFmt(W.console.clock.until(+el.getAttribute('data-until')));
+      });
+    }, 1000);
+  }
+
+  /* ---------- account ---------- */
 
   var NOTIFY = [
     ['forming', 'New cohort forming in my coverage'],
@@ -381,6 +764,8 @@
       paintChrome();
       paintBanner();
       renderPlaceholders();
+      renderCov();
+      renderDesk();
       renderAccount();
     }, function (err) {
       if (isAuthError(err)) { bounce(); return; }
@@ -395,6 +780,56 @@
       P.prefs = p || {};
       renderAccount();
     }, function () { P.prefs = {}; });
+  }
+
+  /**
+   * Coverage, cohorts and this org's own bids.
+   *
+   * Each settles on its own: a partner with coverage but no cohorts, or
+   * cohorts but an unreadable bids table, still gets the parts that answered.
+   * The `live` flag these routes carry means "the table was readable" rather
+   * than "there is data", and a false there is worth saying out loud rather
+   * than rendering as an empty desk.
+   */
+  function loadDesk() {
+    var jobs = [
+      api.coverage().then(function (r) {
+        P.coverage = (r && r.coverage) || [];
+        P.coverageLive = !!r && r.live !== false;
+      }, function (err) { if (isAuthError(err)) bounce(); P.coverageLive = false; }),
+
+      /* NOTE the null. whollar-core.js splits its methods in two on purpose:
+         button paths reject with the server's message, boot-path reads resolve
+         null so a failure degrades instead of blanking a page. providerCampaigns
+         is a boot-path read, so "could not tell" arrives as null, not as a
+         rejection, and checking it as an object is a contract error of ours
+         rather than the server's. */
+      api.campaigns().then(function (r) {
+        if (!r) { P.campaignsLive = false; P.campaigns = []; return; }
+        P.campaignsLive = r.live !== false;
+        C.check('campaignList', r);
+        /* Per row, because a payload can be the right shape overall and carry
+           one campaign the server built differently. */
+        (r.campaigns || []).forEach(function (c) { C.check('campaign', c); });
+        P.campaigns = r.campaigns || [];
+        P.biddingPaused = !!(r.bidding && r.bidding.enabled === false);
+        P.biddingNotice = (r.bidding && r.bidding.notice) || null;
+      }, function (err) { if (isAuthError(err)) bounce(); P.campaignsLive = false; }),
+
+      /* An unapproved org may read its own bids, so this is not gated on
+         approval. It can 501 while the register is still stubbed. */
+      api.bids().then(function (r) {
+        P.bids = {};
+        ((r && r.bids) || []).forEach(function (b) { P.bids[b.campaign || b.campaignId] = b; });
+      }, function () { P.bids = {}; })
+    ];
+
+    return Promise.all(jobs).then(function () {
+      renderPlaceholders();
+      renderCov();
+      renderDesk();
+      startTicking();
+    });
   }
 
   /* ================================================================== *
@@ -445,13 +880,17 @@
 
     wireNav();
     wireAccount();
+    wireCoverage();
+    wireDesk();
     paintChrome();
     paintBanner();
     renderPlaceholders();
+    renderCov();
+    renderDesk();
     renderAccount();
     nav(viewFromHash());
 
-    revalidate().then(loadPrefs);
+    revalidate().then(loadPrefs).then(loadDesk);
 
     /* Re-check when the tab comes back, so a session that expired while the
        partner was elsewhere is caught on return rather than on next click.

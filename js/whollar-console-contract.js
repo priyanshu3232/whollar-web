@@ -192,7 +192,20 @@
 
     providerMe: { ok: 'bool', user: 'obj', org: 'obj?', approved: 'bool' },
 
-    campaignList: { ok: 'bool', campaigns: 'arr' },
+    campaignList: { ok: 'bool', campaigns: 'arr', serverTime: 'int' },
+
+    /* One campaign, checked per row. This spec exists because it was missing
+       once and cost a silent bug: the fixtures carried a flat `closesAt` while
+       routes/campaigns.js sends a nested `dates` object keyed by column name,
+       so every countdown rendered as nothing at all and nothing complained.
+       A shape that two sides build independently needs an assertion, not a
+       convention. */
+    campaign: {
+      id: 'str', region: 'str',
+      stage: ['enum', ['planned', 'announced', 'open', 'closing', 'offers_out', 'decided']],
+      stageLabel: 'str',
+      dates: 'obj'
+    },
 
     /* The intimation boundary, asserted from the client side as well.
        Before the roster gate the response carries counts and the orders key is

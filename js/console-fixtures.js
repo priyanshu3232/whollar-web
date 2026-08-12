@@ -70,15 +70,36 @@
   /* Stage is SERVER DERIVED. Fixtures state it outright rather than computing
      it from timestamps, because a fixture that computed stage would let the
      client learn to compute stage. */
+  /* The shape must match routes/campaigns.js exactly, including the nested
+     `dates` object keyed by the real column names. An earlier version of this
+     builder used flat closesAt/opensAt, which rendered fine and silently
+     killed every countdown, because the view reads dates.bidding_closes_at.
+     That is the whole failure mode fixtures exist to prevent, so the campaign
+     list now also has a C.check spec: see SPECS.campaignList. */
   function campaign(id, region, stage, over) {
+    var dates = {
+      announce_at: at(-21), bidding_opens_at: at(-14), bidding_closes_at: at(2),
+      offers_at: at(4), decision_at: at(9), switch_window_at: at(23), reconcile_at: at(37)
+    };
+    for (var k in (over || {})) if (k in dates) { dates[k] = over[k]; delete over[k]; }
+
     var c = {
       id: id, region: region, sub: 'Autumn cohort', coverageRegion: region,
+      kind: stage === 'decided' ? 'closed' : 'auction',
       stage: stage, stageLabel: (W.console.C.STAGE_LABEL[stage] || stage),
-      households: 64, confirmed: 0, biddingOpen: stage === 'open' || stage === 'closing',
-      announceAt: at(-21), opensAt: at(-14), closesAt: at(2), offersAt: at(4),
-      decisionAt: at(9), switchWindowAt: at(23), reconcileAt: at(37)
+      households: 64, members: 64, confirmed: 0,
+      bidding_open: stage === 'open' || stage === 'closing',
+      dates: dates
     };
-    for (var k in (over || {})) c[k] = over[k];
+    for (var k2 in (over || {})) c[k2] = over[k2];
+
+    /* nextAt is what the server computes with catalog.nextTransition. */
+    var order = ['announce_at', 'bidding_opens_at', 'bidding_closes_at', 'offers_at',
+      'decision_at', 'switch_window_at', 'reconcile_at'];
+    c.nextAt = null; c.nextWhat = null;
+    for (var i = 0; i < order.length; i++) {
+      if (c.dates[order[i]] && c.dates[order[i]] > NOW) { c.nextAt = c.dates[order[i]]; c.nextWhat = order[i]; break; }
+    }
     return c;
   }
 
@@ -211,7 +232,7 @@
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
-      campaigns: [campaign('kw', 'Scarborough', 'planned', { opensAt: at(19), closesAt: at(33), biddingOpen: false })]
+      campaigns: [campaign('kw', 'Scarborough', 'planned', { bidding_opens_at: at(19), bidding_closes_at: at(33), bidding_open: false })]
     },
     bids: { ok: true, serverTime: NOW, live: true, bids: [] }
   };
@@ -223,7 +244,7 @@
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
-      campaigns: [campaign('kw', 'Scarborough', 'announced', { opensAt: at(2), closesAt: at(16), biddingOpen: false })]
+      campaigns: [campaign('kw', 'Scarborough', 'announced', { bidding_opens_at: at(2), bidding_closes_at: at(16), bidding_open: false })]
     },
     bids: { ok: true, serverTime: NOW, live: true, bids: [] }
   };
@@ -246,7 +267,7 @@
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
-      campaigns: [campaign('kw', 'Scarborough', 'closing', { closesAt: NOW + 2 * H + 14 * 60000 })]
+      campaigns: [campaign('kw', 'Scarborough', 'closing', { bidding_closes_at: NOW + 2 * H + 14 * 60000 })]
     },
     bids: { ok: true, serverTime: NOW, live: true, bids: [] }
   };
@@ -267,7 +288,7 @@
     view: 'desk',
     me: S.first.me,
     coverage: coverage(COV_ACTIVE),
-    campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [campaign('kw', 'Scarborough', 'closing', { closesAt: at(1) })] },
+    campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [campaign('kw', 'Scarborough', 'closing', { bidding_closes_at: at(1) })] },
     bids: { ok: true, serverTime: NOW, live: true, bids: [SEALED_BID] }
   };
 
@@ -278,7 +299,7 @@
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
-      campaigns: [campaign('kw', 'Scarborough', 'offers_out', { closesAt: at(-1), decisionAt: at(6), confirmed: 27, biddingOpen: false })]
+      campaigns: [campaign('kw', 'Scarborough', 'offers_out', { bidding_closes_at: at(-1), decision_at: at(6), confirmed: 27, bidding_open: false })]
     },
     bids: { ok: true, serverTime: NOW, live: true, bids: [{ ...SEALED_BID, state: 'locked' }] }
   };
@@ -290,7 +311,7 @@
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
-      campaigns: [campaign('kw', 'Scarborough', 'decided', { confirmed: 41, biddingOpen: false, decisionAt: at(-1) })]
+      campaigns: [campaign('kw', 'Scarborough', 'decided', { confirmed: 41, bidding_open: false, decision_at: at(-1) })]
     },
     bids: { ok: true, serverTime: NOW, live: true, bids: [{ ...SEALED_BID, state: 'won' }] },
     /* THE INTIMATION BOUNDARY. Counts, and no `orders` key at all. Not an
@@ -310,7 +331,7 @@
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
-      campaigns: [campaign('kw', 'Scarborough', 'decided', { biddingOpen: false, decisionAt: at(-1) })]
+      campaigns: [campaign('kw', 'Scarborough', 'decided', { bidding_open: false, decision_at: at(-1) })]
     },
     bids: { ok: true, serverTime: NOW, live: true, bids: [{ ...SEALED_BID, state: 'not_selected' }] }
   };
@@ -323,7 +344,7 @@
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
-      campaigns: [campaign('kw', 'Scarborough', 'decided', { confirmed: 41, biddingOpen: false, switchWindowAt: at(11) })]
+      campaigns: [campaign('kw', 'Scarborough', 'decided', { confirmed: 41, bidding_open: false, switch_window_at: at(11) })]
     },
     bids: { ok: true, serverTime: NOW, live: true, bids: [{ ...SEALED_BID, state: 'won' }] },
     roster: {
@@ -342,7 +363,7 @@
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
-      campaigns: [campaign('kw', 'Scarborough', 'decided', { confirmed: 41, biddingOpen: false, reconcileAt: at(2) })]
+      campaigns: [campaign('kw', 'Scarborough', 'decided', { confirmed: 41, bidding_open: false, reconcile_at: at(2) })]
     },
     roster: { ok: true, serverTime: NOW, gate: { passed: true }, counts: counts(RECON_ROWS), orders: RECON_ROWS },
     /* Lines are DERIVED server side from activated orders, and arrive as data.
@@ -367,8 +388,14 @@
     campaigns: {
       ok: true, serverTime: NOW, live: true,
       campaigns: [
-        campaign('kw', 'Scarborough', 'decided', { confirmed: 41, biddingOpen: false }),
-        campaign('le', 'North York', 'open', { households: 112, closesAt: at(18) })
+        campaign('kw', 'Scarborough', 'decided', { confirmed: 41, bidding_open: false }),
+        campaign('le', 'North York', 'open', { households: 112, bidding_closes_at: at(18) }),
+        /* Markham is 'verifying', not active, so this row renders LOCKED with
+           "Verifies with Markham coverage" and no bid control. Without a case
+           like this the locked path ships untested, and it is the path a new
+           partner meets most: declare a region, see the cohort, cannot bid on
+           it yet, and need to be told why. */
+        campaign('mk', 'Markham', 'open', { households: 58, bidding_closes_at: at(9) })
       ]
     },
     bids: { ok: true, serverTime: NOW, live: true, bids: [{ ...SEALED_BID, state: 'won' }] },

@@ -67,7 +67,14 @@ const EXEMPT = [
   /CLAUDE\.md/,
   /never use|do not use|banned|instead of|terminology/i,
   /PartnerApplications|LEAD_TABLES|formSubmit/,
-  /not leads:/            /* the billing view's own copy makes the point */
+  /not leads:/,           /* the billing view's own copy makes the point */
+
+  /* "install lead time" is the operations sense: how long after an order a
+     technician can attend. It is not a sales lead, it is the word the industry
+     uses, and `lead` is the literal column name in provider_coverage that
+     desk.js reads and writes. Renaming the domain to satisfy a copy rule aimed
+     at a different word would be the tail wagging the dog. */
+  /lead[- ]?time|LEAD_TIMES|ce-lead|\.lead\b|\blead:/i
 ];
 
 let problems = 0;

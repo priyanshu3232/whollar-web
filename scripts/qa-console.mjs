@@ -55,7 +55,20 @@ const REC = { emailKey: 'sam@northline.ca', email: 'sam@northline.ca', firstName
 
 async function ctx(browser, { record = null, me = null, meStatus = 200 } = {}) {
   const c = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-  // Never let a test reach the real backend.
+
+  /* CATCH-ALL FIRST, and it matters that it is a catch-all rather than a list.
+     Playwright matches the most recently registered route first, so the
+     specific handlers below still win; anything they do not name lands here
+     instead of on the network.
+     This is not belt and braces. scripts/dev-server.mjs proxies /api/auth/* to
+     the real Development Catalyst environment, so an un-stubbed endpoint means
+     a test writing to the live data store, and there is no local emulator to
+     fall back on. It was also a live bug: the console grew three calls
+     (coverage, campaigns, bids) that this file did not know about, and the
+     symptom was `networkidle` never settling rather than anything saying so. */
+  await c.route('**/api/auth/**', r =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, live: true, serverTime: Date.now() }) }));
+
   await c.route('**/api/auth/provider/me', r =>
     r.fulfill({ status: meStatus, contentType: 'application/json', body: JSON.stringify(me || { error: { code: 'UNAUTHENTICATED', message: 'Please sign in again.' } }) }));
   await c.route('**/api/auth/me/prefs', r =>
