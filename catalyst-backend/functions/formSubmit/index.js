@@ -13,11 +13,22 @@ const app = express();
 
 // Domains allowed to call this function from a browser. Add every host
 // the site is actually served from (apex + www + local dev if needed).
+//
+// The staging alias is the review link every pre-merge change is looked at on,
+// and it is deployed from a personal Vercel account, so it matches neither the
+// live domains nor isVercelOrigin's whollar-web pattern below. Without it every
+// form on the review build failed the same way — a blocked fetch, which the
+// frontend can only report as "we couldn't reach our servers" — so changes read
+// as broken during exactly the step meant to approve them. Listed as an exact
+// host, not a pattern: the auth function's own allowlist carries this same
+// origin (Catalyst env var, added 2026-08-06), and these three lists are only
+// safe while they agree.
 const ALLOWED_ORIGINS = [
   'https://whollar.com',
   'https://www.whollar.com',
   'https://whollar.ca',
-  'https://www.whollar.ca'
+  'https://www.whollar.ca',
+  'https://whollar-staging-1w.vercel.app'
 ];
 
 // Local development: the marketing pages are plain HTML files, opened either
@@ -562,7 +573,15 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
       BillFileId: orNull(file?.id ?? null),
       BillFileName: orNull(file?.name ?? (req.fileRejected ? `[rejected: ${req.fileRejected}]` : null)),
       SubmittedAt: catalystNow()
-    }, ['ContractStartDate', 'ContractLength']);
+      // DiscountAmount joins the tolerant set because its console state is the
+      // one that has actually moved: the 2026-08-06 pass removed the discount
+      // question and planned to drop this column, 08-07 reversed the question
+      // and put the column back in this insert, and the console work in between
+      // was done by hand. A live probe on 2026-08-12 had every insert here
+      // failing while the same table still read fine and other tables still
+      // wrote fine, which is what a dropped column looks like from outside.
+      // Whichever of the three it is, the lead is worth more than the field.
+    }, ['ContractStartDate', 'ContractLength', 'DiscountAmount']);
     await enqueueCrm(catalystApp, {
       source: 'BillCheckupSubmissions', rowId: row.ROWID, email, leadType: 'consumer',
       data: {

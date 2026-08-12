@@ -423,6 +423,23 @@ SELECT pref_key, prefs FROM user_prefs LIMIT 1;
 SELECT user_id, kind, payload FROM user_events LIMIT 1;
 ```
 
+Run the discount columns too. On 2026-08-12 every `/bill-checkup-join` insert
+was failing with a 500 while the same table still counted rows fine and other
+tables still accepted writes — the signature of a column the insert names and
+the table no longer has. `DiscountAmount` is the one whose console state
+actually moved (see §14's history: dropped-then-restored across 08-06/08-07),
+so start here. Whichever of these errors is the column to re-add:
+
+```sql
+SELECT DiscountAmount FROM BillCheckupSubmissions LIMIT 1;
+SELECT discount_amount FROM member_bills LIMIT 1;
+```
+
+`DiscountAmount` is `Double`; `discount_amount` is `Var Char(16)`. The write now
+survives either being missing — the insert retries without the tolerated columns
+so the lead is still captured — but it discards that answer until the column is
+back, and a lead missing the field is not the same as a lead that never arrived.
+
 If `users` or `sessions` errors on the bare `SELECT` above, the table name may
 be colliding with a ZCQL keyword. Tell me and I'll rename to `auth_users` /
 `auth_sessions` across the schema and the repository in one pass — but check
