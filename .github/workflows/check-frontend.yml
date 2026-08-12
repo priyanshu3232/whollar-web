@@ -81,6 +81,30 @@ jobs:
       - name: Device router parses
         run: node --check js/device-router.js
 
+      # The partner console ships as two classic scripts under /js, so unlike
+      # every other page its logic is NOT covered by the inline-script gate
+      # below. Without these two lines the console is the largest unchecked
+      # surface in the repo. Both no-op until the files land.
+      # NOTE the plain if/else. Writing this as
+      #   [ -f "$f" ] && node --check "$f" || echo "not present yet"
+      # looks equivalent and is not: a FAILING node --check makes the && branch
+      # false, so the || branch runs, and the step exits 0 on a syntax error.
+      - name: Partner console parses
+        run: |
+          for f in js/whollar-console-contract.js js/whollar-provider-console.js; do
+            if [ -f "$f" ]; then
+              echo "  $f"
+              node --check "$f"
+            else
+              echo "  $f (not present yet)"
+            fi
+          done
+
+      # /js is cached for 24h, so a changed console with an unchanged ?v= means
+      # partners run new markup against old JavaScript for up to a week.
+      - name: Console cache stamps match their scripts
+        run: node scripts/build-console-stamp.mjs --check
+
       # Catches an unclosed brace or a stray character inside any inline
       # <script>, including the ones inside the self-unpacking bundle pages,
       # where a syntax error blanks the whole page.

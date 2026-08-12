@@ -18,6 +18,12 @@ whollar-member-dashboard-v8.html
 # (its features were ported in), no login guard, must never deploy.
 Consumerdashboard.html
 
+# Reference prototypes being ported into real pages. Same reason again, and
+# note docs/ itself IS deployed (the .md files are harmless), so an .html file
+# left in docs/ would publish at /docs/prototype/<name>. The partner console
+# v12 source has no login guard, no noindex, and a full signed-in surface.
+docs/prototype
+
 # Self-contained page snapshots for sharing/offline use. They are copies of the
 # live pages that do NOT receive fixes (their own README says edits don't flow
 # either way) and they still POST to the live Catalyst backend. Shipping them

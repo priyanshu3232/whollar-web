@@ -40,6 +40,20 @@ jobs:
           npm ci
           node --check index.js
 
+      # auth is the one function this gate used to skip, and the one that can
+      # take the whole site down: a syntax error anywhere under src/ makes
+      # index.js mount the degraded app, so every /api/auth/* call 503s and
+      # nobody can sign in to the marketing site either. It is also the
+      # function with the most files, so index.js alone proves nothing.
+      - name: Check auth
+        working-directory: catalyst-backend/functions/auth
+        run: |
+          npm ci
+          for f in index.js src/app.js src/lib/*.js src/routes/*.js; do
+            echo "  $f"
+            node --check "$f"
+          done
+
   # ── Stage 2: deploy to the Development environment ────────
   # Runs ONLY if the test job above passed ("needs: test").
   deploy:
