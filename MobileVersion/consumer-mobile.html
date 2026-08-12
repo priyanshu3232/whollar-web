@@ -2321,89 +2321,6 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
     '</article>';
   }).join('');
 
-  /* --- cycling rotation for the four pain tiles (runs only while the mobile card carousel is on screen) --- */
-  (function(){
-    var carousel=document.getElementById('sf-mobile-cards');
-    if(!carousel||!tilesEl||!('IntersectionObserver' in window)) return;
-    var order=Array.prototype.slice.call(tilesEl.querySelectorAll('.sf-tile'));
-    if(order.length<2) return;
-    var rotTimer=null, animating=false, carouselVisible=false;
-    var rmq=window.matchMedia('(prefers-reduced-motion: reduce)');
-    /* tiles below the fold never get their reveal class until scrolled to, and rotating a
-       transparent tile into view shows nothing — so reveal all four the moment we start. */
-    function revealAll(){
-      for(var i=0;i<order.length;i++) order[i].classList.add('in');
-    }
-    function flipReorder(mutate){
-      var tiles=Array.prototype.slice.call(tilesEl.querySelectorAll('.sf-tile'));
-      var before=tiles.map(function(t){return t.getBoundingClientRect().top;});
-      mutate();
-      var moved=[], deltas=[];
-      tiles.forEach(function(t,i){
-        var d=before[i]-t.getBoundingClientRect().top;
-        if(Math.abs(d)<0.5) return;
-        moved.push(t); deltas.push(d);
-      });
-      if(!moved.length) return;
-      animating=true;
-      moved.forEach(function(t,i){
-        t.style.transition='none';
-        t.style.transform='translateY('+deltas[i]+'px)';
-      });
-      void tilesEl.offsetHeight; /* force reflow so the inverse transform lands before transitioning */
-      var left=moved.length;
-      moved.forEach(function(t){
-        var settled=false;
-        function finish(){
-          if(settled) return; settled=true;
-          t.style.transition=''; t.style.transform='';
-          t.removeEventListener('transitionend',finish);
-          if(--left<=0) animating=false;
-        }
-        t.addEventListener('transitionend',finish);
-        setTimeout(finish,650); /* fallback if transitionend never fires */
-        t.style.transition='transform .5s cubic-bezier(.16,1,.3,1)';
-        t.style.transform='';
-      });
-    }
-    function cycle(){
-      if(animating) return;
-      flipReorder(function(){ tilesEl.appendChild(tilesEl.querySelector('.sf-tile')); });
-    }
-    function inNaturalOrder(){
-      var cur=Array.prototype.slice.call(tilesEl.querySelectorAll('.sf-tile'));
-      for(var i=0;i<order.length;i++){ if(cur[i]!==order[i]) return false; }
-      return true;
-    }
-    function restoreOrder(){
-      if(inNaturalOrder()) return;
-      var mutate=function(){ order.forEach(function(t){ tilesEl.appendChild(t); }); };
-      var r=tilesEl.getBoundingClientRect();
-      var onScreen=r.bottom>0 && r.top<window.innerHeight;
-      if(onScreen && !animating && !rmq.matches){ flipReorder(mutate); } else { mutate(); }
-    }
-    function sync(){
-      var run=carouselVisible && document.visibilityState==='visible' && !rmq.matches;
-      if(run){
-        if(!rotTimer){ revealAll(); rotTimer=setInterval(cycle,2600); }
-      } else {
-        if(rotTimer){ clearInterval(rotTimer); rotTimer=null; }
-        /* carousel gone (tiles standing alone) = settle signal: put tiles back in natural order */
-        if(!carouselVisible || rmq.matches) restoreOrder();
-      }
-    }
-    var io=new IntersectionObserver(function(entries){
-      entries.forEach(function(e){
-        if(e.target===carousel) carouselVisible=e.isIntersecting;
-      });
-      sync();
-    },{threshold:[0,1]});
-    io.observe(carousel);
-    io.observe(tilesEl); /* threshold 1 fires when all four tiles are fully visible → sync() re-checks the settle state */
-    document.addEventListener('visibilitychange',sync);
-    if(rmq.addEventListener) rmq.addEventListener('change',sync);
-  })();
-
   var reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
   var items=Array.prototype.slice.call(document.querySelectorAll('.sf-wrap [data-reveal]'));
   if(reduced){items.forEach(function(el){el.classList.add('in');});return;}
@@ -2844,7 +2761,6 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
               <div class="whl-jn__evt"><span class="whl-jn__evtsq"></span>Technician visit for Installation/Switch</div>
               <div class="whl-jn__evtline"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Tue, Jul 1 · 10:00 AM to 12:00 PM</div>
               <div class="whl-jn__evtline"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>47 Maple Cres, Ottawa, ON K1Z 7B3</div>
-              <div class="whl-jn__done"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>You didn't book this. She did.</div>
             </div>
           </div>
         </div>
@@ -3202,10 +3118,6 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
                             <span class="gcal-org-name">Maya W.</span>
                             <span class="gcal-org-sub">Organizer · Whollar Concierge</span>
                           </div>
-                        </div>
-                        <div class="gcal-note-chip">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                          You didn't book this. She did.
                         </div>
                       </div>
                     </div>
@@ -3791,10 +3703,18 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
   bar.className = 'whl-bottombar';
   bar.innerHTML = '<a class="whl-btn whl-btn--block" href="/MobileVersion/join-the-first-cohort-mobile">Join the First Cohort</a>';
   document.body.appendChild(bar);
-  /* the pill stays put: it is not tied to scroll position or direction, and only
-     steps aside for the full-screen menu */
+  /* The landing screen already carries its own "Join the First Cohort" in the hero CTA stack,
+     so the pill would be the second copy of the same button on the first screen. It stays
+     hidden until the hero has scrolled up past the sticky header, then stays put for the rest
+     of the page: no direction tracking, and it still steps aside for the full-screen menu.
+     Measured from the hero's own rect rather than a scrollY number: the hero's height moves
+     with the SVG scene's aspect ratio, so a hard threshold breaks on a different phone. */
+  var hero = document.getElementById('whero');
+  function pastHero(){
+    return hero ? hero.getBoundingClientRect().bottom <= 72 : true;
+  }
   function updateBar(){
-    var visible = mq.matches && !(mobnav && mobnav.classList.contains('is-open'));
+    var visible = mq.matches && pastHero() && !(mobnav && mobnav.classList.contains('is-open'));
     bar.classList.toggle('show', visible);
   }
   window.addEventListener('scroll', updateBar, {passive:true});
