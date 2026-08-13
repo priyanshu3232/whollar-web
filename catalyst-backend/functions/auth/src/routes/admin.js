@@ -509,8 +509,30 @@ function mount(router, cfg) {
       if (typeof body.bidding_open !== 'boolean') throw badRequest('bidding_open must be true or false.');
       out.bidding_open = body.bidding_open;
     }
+    if (has('brief_json')) {
+      /* The cohort brief's demand profile, served verbatim to partner desks by
+         the brief route. Validated as JSON here so a typo becomes a 400 for
+         the admin rather than a null mix for every partner. */
+      if (body.brief_json === null || body.brief_json === '') {
+        out.brief_json = null;
+      } else {
+        const s = String(body.brief_json);
+        if (s.length > 10000) throw badRequest('brief_json is over 10,000 characters.');
+        try { JSON.parse(s); } catch { throw badRequest('brief_json must be valid JSON.'); }
+        out.brief_json = s;
+      }
+    }
     return out;
   }
+
+  /** Audit-safe copy of campaign fields: the brief blob becomes its length. */
+  const auditableCampaignFields = (fields) => {
+    const out = { ...fields };
+    if ('brief_json' in out) {
+      out.brief_json = out.brief_json ? `[json, ${out.brief_json.length} chars]` : null;
+    }
+    return out;
+  };
 
   const campaignsWriteError = (err) => new AppError('SERVER_ERROR',
     'Campaigns are not writable right now — has the campaigns table been created?', {
@@ -551,6 +573,7 @@ function mount(router, cfg) {
         seed_households: fields.seed_households || 0,
         bidding_open: Boolean(fields.bidding_open),
         sort_order: fields.sort_order || 0,
+        ...(fields.brief_json !== undefined ? { brief_json: fields.brief_json } : {}),
         updated_by: admin.user_id,
         updated_at: datastore.nowDb(),
       });
@@ -562,7 +585,7 @@ function mount(router, cfg) {
     await audit.record(req.catalyst, req, {
       type: 'admin.campaign.create', outcome: 'success',
       userId: admin.user_id, email: admin.email_normalized,
-      detail: { campaign: id, kind, ...fields },
+      detail: { campaign: id, kind, ...auditableCampaignFields(fields) },
     });
 
     res.status(200).json({ ok: true, id });
@@ -597,7 +620,11 @@ function mount(router, cfg) {
     await audit.record(req.catalyst, req, {
       type: 'admin.campaign.update', outcome: 'success',
       userId: admin.user_id, email: admin.email_normalized,
-      detail: { campaign: id, before, after: fields },
+      detail: {
+        campaign: id,
+        before: auditableCampaignFields(before),
+        after: auditableCampaignFields(fields),
+      },
     });
 
     res.status(200).json({ ok: true, id });

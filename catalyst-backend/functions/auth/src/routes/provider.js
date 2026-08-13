@@ -36,6 +36,7 @@ const sessions = require('../lib/sessions');
 const mailer = require('../lib/mailer');
 const audit = require('../lib/audit');
 const ratelimit = require('../lib/ratelimit');
+const envelope = require('../lib/envelope');
 const { canRevealCode } = require('./otp');
 
 const PURPOSE = 'signup';
@@ -445,8 +446,10 @@ function mount(router, cfg) {
       });
     }
     const context = await orgs.contextFor(req.catalyst, req.auth.user.user_id);
-    res.status(200).json({
-      ok: true,
+    /* envelope.ok, so this payload carries serverTime. The console anchors its
+       clock skew from whichever payload arrives first, and /provider/me is the
+       first call every boot makes. */
+    envelope.ok(res, {
       user: sessions.publicUser(req.auth.user),
       org: context,
       approved: Boolean(context && context.approved),

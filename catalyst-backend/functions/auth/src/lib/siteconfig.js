@@ -58,6 +58,13 @@ const DEFAULTS = Object.freeze({
     value: true, type: 'boolean', published: true,
     description: 'Whether new companies can start a partner application.',
   },
+  success_fee: {
+    value: 95, type: 'number', published: false,
+    description: 'Success fee per activated household, dollars. An unconfirmed '
+      + 'planning number until the agreement terms are settled; read into '
+      + 'auction briefs server side and never a constant in client code. '
+      + 'Unpublished: partners see it on their own briefs, not on /public/config.',
+  },
 });
 
 /* ------------------------------------------------------------------ *

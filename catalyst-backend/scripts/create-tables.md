@@ -632,6 +632,86 @@ decision that determines whether a partner can bid at all.
 
 ---
 
+## 18. The auction core: bid revisions, the tiered bid, the brief
+
+The bid ticket increment. One new table, fifteen columns added to
+`provider_bids`, one column added to `campaigns`, and one optional
+`site_config` row. Code deploys safely before or after this section is done:
+every read tries the extended column list first and falls back to the original,
+so the window between deploy and console work degrades instead of erroring.
+Bid WRITES, however, need all of it: placing a bid inserts into
+`bid_revisions` first, so until this section is done the place route answers
+"Bidding is not available right now."
+
+### Columns to add to `provider_bids`
+
+The head row grows from the flat experimental shape to the full sealed bid.
+Existing columns keep their names and meanings; `price` becomes the headline
+(the lowest tier's effective price) and `status` stays the state column, with
+`improved` joining `sealed` as a value.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `tiers` | Text | 10000 | | | JSON array, one entry per tier: `{name, uploadMbps, technology, stickerPrice, effectivePrice, afterPrice}`, money as canonical strings |
+| `guarantee_months` | Int | | | | 12 \| 24 \| 36 |
+| `after_mode` | Var Char | 8 | | | `none` \| `new` |
+| `after_line` | Var Char | 255 | | | derived display line: `$69 / 500 Mbps, ...` or `no scheduled change` |
+| `equipment` | Var Char | 8 | | | `inc` \| `rent` \| `byod` |
+| `rental_monthly` | Var Char | 16 | | | money string; set only when `equipment = rent` |
+| `extra_pod_monthly` | Var Char | 16 | | | money string; null means included |
+| `reduction_presentation` | Var Char | 16 | | | `member` \| `promo` \| `cash` \| `none` \| `custom` |
+| `mechanism_label` | Var Char | 64 | | | only when `custom`; validated against pressure language server side |
+| `commitment_cap` | Int | | | | households the org commits to serve |
+| `revision_count` | Int | | | | convenience mirror of the revisions table, which is authoritative |
+| `receipt_no` | Var Char | 32 | | | the latest sealed receipt |
+| `payload_hash` | Var Char | 64 | | | sha256 of the sealed payload; the duplicate-submit detector |
+| `submitted_at` | DateTime | | | | first sealing, written once |
+| `last_revised_at` | DateTime | | | | |
+
+### `bid_revisions` (new table)
+
+**The sealed record. Append-only, permanently.** One row per sealing, written
+BEFORE the head row, so a bid can never exist without its sealed record. No
+route updates or deletes a row here, no admin backdoor removes one, and there
+is no withdraw path anywhere in the system: the latest revision at close is
+the binding one. Addresses never enter this table, so retention never redacts
+it.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `revision_key` | Var Char | 200 | ✅ | ✅ | `${campaign_id}:${org_id}:${revision_no}`, the flattened composite (rule 4) and the race guard: concurrent revisions collide here and the loser gets a clean conflict |
+| `bid_key` | Var Char | 130 | | ✅ | matches `provider_bids.bid_key` |
+| `campaign_id` | Var Char | 64 | | ✅ | |
+| `org_id` | Var Char | 64 | | ✅ | |
+| `revision_no` | Int | | | ✅ | 1-based |
+| `payload` | Text | 10000 | | ✅ | the full canonical bid JSON, exactly as sealed |
+| `payload_hash` | Var Char | 64 | | ✅ | |
+| `receipt_no` | Var Char | 32 | | ✅ | random, not sequential: a sequence would leak platform bid counts |
+| `submitted_by` | Var Char | 64 | | ✅ | `user_id` |
+| `server_received_at` | DateTime | | | ✅ | the server clock reading the close boundary was judged against |
+
+### One column to add to `campaigns`
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `brief_json` | Text | 10000 | | | the brief's demand profile, ops-maintained: `{"renewalWindow": "Oct to Dec", "speedMix": [["1 Gig", 42], ["500 Mbps", 41], ["Under 500", 17]], "plantMix": [["Cable", 58], ["FTTP", 33], ["FTTN", 9]]}` |
+
+Deliberately NOT in `catalog.js`'s column list: the catalog falls back to the
+code catalog when its query throws, so naming this column there before it
+exists in the console would knock the whole site back to seed data. The brief
+route reads it with its own one-row query and degrades to "profile to come"
+when the column or value is absent. Percentages are content, not arithmetic:
+the server renders what ops recorded and invents nothing.
+
+### One optional `site_config` row
+
+`success_fee` (type `number`, unpublished). The code default is 95, marked in
+`lib/siteconfig.js` as an unconfirmed planning number; create the row only to
+override it. Unpublished means it never appears on `/public/config`: partners
+see it on their own briefs.
+
+---
+
 ## Verify
 
 In the console: **Data Store → ZCQL** (or **Explore**), and run each of these.
@@ -685,6 +765,17 @@ SELECT coverage_key, org_id, region, status FROM provider_coverage LIMIT 1;
 -- bidding never auto-closes at its published deadline.
 SELECT announce_at, bidding_opens_at, bidding_closes_at, offers_at,
        decision_at, switch_window_at, reconcile_at FROM campaigns LIMIT 1;
+```
+
+And section 18, the auction core. The first two fail loudly until the columns
+and table exist; while they fail, reads degrade and bid writes refuse.
+
+```sql
+SELECT tiers, guarantee_months, revision_count, receipt_no, payload_hash
+  FROM provider_bids LIMIT 1;
+SELECT revision_key, bid_key, revision_no, payload, receipt_no,
+       server_received_at FROM bid_revisions LIMIT 1;
+SELECT brief_json FROM campaigns LIMIT 1;
 ```
 
 If `users` or `sessions` errors on the bare `SELECT` above, the table name may

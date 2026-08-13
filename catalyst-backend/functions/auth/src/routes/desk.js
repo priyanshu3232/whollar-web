@@ -4,34 +4,43 @@
  * The partner console's write surface: the org's own facts, its team, its
  * sealed bids, and the coverage it claims.
  *
- *   POST /provider/org        rename the organisation (org admins only)
- *   GET  /provider/team       who is attached to this org, and how
- *   GET  /provider/bids       the org's live sealed bids
- *   POST /provider/bids       place or improve a sealed bid
- *   GET  /provider/coverage   regions the org serves
- *   POST /provider/coverage   update a region's services / declare a new one
+ *   POST /provider/org                        rename the organisation (org admins only)
+ *   GET  /provider/team                       who is attached to this org, and how
+ *   GET  /provider/campaigns/:id/brief        one cohort's brief: aggregates only
+ *   GET  /provider/bids                       the org's live sealed bids
+ *   POST /provider/bids                       place a sealed bid (place only, never an upsert)
+ *   POST /provider/bids/:campaign/improve     seal a new revision, better on every tier
+ *   GET  /provider/bids/:campaign             the org's own bid on one cohort
+ *   GET  /provider/bids/:campaign/versions    the org's own sealed revision trail
+ *   GET  /provider/coverage                   regions the org serves
+ *   POST /provider/coverage                   update a region's services / declare a new one
  *
  * Approval gates the competitive surfaces. Renaming your own org and listing
  * your own team only require being in it; placing a bid or editing coverage
- * requires the org to be approved — those are the actions that touch cohorts.
+ * requires the org to be approved, because those are the actions that touch
+ * cohorts.
  *
  * Bids additionally pass requireBiddingOpen(), the single gate campaigns.js
  * exports for exactly this route's benefit: the global kill switch and the
- * per-campaign window are checked in one place, here included.
+ * per-campaign window are checked in one place, here included. The bid rules
+ * themselves (validation, the append-only revision record, sealed-ness) live
+ * in lib/bids.js; its header is the contract.
  */
 
 const datastore = require('../lib/datastore');
 const orgs = require('../lib/orgs');
 const users = require('../lib/users');
 const catalog = require('../lib/catalog');
+const siteconfig = require('../lib/siteconfig');
 const audit = require('../lib/audit');
-const { requireBiddingOpen } = require('./campaigns');
+const envelope = require('../lib/envelope');
+const bids = require('../lib/bids');
+const { requireBiddingOpen, allRows, tally, publicPartnerCampaign } = require('./campaigns');
 const { requirePartner: guardPartner, requireApproved } = require('../lib/guards');
-const { money } = require('../lib/money');
 const { wrap, badRequest, forbidden, AppError } = require('../lib/errors');
 const application = require('./application');
 
-const BIDS = 'provider_bids';
+const BIDS = bids.BIDS;
 const COVERAGE = 'provider_coverage';
 
 const TECHS = new Set(['cable', 'fibre', 'fwa', 'dsl']);
@@ -51,16 +60,62 @@ const str = (v, max) => {
 const slug = (region) =>
   String(region || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
-function publicBid(row) {
+/**
+ * Auctions only reach a desk from inside declared, verified coverage, and a
+ * bid write proves it server side whatever the desk rendered. Two refusals,
+ * because they ask for different acts: an undeclared region needs a
+ * declaration, a declared one needs to wait for the operator.
+ */
+async function requireActiveCoverage(catalystApp, orgId, campaign) {
+  const rows = await coverageRows(catalystApp, orgId);
+  const row = (rows || []).find((r) => slug(r.region) === slug(campaign.region));
+  if (!row) {
+    throw new AppError('CONFLICT',
+      `Declare ${campaign.region} coverage before bidding here. Auctions reach your desk from inside declared, verified coverage.`, {
+        logDetail: 'bid refused: region not declared',
+      });
+  }
+  if (row.status !== 'active') {
+    throw new AppError('CONFLICT',
+      `Your ${campaign.region} coverage has not verified yet. Bids open the moment it does.`, {
+        logDetail: `bid refused: coverage status=${row.status}`,
+      });
+  }
+}
+
+/**
+ * The cohort's current household figure, for the commitment cap. Seed plus
+ * live sign-ups, the same arithmetic the desk list shows, so the cap is
+ * validated against the number the partner is looking at.
+ */
+async function householdCount(catalystApp, campaign) {
+  const rows = await allRows(catalystApp);
+  const t = rows ? tally(rows) : {};
+  const signups = (t[campaign.id] && t[campaign.id].signups) || 0;
+  return campaign.seedHouseholds + signups;
+}
+
+/** The head-row fields one sealing writes. Shared by place and improve. */
+function headFields(draft, sealed, payloadHash, receivedAt) {
   return {
-    campaign: row.campaign_id,
-    price: row.price,
-    speed: row.speed || null,
-    term: row.term || null,
-    includes: row.includes ? row.includes.split(',') : [],
-    completion: row.completion || null,
-    status: row.status,
-    updatedAt: row.updated_at || null,
+    /* The lowest tier's effective price doubles as the legacy headline
+       `price`, so readers of the original flat shape keep working. */
+    price: draft.tiers[0].effectivePrice,
+    tiers: JSON.stringify(draft.tiers),
+    guarantee_months: draft.guaranteeMonths,
+    after_mode: draft.afterMode,
+    after_line: draft.afterLine,
+    equipment: draft.equipment,
+    rental_monthly: draft.rentalMonthly,
+    extra_pod_monthly: draft.extraPodMonthly,
+    reduction_presentation: draft.reductionPresentation,
+    mechanism_label: draft.mechanismLabel,
+    commitment_cap: draft.committedHouseholds,
+    revision_count: sealed.revisionNo,
+    receipt_no: sealed.receipt,
+    payload_hash: payloadHash,
+    last_revised_at: datastore.toDb(new Date(receivedAt)),
+    updated_at: datastore.nowDb(),
   };
 }
 
@@ -184,111 +239,351 @@ function mount(router) {
     });
   }));
 
-  /** The org's live sealed bids. -> { ok, live, bids } */
-  router.get('/provider/bids', wrap(async (req, res) => {
+  /**
+   * One cohort's brief: aggregates only. Household count, renewal window, the
+   * demand mixes when ops has recorded them, the success fee from config, the
+   * org's OWN coverage line for the region, and the org's OWN bid. No
+   * identities, no other partner's bid, no bid count, and nothing invented:
+   * a mix that has not been recorded arrives null and renders as "to come".
+   *
+   * requirePartner only, no approval gate: an unapproved org may read
+   * aggregates, and the brief is where a pending partner learns what a cohort
+   * is. An unknown or archived id is a 404 indistinguishable from
+   * never-existed.
+   */
+  router.get('/provider/campaigns/:id/brief', wrap(async (req, res) => {
     const { context } = await requirePartner(req);
-    let rows = null;
+    const id = String(req.params.id || '').trim();
+    const cat = await catalog.load(req.catalyst);
+    const campaign = catalog.ID_RE.test(id) ? cat.byId.get(id) : null;
+    if (!campaign || campaign.kind === 'archived') {
+      throw new AppError('NOT_FOUND', 'That cohort does not exist.', {
+        logDetail: 'brief on unknown or archived campaign',
+      });
+    }
+
+    const memberRows = await allRows(req.catalyst);
+    const counts = memberRows ? tally(memberRows) : {};
+    const enabled = await siteconfig.getValue(req.catalyst, 'bidding_enabled') !== false;
+    /* One clock reading for stage and serverTime, the same rule
+       /provider/campaigns follows: the stage was computed at the instant the
+       console will offset from. */
+    const now = Date.now();
+    const pub = publicPartnerCampaign(campaign, counts, enabled, now);
+
+    /* brief_json rides on the campaigns row but is read here, NOT via
+       catalog.COLUMNS: catalog falls back to the code catalog whenever its
+       query throws, so naming a column there before the operator has created
+       it by hand would knock the whole site back to seed data. A separate
+       one-row read degrades to "no mixes yet" instead. */
+    let mix = null;
     try {
-      rows = await datastore.queryAll(
-        req.catalyst, BIDS,
-        ['bid_key', 'campaign_id', 'price', 'speed', 'term', 'includes', 'completion', 'status', 'updated_at'],
-        `org_id = ${datastore.lit(context.orgId)}`
-      );
-    } catch { /* table not provisioned yet */ }
+      const row = await datastore.findBy(req.catalyst, catalog.TABLE, 'campaign_id', id,
+        ['campaign_id', 'brief_json']);
+      if (row && row.brief_json) mix = JSON.parse(row.brief_json);
+    } catch { mix = null; }
+    mix = mix || {};
+
+    const fee = await siteconfig.getValue(req.catalyst, 'success_fee');
+
+    const covRows = await coverageRows(req.catalyst, context.orgId);
+    const covRow = (covRows || []).find((r) => slug(r.region) === slug(campaign.region));
+    const head = await bids.headRow(req.catalyst, `${campaign.id}:${context.orgId}`);
 
     res.status(200).json({
       ok: true,
+      serverTime: now,
+      campaign: pub,
+      brief: {
+        households: pub.households,
+        renewalWindow: mix.renewalWindow || null,
+        speedMix: Array.isArray(mix.speedMix) ? mix.speedMix : null,
+        plantMix: Array.isArray(mix.plantMix) ? mix.plantMix : null,
+        successFee: fee != null ? String(fee) : null,
+      },
+      coverage: covRow
+        ? Object.assign({ declared: true }, publicCoverage(covRow))
+        : { declared: false, status: null },
+      bid: head ? bids.publicBid(head) : null,
+    });
+  }));
+
+  /** The org's live sealed bids. -> { ok, serverTime, live, bids } */
+  router.get('/provider/bids', wrap(async (req, res) => {
+    const { context } = await requirePartner(req);
+    const rows = await bids.bidRows(req.catalyst, context.orgId);
+    envelope.ok(res, {
       live: rows !== null,
-      bids: (rows || []).map(publicBid),
+      bids: (rows || []).map(bids.publicBid),
     });
   }));
 
   /**
-   * Place a sealed bid, or improve the one already standing — one live bid
-   * per (campaign, org), and an upsert is what "improvable until close"
-   * means. Approval and the bidding window are both enforced here, always.
+   * Place a sealed bid. PLACE ONLY: improving is its own act on its own route,
+   * because "place or improve" as one upsert is how a retried request silently
+   * rewrites a sealed record. One live bid per (campaign, org); the first
+   * sealing writes revision 1.
    */
   router.post('/provider/bids', wrap(async (req, res) => {
     const { user, context } = await requirePartner(req);
     requireApproved(context);
     if (context.role === 'viewer') {
-      throw forbidden('Your seat can view the desk but not place bids — ask your organisation’s admin.', {
+      throw forbidden('Your seat can view the desk but not place bids. Ask your organisation’s admin.', {
         logDetail: 'viewer tried to place a bid',
       });
     }
 
     const body = req.body || {};
-    const cat = await catalog.load(req.catalyst);
+    /* One clock reading for the gate, the audit row and server_received_at,
+       so the record and the decision cannot disagree. Captured before the
+       catalog read: the moment of receipt is the moment that counts. */
+    const receivedAt = Date.now();
+    /* A bid write earns one uncached catalog read. The memo is 60 seconds,
+       and a stale close date is wrong in exactly the minute it matters. */
+    const cat = await catalog.load(req.catalyst, { fresh: true });
     const campaign = cat.byId.get(String(body.campaign || '').trim());
     if (!campaign) throw badRequest('That campaign does not exist.');
 
     await requireBiddingOpen(req.catalyst, campaign);
+    await requireActiveCoverage(req.catalyst, context.orgId, campaign);
 
-    const price = money(body.price, 500);
-    if (!price) throw badRequest('Enter a monthly price between $1 and $500.');
-
-    const includes = Array.isArray(body.includes)
-      ? body.includes.map((v) => String(v).trim().toLowerCase().slice(0, 24)).filter(Boolean).slice(0, 6)
-      : [];
-    const completion = (() => {
-      const n = parseInt(body.completion, 10);
-      return Number.isFinite(n) && n >= 0 && n <= 100 ? String(n) : null;
-    })();
-
-    const fields = {
-      price,
-      speed: str(body.speed, 32),
-      term: str(body.term, 32),
-      includes: includes.join(',') || null,
-      completion,
-      status: 'sealed',
-      updated_at: datastore.nowDb(),
-    };
+    const draft = bids.readBid(body, await householdCount(req.catalyst, campaign));
 
     const key = `${campaign.id}:${context.orgId}`;
-    let improved = false;
-    try {
-      const existing = await datastore.findBy(req.catalyst, BIDS, 'bid_key', key, ['ROWID', 'price']);
-      if (existing) {
-        improved = true;
-        await datastore.updateRow(req.catalyst, BIDS, { ROWID: existing.ROWID, ...fields });
-      } else {
-        await datastore.insertRow(req.catalyst, BIDS, {
-          bid_key: key,
-          campaign_id: campaign.id,
-          org_id: context.orgId,
-          user_id: user.user_id,
-          ...fields,
+    if (await bids.headRow(req.catalyst, key)) {
+      throw new AppError('CONFLICT',
+        'You already hold a sealed bid on this cohort. Improve it instead; bids are never withdrawn.', {
+          logDetail: 'place on an existing bid_key',
         });
-      }
+    }
+
+    const payload = bids.draftPayload(campaign.id, draft);
+    const payloadHash = bids.hashPayload(payload);
+
+    let sealed;
+    try {
+      sealed = await bids.sealRevision(req.catalyst, {
+        bidKey: key, campaignId: campaign.id, orgId: context.orgId,
+        userId: user.user_id, payload, payloadHash, receivedAt,
+      });
     } catch (err) {
+      if (err.conflict) {
+        throw new AppError('CONFLICT',
+          'Your desk was behind this bid. Reload and improve from the latest version.', {
+            logDetail: 'revision race lost on place',
+          });
+      }
       throw new AppError('SERVER_ERROR',
         'Bidding is not available right now. Please try again shortly.', {
-          logDetail: `provider_bids write failed: ${String((err && err.message) || err).slice(0, 200)}`,
+          logDetail: `bid_revisions write failed: ${err.message}`,
+        });
+    }
+
+    const fields = headFields(draft, sealed, payloadHash, receivedAt);
+    try {
+      await datastore.insertRow(req.catalyst, BIDS, {
+        bid_key: key,
+        campaign_id: campaign.id,
+        org_id: context.orgId,
+        user_id: user.user_id,
+        status: 'sealed',
+        submitted_at: datastore.toDb(new Date(receivedAt)),
+        ...fields,
+      });
+    } catch (err) {
+      /* The sealed record exists; only the convenience head failed. If a
+         concurrent place won the bid_key, say so; the orphan revision stays
+         in the trail, which is what an append-only record means. Otherwise
+         surface the failure and let the next write heal the numbering. */
+      let winner = null;
+      try { winner = await datastore.findBy(req.catalyst, BIDS, 'bid_key', key, ['ROWID']); } catch { winner = null; }
+      if (winner) {
+        throw new AppError('CONFLICT',
+          'You already hold a sealed bid on this cohort. Improve it instead; bids are never withdrawn.', {
+            logDetail: 'head insert lost a concurrent place',
+          });
+      }
+      throw new AppError('SERVER_ERROR',
+        'Bidding is not available right now. Please try again shortly.', {
+          logDetail: `provider_bids write failed after revision ${sealed.revisionNo}: ${String((err && err.message) || err).slice(0, 200)}`,
         });
     }
 
     audit.recordAsync(req.catalyst, req, {
-      type: improved ? 'provider.bid.improve' : 'provider.bid.place',
+      type: 'provider.bid.place',
       outcome: 'success',
       userId: user.user_id,
       email: user.email_normalized,
-      detail: { org_id: context.orgId, campaign: campaign.id, price },
+      /* No prices in the detail. The sealed record is the record. */
+      detail: { org_id: context.orgId, campaign: campaign.id, revision: sealed.revisionNo, receipt: sealed.receipt },
     });
 
-    res.status(200).json({
-      ok: true,
-      bid: publicBid({ campaign_id: campaign.id, ...fields }),
-      improved,
+    const pb = bids.publicBid({
+      campaign_id: campaign.id, status: 'sealed',
+      submitted_at: datastore.toDb(new Date(receivedAt)), ...fields,
+    });
+    envelope.ok(res, {
+      bid: pb,
+      receipt: { no: sealed.receipt, revision: sealed.revisionNo, receivedAt },
     });
   }));
 
-  /** Regions the org serves. -> { ok, live, coverage } */
+  /**
+   * Improve the sealed bid: a new revision, at least as good on every tier.
+   * The head bid must exist; an unknown campaign and a campaign the org holds
+   * no bid on answer with the same 404, so a probe learns nothing.
+   */
+  router.post('/provider/bids/:campaign/improve', wrap(async (req, res) => {
+    const { user, context } = await requirePartner(req);
+    requireApproved(context);
+    if (context.role === 'viewer') {
+      throw forbidden('Your seat can view the desk but not place bids. Ask your organisation’s admin.', {
+        logDetail: 'viewer tried to improve a bid',
+      });
+    }
+
+    const receivedAt = Date.now();
+    const id = String(req.params.campaign || '').trim();
+    const cat = await catalog.load(req.catalyst, { fresh: true });
+    const campaign = catalog.ID_RE.test(id) ? cat.byId.get(id) : null;
+    const key = `${id}:${context.orgId}`;
+    const head = campaign ? await bids.headRow(req.catalyst, key) : null;
+    if (!campaign || !head) {
+      throw new AppError('NOT_FOUND', 'You have no bid on that cohort.', {
+        logDetail: campaign ? 'improve with no head bid' : 'improve on unknown campaign id',
+      });
+    }
+
+    await requireBiddingOpen(req.catalyst, campaign);
+    await requireActiveCoverage(req.catalyst, context.orgId, campaign);
+
+    const draft = bids.readBid(req.body, await householdCount(req.catalyst, campaign));
+    const payload = bids.draftPayload(campaign.id, draft);
+    const payloadHash = bids.hashPayload(payload);
+
+    /* A network retry of the same improvement is one revision, not two: the
+       canonical payload hash is the duplicate detector, and equality returns
+       the standing receipt with nothing written. */
+    if (head.payload_hash && payloadHash === head.payload_hash) {
+      const pb = bids.publicBid(head);
+      return envelope.ok(res, {
+        bid: pb,
+        receipt: { no: pb.reference, revision: pb.version, receivedAt },
+        duplicate: true,
+      });
+    }
+
+    const problems = bids.improvementProblems(bids.headDraft(head), draft);
+    if (problems.length) {
+      throw badRequest('An improvement must be at least as good on every tier: '
+        + problems.join('; ') + '.');
+    }
+
+    let sealed;
+    try {
+      sealed = await bids.sealRevision(req.catalyst, {
+        bidKey: key, campaignId: campaign.id, orgId: context.orgId,
+        userId: user.user_id, payload, payloadHash, receivedAt,
+      });
+    } catch (err) {
+      if (err.conflict) {
+        throw new AppError('CONFLICT',
+          'Your desk was behind this bid. Reload and improve from the latest version.', {
+            logDetail: 'revision race lost on improve',
+          });
+      }
+      throw new AppError('SERVER_ERROR',
+        'Bidding is not available right now. Please try again shortly.', {
+          logDetail: `bid_revisions write failed: ${err.message}`,
+        });
+    }
+
+    const fields = headFields(draft, sealed, payloadHash, receivedAt);
+    try {
+      await datastore.updateRow(req.catalyst, BIDS, {
+        ROWID: head.ROWID, status: 'improved', ...fields,
+      });
+    } catch (err) {
+      throw new AppError('SERVER_ERROR',
+        'Bidding is not available right now. Please try again shortly.', {
+          logDetail: `provider_bids update failed after revision ${sealed.revisionNo}: ${String((err && err.message) || err).slice(0, 200)}`,
+        });
+    }
+
+    audit.recordAsync(req.catalyst, req, {
+      type: 'provider.bid.improve',
+      outcome: 'success',
+      userId: user.user_id,
+      email: user.email_normalized,
+      detail: { org_id: context.orgId, campaign: campaign.id, revision: sealed.revisionNo, receipt: sealed.receipt },
+    });
+
+    const pb = bids.publicBid(Object.assign({}, head, fields, {
+      status: 'improved', campaign_id: campaign.id,
+    }));
+    envelope.ok(res, {
+      bid: pb,
+      receipt: { no: sealed.receipt, revision: sealed.revisionNo, receivedAt },
+      improved: true,
+    });
+  }));
+
+  /** The org's own bid on one cohort, or the probe-safe 404. */
+  router.get('/provider/bids/:campaign', wrap(async (req, res) => {
+    const { context } = await requirePartner(req);
+    const id = String(req.params.campaign || '').trim();
+    const head = catalog.ID_RE.test(id)
+      ? await bids.headRow(req.catalyst, `${id}:${context.orgId}`)
+      : null;
+    if (!head) {
+      throw new AppError('NOT_FOUND', 'You have no bid on that cohort.', {
+        logDetail: 'bid read with no head row',
+      });
+    }
+    envelope.ok(res, { bid: bids.publicBid(head) });
+  }));
+
+  /**
+   * The org's own sealed revision trail, payloads verbatim, ascending. This
+   * is the receipt registry: what was sealed is returned exactly as sealed,
+   * so it is provable rather than reconstructed.
+   */
+  router.get('/provider/bids/:campaign/versions', wrap(async (req, res) => {
+    const { context } = await requirePartner(req);
+    const id = String(req.params.campaign || '').trim();
+    if (!catalog.ID_RE.test(id)) {
+      throw new AppError('NOT_FOUND', 'You have no bid on that cohort.');
+    }
+    let rows;
+    try {
+      rows = await bids.revisionRows(req.catalyst, `${id}:${context.orgId}`);
+    } catch {
+      throw new AppError('SERVER_ERROR', 'Bid history is not available right now. Please try again shortly.');
+    }
+    if (!rows.length) {
+      throw new AppError('NOT_FOUND', 'You have no bid on that cohort.', {
+        logDetail: 'versions read with no revisions',
+      });
+    }
+    envelope.ok(res, {
+      versions: rows.map((r) => {
+        let payload = null;
+        try { payload = JSON.parse(r.payload); } catch { payload = null; }
+        return {
+          revision: parseInt(r.revision_no, 10) || null,
+          receipt: r.receipt_no,
+          receivedAt: envelope.ms(r.server_received_at),
+          payload,
+        };
+      }),
+    });
+  }));
+
+  /** Regions the org serves. -> { ok, serverTime, live, coverage } */
   router.get('/provider/coverage', wrap(async (req, res) => {
     const { context } = await requirePartner(req);
     const rows = await coverageRows(req.catalyst, context.orgId);
-    res.status(200).json({
-      ok: true,
+    envelope.ok(res, {
       live: rows !== null,
       coverage: (rows || []).map(publicCoverage),
     });
@@ -366,8 +661,7 @@ function mount(router) {
     });
 
     const rows = await coverageRows(req.catalyst, context.orgId);
-    res.status(200).json({
-      ok: true,
+    envelope.ok(res, {
       live: rows !== null,
       coverage: (rows || []).map(publicCoverage),
     });

@@ -90,6 +90,44 @@ function publicCampaign(c, counts, mine) {
 /** Archived campaigns exist for the admin console only. */
 const visible = (list) => list.filter((c) => c.kind !== 'archived');
 
+/**
+ * One campaign, partner-shaped: counts only, stage derived at `now`. Shared
+ * by /provider/campaigns and the brief route in desk.js so the desk list and
+ * the brief can never disagree about what a cohort looks like.
+ *
+ * `stage` is DISPLAY ONLY, and server owned. The console renders it and must
+ * never recompute it: a browser clock a few minutes fast would otherwise
+ * disagree with the server about whether a sealed window is open.
+ * Authorisation stays with bidding_open here and with requireBiddingOpen on
+ * the write path.
+ */
+function publicPartnerCampaign(c, counts, enabled, now) {
+  const t = counts[c.id] || { signups: 0, watching: 0 };
+  const s = catalog.publicStage(c, now);
+  return {
+    id: c.id,
+    region: c.region,
+    /* The coverage key this cohort verifies against. Equal to region today;
+       sent separately so the console never has to guess, and so a cohort can
+       one day display "Scarborough East" while verifying against the
+       partner's "Scarborough" coverage. */
+    coverageRegion: c.region,
+    sub: c.sub,
+    kind: c.kind,
+    target: c.target,
+    members: c.seedMembers + t.signups,
+    households: c.seedHouseholds + t.signups,
+    signups: t.signups,
+    watching: t.watching,
+    bidding_open: enabled && c.kind === 'auction' && Boolean(c.biddingOpen),
+    stage: s.stage,
+    stageLabel: s.stageLabel,
+    nextAt: s.next ? s.next.at : null,
+    nextWhat: s.next ? s.next.what : null,
+    dates: c.dates || {},
+  };
+}
+
 /* ------------------------------------------------------------------ *
  * Guards
  * ------------------------------------------------------------------ */
@@ -155,6 +193,11 @@ async function requireBiddingOpen(catalystApp, campaign) {
   if (closesAt && Date.now() >= closesAt) {
     throw new AppError('CONFLICT', 'Bidding has closed on this cohort.', {
       logDetail: `bid refused: past bidding_closes_at by ${Date.now() - closesAt}ms`,
+      /* The refusal carries the server clock so the console can show the
+         partner that the server decided, not their machine. The window is
+         half-open, [opens_at, closes_at): a write stamped exactly closes_at
+         is late. */
+      extra: { serverTime: Date.now(), closedAt: closesAt },
     });
   }
 }
@@ -371,34 +414,9 @@ function mount(router) {
         enabled,
         notice: enabled ? null : 'Bidding is paused across Whollar right now.',
       },
-      campaigns: visible(cat.list).map((c) => {
-        const t = counts[c.id] || { signups: 0, watching: 0 };
-        const s = catalog.publicStage(c, now);
-        return {
-          id: c.id,
-          region: c.region,
-          sub: c.sub,
-          kind: c.kind,
-          target: c.target,
-          members: c.seedMembers + t.signups,
-          households: c.seedHouseholds + t.signups,
-          signups: t.signups,
-          watching: t.watching,
-          bidding_open: enabled && c.kind === 'auction' && Boolean(c.biddingOpen),
-          /* DISPLAY ONLY, and server owned. The console renders this and must
-             never recompute it: a browser clock a few minutes fast would
-             otherwise disagree with the server about whether a sealed window
-             is open. Authorisation stays with bidding_open above and with
-             requireBiddingOpen on the write path. */
-          stage: s.stage,
-          stageLabel: s.stageLabel,
-          nextAt: s.next ? s.next.at : null,
-          nextWhat: s.next ? s.next.what : null,
-          dates: c.dates || {},
-        };
-      }),
+      campaigns: visible(cat.list).map((c) => publicPartnerCampaign(c, counts, enabled, now)),
     });
   }));
 }
 
-module.exports = { mount, allRows, tally, requireBiddingOpen, TABLE };
+module.exports = { mount, allRows, tally, requireBiddingOpen, publicPartnerCampaign, TABLE };

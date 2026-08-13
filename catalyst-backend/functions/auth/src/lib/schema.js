@@ -215,6 +215,12 @@ const TABLES = Object.freeze({
     decision_at:       'datetime', // household confirmations lock
     switch_window_at:  'datetime', // installs and transfers run
     reconcile_at:      'datetime', // final counts settle
+    // The brief's demand profile: renewal window, speed mix, plant mix, as a
+    // JSON blob ops maintains. Read by the brief route with its OWN one-row
+    // query, deliberately NOT via catalog.COLUMNS: catalog falls back to the
+    // code catalog when its query throws, and naming a missing column there
+    // would knock the whole site back to seed data.
+    brief_json:        'text',
   },
   user_prefs: {
     // One JSON blob of preferences per account, member or provider alike:
@@ -237,21 +243,56 @@ const TABLES = Object.freeze({
     created_at: 'datetime required',
   },
   provider_bids: {
-    // One live sealed bid per (campaign, org): improving a bid replaces it,
-    // which is what "sealed but improvable until close" means. The pair is
-    // flattened into one unique column, same trick as membership_key. History
-    // beyond the current bid is the audit log's job, not this table's.
+    // The HEAD of one live sealed bid per (campaign, org): a convenience
+    // mirror of the latest bid_revisions row, which is the authoritative
+    // sealed record. The pair is flattened into one unique column, same trick
+    // as membership_key. lib/bids.js is the only writer.
     bid_key:     'varchar(130) unique required', // `${campaign_id}:${org_id}`
     campaign_id: 'varchar(64) required',
     org_id:      'varchar(64) required',
     user_id:     'varchar(64) required',          // who placed it, for the org's own record
-    price:       'varchar(16) required',          // money-as-string, see member_bills
-    speed:       'varchar(32)',
+    price:       'varchar(16) required',          // headline: lowest tier's effective price
+    speed:       'varchar(32)',                   // legacy flat shape, kept readable
     term:        'varchar(32)',
     includes:    'varchar(255)',                  // CSV of included extras
     completion:  'varchar(8)',                    // assumed completion %, as typed
-    status:      'varchar(16) required',          // 'sealed'
+    status:      'varchar(16) required',          // 'sealed' | 'improved'
     updated_at:  'datetime required',
+    // The tiered bid, added by the auction core (create-tables.md section 18).
+    // Reads fall back to the list above while these are missing; writes need
+    // them.
+    tiers:                  'text',               // JSON array of tier rows, money as strings
+    guarantee_months:       'int',                // 12 | 24 | 36
+    after_mode:             'varchar(8)',         // 'none' | 'new'
+    after_line:             'varchar(255)',
+    equipment:              'varchar(8)',         // 'inc' | 'rent' | 'byod'
+    rental_monthly:         'varchar(16)',
+    extra_pod_monthly:      'varchar(16)',
+    reduction_presentation: 'varchar(16)',
+    mechanism_label:        'varchar(64)',
+    commitment_cap:         'int',
+    revision_count:         'int',
+    receipt_no:             'varchar(32)',
+    payload_hash:           'varchar(64)',
+    submitted_at:           'datetime',           // first sealing, written once
+    last_revised_at:        'datetime',
+  },
+  bid_revisions: {
+    // THE SEALED RECORD. Append-only, permanently: one row per sealing,
+    // written BEFORE the head above, never updated, never deleted, no
+    // withdraw path at any layer. The latest revision at close is the
+    // binding bid. Addresses never enter this table, so retention never
+    // redacts it.
+    revision_key:       'varchar(200) unique required', // `${campaign}:${org}:${revision_no}`, the race guard
+    bid_key:            'varchar(130) required',
+    campaign_id:        'varchar(64) required',
+    org_id:             'varchar(64) required',
+    revision_no:        'int required',
+    payload:            'text required',          // the canonical bid JSON, exactly as sealed
+    payload_hash:       'varchar(64) required',
+    receipt_no:         'varchar(32) required',   // random, never sequential
+    submitted_by:       'varchar(64) required',
+    server_received_at: 'datetime required',      // the clock reading the close was judged by
   },
   provider_coverage: {
     // The regions an org serves and with what. Rows the org declares itself
