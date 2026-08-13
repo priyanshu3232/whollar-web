@@ -171,7 +171,16 @@ function mount(router) {
       team,
       // The join rule, stated as data so the console can explain it: anyone
       // who signs up with this domain lands in this org automatically.
-      emailDomain: (await orgs.findById(req.catalyst, context.orgId))?.email_domain || null,
+      // An org created from a personal address has no such rule, and saying it
+      // does would be a promise that nobody else can ever join. `joinByDomain`
+      // is what the console branches on; emailDomain stays null there rather
+      // than leaking the owner's address back as if it were a company domain.
+      ...(await (async () => {
+        const org = await orgs.findById(req.catalyst, context.orgId);
+        const key = org?.email_domain || null;
+        const personal = orgs.isPersonalOrgKey(key);
+        return { emailDomain: personal ? null : key, joinByDomain: !!key && !personal };
+      })()),
     });
   }));
 

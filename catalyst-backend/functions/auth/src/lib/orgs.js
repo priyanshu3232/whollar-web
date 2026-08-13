@@ -54,6 +54,38 @@ const domainOf = (email) => String(email || '').split('@')[1]?.trim().toLowerCas
 
 const isFreeEmailDomain = (email) => FREE_EMAIL_DOMAINS.has(domainOf(email));
 
+/**
+ * The key an organisation is found by, which is NOT always the domain.
+ *
+ * Signing up with a personal address used to be refused outright. It is
+ * allowed now, and that one change would otherwise open a hole big enough to
+ * break the auction: orgs are keyed on `email_domain`, and everything a
+ * partner owns is scoped by `org_id`. Two strangers signing up with different
+ * gmail addresses would both resolve to the domain 'gmail.com', both be added
+ * to the same organisation, and each would then see the other's coverage,
+ * their team list with real names and addresses, and their SEALED BIDS.
+ *
+ * That last one is the invariant the whole reverse auction rests on, and
+ * CLAUDE.md states it without qualification: no partner sees another partner's
+ * bid, count, or reference, in any response.
+ *
+ * So a free-provider address keys on the FULL ADDRESS instead of the domain.
+ * One person gets one organisation; the same person signing up twice finds
+ * their own; two gmail users never meet. Corporate domains are untouched and
+ * still pool colleagues into one org, which is the behaviour that makes a
+ * second person at a partner work at all.
+ *
+ * The '@' in the stored value is what tells the rest of the system which kind
+ * it is looking at. Nothing else needs a new column.
+ */
+const orgKeyFor = (email) => {
+  const normalized = String(email || '').trim().toLowerCase();
+  return isFreeEmailDomain(normalized) ? normalized : domainOf(normalized);
+};
+
+/** True when an org was created from one personal address rather than a domain. */
+const isPersonalOrgKey = (key) => String(key || '').includes('@');
+
 /* ------------------------------------------------------------------ *
  * Organisations
  * ------------------------------------------------------------------ */
@@ -168,7 +200,7 @@ async function contextFor(catalystApp, userId) {
 
 module.exports = {
   ORGS, MEMBERSHIPS, ORG_COLUMNS, MEMBERSHIP_COLUMNS, ROLES, APPROVAL,
-  FREE_EMAIL_DOMAINS, domainOf, isFreeEmailDomain,
+  FREE_EMAIL_DOMAINS, domainOf, isFreeEmailDomain, orgKeyFor, isPersonalOrgKey,
   findByDomain, findById, findOrCreateForDomain,
   membershipFor, membersOf, addMember, contextFor,
 };

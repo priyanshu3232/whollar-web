@@ -103,19 +103,17 @@ function mount(router, cfg) {
 
     if (!users.isEmail(email)) throw badRequest('Enter a valid work email address.');
 
-    /**
-     * The one place a partner signup answers a question about itself.
-     *
-     * Everything else here is deliberately opaque, but this cannot be: a person
-     * typing their Gmail address needs to be told to use their work address, or
-     * they will simply try again, and again, and conclude the form is broken.
-     * It also leaks nothing — that gmail.com is a free provider is not a fact
-     * about our users.
-     */
-    if (orgs.isFreeEmailDomain(email)) {
-      throw badRequest('Please use your work email address — a personal mailbox cannot be linked to a provider account.');
-    }
+    /* A personal address is accepted. It used to be refused outright, on the
+       reasoning that the domain is the identity claim; that reasoning was
+       sound but the remedy was too blunt, since a small operator really does
+       run on a personal mailbox and had no way in at all.
 
+       What replaces it is orgs.orgKeyFor(): a free-provider address keys its
+       organisation on the FULL ADDRESS rather than the bare domain, so two
+       unrelated gmail signups get two organisations. Without that, both would
+       resolve to 'gmail.com', land in one org, and see each other's coverage,
+       team and sealed bids. Approval is unchanged and is still the real gate:
+       every new org is created 'pending' and only a human moves it. */
     credentials.assertAcceptable(password, email);
 
     await ratelimit.enforce(req.catalyst, req, { key: 'provider.signup.ip', max: 10, windowSec: 3600 });
@@ -194,10 +192,16 @@ function mount(router, cfg) {
     await credentials.set(req.catalyst, user.user_id, password);
 
     const { org } = await orgs.findOrCreateForDomain(req.catalyst, {
-      domain: orgs.domainOf(email),
+      // NOT domainOf(). orgKeyFor() returns the bare domain for a company
+      // address and the full address for a personal one, which is what keeps
+      // two unrelated gmail signups in two organisations rather than one.
+      domain: orgs.orgKeyFor(email),
       // The company name as typed. Falls back to the domain, because the
-      // console heads every screen with it and "" is not a heading.
-      legalName: body.orgName || body.company || orgs.domainOf(email),
+      // console heads every screen with it and "" is not a heading. For a
+      // personal address the domain is a poor heading, so the local part is
+      // the better guess at what to call them until they say otherwise.
+      legalName: body.orgName || body.company
+        || (orgs.isFreeEmailDomain(email) ? String(email).split('@')[0] : orgs.domainOf(email)),
     });
     await orgs.addMember(req.catalyst, { userId: user.user_id, orgId: org.org_id });
 

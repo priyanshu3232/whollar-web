@@ -762,13 +762,17 @@ function mount(router, cfg) {
 
     // Applications by domain, matched in code: ZCQL string functions are not
     // dependable enough to express "ends with @domain" server-side.
-    const domain = String(org.email_domain || '').toLowerCase();
+    const key = String(org.email_domain || '').toLowerCase();
     let applications = [];
     try {
       const rows = await datastore.queryAll(req.catalyst, 'PartnerApplications',
         LEAD_TABLES.PartnerApplications, 'ROWID > 0');
-      applications = rows.filter((r) =>
-        domain && String(r.Email || '').toLowerCase().endsWith(`@${domain}`));
+      /* An org created from a personal address stores the whole address here,
+         not a domain, so the suffix match would look for '@sam@gmail.com' and
+         silently find nothing. Match the address exactly in that case. */
+      applications = orgs.isPersonalOrgKey(key)
+        ? rows.filter((r) => key && String(r.Email || '').toLowerCase() === key)
+        : rows.filter((r) => key && String(r.Email || '').toLowerCase().endsWith(`@${key}`));
     } catch { /* lead table unreadable: review still renders */ }
 
     res.status(200).json({

@@ -774,7 +774,7 @@ $('#p-go').addEventListener('click',async()=>{
   const ph=$('#p-phone').value.replace(/\D/g,''); if(ph.length<10||ph.length>11)return bad($('#p-phone'),'Enter a 10-digit phone number, e.g. (555) 555-0123.');
   /* Same rule as the server's EMAIL_RE: the old regex here accepted a
      one-character TLD the backend then rejected. */
-  if(!W.isEmail($('#p-email').value.trim()))return bad($('#p-email'),'Enter a valid work email, e.g. you@company.ca.');
+  if(!W.isEmail($('#p-email').value.trim()))return bad($('#p-email'),'Enter a valid email, e.g. you@company.ca.');
   /* Mirrors the server's own minimum so the common mistake is caught without
      a round trip. The server still enforces it. */
   if(S.role!=='other'&&$('#p-pass').value.length<10)return bad($('#p-pass'),'Use at least 10 characters.');
@@ -839,11 +839,6 @@ $('#p-go').addEventListener('click',async()=>{
     try{sr=await W.session.providerSignup(VER.pending);}
     catch(err){
       busy(btn,false);
-      /* The one specific refusal the server makes, and it belongs on the
-         email field, not on the button. */
-      if(err&&err.status===400&&/work email|personal mailbox/i.test(err.message||'')){
-        return bad($('#p-email'),err.message);
-      }
       /* Every remaining 400 from /provider/signup is about the password
          (length, or equal to the email); anything else is not a field. */
       if(err&&err.status===400&&/password|characters/i.test(err.message||'')){

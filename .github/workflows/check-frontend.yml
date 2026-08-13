@@ -94,6 +94,13 @@ jobs:
       - name: Route guard unit tests
         run: node --test scripts/test-guards.mjs
 
+      # Which organisation an email address resolves to, which is transitively
+      # the answer to "who can see my sealed bid". Partner signup accepts
+      # personal addresses now, and the whole safety of that rests on a free
+      # provider keying on the full address rather than the bare domain.
+      - name: Organisation key unit tests
+        run: node --test scripts/test-org-key.mjs
+
       - name: Device router parses
         run: node --check js/device-router.js
 
