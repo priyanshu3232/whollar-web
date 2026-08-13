@@ -511,7 +511,7 @@ function noAccountEmail({ appBaseUrl }) {
  */
 function providerDecisionEmail({ approved, orgName, reason, appBaseUrl, firstName }) {
   const url = String(appBaseUrl || '').replace(/\/+$/, '');
-  const console_ = `${url}/provider-dashboard`;
+  const console_ = `${url}/partner`;
   const name = String(orgName || 'your company').trim();
   const hi = greeting(firstName);
 

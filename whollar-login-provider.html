@@ -460,10 +460,12 @@ button{font-family:var(--body)}
  * ------------------------------------------------------------------ */
 var W=window.WHOLLAR;
 
-/* Where a partner lands once signed in. /provider-dashboard is the default;
-   anything carried in ?next= is validated same-origin before it is followed. */
+/* Where a partner lands once signed in. /partner is the console; anything
+   carried in ?next= is validated same-origin before it is followed.
+   /provider-dashboard is the previous console and still deploys, so a partner
+   who has it bookmarked keeps working while the remaining views land. */
 function nextTarget(){
-  return W.safeNext(new URLSearchParams(location.search).get('next'), '/provider-dashboard');
+  return W.safeNext(new URLSearchParams(location.search).get('next'), '/partner');
 }
 
 /* Already signed in? Don't strand a partner on a form they don't need. The
