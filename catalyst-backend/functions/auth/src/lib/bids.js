@@ -57,10 +57,15 @@ const LABEL_BANNED = /today only|limited time|expires|last chance|hurry|act now|
 
 /* The head row's columns, in the two-list style desk.js established: tables
    are created by hand, so code and schema deploy separately and in either
-   order. The base list is what existed before the auction core; the extended
-   list is tried first and the base list is the fallback. */
-const BID_COLS = Object.freeze(['bid_key', 'campaign_id', 'price', 'speed', 'term',
-  'includes', 'completion', 'status', 'updated_at']);
+   order. The base list is the minimum a bid row cannot be read without; the
+   extended list is tried first and the base list is the fallback.
+
+   The original flat shape also carried speed, term, includes and completion.
+   Nothing writes them any more (a bid's speeds live in `tiers`, its term in
+   `guarantee_months`), and naming a column here is what makes it mandatory to
+   create, so they are not named. A table that still has them reads fine; a
+   table created today does not need them. */
+const BID_COLS = Object.freeze(['bid_key', 'campaign_id', 'price', 'status', 'updated_at']);
 const BID_COLS_V2 = Object.freeze(BID_COLS.concat(['tiers', 'guarantee_months',
   'after_mode', 'after_line', 'equipment', 'rental_monthly', 'extra_pod_monthly',
   'reduction_presentation', 'mechanism_label', 'commitment_cap', 'revision_count',
@@ -294,7 +299,7 @@ function parseTiers(raw) {
  */
 function publicBid(row) {
   const tiers = parseTiers(row.tiers) || (row.price ? [{
-    name: row.speed || '', uploadMbps: '', technology: '',
+    name: '', uploadMbps: '', technology: '',
     stickerPrice: row.price, effectivePrice: row.price, afterPrice: null,
   }] : []);
   return {

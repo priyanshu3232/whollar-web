@@ -252,10 +252,6 @@ const TABLES = Object.freeze({
     org_id:      'varchar(64) required',
     user_id:     'varchar(64) required',          // who placed it, for the org's own record
     price:       'varchar(16) required',          // headline: lowest tier's effective price
-    speed:       'varchar(32)',                   // legacy flat shape, kept readable
-    term:        'varchar(32)',
-    includes:    'varchar(255)',                  // CSV of included extras
-    completion:  'varchar(8)',                    // assumed completion %, as typed
     status:      'varchar(16) required',          // 'sealed' | 'improved'
     updated_at:  'datetime required',
     // The tiered bid, added by the auction core (create-tables.md section 18).

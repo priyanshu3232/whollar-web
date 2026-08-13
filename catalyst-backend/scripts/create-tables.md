@@ -452,9 +452,18 @@ the admin console. `bidding_enabled` is the global bidding kill switch.
 | Column | Type | Length | Unique | Mandatory | Notes |
 |---|---|---|:--:|:--:|---|
 | `config_key` | Var Char | 64 | ✅ | ✅ | |
-| `value` | Var Char | 255 | | | stored over the code default |
+| `value` | Text | 10000 | | ✅ | JSON-encoded, typed by `value_type`, so a boolean is `true` and not `"true"` |
+| `value_type` | Var Char | 16 | | ✅ | `string` \| `number` \| `boolean` \| `json` |
+| `published` | Boolean | — | | | only published keys reach `/public/config` |
+| `description` | Var Char | 255 | | | what the admin console shows beside the editor |
 | `updated_by` | Var Char | 64 | | | |
 | `updated_at` | DateTime | — | | | |
+
+> **Corrected.** This list previously showed `value` as Var Char 255 and
+> omitted `value_type`, `published` and `description`, all three of which
+> `lib/siteconfig.js` requires. A table built from the old list would fail
+> every read of it, and the failure is invisible: every caller falls back to
+> the code DEFAULTS.
 
 ### `provider_bids`
 
@@ -466,14 +475,19 @@ constraint is per column, so the pair is flattened into `bid_key`.
 | `bid_key` | Var Char | 130 | ✅ | ✅ | `${campaign_id}:${org_id}` |
 | `campaign_id` | Var Char | 64 | | ✅ | |
 | `org_id` | Var Char | 64 | | ✅ | |
-| `price` | Var Char | 16 | | ✅ | money as a string, see rule 3 |
-| `speed` | Var Char | 32 | | | |
-| `term` | Var Char | 16 | | | |
-| `includes` | Var Char | 255 | | | CSV |
-| `completion` | Var Char | 16 | | | |
-| `status` | Var Char | 16 | | ✅ | `sealed` |
-| `updated_by` | Var Char | 64 | | | |
+| `user_id` | Var Char | 64 | | ✅ | who placed it, for the org's own record |
+| `price` | Var Char | 16 | | ✅ | money as a string, see rule 3. The headline: the lowest tier's effective price |
+| `status` | Var Char | 16 | | ✅ | `sealed` \| `improved` |
 | `updated_at` | DateTime | — | | | |
+
+> **Corrected.** This list previously omitted `user_id`, which every insert
+> writes, and carried `updated_by`, which nothing writes. It also carried
+> `speed`, `term`, `includes` and `completion` from the flat experimental
+> shape; the tiered bid in section 18 replaced all four, nothing reads them,
+> and a table created today does not need them.
+
+**Section 18 adds fifteen more columns to this table.** If you are creating it
+for the first time, create the seven above and the fifteen there in one pass.
 
 ### `provider_coverage`
 
@@ -643,12 +657,33 @@ Bid WRITES, however, need all of it: placing a bid inserts into
 `bid_revisions` first, so until this section is done the place route answers
 "Bidding is not available right now."
 
+> **FIRST, find out what actually exists.** Section 16's four tables were
+> documented after the fact, on the assumption they had been created. Do not
+> assume: sign in as an admin and call `GET /api/auth/health/diagnostics`,
+> which runs `lib/schema.js verify()` and names every missing table, missing
+> column, and wrong constraint in one answer. Nothing in this system tells you
+> otherwise on its own, and that is deliberate: `lib/catalog.js` falls back to
+> the code catalog when `campaigns` is unreadable, and every other read
+> answers `live: false` and renders an empty state. A missing table looks
+> exactly like a quiet week.
+>
+> If a table below does not exist, create it from the FULL column list in
+> section 16 plus the additions here, not from the additions alone.
+
 ### Columns to add to `provider_bids`
 
 The head row grows from the flat experimental shape to the full sealed bid.
 Existing columns keep their names and meanings; `price` becomes the headline
 (the lowest tier's effective price) and `status` stays the state column, with
 `improved` joining `sealed` as a value.
+
+Note that section 16's list of this table is **wrong in one way that matters**:
+it omits `user_id`, which every insert writes, and lists `updated_by`, which
+nothing writes. Section 16 has been corrected. It also listed `speed`, `term`,
+`includes` and `completion`, which the tiered bid replaced: a bid's speeds
+live in `tiers` and its term in `guarantee_months`. Nothing reads or writes
+those four any more, so a table created today does not need them, and a table
+that already has them is unaffected.
 
 | Column | Type | Length | Unique | Mandatory | Notes |
 |---|---|---|:--:|:--:|---|
