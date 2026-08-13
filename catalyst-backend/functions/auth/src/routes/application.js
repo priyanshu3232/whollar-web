@@ -28,7 +28,11 @@
 
 const datastore = require('../lib/datastore');
 const audit = require('../lib/audit');
-const { requireProvider: guardPartner } = require('../lib/guards');
+/* requirePartner, not requireProvider: every handler here destructures
+   `{ context }` and reads context.orgId. requireProvider returns the bare user,
+   so importing it made all seven routes throw on context.orgId and answer 500.
+   The two guards look interchangeable and are not; lib/guards.js explains. */
+const { requirePartner: guardPartner } = require('../lib/guards');
 const { wrap, badRequest, AppError } = require('../lib/errors');
 
 const APPLICATIONS = 'provider_applications';
