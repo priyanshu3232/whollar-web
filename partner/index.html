@@ -22,7 +22,7 @@
      vote and console.boot exists.
      The ?v= stamp is written by the build. /partner is cached 24 hours, so an
      unbumped stamp ships new markup against old JavaScript for a day. -->
-<script src="/partner/console.build.js?v=78b3eb59" defer></script>
+<script src="/partner/console.build.js?v=753cb819" defer></script>
 
 <link rel="stylesheet" href="/partner/app.css?v=20260813a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='18' y1='14' x2='102' y2='106' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%230E2A20'/%3E%3Cstop offset='1' stop-color='%231E9E63'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='6' y='6' width='108' height='108' rx='32' fill='url(%23g)'/%3E%3Cpath d='M34 42h52M34 42l26 38M86 42l-26 38' stroke='%23fff' stroke-width='5' stroke-linecap='round' stroke-linejoin='round' opacity='.85'/%3E%3Ccircle cx='34' cy='42' r='11' fill='%23fff'/%3E%3Ccircle cx='86' cy='42' r='11' fill='%23fff'/%3E%3Ccircle cx='60' cy='80' r='11' fill='%23fff'/%3E%3C/svg%3E">
@@ -152,7 +152,7 @@
       <button type="button" class="soon" aria-disabled="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 20c.7-3.6 3.3-5.4 6.5-5.4s5.8 1.8 6.5 5.4"/><circle cx="17.5" cy="9" r="2.6"/><path d="M15.5 14.8c2.9.2 5.2 1.8 5.9 5.2"/></svg><span>Team &amp; access</span><em>Soon</em></button>
       <button type="button" data-view="coverage"><svg viewBox="0 0 24 24"><path d="m9 20-6-2V4l6 2 6-2 6 2v14l-6-2-6 2Z"/><path d="M9 6v14M15 4v14"/></svg><span>Coverage</span></button>
     </nav>
-    <button class="pane__prof" type="button" data-nav="account" id="paneprof" aria-label="Account">
+    <button class="pane__prof" type="button" data-action="nav" data-view="account" id="paneprof" aria-label="Account">
       <span class="ava2" id="paneava"></span>
       <span class="pp"><b id="paneorg"></b><small id="panerole"></small></span>
       <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
@@ -165,7 +165,7 @@
       <button class="burger" id="burger" type="button" aria-label="Toggle navigation pane" aria-expanded="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
       <span class="greet" id="greet"><span id="greetline"></span><small id="greetsub"></small></span>
       <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search cohorts and regions" aria-label="Search cohorts" autocomplete="off"><div class="drop" id="qdrop"></div></div>
-      <button class="ava" type="button" data-nav="account" aria-label="Account" id="topava"></button>
+      <button class="ava" type="button" data-action="nav" data-view="account" aria-label="Account" id="topava"></button>
     </header>
 
     <div class="content">
@@ -189,7 +189,7 @@
 
       <!-- ============ plan ============ -->
       <section class="view" data-v="plan">
-        <div class="vhead"><button class="tlink" type="button" data-nav="desk">&larr; Bid desk</button></div>
+        <div class="vhead"><button class="tlink" type="button" data-action="nav" data-view="desk">&larr; Bid desk</button></div>
         <div id="plan-body"></div>
       </section>
 

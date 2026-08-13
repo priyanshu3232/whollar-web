@@ -362,7 +362,48 @@ console.log('\n13. the application checklist tracks per-task state');
   await c2.close();
 }
 
-console.log('\n14. fixture mode cannot escape localhost');
+console.log('\n14. the chrome controls actually navigate, by being clicked');
+{
+  /* Group 7 walks the views by CALLING console.nav(), which is why it passed
+     while the two controls that reach Account did nothing at all: the ported
+     markup kept the prototype's data-nav attribute and the action registry
+     only listens for data-action. Sign out lives on Account, so the effect was
+     a console with no reachable way to sign out.
+     A programmatic navigation test cannot catch a dead attribute. This one
+     clicks. */
+  const c = await ctx(browser, { record: REC, me: APPROVED });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/partner`, { waitUntil: 'networkidle' });
+
+  await p.click('#paneprof');
+  ok(await p.locator('section.view[data-v="account"].on').count() === 1, 'the pane profile button opens Account');
+
+  await p.evaluate(() => window.WHOLLAR.console.nav('overview'));
+  await p.click('#topava');
+  ok(await p.locator('section.view[data-v="account"].on').count() === 1, 'the header avatar opens Account');
+
+  ok(await p.locator('#acct-body [data-action="account:signout"]').count() === 1, 'and Account carries a sign-out control');
+
+  /* Nothing may be left wired to the old attribute. The registry ignores it,
+     so a data-nav button is a control that silently does nothing. */
+  const dead = await p.evaluate(() => document.querySelectorAll('[data-nav]').length);
+  ok(dead === 0, `no dead data-nav controls left in the DOM (${dead})`);
+
+  /* Every data-action in the markup must have a handler, for the same reason. */
+  const unhandled = await p.evaluate(() => {
+    const reg = window.WHOLLAR.console.actions ? window.WHOLLAR.console.actions() : null;
+    if (!reg) return null;
+    const known = new Set([].concat(reg.click || [], reg.change || [], reg.input || [], reg.submit || []));
+    return [...document.querySelectorAll('[data-action]')]
+      .map(el => el.getAttribute('data-action'))
+      .filter(a => !known.has(a));
+  });
+  if (unhandled !== null) ok(unhandled.length === 0, `every data-action in the DOM has a handler (${unhandled.join(', ') || 'all wired'})`);
+  await c.close();
+}
+
+console.log('\n15. fixture mode cannot escape localhost');
 {
   /* The real guarantee is .vercelignore: the file is not uploaded, so it 404s
      in every deployed environment. Assert the SECOND belt here, that the

@@ -2884,7 +2884,7 @@
   var __ns3 = __require("core/session.js");
   var revalidate = __ns3.revalidate, mountSession = __ns3.mount, authFailed = __ns3.authFailed;
   var __ns4 = __require("core/actions.js");
-  var on = __ns4.on, mountActions = __ns4.mount;
+  var on = __ns4.on, mountActions = __ns4.mount, registered = __ns4.registered;
   var __ns5 = __require("core/modal.js");
   var mountModal = __ns5.mount;
   var __ns6 = __require("core/router.js");
@@ -3082,6 +3082,9 @@
        internal rename buys nothing and breaks every check that used it. */
     W.console.api = api;
     W.console.nav = go;
+    /* Every registered action name, so the harness can assert that a control
+       carrying data-action has something listening for it. */
+    W.console.actions = registered;
     W.console.state = get;
   }
 

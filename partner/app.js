@@ -16,7 +16,7 @@ import { get, set, subscribe, refresh } from './core/state.js';
 import { api } from './core/api.js';
 import { check, setStrict } from './core/contract.js';
 import { revalidate, mount as mountSession, authFailed } from './core/session.js';
-import { on, mount as mountActions } from './core/actions.js';
+import { on, mount as mountActions, registered } from './core/actions.js';
 import { mount as mountModal } from './core/modal.js';
 import { VIEWS, go, current, onChange, mount as mountRouter, setGated } from './core/router.js';
 import { startTicker } from './core/time.js';
@@ -204,5 +204,8 @@ if (W) {
      internal rename buys nothing and breaks every check that used it. */
   W.console.api = api;
   W.console.nav = go;
+  /* Every registered action name, so the harness can assert that a control
+     carrying data-action has something listening for it. */
+  W.console.actions = registered;
   W.console.state = get;
 }
