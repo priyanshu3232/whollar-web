@@ -333,9 +333,16 @@ function otpEmail({ code, purpose, ttlMinutes, firstName }) {
  * attempt came from an attacker, the owner needs to know without that attempt
  * having produced a credential of any kind.
  */
-function existingAccountEmail({ appBaseUrl, firstName }) {
+/**
+ * `signInPath` because there are two sign-in pages and sending a partner to the
+ * member one is a dead end: their credentials do not work there, so the mail
+ * that exists to say "you already have an account" would prove the opposite.
+ * Defaults to the member page, which is what the one pre-existing caller
+ * (password.js) wants.
+ */
+function existingAccountEmail({ appBaseUrl, firstName, signInPath }) {
   const url = String(appBaseUrl || '').replace(/\/+$/, '');
-  const signIn = `${url}/whollar-login-consumer`;
+  const signIn = `${url}${signInPath || '/whollar-login-consumer'}`;
   const hi = greeting(firstName);
 
   const text = [

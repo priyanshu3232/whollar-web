@@ -127,9 +127,54 @@ function mount(router, cfg) {
     // different. The owner is told by email; the caller learns only that the
     // request was accepted.
     if (existing && existing.status === 'active') {
+      /**
+       * Actually send it.
+       *
+       * This branch audited and returned, sending nothing at all, while the
+       * comment above and the signup screen both said an email had gone out
+       * ("Already had an account with this address? We've emailed you about
+       * that instead of sending a code"). The template for it has existed in
+       * mailer.js since the copy deck landed and had exactly one caller,
+       * password.js. So the one path a partner hits by signing up twice was
+       * the one path that stayed silent, and from outside it is indis-
+       * tinguishable from mail being broken. It is what sent us hunting
+       * through DNS.
+       *
+       * Best-effort, and the try/catch is not defensive clutter: a throw here
+       * would change the response, and a timing difference between "taken" and
+       * "free" reinstates the account-enumeration oracle this whole opaque
+       * answer exists to close.
+       */
+      let delivered = false;
+      let sendError = null;
+      try {
+        const result = await mailer.send(cfg, {
+          to: email,
+          ...mailer.existingAccountEmail({
+            appBaseUrl: cfg.APP_BASE_URL,
+            firstName: existing.first_name,
+            signInPath: '/whollar-login-provider',
+          }),
+        });
+        delivered = Boolean(result && result.delivered !== false);
+      } catch (err) {
+        sendError = String((err && err.message) || err).slice(0, 300);
+        console.error(JSON.stringify({
+          req_id: req.id, level: 'error', message: 'existing-account notice failed',
+          detail: sendError,
+        }));
+      }
+
       audit.recordAsync(req.catalyst, req, {
         type: 'provider.signup', outcome: 'failure', email, userId: existing.user_id,
-        detail: { reason: 'already_active' },
+        /* `delivered` and `transport` are what /health/mail filters on, so
+           without them this row is invisible there. The single most common
+           reason a signup produces no code was the one case the mail
+           diagnostics could not see. */
+        detail: {
+          reason: 'already_active', delivered,
+          transport: mailer.transportName(cfg), send_error: sendError,
+        },
       });
       return opaqueOk(cfg, res, { ttlMinutes: challenges.TTL_MINUTES });
     }
@@ -162,7 +207,13 @@ function mount(router, cfg) {
 
     audit.recordAsync(req.catalyst, req, {
       type: 'provider.signup', outcome: 'success', email, userId: user.user_id,
-      detail: { org_id: org.org_id, approval_status: org.approval_status, delivered, send_error: sendError },
+      /* transport was missing here while otp.js and the login challenge both
+         carry it, so /health/mail reported `transport: null` for the flow it
+         gets asked about most. */
+      detail: {
+        org_id: org.org_id, approval_status: org.approval_status,
+        delivered, transport: mailer.transportName(cfg), send_error: sendError,
+      },
     });
 
     return opaqueOk(cfg, res, { ttlMinutes, code });
