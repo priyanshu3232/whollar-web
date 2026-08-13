@@ -23,7 +23,9 @@ import { startTicker } from './core/time.js';
 
 import { render as renderBanner } from './components/banner.js';
 import { render as renderOverview } from './views/overview.js';
-import { render as renderDesk } from './views/desk.js';
+import { render as renderDesk, mount as mountDesk } from './views/desk.js';
+import { mount as mountTicket } from './views/ticket.js';
+import { render as renderBids, mount as mountBids } from './views/bids.js';
 import { render as renderCoverage, mount as mountCoverage } from './views/coverage.js';
 import { render as renderApplication, mount as mountApplication, load as loadApplication } from './views/application.js';
 import { render as renderAccount, mount as mountAccount, paintChrome } from './views/account.js';
@@ -38,6 +40,7 @@ function renderAll() {
   renderBanner();
   renderOverview();
   renderDesk();
+  renderBids();
   renderCoverage();
   renderApplication();
   renderAccount();
@@ -149,6 +152,9 @@ function start(partner) {
   mountModal();
   mountRouter();
   mountSession();
+  mountDesk();
+  mountTicket();
+  mountBids();
   mountCoverage();
   mountApplication();
   mountAccount();

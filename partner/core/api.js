@@ -58,10 +58,16 @@ function request(method, path, body) {
         if (b && typeof b.serverTime === 'number') sync(b.serverTime);
         return b || {};
       }
+      /* A refusal can carry the server clock too: the closed-window 409 sends
+         serverTime and closedAt in its body so the console can show that the
+         server's clock decided, not the partner's machine. Sync from it, and
+         keep the whole error object for views that render those fields. */
+      if (b && b.error && typeof b.error.serverTime === 'number') sync(b.error.serverTime);
       var e = new Error((b && b.error && b.error.message) || 'Something went wrong. Please try again.');
       e.code = (b && b.error && b.error.code) || 'SERVER_ERROR';
       e.status = r.status;
       e.field = (b && b.error && b.error.field) || null;
+      e.detail = (b && b.error) || null;
       throw e;
     });
   }, function () {
@@ -70,6 +76,20 @@ function request(method, path, body) {
     var e = new Error('We could not reach Whollar. Check your connection and try again.');
     e.code = 'NETWORK';
     throw e;
+  });
+}
+
+/* The other half of the serverTime seam. Calls that go through
+   whollar-core.js's session methods bypass request() above, so their payloads
+   would anchor nothing: the skew would sit at whatever the last local call
+   left it, which on a quiet boot is zero, i.e. the browser's own clock. That
+   is exactly the clock the desk countdowns must never trust. Wrapping the
+   session-proxied reads here gives the console one skew from whichever
+   payload arrives first, usually /provider/me. */
+function synced(p) {
+  return p.then(function (r) {
+    if (r && typeof r.serverTime === 'number') sync(r.serverTime);
+    return r;
   });
 }
 
@@ -106,7 +126,7 @@ api.signIn = function (creds) { return session().providerLogin(creds); };
 api.signOut = function () { return session().end('partner'); };
 
 /* 3. GET /partners/me -> GET /provider/me. LIVE. */
-api.me = function () { return session().providerMe().then(function (r) { return check('providerMe', r); }); };
+api.me = function () { return synced(session().providerMe()).then(function (r) { return check('providerMe', r); }); };
 
 /* 4. GET /time. Stubbed: serverTime rides on every payload instead, which
       removes a round trip and a way for the two to disagree. */
@@ -152,7 +172,7 @@ api.applicationDecision = todo('POST /admin/partner-applications/:id/decision');
 /* ---- 7.3 coverage (17-21) ---- */
 
 /* 17. LIVE. */
-api.coverage = function () { return session().providerCoverage(); };
+api.coverage = function () { return synced(session().providerCoverage()); };
 /* 18. LIVE. New regions land 'verifying'. */
 api.coverageDeclare = function (row) { return session().providerCoverageSave(row); };
 /* 19. LIVE as an upsert: the backend keys on `${orgId}:${slug}`, so a patch and
@@ -169,12 +189,16 @@ api.serviceability = function (region) {
 /* ---- 7.4 bid desk (22-31) ---- */
 
 /* 22. LIVE. Counts only, plus bidding_open and the server-derived stage. */
-api.campaigns = function () { return session().providerCampaigns(); };
+api.campaigns = function () { return synced(session().providerCampaigns()); };
 /* 23 */ api.campaign = todo('GET /provider/campaigns/:id');
-/* 24. Aggregates only: household count, renewal window, speed demand mix,
-       plant mix, and the partner's own coverage line. No identities, no other
-       partner's bid, no bid count. */
-/* 24 */ api.campaignBrief = todo('GET /provider/campaigns/:id/brief');
+/* 24. LIVE. Aggregates only: household count, renewal window, speed demand
+       mix, plant mix, the success fee from config, and the partner's own
+       coverage line and own bid. No identities, no other partner's bid, no
+       bid count. Fetched on row expand, which also re-anchors the clock. */
+api.campaignBrief = function (id) {
+  return request('GET', '/provider/campaigns/' + encodeURIComponent(id) + '/brief')
+    .then(function (r) { return check('brief', r); });
+};
 /* 25 */ api.campaignsPlanned = todo('GET /provider/campaigns/planned');
 /* 26 */ api.campaignPlan = todo('GET /provider/campaigns/:id/plan');
 /* 27 */ api.intentAdd = todo('POST /provider/campaigns/:id/intent');
@@ -190,18 +214,35 @@ api.campaigns = function () { return session().providerCampaigns(); };
 /* ---- 7.5 bids (32-37) ---- */
 
 /* 32. LIVE. */
-api.bids = function () { return session().providerBids(); };
-/* 33. LIVE. One sealed row per campaign and org. */
-api.bidPlace = function (bid) { return session().providerBidSave(bid); };
-/* 34. NOT the same as bidPlace. An improvement is a new VERSION and must be at
-       least as good on every tier present in both: no raised effective price,
-       no shortened guarantee, no worsened after-rate, no reduced commitment.
-       The prototype's improve handler deletes the bid and reopens the form;
-       that is prototype convenience and must not ship. There is no withdraw,
-       and no endpoint anywhere removes a bid. */
-/* 34 */ api.bidImprove = todo('POST /provider/bids/:campaign/improve');
-/* 35 */ api.bid = todo('GET /provider/bids/:campaign');
-/* 36 */ api.bidVersions = todo('GET /provider/bids/:campaign/versions');
+api.bids = function () { return synced(session().providerBids()); };
+/* 33. LIVE. Place only: an existing bid answers 409 and the improve route is
+       the only way forward. Routed through request(), not the session proxy,
+       because a refusal here carries fields the console must render (the
+       server clock on a close-boundary 409) and the proxy drops them. */
+api.bidPlace = function (bid) {
+  return request('POST', '/provider/bids', bid)
+    .then(function (r) { return check('bidReceipt', r); });
+};
+/* 34. LIVE. NOT the same as bidPlace. An improvement is a new VERSION and must
+       be at least as good on every tier present in both: no raised effective
+       price, no shortened guarantee, no worsened after-rate, no reduced
+       commitment. The prototype's improve handler deletes the bid and reopens
+       the form; that is prototype convenience and did not ship. There is no
+       withdraw, and no endpoint anywhere removes a bid. */
+api.bidImprove = function (id, bid) {
+  return request('POST', '/provider/bids/' + encodeURIComponent(id) + '/improve', bid)
+    .then(function (r) { return check('bidReceipt', r); });
+};
+/* 35. LIVE. The org's own bid, or a 404 identical to never-existed. */
+api.bid = function (id) {
+  return request('GET', '/provider/bids/' + encodeURIComponent(id));
+};
+/* 36. LIVE. The sealed revision trail, payloads verbatim. */
+api.bidVersions = function (id) {
+  return request('GET', '/provider/bids/' + encodeURIComponent(id) + '/versions');
+};
+/* 37. The record the client already holds, as a file. Ships client-side from
+       views/bids.js for now; the server route stays honestly unbuilt. */
 /* 37 */ api.bidsExport = todo('GET /provider/bids/export');
 
 /* ---- 7.6 terms and contracts (38-39) ---- */

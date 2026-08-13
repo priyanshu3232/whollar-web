@@ -10,11 +10,15 @@
  * time.until(), never from a bare Date.now().
  */
 
-import { get } from '../core/state.js';
+import { get, set } from '../core/state.js';
+import { api } from '../core/api.js';
 import { esc, regionSlug } from '../core/format.js';
 import { fmtDate, fmtCountdown, until, DAY, startTicker } from '../core/time.js';
+import { on } from '../core/actions.js';
 import { stageRail } from '../components/rail.js';
 import { empty, goTo } from '../components/emptystate.js';
+import { briefHTML } from './brief.js';
+import { ticketHTML, refreshScn } from './ticket.js';
 
 export function render() {
   var host = document.getElementById('desk-body');
@@ -68,6 +72,10 @@ export function render() {
     + '<p class="fnote">You see a cohort because it sits inside your declared coverage. You never see another partner’s bid, their count, or whether they bid at all.</p>'
     + '</section>';
 
+  /* The scenario table lives in the brief but reads the open form, so it can
+     only be computed once both are in the DOM. */
+  refreshScn();
+
   startTicker();
 }
 
@@ -100,13 +108,33 @@ function row(a, unlocked) {
     ? '<span class="lockedtag">Verifies with ' + esc(a.coverageRegion || a.region) + ' coverage</span>'
     : bidAction(a, mine);
 
-  return '<tr data-row="' + esc(a.id) + '"' + (unlocked ? '' : ' class="locked"') + '>'
+  var open = get().openCampaign === a.id;
+
+  return '<tr data-row="' + esc(a.id) + '"' + rowClass(unlocked, open) + '>'
     + '<td><span class="rg">' + esc(a.region) + '<small>' + esc(a.sub || '') + '</small></span></td>'
     + '<td class="num">' + esc(String(a.households != null ? a.households : '·')) + '</td>'
     + '<td>' + stageRail(a.stage) + '</td>'
     + '<td><span class="closecell' + (hot ? ' hot' : '') + '">' + window_ + '</span></td>'
     + '<td>' + yours + '</td>'
-    + '<td style="text-align:right">' + action + '</td></tr>';
+    + '<td style="text-align:right">' + action + '</td></tr>'
+    + (open ? expandedRow(a, mine) : '');
+}
+
+function rowClass(unlocked, open) {
+  var cls = (unlocked ? '' : 'locked') + (open ? (unlocked ? ' ' : '') + 'exp' : '');
+  return cls ? ' class="' + cls + '"' : '';
+}
+
+/* The expanded row: the brief and the ticket, side by side, exactly the
+   prototype's dgrid composition (line 1152). Rendered only for the open
+   cohort; the CSS shows a .dwr only after a row carrying .exp. */
+function expandedRow(a, mine) {
+  var data = get().briefs[a.id];
+  var showScn = (a.stage === 'open' || a.stage === 'closing') && !mine;
+  return '<tr class="dwr" data-dwr="' + esc(a.id) + '"><td colspan="6"><div class="dgrid">'
+    + briefHTML(a, data, mine, showScn)
+    + ticketHTML(a, data, mine)
+    + '</div></td></tr>';
 }
 
 function countdown(ts) {
@@ -114,15 +142,56 @@ function countdown(ts) {
   return ' · <span data-until="' + ts + '">' + fmtCountdown(until(ts)) + '</span>';
 }
 
-/* The ticket itself is not built. Rather than an inert "Review and bid" that
-   opens nothing, the desk says what the row is waiting on. A button that does
-   nothing teaches a partner not to trust the others. */
+/* The row's control. Open cohorts get the real ticket; the label states what
+   the click does. Bidding paused still opens the row: the brief is readable,
+   and the ticket itself says why the button is disabled. */
 function bidAction(a, mine) {
-  if (a.stage === 'open' || a.stage === 'closing') {
-    if (mine) return '<span class="mono" style="font-size:11px;color:var(--sub)">Sealed · improvable until close</span>';
-    if (get().biddingPaused) return '<span class="lockedtag">Bidding paused</span>';
-    return '<span class="mono" style="font-size:11px;color:var(--sub)">Ticket opens here</span>';
-  }
-  if (a.stage === 'offers_out') return '<span class="mono" style="font-size:11px;color:var(--sub)">With households</span>';
-  return '';
+  var open = get().openCampaign === a.id;
+  var biddable = a.stage === 'open' || a.stage === 'closing';
+  var label;
+  if (biddable) label = mine ? 'View' : 'Review and bid';
+  else if (a.stage === 'offers_out' || a.stage === 'decided') label = 'View';
+  else return '';
+  return '<button class="btn' + (mine || !biddable ? ' ghost' : '') + '" type="button" '
+    + 'data-action="desk:open" data-id="' + esc(a.id) + '">'
+    + (open ? 'Close' : label) + '</button>';
+}
+
+/* ------------------------------------------------------------------ *
+ * actions
+ * ------------------------------------------------------------------ */
+
+export function mount() {
+  on('click', 'desk:open', function (el) {
+    var id = el.getAttribute('data-id');
+    var S = get();
+    if (S.openCampaign === id) {
+      set({ openCampaign: null, ticketDraft: null });
+      return;
+    }
+    /* Switching cohorts drops the draft: a half-typed ticket for one cohort
+       must never prefill another's. */
+    set({ openCampaign: id, ticketDraft: null });
+    loadBrief(id);
+  });
+}
+
+/** Fetch the brief on first open, and re-anchor the clock while at it. */
+function loadBrief(id) {
+  var S = get();
+  var have = S.briefs[id];
+  if (have && have !== 'loading' && !have.failed) return;
+  set('briefs', assign(S.briefs, id, 'loading'));
+  api.campaignBrief(id).then(function (r) {
+    set('briefs', assign(get().briefs, id, r));
+  }, function () {
+    set('briefs', assign(get().briefs, id, { failed: true }));
+  });
+}
+
+function assign(map, key, value) {
+  var out = {};
+  for (var k in map) { if (Object.prototype.hasOwnProperty.call(map, k)) out[k] = map[k]; }
+  out[key] = value;
+  return out;
 }

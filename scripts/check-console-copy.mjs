@@ -41,10 +41,13 @@ const FILES = [
   'partner/components/tasks.js',
   'partner/views/account.js',
   'partner/views/application.js',
+  'partner/views/bids.js',
+  'partner/views/brief.js',
   'partner/views/coverage.js',
   'partner/views/desk.js',
   'partner/views/overview.js',
   'partner/views/placeholders.js',
+  'partner/views/ticket.js',
   'partner/demo/fixtures.js',
   'scripts/qa-console.mjs',
   'scripts/build-console.mjs'

@@ -30,6 +30,8 @@ var state = {
   campaigns: [],
   campaignsLive: true,
   bids: {},             /* keyed by campaign id */
+  briefs: {},           /* GET .../brief payloads keyed by campaign id;
+                           'loading' while in flight, { failed: true } on error */
 
   /* health */
   biddingPaused: false,
@@ -39,6 +41,10 @@ var state = {
   /* view-local, deliberately in the store so a re-render cannot lose it */
   covEdit: null,        /* region slug being edited inline */
   covDraft: null,       /* chip state while editing */
+  openCampaign: null,   /* the desk row currently expanded */
+  ticketDraft: null,    /* the in-progress bid ticket, so a repaint cannot eat
+                           a half-typed bid; the prototype's expandRow-mutates-
+                           state bug is the cautionary tale above */
 
   prefs: null,
   fixture: null         /* { name, label, view } under fixture mode */

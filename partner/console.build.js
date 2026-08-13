@@ -55,6 +55,8 @@
     campaigns: [],
     campaignsLive: true,
     bids: {},             /* keyed by campaign id */
+    briefs: {},           /* GET .../brief payloads keyed by campaign id;
+                             'loading' while in flight, { failed: true } on error */
 
     /* health */
     biddingPaused: false,
@@ -64,6 +66,10 @@
     /* view-local, deliberately in the store so a re-render cannot lose it */
     covEdit: null,        /* region slug being edited inline */
     covDraft: null,       /* chip state while editing */
+    openCampaign: null,   /* the desk row currently expanded */
+    ticketDraft: null,    /* the in-progress bid ticket, so a repaint cannot eat
+                             a half-typed bid; the prototype's expandRow-mutates-
+                             state bug is the cautionary tale above */
 
     prefs: null,
     fixture: null         /* { name, label, view } under fixture mode */
@@ -261,6 +267,16 @@
   var AFTER_MODE = Object.freeze(['none', 'new']);
   var GUARANTEE_MONTHS = Object.freeze([12, 24, 36]);
 
+  /* The standard tier ladder and the technologies a bid names. Mirrors
+     lib/bids.js TIER_NAMES / TECHS: tiers come from one server-owned list so two
+     partners' offers on a cohort are comparable line by line. Wire values are
+     the canonical lowercase codes; TECH_LABEL is how the console displays them. */
+  var TIER_NAMES = Object.freeze(['100 Mbps', '300 Mbps', '500 Mbps', '1 Gig', '1.5 Gig', '2.5 Gig']);
+  var TECH = Object.freeze(['cable', 'fibre', 'dsl', 'fwa']);
+  var TECH_LABEL = Object.freeze({
+    cable: 'Cable', fibre: 'Fibre', dsl: 'DSL', fwa: 'Fixed wireless'
+  });
+
   /* Switch order state. THIS list is canonical. The prototype also carries a
      dead earlier vocabulary (ins, sch, to) from a superseded seedRoster; it is
      not ported and must not reappear.
@@ -354,6 +370,21 @@
       ok: 'bool', state: ['enum', ['draft', 'submitted', 'under_review', 'info_needed', 'approved', 'rejected']],
       tasks: 'obj'
     },
+
+    /* The brief: aggregates only. `bid` is the org's OWN bid or null; no other
+       partner's anything is in this shape, which is the assertion. */
+    brief: { ok: 'bool', serverTime: 'int', campaign: 'obj', brief: 'obj', coverage: 'obj', bid: 'obj?' },
+
+    /* One sealed bid, the org's own. The shape the fixtures' SEALED_BID and the
+       server's publicBid() both build; this spec is what keeps them agreeing. */
+    bid: {
+      campaignId: 'str',
+      state: ['enum', ['sealed', 'improved', 'locked', 'won', 'not_selected']],
+      tiers: 'arr'
+    },
+
+    /* What a place or improve returns: the new head and the sealed receipt. */
+    bidReceipt: { ok: 'bool', serverTime: 'int', bid: 'obj', receipt: 'obj' },
 
     /* The intimation boundary, asserted from the client side as well.
        Before the roster gate the response carries counts and the orders key is
@@ -462,6 +493,9 @@
   __exports.EQUIPMENT = EQUIPMENT;
   __exports.AFTER_MODE = AFTER_MODE;
   __exports.GUARANTEE_MONTHS = GUARANTEE_MONTHS;
+  __exports.TIER_NAMES = TIER_NAMES;
+  __exports.TECH = TECH;
+  __exports.TECH_LABEL = TECH_LABEL;
   __exports.ORDER_STATE = ORDER_STATE;
   __exports.ORDER_LABEL = ORDER_LABEL;
   __exports.ORDER_EXCEPTION = ORDER_EXCEPTION;
@@ -674,10 +708,16 @@
           if (b && typeof b.serverTime === 'number') sync(b.serverTime);
           return b || {};
         }
+        /* A refusal can carry the server clock too: the closed-window 409 sends
+           serverTime and closedAt in its body so the console can show that the
+           server's clock decided, not the partner's machine. Sync from it, and
+           keep the whole error object for views that render those fields. */
+        if (b && b.error && typeof b.error.serverTime === 'number') sync(b.error.serverTime);
         var e = new Error((b && b.error && b.error.message) || 'Something went wrong. Please try again.');
         e.code = (b && b.error && b.error.code) || 'SERVER_ERROR';
         e.status = r.status;
         e.field = (b && b.error && b.error.field) || null;
+        e.detail = (b && b.error) || null;
         throw e;
       });
     }, function () {
@@ -686,6 +726,20 @@
       var e = new Error('We could not reach Whollar. Check your connection and try again.');
       e.code = 'NETWORK';
       throw e;
+    });
+  }
+
+  /* The other half of the serverTime seam. Calls that go through
+     whollar-core.js's session methods bypass request() above, so their payloads
+     would anchor nothing: the skew would sit at whatever the last local call
+     left it, which on a quiet boot is zero, i.e. the browser's own clock. That
+     is exactly the clock the desk countdowns must never trust. Wrapping the
+     session-proxied reads here gives the console one skew from whichever
+     payload arrives first, usually /provider/me. */
+  function synced(p) {
+    return p.then(function (r) {
+      if (r && typeof r.serverTime === 'number') sync(r.serverTime);
+      return r;
     });
   }
 
@@ -722,7 +776,7 @@
   api.signOut = function () { return session().end('partner'); };
 
   /* 3. GET /partners/me -> GET /provider/me. LIVE. */
-  api.me = function () { return session().providerMe().then(function (r) { return check('providerMe', r); }); };
+  api.me = function () { return synced(session().providerMe()).then(function (r) { return check('providerMe', r); }); };
 
   /* 4. GET /time. Stubbed: serverTime rides on every payload instead, which
         removes a round trip and a way for the two to disagree. */
@@ -768,7 +822,7 @@
   /* ---- 7.3 coverage (17-21) ---- */
 
   /* 17. LIVE. */
-  api.coverage = function () { return session().providerCoverage(); };
+  api.coverage = function () { return synced(session().providerCoverage()); };
   /* 18. LIVE. New regions land 'verifying'. */
   api.coverageDeclare = function (row) { return session().providerCoverageSave(row); };
   /* 19. LIVE as an upsert: the backend keys on `${orgId}:${slug}`, so a patch and
@@ -785,12 +839,16 @@
   /* ---- 7.4 bid desk (22-31) ---- */
 
   /* 22. LIVE. Counts only, plus bidding_open and the server-derived stage. */
-  api.campaigns = function () { return session().providerCampaigns(); };
+  api.campaigns = function () { return synced(session().providerCampaigns()); };
   /* 23 */ api.campaign = todo('GET /provider/campaigns/:id');
-  /* 24. Aggregates only: household count, renewal window, speed demand mix,
-         plant mix, and the partner's own coverage line. No identities, no other
-         partner's bid, no bid count. */
-  /* 24 */ api.campaignBrief = todo('GET /provider/campaigns/:id/brief');
+  /* 24. LIVE. Aggregates only: household count, renewal window, speed demand
+         mix, plant mix, the success fee from config, and the partner's own
+         coverage line and own bid. No identities, no other partner's bid, no
+         bid count. Fetched on row expand, which also re-anchors the clock. */
+  api.campaignBrief = function (id) {
+    return request('GET', '/provider/campaigns/' + encodeURIComponent(id) + '/brief')
+      .then(function (r) { return check('brief', r); });
+  };
   /* 25 */ api.campaignsPlanned = todo('GET /provider/campaigns/planned');
   /* 26 */ api.campaignPlan = todo('GET /provider/campaigns/:id/plan');
   /* 27 */ api.intentAdd = todo('POST /provider/campaigns/:id/intent');
@@ -806,18 +864,35 @@
   /* ---- 7.5 bids (32-37) ---- */
 
   /* 32. LIVE. */
-  api.bids = function () { return session().providerBids(); };
-  /* 33. LIVE. One sealed row per campaign and org. */
-  api.bidPlace = function (bid) { return session().providerBidSave(bid); };
-  /* 34. NOT the same as bidPlace. An improvement is a new VERSION and must be at
-         least as good on every tier present in both: no raised effective price,
-         no shortened guarantee, no worsened after-rate, no reduced commitment.
-         The prototype's improve handler deletes the bid and reopens the form;
-         that is prototype convenience and must not ship. There is no withdraw,
-         and no endpoint anywhere removes a bid. */
-  /* 34 */ api.bidImprove = todo('POST /provider/bids/:campaign/improve');
-  /* 35 */ api.bid = todo('GET /provider/bids/:campaign');
-  /* 36 */ api.bidVersions = todo('GET /provider/bids/:campaign/versions');
+  api.bids = function () { return synced(session().providerBids()); };
+  /* 33. LIVE. Place only: an existing bid answers 409 and the improve route is
+         the only way forward. Routed through request(), not the session proxy,
+         because a refusal here carries fields the console must render (the
+         server clock on a close-boundary 409) and the proxy drops them. */
+  api.bidPlace = function (bid) {
+    return request('POST', '/provider/bids', bid)
+      .then(function (r) { return check('bidReceipt', r); });
+  };
+  /* 34. LIVE. NOT the same as bidPlace. An improvement is a new VERSION and must
+         be at least as good on every tier present in both: no raised effective
+         price, no shortened guarantee, no worsened after-rate, no reduced
+         commitment. The prototype's improve handler deletes the bid and reopens
+         the form; that is prototype convenience and did not ship. There is no
+         withdraw, and no endpoint anywhere removes a bid. */
+  api.bidImprove = function (id, bid) {
+    return request('POST', '/provider/bids/' + encodeURIComponent(id) + '/improve', bid)
+      .then(function (r) { return check('bidReceipt', r); });
+  };
+  /* 35. LIVE. The org's own bid, or a 404 identical to never-existed. */
+  api.bid = function (id) {
+    return request('GET', '/provider/bids/' + encodeURIComponent(id));
+  };
+  /* 36. LIVE. The sealed revision trail, payloads verbatim. */
+  api.bidVersions = function (id) {
+    return request('GET', '/provider/bids/' + encodeURIComponent(id) + '/versions');
+  };
+  /* 37. The record the client already holds, as a file. Ships client-side from
+         views/bids.js for now; the server route stays honestly unbuilt. */
   /* 37 */ api.bidsExport = todo('GET /provider/bids/export');
 
   /* ---- 7.6 terms and contracts (38-39) ---- */
@@ -2234,6 +2309,635 @@
   };
 
   /* ==================================================================
+     views/brief.js
+     ================================================================== */
+  __defs["views/brief.js"] = function (__exports, __require, root) {
+  /* The auction brief: one cohort's facts, aggregates only.
+   *
+   * Ported from the prototype's live briefHTML (provider-console-v12.html
+   * 2157-2184, the v7 declaration; the three earlier ones are dead, see
+   * docs/console/render-inventory.md). Renders inside the desk's expanded row,
+   * next to the ticket, so it has no view host of its own.
+   *
+   * DEVIATIONS FROM THE PROTOTYPE, both deliberate:
+   *   1. The "Declared plant reaches an estimated N of M households" line is
+   *      NOT ported. The prototype invents that figure (hh minus three); the
+   *      server computes no such estimate yet, and an invented number on an
+   *      auction brief is exactly what the house rules forbid. The line returns
+   *      when serviceability data actually produces it.
+   *   2. Mixes the server has not recorded render as "Cohort profile to come"
+   *      rather than as bars over made-up percentages.
+   */
+
+  var __ns0 = __require("core/format.js");
+  var esc = __ns0.esc;
+
+  /** Percentage bars plus their label, from [['1 Gig', 42], ...]. */
+  function mix(arr) {
+    var tot = arr.reduce(function (t, x) { return t + x[1]; }, 0) || 1;
+    var bars = arr.map(function (x) {
+      return '<i style="width:' + Math.round(x[1] / tot * 88) + 'px"></i>';
+    }).join('');
+    var lab = arr.map(function (x) { return esc(x[0]) + ' ' + x[1] + '%'; }).join(' · ');
+    return '<span class="mixin">' + bars + '<em>' + lab + '</em></span>';
+  }
+
+  var TO_COME = '<b style="color:var(--sub);font-weight:600">Cohort profile to come</b>';
+
+  /**
+   * The brief panel.
+   * @param a       the campaign row (desk shape)
+   * @param data    state.briefs[id]: undefined | 'loading' | {failed} | payload
+   * @param mine    the org's own bid or null
+   * @param showScn whether the scenario table renders (form open, nothing sealed)
+   */
+  function briefHTML(a, data, mine, showScn) {
+    if (!data || data === 'loading') {
+      return '<div class="brief"><div class="dh">The auction brief</div>'
+        + '<p class="fnote">Fetching the brief…</p></div>';
+    }
+    if (data.failed) {
+      return '<div class="brief"><div class="dh">The auction brief</div>'
+        + '<p class="fnote">We could not read the brief just now. This is on our side; reload in a moment.</p></div>';
+    }
+
+    var b = data.brief || {};
+    var cov = data.coverage || { declared: false };
+
+    var covline = cov.declared
+      ? '<b>' + esc((cov.techs || []).map(cap).join(' · ')
+          + (cov.speed ? ' · up to ' + cov.speed : '')) + '</b>'
+        + (cov.status !== 'active'
+          ? ' <span class="lockedtag">' + esc(cov.status === 'verifying' ? 'Verifying' : cov.status) + '</span>'
+          : '')
+      : '<b style="color:#8C3B1B">Not declared</b> '
+        + '<button class="tlink" type="button" data-action="nav" data-view="coverage">Declare →</button>';
+
+    var scn = showScn
+      ? '<div class="scnwrap"><h4>What this bid could return</h4>'
+        + '<div class="scnchip">at your commitment of <b class="scommit">'
+        + esc(String(a.households != null ? a.households : '·')) + '</b> households</div>'
+        + (b.speedMix
+          ? '<table class="scn"><thead><tr><th>Confirmed</th><th>Serve</th><th>Monthly</th><th>Fees</th></tr></thead><tbody class="scnbody"></tbody></table>'
+            + '<p class="fnote" style="margin-top:8px">Blends your tier prices by the cohort’s speed demand, capped at your commitment. Updates as you type.</p>'
+          : '<p class="fnote">Scenario math arrives with the cohort profile.</p>')
+        + '</div>'
+      : '';
+
+    return '<div class="brief"><div class="dh">The auction brief</div><div class="dl">'
+      + '<div class="r"><span>Households</span><b>' + esc(String(b.households != null ? b.households : (a.households != null ? a.households : '·'))) + '</b></div>'
+      + '<div class="r"><span>Renewal window</span>' + (b.renewalWindow ? '<b>' + esc(b.renewalWindow) + '</b>' : TO_COME) + '</div>'
+      + '<div class="r"><span>Speed demand</span>' + (b.speedMix ? mix(b.speedMix) : TO_COME) + '</div>'
+      + '<div class="r"><span>Plant mix</span>' + (b.plantMix ? mix(b.plantMix) : TO_COME) + '</div>'
+      + '<div class="r"><span>Your coverage here</span>' + covline + '</div>'
+      + '</div>'
+      + scn
+      + '<p class="fnote">Aggregates only.</p></div>';
+  }
+
+  /** 'fibre' -> 'Fibre', for coverage tech codes on the facts list. */
+  function cap(s) {
+    s = String(s || '');
+    return s === 'fwa' ? 'Fixed wireless' : s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  __exports.briefHTML = briefHTML;
+  };
+
+  /* ==================================================================
+     views/ticket.js
+     ================================================================== */
+  __defs["views/ticket.js"] = function (__exports, __require, root) {
+  /* The bid ticket: set terms, seal, improve. The one write surface of the desk.
+   *
+   * Ported from the prototype's LIVE spans only (docs/console/render-inventory.md
+   * table A): ticketHTML 2578-2619 (the v10 declaration, seven-column tier table,
+   * five-option reduction select), tierRowHTML 2566-2576, readTicket 2621-2660,
+   * scnCalc 2258-2269, bidLine 2060-2066. The four dead earlier declarations are
+   * not here and must not come back.
+   *
+   * DEVIATIONS FROM THE PROTOTYPE, all deliberate:
+   *   1. Improve does NOT delete the bid and reopen the form. It renders the
+   *      form prefilled from the sealed head and posts to the improve route,
+   *      which seals a new version; nothing anywhere removes a bid. The
+   *      prototype's delete-and-reopen was convenience and did not ship.
+   *   2. The terms-gate button branch (accept standard cohort terms before
+   *      bidding) is deferred with the contracts registry increment; today the
+   *      reachable button states are pending, paused, closed, and live.
+   *   3. The fee in the scenario table is brief.successFee from config, never a
+   *      constant.
+   *   4. In-progress form state lives in state.ticketDraft, so a repaint cannot
+   *      eat a half-typed bid.
+   *   5. The close boundary belongs to the server. At zero the button disables
+   *      and says so, but the server's 409, with its own clock in the body, is
+   *      the authority and its message renders verbatim.
+   */
+
+  var __ns0 = __require("core/state.js");
+  var get = __ns0.get, set = __ns0.set;
+  var __ns1 = __require("core/api.js");
+  var api = __ns1.api;
+  var __ns2 = __require("core/format.js");
+  var esc = __ns2.esc, money = __ns2.money;
+  var __ns3 = __require("core/time.js");
+  var fmtDate = __ns3.fmtDate, until = __ns3.until;
+  var __ns4 = __require("core/actions.js");
+  var on = __ns4.on;
+  var __ns5 = __require("core/toast.js");
+  var toast = __ns5.toast, failed = __ns5.failed;
+  var __ns6 = __require("core/contract.js");
+  var TIER_NAMES = __ns6.TIER_NAMES, TECH = __ns6.TECH, TECH_LABEL = __ns6.TECH_LABEL, REDUCTION_LABEL = __ns6.REDUCTION_LABEL;
+
+  /* Suggested prices per tier, from the prototype (SUGG / SUGGUP / SUGGSTICKER,
+     lines 2142-2143 and 2563). Suggestions only: everything is editable and the
+     server validates whatever arrives. */
+  var SUGG = { '100 Mbps': 44, '300 Mbps': 49, '500 Mbps': 56, '1 Gig': 64, '1.5 Gig': 74, '2.5 Gig': 84 };
+  var SUGGUP = { '100 Mbps': '20', '300 Mbps': '30', '500 Mbps': '50', '1 Gig': '100', '1.5 Gig': '150', '2.5 Gig': '250' };
+  var SUGGSTICKER = { '100 Mbps': 65, '300 Mbps': 75, '500 Mbps': 86, '1 Gig': 99, '1.5 Gig': 115, '2.5 Gig': 135 };
+
+  /* ------------------------------------------------------------------ *
+   * small builders
+   * ------------------------------------------------------------------ */
+
+  /** "$56 · 500 Mbps · $64 · 1 Gig" from a bid's tiers. */
+  function bidLine(m) {
+    if (m && m.tiers && m.tiers.length) {
+      return m.tiers.map(function (t) { return money(t.effectivePrice) + ' · ' + t.name; }).join(' · ');
+    }
+    return '';
+  }
+
+  function stickerLine(m) {
+    if (!m || !m.tiers || !m.tiers.length) return '';
+    return m.tiers.map(function (t) { return money(t.stickerPrice) + ' / ' + t.name; }).join(' · ');
+  }
+
+  function equipLine(m) {
+    var base = m.equipment === 'inc' ? 'included'
+      : (m.equipment === 'byod' ? 'BYOD, no charge'
+        : ('rental ' + money(m.rentalMonthly || '0') + '/mo, stated'));
+    return base + (m.extraPodMonthly ? ' · extra pod ' + money(m.extraPodMonthly) + '/mo' : ' · pods included');
+  }
+
+  function mechLabel(m) {
+    if (m.reductionPresentation === 'custom') return m.mechanismLabel || 'a custom reduction';
+    return REDUCTION_LABEL[m.reductionPresentation] || REDUCTION_LABEL.member;
+  }
+
+  function tierRowHTML(t, i) {
+    var opts = TIER_NAMES.map(function (n) {
+      return '<option' + (n === t.name ? ' selected' : '') + '>' + n + '</option>';
+    }).join('');
+    var topts = TECH.map(function (c) {
+      return '<option value="' + c + '"' + (c === (t.technology || 'cable') ? ' selected' : '') + '>' + TECH_LABEL[c] + '</option>';
+    }).join('');
+    return '<tr class="trow" data-i="' + i + '">'
+      + '<td><select class="tname" data-action="ticket:field">' + opts + '</select></td>'
+      + '<td><input type="text" class="tup" data-action="ticket:field" value="' + esc(t.uploadMbps || '') + '"></td>'
+      + '<td><select class="ttech" data-action="ticket:field">' + topts + '</select></td>'
+      + '<td><input type="number" class="tsticker" data-action="ticket:field" value="' + esc(t.stickerPrice || '') + '" min="1" step="0.5"></td>'
+      + '<td><input type="number" class="teff" data-action="ticket:field" value="' + esc(t.effectivePrice || '') + '" min="1" step="0.5"></td>'
+      + '<td class="tac"><input type="number" class="tafter" data-action="ticket:field" value="' + esc(t.afterPrice || '') + '" min="1" step="0.5"></td>'
+      + '<td>' + (i > 0 ? '<button type="button" class="trm" data-action="ticket:rm" data-i="' + i + '" aria-label="Remove tier">×</button>' : '') + '</td></tr>';
+  }
+
+  /** The default draft for a cohort: one 500 Mbps row at the suggested prices. */
+  function defaultDraft(a) {
+    return {
+      campaignId: a.id,
+      improve: false,
+      consent: false,
+      error: null,
+      tiers: [{ name: '500 Mbps', uploadMbps: '50', technology: 'cable', stickerPrice: '86', effectivePrice: '56', afterPrice: '69' }],
+      reductionPresentation: 'member',
+      mechanismLabel: '',
+      guaranteeMonths: 24,
+      afterMode: 'none',
+      equipment: 'inc',
+      rentalMonthly: '7',
+      extraPodMonthly: '0',
+      committedHouseholds: a.households || 1
+    };
+  }
+
+  /** A draft prefilled from the sealed head, for the improve form. */
+  function draftFromBid(a, m) {
+    return {
+      campaignId: a.id,
+      improve: true,
+      consent: false,
+      error: null,
+      tiers: (m.tiers || []).map(function (t) {
+        return {
+          name: t.name, uploadMbps: t.uploadMbps || '', technology: (t.technology || 'cable').toLowerCase(),
+          stickerPrice: String(t.stickerPrice || ''), effectivePrice: String(t.effectivePrice || ''),
+          afterPrice: t.afterPrice ? String(t.afterPrice) : ''
+        };
+      }),
+      reductionPresentation: m.reductionPresentation || 'member',
+      mechanismLabel: m.mechanismLabel || '',
+      guaranteeMonths: m.guaranteeMonths || 24,
+      afterMode: m.afterMode || 'none',
+      equipment: m.equipment || 'inc',
+      rentalMonthly: m.rentalMonthly || '7',
+      extraPodMonthly: m.extraPodMonthly || '0',
+      committedHouseholds: m.committedHouseholds || a.households || 1
+    };
+  }
+
+  /* ------------------------------------------------------------------ *
+   * the panel
+   * ------------------------------------------------------------------ */
+
+  /**
+   * The ticket panel for one cohort. Four states, in the prototype's order:
+   * result (decided with a bid), closed (offers out), the sealed receipt, and
+   * the form.
+   */
+  function ticketHTML(a, data, mine) {
+    var S = get();
+    var d = a.dates || {};
+    var draft = S.ticketDraft && S.ticketDraft.campaignId === a.id ? S.ticketDraft : null;
+
+    /* Result states. */
+    if (a.stage === 'decided' && mine) {
+      if (mine.state === 'not_selected') {
+        return '<div class="tkt"><div class="dh">Result</div><div class="receipt">'
+          + '<b>Not selected.</b> The cohort went to another sealed bid on the same standard terms. '
+          + 'Your bid stays on your record, your standing is untouched, and cohorts in your coverage keep opening.</div>'
+          + '<button class="btn ghost" type="button" data-action="nav" data-view="desk" style="margin-top:12px">See what’s coming</button></div>';
+      }
+      var fee = data && data.brief && data.brief.successFee;
+      var conf = a.confirmed;
+      var wonLine = conf
+        ? conf + ' households confirmed you. That’s ' + conf + ' installs to plan'
+          + (fee ? ' and, at your fee, up to ' + money(String(conf * Number(fee))) + ' in success fees, billed per completed switch only' : '')
+          + '.'
+        : 'Household confirmations route to your delivery board.';
+      return '<div class="tkt"><div class="dh">Result</div><div class="receipt">'
+        + '<b>Won.</b> ' + wonLine
+        + ' Complete billing setup and confirm capacity, and the roster releases to you.</div>'
+        + '<button class="btn" type="button" data-action="nav" data-view="delivery" style="margin-top:12px">Open the delivery board</button></div>';
+    }
+
+    /* Bids closed, offers with households. */
+    if (a.stage === 'offers_out') {
+      return '<div class="tkt"><div class="dh">Bids closed</div><div class="receipt">'
+        + (mine ? '<b>Your bid is in:</b> ' + bidLine(mine) + (mine.reference ? ' · Receipt ' + esc(mine.reference) : '') + '. ' : '')
+        + 'Offers are out to every household, individually. '
+        + (a.confirmed != null ? 'Confirmed so far: <b>' + a.confirmed + ' of ' + esc(String(a.households)) + '</b>. ' : '')
+        + (d.decision_at ? 'Decisions lock ' + fmtDate(d.decision_at) + '; there' : 'There')
+        + ' is nothing for you to do, and no way to see other bids.</div></div>';
+    }
+
+    /* The sealed receipt, unless the improve form is open. */
+    if (mine && !(draft && draft.improve)) {
+      return '<div class="tkt"><div class="dh">Your sealed bid</div>'
+        + '<div class="receipt"><b>Sealed · ' + bidLine(mine) + ' effective</b><br>'
+        + (stickerLine(mine) ? 'Sticker ' + esc(stickerLine(mine)) + ' · reduction reads as ' + esc(mechLabel(mine)) + '.<br>' : '')
+        + (mine.reference ? 'Receipt ' + esc(mine.reference) + ' · version ' + esc(String(mine.version || 1)) + ' · ' : '')
+        + (mine.guaranteeMonths ? 'guaranteed ' + mine.guaranteeMonths + ' months · ' : '')
+        + 'after: ' + esc(mine.afterLine || 'no scheduled change')
+        + ' · equipment: ' + esc(equipLine(mine))
+        + (mine.committedHouseholds ? ' · committed to ' + mine.committedHouseholds + ' households' : '') + '.'
+        + (d.bidding_closes_at ? '<br>Improvable until close on ' + fmtDate(d.bidding_closes_at) + '. No withdrawals.' : '<br>No withdrawals.')
+        + '</div>'
+        + '<button class="btn ghost" type="button" data-action="ticket:improve" data-id="' + esc(a.id) + '" style="margin-top:12px">Improve bid</button></div>';
+    }
+
+    /* The form: place, or improve when a draft says so. */
+    return formHTML(a, data, draft || defaultDraft(a), Boolean(mine));
+  }
+
+  function formHTML(a, data, t, improving) {
+    var S = get();
+    var d = a.dates || {};
+    var closed = d.bidding_closes_at ? until(d.bidding_closes_at) === 0 : false;
+
+    var rows = t.tiers.map(tierRowHTML).join('');
+
+    var mechOpts = [
+      ['member', 'A Whollar member discount'],
+      ['promo', 'A promotional credit, expiry stated'],
+      ['cash', 'Monthly cashback'],
+      ['none', 'Effective price only, no breakdown'],
+      ['custom', 'Custom, your wording']
+    ].map(function (o) {
+      return '<option value="' + o[0] + '"' + (t.reductionPresentation === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+    }).join('');
+
+    var button;
+    if (!S.approved) {
+      button = '<button class="btn" type="button" disabled>Bidding unlocks at approval</button>';
+    } else if (S.biddingPaused) {
+      button = '<button class="btn" type="button" disabled>Bidding paused</button>';
+    } else if (closed) {
+      button = '<button class="btn" type="button" disabled>Bidding closed</button>';
+    } else {
+      button = '<button class="btn" type="button" data-action="ticket:place" data-id="' + esc(a.id) + '"'
+        + (t.consent ? '' : ' disabled') + '>'
+        + (improving ? 'Seal the improvement' : 'Place sealed bid') + '</button>';
+    }
+
+    return '<div class="tkt"><div class="steps"><span class="on">1 · Set terms</span><i></i><span>2 · Seal</span></div>'
+      + '<div class="bidform' + (t.afterMode === 'new' ? ' aftnew' : '') + '" data-bid="' + esc(a.id) + '">'
+      + (improving
+        ? '<div class="receipt" style="margin-bottom:12px"><b>Improving version ' + esc(String((S.bids[a.id] || {}).version || 1)) + '.</b> '
+          + 'Every tier must stay at least as good: no raised effective price, no shortened guarantee, no worsened after-rate, no reduced commitment. '
+          + '<button class="tlink" type="button" data-action="ticket:cancel">Keep the sealed version</button></div>'
+        : '')
+      + '<label class="blk">Price by service <small class="lsub">sticker is your rate card; effective is what the cohort pays</small></label>'
+      + '<table class="tiert t7"><thead><tr><th>Tier</th><th>Upload, Mbps</th><th>Technology</th><th>Sticker /mo</th><th>Effective /mo</th><th class="tac">After</th><th></th></tr></thead><tbody class="tierbody">'
+      + rows
+      + '</tbody></table>'
+      + '<button type="button" class="taddrow" data-action="ticket:add">+ Add another service</button>'
+      + '<div class="two"><div><label>How the reduction reads to households</label><select class="bmech" data-action="ticket:field">' + mechOpts + '</select>'
+      + '<div class="mechtxtw"' + (t.reductionPresentation === 'custom' ? '' : ' hidden') + ' style="margin-top:8px"><input type="text" class="bmechtxt" data-action="ticket:field" placeholder="e.g. Neighbourhood build rate" maxlength="40" value="' + esc(t.mechanismLabel || '') + '"></div></div>'
+      + '<div class="mechnote"><small class="hint">Your rate card stays intact either way. Households always see the effective price and the after-rate; this only sets whether the math between sticker and effective is shown, and under what name.</small></div></div>'
+      + '<div class="two"><div><label>Price guaranteed for</label><select class="bguar" data-action="ticket:field">'
+      + [24, 12, 36].map(function (g) { return '<option value="' + g + '"' + (t.guaranteeMonths === g ? ' selected' : '') + '>' + g + ' months</option>'; }).join('')
+      + '</select></div>'
+      + '<div><label>After the guarantee</label><select class="bafter" data-action="ticket:field">'
+      + '<option value="none"' + (t.afterMode === 'none' ? ' selected' : '') + '>No scheduled change</option>'
+      + '<option value="new"' + (t.afterMode === 'new' ? ' selected' : '') + '>New price, stated per tier</option>'
+      + '</select></div></div>'
+      + '<label class="blk" style="margin-top:14px">Equipment <small class="lsub">every dollar of it on the face of the bid</small></label>'
+      + '<div class="eqgrid"><div><label>Modem and in-home WiFi</label><select class="bequip" data-action="ticket:field">'
+      + '<option value="inc"' + (t.equipment === 'inc' ? ' selected' : '') + '>Included in the price</option>'
+      + '<option value="rent"' + (t.equipment === 'rent' ? ' selected' : '') + '>Monthly rental, stated now</option>'
+      + '<option value="byod"' + (t.equipment === 'byod' ? ' selected' : '') + '>BYOD allowed, no charge</option>'
+      + '</select></div>'
+      + '<div class="rentw"' + (t.equipment === 'rent' ? '' : ' hidden') + '><label>Rental ($ /mo)</label><input type="number" class="brent" data-action="ticket:field" value="' + esc(t.rentalMonthly || '7') + '" min="0" step="0.5"></div>'
+      + '<div class="podcell"><label>Extra pod, $ /mo</label><input type="number" class="bpods" data-action="ticket:field" value="' + esc(t.extraPodMonthly || '0') + '" min="0" step="0.5"><small class="hint">0 means included</small></div></div>'
+      + '<div class="two" style="margin-top:14px"><div><label>Service commitment</label><input type="number" class="bcommit" data-action="ticket:field" value="' + esc(String(t.committedHouseholds || '')) + '" min="1" max="' + esc(String(a.households || 9999)) + '" step="1"><small class="hint">households you can serve at these prices</small></div><div></div></div>'
+      + '<label class="consent"><input type="checkbox" class="bconsent" data-action="ticket:field"' + (t.consent ? ' checked' : '') + '><span>I understand this bid is sealed and binding until the offer deadline, on the standard cohort terms, for up to my committed household count, with the effective prices above shown to households exactly as entered. I can improve it before close; I cannot withdraw it.</span></label>'
+      + (t.error ? '<p class="fnote" style="color:#8C3B1B">' + esc(t.error) + '</p>' : '')
+      + button
+      + '</div></div>';
+  }
+
+  /* ------------------------------------------------------------------ *
+   * reading the form
+   * ------------------------------------------------------------------ */
+
+  function $(sel, root) { return (root || document).querySelector(sel); }
+  function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+
+  /**
+   * DOM to draft. The DOM is the source of truth at submit time; the store's
+   * copy exists so repaints between edits restore what was typed.
+   */
+  function readTicket(form, a) {
+    var bad = null;
+    var tiers = $$('.trow', form).map(function (tr) {
+      var stk = $('.tsticker', tr).value;
+      var eff = $('.teff', tr).value;
+      if (Number(eff) > Number(stk) && Number(stk) > 0) {
+        bad = 'Effective price cannot sit above sticker on ' + $('.tname', tr).value + '.';
+      }
+      return {
+        name: $('.tname', tr).value,
+        uploadMbps: String($('.tup', tr).value || '').trim(),
+        technology: $('.ttech', tr).value,
+        stickerPrice: String(stk || '').trim(),
+        effectivePrice: String(eff || '').trim(),
+        afterPrice: String($('.tafter', tr).value || '').trim()
+      };
+    }).filter(function (t) { return Number(t.effectivePrice) > 0; });
+    if (!tiers.length) bad = bad || 'Add at least one tier to the bid.';
+
+    var mech = $('.bmech', form) ? $('.bmech', form).value : 'member';
+    var commitMax = a && a.households ? a.households : Infinity;
+    var commit = parseInt($('.bcommit', form).value, 10) || 0;
+    if (commit > commitMax) commit = commitMax;
+
+    return {
+      campaignId: a ? a.id : null,
+      tiers: tiers,
+      reductionPresentation: mech,
+      mechanismLabel: mech === 'custom' ? String(($('.bmechtxt', form) || {}).value || '').trim() : '',
+      guaranteeMonths: parseInt($('.bguar', form).value, 10),
+      afterMode: $('.bafter', form).value,
+      equipment: $('.bequip', form).value,
+      rentalMonthly: String($('.brent', form) ? $('.brent', form).value : '').trim(),
+      extraPodMonthly: String($('.bpods', form) ? $('.bpods', form).value : '').trim(),
+      committedHouseholds: commit,
+      consent: Boolean($('.bconsent', form) && $('.bconsent', form).checked),
+      bad: bad
+    };
+  }
+
+  /* ------------------------------------------------------------------ *
+   * the scenario table (in the brief, fed by the form)
+   * ------------------------------------------------------------------ */
+
+  /**
+   * Recompute "What this bid could return" from the open form. Ported from
+   * scnCalc (2258-2269) and readTicket's blend (2640-2652): tier prices blended
+   * by the cohort's speed demand, capped at the commitment, fee from config.
+   */
+  function refreshScn() {
+    var S = get();
+    var form = $('.bidform');
+    if (!form) return;
+    var id = form.getAttribute('data-bid');
+    var a = null;
+    S.campaigns.forEach(function (c) { if (c.id === id) a = c; });
+    var data = S.briefs[id];
+    if (!a || !data || data === 'loading' || data.failed) return;
+    var b = data.brief || {};
+    if (!b.speedMix) return;
+
+    var grid = form.closest('.dgrid');
+    if (!grid) return;
+    var sb = $('.brief .scnbody', grid);
+    var chip = $('.brief .scommit', grid);
+
+    var d = readTicket(form, a);
+    if (chip) chip.textContent = d.committedHouseholds || (a.households || 0);
+    if (!sb) return;
+
+    function effOf(name) {
+      for (var i = 0; i < d.tiers.length; i++) if (d.tiers[i].name === name) return Number(d.tiers[i].effectivePrice);
+      return null;
+    }
+    function subGig() {
+      var c = null;
+      ['100 Mbps', '300 Mbps'].forEach(function (n) {
+        var p = effOf(n);
+        if (p != null && (c == null || p < c)) c = p;
+      });
+      return c;
+    }
+    var blend = 0, tot = 0;
+    b.speedMix.forEach(function (sx) {
+      var share = sx[1];
+      tot += share;
+      var p;
+      if (sx[0] === '1 Gig') p = effOf('1 Gig');
+      else if (sx[0] === 'Under 500') p = subGig();
+      else p = effOf('500 Mbps');
+      if (p == null) p = d.tiers.length ? Number(d.tiers[0].effectivePrice) : 0;
+      blend += share * p;
+    });
+    blend = tot ? blend / tot : 0;
+
+    var fee = Number(b.successFee || 0);
+    var hh = a.households || 0;
+    var commit = d.committedHouseholds || hh;
+    sb.innerHTML = [0.6, 0.8, 1].map(function (f, i) {
+      var conf = Math.round(hh * f);
+      var served = Math.min(conf, commit);
+      var mrev = Math.round(served * blend);
+      return '<tr' + (i === 1 ? ' class="likely"' : '') + '><td>' + conf + ' (' + Math.round(f * 100) + '%)</td>'
+        + '<td>' + served + (served < conf ? '<small class="capnote"> cap</small>' : '') + '</td>'
+        + '<td>' + money(String(mrev)) + '</td>'
+        + '<td>' + (fee ? money(String(served * fee)) : '·') + '</td></tr>';
+    }).join('');
+  }
+
+  /* ------------------------------------------------------------------ *
+   * actions
+   * ------------------------------------------------------------------ */
+
+  function campaignById(id) {
+    var found = null;
+    get().campaigns.forEach(function (c) { if (c.id === id) found = c; });
+    return found;
+  }
+
+  /** The current draft for the open form, reading the DOM so edits survive. */
+  function draftFromForm(el) {
+    var form = el.closest('.bidform') || $('.bidform');
+    if (!form) return null;
+    var a = campaignById(form.getAttribute('data-bid'));
+    if (!a) return null;
+    var S = get();
+    var d = readTicket(form, a);
+    d.improve = Boolean(S.ticketDraft && S.ticketDraft.campaignId === a.id && S.ticketDraft.improve);
+    d.error = null;
+    delete d.bad;
+    return d;
+  }
+
+  function mount() {
+    /* Any form control changed: capture the whole form into the draft, which
+       repaints the ticket from it. Selects re-render their reveals (after
+       column, rental cell, custom label) this way, with no direct DOM toggles. */
+    on('change', 'ticket:field', function (el) {
+      var d = draftFromForm(el);
+      if (d) set('ticketDraft', d);
+      refreshScn();
+    });
+
+    /* Keystrokes update only the scenario table. Writing the store here would
+       repaint the form under the cursor mid-word. */
+    on('input', 'ticket:field', function () { refreshScn(); });
+
+    on('click', 'ticket:add', function (el) {
+      var d = draftFromForm(el);
+      if (!d) return;
+      var used = {};
+      d.tiers.forEach(function (t) { used[t.name] = true; });
+      var next = null;
+      TIER_NAMES.forEach(function (n) { if (!next && !used[n]) next = n; });
+      if (!next) return;
+      d.tiers.push({
+        name: next, uploadMbps: SUGGUP[next] || '', technology: 'cable',
+        stickerPrice: String(SUGGSTICKER[next] || ''), effectivePrice: String(SUGG[next] || ''),
+        afterPrice: String(Math.round(((SUGG[next] || 0) + 13) * 2) / 2)
+      });
+      set('ticketDraft', d);
+      refreshScn();
+    });
+
+    on('click', 'ticket:rm', function (el) {
+      var d = draftFromForm(el);
+      if (!d) return;
+      var i = parseInt(el.getAttribute('data-i'), 10);
+      /* The draft was read from the CURRENT DOM, where zero-priced rows are
+         filtered out; remove by matching the row's tier name instead of index
+         arithmetic over a filtered list. */
+      var tr = el.closest('.trow');
+      var name = tr ? $('.tname', tr).value : null;
+      d.tiers = d.tiers.filter(function (t, j) { return name ? t.name !== name : j !== i; });
+      if (!d.tiers.length) return;
+      set('ticketDraft', d);
+      refreshScn();
+    });
+
+    on('click', 'ticket:improve', function (el) {
+      var id = el.getAttribute('data-id');
+      var a = campaignById(id);
+      var mine = get().bids[id];
+      if (!a || !mine) return;
+      set('ticketDraft', draftFromBid(a, mine));
+    });
+
+    on('click', 'ticket:cancel', function () { set('ticketDraft', null); });
+
+    on('click', 'ticket:place', function (el) {
+      var S = get();
+      var form = el.closest('.bidform');
+      var id = form && form.getAttribute('data-bid');
+      var a = id && campaignById(id);
+      if (!form || !a) return;
+
+      var d = readTicket(form, a);
+      var improve = Boolean(S.ticketDraft && S.ticketDraft.campaignId === id && S.ticketDraft.improve);
+      if (d.bad) {
+        d.improve = improve;
+        d.error = d.bad;
+        delete d.bad;
+        set('ticketDraft', d);
+        return;
+      }
+      if (!d.consent) return;
+
+      var body = {
+        campaign: id,
+        tiers: d.tiers,
+        reductionPresentation: d.reductionPresentation,
+        mechanismLabel: d.mechanismLabel || undefined,
+        guaranteeMonths: d.guaranteeMonths,
+        afterMode: d.afterMode,
+        equipment: d.equipment,
+        rentalMonthly: d.equipment === 'rent' ? d.rentalMonthly : undefined,
+        extraPodMonthly: d.extraPodMonthly,
+        committedHouseholds: d.committedHouseholds
+      };
+
+      el.disabled = true;
+      (improve ? api.bidImprove(id, body) : api.bidPlace(body)).then(function (r) {
+        var bids = {};
+        var cur = get().bids;
+        for (var k in cur) { if (Object.prototype.hasOwnProperty.call(cur, k)) bids[k] = cur[k]; }
+        if (r && r.bid) bids[id] = r.bid;
+        set({ bids: bids, ticketDraft: null });
+        var no = r && r.receipt && r.receipt.no;
+        toast(improve
+          ? 'Improved to version ' + ((r && r.receipt && r.receipt.revision) || '') + '. Receipt ' + no + '.'
+          : 'Bid sealed. Receipt ' + no + '.');
+      }, function (err) {
+        /* The server's refusal renders verbatim, in the ticket and as a toast.
+           On the close boundary its body carried the server clock, which
+           request() already synced, so the countdowns agree with the refusal. */
+        d.improve = improve;
+        d.error = (err && err.message) || 'That did not work. Try again.';
+        delete d.bad;
+        set('ticketDraft', d);
+        failed(err);
+      });
+    });
+  }
+
+  __exports.bidLine = bidLine;
+  __exports.ticketHTML = ticketHTML;
+  __exports.refreshScn = refreshScn;
+  __exports.mount = mount;
+  };
+
+  /* ==================================================================
      views/desk.js
      ================================================================== */
   __defs["views/desk.js"] = function (__exports, __require, root) {
@@ -2250,15 +2954,23 @@
    */
 
   var __ns0 = __require("core/state.js");
-  var get = __ns0.get;
-  var __ns1 = __require("core/format.js");
-  var esc = __ns1.esc, regionSlug = __ns1.regionSlug;
-  var __ns2 = __require("core/time.js");
-  var fmtDate = __ns2.fmtDate, fmtCountdown = __ns2.fmtCountdown, until = __ns2.until, DAY = __ns2.DAY, startTicker = __ns2.startTicker;
-  var __ns3 = __require("components/rail.js");
-  var stageRail = __ns3.stageRail;
-  var __ns4 = __require("components/emptystate.js");
-  var empty = __ns4.empty, goTo = __ns4.goTo;
+  var get = __ns0.get, set = __ns0.set;
+  var __ns1 = __require("core/api.js");
+  var api = __ns1.api;
+  var __ns2 = __require("core/format.js");
+  var esc = __ns2.esc, regionSlug = __ns2.regionSlug;
+  var __ns3 = __require("core/time.js");
+  var fmtDate = __ns3.fmtDate, fmtCountdown = __ns3.fmtCountdown, until = __ns3.until, DAY = __ns3.DAY, startTicker = __ns3.startTicker;
+  var __ns4 = __require("core/actions.js");
+  var on = __ns4.on;
+  var __ns5 = __require("components/rail.js");
+  var stageRail = __ns5.stageRail;
+  var __ns6 = __require("components/emptystate.js");
+  var empty = __ns6.empty, goTo = __ns6.goTo;
+  var __ns7 = __require("views/brief.js");
+  var briefHTML = __ns7.briefHTML;
+  var __ns8 = __require("views/ticket.js");
+  var ticketHTML = __ns8.ticketHTML, refreshScn = __ns8.refreshScn;
 
   function render() {
     var host = document.getElementById('desk-body');
@@ -2312,6 +3024,10 @@
       + '<p class="fnote">You see a cohort because it sits inside your declared coverage. You never see another partner’s bid, their count, or whether they bid at all.</p>'
       + '</section>';
 
+    /* The scenario table lives in the brief but reads the open form, so it can
+       only be computed once both are in the DOM. */
+    refreshScn();
+
     startTicker();
   }
 
@@ -2344,13 +3060,33 @@
       ? '<span class="lockedtag">Verifies with ' + esc(a.coverageRegion || a.region) + ' coverage</span>'
       : bidAction(a, mine);
 
-    return '<tr data-row="' + esc(a.id) + '"' + (unlocked ? '' : ' class="locked"') + '>'
+    var open = get().openCampaign === a.id;
+
+    return '<tr data-row="' + esc(a.id) + '"' + rowClass(unlocked, open) + '>'
       + '<td><span class="rg">' + esc(a.region) + '<small>' + esc(a.sub || '') + '</small></span></td>'
       + '<td class="num">' + esc(String(a.households != null ? a.households : '·')) + '</td>'
       + '<td>' + stageRail(a.stage) + '</td>'
       + '<td><span class="closecell' + (hot ? ' hot' : '') + '">' + window_ + '</span></td>'
       + '<td>' + yours + '</td>'
-      + '<td style="text-align:right">' + action + '</td></tr>';
+      + '<td style="text-align:right">' + action + '</td></tr>'
+      + (open ? expandedRow(a, mine) : '');
+  }
+
+  function rowClass(unlocked, open) {
+    var cls = (unlocked ? '' : 'locked') + (open ? (unlocked ? ' ' : '') + 'exp' : '');
+    return cls ? ' class="' + cls + '"' : '';
+  }
+
+  /* The expanded row: the brief and the ticket, side by side, exactly the
+     prototype's dgrid composition (line 1152). Rendered only for the open
+     cohort; the CSS shows a .dwr only after a row carrying .exp. */
+  function expandedRow(a, mine) {
+    var data = get().briefs[a.id];
+    var showScn = (a.stage === 'open' || a.stage === 'closing') && !mine;
+    return '<tr class="dwr" data-dwr="' + esc(a.id) + '"><td colspan="6"><div class="dgrid">'
+      + briefHTML(a, data, mine, showScn)
+      + ticketHTML(a, data, mine)
+      + '</div></td></tr>';
   }
 
   function countdown(ts) {
@@ -2358,20 +3094,197 @@
     return ' · <span data-until="' + ts + '">' + fmtCountdown(until(ts)) + '</span>';
   }
 
-  /* The ticket itself is not built. Rather than an inert "Review and bid" that
-     opens nothing, the desk says what the row is waiting on. A button that does
-     nothing teaches a partner not to trust the others. */
+  /* The row's control. Open cohorts get the real ticket; the label states what
+     the click does. Bidding paused still opens the row: the brief is readable,
+     and the ticket itself says why the button is disabled. */
   function bidAction(a, mine) {
-    if (a.stage === 'open' || a.stage === 'closing') {
-      if (mine) return '<span class="mono" style="font-size:11px;color:var(--sub)">Sealed · improvable until close</span>';
-      if (get().biddingPaused) return '<span class="lockedtag">Bidding paused</span>';
-      return '<span class="mono" style="font-size:11px;color:var(--sub)">Ticket opens here</span>';
-    }
-    if (a.stage === 'offers_out') return '<span class="mono" style="font-size:11px;color:var(--sub)">With households</span>';
-    return '';
+    var open = get().openCampaign === a.id;
+    var biddable = a.stage === 'open' || a.stage === 'closing';
+    var label;
+    if (biddable) label = mine ? 'View' : 'Review and bid';
+    else if (a.stage === 'offers_out' || a.stage === 'decided') label = 'View';
+    else return '';
+    return '<button class="btn' + (mine || !biddable ? ' ghost' : '') + '" type="button" '
+      + 'data-action="desk:open" data-id="' + esc(a.id) + '">'
+      + (open ? 'Close' : label) + '</button>';
+  }
+
+  /* ------------------------------------------------------------------ *
+   * actions
+   * ------------------------------------------------------------------ */
+
+  function mount() {
+    on('click', 'desk:open', function (el) {
+      var id = el.getAttribute('data-id');
+      var S = get();
+      if (S.openCampaign === id) {
+        set({ openCampaign: null, ticketDraft: null });
+        return;
+      }
+      /* Switching cohorts drops the draft: a half-typed ticket for one cohort
+         must never prefill another's. */
+      set({ openCampaign: id, ticketDraft: null });
+      loadBrief(id);
+    });
+  }
+
+  /** Fetch the brief on first open, and re-anchor the clock while at it. */
+  function loadBrief(id) {
+    var S = get();
+    var have = S.briefs[id];
+    if (have && have !== 'loading' && !have.failed) return;
+    set('briefs', assign(S.briefs, id, 'loading'));
+    api.campaignBrief(id).then(function (r) {
+      set('briefs', assign(get().briefs, id, r));
+    }, function () {
+      set('briefs', assign(get().briefs, id, { failed: true }));
+    });
+  }
+
+  function assign(map, key, value) {
+    var out = {};
+    for (var k in map) { if (Object.prototype.hasOwnProperty.call(map, k)) out[k] = map[k]; }
+    out[key] = value;
+    return out;
   }
 
   __exports.render = render;
+  __exports.mount = mount;
+  };
+
+  /* ==================================================================
+     views/bids.js
+     ================================================================== */
+  __defs["views/bids.js"] = function (__exports, __require, root) {
+  /* My bids: the record of every sealed bid and what it turned into.
+   *
+   * Ported from the prototype's renderBids COMPOSITION: the declaration at 1243
+   * plus the _rbids11 wrapper at 2988, flattened per render-inventory.md section
+   * C. The wrapper's re-entrant insertAdjacentHTML dance for #bidnudge is gone
+   * by construction: this render is pure from state and builds the nudge and
+   * the table in one pass, so there is nothing stale to remove first.
+   *
+   * The prototype's HBIDS demo history is not ported: rows here are real sealed
+   * bids from the store, and columns with no real figure yet (completed
+   * switches, fees to date) render the centred dot rather than an invention.
+   * CSV export is client-side from the same rows; the server route (register 37)
+   * stays an honest stub until an export needs more than the client holds.
+   */
+
+  var __ns0 = __require("core/state.js");
+  var get = __ns0.get, biddableCampaigns = __ns0.biddableCampaigns;
+  var __ns1 = __require("core/format.js");
+  var esc = __ns1.esc;
+  var __ns2 = __require("core/time.js");
+  var fmtDate = __ns2.fmtDate;
+  var __ns3 = __require("core/actions.js");
+  var on = __ns3.on;
+  var __ns4 = __require("core/toast.js");
+  var toast = __ns4.toast;
+  var __ns5 = __require("components/emptystate.js");
+  var empty = __ns5.empty, goTo = __ns5.goTo;
+  var __ns6 = __require("views/ticket.js");
+  var bidLine = __ns6.bidLine;
+
+  function render() {
+    var host = document.getElementById('bids-body');
+    if (!host) return;
+    var S = get();
+
+    var list = Object.keys(S.bids).map(function (k) { return S.bids[k]; });
+
+    if (!list.length) {
+      host.innerHTML = nudge(S) + empty('Your first bid lands here',
+        'Every bid you place sits on this record with everything it turned into: result, confirmed households, completed switches, fees. Bids are append-only, so an improvement adds a version and nothing is ever removed.',
+        goTo('desk', 'Open the bid desk'));
+      return;
+    }
+
+    var byId = {};
+    S.campaigns.forEach(function (c) { byId[c.id] = c; });
+
+    var rows = list.map(function (b) {
+      var c = byId[b.campaignId] || {};
+      var confirmed = b.state === 'won' && c.confirmed != null ? String(c.confirmed) : '·';
+      return '<tr>'
+        + '<td>' + esc(c.region || b.campaignId) + '</td>'
+        + '<td class="num">' + (b.placedAt ? esc(fmtDate(b.placedAt)) : '·') + '</td>'
+        + '<td class="num">' + bidLine(b) + (b.version > 1 ? ' <small class="capnote">v' + b.version + '</small>' : '') + '</td>'
+        + '<td>' + pill(b.state) + '</td>'
+        + '<td class="num">' + esc(confirmed) + '</td>'
+        + '<td class="num">·</td>'
+        + '<td class="num">·</td></tr>';
+    }).join('');
+
+    host.innerHTML = nudge(S)
+      + '<section class="card">'
+      + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:6px"><span class="eyebrow">Record</span>'
+      + '<button class="tlink" type="button" data-action="bids:csv" style="margin-left:auto">Export CSV →</button></div>'
+      + '<div class="twrap"><table class="tbl"><thead><tr><th>Cohort</th><th>Placed</th><th>Your bid</th><th>Result</th><th class="num">Confirmed</th><th class="num">Completed</th><th class="num">Fees to date</th></tr></thead><tbody>'
+      + rows
+      + '</tbody></table></div>'
+      + '<p class="fnote">Confirmed is households who accepted your offer. Completed is live connections, the only column that ever bills.</p>'
+      + '</section>';
+  }
+
+  function pill(state) {
+    if (state === 'won') return '<span class="pill won">Won</span>';
+    if (state === 'not_selected') return '<span class="pill lost">Not selected</span>';
+    return '<span class="pill sealed">Sealed</span>';
+  }
+
+  /** Nothing sealed while a cohort in verified coverage is open: say so. */
+  function nudge(S) {
+    if (Object.keys(S.bids).length) return '';
+    var ob = null;
+    biddableCampaigns().forEach(function (c) {
+      if (!ob && (c.stage === 'open' || c.stage === 'closing') && !S.bids[c.id]) ob = c;
+    });
+    if (!ob) return '';
+    var d = ob.dates || {};
+    return '<section class="card" id="bidnudge" style="margin-bottom:16px"><span class="eyebrow gld">Open now</span>'
+      + '<h3>Nothing sealed yet, and ' + esc(ob.region) + (d.bidding_closes_at ? ' closes ' + esc(fmtDate(d.bidding_closes_at)) : ' is open') + '</h3>'
+      + '<p class="cardnote">One number, sealed both ways: your bid stands on its own merits, nobody sees it, and only completed switches ever bill.</p>'
+      + '<button class="btn forest" type="button" data-action="nav" data-view="desk">Open the ticket</button></section>';
+  }
+
+  function mount() {
+    on('click', 'bids:csv', function () {
+      var S = get();
+      var byId = {};
+      S.campaigns.forEach(function (c) { byId[c.id] = c; });
+      var head = 'Cohort,Placed,Bid,Version,Result,Confirmed\n';
+      var lines = Object.keys(S.bids).map(function (k) {
+        var b = S.bids[k];
+        var c = byId[b.campaignId] || {};
+        return [
+          csv(c.region || b.campaignId),
+          b.placedAt ? new Date(b.placedAt).toISOString().slice(0, 10) : '',
+          csv((b.tiers || []).map(function (t) { return '$' + t.effectivePrice + ' ' + t.name; }).join(' | ')),
+          b.version || 1,
+          b.state,
+          b.state === 'won' && c.confirmed != null ? c.confirmed : ''
+        ].join(',');
+      }).join('\n');
+      var blob = new Blob([head + lines], { type: 'text/csv' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'whollar-sealed-bids.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast('Bid record exported.');
+    });
+  }
+
+  /** Quote a CSV field that may carry commas. */
+  function csv(s) {
+    s = String(s == null ? '' : s);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  __exports.render = render;
+  __exports.mount = mount;
   };
 
   /* ==================================================================
@@ -2776,17 +3689,17 @@
      views/placeholders.js
      ================================================================== */
   __defs["views/placeholders.js"] = function (__exports, __require, root) {
-  /* The seven views this increment does not build, each saying so honestly.
+  /* The views this increment does not build, each saying so honestly.
    *
    * WHY ONE FILE, AND WHY THEY ARE NOT STUBS. A stub renders nothing and looks
    * like a bug. A demo renders invented numbers and looks like a lie. These say
    * what the surface will hold, what has to happen first, and where to go
    * meanwhile, which is the only honest third option.
    *
-   * Each becomes its own module under views/ when it is built. Splitting them
-   * out now would create seven files whose entire content is a paragraph, and
-   * the build refuses unreferenced modules, so they would have to be wired up
-   * twice.
+   * Each becomes its own module under views/ when it is built, as the bids
+   * record now has (views/bids.js). Splitting the rest out now would create
+   * files whose entire content is a paragraph, and the build refuses
+   * unreferenced modules, so they would have to be wired up twice.
    */
 
   var __ns0 = __require("core/state.js");
@@ -2801,7 +3714,6 @@
   function render() {
     var S = get();
 
-    put('bids-body', bids(S));
     put('billing-body', billing(S));
     put('del-body', delivery(S));
     put('perf-body', performance(S));
@@ -2814,16 +3726,6 @@
   function put(id, html) {
     var el = document.getElementById(id);
     if (el) el.innerHTML = html;
-  }
-
-  function bids(S) {
-    if (Object.keys(S.bids).length) {
-      return empty('Your bid record is being wired up',
-        'You have sealed bids on file and they are safe. This page, with the result, confirmed households, activations and fees against each one, lands with the bid ticket.',
-        goTo('desk', 'See them on the desk', 'btn ghost'));
-    }
-    return empty('Your first bid lands here',
-      'Every bid you place sits on this record with everything it turned into: result, confirmed households, completed switches, fees. Bids are append-only, so an improvement adds a version and nothing is ever removed.');
   }
 
   function billing(S) {
@@ -2897,15 +3799,19 @@
   var __ns9 = __require("views/overview.js");
   var renderOverview = __ns9.render;
   var __ns10 = __require("views/desk.js");
-  var renderDesk = __ns10.render;
-  var __ns11 = __require("views/coverage.js");
-  var renderCoverage = __ns11.render, mountCoverage = __ns11.mount;
-  var __ns12 = __require("views/application.js");
-  var renderApplication = __ns12.render, mountApplication = __ns12.mount, loadApplication = __ns12.load;
-  var __ns13 = __require("views/account.js");
-  var renderAccount = __ns13.render, mountAccount = __ns13.mount, paintChrome = __ns13.paintChrome;
-  var __ns14 = __require("views/placeholders.js");
-  var renderPlaceholders = __ns14.render;
+  var renderDesk = __ns10.render, mountDesk = __ns10.mount;
+  var __ns11 = __require("views/ticket.js");
+  var mountTicket = __ns11.mount;
+  var __ns12 = __require("views/bids.js");
+  var renderBids = __ns12.render, mountBids = __ns12.mount;
+  var __ns13 = __require("views/coverage.js");
+  var renderCoverage = __ns13.render, mountCoverage = __ns13.mount;
+  var __ns14 = __require("views/application.js");
+  var renderApplication = __ns14.render, mountApplication = __ns14.mount, loadApplication = __ns14.load;
+  var __ns15 = __require("views/account.js");
+  var renderAccount = __ns15.render, mountAccount = __ns15.mount, paintChrome = __ns15.paintChrome;
+  var __ns16 = __require("views/placeholders.js");
+  var renderPlaceholders = __ns16.render;
 
   /* ------------------------------------------------------------------ *
    * render
@@ -2916,6 +3822,7 @@
     renderBanner();
     renderOverview();
     renderDesk();
+    renderBids();
     renderCoverage();
     renderApplication();
     renderAccount();
@@ -3027,6 +3934,9 @@
     mountModal();
     mountRouter();
     mountSession();
+    mountDesk();
+    mountTicket();
+    mountBids();
     mountCoverage();
     mountApplication();
     mountAccount();

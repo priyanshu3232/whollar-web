@@ -89,6 +89,16 @@ export var EQUIPMENT = Object.freeze(['inc', 'rent', 'byod']);
 export var AFTER_MODE = Object.freeze(['none', 'new']);
 export var GUARANTEE_MONTHS = Object.freeze([12, 24, 36]);
 
+/* The standard tier ladder and the technologies a bid names. Mirrors
+   lib/bids.js TIER_NAMES / TECHS: tiers come from one server-owned list so two
+   partners' offers on a cohort are comparable line by line. Wire values are
+   the canonical lowercase codes; TECH_LABEL is how the console displays them. */
+export var TIER_NAMES = Object.freeze(['100 Mbps', '300 Mbps', '500 Mbps', '1 Gig', '1.5 Gig', '2.5 Gig']);
+export var TECH = Object.freeze(['cable', 'fibre', 'dsl', 'fwa']);
+export var TECH_LABEL = Object.freeze({
+  cable: 'Cable', fibre: 'Fibre', dsl: 'DSL', fwa: 'Fixed wireless'
+});
+
 /* Switch order state. THIS list is canonical. The prototype also carries a
    dead earlier vocabulary (ins, sch, to) from a superseded seedRoster; it is
    not ported and must not reappear.
@@ -182,6 +192,21 @@ export var SPECS = {
     ok: 'bool', state: ['enum', ['draft', 'submitted', 'under_review', 'info_needed', 'approved', 'rejected']],
     tasks: 'obj'
   },
+
+  /* The brief: aggregates only. `bid` is the org's OWN bid or null; no other
+     partner's anything is in this shape, which is the assertion. */
+  brief: { ok: 'bool', serverTime: 'int', campaign: 'obj', brief: 'obj', coverage: 'obj', bid: 'obj?' },
+
+  /* One sealed bid, the org's own. The shape the fixtures' SEALED_BID and the
+     server's publicBid() both build; this spec is what keeps them agreeing. */
+  bid: {
+    campaignId: 'str',
+    state: ['enum', ['sealed', 'improved', 'locked', 'won', 'not_selected']],
+    tiers: 'arr'
+  },
+
+  /* What a place or improve returns: the new head and the sealed receipt. */
+  bidReceipt: { ok: 'bool', serverTime: 'int', bid: 'obj', receipt: 'obj' },
 
   /* The intimation boundary, asserted from the client side as well.
      Before the roster gate the response carries counts and the orders key is

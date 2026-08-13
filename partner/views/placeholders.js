@@ -1,14 +1,14 @@
-/* The seven views this increment does not build, each saying so honestly.
+/* The views this increment does not build, each saying so honestly.
  *
  * WHY ONE FILE, AND WHY THEY ARE NOT STUBS. A stub renders nothing and looks
  * like a bug. A demo renders invented numbers and looks like a lie. These say
  * what the surface will hold, what has to happen first, and where to go
  * meanwhile, which is the only honest third option.
  *
- * Each becomes its own module under views/ when it is built. Splitting them
- * out now would create seven files whose entire content is a paragraph, and
- * the build refuses unreferenced modules, so they would have to be wired up
- * twice.
+ * Each becomes its own module under views/ when it is built, as the bids
+ * record now has (views/bids.js). Splitting the rest out now would create
+ * files whose entire content is a paragraph, and the build refuses
+ * unreferenced modules, so they would have to be wired up twice.
  */
 
 import { get } from '../core/state.js';
@@ -19,7 +19,6 @@ import { empty, goTo } from '../components/emptystate.js';
 export function render() {
   var S = get();
 
-  put('bids-body', bids(S));
   put('billing-body', billing(S));
   put('del-body', delivery(S));
   put('perf-body', performance(S));
@@ -32,16 +31,6 @@ export function render() {
 function put(id, html) {
   var el = document.getElementById(id);
   if (el) el.innerHTML = html;
-}
-
-function bids(S) {
-  if (Object.keys(S.bids).length) {
-    return empty('Your bid record is being wired up',
-      'You have sealed bids on file and they are safe. This page, with the result, confirmed households, activations and fees against each one, lands with the bid ticket.',
-      goTo('desk', 'See them on the desk', 'btn ghost'));
-  }
-  return empty('Your first bid lands here',
-    'Every bid you place sits on this record with everything it turned into: result, confirmed households, completed switches, fees. Bids are append-only, so an improvement adds a version and nothing is ever removed.');
 }
 
 function billing(S) {

@@ -18,8 +18,10 @@
  * COVERS: the four boot-guard paths (signed out, approved, pending, expired),
  * the one that must NOT sign anyone out (a network failure), the router across
  * all 11 views, four widths, the burger's two behaviours, the completeness of
- * the 67-endpoint register, all 18 fixture states, and the fixture layer
- * declining to install off localhost.
+ * the 67-endpoint register, all 18 fixture states, the fixture layer declining
+ * to install off localhost, the bid ticket (seven-column tier table, consent
+ * gate, a sealed place round-trip), the sealed receipt with no withdraw path
+ * anywhere, and the my-bids record with its nudge and result pills.
  */
 
 import { chromium } from 'playwright-core';
@@ -275,6 +277,10 @@ console.log('\n10. the endpoint register is complete');
   });
   ok(reg.total === 67, `67 endpoints present (${reg.total})`);
   ok(reg.live + reg.pending === reg.total, `every one is either live or a tagged stub (${reg.live} live, ${reg.pending} stubbed)`);
+  /* The auction core flipped four stubs live (brief, improve, bid, versions),
+     bringing the register to 24. A refactor that quietly turns a live endpoint
+     back into a stub must fail here, not in production. */
+  ok(reg.live >= 24, `at least 24 endpoints are live (${reg.live})`);
   /* A stub must fail the way the server will, or views learn the wrong error path. */
   const stub = await p.evaluate(() =>
     window.WHOLLAR.console.api.statements().then(() => null, e => ({ code: e.code, status: e.status })));
@@ -425,6 +431,113 @@ console.log('\n15. fixture mode cannot escape localhost');
   const ignored = await fetch(`${BASE}/partner/demo/fixtures.js`).then(r => r.status);
   ok(ignored === 200, 'and it is still served locally, where it is meant to work');
   await c.close();
+}
+
+console.log('\n16. the ticket: seven columns, consent gates the seal, place round-trips');
+{
+  const c = await ctx(browser, { record: REC, me: APPROVED });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/partner?fixture=open`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(120);
+
+  await p.click('[data-action="desk:open"]');
+  await p.waitForTimeout(150);
+
+  /* Case-insensitive: .tiert th renders text-transform: uppercase, and
+     innerText reports the rendered casing. */
+  const head = await p.locator('.tiert.t7 thead').innerText().catch(() => '');
+  ok(/sticker \/mo/i.test(head) && /effective \/mo/i.test(head), 'seven-column tier table: sticker and effective are separate columns');
+  ok(await p.locator('.bmech option').count() === 5, 'five reduction presentations, custom included');
+  ok(await p.locator('.bmech option[value="custom"]').count() === 1, 'the custom option is present');
+  ok(await p.locator('.bconsent').count() === 1, 'the consent sentence is there');
+  ok(await p.locator('[data-action="ticket:place"][disabled]').count() === 1, 'the seal button is disabled before consent');
+
+  await p.click('.bconsent');
+  await p.waitForTimeout(120);
+  ok(await p.locator('[data-action="ticket:place"]:not([disabled])').count() === 1, 'consent enables the seal button');
+
+  /* The brief must never leak another partner's anything. */
+  const briefText = await p.locator('.brief').innerText().catch(() => '');
+  ok(/Aggregates only\./.test(briefText), 'the brief says, and shows, aggregates only');
+
+  await p.click('[data-action="ticket:place"]');
+  await p.waitForTimeout(200);
+  const placed = await p.evaluate(() => {
+    const s = window.WHOLLAR.console.state();
+    return s.bids.kw && s.bids.kw.state;
+  });
+  ok(placed === 'sealed', `placing writes the sealed bid into state (${placed})`);
+  const deskText = await p.locator('#desk-body').innerText();
+  ok(/Sealed/.test(deskText), 'and the desk row now shows the sealed pill');
+  await c.close();
+}
+
+console.log('\n17. sealed means sealed: receipt, improve, and no withdraw path anywhere');
+{
+  const c = await ctx(browser, { record: REC, me: APPROVED });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/partner?fixture=sealed`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(120);
+
+  await p.click('[data-action="desk:open"]');
+  await p.waitForTimeout(150);
+
+  const receipt = await p.locator('.tkt .receipt').innerText().catch(() => '');
+  ok(/Sealed/.test(receipt), 'the receipt opens with Sealed');
+  ok(/Sticker/.test(receipt), 'and carries the sticker line');
+  ok(/Improvable until close/.test(receipt), 'and says improvable until close');
+  ok(/No withdrawals\./.test(receipt), 'and says no withdrawals');
+  ok(await p.locator('[data-action="ticket:improve"]').count() === 1, 'the improve control is there');
+
+  /* No withdraw affordance at any layer: no action name carries it, and no
+     registered handler answers to it. */
+  const withdraw = await p.evaluate(() => {
+    const inDom = document.querySelectorAll('[data-action*="withdraw"], [data-action*="cancel-bid"], [data-action*="delete"]').length;
+    const reg = window.WHOLLAR.console.actions();
+    const inReg = [].concat(reg.click || [], reg.change || [], reg.input || [], reg.submit || [])
+      .filter(a => /withdraw|delete/.test(a)).length;
+    return inDom + inReg;
+  });
+  ok(withdraw === 0, 'no withdraw or delete affordance exists in DOM or registry');
+
+  await p.click('[data-action="ticket:improve"]');
+  await p.waitForTimeout(150);
+  ok(await p.locator('.trow').count() === 2, 'the improve form prefills both sealed tiers');
+  const guard = await p.locator('.bidform .receipt').innerText().catch(() => '');
+  ok(/at least as good/.test(guard), 'and states the improvement rule');
+  ok(await p.locator('[data-action="ticket:cancel"]').count() === 1, 'keeping the sealed version stays one click away');
+  await c.close();
+}
+
+console.log('\n18. my bids: the record, the nudge, and the result pills');
+{
+  const c = await ctx(browser, { record: REC, me: APPROVED });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/partner?fixture=sealed#bids`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(120);
+  const rec = await p.locator('#bids-body').innerText();
+  ok(/Scarborough/.test(rec), 'a sealed bid renders as a record row');
+  ok(/Sealed/.test(rec), 'with the sealed pill');
+  ok(await p.locator('#bids-body [data-action="bids:csv"]').count() === 1, 'and the record exports as CSV');
+  await c.close();
+
+  const c2 = await ctx(browser, { record: REC, me: APPROVED });
+  const p2 = await c2.newPage();
+  await p2.goto(`${BASE}/partner?fixture=open#bids`, { waitUntil: 'networkidle' });
+  await p2.waitForTimeout(120);
+  ok(await p2.locator('#bidnudge').count() === 1, 'nothing sealed while a cohort is open: the nudge renders');
+  await c2.close();
+
+  const c3 = await ctx(browser, { record: REC, me: APPROVED });
+  const p3 = await c3.newPage();
+  await p3.goto(`${BASE}/partner?fixture=lost#bids`, { waitUntil: 'networkidle' });
+  await p3.waitForTimeout(120);
+  const lost = await p3.locator('#bids-body').innerText();
+  ok(/Not selected/.test(lost), 'a lost bid says not selected, on the record');
+  await c3.close();
 }
 
 await browser.close();

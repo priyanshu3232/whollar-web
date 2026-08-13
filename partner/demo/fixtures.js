@@ -1,15 +1,16 @@
-/* The 17 fixture states.
+/* The 18 fixture states.
  *
- * SEVENTEEN, not the brief's fourteen. Fourteen are the prototype's SCEN array
+ * EIGHTEEN, not the brief's fourteen. Fourteen are the prototype's SCEN array
  * (docs/prototype/provider-console-v12.html:1656-1671), two are additions the
- * prototype cannot reach (a rejected application, a rejected region), and the
+ * prototype cannot reach (a rejected application, a rejected region), the
  * seventeenth is `open`, which exists because the prototype had no fixture for
  * it: its own `open` scenario resets the clock while its first cohort closes
  * 2h14m later, so what that scenario actually renders is the CLOSING state,
  * with the countdown running and the row hot. A genuinely open cohort with a
  * distant close is a different render path and had no coverage at all.
  * Splitting them is the point of doing this from the data rather than from the
- * scenario names.
+ * scenario names. The eighteenth, `infoneeded`, joined when the flagged-task
+ * review state shipped.
  *
  * A CLASSIC SCRIPT, deliberately, and not part of the bundle. It is loaded on
  * demand by app.js and scripts/build-console.mjs skips demo/ entirely, so the
@@ -284,7 +285,9 @@
     me: APPROVED_ME, application: APPROVED_APP,
     coverage: coverage(COV_ACTIVE),
     campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [campaign('kw', 'Scarborough', 'open')] },
-    bids: { ok: true, serverTime: NOW, live: true, bids: [] }
+    bids: { ok: true, serverTime: NOW, live: true, bids: [] },
+    brief: brief(campaign('kw', 'Scarborough', 'open'), null),
+    bidResult: sealedReceipt('sealed', 1, 'WB-4368')
   };
 
   /* 'closing' is the last 24 hours: the countdown renders and the row goes
@@ -298,31 +301,84 @@
       ok: true, serverTime: NOW, live: true,
       campaigns: [campaign('kw', 'Scarborough', 'closing', { bidding_closes_at: NOW + 2 * H + 14 * 60000 })]
     },
-    bids: { ok: true, serverTime: NOW, live: true, bids: [] }
+    bids: { ok: true, serverTime: NOW, live: true, bids: [] },
+    brief: brief(campaign('kw', 'Scarborough', 'closing', { bidding_closes_at: NOW + 2 * H + 14 * 60000 }), null),
+    bidResult: sealedReceipt('sealed', 1, 'WB-4368')
   };
 
   var SEALED_BID = {
     campaignId: 'kw', version: 1, state: 'sealed', placedAt: NOW - 2 * H,
     reference: 'WB-4368',
     tiers: [
-      { name: '500 Mbps', uploadMbps: '50', technology: 'Cable', stickerPrice: '86.00', effectivePrice: '56.00', afterPrice: '69.00' },
-      { name: '1 Gig', uploadMbps: '100', technology: 'Cable', stickerPrice: '99.00', effectivePrice: '64.00', afterPrice: '79.00' }
+      { name: '500 Mbps', uploadMbps: '50', technology: 'cable', stickerPrice: '86.00', effectivePrice: '56.00', afterPrice: '69.00' },
+      { name: '1 Gig', uploadMbps: '100', technology: 'cable', stickerPrice: '99.00', effectivePrice: '64.00', afterPrice: '79.00' }
     ],
     reductionPresentation: 'member', guaranteeMonths: 24, afterMode: 'new',
-    equipment: 'inc', extraPodMonthly: '0.00', committedHouseholds: 64
+    afterLine: '$69 / 500 Mbps, $79 / 1 Gig',
+    equipment: 'inc', extraPodMonthly: null, committedHouseholds: 64
   };
-  function bidIn(state) {
+  function bidIn(state, over) {
     var b = {}; for (var k in SEALED_BID) b[k] = SEALED_BID[k];
-    b.state = state; return b;
+    b.state = state;
+    for (var k2 in (over || {})) b[k2] = over[k2];
+    return b;
   }
 
+  /* The brief payload, shaped exactly as GET /provider/campaigns/:id/brief
+     answers: the freshly staged campaign, aggregates only, the org's OWN
+     coverage line, the org's OWN bid or null. The fee is config, never a
+     client constant, which is why it arrives in the payload. */
+  function brief(c, bid) {
+    return {
+      ok: true, serverTime: NOW,
+      campaign: c,
+      brief: {
+        households: c.households,
+        renewalWindow: 'Oct to Dec',
+        speedMix: [['1 Gig', 42], ['500 Mbps', 41], ['Under 500', 17]],
+        plantMix: [['Cable', 58], ['FTTP', 33], ['FTTN', 9]],
+        successFee: '95'
+      },
+      coverage: { declared: true, region: c.region, status: 'active', techs: ['fibre', 'cable'], speed: '1 Gig', lead: '5 business days' },
+      bid: bid || null
+    };
+  }
+
+  /* What a place or improve answers: the new head and the sealed receipt. */
+  function sealedReceipt(state, revision, no, over) {
+    return {
+      ok: true, serverTime: NOW,
+      bid: bidIn(state, over),
+      receipt: { no: no, revision: revision, receivedAt: NOW }
+    };
+  }
+
+  /* The sealed state carries the revision trail: version 2 standing, both
+     revisions on record, because append-only is the thing this state exists
+     to demonstrate. An improve answers version 3. */
+  var SEALED_V2 = bidIn('sealed', { version: 2 });
   S.sealed = {
     label: 'Bid sealed, improvable until close',
     view: 'desk',
     me: APPROVED_ME, application: APPROVED_APP,
     coverage: coverage(COV_ACTIVE),
     campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [campaign('kw', 'Scarborough', 'closing', { bidding_closes_at: at(1) })] },
-    bids: { ok: true, serverTime: NOW, live: true, bids: [SEALED_BID] }
+    bids: { ok: true, serverTime: NOW, live: true, bids: [SEALED_V2] },
+    brief: brief(campaign('kw', 'Scarborough', 'closing', { bidding_closes_at: at(1) }), SEALED_V2),
+    bidResult: sealedReceipt('improved', 3, 'WB-77AB', { version: 3 }),
+    bidVersions: {
+      ok: true, serverTime: NOW,
+      versions: [
+        {
+          revision: 1, receipt: 'WB-9E21', receivedAt: NOW - 26 * H,
+          payload: { campaignId: 'kw', tiers: [{ name: '500 Mbps', uploadMbps: '50', technology: 'cable', stickerPrice: '86.00', effectivePrice: '59.00', afterPrice: '72.00' }], guaranteeMonths: 24, committedHouseholds: 60 }
+        },
+        {
+          revision: 2, receipt: 'WB-4368', receivedAt: NOW - 2 * H,
+          payload: { campaignId: 'kw', tiers: SEALED_BID.tiers, guaranteeMonths: 24, committedHouseholds: 64 }
+        }
+      ]
+    }
   };
 
   S.offersout = {
@@ -334,7 +390,8 @@
       ok: true, serverTime: NOW, live: true,
       campaigns: [campaign('kw', 'Scarborough', 'offers_out', { bidding_closes_at: at(-1), decision_at: at(6), confirmed: 27, bidding_open: false })]
     },
-    bids: { ok: true, serverTime: NOW, live: true, bids: [bidIn('locked')] }
+    bids: { ok: true, serverTime: NOW, live: true, bids: [bidIn('locked')] },
+    brief: brief(campaign('kw', 'Scarborough', 'offers_out', { bidding_closes_at: at(-1), decision_at: at(6), confirmed: 27, bidding_open: false }), bidIn('locked'))
   };
 
   S.won = {
@@ -347,6 +404,7 @@
       campaigns: [campaign('kw', 'Scarborough', 'decided', { confirmed: 41, bidding_open: false, decision_at: at(-1) })]
     },
     bids: { ok: true, serverTime: NOW, live: true, bids: [bidIn('won')] },
+    brief: brief(campaign('kw', 'Scarborough', 'decided', { confirmed: 41, bidding_open: false, decision_at: at(-1) }), bidIn('won')),
     /* THE INTIMATION BOUNDARY. Counts, and no `orders` key at all. Not an
        empty array: absent is unambiguous, and a client cannot render rows that
        were never transmitted. */
@@ -366,7 +424,8 @@
       ok: true, serverTime: NOW, live: true,
       campaigns: [campaign('kw', 'Scarborough', 'decided', { bidding_open: false, decision_at: at(-1) })]
     },
-    bids: { ok: true, serverTime: NOW, live: true, bids: [bidIn('not_selected')] }
+    bids: { ok: true, serverTime: NOW, live: true, bids: [bidIn('not_selected')] },
+    brief: brief(campaign('kw', 'Scarborough', 'decided', { bidding_open: false, decision_at: at(-1) }), bidIn('not_selected'))
   };
 
   var DELIVERY_ROWS = roster(41, { act: 9, rel: 1, bkd: 14, noshow: 1, access: 1, linefail: 1 });
@@ -432,6 +491,7 @@
       ]
     },
     bids: { ok: true, serverTime: NOW, live: true, bids: [bidIn('won')] },
+    brief: brief(campaign('kw', 'Scarborough', 'decided', { confirmed: 41, bidding_open: false }), bidIn('won')),
     /* Every figure carries its claim class. Nothing renders unlabelled. */
     performance: {
       ok: true, serverTime: NOW,
@@ -475,7 +535,9 @@
     documents: 'documents',
     coverage: 'coverage', serviceability: 'coverage',
     campaigns: 'campaigns', campaign: 'campaigns', campaignsPlanned: 'campaigns',
+    campaignBrief: 'brief',
     bids: 'bids', bid: 'bids',
+    bidPlace: 'bidResult', bidImprove: 'bidResult', bidVersions: 'bidVersions',
     roster: 'roster', orders: 'roster',
     statement: 'statement', statements: 'statement', billingCycle: 'statement',
     performance: 'performance', ratings: 'performance',
