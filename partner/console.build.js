@@ -1104,7 +1104,8 @@
    * The handler receives (element, event) and reads its own data attributes.
    */
 
-  var handlers = { click: {}, change: {}, input: {}, submit: {} };
+  var handlers = { click: {}, change: {}, input: {}, submit: {}, keydown: {} };
+  var outside = [];
   var mounted = false;
 
   /**
@@ -1116,6 +1117,17 @@
     if (handlers[type][name]) throw new Error('actions: "' + name + '" is already registered for ' + type);
     handlers[type][name] = fn;
   }
+
+  /**
+   * Called on every click anywhere, before the data-action lookup, with the
+   * event. For controls that have to close when attention moves elsewhere: the
+   * district combobox is the first of them. It exists here rather than as a
+   * second document listener inside the view, because one listener per event
+   * type is the whole point of this module, and a panel that closes on a
+   * listener registered somewhere else is exactly the ordering bug the header
+   * above describes.
+   */
+  function onAnyClick(fn) { outside.push(fn); }
 
   /** Every registered action, for the QA harness and for a quick audit. */
   function registered() {
@@ -1142,17 +1154,32 @@
   function mount() {
     if (mounted) return;
     mounted = true;
-    document.addEventListener('click', function (e) { dispatch('click', e); });
+    document.addEventListener('click', function (e) {
+      for (var i = 0; i < outside.length; i++) {
+        try { outside[i](e); } catch (err) { /* same rule as dispatch: never take the console down */ }
+      }
+      dispatch('click', e);
+    });
     document.addEventListener('change', function (e) { dispatch('change', e); });
     document.addEventListener('input', function (e) { dispatch('input', e); });
     document.addEventListener('submit', function (e) { dispatch('submit', e); });
 
-    /* Enter on a role="button" element. Native buttons already do this; the
-       agenda rows and desk cohort rows are divs with tabindex, and a keyboard
-       user must be able to open them. */
+    /* Two jobs, one listener.
+       First, a control that wants the keys itself: the district combobox needs
+       up, down, Enter and Escape, and a listbox driven from a keydown handler
+       registered elsewhere would be the second cycle this module exists to
+       prevent. A registered keydown handler wins and nothing else runs.
+       Second, Enter on a role="button" element. Native buttons already do this;
+       the agenda rows and desk cohort rows are divs with tabindex, and a
+       keyboard user must be able to open them. */
     document.addEventListener('keydown', function (e) {
+      var owner = e.target.closest ? e.target.closest('[data-action]') : null;
+      if (owner && handlers.keydown[owner.getAttribute('data-action')]) {
+        dispatch('keydown', e);
+        return;
+      }
       if (e.key !== 'Enter') return;
-      var el = e.target.closest ? e.target.closest('[data-action][role="button"]') : null;
+      var el = owner && owner.getAttribute('role') === 'button' ? owner : null;
       if (!el) return;
       e.preventDefault();
       dispatch('click', e);
@@ -1160,6 +1187,7 @@
   }
 
   __exports.on = on;
+  __exports.onAnyClick = onAnyClick;
   __exports.registered = registered;
   __exports.mount = mount;
   };
@@ -3288,6 +3316,159 @@
   };
 
   /* ==================================================================
+     core/districts.js
+     ================================================================== */
+  __defs["core/districts.js"] = function (__exports, __require, root) {
+  /* The declarable vocabulary: districts a partner may bid in.
+   *
+   * WHY THIS EXISTS. Coverage used to be a free-text box. A partner could type
+   * "Scarberia" or "downtown-ish", the row wrote, and then no cohort ever matched
+   * that coverage cleanly: the declared region IS the bid unit, and a bid unit
+   * nobody else spells the same way is a bid unit that never fires. So the field
+   * became a controlled vocabulary and this file is the vocabulary.
+   *
+   * SIZE OF A DISTRICT. Roughly 25k to 40k households: uniform plant, big enough
+   * that an incumbent repricing it hurts, small enough to stay coherent. That is
+   * why the launch tier splits Scarborough into four and leaves Oshawa whole.
+   *
+   * NAMES. Municipal and former-municipality names are official. The compass
+   * groupings inside them (Scarborough East, North York Central) are ours, and
+   * they match the house style already on the site.
+   *
+   * TIERS. 'launch' is selectable. 'soon' renders in the list, greyed, tagged
+   * "Queued for launch", and cannot be picked: a partner should see the ambition
+   * without being able to declare into a market Whollar has not opened. That is
+   * the same treatment the coverage table already gives a 'soon' row.
+   *
+   * FSA IS NOT HERE, DELIBERATELY. Serviceability and facilities-owner checks run
+   * on FSA, so each district will carry an FSA set as backend data. The GTA
+   * structure is well known at the first three characters (M1x Scarborough, M5x
+   * downtown, L4/L5 Mississauga and so on), but exact FSA to district assignment
+   * has to be validated against a Canada Post boundary file before production,
+   * and a fabricated list here would be indistinguishable from a validated one.
+   * The console needs id, name, muni, tier and nothing else.
+   */
+
+  var DISTRICTS = [
+    /* City of Toronto */
+    { id: 'scar-sw', name: 'Scarborough Southwest', muni: 'Scarborough', tier: 'launch' },
+    { id: 'scar-c', name: 'Scarborough Centre', muni: 'Scarborough', tier: 'launch' },
+    { id: 'scar-e', name: 'Scarborough East', muni: 'Scarborough', tier: 'launch' },
+    { id: 'scar-n', name: 'Scarborough North', muni: 'Scarborough', tier: 'launch' },
+    { id: 'ny-w', name: 'North York West', muni: 'North York', tier: 'launch' },
+    { id: 'ny-c', name: 'North York Central', muni: 'North York', tier: 'launch' },
+    { id: 'ny-e', name: 'North York East', muni: 'North York', tier: 'launch' },
+    { id: 'ny-s', name: 'North York South', muni: 'North York', tier: 'launch' },
+    { id: 'etob-l', name: 'Etobicoke Lakeshore', muni: 'Etobicoke', tier: 'launch' },
+    { id: 'etob-c', name: 'Etobicoke Centre', muni: 'Etobicoke', tier: 'launch' },
+    { id: 'etob-n', name: 'Etobicoke North', muni: 'Etobicoke', tier: 'launch' },
+    { id: 'eyork', name: 'East York', muni: 'East York', tier: 'launch' },
+    { id: 'york', name: 'York', muni: 'York', tier: 'launch' },
+    { id: 'dt-core', name: 'Downtown Core', muni: 'Old Toronto', tier: 'launch' },
+    { id: 'dt-e', name: 'Downtown East', muni: 'Old Toronto', tier: 'launch' },
+    { id: 'dt-w', name: 'Downtown West', muni: 'Old Toronto', tier: 'launch' },
+    { id: 'midtown', name: 'Midtown', muni: 'Old Toronto', tier: 'launch' },
+    { id: 'annex', name: 'The Annex', muni: 'Old Toronto', tier: 'launch' },
+    { id: 'westend', name: 'West End', muni: 'Old Toronto', tier: 'launch' },
+    { id: 'eastend', name: 'East End', muni: 'Old Toronto', tier: 'launch' },
+    /* Peel */
+    { id: 'miss-cc', name: 'Mississauga City Centre', muni: 'Mississauga', tier: 'launch' },
+    { id: 'miss-l', name: 'Mississauga Lakeshore', muni: 'Mississauga', tier: 'launch' },
+    { id: 'miss-w', name: 'Mississauga West', muni: 'Mississauga', tier: 'launch' },
+    { id: 'miss-e', name: 'Mississauga East', muni: 'Mississauga', tier: 'launch' },
+    { id: 'miss-n', name: 'Mississauga North', muni: 'Mississauga', tier: 'launch' },
+    { id: 'bram-c', name: 'Brampton Central', muni: 'Brampton', tier: 'launch' },
+    { id: 'bram-e', name: 'Brampton East', muni: 'Brampton', tier: 'launch' },
+    { id: 'bram-w', name: 'Brampton West', muni: 'Brampton', tier: 'launch' },
+    /* York Region */
+    { id: 'mark-c', name: 'Markham Centre', muni: 'Markham', tier: 'launch' },
+    { id: 'mark-n', name: 'Markham North', muni: 'Markham', tier: 'launch' },
+    { id: 'mark-s', name: 'Markham South', muni: 'Markham', tier: 'launch' },
+    { id: 'vau-wb', name: 'Vaughan Woodbridge', muni: 'Vaughan', tier: 'launch' },
+    { id: 'vau-vmc', name: 'Maple and VMC', muni: 'Vaughan', tier: 'launch' },
+    { id: 'vau-th', name: 'Thornhill Vaughan', muni: 'Vaughan', tier: 'launch' },
+    { id: 'vau-kl', name: 'Kleinburg', muni: 'Vaughan', tier: 'launch' },
+    { id: 'rh-s', name: 'Richmond Hill South', muni: 'Richmond Hill', tier: 'launch' },
+    { id: 'rh-n', name: 'Richmond Hill North', muni: 'Richmond Hill', tier: 'launch' },
+    /* Queued for launch: outer GTA and beyond, kept at municipality level until
+       the household counts there justify splitting them. */
+    { id: 'newmarket', name: 'Newmarket', muni: 'York Region', tier: 'soon' },
+    { id: 'aurora', name: 'Aurora', muni: 'York Region', tier: 'soon' },
+    { id: 'stouffville', name: 'Whitchurch-Stouffville', muni: 'York Region', tier: 'soon' },
+    { id: 'georgina', name: 'Georgina', muni: 'York Region', tier: 'soon' },
+    { id: 'pickering', name: 'Pickering', muni: 'Durham', tier: 'soon' },
+    { id: 'ajax', name: 'Ajax', muni: 'Durham', tier: 'soon' },
+    { id: 'whitby', name: 'Whitby', muni: 'Durham', tier: 'soon' },
+    { id: 'oshawa', name: 'Oshawa', muni: 'Durham', tier: 'soon' },
+    { id: 'clarington', name: 'Clarington', muni: 'Durham', tier: 'soon' },
+    { id: 'oakville', name: 'Oakville', muni: 'Halton', tier: 'soon' },
+    { id: 'burlington', name: 'Burlington', muni: 'Halton', tier: 'soon' },
+    { id: 'milton', name: 'Milton', muni: 'Halton', tier: 'soon' },
+    { id: 'haltonhills', name: 'Halton Hills', muni: 'Halton', tier: 'soon' },
+    { id: 'caledon', name: 'Caledon', muni: 'Peel', tier: 'soon' },
+    { id: 'hamilton', name: 'Hamilton', muni: 'Hamilton', tier: 'soon' },
+    { id: 'ottawa', name: 'Ottawa', muni: 'Ottawa', tier: 'soon' }
+  ];
+
+  function norm(s) { return String(s === null || s === undefined ? '' : s).trim().toLowerCase(); }
+
+  /** The district with this id, or null. */
+  function byId(id) {
+    var k = norm(id);
+    for (var i = 0; i < DISTRICTS.length; i++) if (DISTRICTS[i].id === k) return DISTRICTS[i];
+    return null;
+  }
+
+  /**
+   * The district with this name, case and space insensitive, or null. This is
+   * what turns a typed string back into vocabulary, so Declare can refuse
+   * anything that is not one of these.
+   */
+  function byName(name) {
+    var k = norm(name);
+    if (!k) return null;
+    for (var i = 0; i < DISTRICTS.length; i++) if (norm(DISTRICTS[i].name) === k) return DISTRICTS[i];
+    return null;
+  }
+
+  /**
+   * Districts matching a typed fragment, in vocabulary order.
+   *
+   * Municipality is matched as well as name, and on purpose: a partner typing
+   * "vaughan" means the four Vaughan districts, two of which (Maple and VMC,
+   * Kleinburg) do not carry the word. Matching name only would answer a
+   * reasonable question with an empty list.
+   */
+  function search(q) {
+    var k = norm(q);
+    if (!k) return DISTRICTS.slice();
+    return DISTRICTS.filter(function (d) {
+      return norm(d.name).indexOf(k) > -1 || norm(d.muni).indexOf(k) > -1;
+    });
+  }
+
+  /** [{ muni, rows }], municipalities in the order the vocabulary lists them. */
+  function grouped(list) {
+    var out = [];
+    var seen = {};
+    (list || []).forEach(function (d) {
+      if (!Object.prototype.hasOwnProperty.call(seen, d.muni)) {
+        seen[d.muni] = { muni: d.muni, rows: [] };
+        out.push(seen[d.muni]);
+      }
+      seen[d.muni].rows.push(d);
+    });
+    return out;
+  }
+
+  __exports.DISTRICTS = DISTRICTS;
+  __exports.byId = byId;
+  __exports.byName = byName;
+  __exports.search = search;
+  __exports.grouped = grouped;
+  };
+
+  /* ==================================================================
      views/coverage.js
      ================================================================== */
   __defs["views/coverage.js"] = function (__exports, __require, root) {
@@ -3321,9 +3502,11 @@
   var __ns3 = __require("core/toast.js");
   var toast = __ns3.toast, failed = __ns3.failed;
   var __ns4 = __require("core/actions.js");
-  var on = __ns4.on;
+  var on = __ns4.on, onAnyClick = __ns4.onAnyClick;
   var __ns5 = __require("core/session.js");
   var authFailed = __ns5.authFailed;
+  var __ns6 = __require("core/districts.js");
+  var byId = __ns6.byId, byName = __ns6.byName, search = __ns6.search, grouped = __ns6.grouped;
 
   /* The technologies desk.js accepts, in its own spelling. The console shows the
      label; the wire carries the value. Getting this wrong is a 400. */
@@ -3358,6 +3541,24 @@
    * render
    * ------------------------------------------------------------------ */
 
+  /**
+   * Paint, and hand the caret back.
+   *
+   * A refresh anywhere in the console repaints this view, which replaces the
+   * picker's input node. Mid-search that reads as the field going dead under
+   * your hands, so if the picker had focus it gets it back with the caret at the
+   * end of what was typed.
+   */
+  function paint(host, html) {
+    var live = document.activeElement && document.activeElement.id === 'regin';
+    host.innerHTML = html;
+    if (!live) return;
+    var input = document.getElementById('regin');
+    if (!input) return;
+    input.focus();
+    try { input.setSelectionRange(input.value.length, input.value.length); } catch (e) { /* not all inputs allow it */ }
+  }
+
   function render() {
     var host = document.getElementById('cov-body');
     if (!host) return;
@@ -3372,21 +3573,21 @@
     }
 
     if (!S.coverage.length) {
-      host.innerHTML = '<section class="card"><div class="empty">'
+      paint(host, '<section class="card"><div class="empty">'
         + '<h3>Nothing declared yet, so nothing reaches your desk</h3>'
-        + '<p>Auctions are matched to partners by coverage. Name a region and the services you can render there, and cohorts forming inside it start appearing on your bid desk. Serviceability is checked against facilities data; you do not have to wait for that to declare more.</p>'
-        + '</div>' + addRow(true) + '</section>';
+        + '<p>Auctions are matched to partners by coverage. Pick a district and the services you can render there, and cohorts forming inside it start appearing on your bid desk. Serviceability is checked against facilities data; you do not have to wait for that to declare more.</p>'
+        + '</div>' + addRow(true) + '</section>');
       return;
     }
 
     var rows = S.coverage.map(function (c) { return regionRow(c, S); }).join('');
 
-    host.innerHTML = '<section class="card" style="padding-top:14px" aria-label="Your regions">'
+    paint(host, '<section class="card" style="padding-top:14px" aria-label="Your regions">'
       + '<div class="twrap"><table class="tbl">'
       + '<thead><tr><th>Region</th><th>Status</th><th>Services declared</th><th class="num">Open</th><th></th></tr></thead>'
       + '<tbody>' + rows + addRow(false) + '</tbody></table></div>'
-      + '<p class="fnote">State the areas you want to bid in and the services you can render there. New regions verify against serviceability before auctions appear.</p>'
-      + '</section>';
+      + '<p class="fnote">Pick the districts you want to bid in and the services you can render there. A district is roughly 25k to 40k households, and a new one verifies against serviceability before auctions appear.</p>'
+      + '</section>');
   }
 
   function regionRow(c, S) {
@@ -3445,8 +3646,112 @@
       + '</div></td></tr>';
   }
 
+  /* ------------------------------------------------------------------ *
+   * the district picker
+   *
+   * Free text used to write straight into coverage, and a declared region IS the
+   * bid unit, so "downtown-ish" was a region no cohort could ever match. The
+   * field now only yields districts from core/districts.js.
+   *
+   * WHY THE PICKER STATE IS MODULE LOCAL AND NOT IN THE STORE. Every set() in
+   * this console repaints every view, so a query in the store would rebuild the
+   * table on each keystroke and take the caret with it. These three live here,
+   * render() paints from them, and typing repaints the results panel only. A
+   * background refresh still restores the typed text and the open panel, which
+   * is the property the store was giving us, without the repaint.
+   * ------------------------------------------------------------------ */
+
+  var pQuery = '';    /* what is typed */
+  var pPick = null;   /* district id chosen from the list, or null */
+  var pOpen = false;  /* is the results panel showing */
+  var pActive = -1;   /* index into the selectable rows, for up and down */
+
+  /** Districts already declared cannot be declared twice. */
+  function declaredSlugs() {
+    var out = {};
+    get().coverage.forEach(function (c) { out[regionSlug(c.region)] = true; });
+    return out;
+  }
+
+  /**
+   * Every row the panel will draw, in order, each labelled with why it is or is
+   * not selectable. One pass so the keyboard and the mouse cannot disagree about
+   * which rows are pickable.
+   */
+  function results() {
+    var taken = declaredSlugs();
+    return search(pQuery).map(function (d) {
+      var why = d.tier !== 'launch' ? 'Queued for launch'
+        : (taken[regionSlug(d.name)] ? 'Already declared' : '');
+      return { d: d, tag: why, pickable: !why };
+    });
+  }
+
+  function pickable(rows) { return rows.filter(function (r) { return r.pickable; }); }
+
+  function panelHtml() {
+    var rows = results();
+    if (!rows.length) {
+      return '<p class="dnone">No district by that name yet. Try a municipality, like Brampton or Vaughan.</p>';
+    }
+    var order = pickable(rows);
+    return grouped(rows.map(function (r) { return r.d; })).map(function (g) {
+      var body = rows.filter(function (r) { return r.d.muni === g.muni; }).map(function (r) {
+        var i = order.indexOf(r);
+        if (!r.pickable) {
+          return '<div class="dopt off" role="option" aria-disabled="true" aria-selected="false">'
+            + '<span>' + esc(r.d.name) + '</span><span class="dtag">' + r.tag + '</span></div>';
+        }
+        return '<div class="dopt' + (i === pActive ? ' act' : '') + '" role="option" id="dopt-' + esc(r.d.id) + '"'
+          + ' aria-selected="' + (i === pActive ? 'true' : 'false') + '"'
+          + ' data-action="coverage:pick" data-id="' + esc(r.d.id) + '">'
+          + '<span>' + esc(r.d.name) + '</span></div>';
+      }).join('');
+      return '<div class="dgrp">' + esc(g.muni) + '</div>' + body;
+    }).join('');
+  }
+
+  function picker() {
+    return '<div class="dsel" id="regsel">'
+      + '<input id="regin" type="text" role="combobox" aria-expanded="' + (pOpen ? 'true' : 'false') + '"'
+      + ' aria-controls="regpanel" aria-autocomplete="list" autocomplete="off" spellcheck="false"'
+      + ' placeholder="Choose a district you want to bid in" aria-label="Choose a district"'
+      + ' data-action="coverage:query" value="' + esc(pQuery) + '">'
+      + '<div class="dpanel" id="regpanel" role="listbox" aria-label="Districts"' + (pOpen ? '' : ' hidden') + '>'
+      + (pOpen ? panelHtml() : '') + '</div></div>';
+  }
+
+  /** Repaint the panel alone, so the input keeps focus and caret while typing. */
+  function paintPanel() {
+    var input = document.getElementById('regin');
+    var panel = document.getElementById('regpanel');
+    if (!panel || !input) return;
+    panel.innerHTML = pOpen ? panelHtml() : '';
+    if (pOpen) panel.removeAttribute('hidden'); else panel.setAttribute('hidden', '');
+    input.setAttribute('aria-expanded', pOpen ? 'true' : 'false');
+    var act = panel.querySelector('.dopt.act');
+    if (act && act.scrollIntoView) act.scrollIntoView({ block: 'nearest' });
+  }
+
+  function closePanel() {
+    if (!pOpen) return;
+    pOpen = false;
+    pActive = -1;
+    paintPanel();
+  }
+
+  function choose(id) {
+    var d = byId(id);
+    if (!d) return;
+    pPick = d.id;
+    pQuery = d.name;
+    var input = document.getElementById('regin');
+    if (input) { input.value = d.name; input.focus(); }
+    closePanel();
+  }
+
   function addRow(standalone) {
-    var inner = '<td colspan="2"><input id="regin" type="text" placeholder="Add a region you want to bid in" aria-label="Add a region"></td>'
+    var inner = '<td colspan="2">' + picker() + '</td>'
       + '<td><div class="cechips" id="addtech" style="margin:0">'
       + TECHS.map(function (t) { return '<button type="button" data-action="coverage:chip" data-t="' + t[0] + '">' + t[1] + '</button>'; }).join('')
       + '</div></td>'
@@ -3508,10 +3813,72 @@
       });
     });
 
+    /* ---- the district picker ---- */
+
+    /* Typing filters. A keystroke invalidates any earlier pick: the pick is what
+       Declare trusts, so leaving it set while the text says something else is
+       how a partner declares a district they are no longer looking at. */
+    on('input', 'coverage:query', function (el) {
+      pQuery = el.value;
+      pPick = null;
+      pOpen = true;
+      pActive = -1;
+      paintPanel();
+    });
+
+    on('click', 'coverage:query', function () {
+      if (pOpen) return;
+      pOpen = true;
+      pActive = -1;
+      paintPanel();
+    });
+
+    on('keydown', 'coverage:query', function (el, e) {
+      var rows = pickable(results());
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!pOpen) { pOpen = true; pActive = -1; }
+        if (rows.length) {
+          pActive = e.key === 'ArrowDown'
+            ? Math.min(pActive + 1, rows.length - 1)
+            : Math.max(pActive - 1, 0);
+        }
+        paintPanel();
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (pOpen && pActive > -1 && rows[pActive]) choose(rows[pActive].d.id);
+        /* One exact-match convenience, and only that: typing a full district
+           name and pressing Enter picks it. Anything else leaves the pick unset,
+           and Declare refuses. */
+        else if (byName(el.value)) choose(byName(el.value).id);
+        return;
+      }
+      if (e.key === 'Escape') { closePanel(); return; }
+    });
+
+    on('click', 'coverage:pick', function (el) { choose(el.getAttribute('data-id')); });
+
+    /* Attention moved elsewhere: close, rather than leaving a listbox floating
+       over the chips a partner is now clicking. */
+    onAnyClick(function (e) {
+      if (!pOpen) return;
+      if (e.target.closest && e.target.closest('#regsel')) return;
+      closePanel();
+    });
+
     on('click', 'coverage:add', function (el) {
+      /* The vocabulary is the whole point: nothing but a launch district can be
+         declared, so this resolves the field back to one and refuses otherwise.
+         An unresolvable field is a typo, not a new region. */
       var input = document.getElementById('regin');
-      var region = input ? input.value.trim() : '';
-      if (!region) { toast('Name the region first.'); return; }
+      var typed = input ? input.value.trim() : '';
+      var d = pPick ? byId(pPick) : byName(typed);
+      if (!d) { toast('Pick a district from the list.'); return; }
+      if (d.tier !== 'launch') { toast(d.name + ' is queued for launch. Pick a district that is open.'); return; }
+      if (declaredSlugs()[regionSlug(d.name)]) { toast('You have already declared ' + d.name + '.'); return; }
+
       var techs = Array.prototype.slice.call(document.querySelectorAll('#addtech button.on'))
         .map(function (b) { return b.getAttribute('data-t'); });
       if (!techs.length) { toast('Pick at least one technology you serve there.'); return; }
@@ -3520,11 +3887,12 @@
       if (!W.busy(el, true, 'Declaring')) return;
       var speedEl = document.getElementById('addspeed');
 
-      api.coverageDeclare({ region: region, techs: techs, speed: speedEl ? speedEl.value : SPEEDS[0] })
+      api.coverageDeclare({ region: d.name, techs: techs, speed: speedEl ? speedEl.value : SPEEDS[0] })
         .then(function (r) {
           W.busy(el, false);
+          pQuery = ''; pPick = null; pOpen = false; pActive = -1;
           set({ coverage: (r && r.coverage) || get().coverage, covEdit: null, covDraft: null });
-          toast(region + ' declared. Verifying serviceability against facilities data.');
+          toast(d.name + ' declared. Verifying serviceability against facilities data.');
         }, function (err) {
           W.busy(el, false);
           failed(err);

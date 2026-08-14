@@ -346,8 +346,130 @@ console.log('\n12. coverage is the gate, and it explains itself');
   await p2.goto(`${BASE}/partner?fixture=motion#desk`, { waitUntil: 'networkidle' });
   await p2.waitForTimeout(120);
   const desk = await p2.locator('#desk-body').innerText();
-  ok(/Verifies with Markham coverage/.test(desk), 'a cohort in an unverified region is locked, and names the region');
+  ok(/Verifies with Markham North coverage/.test(desk), 'a cohort in an unverified region is locked, and names the region');
   await c2.close();
+}
+
+console.log('\n12b. coverage is declared from a controlled vocabulary');
+{
+  /* The declared region IS the bid unit. While this was a text box a partner
+     could declare "downtown-ish", the row wrote, and no cohort ever matched
+     it. These checks are about the one property that fixes: nothing but a
+     launch district can leave this field. */
+  const c = await ctx(browser, { record: REC, me: APPROVED });
+  /* Against the real declare path, not a fixture: the fixture layer has no
+     entry for coverageDeclare, so a fixture run would test the 501 branch and
+     call it a pass. Registered after ctx's routes, so this one wins. */
+  const seeded = [
+    { region: 'Scarborough East', slug: 'scarborough-east', status: 'active', techs: ['fibre'], speed: '1 Gig', lead: '5 business days' }
+  ];
+  let posted = null;
+  await c.route('**/api/auth/provider/coverage', r => {
+    const body = { ok: true, live: true, serverTime: Date.now(), coverage: seeded };
+    if (r.request().method() === 'POST') {
+      posted = JSON.parse(r.request().postData() || '{}');
+      body.coverage = seeded.concat([{
+        region: posted.region, slug: String(posted.region).toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        status: 'verifying', techs: posted.techs, speed: posted.speed, lead: '5 business days'
+      }]);
+    }
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  });
+  const p = await c.newPage();
+  const errs = [];
+  collect(p, errs);
+  await p.goto(`${BASE}/partner#coverage`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(120);
+
+  const combo = p.locator('#regin');
+  ok(await combo.getAttribute('role') === 'combobox', 'the add row carries a combobox, not a free-text region');
+  ok(await p.locator('#regpanel').count() === 1, 'and a results panel to filter into');
+
+  await combo.click();
+  await combo.fill('scar');
+  await p.waitForTimeout(80);
+  const opts = await p.locator('#regpanel .dopt').allInnerTexts();
+  const heads = await p.locator('#regpanel .dgrp').allInnerTexts();
+  ok(opts.length === 4 && opts.every((t) => /Scarborough/.test(t)), `"scar" narrows to the four Scarborough districts (${opts.length})`);
+  ok(heads.length === 1 && /Scarborough/i.test(heads[0]), 'grouped under one municipality header');
+  ok(/Already declared/.test(opts.join('|')), 'a district already in coverage says so');
+  ok(await p.locator('#regpanel .dopt.off[aria-disabled="true"]').count() >= 1, 'and is not selectable');
+
+  /* A queued district is visible and inert: a partner should see the ambition
+     without being able to declare into a market that is not open. */
+  await combo.fill('oakville');
+  await p.waitForTimeout(80);
+  const soon = await p.locator('#regpanel .dopt').first();
+  ok(/Queued for launch/.test(await soon.innerText()), 'a soon district is tagged, not hidden');
+  ok(await soon.getAttribute('aria-disabled') === 'true', 'and cannot be picked');
+
+  await combo.fill('scarberia');
+  await p.waitForTimeout(80);
+  ok(await p.locator('#regpanel .dnone').count() === 1, 'gibberish matches nothing');
+  await p.locator('[data-action="coverage:add"]').first().click();
+  await p.waitForTimeout(200);
+  ok(posted === null, 'Declare on an invented region sends nothing');
+  const said = await p.evaluate(() => (document.getElementById('toast') || {}).textContent || '');
+  ok(/Pick a district from the list/.test(said), `and says why (${said})`);
+  ok(!(await p.locator('#cov-body').innerText()).includes('scarberia'), 'and no free-text region reaches the table');
+
+  /* Keyboard: down then Enter picks the first selectable row. */
+  await combo.fill('scarborough n');
+  await p.waitForTimeout(80);
+  await combo.press('ArrowDown');
+  await combo.press('Enter');
+  ok(await combo.inputValue() === 'Scarborough North', 'up, down and Enter drive the list');
+  ok(await p.locator('#regpanel').isHidden(), 'and picking closes it');
+
+  await p.locator('#addtech button').first().click();
+  await p.locator('[data-action="coverage:add"]').first().click();
+  await p.waitForTimeout(400);
+  const cov = await p.locator('#cov-body').innerText();
+  const declared = await p.evaluate(() =>
+    window.WHOLLAR.console.state().coverage.filter((c) => c.region === 'Scarborough North').length);
+  ok(posted && posted.region === 'Scarborough North', 'Declare sends the district name the vocabulary owns');
+  ok(declared === 1, 'and the table gains exactly one row for it');
+  ok(/Scarborough North/.test(cov) && /Verifying/.test(cov), 'landing verifying, against facilities data');
+
+  /* Second attempt on the same district: the list says it is taken and the
+     button refuses, so a duplicate cannot be declared by either route. */
+  posted = null;
+  await combo.click();
+  await combo.fill('Scarborough North');
+  await p.waitForTimeout(80);
+  const dup = await p.locator('#regpanel .dopt').first();
+  ok(/Already declared/.test(await dup.innerText()), 'a declared district is marked in the list');
+  await p.locator('[data-action="coverage:add"]').first().click();
+  await p.waitForTimeout(200);
+  ok(posted === null, 'and Declare on it sends nothing');
+
+  ok(!errs.length, `no page errors through the picker (${errs.length})`);
+  await c.close();
+
+  /* On a phone, with the list open. The panel sits in flow rather than
+     absolutely positioned precisely so it cannot be clipped by the table's
+     horizontal scroll box or push the page sideways, and that claim is worth
+     nothing unmeasured. */
+  for (const w of [1280, 390]) {
+    const cc = await ctx(browser, { record: REC, me: APPROVED });
+    const pp = await cc.newPage();
+    await pp.setViewportSize({ width: w, height: 900 });
+    await pp.goto(`${BASE}/partner#coverage`, { waitUntil: 'networkidle' });
+    await pp.waitForTimeout(120);
+    await pp.locator('#regin').click();
+    await pp.waitForTimeout(120);
+    const m = await pp.evaluate(() => {
+      const opt = document.querySelector('#regpanel .dopt');
+      return {
+        over: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        shown: !document.getElementById('regpanel').hasAttribute('hidden'),
+        tap: opt ? Math.round(opt.getBoundingClientRect().height) : 0
+      };
+    });
+    ok(m.shown && m.over <= 0 && m.tap >= 36,
+      `${w}px: the open list fits, no sideways scroll, ${m.tap}px rows`);
+    await cc.close();
+  }
 }
 
 console.log('\n13. the application checklist tracks per-task state');

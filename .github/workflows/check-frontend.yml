@@ -184,6 +184,13 @@ jobs:
       - name: Partner console fixtures parse
         run: node --check partner/demo/fixtures.js
 
+      # The declarable vocabulary. Coverage is a controlled list now, and this
+      # is the half of that the browser cannot enforce: a fixture, a seed or a
+      # campaign naming a region the vocabulary does not have renders perfectly
+      # and matches nothing, which is the free-text bug arriving by post.
+      - name: Districts and everything that names one
+        run: node --test scripts/test-districts.mjs
+
       # Em dashes and the banned terminology, scoped to the console files where
       # the count is currently zero. Scoped rather than repo-wide on purpose:
       # older pages carry hundreds of em dashes, and a gate that is red on day

@@ -119,9 +119,19 @@
     return { ok: true, live: true, serverTime: NOW, coverage: rows };
   }
   var COV_ACTIVE = [
-    { region: 'North York', slug: 'north-york', status: 'active', techs: ['fibre', 'cable'], speed: '1 Gig', lead: '5 business days' },
-    { region: 'Scarborough', slug: 'scarborough', status: 'active', techs: ['fibre', 'cable'], speed: '1 Gig', lead: '5 business days' },
-    { region: 'Markham', slug: 'markham', status: 'verifying', techs: ['fibre'], speed: '1 Gig', lead: '5 business days' }
+    { region: 'North York Central', slug: 'north-york-central', status: 'active', techs: ['fibre', 'cable'], speed: '1 Gig', lead: '5 business days' },
+    { region: 'Scarborough East', slug: 'scarborough-east', status: 'active', techs: ['fibre', 'cable'], speed: '1 Gig', lead: '5 business days' },
+    { region: 'Markham North', slug: 'markham-north', status: 'verifying', techs: ['fibre'], speed: '1 Gig', lead: '5 business days' },
+    /* A neighbour, so the desk reads like a real footprint rather than one
+       district per demo, and so the picker has an "Already declared" row to
+       show inside a municipality that also has free ones. */
+    { region: 'Scarborough Centre', slug: 'scarborough-centre', status: 'active', techs: ['fibre'], speed: '500 Mbps', lead: '7 business days' },
+    /* The two 'soon' rows. They are a platform state, not a partner one, and
+       until this pair existed nothing exercised that branch: no fixture, no
+       "Queued for launch" row, and no check that the application counts
+       declared regions WITHOUT them. */
+    { region: 'Hamilton', slug: 'hamilton', status: 'soon', techs: ['fibre'], speed: '1 Gig', lead: '10 business days' },
+    { region: 'Ottawa', slug: 'ottawa', status: 'soon', techs: ['fibre'], speed: '1 Gig', lead: '10 business days' }
   ];
 
   /* One order row. `addressLine` is present ONLY after the gate; the fixture
@@ -248,7 +258,7 @@
     coverage: coverage([
       COV_ACTIVE[0],
       {
-        region: 'Hamilton', slug: 'hamilton', status: 'rejected', techs: ['fibre'], speed: '1 Gig',
+        region: 'Etobicoke North', slug: 'etobicoke-north', status: 'rejected', techs: ['fibre'], speed: '1 Gig',
         rejectionReason: 'No facilities record for this footprint.'
       }
     ]),
@@ -262,7 +272,7 @@
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
-      campaigns: [campaign('kw', 'Scarborough', 'planned', { bidding_opens_at: at(19), bidding_closes_at: at(33), bidding_open: false })]
+      campaigns: [campaign('kw', 'Scarborough East', 'planned', { bidding_opens_at: at(19), bidding_closes_at: at(33), bidding_open: false })]
     },
     bids: { ok: true, serverTime: NOW, live: true, bids: [] }
   };
@@ -274,7 +284,7 @@
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
-      campaigns: [campaign('kw', 'Scarborough', 'announced', { bidding_opens_at: at(2), bidding_closes_at: at(16), bidding_open: false })]
+      campaigns: [campaign('kw', 'Scarborough East', 'announced', { bidding_opens_at: at(2), bidding_closes_at: at(16), bidding_open: false })]
     },
     bids: { ok: true, serverTime: NOW, live: true, bids: [] }
   };
@@ -284,9 +294,9 @@
     view: 'desk',
     me: APPROVED_ME, application: APPROVED_APP,
     coverage: coverage(COV_ACTIVE),
-    campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [campaign('kw', 'Scarborough', 'open')] },
+    campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [campaign('kw', 'Scarborough East', 'open')] },
     bids: { ok: true, serverTime: NOW, live: true, bids: [] },
-    brief: brief(campaign('kw', 'Scarborough', 'open'), null),
+    brief: brief(campaign('kw', 'Scarborough East', 'open'), null),
     bidResult: sealedReceipt('sealed', 1, 'WB-4368')
   };
 
@@ -299,10 +309,10 @@
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
-      campaigns: [campaign('kw', 'Scarborough', 'closing', { bidding_closes_at: NOW + 2 * H + 14 * 60000 })]
+      campaigns: [campaign('kw', 'Scarborough East', 'closing', { bidding_closes_at: NOW + 2 * H + 14 * 60000 })]
     },
     bids: { ok: true, serverTime: NOW, live: true, bids: [] },
-    brief: brief(campaign('kw', 'Scarborough', 'closing', { bidding_closes_at: NOW + 2 * H + 14 * 60000 }), null),
+    brief: brief(campaign('kw', 'Scarborough East', 'closing', { bidding_closes_at: NOW + 2 * H + 14 * 60000 }), null),
     bidResult: sealedReceipt('sealed', 1, 'WB-4368')
   };
 
@@ -362,9 +372,9 @@
     view: 'desk',
     me: APPROVED_ME, application: APPROVED_APP,
     coverage: coverage(COV_ACTIVE),
-    campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [campaign('kw', 'Scarborough', 'closing', { bidding_closes_at: at(1) })] },
+    campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [campaign('kw', 'Scarborough East', 'closing', { bidding_closes_at: at(1) })] },
     bids: { ok: true, serverTime: NOW, live: true, bids: [SEALED_V2] },
-    brief: brief(campaign('kw', 'Scarborough', 'closing', { bidding_closes_at: at(1) }), SEALED_V2),
+    brief: brief(campaign('kw', 'Scarborough East', 'closing', { bidding_closes_at: at(1) }), SEALED_V2),
     bidResult: sealedReceipt('improved', 3, 'WB-77AB', { version: 3 }),
     bidVersions: {
       ok: true, serverTime: NOW,
@@ -388,10 +398,10 @@
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
-      campaigns: [campaign('kw', 'Scarborough', 'offers_out', { bidding_closes_at: at(-1), decision_at: at(6), confirmed: 27, bidding_open: false })]
+      campaigns: [campaign('kw', 'Scarborough East', 'offers_out', { bidding_closes_at: at(-1), decision_at: at(6), confirmed: 27, bidding_open: false })]
     },
     bids: { ok: true, serverTime: NOW, live: true, bids: [bidIn('locked')] },
-    brief: brief(campaign('kw', 'Scarborough', 'offers_out', { bidding_closes_at: at(-1), decision_at: at(6), confirmed: 27, bidding_open: false }), bidIn('locked'))
+    brief: brief(campaign('kw', 'Scarborough East', 'offers_out', { bidding_closes_at: at(-1), decision_at: at(6), confirmed: 27, bidding_open: false }), bidIn('locked'))
   };
 
   S.won = {
@@ -401,10 +411,10 @@
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
-      campaigns: [campaign('kw', 'Scarborough', 'decided', { confirmed: 41, bidding_open: false, decision_at: at(-1) })]
+      campaigns: [campaign('kw', 'Scarborough East', 'decided', { confirmed: 41, bidding_open: false, decision_at: at(-1) })]
     },
     bids: { ok: true, serverTime: NOW, live: true, bids: [bidIn('won')] },
-    brief: brief(campaign('kw', 'Scarborough', 'decided', { confirmed: 41, bidding_open: false, decision_at: at(-1) }), bidIn('won')),
+    brief: brief(campaign('kw', 'Scarborough East', 'decided', { confirmed: 41, bidding_open: false, decision_at: at(-1) }), bidIn('won')),
     /* THE INTIMATION BOUNDARY. Counts, and no `orders` key at all. Not an
        empty array: absent is unambiguous, and a client cannot render rows that
        were never transmitted. */
@@ -422,10 +432,10 @@
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
-      campaigns: [campaign('kw', 'Scarborough', 'decided', { bidding_open: false, decision_at: at(-1) })]
+      campaigns: [campaign('kw', 'Scarborough East', 'decided', { bidding_open: false, decision_at: at(-1) })]
     },
     bids: { ok: true, serverTime: NOW, live: true, bids: [bidIn('not_selected')] },
-    brief: brief(campaign('kw', 'Scarborough', 'decided', { bidding_open: false, decision_at: at(-1) }), bidIn('not_selected'))
+    brief: brief(campaign('kw', 'Scarborough East', 'decided', { bidding_open: false, decision_at: at(-1) }), bidIn('not_selected'))
   };
 
   var DELIVERY_ROWS = roster(41, { act: 9, rel: 1, bkd: 14, noshow: 1, access: 1, linefail: 1 });
@@ -436,7 +446,7 @@
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
-      campaigns: [campaign('kw', 'Scarborough', 'decided', { confirmed: 41, bidding_open: false, switch_window_at: at(11) })]
+      campaigns: [campaign('kw', 'Scarborough East', 'decided', { confirmed: 41, bidding_open: false, switch_window_at: at(11) })]
     },
     bids: { ok: true, serverTime: NOW, live: true, bids: [bidIn('won')] },
     roster: {
@@ -455,7 +465,7 @@
     coverage: coverage(COV_ACTIVE),
     campaigns: {
       ok: true, serverTime: NOW, live: true,
-      campaigns: [campaign('kw', 'Scarborough', 'decided', { confirmed: 41, bidding_open: false, reconcile_at: at(2) })]
+      campaigns: [campaign('kw', 'Scarborough East', 'decided', { confirmed: 41, bidding_open: false, reconcile_at: at(2) })]
     },
     roster: { ok: true, serverTime: NOW, gate: { passed: true }, counts: counts(RECON_ROWS), orders: RECON_ROWS },
     /* Lines are DERIVED server side from activated orders and arrive as data.
@@ -480,18 +490,18 @@
     campaigns: {
       ok: true, serverTime: NOW, live: true,
       campaigns: [
-        campaign('kw', 'Scarborough', 'decided', { confirmed: 41, bidding_open: false }),
-        campaign('le', 'North York', 'open', { households: 112, bidding_closes_at: at(18) }),
-        /* Markham is 'verifying', not active, so this row renders LOCKED with
-           "Verifies with Markham coverage" and no bid control. Without a case
+        campaign('kw', 'Scarborough East', 'decided', { confirmed: 41, bidding_open: false }),
+        campaign('le', 'North York Central', 'open', { households: 112, bidding_closes_at: at(18) }),
+        /* Markham North is 'verifying', not active, so this row renders LOCKED
+           with "Verifies with Markham North coverage" and no bid control. Without a case
            like this the locked path ships untested, and it is the path a new
            partner meets most: declare a region, see the cohort, cannot bid on
            it yet, and need to be told why. */
-        campaign('mk', 'Markham', 'open', { households: 58, bidding_closes_at: at(9) })
+        campaign('mk', 'Markham North', 'open', { households: 58, bidding_closes_at: at(9) })
       ]
     },
     bids: { ok: true, serverTime: NOW, live: true, bids: [bidIn('won')] },
-    brief: brief(campaign('kw', 'Scarborough', 'decided', { confirmed: 41, bidding_open: false }), bidIn('won')),
+    brief: brief(campaign('kw', 'Scarborough East', 'decided', { confirmed: 41, bidding_open: false }), bidIn('won')),
     /* Every figure carries its claim class. Nothing renders unlabelled. */
     performance: {
       ok: true, serverTime: NOW,
@@ -511,7 +521,7 @@
     me: { ok: true, serverTime: NOW, user: user(), org: org(), approved: true, state: 'bidding_paused' },
     application: APPROVED_APP,
     coverage: coverage(COV_ACTIVE),
-    campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [campaign('kw', 'Scarborough', 'open')] },
+    campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [campaign('kw', 'Scarborough East', 'open')] },
     billingStatus: {
       ok: true, serverTime: NOW, state: 'failed', biddingPaused: true,
       invoice: 'WH-2026-07', failedAt: at(-3), pausesAt: at(11),

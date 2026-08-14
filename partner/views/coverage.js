@@ -23,8 +23,9 @@ import { get, set } from '../core/state.js';
 import { api } from '../core/api.js';
 import { esc, regionSlug } from '../core/format.js';
 import { toast, failed } from '../core/toast.js';
-import { on } from '../core/actions.js';
+import { on, onAnyClick } from '../core/actions.js';
 import { authFailed } from '../core/session.js';
+import { byId, byName, search, grouped } from '../core/districts.js';
 
 /* The technologies desk.js accepts, in its own spelling. The console shows the
    label; the wire carries the value. Getting this wrong is a 400. */
@@ -59,6 +60,24 @@ function find(slug) {
  * render
  * ------------------------------------------------------------------ */
 
+/**
+ * Paint, and hand the caret back.
+ *
+ * A refresh anywhere in the console repaints this view, which replaces the
+ * picker's input node. Mid-search that reads as the field going dead under
+ * your hands, so if the picker had focus it gets it back with the caret at the
+ * end of what was typed.
+ */
+function paint(host, html) {
+  var live = document.activeElement && document.activeElement.id === 'regin';
+  host.innerHTML = html;
+  if (!live) return;
+  var input = document.getElementById('regin');
+  if (!input) return;
+  input.focus();
+  try { input.setSelectionRange(input.value.length, input.value.length); } catch (e) { /* not all inputs allow it */ }
+}
+
 export function render() {
   var host = document.getElementById('cov-body');
   if (!host) return;
@@ -73,21 +92,21 @@ export function render() {
   }
 
   if (!S.coverage.length) {
-    host.innerHTML = '<section class="card"><div class="empty">'
+    paint(host, '<section class="card"><div class="empty">'
       + '<h3>Nothing declared yet, so nothing reaches your desk</h3>'
-      + '<p>Auctions are matched to partners by coverage. Name a region and the services you can render there, and cohorts forming inside it start appearing on your bid desk. Serviceability is checked against facilities data; you do not have to wait for that to declare more.</p>'
-      + '</div>' + addRow(true) + '</section>';
+      + '<p>Auctions are matched to partners by coverage. Pick a district and the services you can render there, and cohorts forming inside it start appearing on your bid desk. Serviceability is checked against facilities data; you do not have to wait for that to declare more.</p>'
+      + '</div>' + addRow(true) + '</section>');
     return;
   }
 
   var rows = S.coverage.map(function (c) { return regionRow(c, S); }).join('');
 
-  host.innerHTML = '<section class="card" style="padding-top:14px" aria-label="Your regions">'
+  paint(host, '<section class="card" style="padding-top:14px" aria-label="Your regions">'
     + '<div class="twrap"><table class="tbl">'
     + '<thead><tr><th>Region</th><th>Status</th><th>Services declared</th><th class="num">Open</th><th></th></tr></thead>'
     + '<tbody>' + rows + addRow(false) + '</tbody></table></div>'
-    + '<p class="fnote">State the areas you want to bid in and the services you can render there. New regions verify against serviceability before auctions appear.</p>'
-    + '</section>';
+    + '<p class="fnote">Pick the districts you want to bid in and the services you can render there. A district is roughly 25k to 40k households, and a new one verifies against serviceability before auctions appear.</p>'
+    + '</section>');
 }
 
 function regionRow(c, S) {
@@ -146,8 +165,112 @@ function editRow(c, slug) {
     + '</div></td></tr>';
 }
 
+/* ------------------------------------------------------------------ *
+ * the district picker
+ *
+ * Free text used to write straight into coverage, and a declared region IS the
+ * bid unit, so "downtown-ish" was a region no cohort could ever match. The
+ * field now only yields districts from core/districts.js.
+ *
+ * WHY THE PICKER STATE IS MODULE LOCAL AND NOT IN THE STORE. Every set() in
+ * this console repaints every view, so a query in the store would rebuild the
+ * table on each keystroke and take the caret with it. These three live here,
+ * render() paints from them, and typing repaints the results panel only. A
+ * background refresh still restores the typed text and the open panel, which
+ * is the property the store was giving us, without the repaint.
+ * ------------------------------------------------------------------ */
+
+var pQuery = '';    /* what is typed */
+var pPick = null;   /* district id chosen from the list, or null */
+var pOpen = false;  /* is the results panel showing */
+var pActive = -1;   /* index into the selectable rows, for up and down */
+
+/** Districts already declared cannot be declared twice. */
+function declaredSlugs() {
+  var out = {};
+  get().coverage.forEach(function (c) { out[regionSlug(c.region)] = true; });
+  return out;
+}
+
+/**
+ * Every row the panel will draw, in order, each labelled with why it is or is
+ * not selectable. One pass so the keyboard and the mouse cannot disagree about
+ * which rows are pickable.
+ */
+function results() {
+  var taken = declaredSlugs();
+  return search(pQuery).map(function (d) {
+    var why = d.tier !== 'launch' ? 'Queued for launch'
+      : (taken[regionSlug(d.name)] ? 'Already declared' : '');
+    return { d: d, tag: why, pickable: !why };
+  });
+}
+
+function pickable(rows) { return rows.filter(function (r) { return r.pickable; }); }
+
+function panelHtml() {
+  var rows = results();
+  if (!rows.length) {
+    return '<p class="dnone">No district by that name yet. Try a municipality, like Brampton or Vaughan.</p>';
+  }
+  var order = pickable(rows);
+  return grouped(rows.map(function (r) { return r.d; })).map(function (g) {
+    var body = rows.filter(function (r) { return r.d.muni === g.muni; }).map(function (r) {
+      var i = order.indexOf(r);
+      if (!r.pickable) {
+        return '<div class="dopt off" role="option" aria-disabled="true" aria-selected="false">'
+          + '<span>' + esc(r.d.name) + '</span><span class="dtag">' + r.tag + '</span></div>';
+      }
+      return '<div class="dopt' + (i === pActive ? ' act' : '') + '" role="option" id="dopt-' + esc(r.d.id) + '"'
+        + ' aria-selected="' + (i === pActive ? 'true' : 'false') + '"'
+        + ' data-action="coverage:pick" data-id="' + esc(r.d.id) + '">'
+        + '<span>' + esc(r.d.name) + '</span></div>';
+    }).join('');
+    return '<div class="dgrp">' + esc(g.muni) + '</div>' + body;
+  }).join('');
+}
+
+function picker() {
+  return '<div class="dsel" id="regsel">'
+    + '<input id="regin" type="text" role="combobox" aria-expanded="' + (pOpen ? 'true' : 'false') + '"'
+    + ' aria-controls="regpanel" aria-autocomplete="list" autocomplete="off" spellcheck="false"'
+    + ' placeholder="Choose a district you want to bid in" aria-label="Choose a district"'
+    + ' data-action="coverage:query" value="' + esc(pQuery) + '">'
+    + '<div class="dpanel" id="regpanel" role="listbox" aria-label="Districts"' + (pOpen ? '' : ' hidden') + '>'
+    + (pOpen ? panelHtml() : '') + '</div></div>';
+}
+
+/** Repaint the panel alone, so the input keeps focus and caret while typing. */
+function paintPanel() {
+  var input = document.getElementById('regin');
+  var panel = document.getElementById('regpanel');
+  if (!panel || !input) return;
+  panel.innerHTML = pOpen ? panelHtml() : '';
+  if (pOpen) panel.removeAttribute('hidden'); else panel.setAttribute('hidden', '');
+  input.setAttribute('aria-expanded', pOpen ? 'true' : 'false');
+  var act = panel.querySelector('.dopt.act');
+  if (act && act.scrollIntoView) act.scrollIntoView({ block: 'nearest' });
+}
+
+function closePanel() {
+  if (!pOpen) return;
+  pOpen = false;
+  pActive = -1;
+  paintPanel();
+}
+
+function choose(id) {
+  var d = byId(id);
+  if (!d) return;
+  pPick = d.id;
+  pQuery = d.name;
+  var input = document.getElementById('regin');
+  if (input) { input.value = d.name; input.focus(); }
+  closePanel();
+}
+
 function addRow(standalone) {
-  var inner = '<td colspan="2"><input id="regin" type="text" placeholder="Add a region you want to bid in" aria-label="Add a region"></td>'
+  var inner = '<td colspan="2">' + picker() + '</td>'
     + '<td><div class="cechips" id="addtech" style="margin:0">'
     + TECHS.map(function (t) { return '<button type="button" data-action="coverage:chip" data-t="' + t[0] + '">' + t[1] + '</button>'; }).join('')
     + '</div></td>'
@@ -209,10 +332,72 @@ export function mount() {
     });
   });
 
+  /* ---- the district picker ---- */
+
+  /* Typing filters. A keystroke invalidates any earlier pick: the pick is what
+     Declare trusts, so leaving it set while the text says something else is
+     how a partner declares a district they are no longer looking at. */
+  on('input', 'coverage:query', function (el) {
+    pQuery = el.value;
+    pPick = null;
+    pOpen = true;
+    pActive = -1;
+    paintPanel();
+  });
+
+  on('click', 'coverage:query', function () {
+    if (pOpen) return;
+    pOpen = true;
+    pActive = -1;
+    paintPanel();
+  });
+
+  on('keydown', 'coverage:query', function (el, e) {
+    var rows = pickable(results());
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!pOpen) { pOpen = true; pActive = -1; }
+      if (rows.length) {
+        pActive = e.key === 'ArrowDown'
+          ? Math.min(pActive + 1, rows.length - 1)
+          : Math.max(pActive - 1, 0);
+      }
+      paintPanel();
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (pOpen && pActive > -1 && rows[pActive]) choose(rows[pActive].d.id);
+      /* One exact-match convenience, and only that: typing a full district
+         name and pressing Enter picks it. Anything else leaves the pick unset,
+         and Declare refuses. */
+      else if (byName(el.value)) choose(byName(el.value).id);
+      return;
+    }
+    if (e.key === 'Escape') { closePanel(); return; }
+  });
+
+  on('click', 'coverage:pick', function (el) { choose(el.getAttribute('data-id')); });
+
+  /* Attention moved elsewhere: close, rather than leaving a listbox floating
+     over the chips a partner is now clicking. */
+  onAnyClick(function (e) {
+    if (!pOpen) return;
+    if (e.target.closest && e.target.closest('#regsel')) return;
+    closePanel();
+  });
+
   on('click', 'coverage:add', function (el) {
+    /* The vocabulary is the whole point: nothing but a launch district can be
+       declared, so this resolves the field back to one and refuses otherwise.
+       An unresolvable field is a typo, not a new region. */
     var input = document.getElementById('regin');
-    var region = input ? input.value.trim() : '';
-    if (!region) { toast('Name the region first.'); return; }
+    var typed = input ? input.value.trim() : '';
+    var d = pPick ? byId(pPick) : byName(typed);
+    if (!d) { toast('Pick a district from the list.'); return; }
+    if (d.tier !== 'launch') { toast(d.name + ' is queued for launch. Pick a district that is open.'); return; }
+    if (declaredSlugs()[regionSlug(d.name)]) { toast('You have already declared ' + d.name + '.'); return; }
+
     var techs = Array.prototype.slice.call(document.querySelectorAll('#addtech button.on'))
       .map(function (b) { return b.getAttribute('data-t'); });
     if (!techs.length) { toast('Pick at least one technology you serve there.'); return; }
@@ -221,11 +406,12 @@ export function mount() {
     if (!W.busy(el, true, 'Declaring')) return;
     var speedEl = document.getElementById('addspeed');
 
-    api.coverageDeclare({ region: region, techs: techs, speed: speedEl ? speedEl.value : SPEEDS[0] })
+    api.coverageDeclare({ region: d.name, techs: techs, speed: speedEl ? speedEl.value : SPEEDS[0] })
       .then(function (r) {
         W.busy(el, false);
+        pQuery = ''; pPick = null; pOpen = false; pActive = -1;
         set({ coverage: (r && r.coverage) || get().coverage, covEdit: null, covDraft: null });
-        toast(region + ' declared. Verifying serviceability against facilities data.');
+        toast(d.name + ' declared. Verifying serviceability against facilities data.');
       }, function (err) {
         W.busy(el, false);
         failed(err);
