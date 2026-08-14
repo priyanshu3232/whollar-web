@@ -3920,6 +3920,20 @@ function ccSub(c){
   }
   return m;
 }
+/* ?cohorts=all puts a "Choose this cohort" button on EVERY joinable cohort
+   rather than the featured one only, so an operator can exercise the join
+   path against any region without first making it sort first.
+
+   Deliberately NOT ?demo=1. That flag is the prototype tour: it fabricates
+   feed lines and sets TOURED, which stops a server sync from correcting the
+   state, so a join made under it proves nothing. This flag changes exactly
+   one thing, which cohorts carry the CTA, and leaves the join itself real:
+   same POST /campaigns/join, same server counts, same catalog.
+
+   Off by default and read from the URL, so no build, no deploy, and no code
+   path a real member can reach by accident. It relaxes the state gate too,
+   because a cohort you cannot see a button on is not testable either way. */
+var PICKANY=new URLSearchParams(location.search).get('cohorts')==='all';
 function ccCard(c,feat){
   var mine=c.you==='joined'||c.you==='waitlist';
   var b=CCBADGE[c.kind]||CCBADGE.planned;
@@ -3951,7 +3965,7 @@ function ccCard(c,feat){
      this row IS the call to action. `data-choose` carries the real id: it used
      to be the string 'le', which is why joining could only ever mean one
      cohort no matter which card was on screen. */
-  var cta=(!mine&&c.joinable&&c===feat&&S.state==='result')
+  var cta=(!mine&&c.joinable&&(PICKANY||(c===feat&&S.state==='result')))
     ? '<button class="btn terra ccbtn" type="button" data-choose="'+esc(c.id)+'">Choose this cohort</button>'
     : '';
   /* #cc-first and #regmono stay on the featured card. They are the handles
