@@ -1515,6 +1515,32 @@
      * server's message: show it, the copy is written to be shown. Each
      * resolves { ok, campaign } with the campaign's updated counts.
      */
+    /**
+     * The winning offer on a cohort this member joined, once its sealed window
+     * has closed. Resolves { sealed, closesAt, bidCount, offer } or null.
+     *
+     * `sealed:true` means the window is still open and the server told us
+     * nothing else: no price, no count, not even whether anyone has bid. Do
+     * not treat that as "no offer yet" in a way that leaks a guess, and do not
+     * poll it hoping the count appears; it does not exist before the close.
+     *
+     * Boot-path read, so it never rejects: a missing endpoint or a flaky
+     * network resolves null and the panel keeps its own empty state.
+     */
+    campaignOffer: function (id) {
+      return fetch(W.AUTH_API + '/campaigns/' + encodeURIComponent(id) + '/offer', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      }).then(function (r) {
+        return r.ok ? r.json().catch(function () { return null; }) : null;
+      }).then(function (b) {
+        return (b && b.ok) ? b : null;
+      }).catch(function () {
+        return null;
+      });
+    },
+
     campaignJoin: function (id) { return authPost('/campaigns/join', { campaign: id }); },
     campaignLeave: function (id) { return authPost('/campaigns/leave', { campaign: id }); },
     campaignNotify: function (id) { return authPost('/campaigns/notify', { campaign: id }); },

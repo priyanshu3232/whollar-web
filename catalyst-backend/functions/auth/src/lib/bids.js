@@ -349,6 +349,27 @@ async function bidRows(catalystApp, orgId) {
   }
 }
 
+/**
+ * Every head row on ONE campaign, across all orgs. Null when unreadable.
+ *
+ * The only reader is the member-facing offer route, and it is the only place
+ * in the system where bids from different orgs are compared. It is safe there
+ * and nowhere else: a member sees one winning offer, a partner never sees
+ * another partner's bid. Do not reach for this from a /provider route.
+ */
+async function campaignBidRows(catalystApp, campaignId) {
+  const where = `campaign_id = ${datastore.lit(campaignId)}`;
+  try {
+    return await datastore.queryAll(catalystApp, BIDS, BID_COLS_V2, where);
+  } catch {
+    try {
+      return await datastore.queryAll(catalystApp, BIDS, BID_COLS, where);
+    } catch {
+      return null;
+    }
+  }
+}
+
 /** The org's head row for one campaign, or null. Extended columns first. */
 async function headRow(catalystApp, bidKey) {
   try {
@@ -419,5 +440,5 @@ module.exports = {
   TIER_NAMES, TECHS, REDUCTION, EQUIPMENT, AFTER_MODE, GUARANTEE_MONTHS,
   readBid, draftPayload, hashPayload, receiptNo,
   improvementProblems, publicBid, headDraft,
-  bidRows, headRow, revisionRows, sealRevision,
+  bidRows, campaignBidRows, headRow, revisionRows, sealRevision,
 };

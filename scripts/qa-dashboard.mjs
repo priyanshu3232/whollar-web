@@ -237,6 +237,115 @@ console.log('\n6b. a cohort the page has never heard of renders anyway');
   await c.close();
 }
 
+/* The bidding countdown read `26*3600+14*60+9`, a literal, so it showed the
+   same 26:14:09 on every cohort on every visit. A cohort whose sealed window
+   closed in three minutes still read 26 hours, and no change to the campaign's
+   calendar moved it. It must measure the joined cohort's own bidding_closes_at,
+   against the server clock rather than this browser's. */
+console.log('\n6c. the bidding countdown is the cohort\'s own close date');
+{
+  const t = Date.now(), MIN = 60000;
+  const mine = {
+    id: 'kitchener-central', region: 'Kitchener', sub: 'Autumn cohort', kind: 'auction',
+    target: 100, members: 1, households: 1, watching: 0, joinable: false, you: 'joined',
+    stage: 'bidding', stageLabel: 'Bidding', next: null,
+    dates: {
+      announce_at: t - 4 * MIN, bidding_opens_at: t - 2 * MIN, bidding_closes_at: t + 3 * MIN,
+      offers_at: t + 5 * MIN, decision_at: t + 7 * MIN, switch_window_at: t + 9 * MIN,
+    },
+  };
+  const c = await ctx(browser, { campaigns: [mine] });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  const cd = () => p.evaluate(() => {
+    const e = document.querySelector('#cd');
+    return e ? e.textContent.trim() : null;
+  });
+  const first = await cd();
+  ok(/^00:0[0-3]:/.test(first || ''), `a close 3 minutes out reads as minutes, not hours (${first})`);
+  ok(!/^26:/.test(first || ''), 'and not the old hardcoded 26:14:09');
+  await p.waitForTimeout(2200);
+  ok((await cd()) !== first, 'and it ticks');
+  await c.close();
+}
+
+/* The offer panel read WIN and OFFERS, two constants: Northline Internet at
+   $54.50 and "3 partners bid", printed on every cohort. A Kitchener auction
+   whose only sealed bid was $50 still showed $54.50 from a provider that does
+   not exist. GET /campaigns/:id/offer is what makes it the cohort's own bid. */
+console.log('\n6d. the offer panel shows the real winning bid');
+{
+  const t = Date.now(), MIN = 60000;
+  const mine = {
+    id: 'kitchener-central', region: 'Kitchener', sub: 'Autumn cohort', kind: 'auction',
+    target: 100, members: 1, households: 1, watching: 0, joinable: false, you: 'joined',
+    stage: 'offers', stageLabel: 'Offer in', next: null,
+    dates: {
+      announce_at: t - 9 * MIN, bidding_opens_at: t - 7 * MIN, bidding_closes_at: t - 5 * MIN,
+      offers_at: t - 3 * MIN, decision_at: t + 60 * MIN, switch_window_at: t + 120 * MIN,
+    },
+  };
+  const c = await ctx(browser, { campaigns: [mine] });
+  /* Registered after ctx's catch-all, so it wins: Playwright matches the most
+     recently registered route first. */
+  await c.route('**/api/auth/campaigns/*/offer', r => r.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({
+      ok: true, sealed: false, live: true, closesAt: t - 5 * MIN, bidCount: 1,
+      offer: {
+        partner: 'Testline Fibre', price: '50', speed: '500 Mbps', technology: 'fibre',
+        guaranteeMonths: 24, afterLine: 'no scheduled change', equipment: 'inc',
+        rentalMonthly: null, committedHouseholds: 40, reference: 'WR-TEST',
+        tiers: [{ name: '500 Mbps', technology: 'fibre', uploadMbps: '500', stickerPrice: '65', effectivePrice: '50', afterPrice: null }],
+      },
+    }),
+  }));
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(1400);
+  const panel = await p.evaluate(() => (document.querySelector('#panel') || {}).innerText || '');
+  ok(/\$50\b/.test(panel), 'the winning price is the bid that was placed');
+  ok(!/54\.50|54\.5/.test(panel), 'and not the hardcoded $54.50');
+  ok(/Testline Fibre/.test(panel), 'the partner is the org that bid');
+  ok(!/Northline/.test(panel), 'and not the hardcoded Northline Internet');
+  ok(/1 partner bid/.test(panel), `one bid reads as "1 partner bid", singular (${(panel.match(/\d+ partners? bid/) || [])[0]})`);
+  await c.close();
+}
+
+/* The seal. Nothing about a bid may cross to a household before the window
+   closes, including the count: a member who could watch it climb could tell a
+   partner how much competition it has, which is the same leak as the price. */
+console.log('\n6e. a sealed window reveals nothing, and the panel does not invent one');
+{
+  const t = Date.now(), MIN = 60000;
+  const mine = {
+    id: 'kitchener-central', region: 'Kitchener', sub: 'Autumn cohort', kind: 'auction',
+    target: 100, members: 1, households: 1, watching: 0, joinable: false, you: 'joined',
+    stage: 'bidding', stageLabel: 'Bidding', next: null,
+    dates: { announce_at: t - 4 * MIN, bidding_opens_at: t - 2 * MIN, bidding_closes_at: t + 30 * MIN },
+  };
+  const c = await ctx(browser, { campaigns: [mine] });
+  let asked = 0;
+  await c.route('**/api/auth/campaigns/*/offer', r => {
+    asked += 1;
+    return r.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ ok: true, sealed: true, closesAt: t + 30 * MIN, bidCount: null, offer: null }),
+    });
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(1400);
+  ok(asked === 0, `the offer is not even requested while bidding is live (${asked} requests)`);
+  const panel = await p.evaluate(() => (document.querySelector('#panel') || {}).innerText || '');
+  ok(!/\$54\.50|Northline/.test(panel), 'and no fixture price or partner leaks into the bidding panel');
+  await c.close();
+}
+
 console.log('\n7. the demo tour renders all 13 states with no console error');
 {
   const c = await ctx(browser, { campaigns: [] });
