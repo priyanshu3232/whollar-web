@@ -75,7 +75,7 @@ The person. One row per human, regardless of how many ways they sign in.
 | `fsa` | Var Char | 3 | | | | first three characters — what a cohort is keyed on |
 | `province_code` | Var Char | 2 | | | | `ON`, `BC`, … |
 | `phone` | Var Char | 32 | | | ✅ | for the "bids landed" text |
-| `referral_code` | Var Char | 64 | | | | the code they arrived with, not the one they own |
+| `referral_code` | Var Char | 64 | | | | the code they arrived with, not the one they own. Stored only in the canonical `WHL-<8 hex>` form written by `lib/referral.js`: the referrer's count is an exact match on this column, so a raw typed variant here is a referral nobody ever gets credited for |
 | `last_login_at` | DateTime | — | | | | |
 | `crm_contact_id` | Var Char | 64 | | | | written back by `crm-sync`; null until then |
 

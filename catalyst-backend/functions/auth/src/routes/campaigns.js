@@ -71,8 +71,9 @@ function tally(rows) {
 }
 
 /** One campaign, wire-shaped. `mine` is this member's row or undefined. */
-function publicCampaign(c, counts, mine) {
+function publicCampaign(c, counts, mine, now) {
   const t = counts[c.id] || { signups: 0, watching: 0 };
+  const s = catalog.publicMemberStage(c, now);
   return {
     id: c.id,
     region: c.region,
@@ -84,6 +85,15 @@ function publicCampaign(c, counts, mine) {
     watching: t.watching,
     joinable: Boolean(JOIN_STATUS[c.kind]),
     you: mine ? mine.status : null,
+    /* Stage and calendar are SERVER OWNED. The dashboard renders these; it
+       must never re-derive a stage from `kind` in the browser, which is what
+       it did before this field existed. `dates` are epoch ms, and the
+       response's `serverTime` is the instant they were staged against, so a
+       countdown offsets from that rather than from the visitor's clock. */
+    stage: s.stage,
+    stageLabel: s.stageLabel,
+    next: s.next,
+    dates: c.dates || {},
   };
 }
 
@@ -261,10 +271,16 @@ function mount(router) {
     if (rows) {
       for (const r of rows) if (r.user_id === user.user_id) mineBy[r.campaign_id] = r;
     }
+    /* One clock reading for the whole response, for the same reason
+       /provider/campaigns takes one: two campaigns in a single payload must
+       not be staged a millisecond apart, and the serverTime the dashboard
+       offsets from has to be the instant the stages were computed at. */
+    const now = Date.now();
     res.status(200).json({
       ok: true,
+      serverTime: now,
       live: rows !== null,
-      campaigns: visible(cat.list).map((c) => publicCampaign(c, counts, mineBy[c.id])),
+      campaigns: visible(cat.list).map((c) => publicCampaign(c, counts, mineBy[c.id], now)),
     });
   }));
 

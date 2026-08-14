@@ -11,7 +11,7 @@
        (PIPEDA / Quebec Law 25). */
     window.clarity('set','mask','true');
 </script>
-<script src="/js/whollar-core.js?v=20260808a"></script>
+<script src="/js/whollar-core.js?v=20260814a"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="/js/device-router.js?v=20260806a"></script>
@@ -119,7 +119,8 @@
         <button type="button" class="reflink" id="ref-toggle">Have a referral code?</button>
         <div class="jf" id="refbox" style="display:none;margin-top:10px">
           <label for="j-ref">Referral code or a neighbour's email</label>
-          <input type="text" id="j-ref" placeholder="Optional">
+          <input type="text" id="j-ref" placeholder="Optional" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          <span class="okc" id="j-refok"></span>
         </div>
         <label class="j-terms" style="display:flex;align-items:flex-start;gap:9px;margin:16px 0 6px;font-size:13px;line-height:1.5;color:#54625B;cursor:pointer;"><input type="checkbox" id="j-terms" style="margin-top:1px;width:16px;height:16px;accent-color:#1E9E63;flex:none;cursor:pointer;"><span>I accept the <a href="/terms" target="_blank" rel="noopener noreferrer" style="color:#178A5A;text-decoration:underline;text-underline-offset:2px;">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style="color:#178A5A;text-decoration:underline;text-underline-offset:2px;">Privacy&nbsp;Policy</a>, and agree to receive email about my cohort and offers. I can unsubscribe at any time.</span></label>
         <button class="whl-btn go" id="j-go" type="button">Become a founding member</button>
@@ -211,6 +212,18 @@
             <p id="done-p">Your spot is held. We'll text the moment bids land in your area.</p>
           </div>
         </div>
+        <!-- Stage 2 above takes four of the checkup's nine questions and saves
+             them as a bill, which is enough to fill a dashboard switch file
+             and nowhere near enough to price anything. The checkup itself
+             lives on /bill-checkup and nowhere else, so the confirmation
+             hands the member straight to it. ?from=join points its back link
+             at the dashboard rather than at this page. -->
+        <div class="jnext">
+          <b>One step left: what should you actually be paying?</b>
+          <p>Your spot is held either way. The checkup is nine questions and your real bill, about two minutes, and it is what the bid for your cohort gets built on.</p>
+          <a class="whl-btn whl-btn--go" href="/bill-checkup?from=join">Check if I&rsquo;m overpaying</a>
+        </div>
+
         <div class="share">
           <b id="sh-h">Move your area up the line</b>
           <p id="sh-p">Share your link. Every neighbour who joins through you strengthens the bid you'll all get.</p>
@@ -222,7 +235,7 @@
         <!-- The code step left them signed in, so this is the way through.
              Without it a founding member who has just finished the form is
              parked on a marketing page with no route to their own dashboard. -->
-        <a class="whl-btn go" href="/dashboard">Go to my dashboard</a>
+        <a class="whl-btn go go--quiet" href="/dashboard">Go to my dashboard</a>
       </div>
 
     </div>
@@ -404,6 +417,43 @@ document.addEventListener('DOMContentLoaded',function(){
     if($('#j-pc')){$('#j-pc').addEventListener('input',parsePC);if($('#j-pc').value)parsePC();}
 
     $('#ref-toggle').addEventListener('click',()=>{const r=$('#refbox');const show=r.style.display==='none';r.style.display=show?'block':'none';if(show)$('#j-ref').focus();});
+
+    /* ---- referral code ------------------------------------------------
+       Checked against the server as it is typed, because the alternative is
+       someone mistyping a neighbour's code, joining anyway, and neither of
+       them ever finding out that the referral did not land. An unrecognised
+       code is a note, never a block: the signup is valid either way. */
+    let refTimer=null;
+    function checkRef(){
+      const el=$('#j-ref'),out=$('#j-refok');if(!el||!out)return;
+      const raw=el.value.trim();
+      if(!raw){out.textContent='';out.classList.remove('on');return;}
+      W.session.referralCheck(raw).then(r=>{
+        /* They kept typing while we asked. That answer is about an older
+           string, so dropping it is the only correct thing to do with it. */
+        if(el.value.trim()!==raw)return;
+        if(r&&r.valid){
+          out.textContent='✓ '+(r.firstName?r.firstName+' referred you':'Code recognised');
+          out.classList.add('on');
+        }else{
+          out.textContent='We don’t recognise that code. You can still join without it.';
+          out.classList.remove('on');
+        }
+      });
+    }
+    if($('#j-ref'))$('#j-ref').addEventListener('input',()=>{clearTimeout(refTimer);refTimer=setTimeout(checkRef,400);});
+
+    /* A share link lands as ?ref=WHL-XXXXXXXX, and whollar-core banked it at
+       load, on whatever page the link actually hit. Reading the bank rather
+       than this page's query string is what attributes the neighbour who
+       followed a link to the home page and arrived here ten minutes later. */
+    const bankedRef=(W.referral&&W.referral.pending())||null;
+    if(bankedRef&&$('#j-ref')&&!$('#j-ref').value){
+      $('#j-ref').value=bankedRef;
+      $('#refbox').style.display='block';
+      $('#ref-toggle').textContent='Referred by a neighbour';
+      checkRef();
+    }
 
     $('#j-go').addEventListener('click',async()=>{if(!$('#j-terms').checked){$('#j-terms').focus();return;}
       const nm=$('#j-name').value.trim();

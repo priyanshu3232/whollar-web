@@ -172,6 +172,74 @@ const STAGE_LABEL = Object.freeze({
   closing: 'Closing', offers_out: 'Offers out', decided: 'Decided',
 });
 
+/* ------------------------------------------------------------------ *
+ * The member's stage
+ *
+ * A household watches a different film than a partner does. The partner
+ * stages above stop at `decided`, because after that there is nothing left
+ * for a partner to do; the member still has an offer to confirm, an install
+ * to sit through, and a finish line. So the member vocabulary is its own
+ * seven steps, derived from the SAME seven date columns.
+ *
+ * This lives on the server for the same reason stageOf does: the dashboard
+ * must never decide for itself what stage a cohort is in. Before this the
+ * member dashboard mapped `kind` to a stage in the browser, which meant a
+ * cohort's whole calendar was invisible to the household and the rail could
+ * disagree with the partner console about the same cohort on the same day.
+ * ------------------------------------------------------------------ */
+const MEMBER_STAGES = Object.freeze(['forming', 'locked', 'bidding', 'offers',
+  'confirm', 'switching', 'done']);
+
+const MEMBER_STAGE_LABEL = Object.freeze({
+  forming: 'Forming', locked: 'Locked', bidding: 'Bidding', offers: 'Offer in',
+  confirm: 'Confirm', switching: 'Switching', done: 'Done',
+});
+
+/* Which date closes each member stage. Read in order, last match wins, so a
+   partial calendar degrades to the furthest date it actually carries rather
+   than snapping back to `forming`. */
+const MEMBER_GATES = Object.freeze([
+  ['announce_at', 'locked'],       // joining has shut, the brief is fixed
+  ['bidding_opens_at', 'bidding'],
+  ['offers_at', 'offers'],         // the winning offer reaches the household
+  ['decision_at', 'confirm'],      // confirmations lock
+  ['switch_window_at', 'switching'],
+  ['reconcile_at', 'done'],
+]);
+
+function memberStageOf(campaign, now = Date.now()) {
+  const d = (campaign && campaign.dates) || {};
+
+  /* An admin decision outranks the calendar, exactly as it does for partners. */
+  if (campaign && (campaign.kind === 'closed' || campaign.kind === 'archived')) return 'done';
+
+  let stage = 'forming';
+  for (const [col, name] of MEMBER_GATES) {
+    if (d[col] && now >= d[col]) stage = name;
+  }
+
+  /* Bidding closed but no offer date to move us on: the household is waiting
+     for the offer, which reads as `offers` rather than a stale `bidding`. */
+  if (stage === 'bidding' && d.bidding_closes_at && now >= d.bidding_closes_at && !d.offers_at) {
+    stage = 'offers';
+  }
+
+  /* No calendar at all. Fall back to what `kind` alone can honestly say,
+     which is what the client used to guess at on its own. */
+  const dated = MEMBER_GATES.some(([col]) => d[col]) || d.bidding_closes_at;
+  if (!dated) {
+    if (campaign && campaign.kind === 'auction') return 'bidding';
+    return 'forming';
+  }
+  return stage;
+}
+
+/** What the member dashboard renders: stage, label, and the next moment. */
+function publicMemberStage(campaign, now = Date.now()) {
+  const stage = memberStageOf(campaign, now);
+  return { stage, stageLabel: MEMBER_STAGE_LABEL[stage], next: nextTransition(campaign, now) };
+}
+
 /** The next calendar moment a partner is waiting on, for the countdown. */
 function nextTransition(campaign, now = Date.now()) {
   const d = (campaign && campaign.dates) || {};
@@ -241,6 +309,8 @@ async function load(catalystApp, { fresh = false } = {}) {
 module.exports = {
   TABLE, COLUMNS, DATE_COLUMNS, KINDS, JOIN_STATUS, ID_RE, TRANSITIONS, CODE_CATALOG,
   STAGES, STAGE_LABEL, CLOSING_WINDOW_MS,
+  MEMBER_STAGES, MEMBER_STAGE_LABEL,
   load, invalidate, fromRow, isTruthyDb,
   stageOf, nextTransition, publicStage,
+  memberStageOf, publicMemberStage,
 };

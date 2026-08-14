@@ -1170,6 +1170,84 @@
     }
   };
 
+  /* ------------------------------------------------------------------
+   * Referral capture.
+   *
+   * A share link is `?ref=WHL-XXXXXXXX` on any page of the site, and the page
+   * it lands on is almost never the page where an account gets created: a
+   * neighbour follows the link to the home page, reads for a while, runs the
+   * checkup, and signs up two clicks later. Anything that reads the parameter
+   * only at the signup form loses every one of those.
+   *
+   * So the parameter is banked on arrival, on whatever page arrives, and spent
+   * later by `session.signup` / `session.otpVerify`, which fall back to it when
+   * no code was passed. That fallback is why a page needs no referral code of
+   * its own to attribute one.
+   *
+   * Bounded like the checkup handoff and for the same reason: 60 days, cleared
+   * the moment a signup completes. Only the shape is validated here, never the
+   * ownership: the server decides whether a code belongs to anybody, and this
+   * one is stored exactly as the server would normalise it so the two agree.
+   * ------------------------------------------------------------------ */
+
+  W.REF_KEY = 'whollar.ref';
+  W.REF_TTL_MS = 60 * 24 * 60 * 60 * 1000;
+
+  /** `WHL-3F9A2C1D` from any form a link or a human produces, or null. */
+  function normalizeRef(input) {
+    var flat = String(input == null ? '' : input).toLowerCase().replace(/[^0-9a-z]/g, '');
+    if (flat.length < 8) return null;
+    var tail = flat.slice(-8);
+    return /^[0-9a-f]{8}$/.test(tail) ? 'WHL-' + tail.toUpperCase() : null;
+  }
+
+  W.referral = {
+    normalize: normalizeRef,
+
+    /** The share link for a code, on whatever host this page is served from. */
+    link: function (code) {
+      var c = normalizeRef(code);
+      return location.origin + '/waitlist/' + (c ? '?ref=' + encodeURIComponent(c) : '');
+    },
+
+    /**
+     * Bank `?ref=` if this page load carries one. Called once at load; safe to
+     * call again. A later link overwrites an earlier one, which is the honest
+     * reading of "the last neighbour who sent them".
+     */
+    capture: function () {
+      var code = null;
+      try {
+        var q = new URLSearchParams(location.search);
+        code = normalizeRef(q.get('ref') || q.get('referral'));
+      } catch (e) { code = null; }
+      if (!code) return null;
+      try {
+        localStorage.setItem(W.REF_KEY, JSON.stringify({ code: code, savedAt: Date.now() }));
+      } catch (e) { /* private mode: the code still works if typed */ }
+      return code;
+    },
+
+    /** The banked code, or null once it is older than the TTL. */
+    pending: function () {
+      try {
+        var v = JSON.parse(localStorage.getItem(W.REF_KEY));
+        if (!v || !v.code) return null;
+        if (!v.savedAt || Date.now() - v.savedAt > W.REF_TTL_MS) {
+          W.referral.clear();
+          return null;
+        }
+        return normalizeRef(v.code);
+      } catch (e) { return null; }
+    },
+
+    clear: function () {
+      try { localStorage.removeItem(W.REF_KEY); } catch (e) { /* ignore */ }
+    }
+  };
+
+  W.referral.capture();
+
   /* ================================================================== *
    * 12. SERVER SESSION (the authority behind section 11)
    * ------------------------------------------------------------------
@@ -1493,7 +1571,13 @@
         email: o.email,
         code: o.code,
         firstName: o.firstName || null,
+        referralCode: o.referralCode || W.referral.pending(),
         marketing: Boolean(o.marketing)
+      }).then(function (b) {
+        // This call creates the account when the address is new, so the banked
+        // code is spent here for the same reason signupVerify spends it.
+        if (b && b.created) W.referral.clear();
+        return b;
       });
     },
 
@@ -1520,7 +1604,10 @@
         phone: o.phone || null,
         postalCode: o.postalCode || null,
         provinceCode: o.provinceCode || null,
-        referralCode: o.referralCode || null,
+        // Falls back to the code this browser arrived with, so a page that
+        // never grew a referral field still attributes the neighbour who sent
+        // them. A page passing one explicitly always wins.
+        referralCode: o.referralCode || W.referral.pending(),
         marketing: Boolean(o.marketing)
       });
     },
@@ -1543,6 +1630,11 @@
         email: o.email,
         code: o.code,
         marketing: Boolean(o.marketing)
+      }).then(function (b) {
+        // Spent. Leaving it banked would re-attribute the next person to sign
+        // up in this browser, which on a shared laptop is somebody else.
+        W.referral.clear();
+        return b;
       });
     },
 
@@ -1738,7 +1830,35 @@
       return authPost('/me/event', { kind: kind, payload: payload || {} });
     },
 
-    /** The member's share code and how many joined with it, or null. */
+    /**
+     * Does a referral code belong to anyone. -> { valid, code, firstName }
+     *
+     * Public: the people who need the answer are on the join form and have no
+     * session yet. Resolves to `{ valid: false }` on any failure, so a field
+     * checking a code never blocks a signup that would otherwise work.
+     */
+    referralCheck: function (code) {
+      var c = W.referral.normalize(code);
+      var miss = { valid: false, code: null, firstName: null };
+      if (!c) return Promise.resolve(miss);
+      return fetch(W.AUTH_API + '/public/referral?code=' + encodeURIComponent(c), {
+        method: 'GET',
+        headers: { Accept: 'application/json' }
+      }).then(function (r) {
+        return r.ok ? r.json().catch(function () { return null; }) : null;
+      }).then(function (b) {
+        return (b && b.ok) ? b : miss;
+      }).catch(function () { return miss; });
+    },
+
+    /**
+     * The member's share code and what it has brought in, or null.
+     * -> { code, joined, pending }
+     *
+     * `joined` is verified accounts. `pending` is people who used the code and
+     * have not proved their address yet, kept apart so the number shown to a
+     * member is one nobody else can move.
+     */
     referral: function () {
       return fetch(W.AUTH_API + '/me/referral', {
         method: 'GET',

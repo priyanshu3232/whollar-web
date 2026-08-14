@@ -22,6 +22,8 @@ const sessions = require('../lib/sessions');
 const mailer = require('../lib/mailer');
 const audit = require('../lib/audit');
 const ratelimit = require('../lib/ratelimit');
+const referral = require('../lib/referral');
+const datastore = require('../lib/datastore');
 
 /**
  * Codes are surfaced in the HTTP response only when BOTH are true: this is not
@@ -162,6 +164,29 @@ function mount(router, cfg) {
         userType: 'member',
         marketing: Boolean(req.body && req.body.marketing),
       });
+
+      /* An account can be born here as well as at /signup, so the referral a
+       * visitor arrived with has to be attached here too, or a neighbour who
+       * followed a share link and then signed in with a code instead of a
+       * password credits nobody.
+       *
+       * Written directly rather than through users.updateProfile, which
+       * rewrites every profile column and would blank the postal code this
+       * account may already have. Best-effort: an unattributed referral is not
+       * worth failing a sign-in that has already succeeded.
+       */
+      const code = referral.normalize(req.body && req.body.referralCode);
+      if (code && !user.referral_code) {
+        const owner = await referral.resolve(req.catalyst, code);
+        if (!owner || owner.email_normalized !== email) {
+          try {
+            await datastore.updateRow(req.catalyst, users.USERS, {
+              ROWID: user.ROWID, referral_code: code,
+            });
+            user.referral_code = code;
+          } catch { /* the session matters more than the attribution */ }
+        }
+      }
     }
 
     await users.touchLastLogin(req.catalyst, user);
