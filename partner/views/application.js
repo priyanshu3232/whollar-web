@@ -83,12 +83,18 @@ function underReview(app) {
     + gateRow('dn', '', 'Application received',
       esc(org) + (app.submittedAt ? ' · started ' + esc(fmtDate(app.submittedAt)) : ''))
 
-    + (complete ? '' :
-      '<div class="pendcta">'
-      + '<button class="btn" type="button" data-action="app:tasks" style="width:100%;justify-content:center">'
-      + 'Continue your application · ' + countDone(t) + ' of 5 done</button>'
-      + '<small>Five short pieces: coverage, registration, documents, one agreement, one reference. '
-      + 'About ten minutes, in any order, and each piece starts its own check the moment it lands.</small></div>')
+    /* One button in both states. Complete is not the same as done with us: the
+       partner still wants to see what they sent while the clock runs, and a
+       card with no way back into the file reads as a dead end. */
+    + '<div class="pendcta">'
+    + '<button class="btn" type="button" data-action="app:tasks" style="width:100%;justify-content:center">'
+    + (complete ? 'Review your application' : 'Continue your application · ' + countDone(t) + ' of 5 done')
+    + '</button>'
+    + '<small>' + (complete
+      ? 'Nothing further is needed. Everything you sent stays readable while the review runs.'
+      : 'Five short pieces: coverage, registration, documents, one agreement, one reference. '
+        + 'About ten minutes, in any order, and each piece starts its own check the moment it lands.')
+    + '</small></div>'
 
     + gateRow(covState, 2, 'Serviceability check',
       t.coverage && t.coverage !== 'empty'

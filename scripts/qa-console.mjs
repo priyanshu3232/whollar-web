@@ -56,7 +56,7 @@ const collect = (page, sink) => {
 /* A partner record shaped like the one whollar-login-provider.html writes. */
 const REC = { emailKey: 'sam@northline.ca', email: 'sam@northline.ca', firstName: 'Sam', lastName: 'Kaur' };
 
-async function ctx(browser, { record = null, me = null, meStatus = 200 } = {}) {
+async function ctx(browser, { record = null, me = null, meStatus = 200, application = null, appStatus = 200 } = {}) {
   const c = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 
   /* CATCH-ALL FIRST, and it matters that it is a catch-all rather than a list.
@@ -84,6 +84,16 @@ async function ctx(browser, { record = null, me = null, meStatus = 200 } = {}) {
 
   await c.route('**/api/auth/provider/me', r =>
     r.fulfill({ status: meStatus, contentType: 'application/json', body: JSON.stringify(me || { error: { code: 'UNAUTHENTICATED', message: 'Please sign in again.' } }) }));
+  /* The application, when a test cares which one. Group 20 does: the landing
+     view is derived from it, so "no application at all" and "five tasks in"
+     are two different screens and both need saying. */
+  if (application || appStatus !== 200) {
+    await c.route('**/api/auth/provider/application', r => r.fulfill({
+      status: appStatus,
+      contentType: 'application/json',
+      body: JSON.stringify(application || { error: { code: 'NOT_IMPLEMENTED', message: 'Not deployed yet.' } }),
+    }));
+  }
   await c.route('**/api/auth/me/prefs', r =>
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, prefs: {} }) }));
   await c.route('**/api/auth/session', r =>
@@ -744,6 +754,83 @@ console.log('\n19. contracts: the registry, the terms gate, and the accept path'
   ok(/could not be read|loading/.test(bare), 'a registry that did not answer says so');
   ok(!/0 on record/.test(bare), 'and invents no zero');
   await c3.close();
+}
+
+console.log('\n20. the landing view: where a partner arrives with no hash');
+{
+  /* The screen a partner meets the minute after signup. /whollar-login-provider
+     sends them to /partner with no hash, and until a human approves the org the
+     console has eleven views of nothing to show them, so the review frame is
+     the landing view. It stays the landing view while the application is being
+     filled in AND while it sits under review: same card, different row lit. */
+  const EMPTY = { coverage: 'empty', registration: 'empty', documents: 'empty', agreement: 'empty', reference: 'empty' };
+  const FULL = { coverage: 'cleared', registration: 'cleared', documents: 'cleared', agreement: 'cleared', reference: 'cleared' };
+  const hash = (p) => new URL(p.url()).hash;
+
+  const c = await ctx(browser, {
+    record: REC, me: PENDING,
+    application: { ok: true, state: 'draft', tasks: EMPTY, serverTime: Date.now() },
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/partner`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(200);
+  ok(hash(p) === '#pending', `a new account lands on the review frame (${hash(p)})`);
+  ok(await p.evaluate(() => document.body.classList.contains('gated')), 'and it is gated');
+  ok(!(await p.locator('.pane').isVisible()), 'the nav pane is hidden, not merely unstyled');
+  const draft = await p.innerText('#pend-body');
+  ok(/Received. The rest is yours to start/.test(draft), 'the card reads as an application to start');
+  ok(/Continue your application · 0 of 5 done/.test(draft), 'the one button counts what is done');
+
+  /* A deep link is still a deep link. */
+  await p.evaluate(() => { location.hash = '#coverage'; });
+  await p.waitForTimeout(150);
+  ok(!(await p.evaluate(() => document.body.classList.contains('gated'))), 'leaving the frame ungates it');
+  await c.close();
+
+  const c2 = await ctx(browser, {
+    record: REC, me: PENDING,
+    application: {
+      ok: true, state: 'under_review', tasks: FULL,
+      submittedAt: Date.now() - 60000, decisionDueAt: Date.now() + 40 * 3600e3, serverTime: Date.now(),
+    },
+  });
+  const p2 = await c2.newPage();
+  collect(p2, errors);
+  await p2.goto(`${BASE}/partner`, { waitUntil: 'networkidle' });
+  await p2.waitForTimeout(200);
+  ok(hash(p2) === '#pending', `a complete application lands on the same frame (${hash(p2)})`);
+  const sent = await p2.innerText('#pend-body');
+  ok(/Received. The clock is running/.test(sent), 'the card reads as sent');
+  ok(/Review your application/.test(sent), 'and still offers a way back into the file');
+  ok(/Your decision lands by/.test(sent), 'the decision row names the date');
+  await c2.close();
+
+  /* Approved partners are not sent to a review card about a decision that has
+     already been made. */
+  const c3 = await ctx(browser, {
+    record: REC, me: APPROVED,
+    application: { ok: true, state: 'approved', tasks: FULL, serverTime: Date.now() },
+  });
+  const p3 = await c3.newPage();
+  collect(p3, errors);
+  await p3.goto(`${BASE}/partner`, { waitUntil: 'networkidle' });
+  await p3.waitForTimeout(200);
+  ok(hash(p3) === '#overview', `an approved partner lands on the overview (${hash(p3)})`);
+  ok(!(await p3.evaluate(() => document.body.classList.contains('gated'))), 'not gated');
+  await c3.close();
+
+  /* The route can 501 while it is still being deployed. Parking a new partner
+     on a card that says "reading your application", with the nav hidden, would
+     be a locked door. NOTE: no collect() on this page. The 501 is deliberate
+     and the browser logs it as a console error. */
+  const c4 = await ctx(browser, { record: REC, me: PENDING, appStatus: 501 });
+  const p4 = await c4.newPage();
+  await p4.goto(`${BASE}/partner`, { waitUntil: 'networkidle' });
+  await p4.waitForTimeout(300);
+  ok(hash(p4) === '#overview', `no application to show: the console comes back (${hash(p4)})`);
+  ok(!(await p4.evaluate(() => document.body.classList.contains('gated'))), 'and nobody is locked behind it');
+  await c4.close();
 }
 
 await browser.close();

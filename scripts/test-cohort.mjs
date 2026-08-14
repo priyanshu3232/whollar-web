@@ -164,3 +164,128 @@ test('every surface the tool names is named in both predictions', () => {
   assert.match(out, /PARTNER/);
   assert.match(out, /provider_coverage/);
 });
+
+/* ------------------------------------------------------------------ *
+ * seed
+ *
+ * The claim being tested is narrower than "it emits SQL": every row it prints
+ * has to land on the overview's Auction calendar, which takes one dated event
+ * per campaign chosen by the partner stage and keeps only the future ones. A
+ * row with the wrong stage, or a date already behind, is a cohort the operator
+ * seeded and then cannot see.
+ * ------------------------------------------------------------------ */
+
+const IDS = ['scarborough-east', 'mississauga-core', 'north-york-central',
+  'etobicoke-south', 'vaughan-west'];
+
+/** Parse the printed INSERTs back into the shape catalog.js consumes. */
+function seededRows(out) {
+  const rows = [];
+  const re = /INSERT INTO campaigns \(([^)]+)\)\n\s*VALUES \(([^;]+)\);/g;
+  let m = re.exec(out);
+  while (m) {
+    const cols = m[1].split(/,\s*/);
+    const vals = m[2].split(/,\s*/).map((v) => v.replace(/^'|'$/g, ''));
+    const row = {};
+    cols.forEach((c, i) => { row[c] = vals[i]; });
+    const dates = {};
+    for (const c of catalog.DATE_COLUMNS) dates[c] = Date.parse(`${row[c].replace(' ', 'T')}Z`);
+    rows.push({
+      id: row.campaign_id,
+      region: row.region,
+      kind: row.kind,
+      biddingOpen: row.bidding_open === 'true',
+      dates,
+    });
+    m = re.exec(out);
+  }
+  return rows;
+}
+
+/* The mapping in agendaEvents, partner/views/overview.js. Restated here on
+   purpose: if the console's mapping changes and this is not changed with it,
+   this test still asserts the dates are future, and the seed tool's own copy
+   is what goes stale visibly. */
+const CALENDAR_DATE = {
+  planned: 'bidding_opens_at', announced: 'bidding_opens_at',
+  open: 'bidding_closes_at', closing: 'bidding_closes_at',
+  offers_out: 'decision_at',
+};
+
+test('seed emits one INSERT per cohort, carrying every column catalog reads', () => {
+  const { out, code } = run('seed', ...IDS);
+  assert.equal(code, 0);
+  const rows = seededRows(out);
+  assert.equal(rows.length, IDS.length);
+  assert.deepEqual(rows.map((r) => r.id), IDS);
+  const skip = new Set(['updated_by', 'updated_at']);
+  for (const col of catalog.COLUMNS) {
+    if (skip.has(col)) continue;
+    assert.ok(out.includes(col), `seed INSERT is missing ${col}`);
+  }
+});
+
+test('every seeded cohort lands on the calendar, with its event still ahead', () => {
+  const { out } = run('seed', ...IDS);
+  for (const row of seededRows(out)) {
+    const stage = catalog.publicStage(row).stage;
+    const col = CALENDAR_DATE[stage];
+    assert.ok(col, `${row.id} is ${stage}, which agendaEvents draws no event from`);
+    assert.ok(row.dates[col] > Date.now(), `${row.id}: ${col} has already passed`);
+  }
+});
+
+test('seeded dates run in DATE_COLUMNS order at any --hour', () => {
+  for (const hour of ['0', '13', '21', '23']) {
+    const { out, code } = run('seed', ...IDS, '--hour', hour);
+    assert.equal(code, 0, `--hour ${hour} was refused`);
+    for (const row of seededRows(out)) {
+      const at = catalog.DATE_COLUMNS.map((c) => row.dates[c]);
+      for (let i = 1; i < at.length; i += 1) {
+        assert.ok(at[i] > at[i - 1], `${row.id}: ${catalog.DATE_COLUMNS[i]} is not after its predecessor at --hour ${hour}`);
+      }
+    }
+  }
+});
+
+test('one cohort closes per --every days, in the order given', () => {
+  const { out } = run('seed', ...IDS, '--first', '2', '--every', '3');
+  const closes = seededRows(out).map((r) => r.dates.bidding_closes_at);
+  for (let i = 1; i < closes.length; i += 1) {
+    assert.equal(closes[i] - closes[i - 1], 3 * 86400000, 'closes are not --every days apart');
+  }
+});
+
+test('a seeded region slugs back to its own id, so coverage can match it', () => {
+  const { out } = run('seed', ...IDS);
+  for (const row of seededRows(out)) {
+    const slug = row.region.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    assert.equal(slug, row.id, 'the derived region does not slug back to the campaign_id');
+  }
+});
+
+test('bidding_open is set only where the window is genuinely open', () => {
+  const { out } = run('seed', ...IDS);
+  for (const row of seededRows(out)) {
+    const open = Date.now() >= row.dates.bidding_opens_at && Date.now() < row.dates.bidding_closes_at;
+    assert.equal(row.biddingOpen, open, `${row.id}: bidding_open disagrees with its own dates`);
+  }
+});
+
+test('a flag value is never mistaken for a campaign_id', () => {
+  const { out, code } = run('seed', 'scarborough-east', '--seed', '87', '--every', '5');
+  assert.equal(code, 0);
+  assert.equal(seededRows(out).length, 1);
+  assert.match(out, /, 87, 87, /);
+});
+
+test('seed refuses a repeated id, which ZCQL would take as a second row', () => {
+  const { code } = run('seed', 'scarborough-east', 'scarborough-east');
+  assert.equal(code, 1);
+});
+
+test('seed says what else the rows need before a partner can see them', () => {
+  const { out } = run('seed', ...IDS);
+  assert.match(out, /provider_coverage row at status=active/);
+  assert.match(out, /cohort.mjs verify/);
+});

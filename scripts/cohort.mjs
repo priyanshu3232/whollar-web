@@ -6,6 +6,7 @@
  *   node scripts/cohort.mjs move kitchener-central --from forming --to auction
  *   node scripts/cohort.mjs bidding kitchener-central --on
  *   node scripts/cohort.mjs calendar kitchener-central --minutes 3
+ *   node scripts/cohort.mjs seed scarborough-east mississauga-core north-york-central
  *   node scripts/cohort.mjs coverage org_7f2a --region Kitchener
  *   node scripts/cohort.mjs verify kitchener-central
  *   node scripts/cohort.mjs preview --kind auction --bidding-open
@@ -308,6 +309,172 @@ function cmdCalendar() {
   console.log('  Nothing is derived in the browser, so this is the real engine.\n');
 }
 
+/* ------------------------------------------------------------------ *
+ * seed: several cohorts at once, dated so the calendar has something in it
+ *
+ * `new` plus `calendar` gets one cohort onto a desk, but the overview's
+ * "Auction calendar" card is a different thing: agendaEvents in
+ * partner/views/overview.js takes ONE dated event per campaign, decided by the
+ * partner stage, keeps only the ones still ahead, and shows the first five. So
+ * a calendar with five rows in it needs five campaigns, each in a stage whose
+ * event date is in the future, and the minute-spaced calendar `calendar`
+ * prints is the wrong shape for that: it runs a single cohort through every
+ * stage inside a quarter of an hour.
+ *
+ * This spaces them in DAYS instead, one close per --every days, so the five
+ * rows arrive in the order an operator would actually schedule them.
+ * ------------------------------------------------------------------ */
+
+/* Days from each cohort's bid close. Negative is before it. The close is the
+   anchor because it is the date the calendar shows for an open cohort and the
+   one requireBiddingOpen enforces. */
+const SEED_OFFSETS = Object.freeze({
+  announce_at: -10, bidding_opens_at: -7, bidding_closes_at: 0,
+  offers_at: 2, decision_at: 9, switch_window_at: 12, reconcile_at: 26,
+});
+
+/* Deadlines land at --hour, everything else at 13:00 UTC, which is 9 AM
+   Eastern. Two times of day rather than one because a cohort that opens and
+   closes at the same minute reads as a scheduling accident. */
+const SEED_MORNING = 13;
+
+/** Title case a slug, so `scarborough-east` gives `Scarborough East`. The
+    region has to slug back to the same string for coverage to match it. */
+function regionFromId(id) {
+  return id.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+/* Every seed flag takes a value, and POSITIONAL only drops the flags
+   themselves, so `--seed 87` would otherwise offer 87 as a campaign_id. */
+const SEED_FLAGS = new Set(['regions', 'first', 'every', 'hour', 'sub', 'seed']);
+
+function seedIds() {
+  const out = [];
+  const tokens = argv.slice(1);
+  for (let i = 0; i < tokens.length; i += 1) {
+    const t = tokens[i];
+    if (t.startsWith('--')) {
+      if (SEED_FLAGS.has(t.slice(2))) i += 1;
+      continue;
+    }
+    out.push(t);
+  }
+  return out;
+}
+
+function cmdSeed() {
+  const ids = seedIds().map((p) => cohortId(p));
+  if (!ids.length) die('at least one campaign_id is required: seed <id> [<id>...]');
+  if (new Set(ids).size !== ids.length) die('the same campaign_id was given twice');
+  if (ids.length > 12) die('12 cohorts is already more than the calendar can show; it takes the first five');
+
+  const regionsFlag = flag('regions');
+  const regions = regionsFlag && regionsFlag !== true
+    ? String(regionsFlag).split(',').map((r) => r.trim())
+    : ids.map(regionFromId);
+  if (regions.length !== ids.length) {
+    die(`--regions has ${regions.length} entries for ${ids.length} cohorts`);
+  }
+
+  const first = num(flag('first', '1'), 'first');
+  const every = num(flag('every', '7'), 'every');
+  if (every < 1) die('--every must be at least 1 day, or two cohorts close on the same date');
+  const hour = num(flag('hour', '21'), 'hour');
+  if (hour > 23) die('--hour is a UTC hour, 0 to 23');
+  const sub = flag('sub', '') === true ? '' : flag('sub', '');
+  const seed = num(flag('seed', '0'), 'seed');
+
+  const now = new Date();
+  const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const DAY_MS = 86400000;
+
+  const rows = ids.map((id, i) => {
+    const close = midnight + (first + i * every) * DAY_MS + hour * 3600000;
+    const dates = {};
+    for (const [col, off] of Object.entries(SEED_OFFSETS)) {
+      const deadline = col === 'bidding_closes_at' || col === 'decision_at';
+      dates[col] = close + off * DAY_MS + (deadline ? 0 : (SEED_MORNING - hour) * 3600000);
+    }
+    const biddingOpen = now.getTime() >= dates.bidding_opens_at
+      && now.getTime() < dates.bidding_closes_at;
+    return { id, region: regions[i], dates, biddingOpen };
+  });
+
+  /* Monotonic by construction, but --hour moves two of the seven and nothing
+     else, so assert it rather than reason about it. A calendar out of order is
+     a stage engine reading dates it was never given in that sequence. */
+  for (const r of rows) {
+    const at = DATE_COLUMNS.map((c) => r.dates[c]);
+    for (let i = 1; i < at.length; i += 1) {
+      if (at[i] <= at[i - 1]) die(`--hour ${hour} puts ${DATE_COLUMNS[i]} before ${DATE_COLUMNS[i - 1]} on ${r.id}`);
+    }
+  }
+
+  const cols = ['campaign_id', 'region', 'sub', 'kind', 'target', 'seed_members',
+    'seed_households', 'bidding_open', 'sort_order', 'updated_by', 'updated_at',
+    ...DATE_COLUMNS];
+
+  console.log(`\nSEED: ${rows.length} auction cohorts, one closing every ${every} day(s)\n`);
+  rows.forEach((r, i) => {
+    const vals = [
+      lit(r.id, { max: 64, what: 'campaign_id' }),
+      lit(r.region, { max: 100, what: 'region' }),
+      lit(sub, { max: 100, what: '--sub' }),
+      lit('auction'),
+      'NULL',
+      lit(seed), lit(seed),
+      lit(r.biddingOpen),
+      lit(i),
+      lit('manual', { max: 64 }),
+      lit(utc(new Date())),
+      ...DATE_COLUMNS.map((c) => lit(utc(new Date(r.dates[c])))),
+    ];
+    console.log(`  INSERT INTO campaigns (${cols.join(', ')})`);
+    console.log(`  VALUES (${vals.join(', ')});\n`);
+  });
+
+  console.log(`  The calendar these ${rows.length} rows make, from the same stage function the server uses.`);
+  console.log('  The overview card shows the first five, soonest first:\n');
+  const w = Math.max(...rows.map((r) => r.id.length));
+  rows.forEach((r) => {
+    const c = campaignFrom({ id: r.id, region: r.region, kind: 'auction', biddingOpen: r.biddingOpen, dates: r.dates });
+    const stage = catalog.publicStage(c).stage;
+    const ev = calendarEvent(r, stage);
+    console.log(`    ${r.id.padEnd(w)}  ${stage.padEnd(10)}  ${ev
+      ? `${ev.on.toDateString()} · ${r.region} · ${ev.title}`
+      : 'NOT on the calendar: no future dated event in this stage'}`);
+  });
+
+  console.log('\n  Then, so the rows can actually be reached:\n');
+  console.log('    coverage    each region needs a provider_coverage row at status=active for the org,');
+  console.log('                or the cohort is on nobody\'s desk. One per region:');
+  rows.forEach((r) => {
+    console.log(`                  node scripts/cohort.mjs coverage <org_id> --region "${r.region}"`);
+  });
+  console.log(seed
+    ? `    households  seed_households is ${seed} on every row, and a seed is ADDED to real joins on\n`
+      + '                both surfaces. Fine for a demo, padding on anything a partner bids into.'
+    : '    households  seed_households is 0, so a calendar row reads "A cohort in your coverage"\n'
+      + '                rather than a count. Pass --seed N to stage a demo, and remember a seed\n'
+      + '                is added to real joins on both surfaces.');
+  console.log('    check       node scripts/cohort.mjs verify\n');
+  console.log('  Paste into Catalyst console -> Data Store -> ZCQL, Development environment.');
+  console.log('  catalog.load() memoizes for 60 seconds, so allow a minute before judging a dashboard.\n');
+}
+
+/* What agendaEvents in partner/views/overview.js will take from a row. Kept
+   here so `seed` can say whether a cohort lands on the calendar at all rather
+   than leaving that to be discovered in a browser. The stage-to-date mapping
+   is the console's, and this is the second copy of it: change one, change
+   both, and test-cohort.mjs asserts the dates are future either way. */
+function calendarEvent(row, stage) {
+  const pick = (col, title) => (row.dates[col] > Date.now() ? { on: new Date(row.dates[col]), title } : null);
+  if (stage === 'planned' || stage === 'announced') return pick('bidding_opens_at', 'bidding opens');
+  if (stage === 'open' || stage === 'closing') return pick('bidding_closes_at', 'bids close');
+  if (stage === 'offers_out') return pick('decision_at', 'decisions lock');
+  return null;
+}
+
 function cmdCoverage() {
   const org = POSITIONAL[0];
   if (!org) die('an org_id is required. It is the partner org the cohort should reach.');
@@ -377,6 +544,7 @@ function usage() {
     move <id> --to <kind> [--from <kind>]
     bidding <id> --on | --off
     calendar <id> [--minutes N] [--start N]
+    seed <id> [<id>...] [--regions "A,B"] [--first N] [--every N] [--hour UTC] [--seed N]
     coverage <org_id> --region R [--techs cable,fibre] [--status active]
     verify [<id>]
     preview [--kind K] [--bidding-open] [--region R]
@@ -391,7 +559,7 @@ function usage() {
 
 const COMMANDS = {
   new: cmdNew, move: cmdMove, bidding: cmdBidding, calendar: cmdCalendar,
-  coverage: cmdCoverage, verify: cmdVerify, preview: cmdPreview,
+  seed: cmdSeed, coverage: cmdCoverage, verify: cmdVerify, preview: cmdPreview,
 };
 
 const run = COMMANDS[CMD];

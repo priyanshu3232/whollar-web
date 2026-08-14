@@ -52,9 +52,16 @@ function renderAll() {
 
   /* Under review the console is one centred card: no nav pane, no search.
      Driven from the server's application state, so it cannot disagree with
-     what the frame itself is saying. */
+     what the frame itself is saying.
+
+     Not gated on submittedAt. The frame is the whole account until a human
+     approves the org, and that includes the days before the fifth task lands:
+     an application in progress and an application under review are the same
+     screen with a different row lit, which is what the card already renders.
+     A null application is the one exception, because "reading your
+     application" is not a screen to lock anyone into. */
   var S = get();
-  setGated(!S.approved && S.application && S.application.submittedAt && current() === 'pending');
+  setGated(!S.approved && !!S.application && current() === 'pending');
 }
 
 /* ------------------------------------------------------------------ *
@@ -194,9 +201,31 @@ function start(partner) {
   /* Paint from the local record first so the chrome is never empty, then
      correct it from the server. */
   refresh();
-  go(fixtureView() || current());
 
-  revalidate().then(loadAll);
+  /* WHERE A NEW PARTNER LANDS. An account created a minute ago has no
+     coverage, no cohorts and no bids, so the full console is eleven views of
+     nothing. The review card is the entire state of that account, so it is the
+     landing view until the org is approved, both while the application is
+     being filled in and while it sits under review.
+
+     A hash always wins. Someone following a link to #coverage gets #coverage,
+     and approval is not known yet anyway: it arrives with GET /provider/me
+     one round trip later, and is corrected below. */
+  var chose = !!location.hash;
+  go(fixtureView() || (chose ? current() : (get().approved ? 'overview' : 'pending')));
+  onChange(function () { chose = true; });
+
+  revalidate().then(function (r) {
+    /* Approved after all: hand back the console, unless they navigated during
+       the round trip, in which case leave them where they went. */
+    if (r && r.approved === true && !chose && current() === 'pending') go('overview');
+    return loadAll();
+  }).then(function () {
+    /* The application route can 501 while it is still being deployed. If it
+       did, the frame has nothing to show, so hand back the console rather than
+       park a new partner on a card that says "reading your application". */
+    if (!chose && current() === 'pending' && !get().application) go('overview');
+  });
 }
 
 /* A fixture states which view it is about, so a run lands on the screen the

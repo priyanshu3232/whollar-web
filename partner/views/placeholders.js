@@ -39,5 +39,5 @@ function billing(S) {
 function delivery() {
   return empty('Your first delivery board builds itself',
     'Win a cohort and every confirmed household lands here with an order number, an install slot the member picks, and a state that becomes a statement line only when the line tests clean. Addresses release at confirmation, under each household’s consent, and to nobody else.',
-    goTo('desk', 'Open the bid desk', 'btn ghost'));
+    goTo('desk', 'Open the bid desk', 'btn'));
 }

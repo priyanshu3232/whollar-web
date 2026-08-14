@@ -1805,12 +1805,18 @@
       + gateRow('dn', '', 'Application received',
         esc(org) + (app.submittedAt ? ' · started ' + esc(fmtDate(app.submittedAt)) : ''))
 
-      + (complete ? '' :
-        '<div class="pendcta">'
-        + '<button class="btn" type="button" data-action="app:tasks" style="width:100%;justify-content:center">'
-        + 'Continue your application · ' + countDone(t) + ' of 5 done</button>'
-        + '<small>Five short pieces: coverage, registration, documents, one agreement, one reference. '
-        + 'About ten minutes, in any order, and each piece starts its own check the moment it lands.</small></div>')
+      /* One button in both states. Complete is not the same as done with us: the
+         partner still wants to see what they sent while the clock runs, and a
+         card with no way back into the file reads as a dead end. */
+      + '<div class="pendcta">'
+      + '<button class="btn" type="button" data-action="app:tasks" style="width:100%;justify-content:center">'
+      + (complete ? 'Review your application' : 'Continue your application · ' + countDone(t) + ' of 5 done')
+      + '</button>'
+      + '<small>' + (complete
+        ? 'Nothing further is needed. Everything you sent stays readable while the review runs.'
+        : 'Five short pieces: coverage, registration, documents, one agreement, one reference. '
+          + 'About ten minutes, in any order, and each piece starts its own check the moment it lands.')
+      + '</small></div>'
 
       + gateRow(covState, 2, 'Serviceability check',
         t.coverage && t.coverage !== 'empty'
@@ -4450,7 +4456,46 @@
     var S = get();
     var r = record(S);
 
-    host.innerHTML = tiles(r) + band(S, r) + (r.rows.length ? regions(S, r) : '');
+    host.innerHTML = tiles(r) + band(S, r);
+
+    /* Acquisition is the second half of the page and answers a different
+       question: not "what will briefs quote about you" but "what have the
+       auctions delivered". Ported from the prototype's renderAcq day-1 branch.
+       Its other branch is 24 / 50 / 116 / 87% against a three-row region table,
+       none of which has a source in this build, so what is ported is the empty
+       state plus the region rows the bid record really holds. */
+    var acq = document.getElementById('acq-body');
+    if (acq) acq.innerHTML = acquisition(S, r);
+  }
+
+  /* Completions are written by the delivery board, and no route writes one yet,
+     so the month-by-month half of this section has nothing to draw. It says so
+     and shows the shape it will take, labelled as a sample, rather than drawing
+     a flat line at zero that reads as twelve months of failed installs. */
+  function acquisition(S, r) {
+    return '<section class="card"><div class="empty" style="padding-bottom:8px">'
+      + '<h3>This page builds itself from your first completed switch</h3>'
+      + '<p>Once a household you won goes live, it lands here the same day: month by month, '
+      + 'region by region, and reconciled to the statement line it creates.</p></div>'
+      + '<div class="ghostwrap"><div class="chart ghost">' + sampleChart() + '</div>'
+      + '<div class="ghostlbl"><span>Sample · not your data</span></div></div>'
+      + '</section>'
+      + (r.rows.length ? regions(S, r) : '');
+  }
+
+  /* A fixed shape, never a figure. The series is hard-coded and unlabelled on
+     purpose: it exists to show that the chart is months across and households up,
+     and it sits behind the "Sample" pill at 22% opacity. Nothing reads it. */
+  function sampleChart() {
+    var series = [3, 5, 4, 8, 7, 11, 9, 14, 12, 17, 15, 21];
+    var max = 21, W = 640, H = 180, pad = 14;
+    var bw = (W - pad * 2) / series.length;
+    var bars = series.map(function (v, i) {
+      var h = Math.round((v / max) * (H - pad * 2));
+      return '<rect class="bar" x="' + Math.round(pad + i * bw + 3) + '" y="' + (H - pad - h) + '" '
+        + 'width="' + Math.round(bw - 6) + '" height="' + h + '" rx="3"></rect>';
+    }).join('');
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="presentation" aria-hidden="true">' + bars + '</svg>';
   }
 
   /* ------------------------------------------------------------------ *
@@ -5039,7 +5084,7 @@
   function delivery() {
     return empty('Your first delivery board builds itself',
       'Win a cohort and every confirmed household lands here with an order number, an install slot the member picks, and a state that becomes a statement line only when the line tests clean. Addresses release at confirmation, under each household’s consent, and to nobody else.',
-      goTo('desk', 'Open the bid desk', 'btn ghost'));
+      goTo('desk', 'Open the bid desk', 'btn'));
   }
 
   __exports.render = render;
@@ -5122,9 +5167,16 @@
 
     /* Under review the console is one centred card: no nav pane, no search.
        Driven from the server's application state, so it cannot disagree with
-       what the frame itself is saying. */
+       what the frame itself is saying.
+
+       Not gated on submittedAt. The frame is the whole account until a human
+       approves the org, and that includes the days before the fifth task lands:
+       an application in progress and an application under review are the same
+       screen with a different row lit, which is what the card already renders.
+       A null application is the one exception, because "reading your
+       application" is not a screen to lock anyone into. */
     var S = get();
-    setGated(!S.approved && S.application && S.application.submittedAt && current() === 'pending');
+    setGated(!S.approved && !!S.application && current() === 'pending');
   }
 
   /* ------------------------------------------------------------------ *
@@ -5264,9 +5316,31 @@
     /* Paint from the local record first so the chrome is never empty, then
        correct it from the server. */
     refresh();
-    go(fixtureView() || current());
 
-    revalidate().then(loadAll);
+    /* WHERE A NEW PARTNER LANDS. An account created a minute ago has no
+       coverage, no cohorts and no bids, so the full console is eleven views of
+       nothing. The review card is the entire state of that account, so it is the
+       landing view until the org is approved, both while the application is
+       being filled in and while it sits under review.
+
+       A hash always wins. Someone following a link to #coverage gets #coverage,
+       and approval is not known yet anyway: it arrives with GET /provider/me
+       one round trip later, and is corrected below. */
+    var chose = !!location.hash;
+    go(fixtureView() || (chose ? current() : (get().approved ? 'overview' : 'pending')));
+    onChange(function () { chose = true; });
+
+    revalidate().then(function (r) {
+      /* Approved after all: hand back the console, unless they navigated during
+         the round trip, in which case leave them where they went. */
+      if (r && r.approved === true && !chose && current() === 'pending') go('overview');
+      return loadAll();
+    }).then(function () {
+      /* The application route can 501 while it is still being deployed. If it
+         did, the frame has nothing to show, so hand back the console rather than
+         park a new partner on a card that says "reading your application". */
+      if (!chose && current() === 'pending' && !get().application) go('overview');
+    });
   }
 
   /* A fixture states which view it is about, so a run lands on the screen the
