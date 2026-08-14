@@ -1249,14 +1249,17 @@ function renderJoin(){
 }
 
 /* ---------- 11 levers ---------- */
+/* Lever 05 (promo versus regular rate) sits in the first group by explicit
+   request, 2026-08-14: it is the household's own bill fact, not agreement
+   fine print. Numbers are positional, so the move renumbered 05-07. */
 const LEVERS=[
   {n:'01',t:'Speed',d:'The tier you are rated for. Every rung up adds to the price, used or not.',g:0},
   {n:'02',t:'How it reaches you',d:'Fibre, cable, DSL or wireless. The same speed is priced differently on each.',g:0},
   {n:'03',t:'Who you buy from',d:'Big carrier or independent, often the same physical line, twenty to forty percent apart.',g:0},
   {n:'04',t:'Your address',d:'Decides which providers can reach you, and how many have to compete for you.',g:0},
-  {n:'05',t:'Leaving your provider',d:'No cancellation or change fee since June 2026. Exit costs nothing.',g:1},
-  {n:'06',t:'Getting set up',d:'Installation and activation are $0, so a switch adds nothing to your bill.',g:1},
-  {n:'07',t:'Promo versus regular rate',d:'A discount with an end date, sitting on a price without one.',g:2},
+  {n:'05',t:'Promo versus regular rate',d:'A discount with an end date, sitting on a price without one.',g:0},
+  {n:'06',t:'Leaving your provider',d:'No cancellation or change fee since June 2026. Exit costs nothing.',g:1},
+  {n:'07',t:'Getting set up',d:'Installation and activation are $0, so a switch adds nothing to your bill.',g:1},
   {n:'08',t:'The rented box',d:'Modem and pods at five to fifteen dollars a month, included free by many providers.',g:2},
   {n:'09',t:'Data limits',d:'Unlimited plans that slow you down past a threshold rather than charge you.',g:2},
   {n:'10',t:'Bundles',d:'Savings quoted against list prices almost nobody actually pays.',g:2},
@@ -1264,7 +1267,7 @@ const LEVERS=[
 ];
 const GROUPS=['On your bill','What switching costs','In your agreement'];
 function renderLevers(){
-  const lit={'01':S.spd!==null,'02':!!S.tech,'03':!!S.prov,'04':!!S.pc,'07':!S.idkPend&&!!S.pend};
+  const lit={'01':S.spd!==null,'02':!!S.tech,'03':!!S.prov,'04':!!S.pc,'05':!S.idkPend&&!!S.pend};
   let html='';
   GROUPS.forEach((g,gi)=>{
     html+='<div class="secdiv"><span>'+g+'</span></div>';
