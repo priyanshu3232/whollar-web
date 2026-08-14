@@ -10,12 +10,12 @@ const app = express();
 const anthropic = new Anthropic(); // reads ANTHROPIC_API_KEY from this function's env vars
 
 /* ------------------------------------------------------------------ *
- * CONFIG — keep in sync with functions/formSubmit/index.js
+ * CONFIG: keep in sync with functions/formSubmit/index.js
  * ------------------------------------------------------------------ */
 
 // The staging alias is the pre-merge review link, deployed from a personal
 // Vercel account, so it matches neither the live domains nor isVercelOrigin
-// below — see the longer note on formSubmit's copy of this list.
+// below: see the longer note on formSubmit's copy of this list.
 const ALLOWED_ORIGINS = [
   'https://whollar.com',
   'https://www.whollar.com',
@@ -26,8 +26,8 @@ const ALLOWED_ORIGINS = [
 
 // Local development: the marketing pages are plain HTML files, opened either
 // via a dev server on an arbitrary port (Live Server, http.server, …) or
-// straight from disk (Origin: null). CORS is a browser-side gate only — the
-// endpoint is reachable by curl regardless — so allowing these loses nothing.
+// straight from disk (Origin: null). CORS is a browser-side gate only, the
+// endpoint is reachable by curl regardless, so allowing these loses nothing.
 const isDevOrigin = (origin) =>
   origin === 'null' || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 
@@ -40,8 +40,8 @@ const isVercelOrigin = (origin) =>
 
 // Dev origins (localhost / Origin:null) are allowed only when this function is
 // NOT running on its production Catalyst domain, so the live prod backend never
-// reflects them. Detection is automatic from the request host — the prod domain
-// is *.catalystserverless.ca without the `.development.` segment — with an
+// reflects them. Detection is automatic from the request host, the prod domain
+// is *.catalystserverless.ca without the `.development.` segment, with an
 // optional CATALYST_ENV=production override.
 const isProdRequest = (req) => {
   if (process.env.CATALYST_ENV === 'production') return true;
@@ -63,12 +63,12 @@ app.use((req, res, next) => {
 });
 
 /* ------------------------------------------------------------------ *
- * Abuse controls — distributed rate limiting via Catalyst Cache.
+ * Abuse controls: distributed rate limiting via Catalyst Cache.
  * Advanced I/O functions are horizontally scaled with no shared process
  * memory, so an in-process counter is useless; the Cache default segment
  * is shared across every instance. Fixed-window counters keyed by route
- * (+ client IP for per-IP limits). Fails OPEN if the cache is unreachable
- * — a broken limiter must not take the endpoint down. Because a cache
+ * (+ client IP for per-IP limits). Fails OPEN if the cache is unreachable:
+ * a broken limiter must not take the endpoint down. Because a cache
  * outage lets requests through, set an account-level spend cap in the
  * Anthropic console as the hard backstop for this paid endpoint.
  * ------------------------------------------------------------------ */
@@ -80,7 +80,7 @@ const clientIp = (req) =>
 async function withinLimit(req, { key, max, windowSec, perIp = true }) {
   try {
     const app = catalyst.initialize(req);
-    const seg = app.cache().segment(); // default segment — no console setup needed
+    const seg = app.cache().segment(); // default segment: no console setup needed
     const window = Math.floor(Date.now() / (windowSec * 1000));
     const bucket = perIp ? `rl:${key}:${clientIp(req)}:${window}` : `rl:${key}:${window}`;
     const ttlHours = Math.max(1, Math.ceil(windowSec / 3600));
@@ -141,7 +141,7 @@ const upload = multer({
 });
 
 /* ------------------------------------------------------------------ *
- * Structured extraction — enums here must stay byte-identical to the
+ * Structured extraction: enums here must stay byte-identical to the
  * <select> options in whollar-bill checkup-v6.html (#prov, #spd, #tech)
  * so the frontend can set .value directly with no translation step.
  * ------------------------------------------------------------------ */
@@ -156,7 +156,7 @@ const BILL_EXTRACTION_TOOL = {
   name: 'extract_bill_fields',
   description:
     'Extract structured fields from an image or PDF of a Canadian home-internet bill. ' +
-    'Only fill a field when the bill clearly supports it — return null rather than guessing.',
+    'Only fill a field when the bill clearly supports it: return null rather than guessing.',
   strict: true,
   input_schema: {
     type: 'object',
@@ -181,7 +181,7 @@ const BILL_EXTRACTION_TOOL = {
           'The GROSS total monthly charge in dollars, before tax AND before the promotional ' +
           'discount is subtracted. Sum every recurring line item (the plan/service charge, ' +
           'equipment or modem rental, and any other recurring add-ons) but do NOT subtract the ' +
-          '"Savings" / "Promotional credit" line — that amount belongs only in ' +
+          '"Savings" / "Promotional credit" line: that amount belongs only in ' +
           'discountAmountDollars. If the bill shows just one total and it is already net of the ' +
           'promo credit (a "Total due" sitting below a "Savings" line), add the credit back in: ' +
           'monthlyChargeDollars = that total + discountAmountDollars. Example: a $126.99 plan ' +
@@ -212,14 +212,14 @@ const BILL_EXTRACTION_TOOL = {
         description:
           "ISO 8601 date (YYYY-MM-DD) the time-limited promotional discount ends, from a line " +
           "like 'Savings ... ends May 21/26'. Null if there is no promo or no end date shown. " +
-          "Bundle, autopay and loyalty discounts are not promos — never infer an end date from them."
+          "Bundle, autopay and loyalty discounts are not promos, never infer an end date from them."
       },
       discountAmountDollars: {
         ...nullable({ type: 'number' }),
         // Feeds the "jump" math on the frontend (regular price = charge + this),
         // so it must only ever hold credits that disappear when a promo ends.
         description:
-          'Monthly PROMOTIONAL discount in dollars — only time-limited promo/savings credits ' +
+          'Monthly PROMOTIONAL discount in dollars: only time-limited promo/savings credits ' +
           'that expire, e.g. a "Savings", "Promotional credit" or "12-month discount" line. ' +
           'Sum them if there are several. EXCLUDE discounts not tied to a promo period: ' +
           'bundle / multi-service discounts, autopay or pre-authorized payment discounts, ' +
@@ -244,7 +244,7 @@ const BILL_EXTRACTION_TOOL = {
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
 // Builds the content block for the uploaded bill. Claude reads the bill
-// directly — images via a vision block, PDFs via a document block — so there
+// directly, images via a vision block, PDFs via a document block, so there
 // is no separate OCR step and no text lost to OCR before extraction.
 async function billContentBlock(file) {
   const data = (await fs.promises.readFile(file.path)).toString('base64');
@@ -262,19 +262,29 @@ async function billContentBlock(file) {
 async function extractBillFields(file) {
   const billBlock = await billContentBlock(file);
   const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5',
+    model: 'claude-sonnet-5',
     max_tokens: 4096,
+    // A bill is a photograph of small print, often at an angle, and the read
+    // has to be right or the checkup quotes a number nobody recognises. Sonnet
+    // reads high-resolution images natively, which is the whole reason for the
+    // model: a 2576px photo is legible where a downscaled one is a guess.
+    //
+    // Thinking off, deliberately. This is field extraction against a fixed
+    // schema, not reasoning, so thinking would buy nothing and this model
+    // enables it by default. Note the disabled form is accepted here but is
+    // capped at `high` effort on Opus, so a later model swap has to re-check it.
+    thinking: { type: 'disabled' },
     system:
       'You extract structured billing fields from Canadian home-internet bills. ' +
       'If a field is ambiguous, missing, or you are not confident, return null for that field ' +
-      'rather than guessing — a wrong auto-filled value is worse than an empty form field. ' +
-      'Every field is either null or an actual value from its allowed type — never a placeholder ' +
+      'rather than guessing: a wrong auto-filled value is worse than an empty form field. ' +
+      'Every field is either null or an actual value from its allowed type, never a placeholder ' +
       'string such as "unknown", "n/a", "<UNKNOWN>" or "". If the uploaded file is not a home-' +
       'internet bill at all (a receipt, an unrelated document or photo, a bill for a different ' +
       'service), return null for every single field rather than inventing one. ' +
       'Treat discounts carefully: only time-limited promotional credits count as the discount ' +
       'and promo end date. Bundle/multi-service, autopay, loyalty and one-time credits are ' +
-      'permanent or unrelated to a promo period — leave them out of both fields entirely.',
+      'permanent or unrelated to a promo period: leave them out of both fields entirely.',
     tools: [BILL_EXTRACTION_TOOL],
     tool_choice: { type: 'tool', name: 'extract_bill_fields' },
     messages: [
@@ -302,15 +312,15 @@ async function extractBillFields(file) {
  * ------------------------------------------------------------------ */
 
 // Drives the "Shortcut: attach your bill" upload (#bill-file) on the bill
-// checkup tool — Claude reads the bill directly (vision for images, native PDF
+// checkup tool: Claude reads the bill directly (vision for images, native PDF
 // support for PDFs) and returns fields the frontend drops straight into
 // #prov/#cost/#spd/#tech/#pdate/#disc, plus postalCode (the bill's
 // service/billing address postal code, "A1A 1A1", null if not found).
 // Frontend must POST multipart/form-data with the file under "billFile".
 app.post(
   '/extract-bill',
-  limit({ key: 'ocr-ip', max: 15, windowSec: 3600, perIp: true }),        // 15 / hour / IP — every attempt counts (even 4xx rejects), so leave room for retries
-  limit({ key: 'ocr-global', max: 800, windowSec: 86400, perIp: false }), // 800 / day total — denial-of-wallet ceiling
+  limit({ key: 'ocr-ip', max: 15, windowSec: 3600, perIp: true }),        // 15 / hour / IP, every attempt counts (even 4xx rejects), so leave room for retries
+  limit({ key: 'ocr-global', max: 800, windowSec: 86400, perIp: false }), // 800 / day total, denial-of-wallet ceiling
   guardUpload(upload.single('billFile')),
   async (req, res) => {
     if (!req.file) {
