@@ -5,8 +5,8 @@
  *
  * Catalyst has no DDL API, so the tables are created by hand in the console
  * from `scripts/create-tables.md`. That means the code's idea of the schema and
- * the console's idea of it can drift, and — because a wrong column name fails
- * at *runtime*, not at deploy — the drift surfaces as a 500 on someone's login
+ * the console's idea of it can drift, and, because a wrong column name fails
+ * at *runtime*, not at deploy, the drift surfaces as a 500 on someone's login
  * rather than as a failed build. This module is the defence: one declaration of
  * what the code expects, and `verify()` to check reality against it.
  *
@@ -23,7 +23,7 @@
  *
  * `unique` and `required` are asserted. The type is *reported* rather than
  * asserted, because Catalyst's `data_type` strings are undocumented and an
- * over-strict match would cry wolf — with one exception, noted on `sessions`.
+ * over-strict match would cry wolf: with one exception, noted on `sessions`.
  */
 
 /** Added by Catalyst to every table. Never declared, never created by hand. */
@@ -40,7 +40,7 @@ const TABLES = Object.freeze({
     status:           'varchar(16) required',
     // Cohort placement. `fsa` is the first three characters of the postal code
     // and is what a cohort is actually keyed on, so it is stored separately
-    // rather than re-derived on every query — Catalyst has no computed columns
+    // rather than re-derived on every query: Catalyst has no computed columns
     // and no way to index an expression.
     postal_code:      'varchar(10)',
     fsa:              'varchar(3)',
@@ -73,7 +73,7 @@ const TABLES = Object.freeze({
     // MUST NOT be encrypted: this is the lookup key on every authenticated
     // request, and Catalyst cannot filter on an encrypted column. It is already
     // a SHA-256 digest, so nothing is in the clear either way. This one type IS
-    // asserted — getting it wrong makes every session lookup fail.
+    // asserted: getting it wrong makes every session lookup fail.
     token_hash: 'varchar(64) unique required',
     user_id:    'varchar(64) required',
     expires_at: 'datetime required',
@@ -129,7 +129,7 @@ const TABLES = Object.freeze({
   member_bills: {
     // One row per member: the household has one home-internet bill, and the
     // dashboard renders "the" switch file, not a history. A new checkup
-    // replaces the row. History, when it is wanted, is a new table — turning
+    // replaces the row. History, when it is wanted, is a new table: turning
     // this into an append-only log would silently change what GET /me/bill
     // means.
     user_id:          'varchar(64) unique required',
@@ -157,21 +157,21 @@ const TABLES = Object.freeze({
   campaign_members: {
     // One row per (campaign, member) relationship, whatever its strength:
     // 'joined' a forming cohort, 'waitlist' for a region still gathering, or
-    // 'alert' (the bell — "text me the day it opens"). The pair is flattened
+    // 'alert' (the bell: "text me the day it opens"). The pair is flattened
     // into one unique column because Catalyst's unique constraint is
     // per-column, same as auth_identities.provider_key.
     membership_key: 'varchar(130) unique required', // `${campaign_id}:${user_id}`
     campaign_id:    'varchar(64) required',
     user_id:        'varchar(64) required',
     status:         'varchar(16) required',
-    // Snapshot of users.fsa at join time — cohorts are keyed on FSA, and the
+    // Snapshot of users.fsa at join time: cohorts are keyed on FSA, and the
     // clustering job should see where the member was when they joined, not
     // where they moved later.
     fsa:            'varchar(3)',
     joined_at:      'datetime required',
   },
   site_config: {
-    // Editable site information: prices, thresholds, notices, feature flags —
+    // Editable site information: prices, thresholds, notices, feature flags:
     // including bidding_enabled, the global kill switch. Written only by the
     // admin console; read by GET /public/config and server-side flag checks.
     // Every read path falls back to lib/siteconfig.js DEFAULTS when this
@@ -187,7 +187,7 @@ const TABLES = Object.freeze({
   campaigns: {
     // The campaign catalog, promoted from the code constant in
     // routes/campaigns.js. lib/catalog.js reads it with a 60s memo and falls
-    // back to the code catalog when the table is missing or empty — so the
+    // back to the code catalog when the table is missing or empty, so the
     // dashboards keep working before this exists, and the console's
     // "import defaults" seeds it with the same six rows.
     campaign_id:     'varchar(64) unique required', // slug, immutable once created
@@ -235,7 +235,7 @@ const TABLES = Object.freeze({
     // Append-only feedback from the dashboards: provider ratings, outage
     // reports, "first in line" interest, a partner's opening-day alerts.
     // Write-only from the product; the admin console reads it. Payload is JSON
-    // and never filtered on — queries go by user_id or kind only.
+    // and never filtered on: queries go by user_id or kind only.
     user_id:    'varchar(64) required',
     user_type:  'varchar(16)',
     kind:       'varchar(32) required',
@@ -292,7 +292,7 @@ const TABLES = Object.freeze({
   },
   provider_coverage: {
     // The regions an org serves and with what. Rows the org declares itself
-    // start as 'verifying' — serviceability is confirmed by an operator, not
+    // start as 'verifying': serviceability is confirmed by an operator, not
     // asserted by the party it advantages.
     coverage_key: 'varchar(200) unique required', // `${org_id}:${region-slug}`
     org_id:       'varchar(64) required',
@@ -313,7 +313,7 @@ const TABLES = Object.freeze({
     detail:           'text',
   },
   provider_ratings: {
-    // The dashboard's "One minute, once" card. One row per member — `unique`
+    // The dashboard's "One minute, once" card. One row per member: `unique`
     // on user_id is what makes a second POST /me/rating fail with CONFLICT
     // instead of silently overwriting the first, same trick as member_bills'
     // upsert key but refusing the second write rather than replacing it.
@@ -348,7 +348,7 @@ const looksEncrypted = (dataType) => /encrypt/i.test(String(dataType || ''));
  * "you have `locked_untill`, expected `locked_until`" instead of the far less
  * actionable "something is missing".
  *
- * Returns a plain object safe to serialise — schema names only, never row data.
+ * Returns a plain object safe to serialise: schema names only, never row data.
  */
 async function verify(catalystApp) {
   const datastore = catalystApp.datastore();
@@ -389,9 +389,9 @@ async function verify(catalystApp) {
       }
 
       // The one asserted type. An encrypted token_hash cannot be filtered on,
-      // so every session lookup would fail — at runtime, on every request.
+      // so every session lookup would fail: at runtime, on every request.
       if (table === 'sessions' && col === 'token_hash' && looksEncrypted(got.data_type)) {
-        typeNotes.push(`token_hash is ${got.data_type} — MUST be Var Char, it is queried on every request`);
+        typeNotes.push(`token_hash is ${got.data_type}: MUST be Var Char, it is queried on every request`);
       }
       // Encrypted columns cannot appear in a WHERE clause. Flag the inverse too:
       // a column we expect to be encrypted that plainly is not.
@@ -401,7 +401,7 @@ async function verify(catalystApp) {
     }
 
     // Columns present in the console that the code knows nothing about. Not an
-    // error — but a typo usually shows up here as the twin of a `missing` entry,
+    // error, but a typo usually shows up here as the twin of a `missing` entry,
     // which is what turns "missing" into "misspelled as".
     const unexpected = [...byName.keys()]
       .filter((n) => !MANAGED.includes(n) && !(n in expected))

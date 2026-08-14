@@ -6,7 +6,7 @@
 
 const BASE = (process.argv[2] || 'http://localhost:4173').replace(/\/$/, '');
 const PUBLISH_DATE = process.argv[3];
-const DOMAIN = 'https://www.whollar.ca'; // canonical host — apex 308s to www
+const DOMAIN = 'https://www.whollar.ca'; // canonical host: apex 308s to www
 const EM_DASH = '—';
 
 const SLUGS = [

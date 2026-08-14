@@ -4,12 +4,12 @@
  * Stored passwords, and the lockout that makes a six-character guess pointless.
  *
  * One row per user in `credentials`, keyed by `user_id`. A user with no row has
- * no password — which is the normal state for anyone who arrived by emailed
+ * no password, which is the normal state for anyone who arrived by emailed
  * code or by Google, and is why every read here returns null rather than
  * throwing. "No password set" is a real, supported account state, not an error.
  *
  * `hash` is an Encrypted column: selectable, never filterable. Nothing here
- * ever puts it in a WHERE clause, and nothing should — the lookup is always by
+ * ever puts it in a WHERE clause, and nothing should: the lookup is always by
  * `user_id` and the comparison always happens in code, inside `verifyPassword`.
  *
  * WHY A LOCKOUT AS WELL AS A RATE LIMIT. The IP rate limit in `ratelimit.js`
@@ -47,7 +47,7 @@ const LOCK_MS = 15 * 60 * 1000;
  * passphrase and harder to remember, and current NIST guidance advises against
  * them. Length is the control that matters.
  *
- * The upper bound is not a strength rule — scrypt hashes any length, but it
+ * The upper bound is not a strength rule: scrypt hashes any length, but it
  * hashes a 10 MB paste slowly enough to be a denial-of-service lever.
  */
 const MIN_LENGTH = 10;
@@ -102,7 +102,7 @@ async function set(catalystApp, userId, password) {
     await datastore.insertRow(catalystApp, TABLE, { user_id: userId, ...fields });
   } catch (err) {
     // `user_id` is unique, so a concurrent set lost the race. Its password is
-    // as valid as ours would have been — but ours is the one the caller just
+    // as valid as ours would have been, but ours is the one the caller just
     // chose, so overwrite rather than silently keeping the other.
     const raced = await forUser(catalystApp, userId);
     if (!raced) throw err;
@@ -118,7 +118,7 @@ async function set(catalystApp, userId, password) {
  * @returns {{ok: boolean, reason?: string, retryAfterMs?: number, rehashed?: boolean}}
  *
  * Every failure shape is reported distinctly HERE, for the audit row. The route
- * collapses them into one message — see the note in errors.js about what a
+ * collapses them into one message: see the note in errors.js about what a
  * login form tells an attacker.
  *
  * A locked account does not get its password checked at all. Checking it first
@@ -163,7 +163,7 @@ async function check(catalystApp, userId, password) {
   }
 
   // Correct. Clear the counter, and take the opportunity to move an old hash
-  // to current parameters — the only moment the plaintext is available to do it.
+  // to current parameters: the only moment the plaintext is available to do it.
   const fields = { ROWID: row.ROWID };
   let rehashed = false;
 

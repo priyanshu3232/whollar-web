@@ -975,7 +975,7 @@
     <h1 style="font-family:'Hanken Grotesk',sans-serif; font-weight:900; font-size:clamp(31px, 8.7vw, 41px); line-height:1.04; letter-spacing:-0.03em; color:var(--ink); margin:12px 0 10px; width:100%">The Future of Broadband Acquisition Doesn't <span style="color:var(--green)">Start With Advertising.</span></h1>
     <!-- The hero sub-paragraph is gone: the headline plus the scene carry the pitch on a
          phone, and the scene takes the freed height. Full width (was 74%) makes it ~35%
-         larger, so the art's internal top whitespace scales too — hence -24px (was -18px)
+         larger, so the art's internal top whitespace scales too, hence -24px (was -18px)
          to keep it tucked under the headline instead of floating away from it. -->
     <div data-hero-scene="" style="position:relative; width:100%; aspect-ratio:540/810; margin:-24px auto 0"></div>
     <div style="display:flex; flex-direction:column; gap:11px; margin-top:20px">
@@ -1436,7 +1436,7 @@ class Component extends DCLogic {
       const top = target.getBoundingClientRect().top - c.getBoundingClientRect().top + c.scrollTop - ((hdr ? hdr.offsetHeight : 62) + 14);
       c.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
     });
-    /* the CTA pill is permanently fixed — no scroll-driven reveal, so nothing here
+    /* the CTA pill is permanently fixed: no scroll-driven reveal, so nothing here
        may touch its opacity or transform (the transform carries its centring). */
   }
 

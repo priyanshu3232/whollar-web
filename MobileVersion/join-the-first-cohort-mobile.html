@@ -960,8 +960,8 @@ document.addEventListener('DOMContentLoaded',function(){
       let el=anchor.parentNode.querySelector('.suberr');
       if(!el){el=document.createElement('p');el.className='suberr';el.setAttribute('role','alert');el.style.cssText='margin:10px 0 0;font-size:13px;font-weight:600;color:#A34F2B';anchor.parentNode.insertBefore(el,anchor.nextSibling);}
       el.textContent=W.submitErrorMessage(err);
-      if(0)el.textContent=err&&err.status===429?'Too many attempts from your network right now, please try again in a little while.'
-        :'We couldn’t reach our servers, so this wasn’t saved, please check your connection and try again.';
+      if(0)el.textContent=err&&err.status===429?'Too many attempts from your network right now. Please try again in a little while.'
+        :'We couldn’t reach our servers, so this wasn’t saved. Please check your connection and try again.';
     }
     function clearErr(anchor){const el=anchor.parentNode.querySelector('.suberr');if(el)el.remove();}
     /* busy() now comes from whollar-core.js and returns false when the button

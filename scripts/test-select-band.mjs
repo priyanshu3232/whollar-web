@@ -15,7 +15,7 @@ import { dirname, join } from 'node:path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 // whollar-core.js closes with `})(window);` (it's written for the browser
-// only) — give it one so it attaches WHOLLAR to globalThis, same object.
+// only): give it one so it attaches WHOLLAR to globalThis, same object.
 globalThis.window = globalThis;
 await import('file://' + join(ROOT, 'js/whollar-core.js'));
 const selectBand = globalThis.WHOLLAR.selectBand;

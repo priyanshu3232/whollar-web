@@ -3,7 +3,7 @@
 /**
  * The member's own data: the bill behind the dashboard's switch file.
  *
- * This is the first authenticated data API — everything else the dashboard
+ * This is the first authenticated data API: everything else the dashboard
  * shows is still demo scaffolding. Two routes, one row per member:
  *
  *   GET  /me/bill   what the server knows about this member's bill
@@ -15,7 +15,7 @@
  * keyed by whatever email the visitor typed, and people run the checkup before
  * they have an account. So when a member asks for their bill we look their
  * email up in the lead table and copy the latest submission across under their
- * user_id — always on the first ask, and afterwards whenever that lead is
+ * user_id: always on the first ask, and afterwards whenever that lead is
  * NEWER than what we hold. That copy is what links "the person who ran the
  * checkup" to "the account that signed in" across devices.
  *
@@ -23,7 +23,7 @@
  * lost: the results screen fires POST /me/bill and does not wait for it, so a
  * closed tab or a dropped connection leaves the member's newest numbers sitting
  * in the lead table with a stale row here. A lead that postdates our row is
- * therefore always the better answer — except against `source: 'dashboard'`,
+ * therefore always the better answer, except against `source: 'dashboard'`,
  * which is the member correcting the numbers by hand and outranks any lead.
  *
  * The same-device link (a checkup done signed-out, with no email at all) is
@@ -44,7 +44,7 @@ const TABLE = 'member_bills';
  *
  * Two of them, tried in this order:
  *
- *   BillCheckupSubmissions  the checkup — nine questions, the richest reading
+ *   BillCheckupSubmissions  the checkup: nine questions, the richest reading
  *                           anyone gives us, and the primary path.
  *   WaitlistDetails         stage 2 of the join page, which asks a subset of
  *                           the same questions right after signup.
@@ -54,7 +54,7 @@ const TABLE = 'member_bills';
  * table is the same kind of safety net the first one is: it catches the
  * submission whose member write was lost to a closed tab or a dropped
  * connection. It is consulted only when the checkup table has nothing, rather
- * than merged newest-wins across both — the checkup asks strictly more, and a
+ * than merged newest-wins across both: the checkup asks strictly more, and a
  * second query on every dashboard load to occasionally prefer the thinner
  * answer is a bad trade.
  */
@@ -105,7 +105,7 @@ const truthy = (v) =>
  * what stops an empty submission being stored as if it were a reading: the
  * checkup's quick-join rail sends a lead the moment an email is typed, long
  * before the form is filled, so "a lead exists" is not "a bill is known".
- * Adoption leans on it hardest — an empty lead that happens to be newer must
+ * Adoption leans on it hardest: an empty lead that happens to be newer must
  * never blank a row that has real numbers in it.
  */
 const hasSubstance = (f) => Boolean(
@@ -142,7 +142,7 @@ function publicBill(row) {
  * not the informative one: the checkup's quick-join rail files a lead as soon
  * as an email is typed, so an email-only row routinely sits on top of the
  * filled-in submission from the same visit. Taking `LIMIT 1` would find that
- * empty row, decline it as having nothing to adopt, and never look past it —
+ * empty row, decline it as having nothing to adopt, and never look past it:
  * the member's real checkup would stay invisible on every subsequent load.
  *
  * Tries the address exactly as they typed it at signup and its lowercased
@@ -160,7 +160,7 @@ function publicBill(row) {
  * wholesale. Falling back to the columns that predate the change keeps the
  * older fields adoptable in the window between a deploy and the console edit.
  *
- * Returns { row, fields, source } — `source` being the tag written to
+ * Returns { row, fields, source }: `source` being the tag written to
  * member_bills so a later reader can tell which table an adopted row came
  * from.
  */
@@ -218,7 +218,7 @@ async function latestLead(catalystApp, user) {
           break;
         } catch (err) {
           // lit() rejecting an odd address, a column not added in the console
-          // yet, or the table missing: not found — fall through rather than
+          // yet, or the table missing: not found: fall through rather than
           // aborting the search. Logged (without the address) so a renamed
           // column doesn't masquerade as "this member never ran a checkup"
           // forever.
@@ -243,7 +243,7 @@ async function latestLead(catalystApp, user) {
  * is just an older reading of the same bill.
  *
  * A row without a ROWID cannot be addressed by updateRow, so it cannot be
- * replaced either — say so here rather than discovering it mid-write.
+ * replaced either: say so here rather than discovering it mid-write.
  */
 const adoptable = (row) => Boolean(row.ROWID) && row.source !== 'dashboard';
 
@@ -251,7 +251,7 @@ const adoptable = (row) => Boolean(row.ROWID) && row.source !== 'dashboard';
  * Does `lead` postdate `row`?
  *
  * `SubmittedAt` is written by formSubmit's catalystNow() and `updated_at` by
- * datastore.nowDb() — the same `YYYY-MM-DD HH:MM:SS` UTC on both sides, so the
+ * datastore.nowDb(): the same `YYYY-MM-DD HH:MM:SS` UTC on both sides, so the
  * comparison is between two clocks we own. `CREATEDTIME` backs it up for rows
  * an older formSubmit left the column empty on; it is Catalyst's own and its
  * format is Catalyst's choice, which fromDb parses when it can.
@@ -286,9 +286,9 @@ function fromLead(lead) {
 /**
  * A WaitlistDetails row reshaped the same way.
  *
- * Only the five fields that table holds. The join form asks more than that —
+ * Only the five fields that table holds. The join form asks more than that,
  * access technology, the expired-promo flag, the discount and the contract
- * dates — but those reach the member through POST /me/bill rather than being
+ * dates, but those reach the member through POST /me/bill rather than being
  * duplicated into the lead row, so they come back empty here instead of being
  * guessed at. `promo_expired` is 0 rather than null because the column is a
  * flag the dashboard reads as a boolean.
@@ -326,7 +326,7 @@ function mount(router) {
   /**
    * What the server knows about this member's bill. -> { ok, bill }
    * `bill` is null for a member who has never run a checkup anywhere we can
-   * see — that is a normal answer, not an error.
+   * see: that is a normal answer, not an error.
    */
   router.get('/me/bill', wrap(async (req, res) => {
     const user = requireMember(req);
@@ -402,7 +402,7 @@ function mount(router) {
     };
 
     if (!hasSubstance(fields)) {
-      throw badRequest('There is nothing to save yet — run the checkup first.', {
+      throw badRequest('There is nothing to save yet: run the checkup first.', {
         logDetail: 'bill save with no usable field',
       });
     }

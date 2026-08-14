@@ -12,7 +12,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-// Canonical host is www — the apex 308-redirects to it, so sitemap/canonical/JSON-LD
+// Canonical host is www: the apex 308-redirects to it, so sitemap/canonical/JSON-LD
 // URLs must all be www or Google chases redirects.
 const DOMAIN = 'https://www.whollar.ca';
 const EM_DASH = '—';
@@ -72,7 +72,7 @@ for (const [file, slug] of SLUGS) {
   let html = src;
 
   // 0. normalize domains: apex → www everywhere (JSON-LD @id/url included),
-  //    then anchor hrefs to root-relative — internal links must never bounce
+  //    then anchor hrefs to root-relative: internal links must never bounce
   //    through the apex 308.
   html = html.replace(/https:\/\/whollar\.ca/g, DOMAIN);
   html = html.replace(/href="https:\/\/www\.whollar\.ca(\/[^"]*)?"/g, (m, path) => `href="${path || '/'}"`);
@@ -98,7 +98,7 @@ for (const [file, slug] of SLUGS) {
   if (!descTag) fail(file, 'meta description not found');
   html = html.replace(descTag[0], `${descTag[0]}\n<link rel="canonical" href="${url}">`);
 
-  // 4b. device-router include after the viewport meta — articles are mapped to
+  // 4b. device-router include after the viewport meta: articles are mapped to
   // /MobileVersion/blog/<slug> counterparts, so phones must be routed off them.
   const routerTag = '<script src="/js/device-router.js?v=20260806a"></script>';
   if (!html.includes(routerTag)) {
@@ -283,7 +283,7 @@ console.log('ok  /blog/ (Resources page)');
 
 // ---------- sitemap + robots ----------
 
-// The sitemap covers the whole site, not just the blog — regenerating it must
+// The sitemap covers the whole site, not just the blog: regenerating it must
 // never drop the money/legal pages again. Static entries carry no lastmod (we
 // don't know when they last changed; an invented date is worse than none).
 const STATIC_PAGES = ['/', '/bill-checkup', '/become-a-partner', '/partners', '/waitlist/', '/contact', '/terms', '/privacy'];

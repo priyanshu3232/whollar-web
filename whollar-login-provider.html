@@ -699,7 +699,7 @@ document.getElementById('signin-form').addEventListener('submit',function(e){
   if(W.busy(btn,true,'Signing in…')===false) return;
 
   /* The password is only the first half. A resolved /provider/login means a
-     code is on its way, NOT that anyone is signed in — the session is minted
+     code is on its way, NOT that anyone is signed in: the session is minted
      by /provider/login/verify at the step below. Do not "simplify" this back
      into finishSignIn(): it would send a partner to a console with no cookie. */
   W.session.providerLogin({email:em.value.trim(),password:pw.value})
@@ -715,7 +715,7 @@ document.getElementById('signin-form').addEventListener('submit',function(e){
 });
 
 /* ================================================================== *
- * SIGN IN, STEP 2 — the emailed code
+ * SIGN IN, STEP 2: the emailed code
  * ================================================================== */
 
 var mfaOtp=otpGroup('mfa-otp',function(){

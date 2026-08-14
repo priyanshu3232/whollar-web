@@ -8,13 +8,13 @@
  * FSA-level, median-based reference the checkup's five-band signal card
  * scores against (WHOLLAR.signalBaseFor(), whollar-core.js). This is a
  * SEPARATE reference from js/whollar-benchmarks.js / js/whollar-base-
- * pricing.js — those are unchanged and still power W.benchmarkFor()/
+ * pricing.js: those are unchanged and still power W.benchmarkFor()/
  * W.p10For() for the homepage estimator.
  *
  * ------------------------------------------------------------------
  * WHY THIS DOESN'T PRODUCE A GENUINE THREE-TIER fsa/city/province CASCADE
  *
- * The sheet is keyed by CITY, not FSA — there is no row finer-grained than
+ * The sheet is keyed by CITY, not FSA: there is no row finer-grained than
  * a city. "FSA-level" data is therefore, definitionally, the SAME number as
  * the city it belongs to (via js/whollar-fsa-cities.js's FSA->city map),
  * just addressed by a different key. A "city" fallback tier below "fsa"
@@ -23,7 +23,7 @@
  * never be reached as a genuinely DIFFERENT step. This build still emits
  * SIGNAL_BY_CITY (city is the sheet's native grain, and it costs nothing to
  * expose it under its own key), and WHOLLAR.signalBaseFor() still tries it
- * in the documented order — but expect confidence to only ever come back
+ * in the documented order, but expect confidence to only ever come back
  * as 'fsa' or 'province' in practice for this data source, not 'city'.
  * Flagging this now rather than pretending three tiers are equally live.
  * ------------------------------------------------------------------
@@ -35,23 +35,23 @@
  *    aggregate: Starlink prices on a different basis (see build-
  *    benchmarks.mjs for the same call on the older reference).
  * 3. Speeds are bucketed to the NEAREST of 12 tiers (25/50/75/100/150/300/
- *    500/750/1000/1500/3000/8000 Mbps) — nearest by absolute distance, not
+ *    500/750/1000/1500/3000/8000 Mbps): nearest by absolute distance, not
  *    by rounding down, so e.g. 60 Mbps buckets to 50 (|60-50|=10) not 75
  *    (|60-75|=15).
  * 4. A single 99th-percentile trim runs ONCE per (speedTier, connectionType)
- *    pair, nationally, before any geographic split — not re-computed per
+ *    pair, nationally, before any geographic split, not re-computed per
  *    city/province/FSA (too few rows at that grain for a percentile to mean
  *    anything). The 'terrestrial' pool (cable+fibre combined) is built from
  *    rows that already passed this trim at their specific type; it is not
  *    trimmed a second time.
  * 5. City names are normalized (lowercased, trimmed, periods/apostrophes
- *    stripped, a trailing " <digits>" disambiguator dropped — e.g. this
+ *    stripped, a trailing " <digits>" disambiguator dropped, e.g. this
  *    sheet's "Alberton 1" -> "alberton") before matching against GeoNames'
  *    city spellings in js/whollar-fsa-cities.js. Same normalization on both
  *    sides; a city that still doesn't match resolves no FSAs and just never
  *    appears in SIGNAL_BY_FSA (falls through to province at runtime).
  * 6. Minimum sample size is 5. A (geography, speedTier, connectionType)
- *    bucket under that count is omitted entirely, not shipped thin — the
+ *    bucket under that count is omitted entirely, not shipped thin: the
  *    runtime cascade in WHOLLAR.signalBaseFor() walks up to the next,
  *    coarser key when a lookup misses, exactly the fallback this omission
  *    is designed to trigger.
@@ -128,10 +128,10 @@ const PROVINCE_CODE = {
 };
 
 /* This sheet has no DSL / fixed-wireless rows (verified: only Cable, FTTH,
-   Satellite appear) — matches build-benchmarks.mjs's finding on the same
+   Satellite appear): matches build-benchmarks.mjs's finding on the same
    sheet. A user reporting DSL/fixed-wireless simply has no specific-type
    entry to match and falls straight to the terrestrial pool. */
-const TECH = { 'Cable': 'cable', 'FTTH': 'fibre' }; // Satellite deliberately absent — dropped, not mapped
+const TECH = { 'Cable': 'cable', 'FTTH': 'fibre' }; // Satellite deliberately absent: dropped, not mapped
 
 function nearestTier(mbps) {
   let best = SPEED_TIERS[0], bestDist = Math.abs(mbps - SPEED_TIERS[0]);
@@ -186,7 +186,7 @@ function loadFsaCity() {
 const FSA_CITY = loadFsaCity();
 
 // Reverse index: normalized city name -> [fsa, ...]. Cities the sheet uses
-// that don't normalize-match any GeoNames place name resolve zero FSAs —
+// that don't normalize-match any GeoNames place name resolve zero FSAs:
 // expected and fine, the province level still covers them.
 const cityToFsas = new Map();
 for (const [fsa, loc] of Object.entries(FSA_CITY)) {
@@ -204,7 +204,7 @@ for (const need of ['province', 'city', 'connection_type', 'download_mbps', 'mon
 }
 
 const skipped = { badPrice: 0, badSpeed: 0, satellite: 0, unknownProvince: 0 };
-// rowsByTypeTier[tier|type] = [{price, province, city}, ...] — raw, pre-trim,
+// rowsByTypeTier[tier|type] = [{price, province, city}, ...]: raw, pre-trim,
 // used only to compute the national 99th-percentile cutoff per bucket.
 const rowsByTypeTier = new Map();
 
@@ -276,7 +276,7 @@ const SIGNAL_BY_PROVINCE = aggregate(provBuckets, MIN_SAMPLE);  // keyed "PV|tie
 
 // Fan city aggregates out to every FSA that resolves to that city (the
 // FSA/city collapse documented in the file header above). SIGNAL_BY_CITY
-// keeps the province in its key ("normcity|PV|tier|type") — several
+// keeps the province in its key ("normcity|PV|tier|type"): several
 // same-named cities exist in different provinces (e.g. Windsor, ON and
 // Windsor, NS), and dropping the province would silently collide them.
 const SIGNAL_BY_FSA = {};
@@ -323,7 +323,7 @@ ${perTierCoverage}
 
 Caveats:
 - FSA-level and city-level numbers are the same underlying figure (see the
-  build script's header comment) — this sheet has no data finer than city.
+  build script's header comment): this sheet has no data finer than city.
   Expect signalBaseFor()'s confidence field to report 'fsa' or 'province' in
   practice, not 'city'.
 - City-name matching between this sheet and js/whollar-fsa-cities.js is a

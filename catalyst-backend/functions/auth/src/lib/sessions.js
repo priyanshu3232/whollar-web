@@ -4,7 +4,7 @@
  * Session lifecycle: mint, load, roll, revoke.
  *
  * The cookie carries a 256-bit random token. The database stores only its
- * SHA-256, so a dump of `sessions` yields nothing that can be replayed — the
+ * SHA-256, so a dump of `sessions` yields nothing that can be replayed: the
  * same reason passwords are not stored in the clear, applied to the credential
  * that is actually presented on every request.
  */
@@ -23,7 +23,7 @@ const SESSION_COLUMNS = ['ROWID', 'session_id', 'token_hash', 'user_id', 'expire
 // The whole profile, not just identity: campaign joins snapshot `fsa` from
 // this projection (a narrower list here is why early rows carried fsa: null),
 // and the dashboards render name, region and phone from the session payload.
-// CREATEDTIME is Catalyst's own stamp — selected, never written.
+// CREATEDTIME is Catalyst's own stamp: selected, never written.
 const USER_COLUMNS = ['ROWID', 'user_id', 'email_normalized', 'email_display',
   'first_name', 'last_name', 'user_type', 'status',
   'postal_code', 'fsa', 'province_code', 'phone', 'CREATEDTIME'];
@@ -34,7 +34,7 @@ const USER_COLUMNS = ['ROWID', 'user_id', 'email_normalized', 'email_display',
  * A household should stay signed in across weeks of not thinking about their
  * internet bill; every visit pushes the expiry out. A partner console shows
  * competitor pricing and cohort internals, so its 12 hours is an absolute
- * ceiling — an unattended laptop stops being a way in after one working day,
+ * ceiling: an unattended laptop stops being a way in after one working day,
  * regardless of activity. The admin console can flip approvals and pause
  * bidding, so it gets the same absolute ceiling for the same reason.
  */
@@ -55,7 +55,7 @@ function ttlFor(cfg, userType) {
 
 /**
  * Mint a session and set the cookie. Returns the row's public facts; the raw
- * token is intentionally not returned — it exists only in the Set-Cookie header
+ * token is intentionally not returned: it exists only in the Set-Cookie header
  * so that no call site can log it by accident.
  */
 async function create(catalystApp, req, res, { userId, userType }) {
@@ -87,7 +87,7 @@ async function create(catalystApp, req, res, { userId, userType }) {
 /**
  * Resolve the cookie to a live session and its user, or null.
  *
- * Returns null — never throws — for every "not signed in" case: no cookie, no
+ * Returns null, never throws, for every "not signed in" case: no cookie, no
  * matching row, revoked, expired, or the user is gone or disabled. A caller
  * should not have to distinguish those, and telling them apart at the API
  * boundary would leak whether a given token ever existed.
@@ -127,7 +127,7 @@ async function load(catalystApp, req, res) {
  * Extend a member's session when it is more than half spent.
  *
  * The fraction is what makes this affordable: refreshing on every request would
- * add a write to every authenticated page load. Failure is swallowed — a
+ * add a write to every authenticated page load. Failure is swallowed: a
  * session that did not get extended is a minor inconvenience later, whereas a
  * failed request now is one the user sees.
  */
@@ -171,13 +171,13 @@ async function revoke(catalystApp, session) {
 
 /**
  * Revoke every live session for a user. Called on password reset and on
- * "sign out everywhere" — a password change that leaves old sessions working
+ * "sign out everywhere": a password change that leaves old sessions working
  * does not actually lock anyone out.
  */
 async function revokeAllForUser(catalystApp, userId) {
   // Paginated, not a bare SELECT. ZCQL stops at 300 rows without complaining,
-  // so an unbounded query here would leave every session past the 300th alive
-  // — and this is the call that runs after a password reset, i.e. exactly when
+  // so an unbounded query here would leave every session past the 300th alive,
+  // and this is the call that runs after a password reset, i.e. exactly when
   // "most of them were revoked" is not good enough.
   const rows = await datastore.queryAll(
     catalystApp, SESSIONS, ['revoked_at'],
@@ -215,7 +215,7 @@ function publicUser(user) {
     postal: user.postal_code || null,
     fsa: user.fsa || null,
     provinceCode: user.province_code || null,
-    // Catalyst's creation stamp, 'YYYY-MM-DD HH:MM:SS' — "member since".
+    // Catalyst's creation stamp, 'YYYY-MM-DD HH:MM:SS': "member since".
     memberSince: user.CREATEDTIME || null,
   };
 }

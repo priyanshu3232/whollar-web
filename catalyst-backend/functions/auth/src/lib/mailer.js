@@ -8,7 +8,7 @@
  *   zeptomail  real delivery, once a sending domain is verified
  *   log        writes the message to the function log instead of sending
  *
- * The `log` transport is not a placeholder to be replaced later — it is what
+ * The `log` transport is not a placeholder to be replaced later: it is what
  * makes the whole login flow buildable and testable before a sending domain
  * exists. Domain verification is a 24–48h DNS wait plus, for a fresh account,
  * a provider signup; blocking every line of auth on that would be letting a
@@ -38,7 +38,7 @@ async function sendViaLog(cfg, message) {
   console.log(JSON.stringify({
     level: 'info',
     transport: 'log',
-    note: 'MAIL NOT SENT — no mail provider configured. Message logged instead.',
+    note: 'MAIL NOT SENT: no mail provider configured. Message logged instead.',
     to: message.to,
     subject: message.subject,
     // The whole point: without this the dev flow cannot be completed.
@@ -49,7 +49,7 @@ async function sendViaLog(cfg, message) {
 
 /**
  * ZeptoMail's auth scheme is `Zoho-enczapikey <token>`, not Bearer, and the
- * console presents the value inconsistently — sometimes with the prefix
+ * console presents the value inconsistently: sometimes with the prefix
  * included, sometimes as the bare key. Pasting the wrong one produces a 401
  * with no hint as to which half is missing.
  *
@@ -96,7 +96,7 @@ async function sendViaZeptoMail(cfg, message) {
  * SMTP relay, via the mailbox provider the domain's SPF already authorizes.
  *
  * The connection is created per send rather than pooled. In a serverless
- * function a pooled connection outlives nothing useful — the container may be
+ * function a pooled connection outlives nothing useful: the container may be
  * frozen between invocations, and a socket held across that comes back dead.
  * Reconnecting costs a round trip; a stale pool costs a failed login.
  */
@@ -137,7 +137,7 @@ async function sendViaSmtp(cfg, message) {
 }
 
 /**
- * Which transport is active. Exposed so /health can report it honestly —
+ * Which transport is active. Exposed so /health can report it honestly:
  * "why did no email arrive" should be answerable without reading logs.
  *
  * Order is deliberate. ZeptoMail is a transactional service with real
@@ -163,7 +163,7 @@ function transportName(cfg) {
  *
  * It deliberately does NOT fall back to `log` when a real transport exists and
  * fails. Logging the code and reporting success would look like delivery while
- * the user's inbox stayed empty — the failure has to stay visible.
+ * the user's inbox stayed empty: the failure has to stay visible.
  */
 async function send(cfg, message) {
   const f = cfg.FEATURES || {};
@@ -201,13 +201,13 @@ const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => (
 ));
 
 /**
- * The brand mark, as a hosted PNG rather than the site's inline SVG — email
+ * The brand mark, as a hosted PNG rather than the site's inline SVG: email
  * clients don't render SVG, and remote images are the only form Gmail and
  * Outlook both accept. Pinned to the production host on purpose: an email is
  * read days after it is sent, long after any preview deployment is gone.
  *
  * Clients that block remote images show the alt text instead, so the mark can
- * only ever be decoration here — nothing a recipient needs may live in it.
+ * only ever be decoration here: nothing a recipient needs may live in it.
  */
 const LOGO_URL = 'https://www.whollar.ca/images/email/whollar-mark.png';
 const logoImg = () =>
@@ -240,7 +240,7 @@ ${inner}
   </table></body></html>`;
 
 /**
- * "Hi Sam," when a name is on file, "Hi," when it is not — the same bare
+ * "Hi Sam," when a name is on file, "Hi," when it is not: the same bare
  * greeting the copy deck itself uses where no name exists. The name passes
  * through user input on the signup path, so it is flattened and capped here
  * rather than trusted: escaping protects the HTML, this protects the text
@@ -276,8 +276,8 @@ function formatWhen(d) {
  * HTML, and a login code that only exists inside a <table> is a login code some
  * people cannot use.
  *
- * The copy states the code is never asked for by staff. Code-relay phishing —
- * "hi, this is Whollar support, read me the number we just sent" — is the
+ * The copy states the code is never asked for by staff. Code-relay phishing,
+ * "hi, this is Whollar support, read me the number we just sent", is the
  * common attack against every OTP system, and the email is the only place the
  * warning reliably lands.
  */
@@ -324,7 +324,7 @@ function otpEmail({ code, purpose, ttlMinutes, firstName }) {
  * active account.
  *
  * This email is the reason `POST /signup` can answer identically in both cases.
- * The alternative — telling the browser "that address is taken" — turns the
+ * The alternative, telling the browser "that address is taken", turns the
  * signup form into an account-enumeration oracle, which is exactly what the
  * emailed-code routes were built to avoid. The person who owns the address
  * learns what happened; the person who typed it into the form does not.
@@ -424,7 +424,7 @@ function passwordResetEmail({ code, ttlMinutes, firstName }) {
  * therefore sent unconditionally, even though the person who just reset their
  * own password does not need it.
  *
- * Carries no code and no link that grants anything — a notification that could
+ * Carries no code and no link that grants anything: a notification that could
  * itself be used to take the account over would defeat its own purpose.
  */
 function passwordChangedEmail({ appBaseUrl, firstName, changedAt }) {
@@ -501,7 +501,7 @@ function noAccountEmail({ appBaseUrl }) {
 }
 
 /**
- * The provider approval / rejection notice — what the admin console sends to
+ * The provider approval / rejection notice: what the admin console sends to
  * every person in an org when a human decides about the company.
  *
  * One template with a branch rather than two templates, so the two outcomes

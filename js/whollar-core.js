@@ -286,19 +286,19 @@
      returns { price, sample, level, scope, tier, … } or null.
 
      SOURCE: the PlanSavvy list (js/whollar-base-pricing.js, built from
-     "PlanSavvy-Pricing.xlsx" — the twelve lowest-priced advertised plans per
+     "PlanSavvy-Pricing.xlsx": the twelve lowest-priced advertised plans per
      province). This is the ONE price reference the site scores against; the
      old scraped-market table in js/whollar-benchmarks.js is no longer
      consulted for prices (that file still ships for its SPEED_TIERS/EDGES
      constants). Cascade: province + tier, then the tier pooled nationally.
-     A tier the sheet has no rows for returns null — "not enough to score"
+     A tier the sheet has no rows for returns null: "not enough to score"
      beats inventing a number.
 
      '0' is not a tier. It used to map to an invented $60 benchmark and produce
      a confident verdict for someone who had just said they didn't know their
      speed; it returns null instead. */
   /* Direct advertised quotes for tiers the PlanSavvy sheet has no rows for.
-     Source: Bell Pure Fibre offer, Aug 2026 — 1.5 Gbps $60/mo and 3 Gbps
+     Source: Bell Pure Fibre offer, Aug 2026: 1.5 Gbps $60/mo and 3 Gbps
      $65/mo (both plus tax, 2-year price guarantee; $55 with a Rogers/Fido
      mobile plan). The form buckets everything ≥1.22 Gbps into the 1500
      tier, so the two quotes pool into one mean. Replace with sheet rows
@@ -340,16 +340,16 @@
    * Cheapest-plan-in-area reference, for the homepage estimator
    *
    * The estimator asks for two things only: a monthly bill and a postal
-   * code — no speed or tech, so it cannot use benchmarkFor()'s tier-keyed
+   * code: no speed or tech, so it cannot use benchmarkFor()'s tier-keyed
    * levels. It compares against the single cheapest advertised plan in the
    * household's province (W.BASE_MIN_BY_PROVINCE, built by
-   * scripts/build-base-pricing.mjs from PlanSavvy-Pricing.xlsx) — the
+   * scripts/build-base-pricing.mjs from PlanSavvy-Pricing.xlsx): the
    * lowest a household in that area could actually pay, not an average.
    * That makes the resulting number a MAXIMUM possible saving, not a
    * typical one; the widget's own copy says so.
    *
    * Falls back to the national floor when a province has none (should not
-   * happen — PlanSavvy lists all thirteen — but a missing data file must
+   * happen, PlanSavvy lists all thirteen, but a missing data file must
    * not throw).
    * ------------------------------------------------------------------ */
   W.minBasePriceFor = function (provinceCode) {
@@ -399,11 +399,11 @@
    * 5. SIGNAL BANDS (bill-checkup result card)
    * ------------------------------------------------------------------
    * Replaces the old weak/fair/strong/cliff verdict (W.score/effectiveCost/
-   * basePriceFor, retired 2026-08-07 — nothing but bill-checkup.html ever
+   * basePriceFor, retired 2026-08-07: nothing but bill-checkup.html ever
    * called them, confirmed by repo-wide grep before deleting). The lookup
    * this scores against is js/whollar-signal-lookup.js (built from the full
    * "Whollar Pricing Model.xlsx" sheet, FSA-level, median-based) via
-   * W.signalBaseFor() below — a different reference from W.benchmarkFor()/
+   * W.signalBaseFor() below: a different reference from W.benchmarkFor()/
    * W.p10For() above, which are UNCHANGED and still power the homepage
    * estimator.
    *
@@ -425,7 +425,7 @@
      contradicts its own table (where band 3 is -0.05 < ratio, open, and
      band 4 is ratio <= -0.05, closed). Implemented per the table, since
      it is the only one of the two that is internally consistent across
-     all five bands — flagging this rather than silently picking a side. */
+     all five bands: flagging this rather than silently picking a side. */
   W.selectBand = function (input) {
     var opts = input || {};
     var userPriceCents = Math.round(Number(opts.userPriceCents) || 0);
@@ -437,7 +437,7 @@
     /* Term-aware savings from W.contractQuote(), when the household gave
        enough of a contract to build a schedule. periodMonths * today's delta
        is the fallback, and it is wrong the moment a price change sits inside
-       the window — see the contract schedule engine's note above. Band
+       the window: see the contract schedule engine's note above. Band
        SELECTION is unaffected either way: the verdict is about the price
        being paid today, not about the total. */
     var scheduleSavingsCents = (opts.scheduleSavingsCents == null || opts.scheduleSavingsCents === '')
@@ -472,9 +472,9 @@
     if (bandId === 5 && !promoEndDate) bandId = 4;
 
     var showPromoDateRow = bandId === 5;
-    /* savingsCents is never negative — the schedule figure arrives already
+    /* savingsCents is never negative, the schedule figure arrives already
        floored at zero (W.contractQuote's forward.savingsCents), and the
-       fallback floors the per-month gap before the multiply — so bands 3/4,
+       fallback floors the per-month gap before the multiply, so bands 3/4,
        negative or near-zero ratios, compute to exactly 0 rather than merely
        displaying as $0. */
     var savingsCents = scheduleSavingsCents !== null
@@ -496,7 +496,7 @@
      each geography, the household's exact connection type before falling
      back to every terrestrial type pooled together (js/whollar-signal-
      lookup.js only ever emits a bucket once it has >=5 samples, so any key
-     present here already clears that bar — a miss just means "try the next,
+     present here already clears that bar: a miss just means "try the next,
      coarser key").
      input: { fsa, provinceCode, speedMbps, connectionType } (connectionType
      is one of 'fibre'|'cable'|'dsl'|null; null skips straight to the
@@ -541,7 +541,7 @@
      absolute distance from the raw Mbps value wins. Ties (equidistant
      between two tiers) resolve to the lower tier, matching Math.round's own
      .5-rounds-up-toward-the-first-comparison behaviour is NOT what this
-     does — ties are decided explicitly below so the rule is legible
+     does: ties are decided explicitly below so the rule is legible
      without working out floating-point argmin by hand. */
   W.signalSpeedTier = function (mbps) {
     var v = Number(mbps);
@@ -579,9 +579,9 @@
    *    price. When rows are present they override the single-promo fields.
    *
    * Field mapping from the checkup form (both in cents here):
-   *   regularPriceCents  = Q03 "Current price you pay" — the gross monthly
+   *   regularPriceCents  = Q03 "Current price you pay", the gross monthly
    *                        charge, which is also the post-promo price
-   *   discountPriceCents = that charge minus Q09's discount — what is paid
+   *   discountPriceCents = that charge minus Q09's discount, what is paid
    *                        while the promo runs
    * The form collects the discount as an amount off (so does the bill OCR);
    * the conversion to a promo PRICE happens at the call site.
@@ -605,7 +605,7 @@
   };
 
   /* Accepts a Date, a 'YYYY-MM-DD' string (what <input type="date"> gives),
-     or null. Anchored to LOCAL midnight — see W.parseDateLocal's note. */
+     or null. Anchored to LOCAL midnight: see W.parseDateLocal's note. */
   function asDate(v) {
     if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
     return W.parseDateLocal(v);
@@ -636,7 +636,7 @@
     }
 
     /* Cycles already billed: bill date on or before today. If the start date
-       had to be assumed, nothing counts as elapsed — every figure is then a
+       had to be assumed, nothing counts as elapsed: every figure is then a
        forward projection, which is the only claim the data supports. */
     var today = asDate(opts.today) || new Date();
     today.setHours(0, 0, 0, 0);
@@ -684,7 +684,7 @@
              twelve months at the contract start would put the promo in the
              past for anyone more than a year in, and then the schedule would
              price today's cycle at the full rate while the card's own "you
-             pay now" row shows the discounted one — the same household told
+             pay now" row shows the discounted one: the same household told
              two different things on one card. So the assumed window runs
              twelve months FORWARD from the cycle they are in now.
 
@@ -1642,7 +1642,7 @@
      * Sign in, step one. -> { ok, mfaRequired: true, ttlMinutes, dev? }
      *
      * RESOLVING DOES NOT MEAN SIGNED IN. A correct password gets a code emailed
-     * and nothing else — no cookie, no session. `loginVerify` below is what
+     * and nothing else: no cookie, no session. `loginVerify` below is what
      * finishes it, and that is true on every sign-in, not only the first after
      * signup. A caller that treats this resolution as success sends people to a
      * dashboard that will bounce them straight back out.
@@ -1665,7 +1665,7 @@
      * Sign in, step two: the emailed code, exchanged for the session.
      * -> { ok, user, expiresAt }
      *
-     * The password is deliberately not re-sent — the server already checked it
+     * The password is deliberately not re-sent: the server already checked it
      * before the code existed, so no page needs to hold it across the wire a
      * second time.
      */
@@ -1747,7 +1747,7 @@
      *
      * Like the member login above, resolving means "we emailed a code", not
      * "signed in": no session exists until `providerLoginVerify`. Nothing about
-     * the org — its name, its approval — comes back here, because none of it
+     * the org, its name, its approval, comes back here, because none of it
      * has been earned at this point.
      *
      * One opaque message for every failure, including a correct password on

@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Email one-time-code login — the member sign-in path.
+ * Email one-time-code login: the member sign-in path.
  *
  * There is deliberately no separate "sign up" endpoint. `/otp/start` issues a
  * code for any well-formed address, whether or not an account exists, and
@@ -9,7 +9,7 @@
  * what makes the pair non-enumerable: no timing difference, no status
  * difference, nothing an attacker can use to ask "does this person bank here?"
  *
- * The frontend keeps its Sign in / Create account toggle — that is a copy
+ * The frontend keeps its Sign in / Create account toggle: that is a copy
  * decision about what the visitor is told, and it costs nothing. The server
  * behaves identically either way.
  */
@@ -63,7 +63,7 @@ function mount(router, cfg) {
 
     // Best-effort personalisation: an existing member gets their name, anyone
     // else gets the bare greeting. A lookup failure falls through to the bare
-    // greeting — it must never change the response or block the send.
+    // greeting: it must never change the response or block the send.
     const known = await users.findByEmail(req.catalyst, email).catch(() => null);
     const message = mailer.otpEmail({
       code, purpose: 'login', ttlMinutes,
@@ -77,7 +77,7 @@ function mount(router, cfg) {
     } catch (err) {
       // Not surfaced to the caller: a provider outage must not reveal whether
       // this particular address was accepted for delivery. But it IS recorded,
-      // because /otp/start answers identically either way — so without this the
+      // because /otp/start answers identically either way, so without this the
       // difference between "sent" and "the provider rejected everything" exists
       // nowhere a person will look.
       sendError = String((err && err.message) || err).slice(0, 300);
@@ -94,7 +94,7 @@ function mount(router, cfg) {
     const body = { ok: true, ttlMinutes };
     if (canRevealCode(cfg)) {
       body.dev = {
-        note: 'No mail provider configured — code returned here instead of being sent.',
+        note: 'No mail provider configured: code returned here instead of being sent.',
         code,
       };
     }

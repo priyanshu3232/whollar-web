@@ -1,4 +1,4 @@
-# Zoho CRM sync — setup runbook
+# Zoho CRM sync: setup runbook
 
 How leads flow from the website into Zoho CRM, and the one-time console setup
 needed to turn it on. The code is already deployed by the pipeline; the steps
@@ -10,7 +10,7 @@ below are the parts only you can do in the Catalyst / CRM consoles.
 > the parts that cannot be done from the repository.
 >
 > **1. There is no production Catalyst environment.** `.catalystrc` declares
-> exactly one environment — id `110003037934`, type 3, **Development** — and
+> exactly one environment, id `110003037934`, type 3, **Development**, and
 > `.github/workflows/deploy-functions.yml` deploys to it by name. Every form on
 > the live site therefore writes to a development Data Store. Create the
 > production environment, then change `CATALYST_HOST` in
@@ -25,11 +25,11 @@ below are the parts only you can do in the Catalyst / CRM consoles.
 > **3. Pre-create the `Lead_Source` picklist options** (Setup → Customization →
 > Modules → Leads → Lead_Source). Zoho rejects a picklist value that is not
 > already defined, so a missing option used to fail every insert, retry six
-> times, and land the lead on `FAILED` — silent total lead loss. `crmSync` now
+> times, and land the lead on `FAILED`: silent total lead loss. `crmSync` now
 > drops the offending field and retries so the lead still lands, but the
 > attribution is lost until these exist:
 > `Whollar Waitlist`, `Whollar Waitlist Details`, `Whollar Bill Checkup`,
-> `Whollar Deep Read`, `Whollar Partner Application` — plus the same five with
+> `Whollar Deep Read`, `Whollar Partner Application`, plus the same five with
 > a ` [dev]` suffix while `CRM_ENVIRONMENT` is not `production`.
 > Also confirm `Rating` accepts `Hot` (it does by default).
 >
@@ -39,7 +39,7 @@ below are the parts only you can do in the Catalyst / CRM consoles.
 >
 > **5. Optional Data Store columns.** Consent and verdict data currently ride
 > in the `CrmSyncQueue.Payload` JSON and reach the CRM Note, but are not
-> columns on the source tables — adding a column that does not exist in the
+> columns on the source tables: adding a column that does not exist in the
 > console makes `insertRow` fail outright, so the code deliberately does not
 > write them. To persist them as first-class fields, create these and add them
 > to the row objects in `functions/formSubmit/index.js`:
@@ -57,18 +57,18 @@ Website form
                   → Zoho CRM Lead  (created/updated by email, + a Note with the details)
 ```
 
-Why a queue: a form submission NEVER fails because CRM is slow or down — it just
+Why a queue: a form submission NEVER fails because CRM is slow or down. It just
 saves a row and a job. `crmSync` drains the queue on a schedule and retries
 anything that failed, so no lead is lost. Only `crmSync` holds the Zoho
 credentials; `formSubmit` has none.
 
 Which forms become leads: Waitlist, Waitlist details, Bill checkup, Deep read
 (marked "Hot"), and Partner applications. The anonymous savings calculator is
-NOT synced (no name/email — there's no person to create).
+NOT synced (no name/email: there's no person to create).
 
 ---
 
-## Step 1 — Create the `CrmSyncQueue` table (Cloud Scale → Data Store)
+## Step 1: Create the `CrmSyncQueue` table (Cloud Scale → Data Store)
 
 New Table, name it exactly **`CrmSyncQueue`**, and add these columns. Leave
 every column **not mandatory** (so a partial insert can never fail):
@@ -81,14 +81,14 @@ every column **not mandatory** (so a partial insert can never fail):
 | `LeadType`    | Text       | 50         | consumer / partner       |
 | `Payload`     | Text       | 25000      | submission data (JSON)   |
 | `Status`      | Text       | 50         | PENDING/SYNCED/FAILED    |
-| `Attempts`    | Number     | —          | retry counter            |
+| `Attempts`    | Number     | -          | retry counter            |
 | `LastError`   | Text       | 25000      | last failure message     |
 | `CrmLeadId`   | Text       | 255        | the created CRM lead id  |
-| `SyncedAt`    | Date-Time  | —          | when it reached CRM      |
+| `SyncedAt`    | Date-Time  | -          | when it reached CRM      |
 
-`ROWID`, `CREATEDTIME`, `MODIFIEDTIME` are added automatically — don't create them.
+`ROWID`, `CREATEDTIME`, `MODIFIEDTIME` are added automatically: don't create them.
 
-## Step 2 — Set environment variables on `crmSync` (Serverless → Functions → crmSync)
+## Step 2: Set environment variables on `crmSync` (Serverless → Functions → crmSync)
 
 Open the `crmSync` function → its configuration / Environment Variables, and add:
 
@@ -102,7 +102,7 @@ Open the `crmSync` function → its configuration / Environment Variables, and a
 | `CRM_CRON_SECRET`    | a long random string you invent (the cron's password) |
 | `CRM_ENVIRONMENT`    | `development` (in prod, set `production`)     |
 | `CRM_SYNC_ENABLED`   | `false`  ← leave OFF until Step 4            |
-| `CRM_PARTNER_MODULE` | *(optional)* module partner applications land in — see below |
+| `CRM_PARTNER_MODULE` | *(optional)* module partner applications land in: see below |
 | `CRM_PARTNER_NAME_FIELD` | *(optional)* that module's name field, if not the default |
 
 (If your CRM is on the US DC instead, use `accounts.zoho.com` / `www.zohoapis.com`.)
@@ -112,19 +112,19 @@ can fire, but nothing is written to CRM yet. `CRM_ENVIRONMENT=development` tags
 every test lead's source as `… [dev]` and note titles as `[DEV] …`, so test data
 is one filter away from deletion in CRM.
 
-### Partner module — landing provider leads in their own module
+### Partner module: landing provider leads in their own module
 
 By default everything lands in **Leads**, with `Lead_Source` telling consumer
 and provider apart. To give partner applications their **own module** instead,
-set `CRM_PARTNER_MODULE` (no redeploy needed — env vars are read per run):
+set `CRM_PARTNER_MODULE` (no redeploy needed: env vars are read per run):
 
-- **`Vendors`** — the built-in module; zero Zoho setup. The record's name
+- **`Vendors`**: the built-in module; zero Zoho setup. The record's name
   becomes the applicant's company (`Vendor_Name`), Email and Phone carry over,
   and the full application (role, provinces, access techs, LOA…) is attached
   as a Note, exactly like before.
 - **A custom module** (e.g. `Partners`, Enterprise edition and up): create it
   in Setup → Customization → Modules, then set `CRM_PARTNER_MODULE` to its
-  **API name** (Setup → Developer Hub → APIs → API Names — often plural, e.g.
+  **API name** (Setup → Developer Hub → APIs → API Names: often plural, e.g.
   `Partners`). Requirements: an **Email**-type field with API name `Email`
   (used for dedupe search), and if its mandatory name field isn't called
   `Name`, set `CRM_PARTNER_NAME_FIELD` to its API name.
@@ -134,7 +134,7 @@ Behaviour once set:
 - Consumer sources (waitlist, bill checkup, deep read) still become Leads;
   only `PartnerApplications` rows go to the partner module. Dedupe is
   **per-module**: the same email can be a consumer Lead *and* a partner
-  record — that's the point.
+  record: that's the point.
 - `Lead_Source` / `Company` / `Rating` are Leads-only fields and are not sent
   to the partner module (they'd be rejected as INVALID_DATA); the `[DEV]` tag
   still appears in the Note title outside production.
@@ -146,12 +146,12 @@ Behaviour once set:
   retry up to `CRM_MAX_ATTEMPTS`, and consumer syncs are unaffected.
 - The Self Client scope must cover the module. A refresh token minted with
   `ZohoCRM.modules.ALL` covers Vendors and custom modules; one scoped only to
-  `ZohoCRM.modules.leads.*` does not — check the scope you used and mint a new
+  `ZohoCRM.modules.leads.*` does not: check the scope you used and mint a new
   token if needed (a `OAUTH_SCOPE_MISMATCH` in `LastError` is the symptom).
 
-## Step 3 — Create the cron (Cloud Scale → Cron, or Job Scheduling)
+## Step 3: Create the cron (Cloud Scale → Cron, or Job Scheduling)
 
-- New Cron → schedule: every 5 minutes (or 15 — your call).
+- New Cron → schedule: every 5 minutes (or 15: your call).
 - Target type: **Third-party URL** (Webhook).
 - Method: **POST**.
 - URL: your crmSync function URL, e.g.
@@ -159,12 +159,12 @@ Behaviour once set:
   (copy the exact function URL from the crmSync function page; append `/process`).
 - **Headers: add `X-Cron-Secret: YOUR_CRM_CRON_SECRET`.** A query-string secret
   (the old `?key=…` form) lands in access logs, the Job Scheduling run
-  history, and any `Referer` header — a header does not. The function still
+  history, and any `Referer` header: a header does not. The function still
   accepts `?key=` as a fallback so an existing cron target doesn't silently
   break, but it logs a warning every time that path is used; move to the
   header and confirm the warning stops before treating this as done.
 
-## Step 4 — Test on Development, THEN go live
+## Step 4: Test on Development, THEN go live
 
 1. Confirm the pipeline deployed `crmSync` (GitHub Actions green; the function
    appears under Serverless → Functions).
@@ -195,5 +195,5 @@ production function URL in the cron, and the same Zoho variables.
 - `skipped … CRM_SYNC_ENABLED is not true` → flip the switch to `true`.
 - `token refresh failed` → wrong `ZOHO_*` creds or wrong DC domain.
 - Rows stuck `PENDING`, never SYNCED → the cron isn't hitting the URL (check the
-  cron's URL/method) — the manual curl in Step 4 isolates cron vs. code.
+  cron's URL/method): the manual curl in Step 4 isolates cron vs. code.
 - Row `FAILED` with a `LastError` → read it; a bad field/scope shows here.

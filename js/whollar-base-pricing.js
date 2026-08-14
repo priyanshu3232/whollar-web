@@ -10,7 +10,7 @@
  * This is the FLOOR reference consumed by WHOLLAR.basePriceFor() (see
  * whollar-core.js) for the "you could save" projection. It is deliberately
  * separate from W.BENCHMARKS (js/whollar-benchmarks.js), which still decides
- * the weak/fair/strong/cliff verdict — that logic is unchanged.
+ * the weak/fair/strong/cliff verdict: that logic is unchanged.
  *
  * Cascade, most to least specific:
  *   province + speedTier   BASE_BY_PROVINCE_TIER["<pv>|<tier>"]

@@ -6,7 +6,7 @@
  *
  * Auth error messages are a genuine information leak. "No account with that
  * email" and "wrong password" together turn a login form into an account
- * enumeration oracle — anyone can discover who has an account here. So the
+ * enumeration oracle: anyone can discover who has an account here. So the
  * distinction lives in `logDetail`, which goes to `auth_events`, while the
  * client gets one deliberately identical message. `SERVER_ERROR` additionally
  * carries the request id so a user can quote it and we can find the log line.
@@ -17,7 +17,7 @@ const CODES = Object.freeze({
   UNAUTHENTICATED:  401,
   FORBIDDEN:        403,
   // Its own code rather than a plain FORBIDDEN because the client has to act on
-  // it — showing the code-entry step instead of a dead error — and branching on
+  // it, showing the code-entry step instead of a dead error, and branching on
   // a message string is how that breaks the first time the copy is reworded.
   EMAIL_UNVERIFIED: 403,
   NOT_FOUND:        404,
@@ -65,7 +65,7 @@ const notImplemented = (feature) => new AppError(
 /**
  * Terminal Express error handler.
  *
- * Anything that is not an AppError is, by definition, unanticipated — so it is
+ * Anything that is not an AppError is, by definition, unanticipated, so it is
  * reported as a bare SERVER_ERROR and its message is logged rather than sent.
  * A stack trace or a driver message in a response body is how internals leak.
  */

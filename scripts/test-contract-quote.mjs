@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* Unit tests for WHOLLAR.buildSchedule / WHOLLAR.contractQuote
- * (js/whollar-core.js) — the contract schedule engine behind the checkup
+ * (js/whollar-core.js): the contract schedule engine behind the checkup
  * card's savings total.
  *
  *   node --test scripts/test-contract-quote.mjs
@@ -29,7 +29,7 @@ const BENCH = D(70);    // the benchmark in every case that has one
 test('promo runs to its end date, then the regular price takes over', () => {
   // 36 months from 2025-06-08, $80 while the promo lasts, $120 after it ends
   // on 2026-11-26. Bills land on the 8th, so the last promo bill is
-  // 2026-11-08 — cycle 18.
+  // 2026-11-08: cycle 18.
   const s = buildSchedule({
     termMonths: 36,
     regularPriceCents: D(120),
@@ -75,8 +75,8 @@ test('elapsed cycles, and forward savings over what is left of the term', () => 
 });
 
 test('the cliff inside the window is exactly what months x today\'s gap misses', () => {
-  // Same household as above. The old flat maths — 21 months at today's $80
-  // against $70 — would have promised $210. The schedule says $930 because
+  // Same household as above. The old flat maths, 21 months at today's $80
+  // against $70, would have promised $210. The schedule says $930 because
   // eighteen of those bills are $120, not $80.
   const flat = 21 * (D(80) - BENCH);
   assert.equal(flat, D(210));

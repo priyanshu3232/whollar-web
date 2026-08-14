@@ -1,13 +1,13 @@
 'use strict';
 
 /**
- * The campaign catalog, promoted from a code constant to a table — with the
+ * The campaign catalog, promoted from a code constant to a table: with the
  * code constant kept as the fallback.
  *
  * `routes/campaigns.js` used to hold the catalog as `const CATALOG`, which was
  * right while campaigns changed only by deploy. The admin console exists to
  * make "open bidding on Windsor" an ops decision *without* a deploy, so the
- * catalog now lives in the `campaigns` table — read here, memoized for 60
+ * catalog now lives in the `campaigns` table: read here, memoized for 60
  * seconds, and **falling back to the code catalog whenever the table is
  * missing or unreadable**. Day one before the table exists, the site behaves
  * exactly as it did yesterday; the console's "import defaults" seeds the
@@ -18,8 +18,8 @@
  *   planned → waitlist → forming → auction → closed → archived
  *
  * Members may join while forming/waitlist/planned (JOIN_STATUS, unchanged);
- * `auction` locks joins and — with `bidding_open` and the global
- * `bidding_enabled` flag — opens the partner bid window; `closed` shows
+ * `auction` locks joins and, with `bidding_open` and the global
+ * `bidding_enabled` flag, opens the partner bid window; `closed` shows
  * results; `archived` disappears from every non-admin surface.
  */
 

@@ -5,8 +5,8 @@
  * fatal for auth: `/api/auth/*` exists in production purely because of the
  * `rewrites` block in vercel.json, and `serve` does not read that file. So
  * locally every auth call 404s, the 404 body is HTML, `res.json()` throws on
- * it, and the page reports a transport failure — "We couldn't reach our
- * servers" — for what is really a missing route. That error is the reason this
+ * it, and the page reports a transport failure, "We couldn't reach our
+ * servers", for what is really a missing route. That error is the reason this
  * file exists.
  *
  * `vercel dev` would also work, but it refuses to start without a `build`
@@ -54,8 +54,8 @@ const TYPES = {
  *                       Dropping it turns every POST into a 403.
  *   x-forwarded-proto   deliberately `http`. The function sets `Secure` on the
  *                       session cookie when it sees https, and a Secure cookie
- *                       is not stored by every browser on plain-http localhost
- *                       — so claiming https here would break sign-in locally in
+ *                       is not stored by every browser on plain-http localhost,
+ *                      so claiming https here would break sign-in locally in
  *                       a way that looks like the session silently vanishing.
  */
 async function proxy(req, res, url) {
@@ -132,7 +132,7 @@ const server = createServer(async (req, res) => {
   const file = await resolveFile(url.pathname === '/' ? '/index.html' : url.pathname);
   if (!file) {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-    return res.end(`404 — no file for ${url.pathname}`);
+    return res.end(`404: no file for ${url.pathname}`);
   }
 
   const body = await readFile(file);

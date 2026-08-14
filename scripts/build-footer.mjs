@@ -19,8 +19,8 @@
  * inherit the footer (and its mobile link rewrites) from there rather than
  * being listed below.
  *
- * The markup is deliberately self-contained — its own colours, spacing and
- * font stack — because it drops into four unrelated design systems (the site
+ * The markup is deliberately self-contained, its own colours, spacing and
+ * font stack, because it drops into four unrelated design systems (the site
  * pages, the cream legal pages, the serif blog and the provider deck). It must
  * not depend on a page defining --navy-deep, --disp or any other token.
  */
@@ -220,7 +220,7 @@ for (const page of PAGES) {
   const prev = readFileSync(path, 'utf8');
   if (prev === next) continue;
   if (CHECK) {
-    console.error(`STALE   ${page.file} — regenerate with: node scripts/build-footer.mjs`);
+    console.error(`STALE   ${page.file}: regenerate with: node scripts/build-footer.mjs`);
     stale++;
     continue;
   }

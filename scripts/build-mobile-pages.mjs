@@ -67,7 +67,7 @@ const PAGES = [
   }
 ];
 
-/* Rewrite only href/action targets, never arbitrary text — a bare "/" inside
+/* Rewrite only href/action targets, never arbitrary text: a bare "/" inside
    copy or a regex must not be touched. */
 function rewriteLinks(html) {
   return html.replace(/(\b(?:href|action)=")([^"]*)(")/g, (full, pre, url, post) => {
@@ -78,7 +78,7 @@ function rewriteLinks(html) {
 }
 
 /* The mobile page is a duplicate of a desktop URL. Without a canonical both
-   are indexable as separate pages — 8 duplicate URLs across the four pairs. */
+   are indexable as separate pages: 8 duplicate URLs across the four pairs. */
 function forceCanonical(html, url) {
   const tag = `<link rel="canonical" href="${url}">`;
   return /<link rel="canonical"[^>]*>/.test(html)
@@ -120,7 +120,7 @@ for (const page of PAGES) {
     continue;
   }
   if (CHECK) {
-    console.error(`STALE   ${page.output} — regenerate with: node scripts/build-mobile-pages.mjs`);
+    console.error(`STALE   ${page.output}: regenerate with: node scripts/build-mobile-pages.mjs`);
     stale++;
     continue;
   }

@@ -9,7 +9,7 @@
 <!-- Benchmarks + base pricing before core, as on /bill-checkup: core reads the
      tables at call time but the estimator below needs them present on first
      paint. estimateAnnualSavings() has read from whollar-base-pricing.js
-     since PlanSavvy replaced the scraped benchmark — without this tag every
+     since PlanSavvy replaced the scraped benchmark: without this tag every
      estimate silently returns null and the widget shows nothing at all. -->
 <script src="/js/whollar-benchmarks.js?v=20260806"></script>
 <script src="/js/whollar-base-pricing.js?v=20260807c"></script>
@@ -346,7 +346,7 @@ img,svg{display:block}
 .whl-btn:hover{background:var(--teal-deep);transform:translateY(-1px)}
 .whl-btn--lg{font-size:16px;padding:15px 24px;border-radius:13px;box-shadow:0 14px 30px -14px rgba(14,42,32,.85)}
 .whl-btn--block{display:flex;width:100%}
-/* "For providers" and "Log in" are plain text links in the header — only the
+/* "For providers" and "Log in" are plain text links in the header: only the
    "Join the First Cohort" primary keeps a boxed button. */
 .whl-btn--outline{background:transparent;color:var(--teal);border:none;box-shadow:none;padding:13px 0}
 .whl-btn--outline:hover{background:transparent;color:var(--teal-deep);transform:none}
@@ -2079,7 +2079,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
           <div class="whl-est__out">
             <div class="pre">Households like yours typically save</div>
             <div class="whl-est__num"><b data-save="">$230</b><span>/ year</span></div>
-            <p data-save-note style="font-size:12px;color:#8A968F;margin-top:8px;display:none">This is the maximum possible saving — the lowest advertised price we found in your area. Your actual offer may vary.</p>
+            <p data-save-note style="font-size:12px;color:#8A968F;margin-top:8px;display:none">This is the maximum possible saving: the lowest advertised price we found in your area. Your actual offer may vary.</p>
           </div>
           <a class="whl-btn whl-btn--lg whl-btn--block" href="/bill-checkup" style="margin-top:18px">Click here to check detailed view</a>
         </div>
@@ -2872,7 +2872,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   var BMIN=40, BMAX=160;
   /* The number is twelve months of the household's bill minus twelve months
      at the single cheapest advertised plan in their province
-     (WHOLLAR.estimateAnnualSavings -> minBasePriceFor, the PlanSavvy list) —
+     (WHOLLAR.estimateAnnualSavings -> minBasePriceFor, the PlanSavvy list):
      the postal code decides the province, so it is required before this
      will calculate. That makes this a MAXIMUM possible saving, not a typical
      one (the widget's own copy says so); no speed/tech input is collected,

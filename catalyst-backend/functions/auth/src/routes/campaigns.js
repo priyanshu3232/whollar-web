@@ -4,7 +4,7 @@
  * Campaigns: the first surface the member and partner dashboards SHARE.
  *
  * One catalog of campaigns, one membership table, and both sides reading
- * counts from it — so a member joining a cohort is one more household on the
+ * counts from it, so a member joining a cohort is one more household on the
  * partner's desk.
  *
  *   GET  /campaigns            what a signed-in member sees near them
@@ -22,7 +22,7 @@
  * Bidding is enforced here as data, decided elsewhere: the response to the
  * partner desk carries `bidding.enabled` (the global kill switch from
  * site_config) and each auction's `bidding_open`. `requireBiddingOpen()` is
- * exported for the day a bid-placing route exists — the check must live in
+ * exported for the day a bid-placing route exists: the check must live in
  * one helper so no future route can forget it.
  *
  * Counts only ever cross the aisle. A partner sees how many households a
@@ -44,7 +44,7 @@ const { JOIN_STATUS } = catalog;
  * ------------------------------------------------------------------ */
 
 /**
- * Every membership row, or null when the table cannot be read — which above
+ * Every membership row, or null when the table cannot be read, which above
  * all means "not created in the console yet". The distinction matters: the
  * dashboards must keep working on seed numbers before the table exists, so
  * "no rows" and "no table" are different answers, not both `[]`.
@@ -164,7 +164,7 @@ function campaignFrom(cat, body) {
 
 /**
  * The one bidding gate. Every future route that accepts a bid MUST call this
- * first — the global kill switch and the per-campaign window are both
+ * first: the global kill switch and the per-campaign window are both
  * enforced here and nowhere else, so no new route can check one and forget
  * the other. Refuses with 409, the code the dashboards render as "bidding is
  * paused", not as an error of theirs.
@@ -214,7 +214,7 @@ async function requireBiddingOpen(catalystApp, campaign) {
 
 /**
  * The single write funnel. Every mutation is an upsert on the flattened
- * (campaign, user) key — Catalyst's unique constraint is per-column, so the
+ * (campaign, user) key: Catalyst's unique constraint is per-column, so the
  * pair is stored as one column, same trick as `auth_identities.provider_key`.
  * A failure here is almost always "table not created yet"; say so once,
  * clearly, instead of a generic 500.
@@ -259,7 +259,7 @@ function mount(router) {
    * -> { ok, live, campaigns }
    *
    * `live:false` means counts are seed baselines because the membership table
-   * was unreadable — the dashboard renders exactly what it rendered before
+   * was unreadable: the dashboard renders exactly what it rendered before
    * this API existed, and hides nothing.
    */
   router.get('/campaigns', wrap(async (req, res) => {
@@ -286,7 +286,7 @@ function mount(router) {
 
   /**
    * Join. Forming cohort -> a member of it; waitlist/planned region -> on the
-   * list. Idempotent: joining twice is one row. An 'alert' row upgrades — a
+   * list. Idempotent: joining twice is one row. An 'alert' row upgrades: a
    * join is strictly more interest than a bell. -> { ok, campaign }
    */
   router.post('/campaigns/join', wrap(async (req, res) => {
@@ -354,7 +354,7 @@ function mount(router) {
   }));
 
   /**
-   * The bell: "tell me the day this one moves." Never downgrades — a member
+   * The bell: "tell me the day this one moves." Never downgrades: a member
    * who already joined and then taps the bell stays joined. -> { ok, campaign }
    */
   router.post('/campaigns/notify', wrap(async (req, res) => {
@@ -404,7 +404,7 @@ function mount(router) {
    *
    * `bidding.enabled` is the global kill switch; each campaign additionally
    * carries `bidding_open`. The dashboard renders bid forms disabled when
-   * either is off — and the server refuses regardless, via
+   * either is off, and the server refuses regardless, via
    * requireBiddingOpen(), the day a bid route exists.
    */
   router.get('/provider/campaigns', wrap(async (req, res) => {

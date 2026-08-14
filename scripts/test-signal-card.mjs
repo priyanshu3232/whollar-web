@@ -5,7 +5,7 @@
  *
  * Not wired into CI: this repo has no browser-test infrastructure today
  * (check-frontend.yml only runs `node --check`-style static checks), and
- * adding one is a bigger call than this script's own scope — provisioning
+ * adding one is a bigger call than this script's own scope: provisioning
  * Playwright's browser binary in CI costs real time on every run. Run this
  * by hand after touching the signal card; scripts/test-select-band.mjs (the
  * pure band-selection logic) IS wired into CI and needs no browser.
@@ -89,7 +89,7 @@ try {
     await page.close();
   }
 
-  console.log('Lookup miss (guardrail 1 — band 3 copy, rows suppressed, not merely hidden):');
+  console.log('Lookup miss (guardrail 1: band 3 copy, rows suppressed, not merely hidden):');
   {
     const page = await browser.newPage({ viewport: { width: 1300, height: 2000 } });
     await fillAndSubmit(page, { '#pc': 'X0X 0X0', '#prov': 'Other / not sure', '#cost': '90', '#spd': '1500', '#tech': 'Satellite (dish)' });

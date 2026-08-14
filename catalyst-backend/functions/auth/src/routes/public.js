@@ -9,7 +9,7 @@
  *
  * What the marketing pages and dashboards call (via `W.siteConfig()`) to
  * render prices, thresholds and notices the admin console can change without
- * a deploy. Only keys marked `published` appear, values only — no
+ * a deploy. Only keys marked `published` appear, values only: no
  * descriptions, no audit fields, nothing about who changed what.
  *
  * Cacheable for 60 seconds, deliberately overriding the function-wide

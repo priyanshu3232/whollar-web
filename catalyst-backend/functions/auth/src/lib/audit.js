@@ -5,7 +5,7 @@
  *
  * This is the only production debugging tool the auth system has. There is no
  * way to reproduce "this person could not sign in last Tuesday" without it, so
- * every route writes here — on success as well as failure. A trail that only
+ * every route writes here: on success as well as failure. A trail that only
  * records failures cannot answer "did this even reach us?", which is the first
  * question every time.
  *
@@ -62,7 +62,7 @@ function scrub(value, depth = 0) {
 }
 
 /**
- * Write one event. Best-effort by design — see rule 2 above.
+ * Write one event. Best-effort by design: see rule 2 above.
  *
  * @param {object}  catalystApp
  * @param {object}  req
@@ -89,7 +89,7 @@ async function record(catalystApp, req, event) {
     });
   } catch (err) {
     // Logged, never thrown. If auditing is broken we still want the request to
-    // succeed, and we want to know — hence console.error rather than silence.
+    // succeed, and we want to know, hence console.error rather than silence.
     console.error(JSON.stringify({
       req_id: req && req.id,
       level: 'error',

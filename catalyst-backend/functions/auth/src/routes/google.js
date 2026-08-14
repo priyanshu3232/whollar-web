@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Sign in with Google — Authorization Code + PKCE.
+ * Sign in with Google: Authorization Code + PKCE.
  *
  *   GET /google/start     -> 302 to Google
  *   GET /google/callback  -> exchange, verify, link, session, 302 to the app
@@ -42,7 +42,7 @@ function mount(router, cfg) {
     /**
      * Unconfigured is answered with a redirect, not the 501 the other feature
      * groups use. Both of these routes are top-level browser navigations, so a
-     * JSON body would strand the visitor on a raw error page with no way back —
+     * JSON body would strand the visitor on a raw error page with no way back:
      * the same reason `fail()` exists below. The login page renders this code
      * as "Google sign-in isn't available right now" and its email form is still
      * there underneath.
@@ -155,7 +155,7 @@ function mount(router, cfg) {
      *
      * Google will hand back addresses it has not confirmed the holder owns.
      * Accepting one lets somebody take over an existing Whollar account simply
-     * by putting that address on a fresh Google account — the identity is
+     * by putting that address on a fresh Google account: the identity is
      * linked by email, so an unverified email is an unauthenticated claim.
      */
     if (claims.email_verified === false) {
@@ -181,7 +181,7 @@ function mount(router, cfg) {
       user = found.user;
       created = found.created;
 
-      // Links a Google login to an account that already signed up by email —
+      // Links a Google login to an account that already signed up by email:
       // the whole point of keeping identities in their own table.
       await users.linkIdentity(req.catalyst, {
         userId: user.user_id, provider: 'google',

@@ -4,7 +4,7 @@
  * Provider organisations and the people who act for them.
  *
  * The thing that makes a partner account different from a member account is
- * that a partner is not really a person — they are a person acting for a
+ * that a partner is not really a person: they are a person acting for a
  * company. Two rows express that: `provider_orgs` is the company, and
  * `provider_users` is the membership, carrying the role.
  *
@@ -30,7 +30,7 @@ const APPROVAL = Object.freeze(['pending', 'approved', 'rejected']);
 /**
  * Consumer mailbox providers, refused for partner signup.
  *
- * Not security theatre — the domain IS the identity claim here. Everyone at
+ * Not security theatre: the domain IS the identity claim here. Everyone at
  * `telus.com` is presumed to be the same company, which is what lets the second
  * person from a provider join the first one's org automatically. That inference
  * is sound for a corporate domain and absurd for `gmail.com`, where it would
@@ -100,7 +100,7 @@ const findById = (catalystApp, orgId) =>
  * Find the org for an email domain, or create it pending approval.
  *
  * Matching on the domain is what makes the second person from a company join
- * the first one's organisation instead of creating a duplicate — and, more
+ * the first one's organisation instead of creating a duplicate, and, more
  * importantly, means the second person inherits whatever approval decision was
  * already made about that company rather than getting a fresh unreviewed one.
  *
@@ -122,7 +122,7 @@ async function findOrCreateForDomain(catalystApp, { domain, legalName }) {
     legal_name: String(legalName || emailDomain).trim().slice(0, 255),
     email_domain: emailDomain.slice(0, 255),
     // Never anything but pending on creation. An org becomes approved only by
-    // a human deciding so — there is no code path that self-approves.
+    // a human deciding so: there is no code path that self-approves.
     approval_status: 'pending',
     approved_by: null,
     approved_at: null,
@@ -140,7 +140,7 @@ async function membershipFor(catalystApp, userId) {
   return datastore.findBy(catalystApp, MEMBERSHIPS, 'user_id', userId, MEMBERSHIP_COLUMNS);
 }
 
-/** Everyone attached to an org. Paginated — see datastore.queryAll. */
+/** Everyone attached to an org. Paginated: see datastore.queryAll. */
 const membersOf = (catalystApp, orgId) =>
   datastore.queryAll(catalystApp, MEMBERSHIPS, ['user_id', 'org_id', 'role'],
     `org_id = ${datastore.lit(orgId)}`);
@@ -149,8 +149,8 @@ const membersOf = (catalystApp, orgId) =>
  * Attach a user to an org. Idempotent.
  *
  * The first person at a company becomes `admin`; everyone after them becomes
- * `viewer`, and an admin promotes them. The alternative — trusting whatever
- * role the signup form asked for — would let the fifth person at a provider
+ * `viewer`, and an admin promotes them. The alternative, trusting whatever
+ * role the signup form asked for, would let the fifth person at a provider
  * grant themselves bidding rights by choosing a dropdown value, which is not a
  * decision the person signing up gets to make about themselves.
  */
@@ -180,7 +180,7 @@ async function addMember(catalystApp, { userId, orgId }) {
  *
  * `approved` is computed here and nowhere else, so no caller can arrive at its
  * own answer. Anything other than the literal string `approved` is not
- * approved — a null, a typo or a future status all fail closed.
+ * approved: a null, a typo or a future status all fail closed.
  */
 async function contextFor(catalystApp, userId) {
   const membership = await membershipFor(catalystApp, userId);

@@ -1,4 +1,4 @@
-# Whollar — Backend as it exists today: the admin-panel hand-off
+# Whollar: Backend as it exists today: the admin-panel hand-off
 
 > The current state of `catalyst-backend/`, verified against the code on
 > 2026-07-30. This is the "what exists" companion to
@@ -25,7 +25,7 @@ Browser path: `https://www.whollar.ca/api/auth/*` → vercel.json rewrite →
 `/server/auth/*`. The router is mounted at both `/` and `/auth`, so
 `/health` and `/auth/health` are the same route. Same-origin cookie
 (`whollar_session`, host-only, HttpOnly, SameSite=Lax) + Origin-allowlist
-CSRF on mutations (no token — a custom header would trigger a preflight the
+CSRF on mutations (no token: a custom header would trigger a preflight the
 Catalyst gateway answers without CORS headers).
 
 Config is fail-fast: `config.load()` validates everything at boot and a
@@ -41,7 +41,7 @@ Admin additions (`ADMIN_EMAILS`) should join `config.js` the same way.
 - Member auth: `/otp/start`, `/otp/verify`, `/signup`, `/signup/verify`,
   `/login` + `/login/verify`, `/password/forgot`, `/password/reset`,
   `/google/start`, `/google/callback` (CSRF-exempt, single-use `oauth_state`).
-  Google is the only social provider — Apple was removed 2026-07-30.
+  Google is the only social provider: Apple was removed 2026-07-30.
 - Partner auth: `/provider/signup` (creates org via
   `orgs.findOrCreateForDomain`, refuses free-mail domains),
   `/provider/signup/verify`, `/provider/login` + `/provider/login/verify`
@@ -57,43 +57,43 @@ Admin additions (`ADMIN_EMAILS`) should join `config.js` the same way.
   full replace; GET backfills from `BillCheckupSubmissions` leads).
 - Campaigns: `GET /campaigns`, `POST /campaigns/join|leave|notify` (member),
   `GET /provider/campaigns` (counts only). **The catalog is a code constant**
-  (`CATALOG`, 6 campaigns) — promoting it to the `campaigns` table is admin
+  (`CATALOG`, 6 campaigns): promoting it to the `campaigns` table is admin
   phase ADM-3. Join rules: `JOIN_STATUS = {forming:'joined',
   waitlist:'waitlist', planned:'waitlist'}`; `auction` not joinable.
 
 Two facts that shape admin design:
 
 1. **`grep -i admin` finds no admin routes anywhere.** The only "admin" in
-   the codebase is `provider_users.role ∈ {admin,bidder,viewer}` — an
+   the codebase is `provider_users.role ∈ {admin,bidder,viewer}`: an
    org-level role granting nothing on the platform. Everything in the portal
    plan is greenfield on top of existing libs.
 2. **Approval is not yet enforced server-side.** `provider.js` documents the
-   invariant (*no code path can set `approved`* — true, verified) and
+   invariant (*no code path can set `approved`*: true, verified) and
    `orgs.contextFor()` computes `approved` in exactly one place, but
    `/provider/me` and `/provider/campaigns` gate only on
    `user_type === 'provider'`. Fine while responses are counts-only; the
-   moment a real-data route exists (bids), it must check approval — and
+   moment a real-data route exists (bids), it must check approval, and
    admin *suspend* only has teeth once that check exists.
 
 ## 3. Tables (Data Store)
 
-**Auth schema** — 12 tables declared in `src/lib/schema.js`, hand-created per
+**Auth schema**: 12 tables declared in `src/lib/schema.js`, hand-created per
 `scripts/create-tables.md` (Catalyst has **no DDL API**; a missing column is
 a runtime 500, hence `schema.verify()` + `/health/diagnostics`):
 
 `users` (user_id, email_normalized unique, user_type member|provider, status,
-profile fields — **no `role` column yet**; ADM-0 adds it),
+profile fields: **no `role` column yet**; ADM-0 adds it),
 `auth_identities`, `credentials` (scrypt, lockout), `sessions` (members roll
 past 50% TTL, partners don't; member TTL 30d, partner 12h),
 `auth_challenges` (OTP, 10-min TTL, 5 attempts), `oauth_state`, `consents`
-(append-only), `provider_orgs` (**org_id, legal_name, email_domain — not
+(append-only), `provider_orgs` (**org_id, legal_name, email_domain, not
 unique, race → operator merge; approval_status pending|approved|rejected,
-approved_by, approved_at — no `rejection_reason` yet**), `provider_users`
+approved_by, approved_at: no `rejection_reason` yet**), `provider_users`
 (user_id deliberately non-unique, org_id, role), `member_bills` (one row per
 member, string-typed money/speeds, `source`), `campaign_members`
 (membership_key = `campaign_id:user_id` unique, status joined|waitlist|alert,
-fsa snapshot — **table itself still owed in the console**), and
-`auth_events` — **the audit log** (event_type, user_id, email, ip_hash,
+fsa snapshot, **table itself still owed in the console**), and
+`auth_events`, **the audit log** (event_type, user_id, email, ip_hash,
 outcome, scrubbed JSON `detail` ≤10k). ~23 event types are already written
 via `audit.recordAsync`; admin actions extend this list, no schema change.
 
@@ -119,7 +119,7 @@ smtp → log precedence; approval/rejection notices become two new templates),
 `datastore` (`lit()` whitelist-validated literals, `queryAll` ROWID-cursor
 pagination), `schema`, `crypto` (peppered hashes), `users`, `credentials`,
 `challenges`, `consents`, `orgs` (findOrCreateForDomain, contextFor,
-membersOf — org merge repairs the documented duplicate-domain race),
+membersOf: org merge repairs the documented duplicate-domain race),
 `oidc`, `request` (clientIp precedence). `requireAdmin` + a step-up helper
 are the only new middleware.
 
@@ -131,7 +131,7 @@ These are all documented in code comments and verified against the live env:
   at 300. Every admin list route paginates (`limit ≤ 100` + ROWID cursor);
   counts use `SELECT COUNT`, never `rows.length` of a capped read.
 - **No parameter binding in ZCQL.** `lit()` whitelists
-  (`^[A-Za-z0-9@._:+/=-]{1,320}$`) and throws — free-form admin input
+  (`^[A-Za-z0-9@._:+/=-]{1,320}$`) and throws: free-form admin input
   (config values, rejection reasons) must go through the object API
   (`insertRow`/`updateRow`), never string queries; table names resolve
   through a hardcoded map.
@@ -140,15 +140,15 @@ These are all documented in code comments and verified against the live env:
   happen in code, never in WHERE.
 - **Unique constraints are single-column only** → flattened keys
   (`membership_key`, `provider_key`); `site_config.config_key` follows suit.
-- **Encrypted columns can't be WHERE'd or read back usefully** — the admin
+- **Encrypted columns can't be WHERE'd or read back usefully**: the admin
   console must never select them (plan §3.4 already forbids it).
-- **Over-length values truncate silently** on insert — validate lengths in
+- **Over-length values truncate silently** on insert: validate lengths in
   code (config `value_type` validation covers this).
 - **Graceful degradation is the house pattern**: `campaign_members`
   unreadable → `live:false` + seed counts; bill-lead adoption failure →
   "no earlier checkup", never 500. `site_config` and the `campaigns` table
   must degrade the same way (frozen `DEFAULT_CONFIG`, code-catalog
-  fallback) — plan §2 rule 3.
+  fallback): plan §2 rule 3.
 - **Fail-open vs fail-closed is deliberate**: rate limits and audit writes
   fail open (availability), status flips and challenge consumption fail the
   request (integrity). Admin mutations are integrity-class: the
@@ -158,12 +158,12 @@ These are all documented in code comments and verified against the live env:
 ## 6. Environment
 
 Auth BOOT vars (missing any → degraded app): `NODE_ENV` (**still
-`development` — flip owed before admin goes live**, it's what turns off
+`development`: flip owed before admin goes live**, it's what turns off
 dev routes/diagnostics), `APP_BASE_URL`, `API_BASE_URL`, `COOKIE_DOMAIN`,
 `ALLOWED_ORIGINS`, `CODE_PEPPER`, `IP_PEPPER`, `MAIL_REPLY_TO`, session
 TTLs. Feature groups (all-or-nothing): `smtp`, `mail` (ZeptoMail),
 `consents`, `google`, `crm` (declared,
-unused — live CRM path is crmSync's own `ZOHO_*`/`CRM_*` vars).
+unused: live CRM path is crmSync's own `ZOHO_*`/`CRM_*` vars).
 **`ADMIN_EMAILS` joins BOOT-style validation in `config.js`** (space/comma
 separated, same parsing convention as `ALLOWED_ORIGINS`).
 
@@ -176,6 +176,6 @@ prerequisite A4).
 | Admin capability (user's asks) | The seam that already exists |
 |---|---|
 | 1. Change provider account status | `provider_orgs.approval_status` + `approved_by/at` columns; `orgs.contextFor()` as the single `approved` computation; `orgs.membersOf()` for the review screen; `PartnerApplications` joined by email domain; mailer for notices. Missing: the route, `rejection_reason` column, and server-side enforcement on future real-data routes |
-| 2. Change cohort information | Today a code constant in `routes/campaigns.js` — ADM-3 promotes `CATALOG` to a `campaigns` table with code fallback; member/provider routes keep their response shapes so both dashboards update with zero front-end changes |
+| 2. Change cohort information | Today a code constant in `routes/campaigns.js`: ADM-3 promotes `CATALOG` to a `campaigns` table with code fallback; member/provider routes keep their response shapes so both dashboards update with zero front-end changes |
 | 3. Control running cohort programmes | Lifecycle `kind` transitions + `bidding_open` per campaign + global `site_config.bidding_enabled`, all enforced in the campaign routes (`JOIN_STATUS` already keys joinability off `kind`) |
-| 4. Discretionary extras | Overview counts (`SELECT COUNT` per lead table + queue depth), site_config editor, leads read views, deep-read queue w/ audited file proxy, audit browser over `auth_events`, org-merge tool — all specced in plan §5 |
+| 4. Discretionary extras | Overview counts (`SELECT COUNT` per lead table + queue depth), site_config editor, leads read views, deep-read queue w/ audited file proxy, audit browser over `auth_events`, org-merge tool: all specced in plan §5 |

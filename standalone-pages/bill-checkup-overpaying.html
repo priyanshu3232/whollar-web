@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Whollar checkup — design v6</title>
+<title>The Whollar checkup: design v6</title>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -522,10 +522,10 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
 (function(){
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const S={pc:null,prov:'',cost:0,spd:null,tech:'',pdate:null,pmo:0,expired:false,disc:0,joined:false,file:null,email:''};
-const TYP={'25':40,'50':50,'100':55,'150':58,'300':70,'500':75,'1000':85,'1500':88,'0':60}; /* drives state only — never rendered */
+const TYP={'25':40,'50':50,'100':55,'150':58,'300':70,'500':75,'1000':85,'1500':88,'0':60}; /* drives state only, never rendered */
 const FSA={A:'Newfoundland & Labrador',B:'Nova Scotia',C:'PEI',E:'New Brunswick',G:'Quebec',H:'Quebec',J:'Quebec',K:'Ontario',L:'Ontario',M:'Ontario',N:'Ontario',P:'Ontario',R:'Manitoba',S:'Saskatchewan',T:'Alberta',V:'British Columbia',X:'the North',Y:'Yukon'};
 
-/* CATALYST SETUP: replace with your deployed function base URL — see catalyst-backend/README.md */
+/* CATALYST SETUP: replace with your deployed function base URL: see catalyst-backend/README.md */
 const CATALYST_BASE='https://whollar-110003037934.development.catalystserverless.ca/server/formSubmit';
 const BILL_OCR_BASE=CATALYST_BASE.replace('/formSubmit','/billOcr');
 function submitForm(path,fields,files){
@@ -539,7 +539,7 @@ function submitForm(path,fields,files){
     if(!r.ok){const e=new Error('submit failed: '+r.status);e.status=r.status;throw e;}
     return r.json();});
 }
-/* a failed submit must never masquerade as success — surface it and let the user retry.
+/* a failed submit must never masquerade as success: surface it and let the user retry.
    dark=true renders the message legibly on the dark join cards. */
 function submitErr(anchor,err,dark){
   console.error('[whollar submit]',err);
@@ -547,8 +547,8 @@ function submitErr(anchor,err,dark){
   let el=row.parentNode.querySelector('.suberr');
   if(!el){el=document.createElement('p');el.className='suberr';row.parentNode.insertBefore(el,row.nextSibling);}
   el.style.cssText='margin:10px 0 0;font-size:13px;font-weight:600;position:relative;color:'+(dark?'#FFC9A8':'var(--warn)');
-  el.textContent=err&&err.status===429?'Too many attempts from your network right now — please try again in a little while.'
-    :'We couldn’t reach our servers, so this wasn’t saved — please check your connection and try again.';
+  el.textContent=err&&err.status===429?'Too many attempts from your network right now. Please try again in a little while.'
+    :'We couldn’t reach our servers, so this wasn’t saved. Please check your connection and try again.';
 }
 function clearErr(anchor){const row=anchor.closest('.gerow,.drow,.cta-row')||anchor.parentNode;const el=row.parentNode.querySelector('.suberr');if(el)el.remove();}
 function busy(btn,on,label){
@@ -614,7 +614,7 @@ function setFieldValue(el,value){
 }
 function autofillFromBill(f){
   const original=$('#filename').textContent;
-  $('#filename').textContent=original+' — reading your bill…';
+  $('#filename').textContent=original+': reading your bill…';
   const fd=new FormData();
   fd.append('billFile',f);
   fetch(BILL_OCR_BASE+'/extract-bill',{method:'POST',body:fd})
@@ -633,10 +633,10 @@ function autofillFromBill(f){
     })
     .catch(err=>{
       console.error('[whollar-bill-ocr]',err);
-      const note=err.status===429?' — a few too many tries for now; please fill in below'
-        :err.status===415?' — we can’t read this file type; a PDF, JPG or PNG works best'
-        :err.status===413?' — file’s too large (15 MB max), please fill in below'
-        :' — couldn’t read it, please fill in below';
+      const note=err.status===429?': a few too many tries for now; please fill in below'
+        :err.status===415?': we can’t read this file type; a PDF, JPG or PNG works best'
+        :err.status===413?': file’s too large (15 MB max); please fill in below'
+        :': couldn’t read it; please fill in below';
       $('#filename').textContent=original+note;
       setTimeout(()=>{$('#filename').textContent=original;},8000);
     });
@@ -654,16 +654,16 @@ function flashUploadMsg(msg){
 function acceptFile(f){
   if(!f)return;
   const type=(f.type||'').toLowerCase();
-  /* reject at the door what the backend would refuse anyway — a bad attachment
+  /* reject at the door what the backend would refuse anyway: a bad attachment
      must never ride along and sink the whole submission */
   if(f.type&&!OCR_TYPES.has(type)){
     $('#bill-file').value='';
-    flashUploadMsg('We can’t take that file type — a PDF, JPG, PNG, WebP or GIF works.');
+    flashUploadMsg('We can’t take that file type: a PDF, JPG, PNG, WebP or GIF works.');
     return;
   }
   if(f.size>MAX_ATTACH){
     $('#bill-file').value='';
-    flashUploadMsg('That file is over 20 MB — a photo of the first page works too.');
+    flashUploadMsg('That file is over 20 MB: a photo of the first page works too.');
     return;
   }
   S.file=f.name;
@@ -674,7 +674,7 @@ function acceptFile(f){
      burn rate-limit budget on a request the reader will refuse */
   const ocrCap=type==='application/pdf'?MAX_OCR_PDF:MAX_OCR_IMAGE;
   if(f.size>ocrCap){
-    $('#filename').textContent=f.name+' — too large to auto-read, please fill in below (still attached)';
+    $('#filename').textContent=f.name+': too large to auto-read; please fill in below (still attached)';
     setTimeout(()=>{$('#filename').textContent=f.name;},8000);
     return;
   }
@@ -710,15 +710,15 @@ $$('.qc').forEach(c=>c.addEventListener('click',()=>{$$('.qc').forEach(x=>x.clas
 let deepFiles=[];
 $('#deep-files').addEventListener('change',e=>{
   const files=[...e.target.files];
-  /* mirror the backend's limits up front: 5 files max, 20 MB each, PDF/image only —
+  /* mirror the backend's limits up front: 5 files max, 20 MB each, PDF/image only:
      one bad file would otherwise get the whole request rejected */
   let msg=null;
-  if(files.length>5)msg='Five files max — please pick your most recent bills.';
+  if(files.length>5)msg='Five files max. Please pick your most recent bills.';
   else{
     const badType=files.find(f=>f.type&&!OCR_TYPES.has(f.type.toLowerCase()));
     const badSize=files.find(f=>f.size>MAX_ATTACH);
-    if(badType)msg='We can’t take “'+badType.name+'” — PDFs and photos (JPG, PNG, WebP, GIF) work.';
-    else if(badSize)msg='“'+badSize.name+'” is over 20 MB — a photo of each page works too.';
+    if(badType)msg='We can’t take “'+badType.name+'”: PDFs and photos (JPG, PNG, WebP, GIF) work.';
+    else if(badSize)msg='“'+badSize.name+'” is over 20 MB: a photo of each page works too.';
   }
   if(msg){
     e.target.value='';deepFiles=[];
@@ -755,7 +755,7 @@ $('#check').addEventListener('click',async()=>{
     $('#email').classList.remove('err');
     const btn=$('#check');clearErr(btn);busy(btn,true,'Checking…');
     try{await submitForm('/bill-checkup-join',{email:em,via:'form',switchFor:document.querySelector('.qc.on').textContent,...S},{billFile:($('#bill-file').files||[])[0]||null});}
-    catch(err){joinErr=err;S.joined=false;} /* never hold the results hostage — show them, surface the miss on the join card */
+    catch(err){joinErr=err;S.joined=false;} /* never hold the results hostage: show them, surface the miss on the join card */
     busy($('#check'),false);
   }
   renderResults();screen(2);

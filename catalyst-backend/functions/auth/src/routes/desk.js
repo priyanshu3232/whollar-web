@@ -164,7 +164,7 @@ async function coverageRows(catalystApp, orgId) {
 
 function mount(router) {
   /**
-   * Rename the organisation. Org admins only — the legal name is what the
+   * Rename the organisation. Org admins only: the legal name is what the
    * approval decision was made against, so the change is audited with both
    * values and the admin console sees it in the trail.
    */
@@ -201,7 +201,7 @@ function mount(router) {
 
   /**
    * Who is attached to this org. Names and roles only, for the org's own
-   * members — this is the one place a partner sees another person's name, and
+   * members: this is the one place a partner sees another person's name, and
    * they are colleagues.
    */
   router.get('/provider/team', wrap(async (req, res) => {
@@ -591,7 +591,7 @@ function mount(router) {
 
   /**
    * Update a region's services, or declare a new region. A declaration lands
-   * as 'verifying' — serviceability is confirmed by an operator, not asserted
+   * as 'verifying': serviceability is confirmed by an operator, not asserted
    * by the party it advantages. Editing an existing region keeps its status.
    */
   router.post('/provider/coverage', wrap(async (req, res) => {

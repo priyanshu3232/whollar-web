@@ -878,8 +878,8 @@ function autofillFromBill(f){
       console.error('[whollar-bill-ocr]',err);
       const note=err.status===429?': a few too many tries for now; please fill in below'
         :err.status===415?': we can’t read this file type; a PDF, JPG or PNG works best'
-        :err.status===413?': file’s too large (15 MB max), please fill in below'
-        :': couldn’t read it, please fill in below';
+        :err.status===413?': file’s too large (15 MB max); please fill in below'
+        :': couldn’t read it; please fill in below';
       $('#filename').textContent=original+note;
       setTimeout(()=>{$('#filename').textContent=original;},8000);
     });

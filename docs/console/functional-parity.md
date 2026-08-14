@@ -18,19 +18,19 @@ the reason.
 
 | # | Behaviour | Status | Where | Endpoint |
 | --- | --- | --- | --- | --- |
-| G1 | Collapsible pane, 264px to 78px, labels hidden when collapsed, `aria-expanded` correct | done | `app.js` burger handler, `app.css` `.app.collapsed` | — |
-| G2 | Mobile drawer under 940px, slide in, dimmed overlay, closes on overlay click and on nav | done | `app.js`, `core/router.js` `paint()`, `app.css` media query | — |
+| G1 | Collapsible pane, 264px to 78px, labels hidden when collapsed, `aria-expanded` correct | done | `app.js` burger handler, `app.css` `.app.collapsed` | - |
+| G2 | Mobile drawer under 940px, slide in, dimmed overlay, closes on overlay click and on nav | done | `app.js`, `core/router.js` `paint()`, `app.css` media query | - |
 | G3 | Greeting by time of day, org and region beneath | partial | `views/account.js` `paintChrome()` | 3 |
 | G4 | Search over cohorts, min two characters, max six results, stage per result | pending | markup present, handler not wired | 31 |
-| G5 | Search keyboard: Enter opens first, Escape closes, click outside closes | pending | — | 31 |
-| G6 | Account reachable from pane profile and top-right avatar | done | both carry `data-action="nav"` | — |
-| G7 | Toast, 2.4s, one at a time, replaces previous, `role="status"` | done | `core/toast.js` | — |
-| G8 | Modal: Escape, backdrop, `[data-mclose]`, scroll lock, **plus focus trap and focus return** | done | `core/modal.js` | — |
+| G5 | Search keyboard: Enter opens first, Escape closes, click outside closes | pending | - | 31 |
+| G6 | Account reachable from pane profile and top-right avatar | done | both carry `data-action="nav"` | - |
+| G7 | Toast, 2.4s, one at a time, replaces previous, `role="status"` | done | `core/toast.js` | - |
+| G8 | Modal: Escape, backdrop, `[data-mclose]`, scroll lock, **plus focus trap and focus return** | done | `core/modal.js` | - |
 | G9 | Countdown ticker, 1s, every `[data-until]`, from server time not `Date.now()` | done | `core/time.js` `startTicker()`, offset by `sync()` | 22 |
-| G10 | `prefers-reduced-motion`: no ticker, no rise animation | done | `core/time.js` guards the interval; `app.css` media query | — |
+| G10 | `prefers-reduced-motion`: no ticker, no rise animation | done | `core/time.js` guards the interval; `app.css` media query | - |
 | G11 | Payment failure alert bar above everything, on every view, with recovery route | partial | `components/banner.js` renders it; `state.billing` is never populated | 61 |
 | G12 | Gated frame: pane and search hidden during review | done | `core/router.js` `setGated()`, `app.css` `.gated` | 6 |
-| G13 | Two "Soon" nav items, visually disabled, not clickable | done | `partner/index.html`, `app.js` skips `.soon` | — |
+| G13 | Two "Soon" nav items, visually disabled, not clickable | done | `partner/index.html`, `app.js` skips `.soon` | - |
 
 G3 is partial for an honest reason: the region beneath the org name should be
 the partner's primary coverage region, and picking "primary" out of a list with

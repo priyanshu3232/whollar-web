@@ -8,7 +8,7 @@
  * happens to live, which is to say it limits nothing.
  *
  * The window is fixed rather than sliding, which permits a burst of up to 2×max
- * across a window boundary. That is a known and accepted property — these
+ * across a window boundary. That is a known and accepted property: these
  * limits exist to blunt automation, and the precise defence against guessing a
  * code is the per-challenge attempt counter, not this.
  */
@@ -42,7 +42,7 @@ async function withinLimit(catalystApp, req, { key, max, windowSec, perIp = true
     catch { try { await seg.update(bucket, next, ttlHours); } catch { /* best effort */ } }
     return true;
   } catch {
-    // Fail OPEN. A cache outage must not lock every visitor out of signing in —
+    // Fail OPEN. A cache outage must not lock every visitor out of signing in:
     // the failure mode of failing closed here is a total auth outage, which is
     // worse than a temporarily unenforced limit.
     return true;
@@ -50,7 +50,7 @@ async function withinLimit(catalystApp, req, { key, max, windowSec, perIp = true
 }
 
 /**
- * Per-identifier limiting — an email address rather than an IP.
+ * Per-identifier limiting: an email address rather than an IP.
  *
  * The IP limit and this one answer different questions. An IP limit stops one
  * machine hammering many accounts; this stops many machines converging on one

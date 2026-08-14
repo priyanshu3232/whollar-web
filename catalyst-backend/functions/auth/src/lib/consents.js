@@ -6,7 +6,7 @@
  * One row per document, never a single boolean and never a bundled flag. CASL
  * and Quebec Law 25 both want consent that is provable, versioned and
  * timestamped, and marketing consent has to be withdrawable independently of
- * agreeing to the terms — a single `agreed: true` column can express none of
+ * agreeing to the terms: a single `agreed: true` column can express none of
  * that.
  *
  * Rows are append-only. A withdrawal is a new row, not an update: the history
@@ -44,7 +44,7 @@ function currentVersions(cfg, userType) {
  *
  * Best-effort per row, and deliberately so: a failed consent write must not
  * cost someone their account creation, because the account already exists by
- * the time this runs. The failure is logged loudly instead — a gap in the
+ * the time this runs. The failure is logged loudly instead: a gap in the
  * consent record is a compliance problem, and a silent one is worse.
  */
 async function recordSignup(catalystApp, req, { userId, userType, marketing = false }) {
@@ -55,7 +55,7 @@ async function recordSignup(catalystApp, req, { userId, userType, marketing = fa
     console.warn(JSON.stringify({
       req_id: req.id,
       level: 'warn',
-      message: 'consent NOT recorded — the consents config group is unset',
+      message: 'consent NOT recorded: the consents config group is unset',
       user_id: userId,
     }));
     return { recorded: 0, skipped: true };

@@ -338,7 +338,7 @@ button{font-family:var(--body)}
         <p class="foot-switch">Already have an account? <button type="button" class="linkbtn" id="to-signin">Sign in</button></p>
       </section>
 
-      <!-- CODE ENTRY — used by BOTH the signup confirmation and the second
+      <!-- CODE ENTRY: used by BOTH the signup confirmation and the second
            step of every sign-in. `codeMode` in the script decides which
            endpoint the form posts to and which of the two mode-specific lines
            below is shown. -->
@@ -540,7 +540,7 @@ function nextTarget(){
    here rather than re-read from the inputs: the address that gets verified must
    be the one the code was sent to, and those fields are still sitting in the
    DOM, editable, behind the view swap. The password rides along because
-   re-posting /signup — or /login — IS the resend. */
+   re-posting /signup, or /login, IS the resend. */
 var pending = null;
 
 /* Which flow the shared code step is finishing: 'login' for the second step of
@@ -759,7 +759,7 @@ document.getElementById('signin-form').addEventListener('submit', function (e) {
   if (W.busy(btn, true, 'Signing in…') === false) return;
 
   /* The password is only the first half. A resolved /login means a code is on
-     its way, NOT that anyone is signed in — the session is minted by
+     its way, NOT that anyone is signed in: the session is minted by
      /login/verify at the code step below. Do not "simplify" this back into
      finishSignIn(): it would send people to a dashboard with no cookie. */
   W.session.login({ email: em.value.trim(), password: pw.value })
@@ -773,7 +773,7 @@ document.getElementById('signin-form').addEventListener('submit', function (e) {
       W.busy(btn, false);
       /* The password was RIGHT but the address was never confirmed. The server
          has already sent a SIGNUP code, so the only useful thing to do is show
-         the step where they can type it — in signup mode, because that is the
+         the step where they can type it: in signup mode, because that is the
          code they were sent. Bouncing them back to a sign-in form they just
          filled in correctly would be a dead end. */
       if (err && err.code === 'EMAIL_UNVERIFIED') {
@@ -876,7 +876,7 @@ document.getElementById('code-form').addEventListener('submit', function (e) {
   /* Two endpoints, one form. The signup code activates a pending account; the
      sign-in code is the second factor on a password already checked. They are
      separate purposes server-side, so posting a code to the wrong one of these
-     is rejected as if it were a wrong code — hence the mode rather than a
+     is rejected as if it were a wrong code, hence the mode rather than a
      try-both. */
   var verify = codeMode === 'login'
     ? W.session.loginVerify({ email: pending.email, code: code })
@@ -915,7 +915,7 @@ document.getElementById('resend').addEventListener('click', function () {
 });
 
 /* Back to whichever form sent them here. On a sign-in that is the sign-in form,
-   not the signup one — dropping someone into "Create your account" because
+   not the signup one: dropping someone into "Create your account" because
    they mistyped the address they have always used is its own dead end. */
 document.getElementById('editemail').addEventListener('click', function () {
   clearInterval(countdown._resend);

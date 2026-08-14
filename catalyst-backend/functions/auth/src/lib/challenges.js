@@ -33,14 +33,14 @@ const MAX_ATTEMPTS = 5;
 
 /**
  * Purposes are deliberately fine-grained, and a code issued for one is worthless
- * at the endpoint that verifies another — `verify` filters on the purpose, so a
+ * at the endpoint that verifies another: `verify` filters on the purpose, so a
  * mismatch reads as "no challenge".
  *
  * That separation is load-bearing for the two `*_login` purposes. They are the
  * second factor on a password sign-in and are only ever issued AFTER the
  * password has been checked, so the code alone is enough to mint a session at
  * `/login/verify`. Were they issued as plain 'login', the same code would be
- * redeemable at `/otp/verify`, which signs in — and creates accounts — with no
+ * redeemable at `/otp/verify`, which signs in, and creates accounts, with no
  * password at all. One shared string would quietly turn a second factor into a
  * bypass of the first.
  */
@@ -58,7 +58,7 @@ const COLUMNS = ['ROWID', 'challenge_id', 'email_normalized', 'code_hash',
  * Any earlier unconsumed challenge for the same email and purpose is consumed
  * first. Without that, requesting a second code leaves the first one live, so
  * "resend" would widen the attack surface with every click rather than
- * replacing it — and a user who then typed the older code would be told it was
+ * replacing it, and a user who then typed the older code would be told it was
  * wrong, which is confusing and true only by accident.
  */
 async function start(catalystApp, req, { email, purpose = 'login' }) {
@@ -87,7 +87,7 @@ async function start(catalystApp, req, { email, purpose = 'login' }) {
 /**
  * Check a code.
  *
- * Every failure — no challenge, expired, exhausted, wrong code — returns the
+ * Every failure, no challenge, expired, exhausted, wrong code, returns the
  * same shape and the caller surfaces the same message. Distinguishing them
  * would turn this into an oracle for which addresses have a code in flight.
  * `reason` exists for the audit row, not for the response body.
@@ -111,7 +111,7 @@ async function verify(catalystApp, req, { email, code, purpose = 'login' }) {
 
   if (!matches) {
     // Increment BEFORE returning. If this write fails the attempt is not
-    // counted, so it is awaited rather than fired and forgotten — an
+    // counted, so it is awaited rather than fired and forgotten: an
     // uncounted attempt is an unlimited one.
     await datastore.updateRow(catalystApp, TABLE, {
       ROWID: challenge.ROWID, attempts: attempts + 1,
@@ -120,7 +120,7 @@ async function verify(catalystApp, req, { email, code, purpose = 'login' }) {
   }
 
   // Consume on success. This is the replay defence, so a failure here must fail
-  // the verification — a code that stays live after being accepted once is a
+  // the verification: a code that stays live after being accepted once is a
   // code that can be used twice.
   await datastore.updateRow(catalystApp, TABLE, {
     ROWID: challenge.ROWID, consumed_at: datastore.nowDb(),
@@ -132,7 +132,7 @@ async function verify(catalystApp, req, { email, code, purpose = 'login' }) {
 /**
  * Newest challenge for this email and purpose.
  *
- * `code_hash` is an Encrypted column — selectable but never filterable — so the
+ * `code_hash` is an Encrypted column, selectable but never filterable, so the
  * lookup is by email and the comparison happens in code. That is the whole
  * reason the column is encrypted rather than plain.
  */
@@ -157,7 +157,7 @@ async function consumeOutstanding(catalystApp, email, purpose) {
     if (row.consumed_at) continue;
     try {
       await datastore.updateRow(catalystApp, TABLE, { ROWID: row.ROWID, consumed_at: now });
-    } catch { /* best effort — a stale live code is bounded by its own TTL */ }
+    } catch { /* best effort: a stale live code is bounded by its own TTL */ }
   }
 }
 

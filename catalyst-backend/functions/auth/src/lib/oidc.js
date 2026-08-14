@@ -8,7 +8,7 @@
  * a token it could forge or replay; it only ever carries an opaque `code` that
  * is useless without the verifier this server kept.
  *
- * ID tokens are verified properly — signature, issuer, audience, expiry, nonce —
+ * ID tokens are verified properly, signature, issuer, audience, expiry, nonce,
  * rather than merely decoded. The OIDC spec does permit trusting TLS alone when
  * a token arrives over a direct back-channel call (§3.1.3.7), and that shortcut
  * is common. It is not taken here: signature verification is the difference
@@ -57,7 +57,7 @@ const b64urlToBuf = (s) => Buffer.from(String(s), 'base64url');
 /**
  * Verify a compact JWS and return its payload.
  *
- * Algorithm is taken from OUR allowlist, never from the token's own header —
+ * Algorithm is taken from OUR allowlist, never from the token's own header:
  * trusting `alg` is how `alg: none` and RS256/HMAC confusion attacks work.
  */
 async function verifyIdToken(idToken, { jwksUri, issuer, audience, nonce, algorithms = ['RS256', 'ES256'] }) {
@@ -112,7 +112,7 @@ async function verifyIdToken(idToken, { jwksUri, issuer, audience, nonce, algori
     throw forbidden('Sign-in failed.', { logDetail: 'aud does not match our client id' });
   }
   // 60s of clock skew. Without it, a server a minute fast rejects valid tokens
-  // intermittently — which presents as "sign-in randomly fails".
+  // intermittently, which presents as "sign-in randomly fails".
   if (typeof payload.exp !== 'number' || payload.exp + 60 < now) {
     throw forbidden('Sign-in failed.', { logDetail: 'id_token expired' });
   }
@@ -161,8 +161,8 @@ async function beginFlow(catalystApp, { provider, redirectTo }) {
  *
  * This row *is* the CSRF defence for the callback, so the two cannot be
  * separate steps: any gap between them is a window in which a replayed callback
- * still finds the row. Returns null on anything suspect — no row, wrong
- * provider, or expired — and the caller must treat all three identically.
+ * still finds the row. Returns null on anything suspect, no row, wrong
+ * provider, or expired, and the caller must treat all three identically.
  */
 async function consumeFlow(catalystApp, { state, provider }) {
   if (!state || typeof state !== 'string' || state.length > 255) return null;
@@ -184,7 +184,7 @@ async function consumeFlow(catalystApp, { state, provider }) {
   return row;
 }
 
-/** Only ever a same-origin path — the open-redirect guard, server side. */
+/** Only ever a same-origin path: the open-redirect guard, server side. */
 function safeRedirect(raw, fallback = '/dashboard') {
   if (!raw) return fallback;
   const s = String(raw);

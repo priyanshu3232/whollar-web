@@ -6,7 +6,7 @@
  * It exists to own three things that are each a footgun on their own:
  *
  *  1. DATE FORMAT. Catalyst wants `YYYY-MM-DD HH:MM:SS` in UTC and rejects
- *     ISO-8601 — so `new Date().toISOString()`, the thing every hand reaches
+ *     ISO-8601, so `new Date().toISOString()`, the thing every hand reaches
  *     for, fails. There is exactly one formatter here and no call site is
  *     allowed its own.
  *
@@ -76,11 +76,11 @@ const isExpired = (value, at = Date.now()) => {
  *
  * So this VALIDATES instead of escaping, and throws on anything outside the
  * charset. That choice is deliberate. Escaping requires knowing exactly how the
- * far end handles a backslash — SQL-standard doubling of `''` is undone by a
+ * far end handles a backslash: SQL-standard doubling of `''` is undone by a
  * MySQL-style `\'`, and ZCQL's dialect is not documented on this point. A
  * whitelist needs no such knowledge to be correct.
  *
- * The consequence is that free-form text — a User-Agent, a JSON `detail` blob —
+ * The consequence is that free-form text, a User-Agent, a JSON `detail` blob,
  * cannot be passed through here. It does not need to be: those values are only
  * ever written, and writes go through `insertRow`/`updateRow`, which take an
  * object and build no SQL at all.
@@ -102,7 +102,7 @@ function lit(value) {
   return `'${s}'`;
 }
 
-/** Table and column names are ours, never user input — but assert that. */
+/** Table and column names are ours, never user input, but assert that. */
 const SAFE_IDENT = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
 
 function ident(name) {
@@ -115,13 +115,13 @@ function ident(name) {
  * ------------------------------------------------------------------ */
 
 /**
- * ZCQL refuses any query whose LIMIT exceeds 300 — and it refuses with a 400,
+ * ZCQL refuses any query whose LIMIT exceeds 300, and it refuses with a 400,
  * rather than quietly returning the first 300. Verified against the live
  * environment: `LIMIT 500` errors with "ZCQL CANNOT HAVE MORE THAN 300 ROWS in
  * LIMIT", `LIMIT 300` succeeds.
  *
  * The dangerous version of this is the query with NO limit, which does not
- * error — it just stops at the ceiling. Anything that must see every matching
+ * error: it just stops at the ceiling. Anything that must see every matching
  * row has to paginate, or it will silently do a partial job. `queryAll` exists
  * so that is not left to each call site to remember.
  */
@@ -164,7 +164,7 @@ async function queryAll(catalystApp, table, columns, where, { pageSize = MAX_ROW
 /**
  * One row matching `column = value`, or null.
  *
- * `columns` defaults to `*`. Pass an explicit list on hot paths — a projection
+ * `columns` defaults to `*`. Pass an explicit list on hot paths: a projection
  * is cheaper, and naming the columns means a console-side rename fails loudly
  * here rather than yielding `undefined` three frames away.
  */
@@ -178,7 +178,7 @@ async function findBy(catalystApp, table, column, value, columns) {
   return rows[0] || null;
 }
 
-/** Insert. Object API — builds no SQL, so free-form text is safe here. */
+/** Insert. Object API: builds no SQL, so free-form text is safe here. */
 function insertRow(catalystApp, table, row) {
   return catalystApp.datastore().table(ident(table)).insertRow(row);
 }
@@ -199,7 +199,7 @@ function deleteRow(catalystApp, table, rowId) {
  * This is the OAuth `state` check and nothing else should use it casually. The
  * row *is* the CSRF defence, so "found" and "consumed" have to be one step: two
  * steps leave a window in which a replayed callback finds the row still present.
- * A failed delete still returns null — better to reject a legitimate callback
+ * A failed delete still returns null: better to reject a legitimate callback
  * than to accept a replayed one.
  */
 async function takeOnce(catalystApp, table, column, value, columns) {

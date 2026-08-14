@@ -2,7 +2,7 @@
 #
 # The single biggest structural risk in this repo is that the desktop and
 # mobile builds of the same page are separate files. They had already drifted
-# in ways nobody noticed — the mobile estimator CTA pointed at the wrong page,
+# in ways nobody noticed: the mobile estimator CTA pointed at the wrong page,
 # mobile had no login link weeks after logins shipped, and every em dash in
 # mobile copy had become a comma. Nothing failed, because nothing was checking.
 #
@@ -40,7 +40,7 @@ jobs:
           node-version: 20
 
       # Fails when any page's footer no longer matches the one definition in
-      # scripts/build-footer.mjs — i.e. someone hand-edited a footer instead of
+      # scripts/build-footer.mjs, i.e. someone hand-edited a footer instead of
       # the generator, which is how /partners ended up shipping href="#" links.
       # Runs before the mobile check: the two generated mobile pages inherit
       # their footer from their desktop source.
@@ -48,7 +48,7 @@ jobs:
         run: node scripts/build-footer.mjs --check
 
       # Fails when a MobileVersion page no longer matches what its desktop
-      # source + CSS overlay would generate — i.e. someone edited one side only.
+      # source + CSS overlay would generate, i.e. someone edited one side only.
       - name: Mobile pages are in sync with their desktop sources
         run: node scripts/build-mobile-pages.mjs --check
 
@@ -57,7 +57,7 @@ jobs:
         run: node --check js/whollar-core.js
 
       # Fails when js/whollar-benchmarks.js no longer matches what the
-      # spreadsheet would produce — i.e. the pricing model was updated but the
+      # spreadsheet would produce, i.e. the pricing model was updated but the
       # generated table wasn't, so the site is scoring against stale prices.
       - name: Benchmarks match the pricing spreadsheet
         run: node scripts/build-benchmarks.mjs --check

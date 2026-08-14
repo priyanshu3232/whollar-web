@@ -3,21 +3,21 @@
 This folder is a self-contained [Zoho Catalyst](https://catalyst.zoho.com) project. It has two
 Advanced I/O functions:
 
-- **`formSubmit`** — receives every form submission from the marketing site (waitlist join,
+- **`formSubmit`**: receives every form submission from the marketing site (waitlist join,
   waitlist add-on details, bill-checkup waitlist joins, deep-read requests, partner applications)
   and stores them in Catalyst's Data Store (and File Store, for attached bills). It replaces the
   `console.log('[whollar-... placeholder]', ...)` stubs in the site's HTML with real `fetch()` calls.
-- **`billOcr`** — reads the bill a household attaches on the checkup tool and extracts structured
+- **`billOcr`**: reads the bill a household attaches on the checkup tool and extracts structured
   fields (provider, speed, access tech, promo date, amounts, postal code), so the checkup form can auto-fill
   itself instead of making the household retype everything from the bill they just uploaded.
-  Claude reads the file **directly** — vision for images, native PDF support for PDFs — so there is
+  Claude reads the file **directly**, vision for images, native PDF support for PDFs, so there is
   no separate OCR step. (It originally used Catalyst's Zia OCR; Zia returns `ML_ERROR: Unable to
   process the request` for every file format on this project's **CA** data center, so the OCR step
-  was removed. Reading the bill directly is also more accurate — the model sees the layout and
+  was removed. Reading the bill directly is also more accurate: the model sees the layout and
   tables rather than a lossy text dump.)
 
 It does **not** touch the "Become a founding member" form under `Become_a_founding_member_of_Whollar/`
-— that one already submits live to Zoho Forms and was left as-is.
+: that one already submits live to Zoho Forms and was left as-is.
 
 ---
 
@@ -59,7 +59,7 @@ the tables. See **Going to production** at the bottom before pointing the live w
    catalyst init
    ```
    Choose "link an existing project" and pick the project you just created. When it asks which
-   components to set up, choose **Functions only** — the frontend keeps living wherever it's
+   components to set up, choose **Functions only**: the frontend keeps living wherever it's
    hosted today (do not let it scaffold a `client/` folder).
 
 ## 2. Create the Data Store tables
@@ -82,7 +82,7 @@ characters, `Var Char` = up to 255. Every column below should allow nulls unless
 ### WaitlistDetails
 | Column | Type | Notes |
 |---|---|---|
-| Email | Var Char | required — links back to WaitlistSignups.Email |
+| Email | Var Char | required: links back to WaitlistSignups.Email |
 | FSA | Var Char | |
 | Provider | Var Char | |
 | MonthlyCost | Double | |
@@ -126,7 +126,7 @@ characters, `Var Char` = up to 255. Every column below should allow nulls unless
 ### PartnerApplications
 | Column | Type | Notes |
 |---|---|---|
-| Role | Var Char | required — `provider` / `sales` / `distributor` / `other` |
+| Role | Var Char | required: `provider` / `sales` / `distributor` / `other` |
 | FirstName | Var Char | required |
 | LastName | Var Char | required |
 | Company | Var Char | required |
@@ -170,28 +170,28 @@ The `/contact` route also emails each submission to `info@whollar.com`. That sen
 auth function's ZeptoMail credentials mirrored onto **this** function's config
 (Console → Functions → formSubmit → Configuration): `ZEPTOMAIL_TOKEN`, `ZEPTOMAIL_FROM`, and
 `ZEPTOMAIL_API_BASE` if the auth function sets one. Until they exist the submission still
-saves and syncs — the notification is logged instead of sent.
+saves and syncs: the notification is logged instead of sent.
 
 ## 3. Create the File Store folder (for bill attachments)
 
 **Cloud Scale → File Store → New Folder**, e.g. `whollar-uploads`. Open it and copy its numeric
 folder ID from the URL or the folder details panel. Paste it into
 `functions/formSubmit/index.js` as `UPLOADS_FOLDER_ID`. Until this is set, the forms still submit
-successfully — attached files are just skipped (the rest of the row still saves).
+successfully: attached files are just skipped (the rest of the row still saves).
 
-> **Done for the dev environment** — `UPLOADS_FOLDER_ID` is `1258000000015979`, verified against a
+> **Done for the dev environment**: `UPLOADS_FOLDER_ID` is `1258000000015979`, verified against a
 > real upload: `uploadFile()` returns the file ID under `.id`, which `storeFile()` already reads.
-> The uploaded bill also needs disk-based multer (not memory) — the SDK derives the multipart
+> The uploaded bill also needs disk-based multer (not memory): the SDK derives the multipart
 > filename from the stream's `.path`, which only an `fs.ReadStream` has, so the function writes
 > uploads to `/tmp` and streams them up, deleting the temp file afterward.
 > **For production you'll create a new folder** in the production environment and repeat this.
 
 ## 4. Allow the site's domain to call the function (CORS)
 
-**Cloud Scale → Authentication → Authorized Domains** — add the domain(s) the site is served
+**Cloud Scale → Authentication → Authorized Domains**: add the domain(s) the site is served
 from (e.g. `https://whollar.ca`, `https://www.whollar.ca`) and enable CORS for each.
 
-The function also sets its own `Access-Control-Allow-Origin` header from an allowlist in code —
+The function also sets its own `Access-Control-Allow-Origin` header from an allowlist in code:
 edit `ALLOWED_ORIGINS` at the top of `functions/formSubmit/index.js` to match the same domains.
 Both need to agree, or browsers will still block the request.
 
@@ -199,13 +199,13 @@ Both need to agree, or browsers will still block the request.
 
 `billOcr` calls the Claude API to read the bill and return structured fields. In the Catalyst
 console: **your project → `billOcr` function → Environment Variables**, add `ANTHROPIC_API_KEY`
-with your key (it starts with `sk-ant-`). Don't put the key in `catalyst-config.json` — that file
+with your key (it starts with `sk-ant-`). Don't put the key in `catalyst-config.json`: that file
 is committed to the repo.
 
 > ⚠️ **`catalyst deploy` will silently wipe console env vars if `env_variables` is present in
 > `catalyst-config.json`.** The CLI config is the source of truth: deploying with
 > `"env_variables": {}` **deletes** `ANTHROPIC_API_KEY` from the console, and the next request fails
-> with *"Could not resolve authentication method"* — with no warning at deploy time. For this reason
+> with *"Could not resolve authentication method"*: with no warning at deploy time. For this reason
 > `billOcr/catalyst-config.json` **omits the `env_variables` field entirely** (it is not set to
 > `{}`). Leave it omitted. If you ever add it back, re-add the key in the console after every
 > deploy.
@@ -226,17 +226,17 @@ https://<your-project-domain>.catalystserverless.com/server/billOcr
 ```
 
 (Find `<your-project-domain>` in the Catalyst console under Project Settings, or in the deploy
-output.) There's also a `.development.catalystserverless.com` variant for the dev environment —
+output.) There's also a `.development.catalystserverless.com` variant for the dev environment:
 useful for testing before you point the live site at production.
 
 ## 7. Point the frontend at your deployed functions
 
-`whollar-bill checkup-v6.html` has two base-URL constants near the top of its `<script>` block —
+`whollar-bill checkup-v6.html` has two base-URL constants near the top of its `<script>` block:
 `CATALYST_BASE` (formSubmit) and `BILL_OCR_BASE` (billOcr, derived from `CATALYST_BASE`). Replace
 the `CATALYST_BASE` placeholder with your real base URL from step 6 and `BILL_OCR_BASE` updates
 with it automatically.
 
-`waitlist/index.html` and `whollar-partner-v6.html` only talk to `formSubmit` — same
+`waitlist/index.html` and `whollar-partner-v6.html` only talk to `formSubmit`: same
 `CATALYST_BASE` constant, no change needed there. Grep for `CATALYST_BASE` to find each spot.
 
 ## Routes
@@ -264,16 +264,16 @@ All routes return `{ ok: true, id }` on success (`id` is the new row's `ROWID`) 
 Accepts a PDF or an image (`image/jpeg`, `image/png`, `image/gif`, `image/webp`) under the
 multipart field `billFile`. Returns `{ ok: true, fields }` on success, where `fields` matches the
 checkup form's `#prov`/`#cost`/`#spd`/`#tech`/`#pdate`/`#disc` values exactly (`null` for anything
-the model wasn't confident about — the form just leaves that field blank), plus `postalCode` — the
+the model wasn't confident about, the form just leaves that field blank), plus `postalCode`, the
 Canadian postal code of the service/billing address on the bill, formatted `A1A 1A1`, `null` if not
 confidently found. Or `{ ok: false, error }` on failure. (The checkup UI no longer asks the
-access-technology question, but `accessTechnology` is still extracted and returned — the frontend
+access-technology question, but `accessTechnology` is still extracted and returned: the frontend
 stores it silently.)
 
 Two constraints worth preserving if you edit `BILL_EXTRACTION_TOOL`:
 
 - **The enum values must stay byte-identical to the `<select>` options** in
-  `whollar-bill checkup-v6.html` (`#prov`, `#spd`, `#tech`) — the frontend assigns them straight to
+  `whollar-bill checkup-v6.html` (`#prov`, `#spd`, `#tech`): the frontend assigns them straight to
   `.value`, so any drift silently produces a blank dropdown.
 - **Nullable fields use `anyOf`, not a `["string","null"]` type array.** With `strict: true` the API
   rejects a `null` member inside an `enum` on a type-array field
@@ -281,15 +281,15 @@ Two constraints worth preserving if you edit `BILL_EXTRACTION_TOOL`:
 
 ## Local testing
 
-Serve the static site (from the repo root) and open a form page on **http://localhost:3000** —
+Serve the static site (from the repo root) and open a form page on **http://localhost:3000**:
 that origin is already in the CORS allowlist, and the pages already point at the deployed dev
 function, so a real submission from your browser lands in the dev tables:
 
 ```
-npm start            # repo root — serves the site on :3000
+npm start            # repo root: serves the site on :3000
 ```
 
-To run a *function* locally instead (against the live project's Data Store / File Store — there's
+To run a *function* locally instead (against the live project's Data Store / File Store: there's
 no local emulator for those, so rows land in the real dev tables):
 
 ```
@@ -302,7 +302,7 @@ cd catalyst-backend/functions/formSubmit && npm install && catalyst serve
 
 Both functions ship with abuse controls; two of them need one-time console/env setup.
 
-- **Rate limiting** is distributed via the Catalyst **Cache** (the default segment) — an
+- **Rate limiting** is distributed via the Catalyst **Cache** (the default segment): an
   in-process counter is useless because Advanced I/O functions scale horizontally with no shared
   memory. Enable the **Cache** component for the project (**Cloud Scale → Cache**) so the limiter
   can read/write counters; if the cache is unreachable the limiter **fails open** (requests pass)
@@ -311,7 +311,7 @@ Both functions ship with abuse controls; two of them need one-time console/env s
   ceiling (denial-of-wallet protection).
 - **`billOcr` spends money per call.** Because the limiter fails open, set an **account-level spend
   cap in the Anthropic console** as the hard backstop, and consider fronting the Catalyst domain
-  with a CAPTCHA/Turnstile or a WAF (Cloudflare) so limits apply before the function — and Claude —
+  with a CAPTCHA/Turnstile or a WAF (Cloudflare) so limits apply before the function, and Claude,
   is invoked.
 - **Upload bounds:** `billOcr` accepts one PDF/image up to 15 MB; `formSubmit` accepts PDF/images
   up to 20 MB × 5. Other types return `415`; oversize returns `413`.
@@ -323,17 +323,17 @@ Both functions ship with abuse controls; two of them need one-time console/env s
 
 Everything above is deployed to the **Development** environment. Catalyst keeps Development and
 Production fully separate (separate data, separate function URLs). The CLI (`catalyst deploy`)
-**only ever deploys to Development** — there is no `--production` flag. Promotion is a console
+**only ever deploys to Development**: there is no `--production` flag. Promotion is a console
 action that *migrates your functions and Data Store schema* from dev to prod for you (you do **not**
 hand-recreate the tables). To take this live on whollar.ca:
 
 1. **Add a payment method.** Production requires billing enabled on the project.
 2. **Click "Deploy to Production"** in the Catalyst console header. This migrates the functions and
    the Data Store table/column definitions from Development to Production. (New tables/functions
-   can only be created in Development and then promoted — never directly in Production.)
+   can only be created in Development and then promoted, never directly in Production.)
 3. **Re-set the per-environment config in Production**, since secrets and some resources don't carry
    over: set `ANTHROPIC_API_KEY` on the Production `billOcr` (§5), add whollar.ca to Production
-   **Authorized Domains** (§4), and confirm the Production **File Store** folder ID — if it differs
+   **Authorized Domains** (§4), and confirm the Production **File Store** folder ID: if it differs
    from the dev `1258000000015979`, update `UPLOADS_FOLDER_ID` and re-promote.
 4. **Repoint the frontend.** In the three HTML pages, change `CATALYST_BASE` from the
    `...development.catalystserverless.ca...` URL to the Production one (the same URL **without** the

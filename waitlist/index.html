@@ -725,7 +725,7 @@ document.addEventListener('DOMContentLoaded',function(){
        because the two live in different functions: the lead goes cross-origin
        to formSubmit, where no session cookie can travel, and /me/bill is
        same-origin through the /api/auth rewrite. The member is signed in by
-       the time this form appears — the code step minted the session — so the
+       the time this form appears, the code step minted the session, so the
        usual reason this fails is a dropped connection, and a failure here
        must not retract a lead that already saved. GET /me/bill adopts the
        WaitlistDetails row when it does. */

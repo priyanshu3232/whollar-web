@@ -1207,7 +1207,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
 
   .whl-nav,.whl-header__cta{display:none}
   .whl-burger{display:flex}
-  /* with the nav and cohort CTA hidden, space-between strands Log in mid-header —
+  /* with the nav and cohort CTA hidden, space-between strands Log in mid-header:
      push it over so it sits next to the burger */
   .whl-header__in{gap:10px}
   .whl-header__in>.whl-btn--outline{margin-left:auto}
@@ -1565,7 +1565,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   html,body{max-width:100%;overflow-x:hidden}
   *{-webkit-tap-highlight-color:transparent}
 
-  /* spacing rhythm — desktop-scale section padding leaves phone-sized dead bands
+  /* spacing rhythm: desktop-scale section padding leaves phone-sized dead bands
      between sections, so the vertical rhythm is tightened here */
   .whl-wrap{padding:0 20px}
   .whl-section{padding:40px 0}
@@ -1574,7 +1574,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .whl-talk{padding:40px 0 44px}
   .whl-logos{padding:22px 0}
   /* a 46px heading margin plus the layout gap left a hole between every section
-     heading and its content — worth ~74px before the FAQ list alone */
+     heading and its content: worth ~74px before the FAQ list alone */
   .whl-head{margin-bottom:22px}
   .whl-head--split{margin-bottom:24px}
   .whl-faq-layout{gap:14px}
@@ -1627,7 +1627,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
     display:flex;align-items:center;gap:8px;color:var(--accent);font-size:22px;
     border-bottom:none;padding-top:22px}
   /* both buttons carrying margin-top:auto split the free space and end up crowding each
-     other at the bottom — only the first of the pair should absorb it */
+     other at the bottom: only the first of the pair should absorb it */
   .whl-mobnav a.whl-btn{margin-top:12px;font-size:17px;padding:16px;border-bottom:none;border-radius:14px;color:#F1ECDF}
   .whl-mobnav a.whl-btn:nth-last-of-type(2){margin-top:auto}
   .whl-mobnav a.whl-btn--outline{background:transparent;color:var(--ink);border:1.5px solid rgba(14,42,32,.2)}
@@ -1636,7 +1636,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   /* ---------- STICKY BOTTOM CTA: a full-width pill ----------
      The bar spans the phone frame (430px, the body cap) and the pill fills it, so the
      tap target is the whole width rather than the length of the label.
-     Every transform here must carry the -50% that centres it — a transform without it
+     Every transform here must carry the -50% that centres it: a transform without it
      (the old .show rule) drops the centring and throws the pill to the right. */
   .whl-bottombar{
     position:fixed;left:50%;right:auto;bottom:0;z-index:90;width:100%;max-width:430px;
@@ -2549,7 +2549,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
           <div class="whl-est__out">
             <div class="pre">Households like yours typically save</div>
             <div class="whl-est__num"><b data-save="">$230</b><span>/ year</span></div>
-            <p data-save-note style="font-size:12px;color:#8A968F;margin-top:8px;display:none">This is the maximum possible saving — the lowest advertised price we found in your area. Your actual offer may vary.</p>
+            <p data-save-note style="font-size:12px;color:#8A968F;margin-top:8px;display:none">This is the maximum possible saving: the lowest advertised price we found in your area. Your actual offer may vary.</p>
           </div>
           <a class="whl-btn whl-btn--lg whl-btn--block" href="/MobileVersion/bill-checkup-mobile" style="margin-top:18px">Click here to check detailed view</a>
         </div>
@@ -3810,7 +3810,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
   var crowd = document.getElementById('whl-crowd');
   if(crowd){ var f=document.createDocumentFragment(); for(var i=0;i<56;i++){ var s=document.createElement('i'); f.appendChild(s);} crowd.appendChild(f); }
 
-  /* FAQ accordion — one open at a time */
+  /* FAQ accordion: one open at a time */
   var faqItems = document.querySelectorAll('[data-faqwrap] .whl-faq');
   function setFaq(item, open){
     item.setAttribute('data-open', open ? 'true':'false');
@@ -3841,7 +3841,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
   var BMIN=40, BMAX=160;
   /* The number is twelve months of the household's bill minus twelve months
      at the single cheapest advertised plan in their province
-     (WHOLLAR.estimateAnnualSavings -> minBasePriceFor, the PlanSavvy list) —
+     (WHOLLAR.estimateAnnualSavings -> minBasePriceFor, the PlanSavvy list):
      the postal code decides the province, so it is required before this
      will calculate. That makes this a MAXIMUM possible saving, not a typical
      one (the widget's own copy says so); no speed/tech input is collected,

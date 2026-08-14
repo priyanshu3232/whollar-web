@@ -4,7 +4,7 @@
  * directly inside the __bundler/template JSON string (see bundle-edit.mjs for
  * why that string can't be hand-edited as plain HTML). That means every
  * visit re-downloads every image as part of one giant, uncacheable HTML
- * response — base64 costs +33% over raw bytes, nothing can load in
+ * response: base64 costs +33% over raw bytes, nothing can load in
  * parallel, and the browser can't reuse a prior visit's images because the
  * HTML document itself is served `must-revalidate`.
  *
