@@ -38,6 +38,7 @@ const sessions = require('../lib/sessions');
 const mailer = require('../lib/mailer');
 const audit = require('../lib/audit');
 const ratelimit = require('../lib/ratelimit');
+const referral = require('../lib/referral');
 const { canRevealCode } = require('./otp');
 
 /**
@@ -128,7 +129,7 @@ function mount(router, cfg) {
       postalCode: body.postalCode,
       provinceCode: body.provinceCode,
       phone: body.phone,
-      referralCode: body.referralCode,
+      referralCode: null,
     };
 
     if (!users.isEmail(email)) throw badRequest('Enter a valid email address.');
@@ -177,6 +178,24 @@ function mount(router, cfg) {
       return opaqueOk(cfg, res, { ttlMinutes: challenges.TTL_MINUTES });
     }
 
+    /* The referral code, resolved and normalised before it is stored.
+     *
+     * Normalising is what makes the referrer's count an exact string match
+     * instead of a guess: `whl 3f9a2c1d` typed into the field is the same
+     * referral as the link that produced it, and only one of the two forms can
+     * ever be counted. Resolving is what stops a member crediting themselves,
+     * the one abuse the field invites and the only one worth a query.
+     *
+     * An unparseable value, including the neighbour's email address the field
+     * also invites, stores as null rather than as text nothing will ever match.
+     * The audit line below records that it happened without keeping a third
+     * party's address in a detail blob.
+     */
+    const referredBy = await referral.resolve(req.catalyst, body.referralCode);
+    const referralCode = referral.normalize(body.referralCode);
+    const selfReferred = Boolean(referredBy && referredBy.email_normalized === email);
+    profile.referralCode = selfReferred ? null : referralCode;
+
     // An unfinished signup being repeated: take the newer details. They may be
     // correcting the postal code that decides their cohort.
     const { user } = existing
@@ -195,6 +214,10 @@ function mount(router, cfg) {
         delivered: issued.delivered,
         transport: mailer.transportName(cfg),
         send_error: issued.sendError,
+        referral_code: profile.referralCode,
+        referred_by: (!selfReferred && referredBy) ? referredBy.user_id : null,
+        referral_rejected: selfReferred ? 'self'
+          : (body.referralCode && !referralCode) ? 'unparseable' : null,
       },
     });
 

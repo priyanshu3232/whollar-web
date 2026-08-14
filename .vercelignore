@@ -24,6 +24,11 @@ Consumerdashboard.html
 # v12 source has no login guard, no noindex, and a full signed-in surface.
 docs/prototype
 
+# The member-room network toggle design reference (a self-unpacking bundle,
+# demo data, no guard). Its layout was ported into dashboard.html on
+# 2026-08-14; cleanUrls would otherwise publish it at /socialmediatoggle.
+socialmediatoggle.html
+
 # The v17 checkup design reference (demo data, wire-up stubs, no analytics).
 # Its behaviour was ported into bill-checkup.html on 2026-08-13; cleanUrls
 # would otherwise publish this raw file at /overpaying.

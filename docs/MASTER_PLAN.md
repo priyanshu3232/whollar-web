@@ -421,8 +421,12 @@ from the existing waitlist tables (this is also the go-to-market plan).
   updates, offer alerts. All CASL-footered; consent columns from A6.
 - **E2** Twilio SMS: phone verification at waitlist (number already collected),
   "bids landed" alert. Store consent per channel.
-- **E3** Referral mechanics: codes are already collected; add attribution
-  (count referred signups per code) surfaced on the dashboard refcode card.
+- **E3** Referral mechanics: DONE. Codes derive from the account id
+  (`lib/referral.js`), share links carry `?ref=` and are banked by the browser
+  until a signup spends them, signup normalises and rejects self-referral, and
+  the dashboard card shows the live count from `GET /me/referral`. What is not
+  built: a reward attached to a referral, and any admin view of who referred
+  whom beyond the `auth_events` detail written at signup.
 - **E4** Observability: uptime checks on `/api/auth/health` + formSubmit;
   Catalyst DevOps alerts (crmSync — A6, auth failures); a weekly ZCQL row-count
   digest (queue depth, FAILED rows). Anthropic spend cap (console) as the

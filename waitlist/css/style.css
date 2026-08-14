@@ -81,6 +81,16 @@
 .reflink:hover{color:var(--teal)}
 .go{margin-top:20px;width:100%;background:var(--accent);font-size:15.5px;padding:15px 20px}
 .go:hover{background:var(--accent-hover)}
+/* On the confirmation the checkup is the step and the dashboard is the way
+   past it, so only one of the two is filled. Outlined rather than shrunk: it
+   is still the route out for a member who has just been signed in, and the
+   comment on that anchor explains why it must stay easy to find. The colour
+   needs the `.whl a.whl-btn` specificity to beat the white-on-green rule that
+   exists so filled anchors do not render accent-on-accent. */
+.go--quiet{background:none;border:1.5px solid #CFE3D8;box-shadow:none}
+.whl a.whl-btn.go--quiet{color:var(--accent)}
+.go--quiet:hover{background:var(--green-tint)}
+.whl a.whl-btn.go--quiet:hover{color:var(--accent-hover)}
 .perksline{margin-top:14px;font-size:11.5px;line-height:1.6;color:var(--ink-3);text-align:center}
 .perksline b{color:var(--ink-2)}
 
@@ -91,6 +101,13 @@
 .donehead .chk svg{width:20px;height:20px;stroke:var(--accent);stroke-width:2.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .donehead h3{font-size:21px;font-weight:900}
 .donehead p{margin-top:5px;font-size:13.5px;color:var(--ink-2);line-height:1.55}
+/* The checkup is the step that follows joining, so the confirmation offers it
+   rather than leaving it to be found. Warm-tinted against the green
+   confirmation above it, so it reads as an action still owed. */
+.jnext{margin-top:18px;border:1.5px solid #E7CFB9;background:#FDF7F1;border-radius:14px;padding:16px}
+.jnext b{display:block;font-family:var(--disp);font-weight:700;font-size:15px;color:var(--teal)}
+.jnext p{font-size:12.5px;color:var(--ink-2);margin-top:5px;line-height:1.55}
+.jnext .whl-btn{margin-top:13px;width:100%}
 .share{margin-top:20px;border-top:1px solid var(--line);padding-top:18px}
 .share b{display:block;font-family:var(--disp);font-weight:700;font-size:15px;color:var(--teal)}
 .share p{font-size:12.5px;color:var(--ink-2);margin-top:4px;line-height:1.5}

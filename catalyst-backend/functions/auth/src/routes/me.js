@@ -21,6 +21,7 @@
 
 const datastore = require('../lib/datastore');
 const users = require('../lib/users');
+const referral = require('../lib/referral');
 const sessions = require('../lib/sessions');
 const prefs = require('../lib/prefs');
 const audit = require('../lib/audit');
@@ -39,13 +40,11 @@ const requireUser = (req) => guards.requireUser(req);
 const requireMember = (req) => guards.requireMember(req, '/me');
 
 /**
- * The member's share code, derived rather than stored: the first four hex
- * characters of their user id, which is stable, typable, and already unique
- * enough for the population it serves. Other people type it into the signup
- * form's referral field; the count below is that field matched back.
+ * The member's share code, derived rather than stored. Both halves of that
+ * derivation, and why it is eight hex characters rather than four, live in
+ * lib/referral.js; this route only renders it and counts what it brought in.
  */
-const referralCodeFor = (user) =>
-  'WHL-' + String(user.user_id).replace(/-/g, '').slice(0, 4).toUpperCase();
+const referralCodeFor = (user) => referral.codeFor(user);
 
 /**
  * Record a feedback event. Append-only; the admin console is the reader.
@@ -187,25 +186,22 @@ function mount(router) {
 
   /**
    * The member's share code and how many accounts were created with it.
-   * -> { ok, code, joined }. The count tolerates the code being typed in
-   * either case; a missing users query degrades to zero, never to an error.
+   * -> { ok, code, joined, pending }
+   *
+   * `joined` counts verified accounts only. `pending` counts signups that used
+   * the code and never proved their address, kept separate so the number on
+   * the dashboard cannot be moved by anyone who can reach a signup form.
+   *
+   * The share link is built by the browser from its own origin rather than
+   * returned here: this function has no notion of which host served the page,
+   * and a link is not worth threading the base URL through the route for.
    */
   router.get('/me/referral', wrap(async (req, res) => {
     const user = requireMember(req);
     const code = referralCodeFor(user);
+    const count = await referral.countFor(catalyst(req), code, user.user_id);
 
-    let joined = 0;
-    try {
-      for (const candidate of [code, code.toLowerCase()]) {
-        const rows = await datastore.queryAll(
-          catalyst(req), users.USERS, ['user_id'],
-          `referral_code = ${datastore.lit(candidate)}`
-        );
-        joined += rows.filter((r) => r.user_id !== user.user_id).length;
-      }
-    } catch { /* count stays 0 */ }
-
-    res.status(200).json({ ok: true, code, joined });
+    res.status(200).json({ ok: true, code, joined: count.joined, pending: count.pending });
   }));
 
   /**

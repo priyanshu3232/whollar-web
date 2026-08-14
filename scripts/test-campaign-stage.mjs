@@ -139,3 +139,74 @@ test('the six stages are the ones the console knows about', () => {
     ['planned', 'announced', 'open', 'closing', 'offers_out', 'decided']
   );
 });
+
+/* ------------------------------------------------------------------ *
+ * The member's stage
+ *
+ * Same seven date columns, a different seven steps, because a household is
+ * still confirming and switching long after a partner is done. These pin the
+ * mapping the dashboard rail renders, which used to be guessed from `kind`
+ * in the browser.
+ * ------------------------------------------------------------------ */
+
+test('member stage walks the calendar in order', () => {
+  const c = auction(FULL);
+  assert.equal(catalog.memberStageOf(c, T - 30 * DAY), 'forming', 'joining still open');
+  assert.equal(catalog.memberStageOf(c, T - 20 * DAY), 'locked', 'announced, bidding not open');
+  assert.equal(catalog.memberStageOf(c, T - 10 * DAY), 'bidding', 'bidding open');
+  assert.equal(catalog.memberStageOf(c, T + 3 * DAY), 'bidding', 'closed, offer not out yet');
+  assert.equal(catalog.memberStageOf(c, T + 5 * DAY), 'offers', 'offer with the household');
+  assert.equal(catalog.memberStageOf(c, T + 10 * DAY), 'confirm', 'confirmations locked');
+  assert.equal(catalog.memberStageOf(c, T + 25 * DAY), 'switching', 'install window');
+  assert.equal(catalog.memberStageOf(c, T + 40 * DAY), 'done', 'reconciled');
+});
+
+test('member stage boundaries are inclusive at the date itself', () => {
+  const c = auction(FULL);
+  assert.equal(catalog.memberStageOf(c, T + 4 * DAY - 1), 'bidding', 'a ms before offers_at');
+  assert.equal(catalog.memberStageOf(c, T + 4 * DAY), 'offers', 'exactly at offers_at');
+  assert.equal(catalog.memberStageOf(c, T + 9 * DAY), 'confirm', 'exactly at decision_at');
+  assert.equal(catalog.memberStageOf(c, T + 37 * DAY), 'done', 'exactly at reconcile_at');
+});
+
+test('member stage: a two minute calendar advances every step', () => {
+  /* The shape used to prove the pipeline end to end on a live dashboard:
+     seven columns two minutes apart. Every step must be reachable, or the
+     rail would skip one on a real cohort too. */
+  const MIN2 = 2 * MIN;
+  const c = auction({
+    announce_at: MIN2, bidding_opens_at: 2 * MIN2, bidding_closes_at: 3 * MIN2,
+    offers_at: 4 * MIN2, decision_at: 5 * MIN2, switch_window_at: 6 * MIN2,
+    reconcile_at: 7 * MIN2,
+  });
+  const seen = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => catalog.memberStageOf(c, T + i * MIN2 + 1000));
+  assert.deepEqual(seen,
+    ['forming', 'locked', 'bidding', 'bidding', 'offers', 'confirm', 'switching', 'done']);
+});
+
+test('member stage without a calendar falls back to kind, never to a guess', () => {
+  assert.equal(catalog.memberStageOf({ kind: 'forming', dates: {} }, T), 'forming');
+  assert.equal(catalog.memberStageOf({ kind: 'planned', dates: {} }, T), 'forming');
+  assert.equal(catalog.memberStageOf({ kind: 'auction', dates: {} }, T), 'bidding');
+  assert.equal(catalog.memberStageOf({ kind: 'closed', dates: FULL }, T), 'done',
+    'an admin close outranks the calendar');
+  assert.equal(catalog.memberStageOf({ kind: 'archived', dates: {} }, T), 'done');
+});
+
+test('member stage is pure and every stage carries a label', () => {
+  const c = auction(FULL);
+  assert.equal(catalog.memberStageOf(c, T), catalog.memberStageOf(c, T));
+  assert.doesNotThrow(() => catalog.memberStageOf(c));
+  for (const s of catalog.MEMBER_STAGES) {
+    assert.ok(catalog.MEMBER_STAGE_LABEL[s], `member stage ${s} has no label`);
+  }
+});
+
+test('the seven member stages are the ones the dashboard rail renders', () => {
+  /* Mirrors STATES in dashboard.html. Same seam as the console list above:
+     no shared code across the Vercel/Catalyst boundary. */
+  assert.deepEqual(
+    [...catalog.MEMBER_STAGES],
+    ['forming', 'locked', 'bidding', 'offers', 'confirm', 'switching', 'done']
+  );
+});

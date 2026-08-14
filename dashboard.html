@@ -13,7 +13,7 @@
      the visitor is, because a Google sign-in lands here with a cookie and an
      empty localStorage. Synchronous and in the head so the guard at the foot of
      the body can rely on it. -->
-<script src="/js/whollar-core.js?v=20260808a"></script>
+<script src="/js/whollar-core.js?v=20260814a"></script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -186,8 +186,121 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .kthumb{width:52px;height:52px;border-radius:12px;overflow:hidden;flex:none;border:1px solid var(--line)}
 .kthumb svg{display:block;width:100%;height:100%}
 .ktxt{min-width:0}
-.phone{display:flex;justify-content:center;margin:14px 0}
-.phone svg{width:min(150px,60%);height:auto;filter:drop-shadow(0 6px 14px rgba(26,37,32,.12))}
+/* ---------- member room: one card, three networks ----------
+   The handset is drawn at its native size (a 392px frame around a 748px
+   screen) and scaled as a single unit, so every type size inside the mock
+   keeps the proportion it was designed at. Only the wrapper box changes,
+   which is why .mrview carries the fixed dimensions and .mrdev the scale.
+   Each mock keeps its own platform's chrome and typography on purpose: a
+   member should recognise the room before reading a word of it. */
+.mroom{display:flex;flex-direction:column}
+.mrtabs{display:flex;gap:3px;background:#EDE8DB;border-radius:999px;padding:4px;margin-top:13px}
+.mrtab{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:transparent;border-radius:999px;padding:9px 6px;font-family:var(--disp);font-size:13px;font-weight:750;color:var(--sub);transition:background .15s,color .15s,box-shadow .15s}
+.mrtab svg{width:16px;height:16px;flex:none}
+.mrtab.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(26,37,32,.06),0 4px 12px rgba(26,37,32,.11)}
+.mrstage{display:flex;flex:1;justify-content:center;align-items:center;margin:18px 0}
+.mrview{position:relative;width:263px;height:522px;overflow:hidden;flex:none}
+.mrdev{position:absolute;top:0;left:0;width:414px;padding:11px;transform-origin:0 0;transform:scale(.635);background:linear-gradient(150deg,#3A3A3C,#1C1C1E 42%,#2C2C2E);border-radius:58px;box-shadow:0 22px 54px rgba(26,37,32,.22),inset 0 0 0 1px rgba(255,255,255,.1)}
+.mrscr{position:relative;height:800px;border-radius:47px;overflow:hidden;background:#000}
+.mrscr::before{content:"";position:absolute;top:12px;left:50%;transform:translateX(-50%);width:112px;height:33px;border-radius:999px;background:#000;z-index:5}
+.mrscr::after{content:"";position:absolute;left:50%;bottom:9px;transform:translateX(-50%);width:132px;height:5px;border-radius:999px;background:rgba(255,255,255,.42);z-index:5}
+.mrpane{height:800px;overflow:hidden;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.4}
+.mrpane[hidden]{display:none}
+.mrbar{display:flex;align-items:center;justify-content:space-between;padding:19px 26px 10px;font-size:14px;font-weight:700}
+.mrbar em{font-style:normal;font-size:11px;font-weight:600;letter-spacing:.06em}
+.mrcover{display:block;width:100%;object-fit:cover}
+.mrpad{padding:0 16px}
+.btn.mrcta{width:100%;justify-content:center;background:var(--ink2);box-shadow:0 2px 8px rgba(10,32,24,.22)}
+.btn.mrcta:hover{background:#06150F}
+/* Reddit */
+.mrp-rd{background:#fff;color:#1A1A1B}
+.mrp-rd .mrcover{height:88px}
+.rdhead{display:flex;align-items:flex-end;gap:12px;margin-top:-18px}
+.rdhead img{width:64px;height:64px;border-radius:999px;border:3px solid #fff;display:block}
+.rdhead b{display:block;font-size:20px;font-weight:700}
+.rdhead span{font-size:12.5px;color:#7C7C7C}
+.rdpills{display:flex;gap:8px;margin-top:12px}
+.rdpills span{border-radius:999px;padding:8px 22px;font-size:14px;font-weight:700;background:#0F2A1C;color:#fff}
+.rdpills span + span{background:none;color:#1A1A1B;border:1px solid #D7D7D7;padding:8px 18px;font-weight:600}
+.rdabout{font-size:13.5px;line-height:1.45;color:#5C5C5C;margin-top:12px}
+.rdrule{height:1px;background:#EDEFF1;margin:14px 0}
+.rdpost{padding:0 16px 14px}
+.rdpost + .rdpost{padding-top:14px}
+.rdpost--pin{border-bottom:8px solid #F6F7F8}
+.rdmeta{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#7C7C7C}
+.rdmeta img{width:20px;height:20px;border-radius:999px}
+.rdmeta strong{color:#1A1A1B}
+.rdpin{color:var(--accent);font-weight:700}
+.rdmod{background:var(--accent);color:#fff;border-radius:4px;padding:1px 6px;font-family:var(--mono);font-size:10px;letter-spacing:.08em}
+.rdtitle{font-size:17px;font-weight:600;line-height:1.3;margin-top:8px}
+.rdpost p{font-size:14px;line-height:1.5;margin-top:9px}
+.rdacts{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:13px;color:#7C7C7C;font-weight:600}
+.rdacts span{background:#F6F7F8;border-radius:999px;padding:7px 12px}
+/* X */
+.mrp-x{background:#000;color:#E7E9EA}
+.mrp-x .mrbar{color:#fff}
+.xhero{position:relative}
+.xhero .mrcover{height:112px}
+.xcirc{position:absolute;top:14px;width:34px;height:34px;border-radius:999px;background:rgba(0,0,0,.5);display:grid;place-items:center;color:#fff;font-size:16px}
+/* .xhero is positioned, so it paints above static siblings: the avatar has
+   to be positioned too or the banner covers the half that overlaps it. */
+.xtop{position:relative;display:flex;align-items:flex-end;justify-content:space-between;margin-top:-38px}
+.xtop img{width:76px;height:76px;border-radius:999px;border:4px solid #000;display:block}
+.xtop div{display:flex;gap:8px;padding-bottom:6px}
+.xtop div span{border:1px solid #536471;border-radius:999px;padding:7px 15px;font-size:13px;font-weight:700}
+.xtop div span + span{background:#EFF3F4;color:#0F1419;border-color:#EFF3F4}
+.xname{display:flex;align-items:center;gap:5px;margin-top:12px;font-size:21px;font-weight:800}
+.xname svg{width:18px;height:18px;flex:none}
+.xhandle{font-size:14px;color:#71767B;margin-top:2px}
+.xbio{font-size:14.5px;line-height:1.42;margin-top:12px}
+.xmeta{display:flex;flex-wrap:wrap;gap:12px;font-size:13.5px;color:#71767B;margin-top:12px}
+.xmeta i{font-style:normal;color:#1D9BF0}
+.xtabs{display:flex;margin-top:16px;border-bottom:1px solid #2F3336}
+.xtabs span{flex:1;text-align:center;padding:14px 0 11px;font-size:14px;color:#71767B}
+.xtabs span.on{font-weight:700;color:#E7E9EA;border-bottom:3px solid #1D9BF0}
+.xpost{display:flex;gap:12px;padding:14px 16px;border-bottom:1px solid #2F3336}
+.xpost > img{width:40px;height:40px;border-radius:999px;flex:none}
+.xpost > div{min-width:0}
+.xpin{font-size:12.5px;color:#71767B;margin-bottom:4px}
+.xwho{font-size:14.5px}
+.xwho span{color:#71767B}
+.xpost p{font-size:14.5px;line-height:1.42;margin-top:6px}
+.xlink{margin-top:10px;border:1px solid #2F3336;border-radius:14px;overflow:hidden}
+.xlink img{display:block;width:100%;height:96px;object-fit:cover}
+.xlink span{display:block;padding:9px 12px;font-size:12.5px;color:#71767B}
+.xacts{display:flex;gap:56px;margin-top:12px;font-size:13px;color:#71767B}
+/* LinkedIn */
+.mrp-li{background:#F4F2EE;color:#1A1A1B}
+.mrp-li .mrbar{background:#fff}
+.lihead{background:#fff;padding-bottom:16px}
+.lihead .mrcover{height:104px}
+.lihead img.liav{width:72px;height:72px;border-radius:10px;border:3px solid #fff;margin-top:-28px;display:block}
+.liname{font-size:21px;font-weight:700;margin-top:10px}
+.litag{font-size:14.5px;margin-top:2px}
+.liwhere{font-size:13px;color:#00000099;margin-top:6px}
+.libtns{display:flex;gap:8px;margin-top:14px}
+.libtns span{border-radius:999px;padding:9px 20px;font-size:14px;font-weight:600;background:#0A66C2;color:#fff}
+.libtns span + span{background:none;color:#0A66C2;border:1px solid #0A66C2}
+.lipost{background:#fff;margin-top:8px;padding:16px}
+.liwho{display:flex;gap:10px;align-items:flex-start}
+.liwho img{width:44px;height:44px;border-radius:8px;flex:none}
+.liwho b{display:block;font-size:14.5px;font-weight:600}
+.liwho span{display:block;font-size:12.5px;color:#00000099}
+.lipost p{font-size:14.5px;line-height:1.5;margin-top:10px}
+.lipost p.tags{color:#0A66C2}
+.lipost > img{display:block;width:100%;height:150px;object-fit:cover;margin-top:12px}
+.liacts{display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid #00000014;font-size:13.5px;font-weight:600;color:#00000099}
+/* Worth a read: a lead article, then rows. The card opposite runs tall, and
+   four flat rows split evenly leave a band of dead space at every width. */
+.reads li.rlead{flex:none;display:block;min-height:0}
+.reads li.rlead a{display:block;padding:0 0 15px}
+.rlead__media{display:block;aspect-ratio:16/9;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--mint)}
+.rlead__media img{display:block;width:100%;height:100%;object-fit:cover}
+.rlead__body{display:block;padding-top:12px}
+.rlead__body b{display:block;font-family:var(--disp);font-size:17px;font-weight:750;line-height:1.28;margin:5px 0}
+.rlead__body small{display:block;margin-top:8px}
+.rdeck{display:block;font-size:13px;font-weight:400;color:var(--sub);line-height:1.5}
+.rlead a:hover b{color:var(--accent-deep)}
 .phero{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:20px}
 .ring--av{width:84px;height:84px}
 .avtxt{font-family:var(--disp);font-size:19px;font-weight:800;fill:var(--ink);text-anchor:middle}
@@ -497,6 +610,12 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 
 /* ===== visitor / pre-join surface (ported from member dashboard v10) ===== */
 .vfirst{border-color:#E7CFB9}
+/* The checkup prompt, which a joined member sees above their cohort until the
+   nine questions have actually run. Full width above .grid2, so it reads as a
+   step still owed rather than a tile in the aside. */
+.ckprompt{margin-bottom:20px}
+.ckprompt h3{font-size:21px}
+.ckprompt .btn{margin-top:14px}
 .vres{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
 .vres>div:first-child{flex:1;min-width:230px}
 .vnum{background:#F7F3E8;border:1px solid var(--line);border-radius:14px;padding:13px 18px;text-align:center}
@@ -733,8 +852,9 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               <span class="eyebrow">Refer anyone, anywhere</span>
               <h3>Every referral moves a cohort</h3>
               <p class="cardnote">Neighbours strengthen your cohort directly. Friends anywhere else speed up their own region's launch. Either way, someone's bill gets better.</p>
-              <div class="codebox"><code id="refcode">WHL-PRIYA-7</code><button class="copybtn" type="button" id="copyref">Copy</button></div>
-              <p class="fnote">3 people have joined with your code so far.</p>
+              <div class="codebox"><code id="refcode">WHL-&hellip;</code><button class="copybtn" type="button" id="copyref">Copy</button></div>
+              <div style="margin-top:10px"><button class="btn ghost" type="button" id="sharelink">Share your link</button></div>
+              <p class="fnote" id="refcount">Loading your code&hellip;</p>
             </section>
 
             <section class="card" aria-label="Rate your provider" id="ratecard">
@@ -765,30 +885,129 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               <ul class="reads" id="reads"></ul>
               <button class="tlink" type="button" data-nav="knowledge">See all &rarr;</button>
             </section>
-<section class="card" aria-label="The member room">
+<section class="card mroom" aria-label="The member room">
               <span class="eyebrow">The member room</span>
               <h3>Talk to other members</h3>
-              <p class="cardnote">Hosted on Reddit while we're small. Your cohort gets its own thread the day bidding starts.</p>
-              <div class="phone" aria-hidden="true"><svg viewBox="0 0 150 196">
-                <rect x="4" y="4" width="142" height="188" rx="20" fill="#ffffff" stroke="#2B3A33" stroke-width="3"/>
-                <rect x="16" y="18" width="118" height="16" rx="8" fill="#F6F4EE"/>
-                <text x="26" y="30" font-family="Space Mono,monospace" font-size="9.5" fill="#178A5A">r/whollar</text>
-                <g><rect x="16" y="44" width="118" height="42" rx="9" fill="#E4F4EC"/>
-                  <path d="M26 66l5-6 5 6" stroke="#1E9E63" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                  <rect x="44" y="52" width="76" height="5" rx="2.5" fill="#1E9E63" opacity=".7"/>
-                  <rect x="44" y="63" width="58" height="5" rx="2.5" fill="#8A968F"/>
-                  <rect x="44" y="74" width="40" height="5" rx="2.5" fill="#8A968F" opacity=".6"/></g>
-                <g><rect x="16" y="94" width="118" height="42" rx="9" fill="#F7E7DD"/>
-                  <path d="M26 116l5-6 5 6" stroke="#C2643B" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                  <rect x="44" y="102" width="70" height="5" rx="2.5" fill="#C2643B" opacity=".7"/>
-                  <rect x="44" y="113" width="62" height="5" rx="2.5" fill="#8A968F"/>
-                  <rect x="44" y="124" width="34" height="5" rx="2.5" fill="#8A968F" opacity=".6"/></g>
-                <g><rect x="16" y="144" width="118" height="34" rx="9" fill="#F6F4EE"/>
-                  <path d="M26 164l5-6 5 6" stroke="#1E9E63" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                  <rect x="44" y="152" width="64" height="5" rx="2.5" fill="#1E9E63" opacity=".6"/>
-                  <rect x="44" y="163" width="48" height="5" rx="2.5" fill="#8A968F"/></g>
-              </svg></div>
-              <button class="btn ghost" type="button" id="reddit">Join us on Reddit</button>
+              <p class="cardnote">Hosted where you already scroll, while we're small. Your cohort gets its own thread the day bidding starts.</p>
+
+              <div class="mrtabs" role="tablist" aria-label="Choose a network">
+                <button class="mrtab on" type="button" role="tab" id="mrt-reddit" aria-selected="true" aria-controls="mrp-reddit" data-net="reddit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><circle cx="18.5" cy="4.5" r="1.6"/><path d="M12 6 13.2 3l3.9.9"/><path d="M9.3 16.4c1.6 1.1 3.8 1.1 5.4 0"/></svg>Reddit</button>
+                <button class="mrtab" type="button" role="tab" id="mrt-x" aria-selected="false" aria-controls="mrp-x" data-net="x" tabindex="-1"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.53 3H21l-7.6 8.7L22.4 21H15.9l-5.1-6.6L4.9 21H1.4l8.2-9.4L1.6 3h6.6l4.6 6.1zm-1.2 16h1.9L7.8 4.9H5.7z"/></svg>X</button>
+                <button class="mrtab" type="button" role="tab" id="mrt-li" aria-selected="false" aria-controls="mrp-li" data-net="linkedin" tabindex="-1"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.5 3A1.9 1.9 0 1 0 4.5 6.8 1.9 1.9 0 0 0 4.5 3zM2.9 8.4h3.2V21H2.9zM9.4 8.4h3.1v1.7h.1c.4-.8 1.5-1.9 3.3-1.9 3.5 0 4.2 2.2 4.2 5.1V21h-3.2v-6c0-1.4 0-3.3-2-3.3s-2.3 1.6-2.3 3.2V21H9.4z"/></svg>LinkedIn</button>
+              </div>
+
+              <div class="mrstage">
+                <div class="mrview">
+                  <div class="mrdev">
+                    <div class="mrscr">
+
+                      <div class="mrpane mrp-rd" id="mrp-reddit" role="tabpanel" aria-labelledby="mrt-reddit">
+                        <div class="mrbar"><span>9:41</span><em>&#9646;&#9646;&#9646; &#8961; 46</em></div>
+                        <img class="mrcover" src="/images/social/whollar-cover.webp" alt="Your street, one bill lighter" width="900" height="300" loading="lazy" decoding="async">
+                        <div class="mrpad">
+                          <div class="rdhead">
+                            <img src="/images/social/whollar-avatar.webp" alt="" width="240" height="240" loading="lazy" decoding="async">
+                            <div><b>r/whollar</b><span>Street-price threads &middot; Ontario</span></div>
+                          </div>
+                          <div class="rdpills"><span>Join</span><span>&middot;&middot;&middot;</span></div>
+                          <p class="rdabout">Households comparing internet bills street by street. Post your speed, price and postal FSA. No provider bashing, no referral links, no sales.</p>
+                        </div>
+                        <div class="rdrule"></div>
+                        <div class="rdpost rdpost--pin">
+                          <div class="rdmeta"><span class="rdpin">&#128204; Pinned</span><img src="/images/social/whollar-avatar.webp" alt="" width="240" height="240" loading="lazy" decoding="async"><strong>u/whollar_team</strong><span class="rdmod">MOD</span></div>
+                          <div class="rdtitle">Weekly street-price thread: post your FSA, speed, price, contract status</div>
+                          <p>Format: FSA, download speed, what you pay now, month-to-month or contract, and whether you had to call to get it.</p>
+                          <p>Why it matters: internet has no posted price. Two homes on one node can be $40 apart and neither knows. The thread is the only place the spread is visible.</p>
+                          <p>Cohort threads open here the day bidding starts for your area.</p>
+                          <div class="rdacts"><span>&#9650; &#9660;</span><span>&#128172; Comment</span><span>&#8599; Share</span></div>
+                        </div>
+                        <div class="rdpost">
+                          <div class="rdmeta"><img src="/images/social/whollar-avatar.webp" alt="" width="240" height="240" loading="lazy" decoding="async"><strong>u/whollar_team</strong><span class="rdmod">MOD</span></div>
+                          <div class="rdtitle">Riverdale M4K opens 3 September</div>
+                          <p>Free to join, free to leave before bids are read. Post in the street-price thread first so the cohort walks in knowing its own spread.</p>
+                          <div class="rdacts"><span>&#9650; &#9660;</span><span>&#128172; Comment</span><span>&#8599; Share</span></div>
+                        </div>
+                      </div>
+
+                      <div class="mrpane mrp-x" id="mrp-x" role="tabpanel" aria-labelledby="mrt-x" hidden>
+                        <div class="mrbar"><span>8:53</span><em>&#9646;&#9646;&#9646; &#8961; 32</em></div>
+                        <div class="xhero">
+                          <img class="mrcover" src="/images/social/whollar-cover.webp" alt="Your street, one bill lighter" width="900" height="300" loading="lazy" decoding="async">
+                          <span class="xcirc" style="left:14px">&#8592;</span><span class="xcirc" style="right:14px">&#8981;</span>
+                        </div>
+                        <div class="mrpad">
+                          <div class="xtop">
+                            <img src="/images/social/whollar-avatar.webp" alt="" width="240" height="240" loading="lazy" decoding="async">
+                            <div><span>Share</span><span>Edit profile</span></div>
+                          </div>
+                          <div class="xname">Whollar<svg viewBox="0 0 24 24" fill="#1D9BF0" aria-hidden="true"><path d="M12 2 14.2 4.2 17.3 4 17.6 7.1 20 9l-1.6 2.7L20 14.4 17.6 16.3l-.3 3.1-3.1-.2L12 21.4 9.8 19.2l-3.1.2-.3-3.1L4 14.4l1.6-2.7L4 9l2.4-1.9.3-3.1 3.1.2z"/><path d="m10.6 14.6-2.4-2.4 1.1-1.1 1.3 1.3 3.9-3.9 1.1 1.1z" fill="#000"/></svg></div>
+                          <div class="xhandle">@Whollar_ca</div>
+                          <p class="xbio">We put your whole street on one side of the negotiating table. Providers bid, you pick. Free for households. Toronto.</p>
+                          <div class="xmeta"><span>&#9678; Toronto, Ontario</span><i>&#8599; whollar.ca</i><span>&#9636; Joined August 2026</span></div>
+                        </div>
+                        <div class="xtabs"><span class="on">Posts</span><span>Replies</span><span>Media</span></div>
+                        <div class="xpost">
+                          <img src="/images/social/whollar-avatar.webp" alt="" width="240" height="240" loading="lazy" decoding="async">
+                          <div>
+                            <div class="xpin">&#128204; Pinned</div>
+                            <div class="xwho"><strong>Whollar</strong> <span>@Whollar_ca &middot; 6h</span></div>
+                            <p>Activation, setup, transfer and cancellation fees have been illegal in Canada since June 12. Check your last two bills. The enforcement gap is real.</p>
+                            <div class="xacts"><span>&#128172;</span><span>&#128257;</span><span>&#9825;</span><span>&#8599;</span></div>
+                          </div>
+                        </div>
+                        <div class="xpost">
+                          <img src="/images/social/whollar-avatar.webp" alt="" width="240" height="240" loading="lazy" decoding="async">
+                          <div>
+                            <div class="xwho"><strong>Whollar</strong> <span>@Whollar_ca &middot; 2d</span></div>
+                            <p>The retention line works. That's the problem. It means the price was always available and you had to know to ask for it.</p>
+                            <div class="xlink">
+                              <img src="/images/social/whollar-cover.webp" alt="" width="900" height="300" loading="lazy" decoding="async">
+                              <span>whollar.ca &middot; Check if I'm overpaying</span>
+                            </div>
+                            <div class="xacts"><span>&#128172;</span><span>&#128257;</span><span>&#9825;</span><span>&#8599;</span></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="mrpane mrp-li" id="mrp-li" role="tabpanel" aria-labelledby="mrt-li" hidden>
+                        <div class="mrbar"><span>9:15</span><em>&#9646;&#9646;&#9646; &#8961; 23</em></div>
+                        <div class="lihead">
+                          <img class="mrcover" src="/images/social/whollar-cover.webp" alt="Your street, one bill lighter" width="900" height="300" loading="lazy" decoding="async">
+                          <div class="mrpad">
+                            <img class="liav" src="/images/social/whollar-avatar.webp" alt="" width="240" height="240" loading="lazy" decoding="async">
+                            <div class="liname">Whollar</div>
+                            <div class="litag">Your street, one bill lighter.</div>
+                            <div class="liwhere">Telecommunications &middot; Toronto, Ontario</div>
+                            <div class="libtns"><span>+ Follow</span><span>Visit website</span></div>
+                          </div>
+                        </div>
+                        <div class="lipost">
+                          <div class="liwho">
+                            <img src="/images/social/whollar-avatar.webp" alt="" width="240" height="240" loading="lazy" decoding="async">
+                            <div><b>Whollar</b><span>Your street, one bill lighter.</span><span>2d &middot; &#9676;</span></div>
+                          </div>
+                          <p>The CCTS logged 19,157 complaints between August 2025 and January 2026, up 61%. Billing was the top issue.</p>
+                          <p>That's the symptom. The cause is structural: internet has no posted price, so every household negotiates alone, out of sight of every other household. Two homes on the same street, same 1 Gbps plan, can sit $40 apart, and neither is told.</p>
+                          <p>Whollar groups households by serviceability signature and runs a sealed reverse auction. Providers bid for the whole cohort on price, guarantee length and contract flexibility. Households pick the winner.</p>
+                          <p class="tags">#CanadianTelecom #CRTC</p>
+                          <img src="/images/social/whollar-cover.webp" alt="" width="900" height="300" loading="lazy" decoding="async">
+                          <div class="liacts"><span>&#128077; Like</span><span>&#128172; Comment</span><span>&#128257; Repost</span><span>&#10148; Send</span></div>
+                        </div>
+                        <div class="lipost">
+                          <div class="liwho">
+                            <img src="/images/social/whollar-avatar.webp" alt="" width="240" height="240" loading="lazy" decoding="async">
+                            <div><b>Whollar</b><span>1w &middot; &#9676;</span></div>
+                          </div>
+                          <p>Riverdale M4K opens 3 September. Free to join, free to leave before bids are read.</p>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button class="btn mrcta" type="button" id="mrcta">Join r/whollar</button>
             </section>
         </div>
         </div>
@@ -2121,7 +2340,11 @@ function paintIdentity(){
   var ph2=$('.phero h2');
   if(ph2&&ph2.firstChild&&ph2.firstChild.nodeType===3)ph2.firstChild.nodeValue=DISPNAME+' ';
   var av=$('.avtxt'); if(av)av.textContent=INITIALS;
-  var rc=$('#refcode'); if(rc)rc.textContent='WHL-'+(FIRST?FIRST.toUpperCase():'W')+'-7';
+  /* The referral code is NOT derived from the name here, though it used to be.
+     The server derives it from the account id and counts the people who used
+     it; a name-shaped code invented in the browser was a different string from
+     the one the count matches on, so it could never have counted anybody.
+     paintReferral below fills it in from GET /me/referral. */
 }
 paintIdentity();
 
@@ -2328,18 +2551,73 @@ $('#panel').addEventListener('click',function(e){
   if(act==='stay'){S.sub='stayed';render();return}
   if(act==='unstay'){S.sub=null;render();return}
   if(act==='backoffers'){go('offers');return}
-  if(act==='invite'){copyRef();return}
+  if(act==='invite'){shareRef();return}
   if(t.id==='paydep'){t.disabled=true;t.textContent='Placing deposit\u2026';setTimeout(function(){go('switching');openSavings();toast('Deposit placed: '+dep()+', credited to your first bill.')},reduce?350:900);return}
 });
 $('#panel').addEventListener('change',function(e){
   if(e.target.id==='consent'){var b=$('#paydep');if(b)b.disabled=!e.target.checked}
 });
+/* ---------- referral: one code, from the server, everywhere on the page ----
+   REF holds what GET /me/referral answered. Null until it answers, and null
+   forever if it cannot: every reader below treats that as "no code yet" and
+   nothing on the page invents one, which is exactly the bug this replaced. */
+var REF=null;
+
+function paintReferral(){
+  var code=REF&&REF.code;
+  var rc=$('#refcode'); if(rc)rc.textContent=code||'WHL-…';
+  var n=$('#refcount');
+  if(n){
+    if(!REF)n.textContent='Your code is loading…';
+    else if(!code)n.textContent='Your code will appear here shortly.';
+    else if(!REF.joined)n.textContent='Nobody has joined with your code yet. Share your link and this counts them.';
+    else if(REF.joined===1)n.textContent='1 person has joined with your code so far.';
+    else n.textContent=REF.joined+' people have joined with your code so far.';
+    if(REF&&REF.pending)n.textContent+=' '+REF.pending+' more started and haven’t confirmed their email yet.';
+  }
+  $$('.refc').forEach(function(el){el.textContent=code||'WHL-…'});
+}
+
+/* The link, not the code, is what gets shared: it survives being pasted into a
+   text message, and it carries the code into a browser that will bank it even
+   if the neighbour signs up three pages later. */
+function refLink(){
+  return (REF&&REF.code&&W&&W.referral)?W.referral.link(REF.code):null;
+}
+
 function copyRef(){
-  var code=$('#refcode').textContent;
+  var code=REF&&REF.code;
+  if(!code){toast('Your code is still loading. One moment.');return}
   try{navigator.clipboard.writeText(code)}catch(err){}
   toast('Code copied: '+code);
 }
+
+/* Native share where the device has one (every phone), clipboard everywhere
+   else. A cancelled share sheet is not an error and says nothing. */
+function shareRef(){
+  var url=refLink();
+  if(!url){toast('Your code is still loading. One moment.');return}
+  var text='Whollar pools households by renewal timing so providers bid for the whole cohort. Join with my link and it strengthens both our spots.';
+  if(navigator.share){
+    navigator.share({title:'Whollar',text:text,url:url}).then(null,function(){});
+    return;
+  }
+  try{navigator.clipboard.writeText(url)}catch(err){}
+  toast('Link copied: '+url);
+}
+
+function loadReferral(){
+  if(!W||!W.session||!W.session.referral){paintReferral();return}
+  W.session.referral().then(function(r){
+    if(r&&r.code)REF={code:r.code,joined:r.joined||0,pending:r.pending||0};
+    paintReferral();
+  },function(){paintReferral()});
+}
+
 $('#copyref').addEventListener('click',copyRef);
+var shareBtn=$('#sharelink'); if(shareBtn)shareBtn.addEventListener('click',shareRef);
+paintReferral();
+loadReferral();
 $$('.dots').forEach(function(d){
   for(var i=1;i<=5;i++){
     var b=document.createElement('button');
@@ -2381,7 +2659,39 @@ $('#ratego').addEventListener('click',function(){
     toast((err&&err.message)||'Something went wrong. Please try again.');
   });
 });
-$('#reddit').addEventListener('click',function(){toast('Prototype: this will open the member subreddit.')});
+/* ---------- member room: network toggle ----------
+   The tab owns two things and nothing else on the page reads them: which
+   mock is on screen, and what the one button underneath says. */
+var MROOM={
+  reddit:{pane:'mrp-reddit',tab:'mrt-reddit',cta:'Join r/whollar',msg:'Prototype: this will open the member subreddit.'},
+  x:{pane:'mrp-x',tab:'mrt-x',cta:'Follow us on X',msg:'Prototype: this will open @Whollar_ca on X.'},
+  linkedin:{pane:'mrp-li',tab:'mrt-li',cta:'Follow us on LinkedIn',msg:'Prototype: this will open the Whollar page on LinkedIn.'}
+};
+var MRNETS=['reddit','x','linkedin'],mrNet='reddit';
+function pickRoom(net){
+  if(!MROOM[net])return;
+  mrNet=net;
+  for(var i=0;i<MRNETS.length;i++){
+    var k=MRNETS[i],on=k===net,t=$('#'+MROOM[k].tab);
+    t.classList.toggle('on',on);
+    t.setAttribute('aria-selected',on?'true':'false');
+    /* Roving tabindex: one stop for the whole group, arrows move inside it. */
+    t.setAttribute('tabindex',on?'0':'-1');
+    $('#'+MROOM[k].pane).hidden=!on;
+  }
+  $('#mrcta').textContent=MROOM[net].cta;
+}
+$$('.mrtab').forEach(function(b){
+  b.addEventListener('click',function(){pickRoom(b.getAttribute('data-net'))});
+  b.addEventListener('keydown',function(e){
+    var d=e.key==='ArrowRight'?1:(e.key==='ArrowLeft'?-1:0);
+    if(!d)return;
+    e.preventDefault();
+    var next=MRNETS[(MRNETS.indexOf(mrNet)+d+MRNETS.length)%MRNETS.length];
+    pickRoom(next);$('#'+MROOM[next].tab).focus();
+  });
+});
+$('#mrcta').addEventListener('click',function(){toast(MROOM[mrNet].msg)});
 /* ---------- campaigns: cards, sheet, joins ---------- */
 function campById(id){for(var i=0;i<CAMPS.length;i++)if(CAMPS[i].id===id)return CAMPS[i];return null}
 function applyCampaign(sc){
@@ -2390,6 +2700,13 @@ function applyCampaign(sc){
   if(typeof sc.households==='number')c.households=sc.households;
   if(sc.target)c.target=sc.target;
   if(sc.you!==undefined)c.you=sc.you;
+  if(sc.kind)c.kind=sc.kind;
+  /* Server-owned stage and calendar. Carried onto the local record so
+     deriveState() and paintDates() read one object, and left untouched when
+     the field is absent so an older deployment degrades to `kind`. */
+  if(sc.stage)c.stage=sc.stage;
+  if(sc.dates)c.dates=sc.dates;
+  if(sc.next!==undefined)c.next=sc.next;
 }
 /* One cohort drives the hero panel; keep it and the London East card telling
    the same story, whichever one a change lands in first. */
@@ -2547,11 +2864,20 @@ var KMETA=[
   ['collective-switching','How it works','Collective switching is not a theory. It moved energy markets for years. Now, internet.','~5 min read','An electricity pylon with power lines fanning out overhead'],
   ['three-companies','The market','The prices make more sense once you see who owns the pipes.','~6 min read','A telecommunications mast with dish antennas against a clear sky']
 ];
-/* three most recent reads, each a linked thumbnail into the article */
-$('#reads').innerHTML=BLOGS.slice(0,3).map(function(b,i){
+/* Four most recent reads: the newest runs as a lead with its category and
+   deck, the other three as thumbnail rows. The member room opposite is a
+   tall card, and four equal rows would only spread the dead space around. */
+$('#reads').innerHTML=BLOGS.slice(0,4).map(function(b,i){
   var m=KMETA[i], img='/images/resources/'+m[0];
+  if(i===0){
+    return '<li class="rlead"><a href="/blog/'+b[2]+'">'
+    +'<span class="rlead__media"><img src="'+img+'.webp" srcset="'+img+'.webp 800w, '+img+'@2x.webp 1600w" sizes="(max-width:900px) 92vw, 460px" alt="'+esc(m[4])+'" loading="lazy" decoding="async" width="800" height="533"></span>'
+    +'<span class="rlead__body"><span class="eyebrow">'+esc(m[1])+'</span>'
+    +'<b>'+esc(b[0])+'</b><span class="rdeck">'+esc(m[2])+'</span>'
+    +'<small>'+b[1]+'</small></span></a></li>';
+  }
   return '<li><a href="/blog/'+b[2]+'">'
-  +'<span class="rthumb"><img src="'+img+'.webp" srcset="'+img+'.webp 800w, '+img+'@2x.webp 1600w" sizes="56px" alt="'+esc(m[4])+'" loading="lazy" decoding="async" width="800" height="533"></span>'
+  +'<span class="rthumb"><img src="'+img+'.webp" srcset="'+img+'.webp 800w, '+img+'@2x.webp 1600w" sizes="64px" alt="'+esc(m[4])+'" loading="lazy" decoding="async" width="800" height="533"></span>'
   +'<span class="rtxt">'+esc(b[0])+'<small>'+b[1]+'</small></span></a></li>'
 }).join('');
 $('#klist').innerHTML=BLOGS.map(function(b,i){
@@ -2628,6 +2954,12 @@ function deriveState(){
   var c=CAMPLIVE?joinedCamp():null;
   if(!c)return OPTJOIN?'forming':(hasBill?'result':'arrive');
   if(c.you==='waitlist')return 'waitlist';
+  /* THE SERVER OWNS STAGE. c.stage is derived by catalog.memberStageOf from
+     the cohort's own calendar, against one clock reading taken server side.
+     Reading it here is the whole point: the browser must not re-derive a
+     stage, and the `kind` switch below is only what remains when a
+     deployment predates the field. */
+  if(c.stage&&STATES.indexOf(c.stage)>-1)return c.stage;
   switch(c.kind){
     case 'planned':case 'waitlist':return 'waitlist';
     case 'forming':return 'forming';
@@ -2636,12 +2968,60 @@ function deriveState(){
     default:return hasBill?'result':'arrive';
   }
 }
+
+/* ---------- the cohort's calendar ----------
+   "Your dates" used to be five hardcoded strings in the markup, which is why
+   nothing about them ever moved. They now come from the campaign the member
+   actually joined. The promo cliff tile is left alone: it belongs to the
+   member's own bill, not to the cohort. */
+/* [tile, columns, range?]. Only the bidding tile spans two dates; the rest
+   are single moments, and the first column present wins. Listing more than
+   one column is a fallback order, not a range: "Offer deadline" is the date
+   confirmations lock, or the date the offer landed when no decision date was
+   set, never both. */
+var DATE_TILES=[
+  ['close',['announce_at'],false],
+  ['bid',['bidding_opens_at','bidding_closes_at'],true],
+  ['offer',['decision_at','offers_at'],false],
+  ['switch',['switch_window_at'],false]
+];
+var MONS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function dstamp(ms){
+  var d=new Date(ms);
+  /* A calendar measured in minutes is a test calendar, and a bare "Sep 12"
+     hides exactly the thing being tested. Show the clock when the whole
+     cohort runs inside a day. */
+  return SHORTCAL
+    ? MONS[d.getMonth()]+' '+d.getDate()+', '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')
+    : MONS[d.getMonth()]+' '+d.getDate();
+}
+var SHORTCAL=false;
+function paintDates(c){
+  var dates=(c&&c.dates)||null;
+  if(!dates)return;
+  var stamps=[];
+  for(var k in dates)if(dates[k])stamps.push(dates[k]);
+  if(stamps.length>1){
+    stamps.sort(function(a,b){return a-b});
+    SHORTCAL=(stamps[stamps.length-1]-stamps[0])<36*60*60*1000;
+  }
+  DATE_TILES.forEach(function(t){
+    var el=$('.tn2[data-t="'+t[0]+'"] span');
+    if(!el)return;
+    var vals=t[1].map(function(col){return dates[col]}).filter(Boolean);
+    if(!vals.length)return;                       /* keep whatever was there */
+    el.textContent=(t[2]&&vals.length>1&&vals[0]!==vals[1])
+      ? dstamp(vals[0])+' to '+dstamp(vals[1])
+      : dstamp(vals[0]);
+  });
+}
 function applyDerived(){
   syncCheckupFromBill();
   if(!TOURED){
     S.state=deriveState();
     S.joined=VIS.indexOf(S.state)<0;
   }
+  paintDates(CAMPLIVE?joinedCamp():null);
   render();
 }
 
@@ -2657,12 +3037,16 @@ function helloSub(){
 }
 
 /* ---------- shared tiles for the visitor layout ---------- */
-function refCode(){return 'WHL-'+(FIRST?FIRST.toUpperCase():'W')+'-7'}
+/* Same code as the member card, same source: REF, filled by GET /me/referral.
+   paintReferral repaints every .refc on the page when the answer lands, so
+   this tile being rendered before the fetch resolves is fine. */
+function refCode(){return (REF&&REF.code)||'WHL-…'}
 function referralHTML(){
   return '<section class="card" aria-label="Referral">'
   +'<span class="eyebrow">Refer anyone, anywhere</span><h3>Every referral moves a cohort</h3>'
   +'<p class="cardnote">Neighbours strengthen the cohort here. Friends anywhere else speed up their own region’s launch. Either way, someone’s bill gets better.</p>'
   +'<div class="codebox"><code class="refc">'+esc(refCode())+'</code><button class="copybtn copyrefc" type="button">Copy</button></div>'
+  +'<div style="margin-top:10px"><button class="btn ghost sharerefc" type="button">Share your link</button></div>'
   +'</section>';
 }
 function readsCardHTML(){
@@ -2681,7 +3065,8 @@ function redditCardHTML(){
   +'<button class="btn ghost redditgo" type="button">Join us on Reddit</button></section>';
 }
 document.addEventListener('click',function(e){
-  if(e.target.closest('.copyrefc')){try{navigator.clipboard.writeText(refCode())}catch(err){}toast('Code copied: '+refCode());return}
+  if(e.target.closest('.copyrefc')){copyRef();return}
+  if(e.target.closest('.sharerefc')){shareRef();return}
   if(e.target.closest('.redditgo'))toast('Prototype: this will open the member subreddit.');
 });
 
@@ -2805,6 +3190,41 @@ function renderVisitorX(){
   if(S.state==='arrive')invKick();
 }
 
+/* ---------- member: the checkup they were never offered ----------
+   deriveState() hands a joined member their cohort's stage, so `arrive` (and
+   with it the card above that offers the checkup) is unreachable for anyone
+   who came in through the join page, which is everyone. That page saves four
+   of the checkup's nine answers as a bill under source 'waitlist', and four
+   fields are enough to paint a switch file, a spot strength and a cliff, and
+   nowhere near enough to be a checkup. Same objection as the one recorded in
+   rvArriveX(): a short form's numbers end up reading as "their numbers".
+   So the member home carries the offer until a real checkup lands.
+
+   'dashboard' counts alongside 'bill-checkup' here: that source is the bill
+   upload on this page, OCR behind it, which is the member's own document
+   rather than a handful of typed fields. */
+var CHECKUP_SOURCES=['bill-checkup','dashboard'];
+function hasCheckup(){
+  var bill=MEMBER&&MEMBER.bill;
+  return !!(bill&&CHECKUP_SOURCES.indexOf(bill.source)>-1);
+}
+/* Two readings of the same gap. A member with join details has numbers on
+   screen already, so the card has to say why they are not enough; a member
+   with nothing is simply being asked the first question. */
+function checkupPromptHTML(){
+  var bill=MEMBER&&MEMBER.bill;
+  var thin=!!(bill&&(bill.provider||bill.monthly||bill.promoEnd));
+  return '<section class="card vfirst ckprompt" id="ckprompt" aria-label="Check if you are overpaying">'
+  +'<span class="eyebrow" style="color:#8C4622">Two minutes, free, private</span>'
+  +'<h3>'+(thin?'Your switch file is thin, and bids follow the file.':'Let’s find out what your bill should be.')+'</h3>'
+  +'<p class="cardnote">'+(thin
+    ?'What we hold came from your join details: a few fields, with no bill behind them. The checkup is nine questions and your actual bill, and it is what turns a held spot into a number providers can bid against.'
+    :'Nine questions and your actual bill. It is how we work out what your household should be paying, and what your cohort asks for on your behalf.')+'</p>'
+  +'<a class="btn terra" href="/bill-checkup?from=dashboard">Check if I’m overpaying</a>'
+  +'<p class="fnote">Your bill stays private. Bidding partners only ever see cohort aggregates, never you.</p>'
+  +'</section>';
+}
+
 /* ---------- visitor router (called at the top of render) ---------- */
 function routeVisitor(){
   helloSub();
@@ -2818,6 +3238,15 @@ function routeVisitor(){
   if(!isVis&&S.joined&&S.prefs){
     var aside=$('#member-home .aside');
     if(aside)aside.insertAdjacentHTML('afterbegin',prefsCard());
+  }
+  /* Removed and rebuilt on every pass, like the prefs card above it: a late
+     GET /me/bill can land a real checkup after first paint, and the offer has
+     to retire itself when it does. TOURED means the demo switcher owns the
+     state, and the tour has no member record to check. */
+  var ck=$('#ckprompt');if(ck)ck.remove();
+  if(!isVis&&!TOURED&&!hasCheckup()){
+    var mh=$('#member-home');
+    if(mh)mh.insertAdjacentHTML('afterbegin',checkupPromptHTML());
   }
   syncRegions();
   $$('#sts button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-goto')===S.state)});
@@ -3093,12 +3522,53 @@ if(W&&W.session&&W.session.ratingGet){
    standing (joined / waitlisted / bell set) replace the seeds, including
    "not joined yet", which turns the London East card into an invitation. */
 if(W&&W.session&&W.session.campaignsList){
-  W.session.campaignsList().then(function(r){
-    if(!r)return;
-    CAMPLIVE=Boolean(r.live);
-    (r.campaigns||[]).forEach(applyCampaign);
-    syncCohortFromCamps();
-    applyDerived();
+  /* Refetched on a timer, because a cohort's stage changes with the clock and
+     nothing pushes. The server sends `serverTime` alongside the stages it
+     just derived; SKEW is the offset between that instant and this browser's
+     clock, and it is what any countdown must measure from. A visitor whose
+     laptop is a day out still sees the cohort the server sees.
+
+     The poll is deliberately dumb: ask again, repaint if the stage moved. It
+     never derives a new stage locally between polls. Cadence follows the
+     cohort's own calendar, so a normal cohort measured in days is not polled
+     like one measured in minutes. */
+  var SKEW=0;
+  var POLL_SLOW=120000, POLL_FAST=15000;
+  var campTimer=null;
+  function nextPollDelay(){
+    var c=CAMPLIVE?joinedCamp():null;
+    if(!c)return POLL_SLOW;
+    /* A calendar that fits inside a day is being watched, not waited on. */
+    if(SHORTCAL)return POLL_FAST;
+    var n=c.next&&c.next.at;
+    if(!n)return POLL_SLOW;
+    var away=n-(Date.now()+SKEW);
+    return away>0&&away<POLL_SLOW?Math.max(5000,away+1000):POLL_SLOW;
+  }
+  function pullCampaigns(){
+    return W.session.campaignsList().then(function(r){
+      if(!r)return;
+      if(r.serverTime)SKEW=r.serverTime-Date.now();
+      CAMPLIVE=Boolean(r.live);
+      var before=S.state;
+      (r.campaigns||[]).forEach(applyCampaign);
+      syncCohortFromCamps();
+      applyDerived();
+      /* Only announce a move the member did not make themselves. */
+      if(before!==S.state&&VIS.indexOf(S.state)<0&&VIS.indexOf(before)<0){
+        EXTRA.push(['Just now','Your cohort moved to '+String(PILL[S.state]||S.state)]);
+        render();
+      }
+    });
+  }
+  function schedule(){
+    if(campTimer)clearTimeout(campTimer);
+    campTimer=setTimeout(function(){pullCampaigns().then(schedule,schedule)},nextPollDelay());
+  }
+  pullCampaigns().then(schedule,schedule);
+  /* A backgrounded tab gets throttled to death; catch up on return. */
+  document.addEventListener('visibilitychange',function(){
+    if(!document.hidden)pullCampaigns().then(schedule,schedule);
   });
 }
 })();

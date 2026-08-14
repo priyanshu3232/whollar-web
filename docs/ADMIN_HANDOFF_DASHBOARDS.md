@@ -41,7 +41,9 @@ pages **only through the server endpoints below**. There is no other pipe.
 3. Sign out = `W.session.end('member')` → server session revoked + local
    record cleared, then redirect to the sign-in page.
 4. Personalization: first name/initials/email written into greeting, avatar,
-   sidebar profile, account list, referral code (`WHL-<NAME>-7`).
+   sidebar profile, account list. The referral code is NOT derived here: it
+   comes from `GET /me/referral`, because a code invented in the browser is a
+   different string from the one the server counts against.
 
 ### 1.2 Views (left-nav tabs, all in the one file)
 
@@ -52,7 +54,7 @@ pages **only through the server endpoints below**. There is no other pipe.
 | Cliff banner + gauge | SVG ring counts months to the member's promo reset; headline copy escalates only within 6 months; drives 4 other spots (`data-fld` bindings) from ONE date | **Real when a bill exists**: date comes from `MEMBER.bill.promoEnd`; falls back to demo `2026-11` |
 | Campaign card | 7-step rail `forming → locked → bidding → offers → confirm → switching → done`, with a rendered panel per state (dot-cluster progress, sealed-bid rows + countdown, offer cards with savings math, $10 deposit confirm flow w/ consent checkbox, concierge switching checklist, done summary) | **Demo**: state machine is local (`S.state`); no server campaign-stage endpoint yet. Offer prices, dates, activity feed all seeded |
 | Switch file card | provider / monthly / speed / promo end / threshold + "spot strength" meter | **Real fields when a bill exists** (painted from `MEMBER.bill`), meter is static demo |
-| Referral card | copy `WHL-<NAME>-7` code | Demo (no referral backend) |
+| Referral card | the member's real code (`WHL-<8 hex of user_id>`), a copy button, a share button (native share sheet, clipboard fallback), and the live count of accounts created with it | **Real**: `GET /me/referral`; share links are `/waitlist/?ref=<code>`, banked by `W.referral` on landing and spent at signup |
 | Rate-your-provider card | 4 aspects × 5 dots, one-shot thank-you | Demo, nothing persisted |
 | Outage report card | symptom chips + "since when" → appends to activity feed | Demo, local only |
 | Worth a read / Member room | 3 blog links; Reddit teaser | Static |
@@ -92,7 +94,7 @@ accounts" toasts), notification toggles (toast only), "Download my data" /
   a server.
 - **Session** — adopt/end as above.
 
-Everything else (offers, deposits, stages, referrals, ratings, outages,
+Everything else (offers, deposits, stages, ratings, outages,
 notifications, profile edits, search) is front-end demo with `?demo=1`
 revealing a state-jump control panel.
 
@@ -207,6 +209,6 @@ responsive CSS, and the admin console deliberately gets no mobile twin.
 | Read leads / deep-reads / audit | No dashboard surface; admin-only visibility |
 
 The parts of the dashboards that are still demo (offers, deposits, sealed-bid
-storage, invoices, coverage persistence, referrals) belong to the future
+storage, invoices, coverage persistence) belong to the future
 Phase-D marketplace backend — the admin console should **not** grow controls
 for them yet; there is nothing behind them to control.

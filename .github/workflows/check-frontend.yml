@@ -101,6 +101,14 @@ jobs:
       - name: Organisation key unit tests
         run: node --test scripts/test-org-key.mjs
 
+      # Referral codes are one string with two implementations: the server
+      # normalises what gets stored, the browser normalises what a share link
+      # banks. The count is an exact match between them, so a character of
+      # disagreement makes every referral count as zero and nothing anywhere
+      # errors. That is precisely how the previous version shipped broken.
+      - name: Referral code unit tests
+        run: node --test scripts/test-referral.mjs
+
       # The v17 checkup savings engine (js/checkup-savings.js): the 12-month
       # window, benchmark selection with the Ontario offer pool and the
       # out-of-province fallback, the four single-promo bases, multi-promo
