@@ -851,8 +851,13 @@ app.post('/calculator-estimate', limit({ key: 'calculator-estimate', max: 40, wi
     return badRequest(res, 'monthlyBill must be between 15 and 500.');
   }
   const savings = toNumber(b.estimatedAnnualSavings);
-  // Bounded by what the widget can actually produce: 12 × 500 × 21% ≈ 1260.
-  if (savings == null || savings < 0 || savings > 2000) {
+  // Bounded by what the widget can actually produce. The estimator now
+  // compares the bill against the cheapest tracked plan at 100 Mbps or
+  // better (js/whollar-estimate-bench.js), so the ceiling is
+  // floor(maxBill - cheapestBenchmark) * 12 = floor(400 - 35) * 12 = 4380,
+  // not the 1260 the retired flat-21%-of-bill formula could reach. A bound
+  // left at 2000 would 400 every estimate above a ~$200 bill.
+  if (savings == null || savings < 0 || savings > 5000) {
     return badRequest(res, 'estimatedAnnualSavings is out of range.');
   }
 

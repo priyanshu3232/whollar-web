@@ -68,6 +68,28 @@ jobs:
       - name: Signal lookup matches the pricing spreadsheet
         run: node scripts/build-signal-lookup.mjs --check
 
+      # Fails when js/whollar-estimate-bench.js (the homepage estimator's
+      # reference: cheapest advertised plan at 100 Mbps or better, per city)
+      # no longer matches the spreadsheet + FSA-to-city map. Also fails when
+      # an ALIAS target stops existing, which would otherwise silently send
+      # a metro's FSAs to the province fallback.
+      - name: Estimate bench matches the pricing spreadsheet
+        run: node scripts/build-estimate-bench.mjs --check
+
+      # Pure-function unit tests for the homepage quick estimate
+      # (W.quickEstimate / W.estimateBenchFor): resolution basis, the
+      # at-or-below path, and the bill guardrails.
+      - name: Quick estimate unit tests
+        run: node --test scripts/test-quick-estimate.mjs
+
+      # The estimator widget driven in headless Chrome on BOTH surfaces that
+      # carry it. MobileVersion/consumer-mobile.html is hand-maintained, not
+      # generated, so this is what stops it drifting back to the retired
+      # province-only estimator. Also asserts the POST body carries the FSA
+      # and never the full postal code.
+      - name: Homepage estimator DOM tests
+        run: node --test scripts/test-estimator-dom.mjs
+
       # Pure-function unit tests for the band-selection thresholds and
       # guardrails (js/whollar-core.js's W.selectBand). No DOM, no build step.
       - name: Signal band engine unit tests

@@ -1,0 +1,379 @@
+whollar-estimate-bench.js coverage, built 2026-08-14
+
+Source: Whollar Pricing Model.xlsx, sheet "Internet Pricing"
+  6803 data rows in
+  -144 monthly_price <= 0
+  -556 provider blank
+  -0 province not recognised
+  -0 city blank
+  -555 Satellite in a city that also has terrestrial rows
+  = 5548 rows scored, 493 cities with a >=100 Mbps plan
+
+FSA join (js/whollar-fsa-cities.js, 1652 FSAs)
+  1119 resolve to a city (67.7%)
+  533 fall back to the province number
+
+Unresolved FSA city names, by FSA count. Quebec administrative regions
+(Monteregie, Capitale-Nationale, Lanaudiere, ...) are NOT cities and cannot
+be resolved; they are expected here. Anything else with a high count is a
+candidate for the ALIAS table in the build script.
+
+    41  QC|Montérégie
+    24  QC|Capitale-Nationale
+    13  QC|Lanaudière
+    13  QC|Laurentides
+    11  QC|Centre-du-Québec
+    10  QC|Chaudière-Appalaches
+    10  QC|Saguenay/Lac-Saint-Jean
+     9  ON|Greater Sudbury
+     7  QC|Bas-Saint-Laurent
+     6  AB|Sherwood Park
+     5  QC|Jonquière
+     5  QC|Abitibi-Témiscamingue
+     4  QC|Chicoutimi
+     4  QC|Estrie
+     4  QC|Outaouais
+     4  ON|Parry Sound
+     3  QC|Côte-Nord
+     3  QC|Mauricie
+     3  ON|Lake Simcoe
+     3  ON|Nipissing
+     2  NL|Western
+     2  NB|Grand Falls
+     2  NB|Grand
+     2  QC|Région de
+     2  QC|Place
+     2  ON|Halton
+     2  ON|Bowmanville
+     2  ON|St. Thomas
+     2  ON|Timiskaming
+     2  ON|Lake Superior
+     2  MB|South
+     2  MB|Headingley
+     1  NL|Ferryland
+     1  NL|Mary's Harbour
+     1  NL|St. George's
+     1  NL|Churchill Falls
+     1  NL|Goulds
+     1  NL|Manuels
+     1  NL|Windsor
+     1  NS|Dingwall
+     1  NS|Baddeck
+     1  NS|Havre Boucher
+     1  NS|River Hébert
+     1  NS|Shubenacadie
+     1  NS|New Germany
+     1  NS|Weymouth
+     1  NS|Port Morien
+     1  NS|Reserve Mines
+     1  NS|East Bay
+     1  NS|Marion Bridge
+     1  NS|Christmas Island
+     1  NS|Eskasoni
+     1  NS|Big Bras d'Or
+     1  NS|Alder Point
+     1  NS|Iona
+     1  NS|Loch Lomond
+     1  NS|Fourchu
+     1  NS|Waverley
+     1  NS|Lantz
+     1  NS|Enfield
+     1  NS|Porters Lake
+     1  NS|Eastern Passage
+     1  NS|Lakeside
+     1  NS|Harrietsfield
+     1  NS|Tantallon
+     1  NS|Coldbrook
+     1  PE|Elmira
+     1  PE|Prince County
+     1  NB|Dieppe Moncton East
+     1  NB|Lakeville, Shediac Bridge
+     1  NB|Coverdale
+     1  NB|Rothesay, Quispamsis
+     1  NB|Kingsclear
+     1  NB|Youngs Cove
+     1  NB|Smiths Creek
+     1  NB|Hillsborough
+     1  NB|Dorchester
+     1  NB|Bayfield
+     1  NB|Cap-Pelé
+     1  NB|Cocagne
+     1  NB|Bass River
+     1  NB|Saint-Antoine
+     1  NB|St-Louis-de-Kent
+     1  NB|Rogersville
+     1  NB|Moores Mills
+     1  NB|St. George
+     1  NB|Campobello Island
+     1  NB|Pennfield
+     1  NB|Lepreau
+     1  NB|Fredericton Junction
+     1  NB|Gagetown
+     1  NB|Apohaqui
+     1  NB|St. Martins
+     1  NB|Kingston
+     1  NB|Norton
+     1  NB|Deer Island
+     1  NB|Boiestown
+     1  NB|Stanley
+     1  NB|Durham Bridge
+     1  NB|Millville
+     1  NB|Canterbury
+     1  NB|McAdam
+     1  NB|Harvey
+     1  NB|Burtts Corner
+     1  NB|Baker Brook
+     1  NB|Saint-Jacques
+     1  NB|Saint-Basile
+     1  NB|Saint-Leonard
+     1  NB|Bath
+     1  NB|Centreville
+     1  NB|Debec
+     1  NB|Balmoral
+     1  NB|Belledune
+     1  NB|Allardville
+     1  NB|Saint-Isidore
+     1  NB|Grande-Anse
+     1  NB|Inkerman
+     1  NB|Paquetville
+     1  NB|Lamèque
+     1  NB|Baie-Sainte-Anne
+     1  NB|Blackville
+     1  NB|Doaktown
+     1  NB|Red Bank
+     1  NB|Brantville
+     1  QC|Cap-aux-Meules
+     1  QC|New Richmond
+     1  QC|Grande-Vallée
+     1  QC|Baie-Trinité
+     1  QC|Causapscal
+     1  QC|Sainte-Luce
+     1  QC|Trois-Pistoles
+     1  QC|Disraeli
+     1  QC|La Pocatière
+     1  QC|Saint-Joseph-De-Beauce
+     1  QC|Forestville
+     1  QC|Alouette
+     1  QC|Nantes
+     1  QC|L'Ancienne-Lorette Southwest
+     1  QC|St-Augustin-De-Desmaures
+     1  QC|Saint-Émile
+     1  QC|Saint-Raymond
+     1  QC|Les Îles-De-La-Madeleine
+     1  QC|Sainte-Anne-Des-Monts
+     1  QC|Gaspésie-Îles-de-la-Madeleine
+     1  QC|Degelis
+     1  QC|Lac-Megantic
+     1  QC|Pintendre
+     1  QC|Black Lake
+     1  QC|Saint-Etienne-De-Lauzon
+     1  QC|Saint-Redempteur
+     1  QC|Charny
+     1  QC|Saint-Jean-Chrysostome
+     1  QC|Saint-Nicolas
+     1  QC|La Baie
+     1  QC|Laterrière
+     1  QC|Jonquière West
+     1  QC|Métabetchouan-Lac-a-la-Croix
+     1  QC|Nord-du-Québec
+     1  QC|Becancour
+     1  QC|Grand-Mère
+     1  QC|Santa Claus
+     1  QC|Akwesasne
+     1  QC|Includes Île Notre-Dame & Île Sainte-Hélène
+     1  QC|L'Île-Des-Soeurs
+     1  QC|Petite-Bourgogne
+     1  QC|Pointe-Saint-Charles
+     1  QC|Parc-Extension
+     1  QC|Ville Émard
+     1  QC|Dorval Central
+     1  QC|Tour de la Bourse
+     1  QC|Duvernay-Est
+     1  QC|Saint-Franþois
+     1  QC|Saint-Vincent-de-Paul
+     1  QC|Îles-Laval
+     1  QC|Saint-Pierre
+     1  QC|L'Île Bizard Northeast
+     1  QC|L'Île-Bizard Southwest
+     1  QC|Sainte-Geneviève
+     1  QC|Senneville
+     1  QC|L'Île-Dorval
+     1  QC|Sainte-Anne-De-Bellevue
+     1  QC|Fulford
+     1  QC|Odanak
+     1  QC|Saint-Nazaire-D'Acton
+     1  QC|Kuujjuaq
+     1  QC|Oka
+     1  QC|Coteau-du-Lac
+     1  QC|Prévost
+     1  QC|Chénéville
+     1  QC|Ferme-Neuve
+     1  QC|Radisson
+     1  QC|Coaticook
+     1  QC|Bromptonville
+     1  QC|Rock Forest
+     1  QC|Saint-Élie-d'Orford
+     1  QC|Saint-Cyrille-De-Wendover
+     1  QC|Saint-Luc
+     1  QC|Saint-Basile-Le-Grand
+     1  QC|Saint-Bruno
+     1  QC|Saint-Sophie
+     1  QC|L'Assomption
+     1  QC|La Plaine
+     1  QC|Pincourt
+     1  QC|Valleyfield
+     1  QC|Sainte-Agathe-Des-Monts
+     1  QC|Chatham
+     1  ON|Almonte
+     1  ON|Alfred
+     1  ON|Alexandria
+     1  ON|Prescott
+     1  ON|Kemptville
+     1  ON|Frontenac County
+     1  ON|Renfrew County
+     1  ON|Picton
+     1  ON|Peterborough County
+     1  ON|Bobcaygeon
+     1  ON|Queenswood
+     1  ON|Fallingbrook
+     1  ON|Cumberland Township
+     1  ON|Rockland
+     1  ON|Manotick
+     1  ON|Greely
+     1  ON|Russell
+     1  ON|Elizabethtown
+     1  ON|Smiths Falls
+     1  ON|Carleton Place
+     1  ON|Gananoque
+     1  ON|Perth
+     1  ON|Amherstview
+     1  ON|Napanee
+     1  ON|Arnprior
+     1  ON|Renfrew
+     1  ON|Trenton
+     1  ON|Millbrook
+     1  ON|Orono
+     1  ON|Sunderland
+     1  ON|Queensville
+     1  ON|Gormley
+     1  ON|Kleinburg
+     1  ON|Angus
+     1  ON|Dufferin County
+     1  ON|Fonthill
+     1  ON|Port Hope
+     1  ON|Courtice
+     1  ON|Port Colborne
+     1  ON|Thornhill East
+     1  ON|Stouffville
+     1  ON|Thornhill West
+     1  ON|Concord
+     1  ON|Keswick
+     1  ON|King City
+     1  ON|Caledon
+     1  ON|Bolton
+     1  ON|Georgetown
+     1  ON|Acton
+     1  ON|Caledon Village
+     1  ON|Port Perry
+     1  ON|Penetanguishene
+     1  ON|Holland Landing
+     1  ON|Uxbridge
+     1  ON|Alliston
+     1  ON|Springwater
+     1  ON|Queen's Park Ontario Provincial Government
+     1  ON|Port Dover
+     1  ON|Elora
+     1  ON|Dundalk
+     1  ON|Waterford
+     1  ON|Wingham
+     1  ON|Wiarton
+     1  ON|Norwich
+     1  ON|Mitchell
+     1  ON|Dorchester
+     1  ON|Clinton
+     1  ON|Forest
+     1  ON|Blenheim
+     1  ON|Belle River
+     1  ON|Dunnville
+     1  ON|Fergus
+     1  ON|Kincardine
+     1  ON|Baden
+     1  ON|Elmira
+     1  ON|Paris
+     1  ON|Caledonia
+     1  ON|Delhi
+     1  ON|Meaford
+     1  ON|Hanover
+     1  ON|Listowel
+     1  ON|St. Mary's
+     1  ON|Ingersoll
+     1  ON|Aylmer
+     1  ON|Port Stanley
+     1  ON|Goderich
+     1  ON|Strathroy
+     1  ON|Wallaceburg
+     1  ON|Essex
+     1  ON|Amherstburg
+     1  ON|Kingsville
+     1  ON|Hearst
+     1  ON|Chelmsford
+     1  ON|South Porcupine
+     1  ON|Little Current
+     1  ON|Algoma
+     1  ON|Red Lake
+     1  ON|Emo
+     1  ON|Keewatin
+     1  ON|Ingolf
+     1  ON|Gravenhurst
+     1  ON|Sturgeon Falls
+     1  ON|Espanola
+     1  ON|Kapuskasing
+     1  ON|Neebing
+     1  ON|Dryden
+     1  ON|Sioux Lookout
+     1  ON|Fort Frances
+     1  MB|Lorette
+     1  MB|Norway House
+     1  MB|Lockport
+     1  MB|Narol
+     1  MB|East St. Paul
+     1  MB|West St. Paul
+     1  MB|Oak Bluff
+     1  MB|Cartier
+     1  MB|St. Francois Xavier
+     1  MB|St. Adolphe
+     1  MB|Taché
+     1  SK|Creighton
+     1  SK|Buena Vista
+     1  SK|Rm Of Sherwood
+     1  AB|St. Paul
+     1  AB|Tofield
+     1  AB|High Level
+     1  AB|Fort Chipewyan
+     1  AB|Fitzgerald
+     1  AB|Rocky View
+     1  AB|Tsuut'ina
+     1  AB|Redwood Meadows
+     1  AB|Westlock
+     1  AB|Vermilion
+     1  BC|Fort Nelson
+     1  BC|100 Mile House
+     1  BC|Alexis Creek
+     1  BC|Agassiz
+     1  BC|Gold River
+     1  BC|Chemainus
+     1  BC|Queen Charlotte City
+     1  BC|Port Edward
+     1  BC|Atlin
+     1  BC|Port Moody
+     1  BC|Pitt Meadows
+     1  BC|White Rock
+     1  BC|Westbank
+     1  BC|Winfield
+     1  BC|Saltspring Island
+     1  BC|Central Saanich
+     1  BC|Highlands
+     1  BC|Metchosin
+     1  BC|Qualicum Beach
+     1  BC|Cedar
+     1  YT|Dawson City

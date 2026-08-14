@@ -6,14 +6,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="/js/device-router.js?v=20260806a"></script>
-<!-- Benchmarks + base pricing before core, as on /bill-checkup: core reads the
-     tables at call time but the estimator below needs them present on first
-     paint. estimateAnnualSavings() has read from whollar-base-pricing.js
-     since PlanSavvy replaced the scraped benchmark: without this tag every
-     estimate silently returns null and the widget shows nothing at all. -->
+<!-- Benchmarks + base pricing + estimate bench before core, as on
+     /bill-checkup: core reads the tables at call time but the estimator below
+     needs them present on first paint. Without these tags every estimate
+     silently returns null and the widget shows nothing at all.
+     whollar-estimate-bench.js is what quickEstimate() reads: the cheapest
+     advertised plan at 100 Mbps or better per city. whollar-base-pricing.js
+     stays because estimateAnnualSavings() (a different, province-only
+     reference) is still exported and still used elsewhere. -->
 <script src="/js/whollar-benchmarks.js?v=20260806"></script>
 <script src="/js/whollar-base-pricing.js?v=20260807c"></script>
-<script src="/js/whollar-core.js?v=20260814b"></script>
+<script src="/js/whollar-estimate-bench.js?v=20260814a"></script>
+<script src="/js/whollar-core.js?v=20260814c"></script>
 
 
 <title>Whollar: wholesale prices on home internet</title>
@@ -885,11 +889,18 @@ img,svg{display:block}
 .whl-est__postal:hover{border-bottom-color:var(--accent)}
 .whl-est__postal:focus{border-bottom-color:var(--accent)}
 .whl-est__postal.is-err{border-bottom-color:#C2643B}
+/* Same error affordance as the postal field: an out-of-range bill is refused,
+   not silently clamped, so it needs to look refused. */
+.whl-est__bill-input.is-err{border-bottom-color:#C2643B;color:#C2643B}
 .whl-est__hint{text-align:right;color:#C2643B;font-size:13.5px;font-weight:600;margin:0;max-height:0;opacity:0;overflow:hidden;transition:max-height .3s ease,opacity .3s ease,margin .3s ease}
 .whl-est__hint.is-shown{max-height:44px;opacity:1;margin:8px 0 0}
 .whl-est__calc-btn{margin-top:26px}
 .whl-est__result{max-height:0;opacity:0;overflow:hidden;transition:max-height .5s var(--ease),opacity .45s var(--ease)}
-.whl-est__result.is-shown{max-height:360px;opacity:1}
+/* 360px fitted the old two-line card exactly. The result now carries the
+   comparison basis (provider, speed, city, price), which wraps to three lines
+   on a narrow screen for a long city name, and the cap has to clear the
+   worst case rather than the common one. */
+.whl-est__result.is-shown{max-height:480px;opacity:1}
 /* The note under the card answers a different question before and after the
    estimate runs: first "is this worth doing while I am locked in", then
    "what does the detailed view add that this number does not". Driven by the
@@ -2066,25 +2077,27 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
       <div class="whl-reveal">
         <span class="whl-eyebrow">Quick estimate</span>
         <h2 class="whl-h2">What could you save?</h2>
-        <p class="whl-est__note">Based on the single lowest advertised price in your province, not an average. Your real number comes from the detailed checkup, where we compare your actual plan.</p>
+        <p class="whl-est__note">Two questions, one estimate: we compare your bill to the cheapest advertised plan at 100 Mbps or better that we track near you. Your real number comes from the detailed checkup, where we read your actual plan.</p>
       </div>
       <div class="whl-card whl-est__card whl-reveal">
         <label class="whl-est__lbl" for="whl-bill-num"><span>Your current monthly internet bill</span><span class="whl-est__billwrap">$<input class="whl-est__bill-input" id="whl-bill-num" type="text" inputmode="numeric" value="90" data-bill-input="" aria-label="Type your current monthly internet bill"></span></label>
-        <input class="whl-range" id="whl-bill" type="range" min="40" max="160" step="5" value="90" data-bill="" aria-label="Your current monthly internet bill">
-        <div class="whl-range__ticks"><span>$40</span><span>$160</span></div>
+        <input class="whl-range" id="whl-bill" type="range" min="20" max="400" step="5" value="90" data-bill="" aria-label="Your current monthly internet bill">
+        <div class="whl-range__ticks"><span>$20</span><span>$400</span></div>
+        <p class="whl-est__hint" data-bill-hint="">Enter a monthly bill between $20 and $400</p>
         <label class="whl-est__lbl whl-est__postal-lbl" for="whl-postal"><span>Your postal code</span><input class="whl-est__postal" id="whl-postal" type="text" placeholder="M5V 3A8" maxlength="7" autocomplete="postal-code" data-postal="" aria-label="Your postal code"></label>
         <p class="whl-est__hint" data-postal-hint="">Enter your postal code to see your estimate</p>
         <button class="whl-btn whl-btn--lg whl-btn--block whl-est__calc-btn" type="button" data-calc-btn="">Estimate my savings</button>
         <div class="whl-est__result" data-est-result="">
           <div class="whl-est__out">
-            <div class="pre">Households like yours typically save</div>
-            <div class="whl-est__num"><b data-save="">$230</b><span>/ year</span></div>
-            <p data-save-note style="font-size:12px;color:#8A968F;margin-top:8px;display:none">This is the maximum possible saving: the lowest advertised price we found in your area. Your actual offer may vary.</p>
+            <div class="pre" data-save-pre="">Estimated saving</div>
+            <div class="whl-est__num"><b data-save="">$230</b><span data-save-unit="">/ year</span></div>
+            <p data-save-basis style="font-size:13px;color:#3A4842;margin-top:10px;line-height:1.5"></p>
+            <p data-save-note style="font-size:12px;color:#8A968F;margin-top:8px;line-height:1.5">Benchmarked against advertised reseller pricing, not an offer. What a cohort actually gets is set by the sealed bids providers place.</p>
           </div>
           <a class="whl-btn whl-btn--lg whl-btn--block" href="/bill-checkup" style="margin-top:18px">Click here to check detailed view</a>
         </div>
         <p class="whl-est__note whl-est__note--pre" style="font-size:13.5px;margin-top:12px">Under contract? No problem. We track your end date and time your cohort to your renewal.</p>
-        <p class="whl-est__note whl-est__note--post" style="font-size:13.5px;margin-top:12px">The detailed view reads your actual bill and breaks down what you are paying for, so you get your own number instead of an average.</p>
+        <p class="whl-est__note whl-est__note--post" style="font-size:13.5px;margin-top:12px">The detailed checkup refines this with your actual speed and renewal date, so you get your own number instead of a frontier price.</p>
       </div>
     </div>
   </div>
@@ -2869,53 +2882,110 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   var savePre = estResult ? estResult.querySelector('.pre') : null;
   var saveUnit = save ? save.parentNode.querySelector('span') : null;
   var saveNote = document.querySelector('[data-save-note]');
-  var BMIN=40, BMAX=160;
-  /* The number is twelve months of the household's bill minus twelve months
-     at the single cheapest advertised plan in their province
-     (WHOLLAR.estimateAnnualSavings -> minBasePriceFor, the PlanSavvy list):
-     the postal code decides the province, so it is required before this
-     will calculate. That makes this a MAXIMUM possible saving, not a typical
-     one (the widget's own copy says so); no speed/tech input is collected,
-     so it cannot be a like-for-like comparison the way the full checkup is.
-     Both live in whollar-core.js so this page and /bill-checkup cannot drift
-     apart.
+  var saveBasis = document.querySelector('[data-save-basis]');
+  var billHint = document.querySelector('[data-bill-hint]');
+  var BMIN=window.WHOLLAR.ESTIMATE_BILL_MIN, BMAX=window.WHOLLAR.ESTIMATE_BILL_MAX;
+  /* Two inputs only: monthly bill and postal code. The postal code resolves
+     to a city through WHOLLAR.quickEstimate (js/whollar-estimate-bench.js),
+     and the comparison is the cheapest ADVERTISED plan at 100 Mbps or better
+     that we track there: annual = floor(bill - benchmark) * 12.
 
-     Replaces a flat 21% of the annual bill that ignored the postal code
-     entirely. */
-  var lastProvince = null;
+     Replaces a province-only floor at any speed, which could be set by a
+     15 Mbps DSL line no household would accept, and which could not name
+     who was selling it. The estimate is a frontier price, not an offer, and
+     both the card copy and the tracking payload say so.
+
+     Two things this must never do, both enforced below rather than by copy
+     alone: show a negative saving when the bill is already at or under the
+     benchmark, and describe a province-basis number as a local one. The
+     basis comes back from the core and drives the wording.
+
+     The math lives in whollar-core.js so this page and /bill-checkup cannot
+     drift apart. The slider spans the same 20 to 400 the core accepts, so a
+     slider position can never be a rejected bill. */
+  /* lastPostal holds the COMPLETE code because quickEstimate requires one;
+     lastFsa is what change detection compares, because the FSA is what picks
+     the city. Only lastFsa is ever sent onward. */
+  var lastPostal = null, lastFsa = null;
   function paintTrack(v){ var pct=((v-BMIN)/(BMAX-BMIN))*100; bill.style.background='linear-gradient(90deg, var(--teal) '+pct+'%, #dfe7e2 '+pct+'%)'; }
-  function estimateFor(v){ return window.WHOLLAR.estimateAnnualSavings(v, lastProvince); }
-  function savedFor(v){ var e=estimateFor(v); return e ? Math.round(e.saving/10)*10 : null; }
-  /* A bill at or under the local floor is a real answer, not an error, and
-     showing "$0 / year" under "typically save" would read as a bug. */
+  function estimateFor(v){ return lastPostal ? window.WHOLLAR.quickEstimate(v, lastPostal) : null; }
+  function savedFor(v){ var e=estimateFor(v); return (e && e.ok) ? e.annual : null; }
+  /* A bill at or under the benchmark is a real answer, not an error. It gets
+     its own path: no figure, no "$0 / year" under a savings heading. */
   function renderEstimate(v, animate){
     var est = estimateFor(v);
-    if(!est){ if(savePre) savePre.textContent='Enter your postal code for an estimate'; if(save) save.textContent=''; if(saveUnit) saveUnit.style.display='none'; if(saveNote) saveNote.style.display='none'; return; }
-    if(est.atOrBelow){
-      if(savePre) savePre.textContent='You are already at or below the going rate near you';
-      if(save) save.textContent='';
-      if(saveUnit) saveUnit.style.display='none';
-      if(saveNote) saveNote.style.display='none';
+    var show = function(pre, num, unit, basis){
+      if(savePre) savePre.textContent=pre;
+      if(save) save.textContent=num;
+      if(saveUnit) saveUnit.style.display=unit?'':'none';
+      if(saveBasis) saveBasis.textContent=basis||'';
+      if(saveNote) saveNote.style.display=basis?'':'none';
+    };
+    if(!est || !est.ok){
+      show(est && est.reason==='bill'
+        ? 'Enter a monthly bill between $'+BMIN+' and $'+BMAX
+        : 'Enter your postal code for an estimate', '', false, '');
       return;
     }
-    if(savePre) savePre.textContent='Households like yours typically save';
-    if(saveUnit) saveUnit.style.display='';
-    if(saveNote) saveNote.style.display='';
-    var target = Math.round(est.saving/10)*10;
+    /* "the cheapest advertised plan at 100 Mbps or better in Toronto, from
+       Netcrawler, at $43 a month". A province basis says "across Ontario",
+       which must not read as a local number. */
+    var where = window.WHOLLAR.estimateAreaLabel(est);
+    var basis = 'Compared with the cheapest advertised plan at '+est.mbps+' Mbps or better '
+      + where + ': ' + est.provider + ' at $' + est.benchmark + ' a month.';
+    if(est.atOrBelow){
+      show('Your bill is already at or below the tracked frontier '+where, '', false, basis);
+      return;
+    }
+    show('Estimated saving', '', true, basis);
+    var target = est.annual;
     if(!animate){ save.textContent='$'+target.toLocaleString('en-CA'); return; }
     var dur=700, t0=performance.now();
-    var step=function(now){ var p=Math.min(1,(now-t0)/dur); var e=1-Math.pow(1-p,3); save.textContent='$'+(Math.round(target*e/10)*10).toLocaleString('en-CA'); if(p<1) requestAnimationFrame(step); };
+    var step=function(now){ var p=Math.min(1,(now-t0)/dur); var e=1-Math.pow(1-p,3); save.textContent='$'+Math.round(target*e).toLocaleString('en-CA'); if(p<1) requestAnimationFrame(step); else save.textContent='$'+target.toLocaleString('en-CA'); };
     requestAnimationFrame(step);
   }
-  function updateSave(){ if(save && estResult && estResult.classList.contains('is-shown')) renderEstimate(parseInt(bill.value,10), false); }
-  function syncFromSlider(){ var v=parseInt(bill.value,10); if(billInput) billInput.value=v; paintTrack(v); updateSave(); }
-  function syncFromInput(){ var v=parseInt(billInput.value.replace(/[^0-9]/g,''),10); if(isNaN(v)) return; v=Math.max(BMIN,Math.min(BMAX,v)); bill.value=v; paintTrack(v); updateSave(); }
+  function updateSave(){ if(save && estResult && estResult.classList.contains('is-shown')) renderEstimate(currentBill(), false); }
+  function currentBill(){
+    var typed = billInput ? parseInt(String(billInput.value).replace(/[^0-9]/g,''),10) : NaN;
+    return isNaN(typed) ? parseInt(bill.value,10) : typed;
+  }
+  function markBill(v){
+    var bad = isNaN(v) || v<BMIN || v>BMAX;
+    if(billInput) billInput.classList.toggle('is-err', bad);
+    if(billHint) billHint.classList.toggle('is-shown', bad);
+    return !bad;
+  }
+  function syncFromSlider(){ var v=parseInt(bill.value,10); if(billInput) billInput.value=v; markBill(v); paintTrack(v); updateSave(); }
+  /* The typed field is the authority and is NOT clamped while typing: clamping
+     mid-keystroke rewrites "4" into "20" before the second digit lands. It is
+     validated instead, and clamped on blur. */
+  function syncFromInput(){
+    var raw=String(billInput.value).replace(/[^0-9]/g,'');
+    var v=parseInt(raw,10);
+    if(raw==='') { markBill(NaN); updateSave(); return; }
+    markBill(v);
+    if(!isNaN(v) && v>=BMIN && v<=BMAX){ bill.value=v; paintTrack(v); }
+    updateSave();
+  }
   var fmtPostal = function(s){ return window.WHOLLAR.formatPostal(s); };
   if(bill){
     bill.addEventListener('input', syncFromSlider);
     if(billInput){
       billInput.addEventListener('input', syncFromInput);
-      billInput.addEventListener('blur', function(){ var v=parseInt(billInput.value.replace(/[^0-9]/g,''),10); if(isNaN(v)) v=90; v=Math.max(BMIN,Math.min(BMAX,v)); billInput.value=v; bill.value=v; paintTrack(v); updateSave(); });
+      /* Blur normalises an empty field back to a usable default, but it does
+         NOT clamp an out-of-range number into range. Silently rewriting a
+         typed $5 into $20 and then estimating from it puts a figure on screen
+         the household never entered, which is the one thing this widget must
+         not do. An out-of-range bill stays as typed, flagged, and refused. */
+      billInput.addEventListener('blur', function(){
+        var raw=String(billInput.value).replace(/[^0-9]/g,'');
+        if(raw===''){ billInput.value=90; bill.value=90; markBill(90); paintTrack(90); updateSave(); return; }
+        var v=parseInt(raw,10);
+        billInput.value=v;
+        markBill(v);
+        if(v>=BMIN && v<=BMAX){ bill.value=v; paintTrack(v); }
+        updateSave();
+      });
     }
     paintTrack(parseInt(bill.value,10));
   }
@@ -2926,13 +2996,15 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
       if(atEnd) try{ postal.setSelectionRange(postal.value.length, postal.value.length); }catch(e){}
       var p = window.WHOLLAR.parsePostal(postal.value);
       if(postal.classList.contains('is-err') && p && p.complete){ postal.classList.remove('is-err'); if(postalHint) postalHint.classList.remove('is-shown'); }
-      /* The province now decides the comparison price, and the Calculate button
+      /* The FSA now decides the comparison price, and the Calculate button
          removes itself after the first run. Without this, editing the postal
-         code afterwards would leave the old province's number on screen with no
-         way to refresh it. */
-      if(estResult && estResult.classList.contains('is-shown') && p && p.complete && p.provinceCode !== lastProvince){
-        lastProvince = p.provinceCode || null;
-        renderEstimate(parseInt(bill.value,10), false);
+         code afterwards would leave the old city's number on screen with no
+         way to refresh it. Keyed on the FSA, not the province: moving from
+         M5V to M4C changes the city and so the benchmark, while the province
+         is unchanged. */
+      if(estResult && estResult.classList.contains('is-shown') && p && p.complete && p.fsa !== lastFsa){
+        lastFsa = p.fsa; lastPostal = p.full;
+        renderEstimate(currentBill(), false);
       }
     });
   }
@@ -2947,17 +3019,23 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
         return;
       }
       if(postal) postal.classList.remove('is-err'); if(postalHint) postalHint.classList.remove('is-shown');
-      /* The province drives the comparison price, so it is captured before the
+      /* The bill is validated here as well as on input: a visitor can type
+         "5", never blur the field, and hit the button straight away. */
+      var billVal = currentBill();
+      if(!markBill(billVal)){ if(billInput) billInput.focus(); return; }
+      /* The FSA drives the comparison price, so it is captured before the
          estimate is drawn and kept for later slider moves. */
-      lastProvince = parsed.provinceCode || null;
+      lastFsa = parsed.fsa; lastPostal = parsed.full;
       calcBtn.disabled=true; calcBtn.textContent='Estimating\u2026';
       setTimeout(function(){
         estResult.classList.add('is-shown');
-        var est=estimateFor(parseInt(bill.value,10));
-        var target=savedFor(parseInt(bill.value,10));
-        try{ if(parsed){ fetch(window.WHOLLAR.API+'/calculator-estimate',{method:'POST',body:JSON.stringify({postal:parsed.full,fsa:parsed.fsa,province:parsed.province,provinceCode:parsed.provinceCode,monthlyBill:Number(bill.value),estimatedAnnualSavings:target,estimateBasis:est?('min-'+est.scope+'-'+est.referenceMonthly):'no-reference'})}).catch(function(){}); } }catch(e){}
+        var est=estimateFor(billVal);
+        var target=savedFor(billVal);
+        /* FSA only: the last three characters identify a block face and are
+           not needed to resolve a city, so they are never sent or stored. */
+        try{ fetch(window.WHOLLAR.API+'/calculator-estimate',{method:'POST',body:JSON.stringify({fsa:parsed.fsa,province:parsed.province,provinceCode:parsed.provinceCode,monthlyBill:billVal,estimatedAnnualSavings:target,estimateBasis:(est&&est.ok)?(est.basis+'-'+est.benchmark+'-'+est.provider):'no-reference'})}).catch(function(){}); }catch(e){}
         var reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
-        renderEstimate(parseInt(bill.value,10), !reduce);
+        renderEstimate(billVal, !reduce);
         calcBtn.style.display='none';
       }, 700);
     });

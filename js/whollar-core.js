@@ -395,6 +395,141 @@
     };
   };
 
+  /* ------------------------------------------------------------------ *
+   * Quick estimate (homepage "What could you save?")
+   *
+   * Supersedes minBasePriceFor/estimateAnnualSavings above for the homepage
+   * widget. Both are kept because they are a DIFFERENT reference and are
+   * still the province-floor answer; the quick estimate below is the
+   * city-level one, and the two must not be blended:
+   *
+   *   estimateAnnualSavings  cheapest plan at ANY speed, province only,
+   *                          provider not named. A 15 Mbps DSL line can set
+   *                          that floor, so the comparison is not like for
+   *                          like and the number cannot be attributed.
+   *   quickEstimate          cheapest plan at >=100 Mbps in the household's
+   *                          CITY, provider named, province as the fallback.
+   *
+   * Data: js/whollar-estimate-bench.js (scripts/build-estimate-bench.mjs,
+   * from the "Internet Pricing" sheet). Records are
+   * { p: displayed monthly, eff: monthly + upfront/24, mb: Mbps, who: provider }.
+   * Ranking used eff; `p` is what the card shows, because `p` is the number
+   * a household compares against their own bill.
+   *
+   * These are ADVERTISED RESELLER prices. They are not offers Whollar can
+   * make, and the copy that renders them has to say so.
+   * ------------------------------------------------------------------ */
+
+  /* A bill outside this range is a typo or a bundle total, not a monthly
+     internet bill, and extrapolating from it produces a headline number the
+     full checkup will contradict. */
+  W.ESTIMATE_BILL_MIN = 20;
+  W.ESTIMATE_BILL_MAX = 400;
+
+  /* Resolve a postal code to the cheapest tracked >=100 Mbps plan near it.
+     Returns null when the postal code is not a real Canadian one or no
+     reference exists at all, so a caller renders nothing rather than a
+     number it cannot support.
+
+     `basis` is 'city' or 'province' and MUST reach the copy: a province
+     number may not be presented as a local one. Deliberately reuses
+     W.parsePostal rather than a fresh regex: parsePostal already encodes
+     that Canada Post uses no D/F/I/O/Q/U anywhere and no W/Z leading, which
+     a plain [A-Z] class in positions 3 and 5 would wave through.
+
+     A COMPLETE six-character code is required even though only the FSA is
+     used to resolve. A bare "M5V" is far more often a half-typed entry than
+     a deliberate one, and accepting it would fire the estimate mid-keystroke.
+     The FSA is all that is kept or sent onward. */
+  W.estimateBenchFor = function (rawPostal) {
+    var parsed = W.parsePostal(rawPostal);
+    if (!parsed || !parsed.complete) return null;
+
+    var byCity = W.ESTIMATE_BY_CITY || null;
+    var byFsa = W.ESTIMATE_FSA_CITY || null;
+    var byProv = W.ESTIMATE_BY_PROVINCE || null;
+
+    var cityKey = (byFsa && byCity) ? byFsa[parsed.fsa] : null;
+    var hit = cityKey ? byCity[cityKey] : null;
+    if (hit && hit.p > 0) {
+      return {
+        p: hit.p, mb: hit.mb, who: hit.who,
+        basis: 'city',
+        city: cityKey.slice(cityKey.indexOf('|') + 1),
+        fsa: parsed.fsa,
+        provinceCode: parsed.provinceCode,
+        province: parsed.province
+      };
+    }
+
+    var pv = (byProv && parsed.provinceCode) ? byProv[parsed.provinceCode] : null;
+    if (pv && pv.p > 0) {
+      return {
+        p: pv.p, mb: pv.mb, who: pv.who,
+        basis: 'province',
+        city: null,
+        fsa: parsed.fsa,
+        provinceCode: parsed.provinceCode,
+        province: parsed.province
+      };
+    }
+    return null;
+  };
+
+  /* The estimate itself.
+
+     annual = delta > 0 ? Math.floor(delta) * 12 : 0
+
+     Math.floor on the MONTHLY delta before multiplying, not on the annual
+     product: it rounds the headline down, so the figure shown is one the
+     household can reach rather than one they might fall short of by cents.
+
+     A bill at or below the tracked benchmark returns atOrBelow with a zero
+     annual. That is a real, reportable outcome, not an error and not a
+     negative saving, and the caller must render it as its own path.
+
+     Returned `reason` on failure lets the caller say which input was wrong:
+     'bill' (outside the accepted range or not a number), 'postal' (not a
+     valid Canadian postal code), 'no-reference' (valid inputs, no data). */
+  W.quickEstimate = function (monthlyBill, rawPostal) {
+    var bill = Number(monthlyBill);
+    if (!isFinite(bill) || bill < W.ESTIMATE_BILL_MIN || bill > W.ESTIMATE_BILL_MAX) {
+      return { ok: false, reason: 'bill' };
+    }
+    var pc = W.parsePostal(rawPostal);
+    if (!pc || !pc.complete) return { ok: false, reason: 'postal' };
+
+    var ref = W.estimateBenchFor(rawPostal);
+    if (!ref) return { ok: false, reason: 'no-reference' };
+
+    var delta = bill - ref.p;
+    var annual = delta > 0 ? Math.floor(delta) * 12 : 0;
+
+    return {
+      ok: true,
+      annual: annual,
+      monthlyDelta: delta,
+      atOrBelow: delta <= 0,
+      bill: bill,
+      benchmark: ref.p,
+      mbps: ref.mb,
+      provider: ref.who,
+      basis: ref.basis,
+      city: ref.city,
+      fsa: ref.fsa,
+      province: ref.province,
+      provinceCode: ref.provinceCode
+    };
+  };
+
+  /* "in Toronto" / "across Ontario". The province wording is deliberately
+     broad: a province-basis number must not read as a local one. */
+  W.estimateAreaLabel = function (est) {
+    if (!est) return '';
+    if (est.basis === 'city' && est.city) return 'in ' + est.city;
+    return est.province ? 'across ' + est.province : '';
+  };
+
   /* ================================================================== *
    * 5. SIGNAL BANDS (bill-checkup result card)
    * ------------------------------------------------------------------
