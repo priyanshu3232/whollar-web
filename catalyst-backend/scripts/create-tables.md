@@ -863,6 +863,139 @@ logs, rather than stopping bidding.
 
 ---
 
+## 21. Delivery and billing: four tables
+
+The chain a won cohort runs down, in order, and each table is the record of one
+link in it:
+
+```
+award  ->  roster gate  ->  order  ->  activation  ->  statement line
+```
+
+> **These read TOLERANTLY, unlike section 20.** Every read here returns null on
+> a missing table and the console renders "could not be read" or an empty board.
+> Nothing bills and no address is released while they are absent, so deploying
+> the code before creating them is safe: the delivery board simply says a win is
+> what fills it. The one thing that does NOT degrade is the roster gate, which
+> fails **closed**: an unreadable `provider_billing` counts as no method on file,
+> and a household address is never released against a billing record nobody could
+> confirm.
+
+### `campaign_awards` (new table)
+
+One row per cohort: who won it, and, on the same row, the roster gate. The gate
+is one-to-one with the award (same partner, same cohort, same act), so a
+separate table would be a join with nothing on the other side of it.
+
+Sealed on the first read after a cohort closes, by whichever surface reads it
+first. There is no cron in this stack, so nothing can be scheduled for the
+moment of the close; the unique `award_key` is what makes two concurrent
+readers produce one award.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `award_key` | Var Char | 64 | ✅ | ✅ | the `campaign_id`. A cohort is won once, and the unique constraint is what enforces that under a race |
+| `campaign_id` | Var Char | 64 | | ✅ | |
+| `org_id` | Var Char | 64 | | ✅ | the winning partner |
+| `bid_key` | Var Char | 200 | | ✅ | the sealed bid that won, so the award points at the exact offer |
+| `price` | Var Char | 16 | | | headline price at award, frozen. Money is a string everywhere: the Int column has no cents |
+| `bid_count` | Int | - | | | how many sealed bids the cohort drew. The winner's own competitive context, and already public to households as `bidCount` |
+| `method` | Var Char | 24 | | ✅ | `lowest_headline` \| `admin` |
+| `awarded_by` | Var Char | 64 | | | `auto`, or the admin `user_id` on a corrected award |
+| `awarded_at` | DateTime | - | | ✅ | |
+| `gate_at` | DateTime | - | | | when the roster released. Null means gated, and the `orders` key is then absent from every roster response |
+| `gate_by` | Var Char | 64 | | | the seat that released it |
+| `install_capacity_weekly` | Int | - | | | installs per week the partner states for this region. Shown to households when they book |
+| `consent_ack` | Var Char | 8 | | | `yes` once the confidentiality acknowledgement is recorded |
+| `settled_at` | DateTime | - | | | set when the cohort's statement settles. A settled board is read-only |
+
+### `provider_orders` (new table)
+
+One row per household that accepted a winning offer. **This is the only table in
+the system that holds a household address against a partner**, and it exists
+only because that household ticked the release when it accepted.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `order_key` | Var Char | 200 | ✅ | ✅ | | `${campaign_id}:${user_id}`. Unique, so a double-tapped accept is one order and not two households |
+| `order_no` | Var Char | 24 | | ✅ | | `WHL-XXXX-C`, quotable by both sides. Random, not sequential: a sequence tells every partner how many switches the platform has run |
+| `campaign_id` | Var Char | 64 | | ✅ | | |
+| `org_id` | Var Char | 64 | | ✅ | | the partner delivering it |
+| `member_user_id` | Var Char | 64 | | ✅ | ✅ | never sent to the partner. They deliver to an address, not to a platform identifier |
+| `state` | Var Char | 16 | | ✅ | | `acc` \| `bkd` \| `act` \| `rel` \| `noshow` \| `access` \| `linefail`. Mirrors `partner/core/contract.js` ORDER_STATE. **`act` is the only state that creates a billable line** |
+| `fsa` | Var Char | 8 | | | | first half of the postcode |
+| `address_line` | Var Char | 200 | | ✅ | ✅ | as the household typed it, for the install and nothing else |
+| `slot_at` | DateTime | - | | | | the booked install |
+| `note` | Var Char | 200 | | | | what the last move meant, in a sentence the partner can read |
+| `release_reason` | Var Char | 32 | | | | `no_plant` \| `building_access` \| `speed_tier_unavailable` \| `household_cancelled`. An enum because it feeds the serviceability figure future briefs carry |
+| `activated_at` | DateTime | - | | | | the moment a fee exists. Nothing before this bills |
+| `dispute_state` | Var Char | 16 | | | | `open` \| `upheld` \| `credited`. A line is an order, so a dispute lives here rather than in a statement table |
+| `dispute_note` | Var Char | 400 | | | | |
+| `disputed_at` | DateTime | - | | | | |
+| `created_at` | DateTime | - | | ✅ | | acceptance, which is also the consent timestamp |
+| `updated_at` | DateTime | - | | ✅ | | |
+
+### `provider_billing` (new table)
+
+One row per org: where a statement goes, and the acceptance of net-15
+settlement. **Not a card.** There is no payment service provider in this stack,
+and a fake card on a real screen is worse than an honest invoicing arrangement.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `org_id` | Var Char | 64 | ✅ | ✅ | one arrangement per partner |
+| `method` | Var Char | 16 | | ✅ | `invoice` today. The column exists so a PSP later extends this row rather than replacing it |
+| `billing_email` | Var Char | 255 | | ✅ | where statements go. The gate reads this: no email, no method on file |
+| `billing_contact` | Var Char | 120 | | | who to address it to |
+| `state` | Var Char | 16 | | ✅ | `active` \| `retired`. Taking a method off file retires the row, never deletes it: it is what a released roster was gated on |
+| `added_by` | Var Char | 64 | | | |
+| `added_at` | DateTime | - | | ✅ | |
+| `updated_at` | DateTime | - | | | |
+
+### `provider_statements` (new table)
+
+**Settlement only.** What is owed is arithmetic over `provider_orders`, computed
+on every read, so there is nothing here to drift from the board. What an
+operator issued, and when it was paid, is a record and lives here.
+
+A cohort with no row is `accruing`. That is why the table can be empty and the
+billing page still works.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `statement_key` | Var Char | 200 | ✅ | ✅ | `${campaign_id}:${org_id}` |
+| `campaign_id` | Var Char | 64 | | ✅ | statements settle per cohort, never per month |
+| `org_id` | Var Char | 64 | | ✅ | |
+| `state` | Var Char | 16 | | ✅ | `issued` \| `paid` \| `disputed`. `accruing` is never stored: it is the absence of a row |
+| `activated_count` | Int | - | | | frozen at issue |
+| `fee_each` | Var Char | 16 | | | the fee in force at issue, frozen. A later config change must not restate an invoice already sent |
+| `subtotal` | Var Char | 16 | | | |
+| `tax` | Var Char | 16 | | | |
+| `total` | Var Char | 16 | | | |
+| `issued_at` | DateTime | - | | | |
+| `due_at` | DateTime | - | | | net-15 from issue |
+| `paid_at` | DateTime | - | | | |
+
+### Three optional `site_config` rows
+
+All unpublished, all with code defaults, so none has to exist for the pages to
+work:
+
+- `missed_visit_credit` (number, default `25`). Passed through to a household
+  that waited in for a missed visit. It reduces the partner statement and is
+  revenue to nobody.
+- `tax_rate_pct` (number, default `13`). Ontario HST today. One row, so a rate
+  change is a config edit rather than a deploy against invoices already issued.
+- `tax_registration` (string, default empty). Printed on statements. **The line
+  is omitted while this is blank**, because an invented registration number on
+  an invoice is worse than no line at all.
+
+`success_fee` (number, default `95`) already exists in section 16 and is read by
+every statement. It stays an unconfirmed planning number until the agreement
+terms settle, which is exactly why it is a row and never a constant in code.
+
+---
+
 ## Verify
 
 In the console: **Data Store → ZCQL** (or **Explore**), and run each of these.
@@ -893,6 +1026,11 @@ SELECT ROWID FROM campaigns LIMIT 1;
 SELECT ROWID FROM site_config LIMIT 1;
 SELECT ROWID FROM provider_bids LIMIT 1;
 SELECT ROWID FROM provider_coverage LIMIT 1;
+SELECT ROWID FROM provider_terms LIMIT 1;
+SELECT ROWID FROM campaign_awards LIMIT 1;
+SELECT ROWID FROM provider_orders LIMIT 1;
+SELECT ROWID FROM provider_billing LIMIT 1;
+SELECT ROWID FROM provider_statements LIMIT 1;
 ```
 
 Then one that exercises the column names the hot path depends on:

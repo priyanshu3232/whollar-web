@@ -31,6 +31,8 @@ import { render as renderApplication, mount as mountApplication, load as loadApp
 import { render as renderAccount, mount as mountAccount, paintChrome } from './views/account.js';
 import { render as renderPerformance } from './views/performance.js';
 import { render as renderContracts, mount as mountContracts, load as loadContracts } from './views/contracts.js';
+import { render as renderDelivery, mount as mountDelivery, load as loadDelivery } from './views/delivery.js';
+import { render as renderBilling, mount as mountBilling, load as loadBilling } from './views/billing.js';
 import { render as renderPlaceholders } from './views/placeholders.js';
 
 /* ------------------------------------------------------------------ *
@@ -46,6 +48,8 @@ function renderAll() {
   renderCoverage();
   renderApplication();
   renderAccount();
+  renderDelivery();
+  renderBilling();
   renderPerformance();
   renderContracts();
   renderPlaceholders();
@@ -115,7 +119,18 @@ function loadAll() {
        what the bid ticket reads to know whether to send a partner to Contracts
        before bidding, so it loads on boot rather than on first view of the
        Contracts page. */
-    loadContracts()
+    loadContracts(),
+
+    /* Statements, on boot rather than on view-open. Two other surfaces read
+       the same payload: the overview checklist ticks its billing step from the
+       method on file, and the roster gate is refused without one, so a partner
+       who never opens Billing still needs it read. It carries no household
+       identity and is not audited, which is what makes that safe.
+
+       The delivery board is the opposite and is NOT loaded here: a released
+       roster carries addresses and every read writes an audit row, so it is
+       fetched when the view opens and on explicit refresh. See onChange below. */
+    loadBilling()
   ];
   return Promise.all(jobs).then(function () { startTicker(); });
 }
@@ -176,6 +191,8 @@ function start(partner) {
   mountApplication();
   mountAccount();
   mountContracts();
+  mountDelivery();
+  mountBilling();
 
   on('click', 'nav', function (el) { go(el.getAttribute('data-view')); });
 
@@ -197,6 +214,14 @@ function start(partner) {
 
   subscribe(renderAll);
   onChange(renderAll);
+
+  /* The delivery board reads on view-open, once. Re-entering the view does not
+     re-read: the board's own writes refresh it, and a partner flipping between
+     tabs must not each time append a row to the audit trail that says they
+     read forty households' addresses. */
+  onChange(function (view) {
+    if (view === 'delivery' && get().delivery == null) loadDelivery();
+  });
 
   /* Paint from the local record first so the chrome is never empty, then
      correct it from the server. */

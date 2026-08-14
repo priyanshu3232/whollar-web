@@ -35,6 +35,8 @@ const catalog = require('../lib/catalog');
 const siteconfig = require('../lib/siteconfig');
 const guards = require('../lib/guards');
 const bids = require('../lib/bids');
+const awards = require('../lib/awards');
+const orders = require('../lib/orders');
 const { wrap, badRequest, AppError } = require('../lib/errors');
 
 const TABLE = 'campaign_members';
@@ -358,19 +360,20 @@ function mount(router) {
       });
     }
 
-    /* Lowest headline wins. Money is a string everywhere (rule 3), so compare
-       as numbers here and hand the string back untouched. A row with an
-       unreadable price cannot win, rather than sorting to the front as NaN. */
-    const priced = rows
-      .map((r) => ({ row: r, n: Number(r.price) }))
-      .filter((x) => Number.isFinite(x.n));
-    if (!priced.length) {
+    /* Lowest headline wins, and the winner is now a RECORD rather than a
+       derivation: lib/awards.js seals it on the first read after the close, so
+       the household and the winning partner are told the same thing by the
+       same row. The direct pick stays as the fallback for the window before
+       the awards table exists, and it is the same rule either way. */
+    const award = await awards.seal(req.catalyst, campaign, rows, now);
+    const win = award
+      ? (rows.find((r) => r.bid_key === award.bid_key) || null)
+      : awards.pickWinner(rows);
+    if (!win) {
       return res.status(200).json({
         ok: true, sealed: false, live: true, closesAt, bidCount: rows.length, offer: null,
       });
     }
-    priced.sort((a, b) => (a.n - b.n) || String(a.row.bid_key).localeCompare(String(b.row.bid_key)));
-    const win = priced[0].row;
 
     /* The winner is named to the household. That is the reveal the design
        intends, and it is one-directional: no partner learns who else bid. */
@@ -405,6 +408,92 @@ function mount(router) {
         reference: pub.reference,
         tiers: pub.tiers,
       },
+    });
+  }));
+
+  /**
+   * Accept the winning offer. This is the act that creates a switch order, and
+   * it is the only thing that ever puts a household address in front of a
+   * partner.
+   *
+   *   POST /campaigns/:id/offer/accept  { address, consent: true }
+   *
+   * THE CONSENT IS THE ROW. There is no separate consent flag to go stale: the
+   * order exists because the household accepted and ticked the release, and it
+   * carries the timestamp of both. A partner reads that address later only
+   * after its own roster gate, which routes/delivery.js enforces.
+   *
+   * ADDRESS COMES FROM THE HOUSEHOLD, HERE, NOW. Not from the join, which took
+   * an FSA and nothing more, and not from a bill upload, which is a different
+   * consent for a different purpose. A service address is given for the
+   * install and for nothing else.
+   *
+   * Idempotent on the order key, which is cohort and member: a double-tapped
+   * button is one order. Accepting does not bill: only an activation with a
+   * clean line test creates a line, and the response says so because that is
+   * the sentence the household should carry away.
+   */
+  router.post('/campaigns/:id/offer/accept', wrap(async (req, res) => {
+    const user = requireMember(req);
+    const cat = await catalog.load(req.catalyst);
+    const campaign = campaignFrom(cat, { campaign: req.params.id });
+
+    const key = `${campaign.id}:${user.user_id}`;
+    let mine = null;
+    try {
+      mine = await datastore.findBy(req.catalyst, TABLE, 'membership_key', key, ['status', 'fsa']);
+    } catch {
+      mine = null;
+    }
+    if (!mine) {
+      throw new AppError('FORBIDDEN', 'This offer belongs to a cohort you have not joined.', {
+        logDetail: 'offer accept without membership',
+      });
+    }
+
+    const now = Date.now();
+    if (!awards.isClosed(campaign, now)) {
+      throw badRequest('Bidding is still open on this cohort. The offer arrives when it closes.');
+    }
+
+    const bidRows = await bids.campaignBidRows(req.catalyst, campaign.id);
+    const award = await awards.seal(req.catalyst, campaign, bidRows, now);
+    if (!award) {
+      throw new AppError('CONFLICT', 'There is no offer on this cohort yet.', {
+        logDetail: `accept with no award campaign=${campaign.id}`,
+      });
+    }
+
+    if ((req.body || {}).consent !== true) {
+      throw badRequest('Confirm you are happy for your address to go to the winning partner for this install.');
+    }
+    const address = orders.readAddress((req.body || {}).address);
+    const fsa = orders.readFsa((req.body || {}).fsa || mine.fsa);
+
+    const row = await orders.create(req.catalyst, {
+      campaignId: campaign.id,
+      orgId: award.org_id,
+      memberUserId: user.user_id,
+      fsa,
+      address,
+      at: now,
+    });
+
+    audit.recordAsync(req.catalyst, req, {
+      type: 'offer.accept',
+      outcome: 'success',
+      userId: user.user_id,
+      detail: `cohort=${campaign.id} org=${award.org_id}`,
+    });
+
+    res.status(200).json({
+      ok: true,
+      serverTime: now,
+      accepted: true,
+      orderNo: (row && row.order_no) || null,
+      /* Said plainly, because it is the thing households ask: accepting is not
+         a charge, and the install is booked next. */
+      note: 'Accepted. Nothing is charged for switching, and your installer books the visit from here.',
     });
   }));
 

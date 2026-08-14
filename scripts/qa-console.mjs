@@ -22,7 +22,8 @@
  * to install off localhost, the bid ticket (seven-column tier table, consent
  * gate, a sealed place round-trip), the sealed receipt with no withdraw path
  * anywhere, the my-bids record with its nudge and result pills, and the
- * contracts registry with its terms gate on the desk.
+ * contracts registry with its terms gate on the desk, and the landing view an
+ * unapproved partner arrives on with no hash.
  */
 
 import { chromium } from 'playwright-core';
@@ -298,12 +299,17 @@ console.log('\n10. the endpoint register is complete');
   ok(reg.live + reg.pending === reg.total, `every one is either live or a tagged stub (${reg.live} live, ${reg.pending} stubbed)`);
   /* The auction core flipped four stubs live (brief, improve, bid, versions),
      bringing the register to 24, and the contracts registry flipped two more
-     (contracts, termsAccept) for 26. A refactor that quietly turns a live
+     (contracts, termsAccept) for 26. Delivery and billing flipped fifteen more
+     (the roster, the gate, the five order writes, capacity, and the statement
+     and method reads and writes) for 41. A refactor that quietly turns a live
      endpoint back into a stub must fail here, not in production. */
-  ok(reg.live >= 26, `at least 26 endpoints are live (${reg.live})`);
+  ok(reg.live >= 41, `at least 41 endpoints are live (${reg.live})`);
   /* A stub must fail the way the server will, or views learn the wrong error path. */
+  /* `statements` was the canonical stub here until billing shipped. Proving
+     stub behaviour with a live endpoint proves nothing, so this follows the
+     frontier: `performance` is endpoint 63 and is still unbuilt. */
   const stub = await p.evaluate(() =>
-    window.WHOLLAR.console.api.statements().then(() => null, e => ({ code: e.code, status: e.status })));
+    window.WHOLLAR.console.api.performance().then(() => null, e => ({ code: e.code, status: e.status })));
   ok(stub && stub.code === 'NOT_IMPLEMENTED' && stub.status === 501, 'a stub rejects as NOT_IMPLEMENTED/501, like the server will');
   await c.close();
 }

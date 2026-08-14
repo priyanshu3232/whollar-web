@@ -274,48 +274,100 @@ api.termsAccept = function (body) {
    Every read of endpoint 43 is audited, which is why rows are fetched on
    view-open and explicit refresh only, and never polled. */
 
-/* 40 */ api.roster = todo('GET /provider/campaigns/:id/roster');
-/* 41 */ api.rosterGate = todo('POST /provider/campaigns/:id/roster/gate');
+/* 40. LIVE. Counts always; the `orders` key only once the roster gate has
+       passed, and ABSENT rather than empty before it. */
+api.roster = function (id) {
+  return request('GET', '/provider/campaigns/' + encodeURIComponent(id) + '/roster')
+    .then(function (r) {
+      return check(r && r.orders ? 'rosterReleased' : 'rosterGated', r);
+    });
+};
+/* 41. LIVE. All three conditions are checked server side and the refusal names
+       the one that failed: this call is the record of the release, not the
+       decision to allow it. */
+api.rosterGate = function (id, body) {
+  return request('POST', '/provider/campaigns/' + encodeURIComponent(id) + '/roster/gate', body);
+};
+/* 42. Folded into 41: the gate IS the release, and a second endpoint would be
+       a second place for the three checks to be got wrong. */
 /* 42 */ api.rosterRelease = todo('POST /provider/campaigns/:id/roster/release');
-/* 43 */ api.orders = todo('GET /provider/campaigns/:id/orders');
-/* 44 */ api.orderSlot = todo('POST /provider/orders/:key/slot');
-/* 45. The ONLY event that creates a billable line. Requires a clean line test
-       and a confirmed incumbent cancellation. */
-/* 45 */ api.orderActivate = todo('POST /provider/orders/:key/activate');
-/* 46. Reason comes from RELEASE_REASON, never free text: it feeds the
+/* 43. LIVE. Every order this org holds, cohort by cohort. Addresses appear per
+       cohort, only for the ones whose gate has passed. Audited server side,
+       which is why this is fetched on view-open and refresh, never polled. */
+api.orders = function () { return request('GET', '/provider/orders'); };
+/* 44. LIVE. Book, or rebook after an exception. */
+api.orderSlot = function (key, slotAt) {
+  return request('POST', '/provider/orders/' + encodeURIComponent(key) + '/slot', { slotAt: slotAt });
+};
+/* 45. LIVE, and the ONLY event that creates a billable line. Requires a clean
+       line test and a confirmed incumbent cancellation, both asserted here and
+       both recorded: neither is inferable from anything else we hold. */
+api.orderActivate = function (key, body) {
+  return request('POST', '/provider/orders/' + encodeURIComponent(key) + '/activate', body);
+};
+/* 46. LIVE. Reason comes from RELEASE_REASON, never free text: it feeds the
        serviceability figure that feeds future briefs. */
-/* 46 */ api.orderRelease = todo('POST /provider/orders/:key/release');
-/* 47. The partner CHOOSES the exception type. The prototype randomises it. */
-/* 47 */ api.orderException = todo('POST /provider/orders/:key/exception');
+api.orderRelease = function (key, reason) {
+  return request('POST', '/provider/orders/' + encodeURIComponent(key) + '/release', { reason: reason });
+};
+/* 47. LIVE. The partner CHOOSES the exception type. The prototype randomises
+       it, which is fine in a demo and a lie in a record. */
+api.orderException = function (key, kind) {
+  return request('POST', '/provider/orders/' + encodeURIComponent(key) + '/exception', { kind: kind });
+};
+/* 48. Rebooking is a slot on an order that has one already, so it is endpoint
+       44 and not its own verb. */
 /* 48 */ api.orderRebook = todo('POST /provider/orders/:key/rebook');
+/* 49. Returned inside the roster payload rather than fetched on its own: it is
+       one integer that the board has already read. */
 /* 49 */ api.capacity = todo('GET /provider/campaigns/:id/capacity');
-/* 50 */ api.capacitySave = todo('POST /provider/campaigns/:id/capacity');
+/* 50. LIVE. Install appointments per week, shown to households when they book. */
+api.capacitySave = function (id, capacityWeekly) {
+  return request('POST', '/provider/campaigns/' + encodeURIComponent(id) + '/capacity',
+    { capacityWeekly: capacityWeekly });
+};
 /* 51 */ api.logistics = todo('GET /provider/campaigns/:id/logistics');
 /* 52 */ api.rma = todo('GET /provider/campaigns/:id/rma');
 
 /* ---- 7.8 billing (53-62) ---- */
 
-/* 53 */ api.billingCycle = todo('GET /provider/billing/cycle');
-/* 54 */ api.statements = todo('GET /provider/statements');
-/* 55. Lines are computed SERVER SIDE and returned as data. They are not
-       stored: a line IS a delivery order in state 'act' inside the period, and
-       a second table would be a second source of truth for "did this switch
-       complete". The statement row holds only the frozen total at issue, which
-       is what makes the reconciliation window meaningful. */
-/* 55 */ api.statement = todo('GET /provider/statements/:period');
-/* 56 */ api.statementExport = todo('GET /provider/statements/:period/export');
-/* 57. Freezes ONE line, never the statement. */
-/* 57 */ api.lineDispute = todo('POST /provider/statements/:period/lines/:line/dispute');
-/* 58 */ api.paymentMethod = todo('GET /provider/billing/method');
-/* 59. A hosted flow. The console never handles raw card data, and no PAN ever
-       reaches our servers. */
-/* 59 */ api.paymentMethodSession = todo('POST /provider/billing/method/session');
-/* 60 */ api.paymentMethodRemove = todo('DELETE /provider/billing/method');
-/* 61. Drives the pause banner and disables every place-bid control. The server
-       refuses the bid regardless of what the UI allows. */
+/* 53. LIVE. What is accruing right now, across every cohort. */
+api.billingCycle = function () { return request('GET', '/provider/billing/cycle'); };
+/* 54. LIVE. One statement per won cohort. Per cohort, never per month: a
+       cohort is the thing that settles. */
+api.statements = function () { return request('GET', '/provider/statements'); };
+/* 55. LIVE. Lines are computed SERVER SIDE and returned as data. They are not
+       stored: a line IS a delivery order in state 'act', and a second table
+       would be a second source of truth for "did this switch complete". The
+       statements table holds only the frozen total at issue, which is what
+       makes the reconciliation window meaningful. */
+api.statement = function (campaignId) {
+  return request('GET', '/provider/statements/' + encodeURIComponent(campaignId));
+};
+/* 56. The export is built client side from the payload of 55, for the same
+       reason bidsExport is: the console already holds every figure. */
+/* 56 */ api.statementExport = todo('GET /provider/statements/:campaign/export');
+/* 57. LIVE. Freezes ONE line, never the statement. The line is an order, so
+       the dispute is recorded against it. */
+api.lineDispute = function (key, note) {
+  return request('POST', '/provider/orders/' + encodeURIComponent(key) + '/dispute', { note: note });
+};
+/* 58. LIVE. */
+api.paymentMethod = function () { return request('GET', '/provider/billing/method'); };
+/* 59. LIVE, and NOT a hosted card flow: there is no payment service provider in
+       this stack. What a partner puts on file is an invoicing arrangement, so
+       no PAN exists to handle rather than merely no PAN reaching our servers. */
+api.paymentMethodSave = function (body) {
+  return request('POST', '/provider/billing/method', body);
+};
+/* 60. LIVE. Retires the row, never deletes it: it is what a released roster
+       was gated on. */
+api.paymentMethodRemove = function () { return request('DELETE', '/provider/billing/method'); };
+/* 61. Drives the pause banner. Carried inside /provider/me today. */
 /* 61 */ api.billingStatus = todo('GET /provider/billing/status');
-/* 62. Tax is jurisdiction-driven, computed from the partner's billing
-       province. The GTA pilot is Ontario; the model must not hardcode it. */
+/* 62. Tax is jurisdiction-driven. The rate and the registration are config
+       rows read into every statement, so the GTA pilot's Ontario HST is not
+       hardcoded anywhere; a per-province profile is the next step, not this one. */
 /* 62 */ api.taxProfile = todo('GET /provider/billing/tax');
 
 /* ---- 7.9 performance (63-64) ---- */

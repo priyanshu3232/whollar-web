@@ -40,6 +40,7 @@ const siteconfig = require('../lib/siteconfig');
 const audit = require('../lib/audit');
 const envelope = require('../lib/envelope');
 const bids = require('../lib/bids');
+const awards = require('../lib/awards');
 const terms = require('../lib/terms');
 const { requireBiddingOpen, allRows, tally, publicPartnerCampaign } = require('./campaigns');
 const { requirePartner: guardPartner, requireApproved } = require('../lib/guards');
@@ -314,13 +315,50 @@ function mount(router) {
     });
   }));
 
-  /** The org's live sealed bids. -> { ok, serverTime, live, bids } */
+  /**
+   * The org's live sealed bids. -> { ok, serverTime, live, bids }
+   *
+   * A RESULT IS A JOIN, NOT A COLUMN. `provider_bids.status` says what the
+   * partner did (sealed, improved), and nothing writes a result into it: the
+   * result lives in `campaign_awards`, one row per cohort, and it is read here
+   * rather than copied. Copying it would need a job to run at every close, and
+   * a job that misses one leaves a partner looking at a bid that says 'sealed'
+   * three weeks after the cohort was won by somebody else.
+   *
+   * An award on a cohort this org did not win is 'not_selected' and carries
+   * nothing else. No winning org, no winning price, no margin: a partner
+   * learns that it lost, which is its own business, and not one fact about
+   * whoever won.
+   */
   router.get('/provider/bids', wrap(async (req, res) => {
     const { context } = await requirePartner(req);
     const rows = await bids.bidRows(req.catalyst, context.orgId);
+    /* Sealing on read, here as well as on the household's side: a partner
+       whose cohort closed while nobody happened to open the member offer page
+       would otherwise sit on a bid marked 'sealed' long after it was decided.
+       Only closed cohorts are touched, and the seal is idempotent. */
+    const cat = await catalog.load(req.catalyst);
+    const byId = {};
+    (cat || []).forEach((c) => { byId[c.id] = c; });
+
+    const decided = {};
+    for (const id of new Set((rows || []).map((r) => r.campaign_id))) {
+      const campaign = byId[id];
+      if (!campaign || !awards.isClosed(campaign)) continue;
+      /* eslint-disable no-await-in-loop */
+      const all = await bids.campaignBidRows(req.catalyst, id);
+      const award = await awards.seal(req.catalyst, campaign, all);
+      /* eslint-enable no-await-in-loop */
+      if (award) decided[id] = award;
+    }
     envelope.ok(res, {
       live: rows !== null,
-      bids: (rows || []).map(bids.publicBid),
+      bids: (rows || []).map((row) => {
+        const pub = bids.publicBid(row);
+        const award = decided[row.campaign_id];
+        if (award) pub.state = award.org_id === context.orgId ? 'won' : 'not_selected';
+        return pub;
+      }),
     });
   }));
 

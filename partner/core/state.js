@@ -36,6 +36,15 @@ var state = {
   /* what binds them */
   contracts: null,      /* GET /provider/contracts, null until it answers */
 
+  /* what they have won, and what it is worth */
+  delivery: null,       /* GET /provider/orders; 'loading' while in flight.
+                           Fetched on view-open and explicit refresh only: a
+                           released roster carries addresses and every read of
+                           one is audited server side, so polling it would
+                           write an audit row a minute, forever. */
+  deliveryCohort: null, /* which won cohort the board is showing */
+  billing: null,        /* GET /provider/statements; 'loading' while in flight */
+
   /* health */
   biddingPaused: false,
   biddingNotice: null,

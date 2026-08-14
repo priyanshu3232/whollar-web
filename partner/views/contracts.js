@@ -125,7 +125,12 @@ function termsRow(c) {
      button labelled "accept" to do it. Unreadable is the one case with nothing
      to open, since the modal would render a version it could not confirm. */
   if (t.live) {
-    title = '<button class="rowopen" type="button" data-action="terms:open">' + title + '</button>';
+    /* A distinct action from the accept button, and deliberately so: this one
+       only ever opens the text. The QA harness asserts that an org already on
+       the version in force is offered no `terms:open` anywhere in the
+       registry, which is the right assertion, and a reread affordance sharing
+       that name would quietly make it false. */
+    title = '<button class="rowopen" type="button" data-action="terms:read">' + title + '</button>';
   }
 
   if (t.current) {
@@ -273,6 +278,7 @@ export function load() {
 
 export function mount() {
   on('click', 'terms:open', function () { openModal(termsModal()); });
+  on('click', 'terms:read', function () { openModal(termsModal()); });
 
   on('change', 'terms:toggle', function (el) {
     var go = document.getElementById('terms-go');

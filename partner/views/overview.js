@@ -102,7 +102,7 @@ function activation(S) {
   return {
     coverage: S.coverage.length > 0,
     terms: !!(S.application && S.application.cohortTermsAcceptedAt),
-    pay: !!(S.billing && S.billing.method),
+    pay: !!(S.billing && S.billing.method && S.billing.method.onFile),
     brief: sealed || Object.keys(S.briefs).length > 0,
     bid: sealed
   };

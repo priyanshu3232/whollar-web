@@ -61,6 +61,15 @@
     /* what binds them */
     contracts: null,      /* GET /provider/contracts, null until it answers */
 
+    /* what they have won, and what it is worth */
+    delivery: null,       /* GET /provider/orders; 'loading' while in flight.
+                             Fetched on view-open and explicit refresh only: a
+                             released roster carries addresses and every read of
+                             one is audited server side, so polling it would
+                             write an audit row a minute, forever. */
+    deliveryCohort: null, /* which won cohort the board is showing */
+    billing: null,        /* GET /provider/statements; 'loading' while in flight */
+
     /* health */
     biddingPaused: false,
     biddingNotice: null,
@@ -952,48 +961,100 @@
      Every read of endpoint 43 is audited, which is why rows are fetched on
      view-open and explicit refresh only, and never polled. */
 
-  /* 40 */ api.roster = todo('GET /provider/campaigns/:id/roster');
-  /* 41 */ api.rosterGate = todo('POST /provider/campaigns/:id/roster/gate');
+  /* 40. LIVE. Counts always; the `orders` key only once the roster gate has
+         passed, and ABSENT rather than empty before it. */
+  api.roster = function (id) {
+    return request('GET', '/provider/campaigns/' + encodeURIComponent(id) + '/roster')
+      .then(function (r) {
+        return check(r && r.orders ? 'rosterReleased' : 'rosterGated', r);
+      });
+  };
+  /* 41. LIVE. All three conditions are checked server side and the refusal names
+         the one that failed: this call is the record of the release, not the
+         decision to allow it. */
+  api.rosterGate = function (id, body) {
+    return request('POST', '/provider/campaigns/' + encodeURIComponent(id) + '/roster/gate', body);
+  };
+  /* 42. Folded into 41: the gate IS the release, and a second endpoint would be
+         a second place for the three checks to be got wrong. */
   /* 42 */ api.rosterRelease = todo('POST /provider/campaigns/:id/roster/release');
-  /* 43 */ api.orders = todo('GET /provider/campaigns/:id/orders');
-  /* 44 */ api.orderSlot = todo('POST /provider/orders/:key/slot');
-  /* 45. The ONLY event that creates a billable line. Requires a clean line test
-         and a confirmed incumbent cancellation. */
-  /* 45 */ api.orderActivate = todo('POST /provider/orders/:key/activate');
-  /* 46. Reason comes from RELEASE_REASON, never free text: it feeds the
+  /* 43. LIVE. Every order this org holds, cohort by cohort. Addresses appear per
+         cohort, only for the ones whose gate has passed. Audited server side,
+         which is why this is fetched on view-open and refresh, never polled. */
+  api.orders = function () { return request('GET', '/provider/orders'); };
+  /* 44. LIVE. Book, or rebook after an exception. */
+  api.orderSlot = function (key, slotAt) {
+    return request('POST', '/provider/orders/' + encodeURIComponent(key) + '/slot', { slotAt: slotAt });
+  };
+  /* 45. LIVE, and the ONLY event that creates a billable line. Requires a clean
+         line test and a confirmed incumbent cancellation, both asserted here and
+         both recorded: neither is inferable from anything else we hold. */
+  api.orderActivate = function (key, body) {
+    return request('POST', '/provider/orders/' + encodeURIComponent(key) + '/activate', body);
+  };
+  /* 46. LIVE. Reason comes from RELEASE_REASON, never free text: it feeds the
          serviceability figure that feeds future briefs. */
-  /* 46 */ api.orderRelease = todo('POST /provider/orders/:key/release');
-  /* 47. The partner CHOOSES the exception type. The prototype randomises it. */
-  /* 47 */ api.orderException = todo('POST /provider/orders/:key/exception');
+  api.orderRelease = function (key, reason) {
+    return request('POST', '/provider/orders/' + encodeURIComponent(key) + '/release', { reason: reason });
+  };
+  /* 47. LIVE. The partner CHOOSES the exception type. The prototype randomises
+         it, which is fine in a demo and a lie in a record. */
+  api.orderException = function (key, kind) {
+    return request('POST', '/provider/orders/' + encodeURIComponent(key) + '/exception', { kind: kind });
+  };
+  /* 48. Rebooking is a slot on an order that has one already, so it is endpoint
+         44 and not its own verb. */
   /* 48 */ api.orderRebook = todo('POST /provider/orders/:key/rebook');
+  /* 49. Returned inside the roster payload rather than fetched on its own: it is
+         one integer that the board has already read. */
   /* 49 */ api.capacity = todo('GET /provider/campaigns/:id/capacity');
-  /* 50 */ api.capacitySave = todo('POST /provider/campaigns/:id/capacity');
+  /* 50. LIVE. Install appointments per week, shown to households when they book. */
+  api.capacitySave = function (id, capacityWeekly) {
+    return request('POST', '/provider/campaigns/' + encodeURIComponent(id) + '/capacity',
+      { capacityWeekly: capacityWeekly });
+  };
   /* 51 */ api.logistics = todo('GET /provider/campaigns/:id/logistics');
   /* 52 */ api.rma = todo('GET /provider/campaigns/:id/rma');
 
   /* ---- 7.8 billing (53-62) ---- */
 
-  /* 53 */ api.billingCycle = todo('GET /provider/billing/cycle');
-  /* 54 */ api.statements = todo('GET /provider/statements');
-  /* 55. Lines are computed SERVER SIDE and returned as data. They are not
-         stored: a line IS a delivery order in state 'act' inside the period, and
-         a second table would be a second source of truth for "did this switch
-         complete". The statement row holds only the frozen total at issue, which
-         is what makes the reconciliation window meaningful. */
-  /* 55 */ api.statement = todo('GET /provider/statements/:period');
-  /* 56 */ api.statementExport = todo('GET /provider/statements/:period/export');
-  /* 57. Freezes ONE line, never the statement. */
-  /* 57 */ api.lineDispute = todo('POST /provider/statements/:period/lines/:line/dispute');
-  /* 58 */ api.paymentMethod = todo('GET /provider/billing/method');
-  /* 59. A hosted flow. The console never handles raw card data, and no PAN ever
-         reaches our servers. */
-  /* 59 */ api.paymentMethodSession = todo('POST /provider/billing/method/session');
-  /* 60 */ api.paymentMethodRemove = todo('DELETE /provider/billing/method');
-  /* 61. Drives the pause banner and disables every place-bid control. The server
-         refuses the bid regardless of what the UI allows. */
+  /* 53. LIVE. What is accruing right now, across every cohort. */
+  api.billingCycle = function () { return request('GET', '/provider/billing/cycle'); };
+  /* 54. LIVE. One statement per won cohort. Per cohort, never per month: a
+         cohort is the thing that settles. */
+  api.statements = function () { return request('GET', '/provider/statements'); };
+  /* 55. LIVE. Lines are computed SERVER SIDE and returned as data. They are not
+         stored: a line IS a delivery order in state 'act', and a second table
+         would be a second source of truth for "did this switch complete". The
+         statements table holds only the frozen total at issue, which is what
+         makes the reconciliation window meaningful. */
+  api.statement = function (campaignId) {
+    return request('GET', '/provider/statements/' + encodeURIComponent(campaignId));
+  };
+  /* 56. The export is built client side from the payload of 55, for the same
+         reason bidsExport is: the console already holds every figure. */
+  /* 56 */ api.statementExport = todo('GET /provider/statements/:campaign/export');
+  /* 57. LIVE. Freezes ONE line, never the statement. The line is an order, so
+         the dispute is recorded against it. */
+  api.lineDispute = function (key, note) {
+    return request('POST', '/provider/orders/' + encodeURIComponent(key) + '/dispute', { note: note });
+  };
+  /* 58. LIVE. */
+  api.paymentMethod = function () { return request('GET', '/provider/billing/method'); };
+  /* 59. LIVE, and NOT a hosted card flow: there is no payment service provider in
+         this stack. What a partner puts on file is an invoicing arrangement, so
+         no PAN exists to handle rather than merely no PAN reaching our servers. */
+  api.paymentMethodSave = function (body) {
+    return request('POST', '/provider/billing/method', body);
+  };
+  /* 60. LIVE. Retires the row, never deletes it: it is what a released roster
+         was gated on. */
+  api.paymentMethodRemove = function () { return request('DELETE', '/provider/billing/method'); };
+  /* 61. Drives the pause banner. Carried inside /provider/me today. */
   /* 61 */ api.billingStatus = todo('GET /provider/billing/status');
-  /* 62. Tax is jurisdiction-driven, computed from the partner's billing
-         province. The GTA pilot is Ontario; the model must not hardcode it. */
+  /* 62. Tax is jurisdiction-driven. The rate and the registration are config
+         rows read into every statement, so the GTA pilot's Ontario HST is not
+         hardcoded anywhere; a per-province profile is the next step, not this one. */
   /* 62 */ api.taxProfile = todo('GET /provider/billing/tax');
 
   /* ---- 7.9 performance (63-64) ---- */
@@ -2440,7 +2501,7 @@
     return {
       coverage: S.coverage.length > 0,
       terms: !!(S.application && S.application.cohortTermsAcceptedAt),
-      pay: !!(S.billing && S.billing.method),
+      pay: !!(S.billing && S.billing.method && S.billing.method.onFile),
       brief: sealed || Object.keys(S.briefs).length > 0,
       bid: sealed
     };
@@ -4845,7 +4906,12 @@
        button labelled "accept" to do it. Unreadable is the one case with nothing
        to open, since the modal would render a version it could not confirm. */
     if (t.live) {
-      title = '<button class="rowopen" type="button" data-action="terms:open">' + title + '</button>';
+      /* A distinct action from the accept button, and deliberately so: this one
+         only ever opens the text. The QA harness asserts that an org already on
+         the version in force is offered no `terms:open` anywhere in the
+         registry, which is the right assertion, and a reread affordance sharing
+         that name would quietly make it false. */
+      title = '<button class="rowopen" type="button" data-action="terms:read">' + title + '</button>';
     }
 
     if (t.current) {
@@ -4993,6 +5059,7 @@
 
   function mount() {
     on('click', 'terms:open', function () { openModal(termsModal()); });
+    on('click', 'terms:read', function () { openModal(termsModal()); });
 
     on('change', 'terms:toggle', function (el) {
       var go = document.getElementById('terms-go');
@@ -5038,33 +5105,911 @@
   };
 
   /* ==================================================================
-     views/placeholders.js
+     views/delivery.js
      ================================================================== */
-  __defs["views/placeholders.js"] = function (__exports, __require, root) {
-  /* The views this increment does not build, each saying so honestly.
+  __defs["views/delivery.js"] = function (__exports, __require, root) {
+  /* Delivery: won cohorts become rosters, and only a live connection bills.
    *
-   * WHY ONE FILE, AND WHY THEY ARE NOT STUBS. A stub renders nothing and looks
-   * like a bug. A demo renders invented numbers and looks like a lie. These say
-   * what the surface will hold, what has to happen first, and where to go
-   * meanwhile, which is the only honest third option.
+   * Ported from the prototype's renderDelivery (line 2884) and openGate (1544).
+   * The prototype's five stage-aware empty states are ported; its seeded roster,
+   * its logistics and RMA cards, and its settled-cohort branch are not. Those
+   * read from `P.rosters`, a client-side array `seedRoster` filled with random
+   * street names, and there is no batch, waybill or RMA record anywhere in this
+   * system to replace them with. A card that invents three gateway shipments is
+   * worse than no card: a partner would go looking for the tracking numbers.
    *
-   * Each becomes its own module under views/ when it is built, as the bids
-   * record, the performance page and the contracts registry now have
-   * (views/bids.js, views/performance.js, views/contracts.js). Splitting the
-   * rest out now would create files whose entire content is a paragraph, and the
-   * build refuses unreferenced modules, so they would have to be wired up twice.
+   * WHAT THE SERVER OWNS, AND WHY THIS FILE CANNOT CHEAT. The roster response
+   * carries counts always and the `orders` key only once the gate has passed.
+   * Before the gate the key is ABSENT, not empty, so there is nothing here to
+   * render and nothing to accidentally reveal: the addresses were never
+   * transmitted. core/contract.js asserts both shapes on arrival, which is the
+   * point of asserting them a second time on this side.
+   *
+   * THE GATE IS NOT A FORM. Its three rows are the three checks routes/delivery.js
+   * makes server side, in the same order, with the same words. If this view let
+   * someone past, the route would still refuse, and the partner would be looking
+   * at a board the server had already decided they could not have.
    */
 
   var __ns0 = __require("core/state.js");
-  var get = __ns0.get;
-  var __ns1 = __require("components/emptystate.js");
-  var empty = __ns1.empty, goTo = __ns1.goTo;
+  var get = __ns0.get, set = __ns0.set;
+  var __ns1 = __require("core/api.js");
+  var api = __ns1.api;
+  var __ns2 = __require("core/format.js");
+  var esc = __ns2.esc, plural = __ns2.plural;
+  var __ns3 = __require("core/time.js");
+  var fmtDate = __ns3.fmtDate, fmtTime = __ns3.fmtTime;
+  var __ns4 = __require("core/actions.js");
+  var on = __ns4.on;
+  var __ns5 = __require("core/modal.js");
+  var openModal = __ns5.open, closeModal = __ns5.close;
+  var __ns6 = __require("core/toast.js");
+  var toast = __ns6.toast, failed = __ns6.failed;
+  var __ns7 = __require("core/session.js");
+  var authFailed = __ns7.authFailed;
+  var __ns8 = __require("components/emptystate.js");
+  var empty = __ns8.empty, goTo = __ns8.goTo;
+  var __ns9 = __require("components/gate.js");
+  var gateRow = __ns9.gateRow;
+  var __ns10 = __require("core/contract.js");
+  var ORDER_LABEL = __ns10.ORDER_LABEL, RELEASE_REASON = __ns10.RELEASE_REASON, RELEASE_LABEL = __ns10.RELEASE_LABEL, ORDER_EXCEPTION = __ns10.ORDER_EXCEPTION;
+
+  /* Which pill each state wears. The three exceptions share one, because they
+     share a meaning to the person reading the board: this one needs you. */
+  var PILL = {
+    acc: 'pending', bkd: 'sealed', act: 'won', rel: 'lost',
+    noshow: 'lost', access: 'lost', linefail: 'lost'
+  };
 
   function render() {
+    var host = document.getElementById('del-body');
+    if (!host) return;
     var S = get();
 
-    put('billing-body', billing(S));
-    put('del-body', delivery(S));
+    if (!S.approved) {
+      host.innerHTML = empty('Delivery opens at approval',
+        'Win a cohort and every household that accepted your offer lands here with an install slot and a state. Nothing reaches this board before your application clears.',
+        goTo('pending', 'See where the review stands', 'btn ghost'));
+      return;
+    }
+
+    var D = S.delivery;
+    if (D === 'loading') { host.innerHTML = card('Reading your delivery board.'); return; }
+    if (!D) { host.innerHTML = waiting(S); return; }
+    if (!D.live) {
+      host.innerHTML = card('Your delivery board could not be read just now. Nothing about your cohorts has changed, and nothing bills from a board we cannot read.');
+      return;
+    }
+    if (!D.cohorts.length) { host.innerHTML = waiting(S); return; }
+
+    var chosen = D.cohorts.filter(function (c) { return c.campaignId === S.deliveryCohort; })[0] || D.cohorts[0];
+    host.innerHTML = picker(S, D, chosen)
+      + (chosen.orders ? board(S, chosen) : gated(S, chosen));
+  }
+
+  function card(note) {
+    return '<section class="card"><span class="eyebrow">Delivery</span>'
+      + '<h3>Won cohorts become rosters</h3><p class="cardnote">' + esc(note) + '</p></section>';
+  }
+
+  /* ------------------------------------------------------------------ *
+   * before there is anything to deliver
+   *
+   * Four states, each naming what fills this page next. The prototype's version
+   * of this is the best thing in it: a partner mid-auction opens Delivery and
+   * learns what day one looks like, rather than reading "no data".
+   * ------------------------------------------------------------------ */
+
+  function waiting(S) {
+    var mine = S.campaigns.filter(function (c) { return S.bids[c.id]; });
+    var offers = mine.filter(function (c) { return c.stage === 'offers_out'; })[0];
+    if (offers) {
+      return '<section class="card"><span class="eyebrow gld">Decisions are live</span>'
+        + '<h3>' + esc(offers.region) + ' households are deciding</h3>'
+        + '<p class="cardnote">Bids are closed and your offer is with the cohort. Every household that accepts lands here with an address and an install slot, the moment the result is in.</p>'
+        + '<p class="fnote">Confirmations cost nothing. Your first statement line is your first clean activation.</p></section>';
+    }
+
+    var sealed = mine.filter(function (c) { return c.stage === 'open' || c.stage === 'closing'; })[0];
+    if (sealed) {
+      return '<section class="card"><span class="eyebrow">If ' + esc(sealed.region) + ' confirms you</span>'
+        + '<h3>Day one looks like this</h3>'
+        + '<p class="cardnote">Every household that accepted, with an order number, the install slot they picked, and a state that becomes a statement line only when the line tests clean.</p>'
+        + '<div class="ghostwrap"><div class="twrap ghost"><table class="tbl rtbl">'
+        + '<thead><tr><th>Order</th><th>Install</th><th>State</th><th>Next</th></tr></thead><tbody>'
+        + '<tr><td class="mono">WHL-••••-C</td><td>Household picks</td><td>To book</td><td>Awaiting slot</td></tr>'
+        + '<tr><td class="mono">WHL-••••-C</td><td>Household picks</td><td>Booked</td><td>On track</td></tr>'
+        + '<tr><td class="mono">WHL-••••-C</td><td>·</td><td>Activated</td><td>Fee accrues</td></tr>'
+        + '</tbody></table></div><div class="ghostlbl"><span>Sample · not your data</span></div></div>'
+        + '</section>';
+    }
+
+    var open = S.campaigns.filter(function (c) {
+      return (c.stage === 'open' || c.stage === 'closing') && !S.bids[c.id];
+    })[0];
+    if (open) {
+      return empty('Delivery starts with a win, and a win starts with one sealed number',
+        esc(open.region) + ' is open in your coverage. Sealed both ways: your bid stands on its own merits, and only completed switches ever bill.',
+        goTo('desk', 'Review the brief and bid', 'btn'));
+    }
+
+    return empty('Your first delivery board builds itself',
+      'Win a cohort and every household that accepted your offer lands here with an order number, the install slot they picked, and a state that becomes a statement line only when the line tests clean. Addresses release at acceptance, under each household’s consent, and to nobody else.',
+      goTo('desk', 'Open the bid desk', 'btn'));
+  }
+
+  /* ------------------------------------------------------------------ *
+   * the cohort picker, and the capacity control beside it
+   * ------------------------------------------------------------------ */
+
+  function picker(S, D, chosen) {
+    var opts = D.cohorts.map(function (c) {
+      var name = regionOf(S, c.campaignId);
+      var tail = c.orders ? plural(c.counts.total, 'household') : 'roster gated';
+      return '<option value="' + esc(c.campaignId) + '"' + (c === chosen ? ' selected' : '') + '>'
+        + esc(name + ' · ' + tail) + '</option>';
+    }).join('');
+
+    var cap = chosen.award && chosen.award.capacityWeekly;
+    return '<div class="omhead">'
+      + '<div><label class="omlab">Cohort</label>'
+      + '<select class="cselect" style="max-width:340px" data-action="del:cohort">' + opts + '</select></div>'
+      + (chosen.orders
+        ? '<span class="omcap"><label class="omlab">Install appointments per week</label>'
+          + '<input class="capin" type="number" min="1" max="500" inputmode="numeric" value="' + esc(String(cap || '')) + '" '
+          + 'data-action="del:capacity" data-id="' + esc(chosen.campaignId) + '" style="margin-left:0"> '
+          + '<small>shown to households when they book a slot</small></span>'
+        : '')
+      + '</div>';
+  }
+
+  function regionOf(S, id) {
+    var c = S.campaigns.filter(function (x) { return x.id === id; })[0];
+    return c ? (c.region + (c.sub ? ' · ' + c.sub : '')) : id;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * gated: counts, and the one step that releases the rest
+   * ------------------------------------------------------------------ */
+
+  function gated(S, c) {
+    var g = (c.award && c.award.gate) || {};
+    var n = c.counts.total;
+    return '<section class="card"><span class="eyebrow gld">Won, roster gated</span>'
+      + '<h3>' + esc(regionOf(S, c.campaignId)) + ' is yours. One step before the roster releases.</h3>'
+      + '<p class="cardnote">'
+      + (n ? esc(plural(n, 'household') + ' accepted your offer.') : 'Households are accepting your offer now.')
+      + ' Complete billing setup and state your install capacity, then their addresses release to you, and only you.</p>'
+      + '<div style="margin-top:12px">'
+      + gateRow(g.billing ? 'dn' : 'now', 1, 'Billing method on file',
+        'Nothing charges now. A statement is only ever activated households, and it settles per cohort, net-15.',
+        g.billing ? '' : '<button class="tlink" type="button" data-action="nav" data-view="billing">Add a method</button>')
+      + gateRow(g.capacity ? 'dn' : (g.billing ? 'now' : ''), 2, 'Install capacity',
+        'How many installs you can run per week in this region. It plans the switch window and it does not change your bid.')
+      + gateRow(g.consent ? 'dn' : '', 3, 'Confidentiality acknowledgement',
+        'Household details are released under each household’s consent, for delivering this cohort only.')
+      + '</div>'
+      + '<button class="btn" type="button" style="margin-top:14px" data-action="del:gate" data-id="' + esc(c.campaignId) + '">Release my roster</button>'
+      + '<p class="fnote">Counts are visible before the gate; addresses are not, and were never sent to this page.</p>'
+      + '</section>';
+  }
+
+  /* ------------------------------------------------------------------ *
+   * the board
+   * ------------------------------------------------------------------ */
+
+  function tile(label, n, sub, cls) {
+    return '<div class="card mt"><span class="l">' + esc(label) + '</span>'
+      + '<span class="n' + (cls ? ' ' + cls : '') + '">' + n + '</span>'
+      + '<span class="s">' + esc(sub) + '</span></div>';
+  }
+
+  function board(S, c) {
+    var k = c.counts;
+    var tiles = '<div class="tiles om4">'
+      + tile('Accepted', k.total, 'addresses released to you at acceptance')
+      + tile('Booked', k.booked, k.acc ? k.acc + ' awaiting a slot' : 'every household has a date')
+      + tile('Activated', k.act, 'line test clean, the fee accrues here', k.act ? 'hotn' : '')
+      + tile('Exceptions', k.exceptions,
+        k.noshow + ' no-show, ' + k.access + ' access denied, ' + k.linefail + ' line test failed',
+        k.exceptions ? 'excn' : '')
+      + '</div>';
+
+    var rows = c.orders.map(function (o) { return row(o); }).join('');
+
+    return tiles
+      + '<section class="card" style="margin-top:16px">'
+      + '<span class="eyebrow">' + esc(regionOf(S, c.campaignId)) + '</span><h3>Order management</h3>'
+      + '<p class="cardnote">' + esc(k.exceptions
+        ? 'Exceptions first: each one cleared is a fee unlocked and a point on your record.'
+        : 'Every accepted household to a clean activation. Released households cost nothing on either side.') + '</p>'
+      + '<div class="twrap"><table class="tbl rtbl"><thead><tr>'
+      + '<th>Order</th><th>Install</th><th>State</th><th>Next</th><th></th></tr></thead><tbody>'
+      + rows
+      + '</tbody></table></div>'
+      + '<p class="fnote">Addresses were released at acceptance under each household’s consent, for delivering this cohort only. '
+      + 'A failed line test holds the fee, it never bills it. Every read of this board is logged.</p>'
+      + '</section>';
+  }
+
+  function row(o) {
+    var id = esc(o.key);
+    var actions = [];
+    if (o.state === 'acc' || o.state === 'bkd' || ORDER_EXCEPTION.indexOf(o.state) >= 0) {
+      actions.push(btn('del:slot', id, o.state === 'acc' ? 'Book' : 'Rebook'));
+    }
+    if (o.state === 'bkd' || o.state === 'linefail') {
+      actions.push(btn('del:activate', id, 'Activate'));
+    }
+    if (o.state === 'bkd') {
+      actions.push(btn('del:exception', id, 'Log an exception'));
+    }
+    if (o.state !== 'act' && o.state !== 'rel') {
+      actions.push(btn('del:release', id, 'Cannot serve'));
+    }
+
+    return '<tr>'
+      + '<td class="mono" style="font-size:12px">' + esc(o.orderNo || '·')
+      + '<small style="display:block;font-family:var(--body);font-size:11px;color:var(--sub)">'
+      + esc([o.fsa, o.address].filter(Boolean).join(' · ')) + '</small></td>'
+      + '<td style="font-size:12.5px;white-space:nowrap">'
+      + (o.slotAt ? esc(fmtDate(o.slotAt) + ', ' + fmtTime(o.slotAt)) : '·') + '</td>'
+      + '<td><span class="pill ' + PILL[o.state] + '">' + esc(ORDER_LABEL[o.state] || o.state) + '</span>'
+      + (o.note ? '<small style="display:block;font-size:11px;color:var(--sub);margin-top:3px;max-width:34ch">' + esc(o.note) + '</small>' : '')
+      + '</td>'
+      + '<td style="font-size:12px;font-weight:650;white-space:nowrap">' + esc(next(o)) + '</td>'
+      + '<td style="text-align:right;white-space:nowrap">' + actions.join(' ') + '</td>'
+      + '</tr>';
+  }
+
+  function btn(action, id, label) {
+    return '<button class="tlink" type="button" data-action="' + action + '" data-id="' + id + '">' + esc(label) + '</button>';
+  }
+
+  /* What this order is waiting on, in the partner's terms. Never a countdown:
+     there is no SLA record in this build, and a clock with nothing behind it is
+     the kind of number that ends up in a contract argument. */
+  function next(o) {
+    if (o.state === 'act') return 'Fee accrues';
+    if (o.state === 'rel') return RELEASE_LABEL[o.releaseReason] || 'Released';
+    if (o.state === 'acc') return 'Awaiting a slot';
+    if (o.state === 'bkd') return 'Install booked';
+    if (o.state === 'noshow') return 'Offer three slots';
+    if (o.state === 'access') return 'Building access';
+    if (o.state === 'linefail') return 'Retest, fee held';
+    return '·';
+  }
+
+  /* ------------------------------------------------------------------ *
+   * load and actions
+   * ------------------------------------------------------------------ */
+
+  /** Fetched on view-open and explicit refresh, never polled: every read of a
+      released roster writes an audit row naming the count. */
+  function load() {
+    set('delivery', 'loading');
+    return api.orders().then(function (r) {
+      set('delivery', {
+        cohorts: (r && r.cohorts) || [],
+        live: !!r && r.live !== false
+      });
+    }, function (err) {
+      authFailed(err);
+      set('delivery', { cohorts: [], live: false });
+    });
+  }
+
+  function refresh() { return load(); }
+
+  function mount() {
+    on('change', 'del:cohort', function (el) { set('deliveryCohort', el.value); });
+
+    on('change', 'del:capacity', function (el) {
+      var n = parseInt(el.value, 10);
+      if (!n || n < 1) { toast('State how many installs you can run per week here.'); return; }
+      api.capacitySave(el.getAttribute('data-id'), n).then(function () {
+        toast('Capacity updated. Households see ' + n + ' slots a week when they book.');
+        refresh();
+      }, function (err) { failed(err); authFailed(err); });
+    });
+
+    /* The gate. Three checks, and the button sends the two this page collects;
+       the third, billing, is read from the server's own answer. */
+    on('click', 'del:gate', function (el) {
+      var id = el.getAttribute('data-id');
+      var S = get();
+      var c = ((S.delivery || {}).cohorts || []).filter(function (x) { return x.campaignId === id; })[0];
+      if (!c) return;
+      openModal(gateModal(S, c));
+    });
+
+    on('change', 'del:gate:ok', function () { syncGate(); });
+    on('input', 'del:gate:cap', function () { syncGate(); });
+
+    on('click', 'del:gate:go', function (el) {
+      var id = el.getAttribute('data-id');
+      var cap = parseInt((document.getElementById('gate-cap') || {}).value, 10);
+      var W = window.WHOLLAR;
+      if (!W.busy(el, true, 'Releasing')) return;
+      api.rosterGate(id, { capacityWeekly: cap, consent: true }).then(function () {
+        W.busy(el, false);
+        closeModal();
+        return refresh().then(function () {
+          toast('Roster released. The addresses are on your delivery board.');
+        });
+      }, function (err) {
+        W.busy(el, false);
+        failed(err);
+        authFailed(err);
+        /* A refusal here is almost always the billing row: re-read, so the gate
+           redraws against what the server actually holds. */
+        refresh();
+      });
+    });
+
+    on('click', 'del:slot', function (el) { openModal(slotModal(el.getAttribute('data-id'))); });
+    on('click', 'del:slot:go', function (el) {
+      var date = (document.getElementById('slot-date') || {}).value;
+      var time = (document.getElementById('slot-time') || {}).value || '09:00';
+      if (!date) { toast('Pick an install date.'); return; }
+      var at = new Date(date + 'T' + time).getTime();
+      act(el, api.orderSlot(el.getAttribute('data-id'), at), 'Booked. The household has the date.');
+    });
+
+    on('click', 'del:activate', function (el) { openModal(activateModal(el.getAttribute('data-id'))); });
+    on('change', 'del:act:ok', function () {
+      var go = document.getElementById('act-go');
+      var a = document.getElementById('act-line');
+      var b = document.getElementById('act-inc');
+      if (go) go.disabled = !(a && a.checked && b && b.checked);
+    });
+    on('click', 'del:act:go', function (el) {
+      act(el, api.orderActivate(el.getAttribute('data-id'), {
+        lineTestClean: true, incumbentCancelled: true
+      }), 'Activated. One statement line, at your contracted fee.');
+    });
+
+    on('click', 'del:exception', function (el) { openModal(exceptionModal(el.getAttribute('data-id'))); });
+    on('click', 'del:exc:go', function (el) {
+      var kind = (document.querySelector('input[name=exc]:checked') || {}).value;
+      if (!kind) { toast('Say which exception this was.'); return; }
+      act(el, api.orderException(el.getAttribute('data-id'), kind), 'Logged. Nothing bills while it is open.');
+    });
+
+    on('click', 'del:release', function (el) { openModal(releaseModal(el.getAttribute('data-id'))); });
+    on('click', 'del:rel:go', function (el) {
+      var reason = (document.getElementById('rel-reason') || {}).value;
+      act(el, api.orderRelease(el.getAttribute('data-id'), reason),
+        'Released. Nothing bills, on either side.');
+    });
+  }
+
+  /** Every board write ends the same way: close, re-read, say what happened. */
+  function act(el, promise, msg) {
+    var W = window.WHOLLAR;
+    if (!W.busy(el, true, 'Saving')) return;
+    promise.then(function () {
+      W.busy(el, false);
+      closeModal();
+      return refresh().then(function () { toast(msg); });
+    }, function (err) {
+      W.busy(el, false);
+      failed(err);
+      authFailed(err);
+    });
+  }
+
+  function syncGate() {
+    var go = document.getElementById('gate-go');
+    var ok = document.getElementById('gate-ok');
+    var cap = parseInt((document.getElementById('gate-cap') || {}).value, 10);
+    if (go) go.disabled = !(ok && ok.checked && cap > 0);
+  }
+
+  /* ------------------------------------------------------------------ *
+   * the modals
+   * ------------------------------------------------------------------ */
+
+  function head(title) {
+    return '<div class="mhead"><h3>' + esc(title) + '</h3>'
+      + '<button class="mx" type="button" data-mclose aria-label="Close">×</button></div>';
+  }
+
+  function gateModal(S, c) {
+    var g = (c.award && c.award.gate) || {};
+    var n = c.counts.total;
+    return head(regionOf(S, c.campaignId) + ': release your roster')
+      + '<p class="msub">'
+      + (n ? esc(plural(n, 'household') + ' accepted your offer.') : 'Households are accepting your offer.')
+      + ' Two checks, then their details release to you.</p>'
+      + gateRow(g.billing ? 'dn' : 'now', 1, 'Billing method on file',
+        'Nothing charges now. A statement is only ever activated households, and it settles per cohort, net-15.',
+        g.billing ? '' : '<button class="tlink" type="button" data-action="nav" data-view="billing">Add a method</button>')
+      + gateRow('now', 2, 'Install capacity',
+        'How many installs can you run per week in this region? This plans the switch window; it does not change your bid.',
+        '<input id="gate-cap" class="capin" type="number" min="1" max="500" inputmode="numeric" '
+        + 'value="' + esc(String((c.award && c.award.capacityWeekly) || '')) + '" data-action="del:gate:cap">')
+      + '<label class="consent" style="margin-top:12px">'
+      + '<input type="checkbox" id="gate-ok" data-action="del:gate:ok">'
+      + '<span>I understand household details are confidential, released under each household’s consent, '
+      + 'for delivering this cohort only.</span></label>'
+      + '<button class="btn" type="button" id="gate-go" data-action="del:gate:go" data-id="' + esc(c.campaignId) + '" '
+      + 'disabled'
+      + ' style="width:100%;justify-content:center;margin-top:12px">Release my roster</button>'
+      + (g.billing ? '' : '<p class="fnote">The billing method is checked again by the server when you press this.</p>');
+  }
+
+  function slotModal(key) {
+    return head('Book the install')
+      + '<p class="msub">The date the household agreed to. They see it on their side the moment you save it.</p>'
+      + '<label class="clabel" for="slot-date">Install date</label>'
+      + '<input class="cselect" type="date" id="slot-date">'
+      + '<label class="clabel" for="slot-time">Arrival window starts</label>'
+      + '<input class="cselect" type="time" id="slot-time" value="09:00">'
+      + '<button class="btn" type="button" data-action="del:slot:go" data-id="' + esc(key) + '" '
+      + 'style="width:100%;justify-content:center;margin-top:14px">Save the slot</button>';
+  }
+
+  function activateModal(key) {
+    return head('Activate this switch')
+      + '<p class="msub">This is the only event that creates a statement line, so both of these are recorded with it.</p>'
+      + '<label class="consent"><input type="checkbox" id="act-line" data-action="del:act:ok">'
+      + '<span>The line tested clean at or above the tier this cohort was bid at.</span></label>'
+      + '<label class="consent"><input type="checkbox" id="act-inc" data-action="del:act:ok">'
+      + '<span>The household’s incumbent service is confirmed cancelled, so nobody is paying twice.</span></label>'
+      + '<button class="btn" type="button" id="act-go" data-action="del:act:go" data-id="' + esc(key) + '" disabled '
+      + 'style="width:100%;justify-content:center;margin-top:12px">Activate</button>'
+      + '<p class="fnote">If the line came up short, log a line-test exception instead. The fee holds rather than billing, and a clean retest releases it.</p>';
+  }
+
+  function exceptionModal(key) {
+    var opts = [
+      ['noshow', ORDER_LABEL.noshow, 'Nobody home. A missed-visit credit goes to the household and comes off your statement.'],
+      ['access', ORDER_LABEL.access, 'The building or the utility room was not open to you.'],
+      ['linefail', ORDER_LABEL.linefail, 'The line tested below the tier. The fee holds until a clean retest.']
+    ].map(function (o) {
+      return '<label class="consent"><input type="radio" name="exc" value="' + o[0] + '">'
+        + '<span><b>' + esc(o[1]) + '</b><br>' + esc(o[2]) + '</span></label>';
+    }).join('');
+
+    return head('Log an exception')
+      + '<p class="msub">You were there and we were not, so this is your call rather than a guess from the data.</p>'
+      + opts
+      + '<button class="btn" type="button" data-action="del:exc:go" data-id="' + esc(key) + '" '
+      + 'style="width:100%;justify-content:center;margin-top:12px">Log it</button>';
+  }
+
+  function releaseModal(key) {
+    var opts = RELEASE_REASON.map(function (r) {
+      return '<option value="' + r + '">' + esc(RELEASE_LABEL[r]) + '</option>';
+    }).join('');
+    return head('Release this household')
+      + '<p class="msub">Nothing bills on either side, and nothing about your standing changes. '
+      + 'The reason is a fixed list because it feeds the serviceability figure future briefs carry beside your bid.</p>'
+      + '<label class="clabel" for="rel-reason">Why can this address not be served?</label>'
+      + '<select class="cselect" id="rel-reason">' + opts + '</select>'
+      + '<button class="btn ghost" type="button" data-action="del:rel:go" data-id="' + esc(key) + '" '
+      + 'style="width:100%;justify-content:center;margin-top:14px">Release, and tell the household</button>';
+  }
+
+  __exports.render = render;
+  __exports.load = load;
+  __exports.mount = mount;
+  };
+
+  /* ==================================================================
+     views/billing.js
+     ================================================================== */
+  __defs["views/billing.js"] = function (__exports, __require, root) {
+  /* Billing: a success fee when a switch completes, and only then.
+   *
+   * Ported from the prototype's renderBilling (1949), stmtLive (1899) and
+   * stmtSettled (1930). What changed, and why:
+   *
+   *   stmtSettled is not ported. It is a constant: 59 activations, three
+   *   no-shows, two clawbacks, $6,141.55, none of which came from anywhere. A
+   *   settled statement renders here the same way a live one does, from the same
+   *   payload, with its settlement dates filled in.
+   *
+   *   The early-churn clawback line is not ported either. There is no churn
+   *   record in this system: nothing tracks a household cancelling inside ninety
+   *   days, so a line claiming to have measured it would be the invoice
+   *   equivalent of a made-up number. When that record exists the line is one
+   *   entry in the server's line list and this view needs no change, which is
+   *   the point of the server owning the lines.
+   *
+   *   The card on file is not ported. There is no payment service provider in
+   *   this stack, so "•••• 4189 · expires 04/28" would be a fiction on the one
+   *   page where a fiction costs money. What a partner puts on file is the
+   *   invoicing arrangement the server actually stores.
+   *
+   * EVERY FIGURE COMES FROM THE SERVER. Not one total is added up here. The
+   * statement is derived server side from the delivery board, so this page and
+   * that board cannot disagree, and a partner can check any line against the
+   * orders it names.
+   */
+
+  var __ns0 = __require("core/state.js");
+  var get = __ns0.get, set = __ns0.set;
+  var __ns1 = __require("core/api.js");
+  var api = __ns1.api;
+  var __ns2 = __require("core/format.js");
+  var esc = __ns2.esc, money = __ns2.money, plural = __ns2.plural;
+  var __ns3 = __require("core/time.js");
+  var fmtDate = __ns3.fmtDate;
+  var __ns4 = __require("core/actions.js");
+  var on = __ns4.on;
+  var __ns5 = __require("core/modal.js");
+  var openModal = __ns5.open, closeModal = __ns5.close;
+  var __ns6 = __require("core/toast.js");
+  var toast = __ns6.toast, failed = __ns6.failed;
+  var __ns7 = __require("core/session.js");
+  var authFailed = __ns7.authFailed;
+  var __ns8 = __require("components/emptystate.js");
+  var empty = __ns8.empty, goTo = __ns8.goTo;
+
+  function render() {
+    var host = document.getElementById('billing-body');
+    if (!host) return;
+
+    /* The prototype's billing screen is three hosts inside a two-column grid
+       (#b-cycle, #invcard, #paycard). The console's markup gives every view one
+       host, so the grid is built here instead of in index.html: the layout is
+       part of what this view renders, and splitting it across two files is how
+       the prototype ended up with a render function per div. */
+    host.innerHTML = '<div class="grid2"><div>'
+      + model()
+      + '<div style="margin-top:16px">' + statements() + '</div>'
+      + '</div><aside class="aside">'
+      + '<section class="card">' + method() + '</section>'
+      + reconciliation()
+      + '</aside></div>';
+  }
+
+  function model() {
+    return '<section class="card" aria-label="How billing works">'
+      + '<span class="eyebrow">The model</span>'
+      + '<h3>Pay per delivered household</h3>'
+      + '<p class="cardnote">Households who accept your offer set the size of the job and cost nothing. '
+      + 'The line on a statement is the completed switch: a live connection with a clean line test. '
+      + 'Statements settle per cohort rather than per month, net-15, and any single line can be '
+      + 'disputed without holding up the rest.</p>'
+      + '<div class="receipt" style="margin-top:12px">' + cycle() + '</div>'
+      + '</section>';
+  }
+
+  function reconciliation() {
+    return '<section class="card" aria-label="Reconciliation">'
+      + '<span class="eyebrow">Reconciliation</span>'
+      + '<h3>Dispute a line, keep it simple</h3>'
+      + '<p class="cardnote">Every line names the order it came from and the day it activated. '
+      + 'Flag one and it freezes out of the total until it is resolved. The rest of the statement, '
+      + 'and the household on your delivery board, are untouched.</p>'
+      + '</section>';
+  }
+
+  /* ------------------------------------------------------------------ *
+   * the cycle line
+   * ------------------------------------------------------------------ */
+
+  function cycle() {
+    var S = get();
+    var B = S.billing;
+
+    if (!B || B === 'loading') return '<b>Current cycle:</b> reading your statements.';
+
+    var c = B.cycle || {};
+    if (!c.activated) {
+      return '<b>Current cycle:</b> nothing owed. Your first statement line is your first activation '
+        + 'with a clean line test, at ' + esc(money(c.feeEach)) + ' per household, and statements settle per cohort.';
+    }
+    return '<b>Current cycle:</b> <span class="mono">'
+      + esc(c.activated + ' activated · ' + money(c.feeEach) + ' each · ' + money(c.accruing) + ' accruing across '
+        + plural(c.cohorts, 'cohort') + ' · net-' + c.netDays) + '</span>';
+  }
+
+  /* ------------------------------------------------------------------ *
+   * the statements, one per cohort
+   * ------------------------------------------------------------------ */
+
+  function statements() {
+    var S = get();
+    var B = S.billing;
+
+    if (B === 'loading') return '';
+    if (!B) {
+      return empty('No statements yet, by design',
+        'Bids are free. Winning is free. Households who accept are free. The first line on the first statement is the first activation with a clean line test, and statements settle per cohort rather than per month.'
+        + (S.approved ? '' : ' Nothing is owed at any point before approval either.'));
+    }
+    if (!B.live) {
+      return '<section class="card"><span class="eyebrow">Statements</span>'
+        + '<h3>Your statements could not be read just now</h3>'
+        + '<p class="cardnote">Nothing has changed about what you owe, and nothing settles from a statement we cannot read. '
+        + 'Every line is derived from your delivery board, so it can be checked there in the meantime.</p></section>';
+    }
+    if (!B.statements.length) {
+      return empty('No statements yet, by design',
+        'Bids are free. Winning is free. Households who accept are free. The first line on the first statement is the first activation with a clean line test, and statements settle per cohort rather than per month.',
+        goTo('delivery', 'Open the delivery board', 'btn ghost'));
+    }
+    return B.statements.map(statement).join('');
+  }
+
+  var STATE_PILL = { accruing: 'pending', issued: 'due', paid: 'paid', disputed: 'lost' };
+  var STATE_WORD = { accruing: 'Accruing', issued: 'Issued', paid: 'Paid', disputed: 'In dispute' };
+
+  function statement(s) {
+    var head = '<div class="sthead"><span class="eyebrow">Statement · '
+      + esc(s.region + (s.sub ? ' · ' + s.sub : '')) + '</span>'
+      + '<span class="pill ' + (STATE_PILL[s.state] || 'pending') + '" style="margin-left:auto">'
+      + esc(STATE_WORD[s.state] || s.state) + '</span></div>';
+
+    var when = s.state === 'paid'
+      ? 'Paid ' + (s.paidAt ? fmtDate(s.paidAt) : '')
+      : (s.state === 'issued'
+        ? 'Issued ' + (s.issuedAt ? fmtDate(s.issuedAt) : '') + ', due ' + (s.dueAt ? fmtDate(s.dueAt) : 'net-15')
+        : (s.cycleEndsAt ? 'Cycle ends ' + fmtDate(s.cycleEndsAt) + ', fees accrue on activation and never before'
+          : 'Fees accrue on activation, and never before'));
+
+    var lines = s.lines.map(function (l) {
+      return line(l.title, l.detail, l.count, amount(l), l.state === 'credited' ? 'neg' : (l.state === 'held' ? 'held' : ''));
+    }).join('');
+
+    var tax = line('Sales tax, ' + s.taxPct + '%',
+      s.taxRegistration ? 'Registration ' + s.taxRegistration : '', null, money(s.tax), '');
+
+    return '<section class="card" aria-label="Statement">'
+      + head
+      + '<p class="cardnote" style="margin-top:2px">' + esc(when) + '</p>'
+      + '<div class="stls">'
+      + lines
+      + line('Subtotal', '', null, money(s.subtotal), '')
+      + tax
+      + '</div>'
+      + '<div class="sttot"><span>' + esc(s.state === 'paid' ? 'Paid' : 'Total, net-15') + '</span><b>'
+      + esc(money(s.total)) + '</b></div>'
+      + (s.held
+        ? '<p class="fnote">' + esc(money(s.held)) + ' is held out of that total on '
+          + esc(plural(s.counts.linefail, 'line test')) + ' still open. A clean retest releases it; nothing bills while it fails.</p>'
+        : '')
+      + '<p class="fnote">Every line is an order on your delivery board. '
+      + '<button class="tlink" type="button" data-action="bill:lines" data-id="' + esc(s.campaignId) + '">See the lines</button>'
+      + (s.disputedLines ? ' · ' + esc(plural(s.disputedLines, 'line')) + ' in dispute, frozen out of the total' : '')
+      + '</p></section>';
+  }
+
+  /* A credit is shown as a negative and a held amount in brackets, which is what
+     an accountant expects to see and what the prototype did. */
+  function amount(l) {
+    var v = String(l.amount || '0');
+    if (v.charAt(0) === '-') return '−' + money(v.slice(1));
+    if (l.state === 'held') return '(' + money(v) + ')';
+    return money(v);
+  }
+
+  function line(title, detail, count, amt, cls) {
+    return '<div class="strow' + (cls ? ' ' + cls : '') + '">'
+      + '<span><b>' + esc(title) + '</b>' + (detail ? '<small>' + esc(detail) + '</small>' : '') + '</span>'
+      + '<span class="stn">' + (count == null ? '' : esc(String(count))) + '</span>'
+      + '<span class="stamt">' + esc(amt) + '</span></div>';
+  }
+
+  /* ------------------------------------------------------------------ *
+   * the method on file
+   * ------------------------------------------------------------------ */
+
+  function method() {
+    var B = get().billing;
+    var m = (B && B !== 'loading' && B.method) || null;
+
+    if (m && m.onFile) {
+      return '<span class="eyebrow">Billing method</span><h3>Statements go out by invoice</h3>'
+        + '<p class="cardnote mono">' + esc(m.email) + '</p>'
+        + '<p class="cardnote" style="font-size:12px">Addressed to ' + esc(m.contact || 'your billing contact')
+        + '. Settlement is net-15 from each cohort statement, and nothing is ever charged before an activation.</p>'
+        + '<button class="tlink" type="button" data-action="bill:method">Update the method →</button>';
+    }
+    return '<span class="eyebrow">Billing method</span><h3>Nothing on file yet</h3>'
+      + '<p class="cardnote">A method on file is one of the two checks that release a won roster, so it is worth doing '
+      + 'before you win. Nothing is charged when you add it, and nothing is charged until a switch completes.</p>'
+      + '<button class="btn forest" type="button" data-action="bill:method" style="margin-top:12px">Add a billing method</button>';
+  }
+
+  /* ------------------------------------------------------------------ *
+   * load and actions
+   * ------------------------------------------------------------------ */
+
+  function load() {
+    set('billing', 'loading');
+    return api.statements().then(function (r) {
+      set('billing', {
+        statements: (r && r.statements) || [],
+        cycle: (r && r.cycle) || {},
+        method: (r && r.method) || null,
+        live: !!r && r.live !== false
+      });
+    }, function (err) {
+      authFailed(err);
+      /* 403 before approval is not a failure to report: there is nothing to bill
+         and the empty state already says so. */
+      set('billing', err && err.status === 403 ? null : { statements: [], cycle: {}, method: null, live: false });
+    });
+  }
+
+  function mount() {
+    on('click', 'bill:method', function () { openModal(methodModal()); });
+
+    on('input', 'bill:method:field', function () {
+      var go = document.getElementById('pm-go');
+      var email = (document.getElementById('pm-email') || {}).value || '';
+      var contact = (document.getElementById('pm-contact') || {}).value || '';
+      var ok = document.getElementById('pm-ok');
+      if (go) go.disabled = !(email.indexOf('@') > 0 && contact.trim().length > 1 && ok && ok.checked);
+    });
+    on('change', 'bill:method:ok', function () {
+      var go = document.getElementById('pm-go');
+      var email = (document.getElementById('pm-email') || {}).value || '';
+      var contact = (document.getElementById('pm-contact') || {}).value || '';
+      var ok = document.getElementById('pm-ok');
+      if (go) go.disabled = !(email.indexOf('@') > 0 && contact.trim().length > 1 && ok && ok.checked);
+    });
+
+    on('click', 'bill:method:go', function (el) {
+      var W = window.WHOLLAR;
+      if (!W.busy(el, true, 'Saving')) return;
+      api.paymentMethodSave({
+        email: (document.getElementById('pm-email') || {}).value,
+        contact: (document.getElementById('pm-contact') || {}).value,
+        acceptsNet15: true
+      }).then(function () {
+        W.busy(el, false);
+        closeModal();
+        return load().then(function () { toast('Billing method on file. Nothing is charged until a switch completes.'); });
+      }, function (err) {
+        W.busy(el, false);
+        failed(err);
+        authFailed(err);
+      });
+    });
+
+    on('click', 'bill:method:remove', function (el) {
+      var W = window.WHOLLAR;
+      if (!W.busy(el, true, 'Removing')) return;
+      api.paymentMethodRemove().then(function () {
+        W.busy(el, false);
+        closeModal();
+        return load().then(function () {
+          toast('Method taken off file. Rosters you have not released stay gated until a new one is added.');
+        });
+      }, function (err) {
+        W.busy(el, false);
+        failed(err);
+        authFailed(err);
+      });
+    });
+
+    on('click', 'bill:lines', function (el) {
+      var id = el.getAttribute('data-id');
+      api.statement(id).then(function (r) { openModal(linesModal(r)); },
+        function (err) { failed(err); authFailed(err); });
+    });
+
+    on('click', 'bill:dispute', function (el) { openModal(disputeModal(el.getAttribute('data-id'))); });
+    on('input', 'bill:dispute:field', function (el) {
+      var go = document.getElementById('dis-go');
+      if (go) go.disabled = String(el.value || '').trim().length < 10;
+    });
+    on('click', 'bill:dispute:go', function (el) {
+      var W = window.WHOLLAR;
+      var note = (document.getElementById('dis-note') || {}).value;
+      if (!W.busy(el, true, 'Flagging')) return;
+      api.lineDispute(el.getAttribute('data-id'), note).then(function () {
+        W.busy(el, false);
+        closeModal();
+        return load().then(function () {
+          toast('Flagged. That line is frozen out of the total; the rest of the statement is untouched.');
+        });
+      }, function (err) {
+        W.busy(el, false);
+        failed(err);
+        authFailed(err);
+      });
+    });
+  }
+
+  /* ------------------------------------------------------------------ *
+   * modals
+   * ------------------------------------------------------------------ */
+
+  function head(title) {
+    return '<div class="mhead"><h3>' + esc(title) + '</h3>'
+      + '<button class="mx" type="button" data-mclose aria-label="Close">×</button></div>';
+  }
+
+  function methodModal() {
+    var m = ((get().billing || {}).method) || {};
+    return head('Billing method')
+      + '<p class="msub">Statements are issued per cohort and settle net-15. There is no card to add: '
+      + 'Whollar invoices you for activated households, and nothing else has ever been billable.</p>'
+      + '<label class="clabel" for="pm-email">Where statements go</label>'
+      + '<input class="cselect" id="pm-email" type="email" inputmode="email" autocomplete="email" '
+      + 'value="' + esc(m.email || '') + '" data-action="bill:method:field" placeholder="accounts@yourcompany.ca">'
+      + '<label class="clabel" for="pm-contact">Addressed to</label>'
+      + '<input class="cselect" id="pm-contact" type="text" value="' + esc(m.contact || '') + '" '
+      + 'data-action="bill:method:field" placeholder="Accounts payable">'
+      + '<label class="consent"><input type="checkbox" id="pm-ok" data-action="bill:method:ok">'
+      + '<span>We accept net-15 settlement on activated households, at the success fee on our agreement.</span></label>'
+      + '<button class="btn" type="button" id="pm-go" data-action="bill:method:go" disabled '
+      + 'style="width:100%;justify-content:center;margin-top:12px">Save the method</button>'
+      + (m.onFile
+        ? '<button class="tlink" type="button" data-action="bill:method:remove" style="margin-top:10px">Take it off file</button>'
+        : '');
+  }
+
+  function linesModal(r) {
+    var s = (r && r.statement) || {};
+    var lines = (r && r.lines) || [];
+    var rows = lines.map(function (l) {
+      var what = l.state === 'act' ? 'Success fee'
+        : (l.state === 'noshow' ? 'Missed-visit credit' : 'Held, line test open');
+      return '<tr><td class="mono" style="font-size:12px">' + esc(l.orderNo || '·') + '</td>'
+        + '<td style="font-size:12.5px">' + esc(what) + '</td>'
+        + '<td style="font-size:12px">' + esc(l.activatedAt ? fmtDate(l.activatedAt) : '·') + '</td>'
+        + '<td style="text-align:right">'
+        + (l.disputeState === 'open'
+          ? '<span class="pill pending">Flagged</span>'
+          : '<button class="tlink" type="button" data-action="bill:dispute" data-id="' + esc(l.key) + '">Dispute</button>')
+        + '</td></tr>';
+    }).join('');
+
+    return head('Lines on this statement')
+      + '<p class="msub">Every line is one order on your delivery board. No address appears here: '
+      + 'reconciling a fee does not need one.</p>'
+      + (rows
+        ? '<div class="twrap"><table class="tbl"><thead><tr><th>Order</th><th>Line</th><th>Activated</th><th></th></tr></thead>'
+          + '<tbody>' + rows + '</tbody></table></div>'
+        : '<p class="cardnote">No billable line yet on ' + esc(s.region || 'this cohort') + '. '
+          + 'The first one is the first activation with a clean line test.</p>');
+  }
+
+  function disputeModal(key) {
+    return head('Dispute one line')
+      + '<p class="msub">This freezes the line and nothing else. The rest of the statement stands, '
+      + 'and the order on your board is untouched: a dispute is a claim about a fee, not about whether the install happened.</p>'
+      + '<label class="clabel" for="dis-note">What is wrong with it?</label>'
+      + '<textarea class="cselect" id="dis-note" rows="3" data-action="bill:dispute:field" '
+      + 'placeholder="The line test failed on the day and the retest is booked."></textarea>'
+      + '<button class="btn" type="button" id="dis-go" data-action="bill:dispute:go" data-id="' + esc(key) + '" disabled '
+      + 'style="width:100%;justify-content:center;margin-top:12px">Flag this line</button>';
+  }
+
+  __exports.render = render;
+  __exports.load = load;
+  __exports.mount = mount;
+  };
+
+  /* ==================================================================
+     views/placeholders.js
+     ================================================================== */
+  __defs["views/placeholders.js"] = function (__exports, __require, root) {
+  /* The one view this increment does not build, saying so honestly.
+   *
+   * WHY THIS FILE STILL EXISTS. A stub renders nothing and looks like a bug. A
+   * demo renders invented numbers and looks like a lie. This says what the
+   * surface will hold, what has to happen first, and where to go meanwhile,
+   * which is the only honest third option.
+   *
+   * Billing and delivery used to live here and now have their own modules
+   * (views/billing.js, views/delivery.js), as bids, performance and contracts
+   * did before them. The campaign plan is what is left: it is a per-cohort
+   * timeline view, endpoint 26, and there is no route behind it yet.
+   */
+
+  var __ns0 = __require("components/emptystate.js");
+  var empty = __ns0.empty, goTo = __ns0.goTo;
+
+  function render() {
     put('plan-body', empty('Pick a cohort to see its plan',
       'Every cohort has one timeline: announced, open, closed, offers out, decision, switching window, reconciliation. Open one from the bid desk.',
       goTo('desk', 'Open the bid desk', 'btn ghost')));
@@ -5073,18 +6018,6 @@
   function put(id, html) {
     var el = document.getElementById(id);
     if (el) el.innerHTML = html;
-  }
-
-  function billing(S) {
-    return empty('No statements yet, by design',
-      'Bids are free. Winning is free. Confirmed households are free. The first line on the first statement is the first activation with a clean line test, at your contracted success fee, and statements settle per campaign rather than per month.'
-      + (S.approved ? '' : ' Nothing is owed at any point before approval either.'));
-  }
-
-  function delivery() {
-    return empty('Your first delivery board builds itself',
-      'Win a cohort and every confirmed household lands here with an order number, an install slot the member picks, and a state that becomes a statement line only when the line tests clean. Addresses release at confirmation, under each household’s consent, and to nobody else.',
-      goTo('desk', 'Open the bid desk', 'btn'));
   }
 
   __exports.render = render;
@@ -5145,8 +6078,12 @@
   var renderPerformance = __ns16.render;
   var __ns17 = __require("views/contracts.js");
   var renderContracts = __ns17.render, mountContracts = __ns17.mount, loadContracts = __ns17.load;
-  var __ns18 = __require("views/placeholders.js");
-  var renderPlaceholders = __ns18.render;
+  var __ns18 = __require("views/delivery.js");
+  var renderDelivery = __ns18.render, mountDelivery = __ns18.mount, loadDelivery = __ns18.load;
+  var __ns19 = __require("views/billing.js");
+  var renderBilling = __ns19.render, mountBilling = __ns19.mount, loadBilling = __ns19.load;
+  var __ns20 = __require("views/placeholders.js");
+  var renderPlaceholders = __ns20.render;
 
   /* ------------------------------------------------------------------ *
    * render
@@ -5161,6 +6098,8 @@
     renderCoverage();
     renderApplication();
     renderAccount();
+    renderDelivery();
+    renderBilling();
     renderPerformance();
     renderContracts();
     renderPlaceholders();
@@ -5230,7 +6169,18 @@
          what the bid ticket reads to know whether to send a partner to Contracts
          before bidding, so it loads on boot rather than on first view of the
          Contracts page. */
-      loadContracts()
+      loadContracts(),
+
+      /* Statements, on boot rather than on view-open. Two other surfaces read
+         the same payload: the overview checklist ticks its billing step from the
+         method on file, and the roster gate is refused without one, so a partner
+         who never opens Billing still needs it read. It carries no household
+         identity and is not audited, which is what makes that safe.
+
+         The delivery board is the opposite and is NOT loaded here: a released
+         roster carries addresses and every read writes an audit row, so it is
+         fetched when the view opens and on explicit refresh. See onChange below. */
+      loadBilling()
     ];
     return Promise.all(jobs).then(function () { startTicker(); });
   }
@@ -5291,6 +6241,8 @@
     mountApplication();
     mountAccount();
     mountContracts();
+    mountDelivery();
+    mountBilling();
 
     on('click', 'nav', function (el) { go(el.getAttribute('data-view')); });
 
@@ -5312,6 +6264,14 @@
 
     subscribe(renderAll);
     onChange(renderAll);
+
+    /* The delivery board reads on view-open, once. Re-entering the view does not
+       re-read: the board's own writes refresh it, and a partner flipping between
+       tabs must not each time append a row to the audit trail that says they
+       read forty households' addresses. */
+    onChange(function (view) {
+      if (view === 'delivery' && get().delivery == null) loadDelivery();
+    });
 
     /* Paint from the local record first so the chrome is never empty, then
        correct it from the server. */

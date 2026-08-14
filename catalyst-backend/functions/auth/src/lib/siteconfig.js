@@ -65,6 +65,24 @@ const DEFAULTS = Object.freeze({
       + 'new one is a deliberate pause: change it only alongside the new text. '
       + 'Unpublished: it is a partner-console fact, not a marketing-site one.',
   },
+  missed_visit_credit: {
+    value: 25, type: 'number', published: false,
+    description: 'Credit passed through to a household when an install visit '
+      + 'is missed, dollars. It reduces the partner statement and it is not '
+      + 'revenue to anyone: the household is the one who waited in.',
+  },
+  tax_rate_pct: {
+    value: 13, type: 'number', published: false,
+    description: 'Sales tax applied to a partner statement, percent. Ontario '
+      + 'HST today. One number, so a rate change is a config edit rather than '
+      + 'a deploy against invoices already issued.',
+  },
+  tax_registration: {
+    value: '', type: 'string', published: false,
+    description: 'The tax registration number printed on partner statements. '
+      + 'Empty until it is real: an invented registration on an invoice is '
+      + 'worse than no line at all, so the line is omitted while this is blank.',
+  },
   success_fee: {
     value: 95, type: 'number', published: false,
     description: 'Success fee per activated household, dollars. An unconfirmed '
