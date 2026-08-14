@@ -13,7 +13,7 @@
      the visitor is, because a Google sign-in lands here with a cookie and an
      empty localStorage. Synchronous and in the head so the guard at the foot of
      the body can rely on it. -->
-<script src="/js/whollar-core.js?v=20260814a"></script>
+<script src="/js/whollar-core.js?v=20260814b"></script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -63,7 +63,11 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .main{min-width:0}
 .search{min-width:0}
 .search input{min-width:0}
-.content{padding:clamp(18px,2.8vw,30px);max-width:1180px;width:100%;margin:0 auto}
+/* ONE page shell. Every band on every view sits inside this box, so the left
+   and right edges of the deal signal, the main/rail row, the member room and
+   the region row are the same two x values by construction rather than by
+   three separate widths that happened to agree. */
+.content{padding-inline:clamp(20px,3vw,40px);padding-block:clamp(18px,2.8vw,30px);max-width:1240px;width:100%;margin:0 auto}
 .view{display:none}
 .view.on{display:block}
 .vhead{margin-bottom:16px}
@@ -71,7 +75,11 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .vhead p{color:var(--sub);font-size:14px;margin-top:2px}
 
 /* ---------- shared card language (v1 look) ---------- */
-.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:clamp(17px,2.5vw,25px);box-shadow:0 1px 2px rgba(26,37,32,.04),0 8px 24px rgba(26,37,32,.05)}
+/* One padding value, every card, every view. The clamp this replaces ran from
+   17px to 25px, so two cards side by side on the same row could carry
+   different internal margins at the same viewport, which is the sort of thing
+   nobody spots and everybody feels. */
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:24px;box-shadow:0 1px 2px rgba(26,37,32,.04),0 8px 24px rgba(26,37,32,.05)}
 .eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--accent-deep)}
 .card h3{font-size:17.5px;font-weight:750;margin:2px 0 4px}
 .card .cardnote{font-size:13px;color:var(--sub)}
@@ -87,7 +95,46 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .view.on .cc:nth-child(4){animation-delay:.21s}
 
 /* ---------- cliff banner (v1, plus step motif) ---------- */
-.hello{margin-bottom:14px}
+.hello{margin-bottom:24px}
+
+/* ---------- the Home grid ----------
+   ONE set of tracks for the whole Home view. Twelve columns, a 24px gutter,
+   and every card declaring a span rather than a width. Before this the page
+   was three independent rows: the deal signal at container width, a
+   1.62fr/1fr split at a 20px gap, and an auto-fit row at a 16px gap. Three
+   left edges, three right edges, two gutters and two split ratios, none of
+   them agreeing, which is what read as scatter.
+
+   The two lane wrappers and the row wrappers inside them re-declare the same
+   twelve tracks (or dissolve into them with display:contents), and because
+   each one spans the full 12 columns of its parent at the same gap, the track
+   positions are arithmetically identical to the outer grid's. Not "close":
+   the same division of the same width.
+
+   align-items:start everywhere, so a short card is short and the shortfall
+   stays in the grid where the eye reads it as space, rather than being poured
+   into the card and read as a hole. */
+.home{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;row-gap:24px;align-items:start}
+#member-home,#visitor-home{grid-column:1/-1;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;row-gap:24px;align-items:start}
+/* display:grid above outranks the UA's [hidden]{display:none}, and the two
+   lanes are mutually exclusive by that attribute. Without this line every
+   member sees both homes at once. */
+#member-home[hidden],#visitor-home[hidden]{display:none}
+/* The two row wrappers dissolve. They are grouping elements for the DOM and
+   for mountMemberRoom's stable parent, not layout: their children are the
+   grid items. This is the line that stops a nested row from inventing a
+   fourth set of tracks. */
+.home .grid2,.home .trio{display:contents}
+/* Roles, not positions. A card says what kind of card it is and the grid
+   decides where that lands, which is what lets the card set change by state
+   without the layout being retuned for each one. */
+.is-band,.is-wide{grid-column:span 12}
+.is-main{grid-column:span 8}
+.is-rail{grid-column:span 4}
+/* The main column is a stack, not a row: three cards one under the other, all
+   sharing the 8-track's left edge. */
+.mcol{display:flex;flex-direction:column;gap:24px;min-width:0}
+.crowband{margin-top:16px}
 .hello h1{font-size:clamp(23px,3.2vw,30px);font-weight:800}
 .hello p{color:var(--sub);font-size:14.5px;margin-top:2px}
 
@@ -98,7 +145,7 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 
 
 
-.cliff{position:relative;overflow:hidden;background:linear-gradient(120deg,#F8EDE0,#F2E3D6);border:1px solid #E7CFB9;border-radius:20px;padding:clamp(18px,3vw,26px);display:flex;gap:clamp(16px,3vw,34px);align-items:center;flex-wrap:wrap;margin-bottom:20px;box-shadow:0 1px 2px rgba(26,37,32,.05),0 10px 30px rgba(140,70,34,.07)}
+.cliff{position:relative;overflow:hidden;background:linear-gradient(120deg,#F8EDE0,#F2E3D6);border:1px solid #E7CFB9;border-radius:20px;padding:clamp(18px,3vw,26px);display:flex;gap:clamp(16px,3vw,34px);align-items:center;flex-wrap:wrap;box-shadow:0 1px 2px rgba(26,37,32,.05),0 10px 30px rgba(140,70,34,.07)}
 .cliff .step{position:absolute;right:200px;top:0;bottom:0;width:230px;pointer-events:none;opacity:.4}
 .sigblock{position:relative;flex:1;min-width:260px}
 .cliff h2{font-size:clamp(19px,2.5vw,24px);font-weight:750;margin-bottom:6px}
@@ -139,9 +186,12 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .osel.err{border-color:var(--terra)}
 .btn[hidden]{display:none}
 .bu-alert{background:var(--terra-soft);border:1px solid #E7CFB9;border-radius:10px;padding:11px 13px;margin-top:14px;font-size:13px;font-weight:600;color:#8C4622;line-height:1.5}
-.trio{display:grid;grid-template-columns:repeat(auto-fit,minmax(262px,1fr));gap:16px;margin-top:20px}
-.trio > .card{display:flex;flex-direction:column}
-.trio > .card > :last-child{margin-top:auto}
+/* .trio was a row of its own: auto-fit columns at a 16px gap, its own top
+   margin, and children stretched to the tallest card in it with the last
+   block pushed to the bottom of whatever height that forced. That stretch is
+   what made "Worth a read" 805px tall next to the member room. It is gone.
+   The class survives as a grouping element only, dissolved by .home .trio
+   above; nothing outside the Home view uses it. */
 .pane__prof{display:flex;align-items:center;gap:10px;margin:8px 12px 14px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--card);text-align:left;transition:background .15s}
 .pane__prof:hover{background:#EDE8DB}
 .pane__prof.on{background:var(--mint);border-color:#CBDCC9}
@@ -205,13 +255,33 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
    which is why .mrview carries the fixed dimensions and .mrdev the scale.
    Each mock keeps its own platform's chrome and typography on purpose: a
    member should recognise the room before reading a word of it. */
-.mroom{display:flex;flex-direction:column}
+/* HORIZONTAL. As a span 4 card with the handset stacked under the copy this
+   was ~950px tall, three times its neighbour, and it pulled every bit of the
+   page's weight to the bottom right. It is a full width card now: copy and the
+   network tabs in the left five columns, the handset in the right seven,
+   vertically centred against them, and the handset itself capped so it is a
+   glimpse of the room rather than the whole thread rendered at full height. */
+.mroom{display:grid;grid-template-columns:5fr 7fr;column-gap:24px;row-gap:16px;grid-template-rows:max-content max-content}
+/* The handset spans both rows and is the taller of the two columns, so the
+   surplus is handed to the rows. The copy hangs from the bottom of row one and
+   the CTA sits at the top of row two, which puts the pair together in the
+   vertical middle with one row-gap between them. align-items:center on the
+   card instead centred each of the three children separately, which left the
+   CTA marooned at the foot of a 470px column. */
+.mroom{align-content:center}
+.mrcopy{grid-column:1;grid-row:1;align-self:end;display:flex;flex-direction:column;min-width:0}
+.mroom .mrstage{grid-column:2;grid-row:1/span 2;align-self:center}
+.mroom .mrcta{grid-column:1;grid-row:2;align-self:start}
 .mrtabs{display:flex;gap:3px;background:#EDE8DB;border-radius:999px;padding:4px;margin-top:13px}
 .mrtab{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:transparent;border-radius:999px;padding:9px 6px;font-family:var(--disp);font-size:13px;font-weight:750;color:var(--sub);transition:background .15s,color .15s,box-shadow .15s}
 .mrtab svg{width:16px;height:16px;flex:none}
 .mrtab.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(26,37,32,.06),0 4px 12px rgba(26,37,32,.11)}
-.mrstage{display:flex;flex:1;justify-content:center;align-items:center;margin:18px 0}
-.mrview{position:relative;width:263px;height:522px;overflow:hidden;flex:none}
+.mrstage{display:flex;justify-content:center;align-items:center;margin:0}
+/* 420px of an 800px screen, clipped, with the bottom edge dissolved into the
+   card rather than guillotined. The device scale is untouched, so every type
+   size inside the mock keeps the proportion it was drawn at. */
+.mrview{position:relative;width:263px;height:420px;overflow:hidden;flex:none}
+.mrview::after{content:"";position:absolute;left:0;right:0;bottom:0;height:104px;z-index:6;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,0) 0,var(--card) 88%)}
 .mrdev{position:absolute;top:0;left:0;width:414px;padding:11px;transform-origin:0 0;transform:scale(.635);background:linear-gradient(150deg,#3A3A3C,#1C1C1E 42%,#2C2C2E);border-radius:58px;box-shadow:0 22px 54px rgba(26,37,32,.22),inset 0 0 0 1px rgba(255,255,255,.1)}
 .mrscr{position:relative;height:800px;border-radius:47px;overflow:hidden;background:#000}
 .mrscr::before{content:"";position:absolute;top:12px;left:50%;transform:translateX(-50%);width:112px;height:33px;border-radius:999px;background:#000;z-index:5}
@@ -302,21 +372,8 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .lipost p.tags{color:#0A66C2}
 .lipost > img{display:block;width:100%;height:150px;object-fit:cover;margin-top:12px}
 .liacts{display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid #00000014;font-size:13.5px;font-weight:600;color:#00000099}
-/* Worth a read: a lead article, then rows. The card opposite runs tall, and
-   four flat rows split evenly leave a band of dead space at every width. */
-/* The lead's own rule is down to the two things that still differ from a plain
-   row: it stacks instead of gridding, and its padding is bottom only. Its old
-   flex:none / display:block / min-height:0 were undoing the flex row that .reads
-   li no longer is. */
-.reads li.rlead a{display:block;padding:0 0 15px}
-.rlead__media{display:block;aspect-ratio:16/9;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--mint)}
-.rlead__media img{display:block;width:100%;height:100%;object-fit:cover}
-.rlead__media img.gone{display:none}
-.rlead__body{display:block;padding-top:12px}
-.rlead__body b{display:block;font-family:var(--disp);font-size:17px;font-weight:750;line-height:1.28;margin:5px 0}
-.rlead__body small{display:block;margin-top:8px}
-.rdeck{display:block;font-size:13px;font-weight:400;color:var(--sub);line-height:1.5}
-.rlead a:hover b{color:var(--accent-deep)}
+/* The .rlead rules that sat here are gone with the lead article. Worth a read
+   is three identical rows in both lanes; see readsRowsHTML(). */
 .phero{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:20px}
 .ring--av{width:84px;height:84px}
 .avtxt{font-family:var(--disp);font-size:19px;font-weight:800;fill:var(--ink);text-anchor:middle}
@@ -360,14 +417,12 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 /* ---------- dashboard grid (v1) ---------- */
 .grid2{display:grid;grid-template-columns:1.62fr 1fr;gap:20px;align-items:stretch}
 .grid2>*{min-width:0}
-/* The campaign card runs shorter than the aside beside it in most states, and
-   `align-items:start` left the difference as a beige void under the card: two
-   columns of one row ending on different lines, with the next row starting
-   below the taller one. The card fills the row now and spreads the difference
-   between its own sections, which reads as breathing room. Handing it all to
-   one block instead (the forming panel, or the feed) reads as a dead rectangle
-   inside the card, which is the same void moved rather than closed.
-   Below 900px each child is its own row, so none of this applies there. */
+/* Bills and Profile only. On Home this rule used to pour the main column's
+   height shortfall into the campaign card, spreading it between the card's own
+   sections. That was the right answer while the row owned the height; with
+   align-items:start on the Home grid the shortfall stays outside the card,
+   where it reads as space rather than as a stretched card, so Home no longer
+   has a .grid2 that directly contains a card at all. */
 .grid2>.card{display:flex;flex-direction:column;justify-content:space-between}
 .camp__head{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:18px}
 .camp__head h3{font-size:clamp(20px,2.7vw,25px);font-weight:800}
@@ -389,7 +444,10 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .rn.now i::after{background:var(--accent)}
 .rn.now span{color:var(--ink);font-weight:700}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(44,106,78,.35)}55%{box-shadow:0 0 0 8px rgba(44,106,78,0)}}
-.panel{background:#F7F3E8;border:1px solid var(--line);border-radius:16px;padding:clamp(15px,2.2vw,21px);min-height:236px}
+/* No min-height. It was holding the panel at 236px in the states whose copy
+   is three lines, which put a dead beige rectangle inside the tallest card on
+   the page. The panel is the card's content, and content sizes to itself. */
+.panel{background:#F7F3E8;border:1px solid var(--line);border-radius:16px;padding:clamp(15px,2.2vw,21px)}
 .panel h3{font-size:18.5px;font-weight:750;margin-bottom:6px}
 .panel .p{font-size:14.5px;color:#3A453E;max-width:62ch;margin-bottom:13px}
 .cluster{margin:14px 0 8px}
@@ -466,8 +524,12 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .feed li:last-child::after{display:none}
 .feed li .when{font-family:var(--mono);font-size:11px;color:var(--sub);display:block}
 
-/* ---------- aside (v1) ---------- */
-.aside{display:flex;flex-direction:column;gap:16px}
+/* ---------- aside (v1) ----------
+   On Home this is the rail: one 4 column track holding a stack of short,
+   always-optional cards at the same 24px rhythm as the grid rows. The other
+   views still use it as a plain flex column inside .grid2. */
+.aside{display:flex;flex-direction:column;gap:16px;min-width:0}
+.home .aside{gap:24px}
 .meter .mrow{display:flex;justify-content:space-between;font-size:13px;color:var(--sub);margin:12px 0 7px}
 .meter .mrow b{color:var(--accent-deep)}
 .segs{display:flex;gap:4px}
@@ -524,15 +586,19 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 /* Sizes to its content instead of to the tallest card in the row. Without this
    the rows are tight but the card is still 805px, with the slack moved to the
    bottom rather than removed.
-   The block padding is this card's alone, 20px against the shared 25px. Three
-   rows at the specified 72px thumbnail and 16px block padding are 314px of list
-   before any chrome, and the eyebrow and the See all footer take another 58px,
-   so 25px top and bottom would land at 426px and miss the 420px ceiling by six.
-   The inline padding is untouched, so the card still lines up with its row. */
-.rcard{align-self:start;padding-block:20px}
+   The block padding is this card's alone, 16px against the shared 24px. Three
+   rows at the specified 72px thumbnail and 16px row padding are 314px of list
+   before any chrome, and the eyebrow and the See all footer take another 60px,
+   so the shared 24px top and bottom would land at 431px and miss the 420px
+   ceiling. The inline padding is untouched, so the card still lines up with
+   the rail's other cards. */
+/* align-self:start is gone. It stopped a grid stretch that no longer exists,
+   and in the rail (a flex column) the same declaration is a CROSS-axis rule
+   that would shrink the card to the width of its widest headline. */
+.rcard{padding-block:16px}
 
 /* ---------- region row (v2, tamed) ---------- */
-.rowhead{display:flex;align-items:baseline;gap:12px;margin:26px 0 12px}
+.rowhead{display:flex;align-items:baseline;gap:12px;margin:0 0 20px}
 .rowhead h3{font-size:19px;font-weight:750}
 .rowhead .all{margin-left:auto;font-size:13.5px;font-weight:650;color:var(--accent-deep)}
 .crow{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:14px}
@@ -586,7 +652,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .tile.dark .tn{color:#B5CDB9}
 .tile.dark b{color:var(--glow)}
 .tlink{font-size:13.5px;font-weight:650;color:var(--accent-deep);margin-top:10px;display:inline-block}
-.reads + .tlink{margin-top:8px;padding-top:16px;border-top:1px solid var(--line)}
+.reads + .tlink{margin-top:4px;padding-top:12px;border-top:1px solid var(--line)}
 /* 390px: a narrower thumbnail and gap, and the card's own inline padding
    opened to 20px. The row is 64 + 32 = 96px, well past the 56px touch floor. */
 @media (max-width:430px){
@@ -612,6 +678,34 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .ctl .rst{font-size:12px;color:var(--sub);font-weight:600;text-decoration:underline}
 
 /* ---------- responsive ---------- */
+/* ---------- Home grid: the two breakpoints that matter ----------
+   1100px: the rail's 4 columns stop being wide enough for a card, so every
+   role collapses to the full 12 and the page becomes one column. Order is DOM
+   order, which is also the order a screen reader and the tab key already
+   follow, so nothing is re-sequenced on the way down.
+   768px: the member room reverts to copy over handset, and the container and
+   card padding drop to 20px together. */
+@media (max-width:1100px){
+  .is-main,.is-rail,.mcol,.home .aside{grid-column:1/-1}
+}
+@media (max-width:768px){
+  .content{padding-inline:20px}
+  .card{padding:20px}
+  .mroom{grid-template-columns:1fr;row-gap:16px}
+  .mrcopy,.mroom .mrstage,.mroom .mrcta{grid-column:1;grid-row:auto;align-self:auto}
+  .crowband{margin-top:8px}
+  /* Touch targets. A 20px rating dot and a 21px text link are fine under a
+     cursor and are not fine under a thumb. The dots keep their drawn size and
+     grow an invisible 44px target around themselves; the text links and the
+     network tabs take real block padding, which they have room for. */
+  .dots button{position:relative}
+  .dots button::before{content:"";position:absolute;top:50%;left:50%;width:44px;height:44px;transform:translate(-50%,-50%)}
+  .dots{gap:14px}
+  .tlink{padding-block:12px}
+  .reads + .tlink{padding-top:14px;padding-bottom:8px}
+  .mrtab{padding-block:13px}
+  .rowhead .all{padding-block:12px}
+}
 @media (max-width:920px){
   .app,.app.collapsed{grid-template-columns:1fr}
   .pane{position:fixed;left:0;top:0;bottom:0;width:min(78vw,300px);z-index:80;transform:translateX(-102%);transition:transform .28s ease;box-shadow:14px 0 40px rgba(26,37,32,.18)}
@@ -624,6 +718,8 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
   .app.paneopen .overlay{opacity:1;pointer-events:auto}
   .greet{display:none}
   .cliffgauge{width:100%}
+  /* Bills and Profile. Home collapses at 1100px, above, where its own rail
+     runs out of width. */
   .grid2{grid-template-columns:1fr}
     }
 @media (prefers-reduced-motion:reduce){
@@ -804,7 +900,13 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
           <p>Here is where your cohort stands, and what happens next.</p>
         </div>
 
-        <section class="cliff" aria-label="Your deal signal">
+        <!-- THE Home grid. Twelve columns, one 24px gutter, and every band and
+             card below placed by a role class rather than by a width of its
+             own. Both lanes and the region row are children of this one grid,
+             which is what makes their inline edges the same two numbers. -->
+        <div class="home">
+
+        <section class="cliff is-band" aria-label="Your deal signal">
           <svg class="step" viewBox="0 0 300 160" aria-hidden="true" fill="none" preserveAspectRatio="xMaxYMid meet">
             <path d="M0 118 H120 V118" stroke="#C2643B" stroke-width="2.5" opacity=".35"/>
             <path d="M120 118 V46 H300" stroke="#C2643B" stroke-width="2.5" stroke-dasharray="5 6" opacity=".45"/>
@@ -842,6 +944,11 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 
         <div id="member-home">
         <div class="grid2">
+          <!-- The main column: the sequence a member reads top to bottom.
+               renderVisitor's sibling, routeVisitor(), inserts the checkup
+               offer at the top of this stack, so a card that comes and goes by
+               state joins the sequence instead of being placed by hand. -->
+          <div class="mcol is-main">
           <!-- campaign card -->
           <section class="card" aria-label="Your campaign">
             <div class="camp__head">
@@ -879,9 +986,6 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
             <div class="feed"><h4>Activity</h4><ul id="feed"></ul></div>
           </section>
 
-          <!-- aside (v1 stack) -->
-          <aside class="aside">
-            
             <section class="card" aria-label="Your switch file">
               <span class="eyebrow">Your switch file</span>
               <h3>What providers bid against</h3>
@@ -899,6 +1003,12 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               <p class="fnote bill-src" data-bill-src hidden></p>
               <p class="fnote">Private, always: bidding providers never see your provider or your price. <button class="tlink" type="button" data-nav="bills" style="margin-top:0">Open my bills &rarr;</button></p>
             </section>
+          </div>
+
+          <!-- The rail: supporting, always optional, and short by rule. Every
+               card in here is between 240 and 400px, so the column never runs
+               away from the main sequence beside it. -->
+          <aside class="aside is-rail">
 
             <section class="card" aria-label="Strengthen your cohort">
               <span class="eyebrow">Refer anyone, anywhere</span>
@@ -922,22 +1032,18 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               <p class="fnote">Never shown to bidding providers.</p>
             </section>
 
-            
-
-            
-
-            
+            <section class="card rcard" aria-label="Worth a read">
+              <span class="eyebrow">Worth a read</span>
+              <ul class="reads" id="reads"></ul>
+              <button class="tlink" type="button" data-nav="knowledge">See all &rarr;</button>
+            </section>
 
           </aside>
         </div>
 
         <div class="trio">
-<section class="card rcard" aria-label="Worth a read">
-              <span class="eyebrow">Worth a read</span>
-              <ul class="reads" id="reads"></ul>
-              <button class="tlink" type="button" data-nav="knowledge">See all &rarr;</button>
-            </section>
-<section class="card mroom" aria-label="The member room">
+<section class="card mroom is-wide" aria-label="The member room">
+              <div class="mrcopy">
               <span class="eyebrow">The member room</span>
               <h3>Talk to other members</h3>
               <p class="cardnote">Hosted where you already scroll, while we're small. Your cohort gets its own thread the day bidding starts.</p>
@@ -946,6 +1052,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
                 <button class="mrtab on" type="button" role="tab" id="mrt-reddit" aria-selected="true" aria-controls="mrp-reddit" data-net="reddit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><circle cx="18.5" cy="4.5" r="1.6"/><path d="M12 6 13.2 3l3.9.9"/><path d="M9.3 16.4c1.6 1.1 3.8 1.1 5.4 0"/></svg>Reddit</button>
                 <button class="mrtab" type="button" role="tab" id="mrt-x" aria-selected="false" aria-controls="mrp-x" data-net="x" tabindex="-1"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.53 3H21l-7.6 8.7L22.4 21H15.9l-5.1-6.6L4.9 21H1.4l8.2-9.4L1.6 3h6.6l4.6 6.1zm-1.2 16h1.9L7.8 4.9H5.7z"/></svg>X</button>
                 <button class="mrtab" type="button" role="tab" id="mrt-li" aria-selected="false" aria-controls="mrp-li" data-net="linkedin" tabindex="-1"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.5 3A1.9 1.9 0 1 0 4.5 6.8 1.9 1.9 0 0 0 4.5 3zM2.9 8.4h3.2V21H2.9zM9.4 8.4h3.1v1.7h.1c.4-.8 1.5-1.9 3.3-1.9 3.5 0 4.2 2.2 4.2 5.1V21h-3.2v-6c0-1.4 0-3.3-2-3.3s-2.3 1.6-2.3 3.2V21H9.4z"/></svg>LinkedIn</button>
+              </div>
               </div>
 
               <div class="mrstage">
@@ -1070,8 +1177,12 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
              cohort created in the Data Store could not appear here without
              someone editing this file, which put the deploy straight back into
              a catalog that was promoted out of code to avoid one. -->
-        <div class="rowhead"><h3>Campaigns near you</h3><button class="all" type="button" id="viewall">How regions open &rarr;</button></div>
-        <div class="crow" id="crow"></div>
+        <section class="crowband is-wide" aria-label="Campaigns near you">
+          <div class="rowhead"><h3>Campaigns near you</h3><button class="all" type="button" id="viewall">How regions open &rarr;</button></div>
+          <div class="crow" id="crow"></div>
+        </section>
+
+        </div><!-- /.home -->
       </section>
 
       <!-- ======== my bills ======== -->
@@ -1400,7 +1511,35 @@ var OFFERS=[
   {id:'b',name:'Provider B',price:58,speed:'1 Gig',term:'24 months',note:'Modem included'},
   {id:'c',name:'Provider C',price:61,speed:'500 Mbps',term:'No term',note:'Leave anytime'}
 ];
-var FEED={
+/* ---------- the activity feed ----------
+   This was a constant keyed by rail state, and it printed the same lines on
+   every cohort in that state. A Kitchener cohort with one sealed bid showed
+   "Cohort opened for London East", "3 providers joined the auction" and
+   "Bidding closed: 3 offers in": the wrong region, and two partners that did
+   not exist.
+
+   Every line is now a fact the server sent, dated by the cohort's own calendar.
+   An entry whose moment has not arrived is not shown: a feed is what happened,
+   and the dates tiles above it already carry what is scheduled.
+
+   Nothing here mentions bids, offers, prices or installs. The member endpoint
+   sends none of that, and a feed is the last place to guess. When a route
+   exists that reveals the winning offer after close, its entries belong here. */
+var FEED_STEPS=[
+  ['announce_at', function(c){
+    return 'Joining closed, cohort locked at '+c.households+' household'+(c.households===1?'':'s');
+  }],
+  ['bidding_opens_at',  function(){return 'Bidding opened, bids sealed'}],
+  ['bidding_closes_at', function(){return 'Bidding closed'}],
+  ['offers_at',         function(){return 'The winning offer went to the cohort'}],
+  ['decision_at',       function(){return 'Confirmations locked'}],
+  ['switch_window_at',  function(){return 'Switch window opened'}],
+  ['reconcile_at',      function(){return 'Final counts settled'}]
+];
+/* The prototype tour only. ?demo=1 walks states the backend cannot drive yet,
+   and these are the lines it shows. Gated on TOURED so that no real member ever
+   meets an invented one. */
+var DEMO_FEED={
   forming:[['Aug 4','Cohort opened for London East'],['Today','61 of 100 households in']],
   locked:[['Sep 12','Cohort locked at 112 households']],
   bidding:[['Sep 15','3 providers joined the auction'],['Sep 15','Bidding opened, bids sealed']],
@@ -1409,6 +1548,27 @@ var FEED={
   switching:[['Today','Deposit placed, your concierge started the switch']],
   done:[['Oct 8','Install complete'],['Oct 9','Deposit credited to your first bill']]
 };
+/* Chronological. render() reverses, so newest reaches the top. */
+function feedItems(){
+  var out=[];
+  if(TOURED){
+    var idx=(S.state in RAILMAP)?RAILMAP[S.state]:STATES.indexOf(S.state);
+    for(var i=0;i<=idx;i++)(DEMO_FEED[STATES[i]]||[]).forEach(function(f){out.push(f)});
+    if(S.state in RAILMAP)(DEMO_FEED[S.state]||[]).forEach(function(f){out.push(f)});
+  }else{
+    var c=CAMPLIVE?joinedCamp():null;
+    if(c){
+      out.push(['Today',c.members+' of '+(c.target||100)+' households in']);
+      var d=c.dates||{},now=Date.now()+SKEW;
+      FEED_STEPS.forEach(function(s){
+        var at=d[s[0]];
+        if(at&&now>=at)out.push([dstamp(at),s[1](c)]);
+      });
+    }
+  }
+  EXTRA.forEach(function(f){out.push(f)});
+  return out;
+}
 var PILL={forming:'Forming',locked:'Locked',bidding:'Bidding live',offers:'Offers in',confirm:'Confirm',switching:'Switching',done:'Switched'};
 var TL={forming:'close',locked:'close',bidding:'bid',offers:'offer',confirm:'offer',switching:'switch',done:'switch'};
 
@@ -1427,9 +1587,9 @@ var ALL=[['arrive','First visit'],['result','Checked, not joined'],['waitlist','
  ['done','Done'],['short','Did not fill']];
 PILL.closing='Join closes Friday';PILL.passed='Passed, no cost';PILL.short='Did not fill';
 TL.closing='close';TL.passed='offer';TL.short='close';
-FEED.closing=[['Sep 8','89 of 100: joining closes Friday 5 PM']];
-FEED.passed=[['Today','You passed on the offer. Nothing changes, nothing owed.']];
-FEED.short=[['Sep 12','Cohort closed at 74 of 100: rolled into the Winter window']];
+DEMO_FEED.closing=[['Sep 8','89 of 100: joining closes Friday 5 PM']];
+DEMO_FEED.passed=[['Today','You passed on the offer. Nothing changes, nothing owed.']];
+DEMO_FEED.short=[['Sep 12','Cohort closed at 74 of 100: rolled into the Winter window']];
 S.joined=false;S.checkup=null;S.prefs=null;S.pass=null;
 
 /* The single winning offer shown by the offers state (demo numbers until the
@@ -1437,6 +1597,50 @@ S.joined=false;S.checkup=null;S.prefs=null;S.pass=null;
 var WIN={name:'Northline Internet',price:54.5,speed:'500 Mbps',guar:'Price guaranteed 24 months',
  after:'$69 regular rate after, told up front',inc:'Install, modem and in-home WiFi included',bids:3};
 var MEDIAN=67; /* demo going-rate figure, labelled as such in the result card */
+
+/* ---------- the real winning offer ----------
+   WIN and OFFERS above are the prototype's fixtures: Northline Internet at
+   $54.50, three partners at the table. They stayed on screen for every cohort,
+   so a Kitchener auction with one sealed bid of $50 still read $54.50 from a
+   provider that does not exist.
+
+   They are now the DEMO TOUR's fixtures only, and are overwritten in place the
+   moment GET /campaigns/:id/offer hands back a real one. Overwriting rather
+   than threading a new object through means every panel that already reads
+   WIN and OFFERS[0] (the offer card, the confirm box, the deposit summary,
+   the savings list) shows the cohort's actual bid without each one growing
+   its own fetch and its own idea of what an offer is.
+
+   Nothing arrives before the cohort's window closes. The server refuses to
+   say anything at all while a bid is sealed, including how many there are. */
+var EQUIP={inc:'Install, modem and in-home WiFi included',
+ rent:'Modem rental billed monthly',byod:'Bring your own modem'};
+/* The member stages at which an offer can exist. Before these the window is
+   still sealed and the server answers nothing. */
+var OFFERSTATES=['offers','confirm','switching','done'];
+var OFFERLIVE=false;
+function applyOffer(r){
+  if(!r||r.sealed||!r.offer)return false;
+  var o=r.offer,n=Number(o.price);
+  if(!isFinite(n))return false;
+  WIN.name=o.partner||'Your winning partner';
+  WIN.price=n;
+  if(o.speed)WIN.speed=o.speed;
+  WIN.guar=o.guaranteeMonths?('Price guaranteed '+o.guaranteeMonths+' months'):'No term';
+  WIN.after=o.afterLine||'no scheduled change';
+  WIN.inc=EQUIP[o.equipment]||WIN.inc;
+  if(o.equipment==='rent'&&o.rentalMonthly)WIN.inc='Modem rental '+money(Number(o.rentalMonthly))+'/mo';
+  if(typeof r.bidCount==='number')WIN.bids=r.bidCount;
+  OFFERS[0]={id:'a',name:WIN.name,price:n,speed:WIN.speed,
+    term:o.guaranteeMonths?(o.guaranteeMonths+' months'):'No term',note:WIN.inc};
+  OFFERLIVE=true;
+  return true;
+}
+function pullOffer(){
+  var c=CAMPLIVE?joinedCamp():null;
+  if(!c||!W||!W.session||!W.session.campaignOffer)return Promise.resolve(false);
+  return W.session.campaignOffer(c.id).then(function(r){return applyOffer(r)},function(){return false});
+}
 
 /* Feed entries pushed by the member's own actions (join, pass, save offer). */
 var EXTRA=[];
@@ -1456,6 +1660,13 @@ var CAMPS=[
  {id:'hamilton-mountain',region:'Hamilton Mountain',sub:'Winter cohort',kind:'auction',target:null,members:58,households:58,joinable:false,you:null}
 ];
 var CAMPLIVE=false;
+/* The offset between the server's clock and this browser's, captured from the
+   `serverTime` on every campaigns answer. Declared out here rather than inside
+   the poll below because the countdown needs it too, and a countdown measured
+   from a bare Date.now() is exactly the thing the server owning stage exists to
+   prevent: a laptop a few minutes fast must not disagree with the server about
+   whether a sealed window is still open. */
+var SKEW=0;
 /* Region photography, keyed by campaign id. Art is a repo asset, so a cohort
    created today has none, and this is a lookup with a deliberate miss rather
    than a required field: .cc__art keeps its mint block and the card is whole
@@ -2428,9 +2639,28 @@ document.addEventListener('click',function(e){
 });
 
 /* ---------- countdown ---------- */
-var cdSecs=26*3600+14*60+9,cdTimer=null;
+/* This counted down from `26*3600+14*60+9`, a literal, so it showed the same
+   26:14:09 on every cohort on every visit and moved for no reason anyone could
+   change. A cohort whose window closed in three minutes still read 26 hours.
+   It now measures the joined cohort's own `bidding_closes_at` against the
+   server clock: SKEW, not a bare Date.now(). */
+var cdTimer=null;
+/** Seconds until this member's cohort closes bidding, or null if undated. */
+function cdRemaining(){
+  var c=CAMPLIVE?joinedCamp():null;
+  var at=c&&c.dates&&c.dates.bidding_closes_at;
+  if(!at)return null;
+  return Math.max(0,Math.round((at-(Date.now()+SKEW))/1000));
+}
 function cdFmt(t){var h=Math.floor(t/3600),m=Math.floor(t%3600/60),s=t%60;var p=function(n){return (n<10?'0':'')+n};return p(h)+':'+p(m)+':'+p(s)}
-function cdStart(){cdStop();var el=$('#cd');if(!el)return;el.textContent=cdFmt(cdSecs);if(reduce)return;cdTimer=setInterval(function(){cdSecs=Math.max(0,cdSecs-1);var e=$('#cd');if(e)e.textContent=cdFmt(cdSecs);else cdStop()},1000)}
+/** Paint once. False when the element is gone, which stops the timer. */
+function cdPaint(){
+  var el=$('#cd');if(!el)return false;
+  var s=cdRemaining();
+  if(s!==null)el.textContent=cdFmt(s);
+  return true;
+}
+function cdStart(){cdStop();if(!cdPaint())return;if(reduce)return;cdTimer=setInterval(function(){if(!cdPaint())cdStop()},1000)}
 function cdStop(){if(cdTimer){clearInterval(cdTimer);cdTimer=null}}
 
 /* ---------- dot cluster (forming) ---------- */
@@ -2469,7 +2699,11 @@ function tplBidding(){
   return '<h3>Bidding: 3 providers at the table</h3>'
   +'<p class="p">Bids stay sealed until the window closes, so each provider competes on its best number, not on each other\u2019s.</p>'
   +'<div class="bidrows">'+rows+'</div>'
-  +'<span class="cdl">Bidding closes in <b id="cd"></b></span>';
+  /* A cohort at auction with no close date on its calendar is a normal state,
+     and "Bidding closes in " followed by nothing is not an answer. */
+  +(cdRemaining()===null
+    ? '<span class="cdl">The closing time is not set yet</span>'
+    : '<span class="cdl">Bidding closes in <b id="cd"></b></span>');
 }
 /* One winning offer for the whole cohort (v10): the auction produces a single
    best bid against the cohort's standard terms, compared against the member's
@@ -2483,12 +2717,17 @@ function tplOffers(){
   var o=OFFERS[0];var save=S.member.bill-o.price;
   var c=S.checkup||{};
   return '<h3>Your cohort\u2019s winning offer is in</h3>'
-  +'<p class="p">'+WIN.bids+' partners bid, sealed. This was the best against the cohort\u2019s standard terms, and it\u2019s the same offer for all '+S.cohort.locked+' households.</p>'
+  +'<p class="p">'+WIN.bids+' partner'+(WIN.bids===1?'':'s')+' bid, sealed. This was the best against the cohort\u2019s standard terms, and it\u2019s the same offer for all '+S.cohort.locked+' households.</p>'
   +'<div class="duo">'
   +'<div class="duocell now"><span class="dl">Your bill today</span><b>'+money(S.member.bill)+'/mo</b><span class="ds">'+esc(c.prov||'Your provider')+(c.speed?' \u00b7 '+esc(c.speed):'')+'</span><span class="ds">'+(c.promo&&c.promo!=='Not sure'?'Resets around '+esc(c.promo):'Promo reset not set')+'</span></div>'
   +'<div class="duocell win"><span class="dl">'+esc(WIN.name)+'</span><b>'+money(o.price)+'/mo</b><span class="ds">'+esc(WIN.speed)+' \u00b7 '+esc(WIN.guar.toLowerCase())+'</span><span class="ds">'+esc(WIN.after)+'</span><span class="ds">'+esc(WIN.inc)+'</span><span class="savetag">saves '+money(save)+'/mo</span></div>'
   +'</div>'
-  +'<div class="oblig"><b>You\u2019re never obligated.</b> Take it with a '+dep()+' refundable deposit, or pass and pay nothing, ever. It stands until <b>Sep 24</b>.</div>'
+  /* The offer stands until confirmations lock, which is decision_at on the
+     cohort's own calendar. This was the literal "Sep 24". */
+  +'<div class="oblig"><b>You\u2019re never obligated.</b> Take it with a '+dep()+' refundable deposit, or pass and pay nothing, ever.'+(function(){
+    var jc=CAMPLIVE?joinedCamp():null,dd=jc&&jc.dates&&jc.dates.decision_at;
+    return dd?' It stands until <b>'+esc(dstamp(dd))+'</b>.':'';
+  })()+'</div>'
   +'<div style="margin-top:13px;display:flex;gap:10px;flex-wrap:wrap">'
   +'<button class="btn terra" type="button" data-take="a">Take this offer</button>'
   +'<button class="btn ghost" type="button" data-act="pass">Pass on it</button>'
@@ -2563,11 +2802,7 @@ function render(){
   $$('.tn2').forEach(function(t){t.classList.remove('hot')});
   var hot=$('.tn2[data-t="'+TL[S.state]+'"]');
   if(hot)hot.classList.add('hot');
-  var items=[];
-  for(var i=0;i<=idx;i++){(FEED[STATES[i]]||[]).forEach(function(f){items.push(f)})}
-  if(S.state in RAILMAP)(FEED[S.state]||[]).forEach(function(f){items.push(f)});
-  EXTRA.forEach(function(f){items.push(f)});
-  $('#feed').innerHTML=items.map(function(f){return '<li><span class="when">'+esc(f[0])+'</span>'+esc(f[1])+'</li>'}).reverse().join('');
+  $('#feed').innerHTML=feedItems().map(function(f){return '<li><span class="when">'+esc(f[0])+'</span>'+esc(f[1])+'</li>'}).reverse().join('');
   renderRegions();
   paintHistory();
   $$('#sts button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-goto')===S.state)});
@@ -2756,8 +2991,10 @@ function mountMemberRoom(toVisitor){
   var card=$('.mroom');
   if(!card)return;
   if(!MRHOME)MRHOME=card.parentNode;
-  /* .trio styles its DIRECT children, so the card joins the row itself and is
-     never wrapped in a slot element. */
+  /* .trio is display:contents on Home, so the card it holds is a grid item of
+     the lane itself and carries its own `is-wide` span. Never wrap it in a
+     slot element: a wrapper would become the grid item and the card would
+     lose its role. */
   var host=toVisitor?$('#visitor-home .vtrio'):MRHOME;
   if(host&&card.parentNode!==host)host.appendChild(card);
 }
@@ -2841,7 +3078,6 @@ function syncCohortFromCamps(){
   var c=featuredCamp();
   if(!c)return;
   S.cohort.have=c.members;S.cohort.need=c.target||100;S.cohort.locked=c.households;
-  FEED.forming[1]=['Today',c.members+' of '+S.cohort.need+' households in'];
 }
 /* Campaign history's "in play" panel: everything the member has put their
    name against: a joined cohort, a waitlist spot, an opening-day alert. The
@@ -3006,25 +3242,16 @@ var KMETA=[
   ['collective-switching','How it works','Collective switching is not a theory. It moved energy markets for years. Now, internet.','~5 min read','An electricity pylon with power lines fanning out overhead'],
   ['three-companies','The market','The prices make more sense once you see who owns the pipes.','~6 min read','A telecommunications mast with dish antennas against a clear sky']
 ];
-/* Four most recent reads: the newest runs as a lead with its category and
-   deck, the other three as thumbnail rows. The member room opposite is a
-   tall card, and four equal rows would only spread the dead space around. */
-$('#reads').innerHTML=BLOGS.slice(0,4).map(function(b,i){
-  var m=KMETA[i], img='/images/resources/'+m[0];
-  if(i===0){
-    return '<li class="rlead"><a href="/blog/'+b[2]+'">'
-    +'<span class="rlead__media"><img src="'+img+'.webp" srcset="'+img+'.webp 800w, '+img+'@2x.webp 1600w" sizes="(max-width:900px) 92vw, 460px" alt="'+esc(m[4])+'" loading="lazy" decoding="async" width="800" height="533"></span>'
-    +'<span class="rlead__body"><span class="eyebrow">'+esc(m[1])+'</span>'
-    +'<b>'+esc(b[0])+'</b><span class="rdeck">'+esc(m[2])+'</span>'
-    +'<small>'+b[1]+'</small></span></a></li>';
-  }
-  /* The title is its own element so it can clamp at two lines on its own. It
-     used to be a bare text node beside the <small>, which put both inside any
-     clamp and cut the read time off with the title. */
-  return '<li><a href="/blog/'+b[2]+'">'
-  +'<span class="rthumb"><img src="'+img+'.webp" srcset="'+img+'.webp 800w, '+img+'@2x.webp 1600w" sizes="72px" alt="'+esc(m[4])+'" loading="lazy" decoding="async" width="800" height="533"></span>'
-  +'<span class="rtxt"><b class="rttl">'+esc(b[0])+'</b><small>'+b[1]+'</small></span></a></li>'
-}).join('');
+/* THREE reads, all of them thumbnail rows, and the same three rows the
+   visitor lane renders. This card used to run the newest article as a lead:
+   a 460px photograph, a category, a deck and a read time, then three rows
+   under it. The reason given was that the member room opposite was a tall
+   card and four equal rows would only spread the dead space around. The
+   member room is not opposite any more, it is a full-width band below, so
+   the tall neighbour this was balancing against is gone, and the lead was
+   the whole of the difference between a 796px card and a 400px one.
+   One renderer for both lanes now, so the two cannot drift apart again. */
+$('#reads').innerHTML=readsRowsHTML();
 /* A thumbnail that 404s leaves the mint placeholder rather than a broken icon
    in a collapsed column. `error` does not bubble, hence the capture phase, and
    it is bound to document rather than to the list because the visitor lane
@@ -3033,7 +3260,7 @@ document.addEventListener('error',function(e){
   var t=e.target;
   if(!t||t.tagName!=='IMG')return;
   var p=t.parentNode;
-  if(p&&(p.classList.contains('rthumb')||p.classList.contains('rlead__media')))t.classList.add('gone');
+  if(p&&p.classList.contains('rthumb'))t.classList.add('gone');
 },true);
 $('#klist').innerHTML=BLOGS.map(function(b,i){
   var m=KMETA[i], n=(i<9?'0':'')+(i+1), img='/images/resources/'+m[0];
@@ -3204,13 +3431,23 @@ function referralHTML(){
   +'<div style="margin-top:10px"><button class="btn ghost sharerefc" type="button">Share your link</button></div>'
   +'</section>';
 }
-function readsCardHTML(){
-  var lis=BLOGS.slice(0,3).map(function(b,i){
+/* The three rows, once. The member card in the markup and the visitor card
+   built from a string both call this, which is what keeps them one card. The
+   title is its own element so it clamps at two lines on its own: as a bare
+   text node beside the <small> the clamp cut the read time off with the
+   title. The thumbnail is sized by .rthumb and not by the image, so the
+   column holds its width before the file arrives and nothing reflows when
+   it does. */
+function readsRowsHTML(){
+  return BLOGS.slice(0,3).map(function(b,i){
     var m=KMETA[i], img='/images/resources/'+m[0];
     return '<li><a href="/blog/'+b[2]+'">'
     +'<span class="rthumb"><img src="'+img+'.webp" srcset="'+img+'.webp 800w, '+img+'@2x.webp 1600w" sizes="72px" alt="'+esc(m[4])+'" loading="lazy" decoding="async" width="800" height="533"></span>'
     +'<span class="rtxt"><b class="rttl">'+esc(b[0])+'</b><small>'+b[1]+'</small></span></a></li>';
   }).join('');
+}
+function readsCardHTML(){
+  var lis=readsRowsHTML();
   return '<section class="card rcard" aria-label="Worth a read"><span class="eyebrow">Worth a read</span><ul class="reads">'+lis+'</ul><button class="tlink" type="button" data-nav="knowledge">See all &rarr;</button></section>';
 }
 /* The visitor lane's own member-room card used to be built here. It is gone:
@@ -3285,7 +3522,7 @@ function rvArriveX(){
   +'<p class="fnote">Your bill stays private. Bidding partners only ever see cohort aggregates, never you.</p>'
   +'</div></div>'
   +'</section>'
-  +'<section class="card" style="margin-top:16px" aria-label="How Whollar works">'
+  +'<section class="card" aria-label="How Whollar works">'
   +'<span class="eyebrow">While you’re here</span><h3>How this works, in one breath</h3>'
   +'<p class="cardnote">Households pool by region and renewal timing. Providers bid sealed for the whole cohort. You see the winning offer, and you take it or you don’t. Free either way, because providers pay us only when a switch completes.</p>'
   +'</section>';
@@ -3316,7 +3553,7 @@ function openCohortHTML(le,have,need,ck){
   if(!le||!le.joinable){
     /* No cohort is open to this household. Saying nothing here would leave the
        result card ending on a diagnosis with no next step. */
-    return '<section class="card" style="margin-top:16px" aria-label="Cohorts near you">'
+    return '<section class="card" aria-label="Cohorts near you">'
     +'<span class="eyebrow">Open in your area</span><h3>Nothing open near you yet</h3>'
     +'<p class="cardnote">We open one region at a time, and a cohort opens when enough households with renewal timing like yours are in. Your result and your cliff watch stay active meanwhile.</p>'
     +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">'
@@ -3349,7 +3586,7 @@ function openCohortHTML(le,have,need,ck){
   }else{
     elig='Your reset is around '+esc(ck.promo)+' · we time bidding to close before it.';
   }
-  return '<section class="card" style="margin-top:16px" aria-label="Cohort you can join">'
+  return '<section class="card" aria-label="Cohort you can join">'
   +'<span class="eyebrow">Open in your area</span><h3>'+esc(le.region||le.id)
   +(le.sub?' · '+esc(le.sub):'')+'</h3>'
   +'<p class="cardnote">'+line+'</p>'
@@ -3388,9 +3625,13 @@ function renderVisitorX(){
      innerHTML would destroy the only copy: the first visitor render would look
      right and every one after it would have no card at all. */
   mountMemberRoom(false);
-  $('#visitor-home').innerHTML='<div class="grid2"><div class="vmain">'+main+'</div>'
-   +'<aside class="aside">'+referralHTML()+'</aside></div>'
-   +'<div class="trio vtrio">'+readsCardHTML()+'</div>';
+  /* The SAME three roles as the member lane, against the same twelve tracks:
+     a span 8 main stack, a span 4 rail, and the member room span 12 under
+     both. The visitor lane used to build its own row system, which is half of
+     why the two lanes never lined up with each other. */
+  $('#visitor-home').innerHTML='<div class="grid2"><div class="mcol vmain is-main">'+main+'</div>'
+   +'<aside class="aside is-rail">'+referralHTML()+readsCardHTML()+'</aside></div>'
+   +'<div class="trio vtrio"></div>';
   mountMemberRoom(true);
   if(S.state==='arrive')invKick();
 }
@@ -3450,7 +3691,10 @@ function routeVisitor(){
      state, and the tour has no member record to check. */
   var ck=$('#ckprompt');if(ck)ck.remove();
   if(!isVis&&!TOURED&&!hasCheckup()){
-    var mh=$('#member-home');
+    /* Into the main COLUMN, not the lane. Dropped into #member-home directly
+       it became a fourth grid item and pushed the campaign card and the rail
+       apart into rows of their own. */
+    var mh=$('#member-home .mcol');
     if(mh)mh.insertAdjacentHTML('afterbegin',checkupPromptHTML());
   }
   renderRegions();
@@ -3805,7 +4049,7 @@ if(W&&W.session&&W.session.campaignsList){
      never derives a new stage locally between polls. Cadence follows the
      cohort's own calendar, so a normal cohort measured in days is not polled
      like one measured in minutes. */
-  var SKEW=0;
+  /* SKEW is declared beside CAMPS, not here: the countdown reads it too. */
   var POLL_SLOW=120000, POLL_FAST=15000;
   var campTimer=null;
   function nextPollDelay(){
@@ -3839,6 +4083,14 @@ if(W&&W.session&&W.session.campaignsList){
       if(before!==S.state&&VIS.indexOf(S.state)<0&&VIS.indexOf(before)<0){
         EXTRA.push(['Just now','Your cohort moved to '+String(PILL[S.state]||S.state)]);
         render();
+      }
+      /* The offer, once the cohort is past bidding. Asked for once and not
+         again: the winning bid does not change after the window shuts, and a
+         second request would only be a poll against a sealed answer. Skipped
+         entirely while bidding is live, because the server would refuse to say
+         anything and rightly so. */
+      if(!OFFERLIVE&&OFFERSTATES.indexOf(S.state)>-1){
+        return pullOffer().then(function(got){if(got)render()});
       }
     });
   }
