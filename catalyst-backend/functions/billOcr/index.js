@@ -24,6 +24,13 @@ const ALLOWED_ORIGINS = [
   'https://whollar-staging-1w.vercel.app'
 ];
 
+// Origins the Catalyst gateway already answers for, so Express must not also
+// set the header: two Access-Control-Allow-Origin headers on one response make
+// the browser reject it, which surfaces as "we couldn't reach our servers" on a
+// request that actually succeeded. See the longer note on formSubmit's copy of
+// this list, including how to verify it, and keep the two equal.
+const GATEWAY_CORS_ORIGINS = ['https://www.whollar.ca'];
+
 // Local development: the marketing pages are plain HTML files, opened either
 // via a dev server on an arbitrary port (Live Server, http.server, …) or
 // straight from disk (Origin: null). CORS is a browser-side gate only, the
@@ -52,7 +59,8 @@ const isProdRequest = (req) => {
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowDev = !isProdRequest(req);
-  if (origin && (ALLOWED_ORIGINS.includes(origin) || (allowDev && isDevOrigin(origin)) || isVercelOrigin(origin))) {
+  const gatewayAnswers = GATEWAY_CORS_ORIGINS.includes(origin);
+  if (origin && !gatewayAnswers && (ALLOWED_ORIGINS.includes(origin) || (allowDev && isDevOrigin(origin)) || isVercelOrigin(origin))) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
   }

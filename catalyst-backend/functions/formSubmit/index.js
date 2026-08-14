@@ -31,6 +31,28 @@ const ALLOWED_ORIGINS = [
   'https://whollar-staging-1w.vercel.app'
 ];
 
+// Origins the Catalyst gateway (ZGS) already answers for, and where Express
+// must therefore stay quiet. A CORS rule was added in the Catalyst console on
+// 2026-08-06; since then the gateway sets its own Access-Control-Allow-Origin
+// on the way out, for the origins listed there and no others.
+//
+// Two Access-Control-Allow-Origin headers on one response do not combine. The
+// browser rejects the response outright, fetch rejects with a TypeError, and
+// the page can only report "we couldn't reach our servers", even though the
+// request itself succeeded and the row is already written. That is the exact
+// shape of the bug this list exists to prevent, and it fired on the live site
+// only: the gateway rule holds one origin, so every other origin in the lists
+// above reached the browser with Express's single header and was unaffected.
+//
+// This is console config mirrored into code, so the two are only safe while
+// they agree, the same standing caveat as the allowlist above. Check either
+// side with:
+//   curl -sD- -o/dev/null -X POST -H 'Origin: https://www.whollar.ca' \
+//     <function-url> | grep -i access-control-allow-origin
+// Exactly one line back is the passing result. If the console rule is ever
+// removed, empty this list in the same change and Express resumes the header.
+const GATEWAY_CORS_ORIGINS = ['https://www.whollar.ca'];
+
 // Local development: the marketing pages are plain HTML files, opened either
 // via a dev server on an arbitrary port (Live Server, http.server, …) or
 // straight from disk (Origin: null). CORS is a browser-side gate only, the
@@ -69,7 +91,8 @@ const UPLOADS_FOLDER_ID = '1258000000015979';
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowDev = !isProdRequest(req);
-  if (origin && (ALLOWED_ORIGINS.includes(origin) || (allowDev && isDevOrigin(origin)) || isVercelOrigin(origin))) {
+  const gatewayAnswers = GATEWAY_CORS_ORIGINS.includes(origin);
+  if (origin && !gatewayAnswers && (ALLOWED_ORIGINS.includes(origin) || (allowDev && isDevOrigin(origin)) || isVercelOrigin(origin))) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
   }
