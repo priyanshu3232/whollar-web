@@ -342,8 +342,18 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 
 
 /* ---------- dashboard grid (v1) ---------- */
-.grid2{display:grid;grid-template-columns:1.62fr 1fr;gap:20px;align-items:start}
+.grid2{display:grid;grid-template-columns:1.62fr 1fr;gap:20px;align-items:stretch}
 .grid2>*{min-width:0}
+/* The campaign card runs shorter than the aside beside it in most states, and
+   `align-items:start` left the difference as a beige void under the card: two
+   columns of one row ending on different lines, with the next row starting
+   below the taller one. The card fills the row now, and the slack goes to the
+   forming panel, the one block on it that is a filled shape and reads as
+   breathing room rather than as a gap. The feed keeps its place at the bottom.
+   Below 900px each child is its own row, so none of this applies there. */
+.grid2>.card{display:flex;flex-direction:column}
+.grid2>.card>.panel{flex:2 1 auto}
+.grid2>.card>.feed{flex:1 1 auto}
 .camp__head{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:18px}
 .camp__head h3{font-size:clamp(20px,2.7vw,25px);font-weight:800}
 .camp__head .sub{font-size:13px;color:var(--sub);margin-top:2px}
@@ -798,7 +808,10 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
             <div class="camp__head">
               <div>
                 <span class="eyebrow">Your campaign</span>
-                <h3>London East &middot; Autumn cohort</h3>
+                <!-- Repainted by paintCampHead() from the campaign the member
+                     actually joined. The seed text is what a member sees only
+                     until the first campaigns answer lands. -->
+                <h3 id="campname">London East &middot; Autumn cohort</h3>
                 <p class="sub">Households pooled by region and renewal timing, bid on as one.</p>
               </div>
               <span class="statepill" id="statepill">Forming</span>
@@ -1237,8 +1250,12 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
             <span class="eyebrow">Your concierge</span>
             <h4>Text or email, we answer</h4>
             <p class="tn">Switching questions, bill questions, or just what happens next. Weekdays, usually within the hour.</p>
-            <button class="tlink" type="button" id="c-text">Text us &rarr;</button><br>
-            <button class="tlink" type="button" id="c-mail">Email us &rarr;</button>
+            <!-- Anchors, not buttons wired to location.href. An address you can
+                 copy, open in a new tab, or hand to a screen reader as the link
+                 it is; and it still works if the script never runs. -->
+            <a class="tlink" href="mailto:info@whollar.com">Email us &rarr;</a><br>
+            <a class="tlink" href="/contact">Send us a message &rarr;</a><br>
+            <button class="tlink" type="button" id="c-text">Text us &rarr;</button>
           </div>
           <div class="card tile dark">
             <h4>Mid-switch?</h4>
@@ -1685,7 +1702,7 @@ function paintBillSource(bill){
     if(!bill){el.hidden=true;el.textContent='';return;}
     /* Five sources reach this row: the member's own edit here, the public
        checkup (direct or adopted from its lead table), and stage 2 of the
-       join page (likewise). Adopted rows are not labelled as such — where we
+       join page (likewise). Adopted rows are not labelled as such: where we
        read it from is our plumbing, not something the member told us. */
     var label=bill.source==='dashboard'?'From your bill upload here'
       :(bill.source==='waitlist'||bill.source==='waitlist-backfill')?'From your join details'
@@ -1829,7 +1846,7 @@ window.addEventListener('focus',refreshCliff);
       if(bill.discount!=null&&bill.discount!=='')$('#bu-disc').value=bill.discount;
       /* A month-granular contract start ('YYYY-MM', which /me/bill does store)
          is not a value <input type=date> will take, so it stays on the row
-         above rather than being shown here as blank-and-therefore-lost — the
+         above rather than being shown here as blank-and-therefore-lost: the
          save reads existing.contractStart when this input is empty. */
       if(bill.contractStart){
         var cs=parsePromoEnd(bill.contractStart);
@@ -2112,7 +2129,7 @@ window.addEventListener('focus',refreshCliff);
         if(!v)return {value:null};
         /* Floor of 0, not BILL_MIN: a $5 credit is a real discount, while $5
            would not be a real bill. The "smaller than the charge" rule is the
-           bill form's (bu-disc) and stays there — this editor only sees one
+           bill form's (bu-disc) and stays there: this editor only sees one
            field at a time. */
         var r=W.parseMoneyInRange(v,0,W.BILL_MAX);
         if(!r.ok)return {error:'Enter your monthly discount as a number, e.g. 15.'};
@@ -2139,7 +2156,7 @@ window.addEventListener('focus',refreshCliff);
 
   /* POST /me/bill REPLACES the row, so every field the member has ever given
      us must be named here even when this edit doesn't touch it. A key left out
-     is not "unchanged", it is deleted — which is exactly how editing a
+     is not "unchanged", it is deleted, which is exactly how editing a
      provider used to wipe the contract dates the checkup collected. */
   function mergedPayload(patch){
     var existing=(MEMBER&&MEMBER.bill)||{};
@@ -2498,9 +2515,21 @@ function tplDone(){
 var TPL={forming:tplForming,locked:tplLocked,bidding:tplBidding,offers:tplOffers,confirm:tplConfirm,switching:tplSwitching,done:tplDone};
 
 /* ---------- render ---------- */
+/* The campaign card's heading. It used to be static markup reading "London
+   East · Autumn cohort", which is the seeded cohort rather than the member's:
+   somebody who joined Windsor read their own panel as London East's, and the
+   rail, the dates and the feed underneath it all belonged to a cohort they had
+   never heard of. The dates already came from the joined campaign (paintDates);
+   the name it belongs to now does too. */
+function paintCampHead(){
+  var el=$('#campname');if(!el)return;
+  var c=CAMPLIVE?joinedCamp():null;
+  if(c)el.textContent=c.region+(c.sub?' · '+c.sub:'');
+}
 function render(){
   /* Visitor states paint #visitor-home and skip the campaign card entirely. */
   if(routeVisitor()){paintHistory();return}
+  paintCampHead();
   var idx=(S.state in RAILMAP)?RAILMAP[S.state]:STATES.indexOf(S.state);
   $$('.rn').forEach(function(n,i){
     n.classList.remove('past','now');
@@ -2523,8 +2552,7 @@ function render(){
   EXTRA.forEach(function(f){items.push(f)});
   $('#feed').innerHTML=items.map(function(f){return '<li><span class="when">'+esc(f[0])+'</span>'+esc(f[1])+'</li>'}).reverse().join('');
   var badge=$('#regbadge');if(badge){badge.textContent='Your cohort · '+(S.sub==='stayed'?'Staying put':PILL[S.state]);badge.classList.add('live')}
-  var rm=$('#regmono');if(rm)rm.textContent=S.state==='forming'||S.state==='closing'?(S.cohort.have+' of '+S.cohort.need+' households'):(S.cohort.locked+' households, '+String(PILL[S.state]||'').toLowerCase());
-  var rp=$('#regprog');if(rp)rp.style.width=Math.min(100,Math.round(S.cohort.have/S.cohort.need*100))+'%';
+  paintRegionCount();
   paintHistory();
   $$('#sts button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-goto')===S.state)});
 }
@@ -2663,9 +2691,9 @@ $('#ratego').addEventListener('click',function(){
    The tab owns two things and nothing else on the page reads them: which
    mock is on screen, and what the one button underneath says. */
 var MROOM={
-  reddit:{pane:'mrp-reddit',tab:'mrt-reddit',cta:'Join r/whollar',msg:'Prototype: this will open the member subreddit.'},
-  x:{pane:'mrp-x',tab:'mrt-x',cta:'Follow us on X',msg:'Prototype: this will open @Whollar_ca on X.'},
-  linkedin:{pane:'mrp-li',tab:'mrt-li',cta:'Follow us on LinkedIn',msg:'Prototype: this will open the Whollar page on LinkedIn.'}
+  reddit:{pane:'mrp-reddit',tab:'mrt-reddit',cta:'Join r/whollar',msg:'The member subreddit opens with the first cohort.'},
+  x:{pane:'mrp-x',tab:'mrt-x',cta:'Follow us on X',url:'https://x.com/whollar_ca'},
+  linkedin:{pane:'mrp-li',tab:'mrt-li',cta:'Follow us on LinkedIn',url:'https://www.linkedin.com/company/whollar/'}
 };
 var MRNETS=['reddit','x','linkedin'],mrNet='reddit';
 function pickRoom(net){
@@ -2691,9 +2719,35 @@ $$('.mrtab').forEach(function(b){
     pickRoom(next);$('#'+MROOM[next].tab).focus();
   });
 });
-$('#mrcta').addEventListener('click',function(){toast(MROOM[mrNet].msg)});
+/* Live networks open in a new tab. Reddit has no address yet, so it keeps a
+   message rather than a dead link. */
+$('#mrcta').addEventListener('click',function(){
+  var r=MROOM[mrNet];
+  if(r.url){window.open(r.url,'_blank','noopener');return;}
+  toast(r.msg);
+});
 /* ---------- campaigns: cards, sheet, joins ---------- */
 function campById(id){for(var i=0;i<CAMPS.length;i++)if(CAMPS[i].id===id)return CAMPS[i];return null}
+/* THE SERVER'S LIST IS THE WHOLE ANSWER ABOUT MEMBERSHIP, including its
+   silences. CAMPS is seeded with london-east marked `you:'joined'` so the demo
+   tour has a cohort, and deriveState() already refuses to read that seed until
+   a LIVE answer has arrived. That guard was not enough: GET /campaigns returns
+   `visible(cat.list)`, which is a SUBSET (archived cohorts are dropped, and the
+   catalog need not carry the six ids seeded here). Any seeded campaign the
+   server did not name therefore kept its seeded `you`, so the moment
+   london-east archives, or the catalog is anything but this exact six,
+   joinedCamp() answered with it and every member on the site, including one who
+   joined nothing, was shown "Your campaign · London East · Autumn cohort", a
+   forming rail at 61 of 100, a dated calendar and an activity feed. All of it
+   invented, none of it theirs.
+   Counts are a different matter and deliberately keep their seeds: they are
+   cosmetic baselines that the code already chooses to hold on a failed poll.
+   `you` is not cosmetic. An unmentioned campaign is one this member is not in. */
+function clearUnnamedMembership(list){
+  var named={};
+  (list||[]).forEach(function(sc){if(sc&&sc.id)named[sc.id]=true});
+  CAMPS.forEach(function(c){if(!named[c.id])c.you=null});
+}
 function applyCampaign(sc){
   var c=sc&&campById(sc.id);if(!c)return;
   if(typeof sc.members==='number')c.members=sc.members;
@@ -2708,12 +2762,19 @@ function applyCampaign(sc){
   if(sc.dates)c.dates=sc.dates;
   if(sc.next!==undefined)c.next=sc.next;
 }
-/* One cohort drives the hero panel; keep it and the London East card telling
-   the same story, whichever one a change lands in first. */
+/* One cohort drives the hero panel, and it is the member's own.
+   This read london-east unconditionally, which is right for the "Campaigns near
+   you" row (that card IS London East) and wrong for the panel above it: a
+   member who joined Windsor got a dot cluster and an "N of 100 households" line
+   counting London East's households, while the campaign history two cards down
+   counted Windsor's. Two numbers for one cohort on one screen.
+   London East stays the fallback, because that is what the seeded card and the
+   join CTA are about for a member who has joined nothing yet. */
 function syncCohortFromCamps(){
-  var le=campById('london-east');
-  S.cohort.have=le.members;S.cohort.need=le.target;S.cohort.locked=le.households;
-  FEED.forming[1]=['Today',le.members+' of '+le.target+' households in'];
+  var c=(CAMPLIVE&&joinedCamp())||campById('london-east');
+  if(!c)return;
+  S.cohort.have=c.members;S.cohort.need=c.target||100;S.cohort.locked=c.households;
+  FEED.forming[1]=['Today',c.members+' of '+S.cohort.need+' households in'];
 }
 /* Campaign history's "in play" panel: everything the member has put their
    name against: a joined cohort, a waitlist spot, an opening-day alert. The
@@ -2727,8 +2788,12 @@ function paintHistory(){
   $('#hist-live-rows').innerHTML=live.map(function(c){
     var tag,cnt,act='';
     if(c.you==='joined'){
-      tag='<span class="rtag live">Your cohort · '+esc(PILL[S.state])+'</span>';
-      cnt=c.members+' of '+c.target+' households';
+      /* PILL has no entry for the three visitor states, and a joined member CAN
+         be in one of them: joining a cohort whose kind is 'planned' derives
+         'waitlist', which is not in STATES. That rendered "Your cohort ·
+         undefined". Name the standing instead of leaking the gap. */
+      tag='<span class="rtag live">Your cohort · '+esc(PILL[S.state]||'Not open yet')+'</span>';
+      cnt=c.members+' of '+(c.target||100)+' households';
       if(S.state==='forming')act='<button class="ccleave" type="button" data-leave="'+c.id+'">Leave this cohort</button>';
     }else if(c.you==='waitlist'){
       tag='<span class="rtag live">You’re on the waitlist</span>';
@@ -2782,7 +2847,8 @@ document.addEventListener('click',function(e){
   if(l){doLeave(l.getAttribute('data-leave'));return}
 });
 $('#c-text').addEventListener('click',function(){toast('Prototype: opens your messages.')});
-$('#c-mail').addEventListener('click',function(){location.href='mailto:info@whollar.com'});
+/* "Email us" and "Send us a message" are plain anchors now; only the SMS
+   placeholder still needs a handler. */
 /* Notify bells: a region card's bell sets a real opening-day alert via
    POST /campaigns/notify (idempotent server-side; never downgrades a join).
    Bells with no matching campaign (Mobile cohorts, Streaming tracking) log
@@ -2793,7 +2859,13 @@ document.addEventListener('click',function(e){
   b.classList.add('on');
   var c=null;
   for(var i=0;i<CAMPS.length;i++)if(CAMPS[i].region===name){c=CAMPS[i];break}
-  var done=function(){toast('Noted. We\u2019ll text you the day '+name+' opens.')};
+  /* Two kinds of bell share this handler and they are not the same sentence.
+     A region opens; "Mobile cohorts" and "Streaming tracking" are products, and
+     telling someone "the day Mobile cohorts opens" reads as a typo. */
+  var done=function(){
+    toast(c?('Noted. We\u2019ll text you the day '+name+' opens.')
+           :('Noted. We\u2019ll text you when '+name+' is ready.'));
+  };
   if(c&&W&&W.session&&W.session.campaignNotify){
     W.session.campaignNotify(c.id).then(function(r){
       if(r&&r.campaign)applyCampaign(r.campaign);else if(!c.you)c.you='alert';
@@ -3254,9 +3326,29 @@ function routeVisitor(){
   return false;
 }
 
+/* The "Campaigns near you" London East row: its count and bar.
+   This lived inside render(), below the `if(routeVisitor()) return`, so it only
+   ever ran for a member already in a cohort. In every visitor lane, which is
+   where this card IS the join CTA, the row kept the 61 of 100 written into the
+   markup no matter what the server said the count was. Painted from CAMPS on
+   both lanes now, and always about london-east: this row is that card, not
+   whichever cohort the member joined. */
+function paintRegionCount(){
+  var le=campById('london-east');if(!le)return;
+  var need=le.target||100;
+  var joined=CAMPLIVE?joinedCamp():null;
+  var mine=joined&&joined.id==='london-east';
+  var rm=$('#regmono');
+  if(rm)rm.textContent=(mine&&S.state!=='forming'&&S.state!=='closing')
+    ? (le.households+' households, '+String(PILL[S.state]||'').toLowerCase())
+    : (le.members+' of '+need+' households');
+  var rp=$('#regprog');if(rp)rp.style.width=Math.min(100,Math.round(le.members/need*100))+'%';
+}
+
 /* ---------- region row sync (the London East card doubles as the join CTA) ---------- */
 function syncRegions(){
   var first=$('#cc-first');if(!first)return;
+  paintRegionCount();
   var badge=$('#regbadge'),btn=$('#ccjoin');
   if(!S.joined&&VIS.indexOf(S.state)>-1){
     badge.textContent=S.state==='waitlist'?'Elsewhere · open to join':'Open to join · closes Sep 12';
@@ -3551,6 +3643,11 @@ if(W&&W.session&&W.session.campaignsList){
       if(r.serverTime)SKEW=r.serverTime-Date.now();
       CAMPLIVE=Boolean(r.live);
       var before=S.state;
+      /* Before applying, not after: the server's silence about a campaign is
+         as much of an answer as its rows. See clearUnnamedMembership. Gated on
+         `live` for the same reason deriveState is, so a degraded read (counts
+         unavailable) does not read as "you left everything". */
+      if(CAMPLIVE)clearUnnamedMembership(r.campaigns);
       (r.campaigns||[]).forEach(applyCampaign);
       syncCohortFromCamps();
       applyDerived();

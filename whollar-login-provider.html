@@ -462,8 +462,10 @@ var W=window.WHOLLAR;
 
 /* Where a partner lands once signed in. /partner is the console; anything
    carried in ?next= is validated same-origin before it is followed.
-   /provider-dashboard is the previous console and still deploys, so a partner
-   who has it bookmarked keeps working while the remaining views land. */
+   /provider-dashboard was the previous console and was retired on 2026-08-14
+   (see .vercelignore). A ?next= still carrying it is same-origin and therefore
+   followed, and vercel.json 301s it here, so an old bookmark lands on the real
+   console rather than on the v3 demo seeds it used to show. */
 function nextTarget(){
   return W.safeNext(new URLSearchParams(location.search).get('next'), '/partner');
 }

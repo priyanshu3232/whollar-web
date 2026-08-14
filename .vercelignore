@@ -18,6 +18,22 @@ whollar-member-dashboard-v8.html
 # (its features were ported in), no login guard, must never deploy.
 Consumerdashboard.html
 
+# The v3 partner console, superseded by partner/ and retired on 2026-08-14.
+# It IS guarded, which is exactly what made it worse than the prototypes above:
+# a real, approved partner reaching /provider-dashboard was shown seven declared
+# coverage regions they never declared, four auctions with live countdowns, and
+# a billing cycle reading "24 completed, $95 each": every figure a demo seed,
+# none of it labelled as one, and none of it replaced when the campaigns and
+# coverage APIs answered with the partner's real (empty) lists. It also derives
+# cohort stage in the browser from a virtual clock and hardcodes the $95 success
+# fee, which CLAUDE.md forbids on both counts.
+# The file stays in the repo as the port's reference (partner/index.html cites
+# it) and stays registered in the footer and inline-script gates. It just does
+# not publish. vercel.json redirects /provider-dashboard to /partner, so an old
+# bookmark still lands somewhere real: redirects are evaluated before the
+# filesystem, so that holds whether or not this line is here.
+provider-dashboard.html
+
 # Reference prototypes being ported into real pages. Same reason again, and
 # note docs/ itself IS deployed (the .md files are harmless), so an .html file
 # left in docs/ would publish at /docs/prototype/<name>. The partner console
@@ -57,7 +73,7 @@ MobileVersion/overlays
 
 # Working files no live page references (verified against every page,
 # including the decoded bundle templates).
-# NOTE: *.lottie and retail.jpg are deliberately NOT listed — partners.html,
+# NOTE: *.lottie and retail.jpg are deliberately NOT listed: partners.html,
 # provider-mobile and the waitlist builds still reference them.
 .backup
 Become_a_founding_member_of_Whollar

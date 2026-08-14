@@ -176,8 +176,16 @@ console.log('\n4. a 401 from /provider/me signs the tab out');
 console.log('\n5. a NETWORK failure must NOT sign anyone out');
 {
   const c = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-  await c.route('**/api/auth/provider/me', r => r.abort('failed'));
-  await c.route('**/api/auth/me/prefs', r => r.abort('failed'));
+  /* EVERY call, not just the two the console made when this group was written.
+     Naming a pair left coverage, campaigns, bids and the application on the
+     network, where scripts/dev-server.mjs proxies them to the live Development
+     backend. That backend has no session for this context, so it answered 401,
+     and a 401 during boot correctly signs the tab out, which meant this group
+     was asserting the opposite of what it says on the tin, and failing for a
+     reason that had nothing to do with the network.
+     Offline is offline: abort the lot, which is also the shape of the outage
+     this group exists to describe. */
+  await c.route('**/api/auth/**', r => r.abort('failed'));
   await c.addInitScript(rec => {
     if (sessionStorage.getItem('whl-seeded')) return;
     sessionStorage.setItem('whl-seeded', '1');

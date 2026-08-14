@@ -133,6 +133,16 @@
       "source": "/whollar-thankyou",
       "destination": "/thank-you",
       "statusCode": 301
+    },
+    {
+      "source": "/provider-dashboard",
+      "destination": "/partner",
+      "statusCode": 301
+    },
+    {
+      "source": "/provider-dashboard.html",
+      "destination": "/partner",
+      "statusCode": 301
     }
   ]
 }
