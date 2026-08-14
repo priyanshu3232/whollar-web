@@ -2704,6 +2704,28 @@ $('#mrcta').addEventListener('click',function(){
   if(r.url){window.open(r.url,'_blank','noopener');return;}
   toast(r.msg);
 });
+/* ONE member-room card, MOVED between the two homes rather than copied into
+   both. The toggle carries ids (aria-controls, aria-labelledby, and the ones
+   pickRoom looks tabs and panes up by), and its tab and CTA listeners were
+   bound once against the markup in #member-home. A second copy would therefore
+   duplicate every one of those ids and still arrive with nothing wired to it.
+   The two homes are mutually exclusive, whichever is not in use is `hidden`,
+   so one card is enough, and moving a node carries its listeners with it.
+
+   Before this the visitor lane built its own card from a string: no network
+   toggle, no mock, its own wording, and a button whose only answer was a toast.
+   That is the card every visitor saw, which is everyone who has not joined,
+   while the toggle this replaces it with shipped to members only. */
+var MRHOME=null;
+function mountMemberRoom(toVisitor){
+  var card=$('.mroom');
+  if(!card)return;
+  if(!MRHOME)MRHOME=card.parentNode;
+  /* .trio styles its DIRECT children, so the card joins the row itself and is
+     never wrapped in a slot element. */
+  var host=toVisitor?$('#visitor-home .vtrio'):MRHOME;
+  if(host&&card.parentNode!==host)host.appendChild(card);
+}
 /* ---------- campaigns: cards, sheet, joins ---------- */
 function campById(id){for(var i=0;i<CAMPS.length;i++)if(CAMPS[i].id===id)return CAMPS[i];return null}
 /* THE SERVER'S LIST IS THE WHOLE ANSWER ABOUT MEMBERSHIP, including its
@@ -3111,19 +3133,15 @@ function readsCardHTML(){
   }).join('');
   return '<section class="card" aria-label="Worth a read"><span class="eyebrow">Worth a read</span><ul class="reads">'+lis+'</ul><button class="tlink" type="button" data-nav="knowledge">See all &rarr;</button></section>';
 }
-function redditCardHTML(){
-  return '<section class="card" aria-label="The member room">'
-  +'<span class="eyebrow">The member room</span><h3>Talk to other members</h3>'
-  +'<p class="cardnote">Hosted on Reddit while we’re small: bill wins, provider stories, and each cohort’s own thread the day bidding starts.</p>'
-  +'<button class="btn ghost redditgo" type="button">Join us on Reddit</button></section>';
-}
+/* The visitor lane's own member-room card used to be built here. It is gone:
+   mountMemberRoom() moves the real one into this row instead, so the toggle,
+   the three mocks and the per-network CTA are the same on both sides of the
+   join. Its `.redditgo` handler went with it; MROOM.reddit.msg, the answer it
+   gave, is still what the card's own CTA says while the subreddit has no
+   address yet. */
 document.addEventListener('click',function(e){
   if(e.target.closest('.copyrefc')){copyRef();return}
   if(e.target.closest('.sharerefc')){shareRef();return}
-  /* Same answer the member card's own CTA gives (MROOM.reddit.msg): there is
-     no subreddit address yet, so this says so rather than calling itself a
-     prototype at somebody who is signed in. */
-  if(e.target.closest('.redditgo'))toast(MROOM.reddit.msg);
 });
 
 /* ---------- animated invoice (the promo-cliff story, from the checkup) ---------- */
@@ -3240,9 +3258,15 @@ function rvWaitlist(){
 /* ---------- visitor layout: main + aside + shared tiles ---------- */
 function renderVisitorX(){
   var main=S.state==='arrive'?rvArriveX():(S.state==='result'?rvResult():rvWaitlist());
+  /* Park the member-room card back in #member-home BEFORE the write below.
+     Once it has been moved here, it lives inside #visitor-home, and this
+     innerHTML would destroy the only copy: the first visitor render would look
+     right and every one after it would have no card at all. */
+  mountMemberRoom(false);
   $('#visitor-home').innerHTML='<div class="grid2"><div class="vmain">'+main+'</div>'
    +'<aside class="aside">'+referralHTML()+'</aside></div>'
-   +'<div class="trio vtrio">'+readsCardHTML()+redditCardHTML()+'</div>';
+   +'<div class="trio vtrio">'+readsCardHTML()+'</div>';
+  mountMemberRoom(true);
   if(S.state==='arrive')invKick();
 }
 
@@ -3306,6 +3330,10 @@ function routeVisitor(){
   }
   syncRegions();
   $$('#sts button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-goto')===S.state)});
+  /* Both directions, because the demo switcher moves between the two homes in
+     one session: a member lane that ran after a visitor lane would otherwise
+     find its trio still missing the card. */
+  if(!isVis)mountMemberRoom(false);
   if(isVis){renderVisitorX();return true}
   return false;
 }
