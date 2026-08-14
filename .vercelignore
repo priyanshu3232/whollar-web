@@ -100,3 +100,7 @@ node_modules
 # and a copy nobody can date is a copy nobody deletes. All three carry a full
 # signed-in dashboard.
 *.pre-worth-a-read.bak
+
+# Same reason again, for the Home layout pass. Carries the full signed-in
+# dashboard, so it must never publish.
+*.pre-layout-fix.bak

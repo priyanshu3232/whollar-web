@@ -14,6 +14,11 @@
      empty localStorage. Synchronous and in the head so the guard at the foot of
      the body can rely on it. -->
 <script src="/js/whollar-core.js?v=20260814b"></script>
+<!-- The same savings engine /bill-checkup runs, so the deal signal band states
+     the checkup's verdict rather than a second opinion about the same bill.
+     Nothing here recomputes what the engine already decides: the band feeds it
+     the member's stored bill and prints what comes back, assumptions included. -->
+<script src="/js/checkup-savings.js?v=20260813"></script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -408,6 +413,43 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 @keyframes sigpulse{50%{opacity:.55}}
 @media (prefers-reduced-motion:reduce){.cliff.sig-pulse .cg__arc{animation:none}}
 
+/* ---------- the checkup verdict, inside the band ----------
+   The figure pair and the promo strip are /bill-checkup's result card, ported
+   to the band's warm palette instead of its dark teal one: same two numbers in
+   the same order (what you pay now, then the hero figure), same promo strip
+   under them. The band owns the colour, the engine owns the numbers.
+   The ring to the right is untouched: it answers "when", these answer "how
+   much", and both read off the one bill. */
+.sigfig{display:flex;align-items:stretch;gap:clamp(16px,2.6vw,30px);margin:16px 0 4px;background:rgba(255,255,255,.55);border:1px solid #EBD8C6;border-radius:16px;padding:16px clamp(15px,2.2vw,22px);max-width:56ch}
+.sigfig[hidden]{display:none}
+.sigfig .fig{display:flex;flex-direction:column;justify-content:flex-end;min-width:0}
+.sigfig .figsep{width:1px;background:#EBD8C6;flex:none}
+.sigfig .fig--hero{flex:1}
+.figk{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:#9C8A78;line-height:1.4}
+.figv{font-family:var(--disp);font-weight:900;letter-spacing:-.03em;color:#5A3822;font-size:clamp(22px,2.6vw,28px);line-height:1.05;margin-top:8px}
+.figv em{font-style:normal;font-size:.5em;font-weight:700;color:#9C8A78;letter-spacing:0}
+/* The hero figure reads the ENGINE'S tone, not the band's theme. Those two
+   answer different questions and routinely disagree: a household eight months
+   from its reset is green on the ring and can still be paying a third over the
+   market, and painting that figure green would tell them the opposite of what
+   it says. Ring urgency is time, figure colour is money. */
+.figv--big{font-size:clamp(30px,4vw,42px)}
+.sigfig.tone-fair .figv--big{color:var(--accent-deep)}
+.sigfig.tone-moderate .figv--big{color:var(--terra)}
+.sigfig.tone-high .figv--big,.sigfig.tone-no-benchmark .figv--big{color:#8C4622}
+.figsub{font-size:12px;color:#7B6857;margin-top:8px;line-height:1.45}
+/* The checkup prints a promo strip under these figures, naming the month the
+   rate moves. It is not ported: the ring to the right counts down to that same
+   date, so a strip would be the band saying the same thing twice at the cost
+   of 60px of height. The month itself is kept, on the mono line below. */
+/* Where the figure had to assume something the file does not hold. The checkup
+   shows this behind an (i); the band has room to say it plainly, which matters
+   more here because nobody chose to be on this screen. */
+.signote{font-size:12.5px;color:#7B6857;margin-top:10px;max-width:56ch;line-height:1.55}
+.signote[hidden]{display:none}
+.signote a{color:#8C4622;font-weight:700}
+@media (max-width:620px){.sigfig{flex-wrap:wrap}.sigfig .figsep{display:none}}
+
 
 
 
@@ -761,11 +803,6 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .ckprompt{margin-bottom:20px}
 .ckprompt h3{font-size:21px}
 .ckprompt .btn{margin-top:14px}
-.vres{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
-.vres>div:first-child{flex:1;min-width:230px}
-.vnum{background:#F7F3E8;border:1px solid var(--line);border-radius:14px;padding:13px 18px;text-align:center}
-.vnum b{display:block;font-family:var(--disp);font-size:29px;color:#8C4622}
-.vnum span{font-size:11px;color:var(--sub);font-weight:600}
 .demochip{font-family:var(--mono);font-size:9.5px;background:#F2E3D6;color:#8C4622;border-radius:6px;padding:2px 7px;margin-left:6px;letter-spacing:0;text-transform:none;vertical-align:1px}
 .elig{margin-top:10px;background:var(--mint);border-left:3px solid var(--accent);border-radius:0 10px 10px 0;padding:9px 13px;font-size:13px;color:#2E3A33}
 .modal{position:fixed;inset:0;background:rgba(26,37,32,.45);backdrop-filter:blur(3px);display:grid;place-items:center;padding:18px;z-index:90}
@@ -918,8 +955,23 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
             <div class="siglabel" id="sig-eyebrow">Your deal signal</div>
             <div class="sigbars" id="sig-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><span class="arr">&rarr;</span><i></i><i></i><i></i></div>
             <h2 id="cliffh2">We&rsquo;re still pinpointing your reset.</h2>
+            <!-- The checkup's own figure pair. Hidden until the engine has a
+                 bill to work from; the reset copy below stands alone until then. -->
+            <div class="sigfig" id="sig-fig" hidden>
+              <div class="fig">
+                <span class="figk" id="sig-nowk">You pay now</span>
+                <span class="figv" id="sig-now">&ndash;</span>
+              </div>
+              <span class="figsep"></span>
+              <div class="fig fig--hero">
+                <span class="figk" id="sig-herok">You could save up to</span>
+                <span class="figv figv--big" id="sig-hero">&ndash;</span>
+                <span class="figsub" id="sig-sub"></span>
+              </div>
+            </div>
             <p class="read" id="sig-read">Add your promo end date (it&rsquo;s on your bill&rsquo;s &ldquo;Savings&rdquo; line) and we&rsquo;ll time your cohort to close bidding before the jump.</p>
             <p class="ctx" id="sig-ctx" hidden></p>
+            <p class="signote" id="sig-note" hidden></p>
           </div>
           <!-- Every value here is written by the cliff module below, from the
                promo end date on the member's bill. Nothing is authored. -->
@@ -1596,7 +1648,6 @@ S.joined=false;S.checkup=null;S.prefs=null;S.pass=null;
    backend exposes member-readable bids). */
 var WIN={name:'Northline Internet',price:54.5,speed:'500 Mbps',guar:'Price guaranteed 24 months',
  after:'$69 regular rate after, told up front',inc:'Install, modem and in-home WiFi included',bids:3};
-var MEDIAN=67; /* demo going-rate figure, labelled as such in the result card */
 
 /* ---------- the real winning offer ----------
    WIN and OFFERS above are the prototype's fixtures: Northline Internet at
@@ -1839,6 +1890,137 @@ function resetSignal(headline,end){
   };
 }
 
+/* ---------- the checkup verdict, from the member's own bill ----------
+   The band used to say one thing about the reset and nothing about the money,
+   while /bill-checkup said both. This runs THE SAME engine that page runs
+   (js/checkup-savings.js) against the bill already on file, so the two
+   surfaces cannot disagree: one engine, one set of numbers, and where the file
+   is thinner than the checkup's nine answers the engine's own `basis` tag says
+   so in the note under the figures.
+
+   What the file cannot give it: the post promo sticker price and the multi
+   period structure. rememberBill() stores neither, so `after` is always null
+   here and the basis is always 'dated-no-sticker' or 'current-only', both of
+   which hold today's rate for the full window. The figure is therefore a
+   floor, never an inflated claim, and the note says exactly that. If a sticker
+   price ever lands on the bill record, pass it as `after` and the note
+   disappears on its own. */
+function billSpeedMbps(v){
+  if(v==null||v==='')return 0;
+  var m=/^(\d+(?:\.\d+)?)\s*(g|gig|gigs|gbps|gb)?/i.exec(String(v).trim());
+  if(!m)return 0;
+  var n=parseFloat(m[1]);
+  if(!isFinite(n))return 0;
+  return m[2]?Math.round(n*1000):Math.round(n);
+}
+/* The engine wants 'YYYY-MM-DD'. A bill that only names a month resolves the
+   same way each field means it: a promo billed through November has not ended
+   on the 1st, a contract that started in November started at its beginning. */
+function isoDay(raw,first){
+  var d=parsePromoEnd(raw);
+  if(!d)return null;
+  if(first){
+    var m=/^(\d{4})-(\d{2})$/.exec(String(raw||'').trim());
+    if(m)d=new Date(+m[1],+m[2]-1,1);
+  }
+  var mm=d.getMonth()+1,dd=d.getDate();
+  return d.getFullYear()+'-'+(mm<10?'0':'')+mm+'-'+(dd<10?'0':'')+dd;
+}
+function memberProvince(){
+  if(MEMBER&&MEMBER.province)return MEMBER.province;
+  var p=(MEMBER&&MEMBER.fsa)?W.parsePostal(MEMBER.fsa):null;
+  return p?p.province:null;
+}
+/* Two fields are not optional here, and both for the same reason: the
+   benchmark is the cheapest plan that delivers AT LEAST the speed they already
+   have, so a bill with no speed on it would be scored against the cheapest
+   plan at ANY speed, which is a downgrade wearing the word "savings". A bill
+   the join page wrote can be exactly that thin. No speed, no figure, and the
+   band falls back to the reset copy it has always had. */
+function checkupInput(){
+  var b=MEMBER&&MEMBER.bill;
+  if(!b)return null;
+  var during=Number(b.monthly),mb=billSpeedMbps(b.speed);
+  if(!isFinite(during)||during<=0||!mb)return null;
+  return {province:memberProvince(),speedMbps:mb,
+    during:during,after:null,multi:false,periods:[],fallback:null,
+    startDate:isoDay(b.contractStart,true),promoEnd:isoDay(b.promoEnd,false)};
+}
+function fmt0(n){return '$'+Math.round(Math.abs(n)).toLocaleString('en-CA')}
+/* Word for word the note /bill-checkup shows behind its (i). The band has the
+   room to say it in the open, which matters more here: nobody chose to be on
+   this screen, so an unexplained figure would be read as a promise. */
+var ASSUME_NOTE={
+  'midpoint-estimate':'We estimated the timing. With no promo end date on file we assumed the increase lands halfway through the year. Add the date and this number sharpens.',
+  'current-only':'We assumed no increase. With no promo end date and no post promo price on file we held your current rate for the whole year. If a jump is coming, the real figure is larger.',
+  'dated-no-sticker':'We assumed no increase. Without your post promo price we held your current rate rather than guess at the jump. If a jump is coming, the real figure is larger.'
+};
+function checkupVerdict(){
+  var E=window.WhollarSavings,input=checkupInput();
+  if(!E||!input)return null;
+  var r=E.computeCheckup(input);
+  var term=r.months,v={assume:null,tone:r.tone};
+  for(var i=0;i<r.assumptions.length;i++){
+    if(ASSUME_NOTE[r.assumptions[i]]){v.assume=ASSUME_NOTE[r.assumptions[i]];break}
+  }
+  v.now=r.now.amount?fmt0(r.now.amount)+'<em>/mo</em>':'&ndash;';
+  v.nowLabel=r.now.postPromo?'You pay now, post promo':'You pay now';
+  if(!r.ok){
+    v.head='Nobody is publishing a price for what you have.';
+    v.heroLabel='What the next '+term+' months cost you';
+    v.hero=fmt0(r.current.total);v.sub='at the rates you are on now';
+    v.body='At your speed there is no published rate in your province to hold your bill against, which tells you something on its own.';
+    return v;
+  }
+  var over=r.savings,pct=r.overPct,paid=r.overpaid;
+  var span='by moving to the best rate at your speed, over the next '+term+' months';
+  var start=fmtMonthYear((MEMBER&&MEMBER.bill||{}).contractStart);
+  var since=start?(' since '+start):' so far';
+  if(pct<0.10){
+    v.head='You are ahead today. Terms end, and prices reset.';
+    v.heroLabel='What the next '+term+' months cost you';
+    v.hero=fmt0(r.current.total);v.sub='at the rates you are on now';
+    v.body='You found a good rate on your own, which most households never manage. The catch is that it holds only as long as your term does, and the reset is never announced.';
+  }else if(pct<0.35){
+    v.head='Staying put has a price. Here is yours.';
+    v.heroLabel='You could save up to';
+    v.hero=fmt0(over);v.sub=span;
+    v.body='You never signed up for this price. Gaps this size are set deliberately, large enough to matter over a year and small enough that checking never feels urgent.'
+      +(paid?(' It has already cost you around '+fmt0(paid)+since+'.'):'');
+  }else{
+    v.head='Your loyalty is costing you a fortune.';
+    v.heroLabel='You could save up to';
+    v.hero=fmt0(over);v.sub=span;
+    v.body='You never signed up for this price. '
+      +(paid?('It has already cost you around '+fmt0(paid)+since+'. ')
+             :'It arrived when a promotion ended, and every month since has carried it. ')
+      +'Prices do not fall because a household deserves it. They fall when someone has to win the household.';
+  }
+  return v;
+}
+/* One owner for the four verdict nodes, in both directions: a bill that goes
+   away (or a sync that lands one) has to be able to take them back. */
+function paintVerdict(){
+  var fig=$('#sig-fig'),note=$('#sig-note'),h2=$('#cliffh2'),read=$('#sig-read');
+  if(!fig)return null;
+  var v=checkupVerdict();
+  if(!v){fig.hidden=true;note.hidden=true;return null}
+  $('#sig-nowk').textContent=v.nowLabel;
+  $('#sig-now').innerHTML=v.now;
+  $('#sig-herok').textContent=v.heroLabel;
+  $('#sig-hero').textContent=v.hero;
+  $('#sig-sub').textContent=v.sub;
+  fig.className='sigfig tone-'+v.tone;
+  fig.hidden=false;
+  if(h2)h2.textContent=v.head;
+  if(read)read.innerHTML=v.body;
+  if(v.assume){
+    note.innerHTML=esc(v.assume)+' <a href="/bill-checkup?from=dashboard">Run the full checkup &rarr;</a>';
+    note.hidden=false;
+  }else{note.innerHTML='';note.hidden=true}
+  return v;
+}
+
 function paintCliff(){
   var s=dealSignal(),g=$('#cliffgauge');
   if(!g)return;
@@ -1865,15 +2047,26 @@ function paintCliff(){
   ttl.textContent=s.title;
   if(h2)h2.textContent=s.headline;
 
+  /* The verdict LAST, and only where there is a bill to run it against: the
+     ring, the pips and the theme still come from the reset date above, and the
+     headline and body are handed over to the checkup's own words when the
+     engine has something to say. Order matters: this overwrites the two nodes
+     the signal just wrote, and the empty-file case falls back to them. */
+  paintVerdict();
+
   /* The mono context line: the member's own numbers or nothing, never a
-     sample household's. */
+     sample household's. The promo month rides here now that the verdict has
+     the headline: the ring says how long, this says which month, and neither
+     costs a line of its own. */
   var ctx=$('#sig-ctx');
   if(ctx){
     var bill=MEMBER&&MEMBER.bill;
+    var pend=parsePromoEnd(bill&&bill.promoEnd);
     var parts=[
       bill&&bill.provider,
       bill&&fmtMonthly(bill.monthly)?fmtMonthly(bill.monthly)+'/mo':null,
       bill&&fmtSpeed(bill.speed),
+      pend?('promo '+(s.past?'ended ':'ends ')+MONTHS[pend.getMonth()].slice(0,3)+' '+pend.getFullYear()):null,
       (MEMBER&&MEMBER.fsa)||null
     ].filter(Boolean);
     ctx.textContent=parts.join(' · ');
@@ -3528,19 +3721,16 @@ function rvArriveX(){
   +'</section>';
 }
 /* ---------- visitor: result ---------- */
+/* The diagnosis itself is the band's now, computed by the real savings engine
+   from the member's own bill. This used to repeat it here from a demo going
+   rate (MEDIAN=67, labelled "demo figure" and still shown to real members),
+   which put two different answers about the same bill on one screen. What is
+   left is the step the band cannot take: the cohort they can join. */
 function rvResult(){
   var c=S.checkup||{prov:'your provider',bill:0,speed:'',promo:'Not sure'};
-  var over=c.bill?Math.max(0,c.bill-MEDIAN):0;
   var le=featuredCamp();
   var have=le?le.members:61,need=le?(le.target||100):100;
-  return '<section class="card vfirst" aria-label="Your result">'
-  +'<div class="vres"><div>'
-  +'<span class="eyebrow" style="color:#8C4622">Your checkup result <span class="demochip">going rate is a demo figure</span></span>'
-  +'<h3>'+(over>0?('Likely overpaying by about '+money(over)+'/mo'):'You’re close to the market, for now')+'</h3>'
-  +'<p class="cardnote">'+(over>0?('Households like yours around here typically pay about '+money(MEDIAN)+(c.speed?' for '+esc(c.speed):'')+'. Yours is '+money(c.bill)+(c.promo!=='Not sure'?', and your promo reset lands around '+esc(c.promo)+', which usually pushes it higher.':'.')):'Your promo is doing its job today. '+(c.promo!=='Not sure'?'The reset around '+esc(c.promo)+' is when that changes, and a cohort is how you get ahead of it.':'Add your promo end date and we’ll flag the reset before it lands.'))+'</p>'
-  +'</div>'+(c.bill?'<div class="vnum"><b>'+money(c.bill)+'</b><span>your bill /mo</span></div>':'')+'</div>'
-  +'</section>'
-  +openCohortHTML(le,have,need,c);
+  return openCohortHTML(le,have,need,c);
 }
 
 /* ---------- the "Open in your area" card ----------
