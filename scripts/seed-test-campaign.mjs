@@ -13,6 +13,11 @@
  * Catalyst console (Data Store -> campaigns -> the row -> edit), exactly like
  * every other schema change in this repo.
  *
+ * For the same calendar as a single ZCQL UPDATE, plus what each date does to
+ * both dashboards, see `node scripts/cohort.mjs calendar <id>`. This file stays
+ * for its stage-by-stage table, which is the clearer thing to read while you
+ * are watching a cohort move.
+ *
  * Catalyst wants 'YYYY-MM-DD HH:MM:SS' in **UTC**, which is not ISO-8601 and
  * is not local time. Both are printed: paste the UTC one, read the local one.
  *

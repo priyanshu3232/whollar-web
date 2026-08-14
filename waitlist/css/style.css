@@ -37,22 +37,38 @@
 .whl-btn--go:hover{background:var(--accent-hover)}
 .whl-eyebrow{display:inline-block;font-family:var(--label);font-weight:600;font-size:12.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);margin:0 0 14px}
 
-.split{display:grid;grid-template-columns:1.05fr 1fr;min-height:calc(100vh - 59px);position:relative}
-.hs-left{background:linear-gradient(160deg,var(--teal-deep),#123B2C 52%,#17553D);color:#fff;position:relative;overflow:hidden;display:flex;align-items:center}
+/* Panel 44%, form column the rest. The row stretches, so the panel's height is
+   the taller of the two columns rather than a viewport figure: the form pane
+   swaps between four states (account, code, one-question detail, confirmation)
+   whose heights differ by several hundred pixels, and a 100vh floor on the
+   section left a dead green band beside the short ones. The floor now lives on
+   the panel itself and is small enough that the form always sets the height
+   when it is the taller. */
+.split{display:grid;grid-template-columns:44% 1fr;align-items:stretch;position:relative}
+.hs-left{background:linear-gradient(160deg,var(--teal-deep),#123B2C 52%,#17553D);color:#fff;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center;align-self:stretch;height:100%;min-height:clamp(460px,62svh,620px)}
 .hs-left::before{content:"";position:absolute;inset:0;background:radial-gradient(640px 320px at 82% -8%,rgba(127,227,176,.16),transparent 62%),radial-gradient(520px 300px at 0% 112%,rgba(30,158,99,.15),transparent 60%);pointer-events:none}
-.hs-left__mark{position:absolute;right:-70px;bottom:-70px;width:340px;height:340px;opacity:.08;pointer-events:none;z-index:2}
+/* Scales with the panel now that the panel is 44% rather than half the
+   width: at a fixed 340px it read as a third of the artwork. */
+.hs-left__mark{position:absolute;right:-60px;bottom:-60px;width:clamp(200px,24vw,300px);height:auto;aspect-ratio:1;opacity:.08;pointer-events:none;z-index:2}
 .hs-net{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1;pointer-events:none}
-.hs-left__in{padding:clamp(40px,5vw,72px) clamp(28px,4.5vw,64px);position:relative;max-width:640px;z-index:3}
+.hs-left__in{padding:clamp(40px,5vw,72px) clamp(28px,4.5vw,56px);position:relative;max-width:640px;z-index:3}
 .hs-left .whl-eyebrow{color:var(--teal-soft)}
-.hs-left h1{color:#fff;font-weight:900;font-size:clamp(34px,4.4vw,56px);line-height:1.04;text-wrap:balance}
+/* One step down the scale from 56px: the panel is 44% rather than 51% wide
+   now, and the old size broke "founding" onto a line of its own. */
+.hs-left h1{color:#fff;font-weight:900;font-size:clamp(34px,3.8vw,48px);line-height:1.06;text-wrap:balance}
 .hs-left .sub{margin-top:18px;font-size:clamp(15.5px,1.5vw,18px);line-height:1.65;color:rgba(255,255,255,.72);max-width:520px}
 .hs-left .sub b{color:#fff}
 .trust{margin-top:30px;display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center}
 .trust span{display:inline-flex;align-items:center;gap:7px;font-family:var(--label);font-weight:600;font-size:13px;color:rgba(255,255,255,.82)}
 .trust svg{width:15px;height:15px;stroke:var(--teal-soft);stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:none}
 
-.hs-right{background:var(--mist);display:flex;align-items:center;justify-content:center;position:relative}
-.form-pane{width:min(480px,100%);padding:clamp(30px,4vw,48px) clamp(22px,3vw,36px)}
+/* The pane used to be centred in this column under a 480px width, so a 616px
+   column put 68px of dead mist on each side and the pane's own 36px of padding
+   sat on top of that: 104px between the panel edge and the first field, all of
+   it accidental. It is left-aligned against the panel now and the inline start
+   padding is stated once, on the column. */
+.hs-right{background:var(--mist);display:flex;align-items:center;justify-content:flex-start;position:relative;padding-inline:clamp(40px,4vw,72px) clamp(24px,3vw,48px)}
+.form-pane{width:100%;max-width:560px;margin-inline-end:auto;padding:clamp(30px,4vw,48px) 0}
 .form-pane h3{font-size:23px;font-weight:900}
 .form-pane .fsub{margin-top:6px;font-size:13.5px;color:var(--ink-2)}
 .jf{margin-top:15px}
@@ -116,28 +132,11 @@
 .share .cp{flex:none;background:var(--teal);border:none;color:#fff;border-radius:10px;font-size:12.5px;font-weight:600;padding:0 16px;cursor:pointer;transition:background .18s}
 .share .cp:hover{background:var(--teal-deep)}
 
-.meter{margin-top:16px}
-.meter .mrow{display:flex;align-items:center;gap:8px;margin-bottom:7px}
-.meter .mrow span{font-family:var(--label);font-weight:600;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
-.meter .mrow b{margin-left:auto;font-family:var(--disp);font-weight:700;font-size:12.5px;color:var(--accent)}
-.segs{display:flex;gap:4px}
-.segs i{flex:1;height:7px;border-radius:99px;background:#DFE7E2;transition:background .3s}
-.segs i.f{background:var(--accent)}
-.j2f{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
-.j2f .full{grid-column:1/-1}
-.j2f label{display:block;font-family:var(--label);font-weight:600;font-size:11.5px;color:var(--teal);margin-bottom:5px}
-.j2f input,.j2f select,.j2f textarea{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:11px;color:var(--ink);padding:10px 12px;font-size:13.5px;appearance:none;font-family:var(--body)}
-.j2f select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2354625B' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center}
-.j2f input:focus,.j2f select:focus,.j2f textarea:focus{outline:none;border-color:var(--accent)}
-.j2f textarea{resize:vertical;min-height:44px}
-.thr{display:flex;gap:6px;flex-wrap:wrap}
-.thr button{font-size:11.5px;font-weight:600;color:var(--ink-2);background:var(--paper);border:1.5px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
-.thr button.on{background:var(--teal);color:#fff;border-color:var(--teal)}
-.jupl{display:flex;align-items:center;gap:9px;border:1.5px dashed #b9c8bf;border-radius:11px;padding:9px 12px;cursor:pointer;transition:border-color .15s;background:var(--paper)}
-.jupl:hover{border-color:var(--accent)}
-.jupl svg{width:15px;height:15px;flex:none;stroke:var(--accent);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
-.jupl span{font-size:12px;color:var(--ink-2)}
-.jupl em{font-style:normal;font-size:11px;color:var(--accent);font-weight:600}
+/* Stage 2 is one question, so no grid: the .j2f two-column layout, the spot
+   strength meter, the switch-threshold chips and the bill dropzone all went
+   with the fields they belonged to. */
+.j2one{margin-top:16px}
+.j2lab{display:block;font-family:var(--label);font-weight:600;font-size:11.5px;color:var(--teal);margin-bottom:5px}
 .save{margin-top:15px;width:100%;background:var(--accent);font-size:14.5px;padding:12px 18px}
 .skip{display:block;margin:11px auto 0;background:none;border:none;color:var(--ink-3);font-size:12px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .skip:hover{color:var(--ink)}
@@ -154,7 +153,7 @@
 .qty button{width:26px;height:26px;border:none;background:var(--mist);color:var(--teal);border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;line-height:1;display:grid;place-items:center}
 .qty button:hover{background:var(--green-tint)}
 .qty b{min-width:22px;text-align:center;font-family:var(--disp);font-weight:700;font-size:13.5px;color:var(--teal)}
-.svcx{flex:none;display:none;width:130px;background:var(--paper);border:1.5px solid var(--line);border-radius:11px;color:var(--ink);padding:9px 11px;font-size:12.5px;font-family:var(--body)}
+.svcx{flex:none;display:none;width:130px;min-width:0;background:var(--paper);border:1.5px solid var(--line);border-radius:11px;color:var(--ink);padding:9px 11px;font-size:12.5px;font-family:var(--body)}
 .svcrow.on .svcx{display:block}
 .svcx:focus{outline:none;border-color:var(--accent)}
 .sopt{font-weight:400;font-size:10.5px;color:var(--ink-3);text-transform:none;letter-spacing:0}
@@ -272,13 +271,26 @@
 .wm__x{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,.14);border:none;color:#fff;font-size:17px;cursor:pointer;display:grid;place-items:center;z-index:3;line-height:1}
 .wm__x:hover{background:rgba(255,255,255,.24)}
 
-@media (max-width:1020px){
-  .split{grid-template-columns:1fr;min-height:0}
-  .hs-left{min-height:44vh}
-  .hs-right{padding:10px 0 44px}
+/* Stacked below 1024: panel first, form beneath. The panel's desktop floor
+   comes off, so its height is its own padding and copy. */
+@media (max-width:1023.98px){
+  .split{grid-template-columns:1fr}
+  .hs-left{min-height:auto;height:auto;padding-block:clamp(40px,8vw,72px)}
+  .hs-left__in{padding-block:0}
+  .hs-right{padding:10px 20px 44px;justify-content:center}
+  .form-pane{max-width:560px;margin-inline:auto}
   .trio,.stay3{grid-template-columns:1fr}
 }
-@media (max-width:560px){.j2f{grid-template-columns:1fr}}
+@media (max-width:560px){
+  /* 14 rather than 20: the page carries the UA's 8px body margin, so this
+     lands the fields on a 22px gutter. */
+  .hs-right{padding-inline:14px}
+  /* 44px minimum on the stepper controls, and the "Something else" input
+     shares the row instead of forcing it onto a second line. */
+  .qty button{width:44px;height:44px;border-radius:10px}
+  .qty b{min-width:26px}
+  .svcx{flex:1 1 96px;width:auto}
+}
 
 /* thank-you popup */
 .ty-ov{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(10,32,24,.55);backdrop-filter:blur(6px);opacity:0;transition:opacity .3s var(--ease)}

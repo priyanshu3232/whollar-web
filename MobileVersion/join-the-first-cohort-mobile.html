@@ -9,9 +9,9 @@
         t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
         y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
     })(window, document, "clarity", "script", "xrkpgls1yj");
-    /* This form collects a name, email, phone, postal code and optionally a
-       bill. Clarity records session replays, so mask text content by default
-       (PIPEDA / Quebec Law 25). */
+    /* This form collects a name, email, phone and postal code. Clarity records
+       session replays, so mask text content by default (PIPEDA / Quebec
+       Law 25). */
     window.clarity('set','mask','true');
 </script>
 <script src="/js/whollar-core.js?v=20260814a"></script>
@@ -328,22 +328,38 @@
 .whl-btn--go:hover{background:var(--accent-hover)}
 .whl-eyebrow{display:inline-block;font-family:var(--label);font-weight:600;font-size:12.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);margin:0 0 14px}
 
-.split{display:grid;grid-template-columns:1.05fr 1fr;min-height:calc(100vh - 59px);position:relative}
-.hs-left{background:linear-gradient(160deg,var(--teal-deep),#123B2C 52%,#17553D);color:#fff;position:relative;overflow:hidden;display:flex;align-items:center}
+/* Panel 44%, form column the rest. The row stretches, so the panel's height is
+   the taller of the two columns rather than a viewport figure: the form pane
+   swaps between four states (account, code, one-question detail, confirmation)
+   whose heights differ by several hundred pixels, and a 100vh floor on the
+   section left a dead green band beside the short ones. The floor now lives on
+   the panel itself and is small enough that the form always sets the height
+   when it is the taller. */
+.split{display:grid;grid-template-columns:44% 1fr;align-items:stretch;position:relative}
+.hs-left{background:linear-gradient(160deg,var(--teal-deep),#123B2C 52%,#17553D);color:#fff;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center;align-self:stretch;height:100%;min-height:clamp(460px,62svh,620px)}
 .hs-left::before{content:"";position:absolute;inset:0;background:radial-gradient(640px 320px at 82% -8%,rgba(127,227,176,.16),transparent 62%),radial-gradient(520px 300px at 0% 112%,rgba(30,158,99,.15),transparent 60%);pointer-events:none}
-.hs-left__mark{position:absolute;right:-70px;bottom:-70px;width:340px;height:340px;opacity:.08;pointer-events:none;z-index:2}
+/* Scales with the panel now that the panel is 44% rather than half the
+   width: at a fixed 340px it read as a third of the artwork. */
+.hs-left__mark{position:absolute;right:-60px;bottom:-60px;width:clamp(200px,24vw,300px);height:auto;aspect-ratio:1;opacity:.08;pointer-events:none;z-index:2}
 .hs-net{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1;pointer-events:none}
-.hs-left__in{padding:clamp(40px,5vw,72px) clamp(28px,4.5vw,64px);position:relative;max-width:640px;z-index:3}
+.hs-left__in{padding:clamp(40px,5vw,72px) clamp(28px,4.5vw,56px);position:relative;max-width:640px;z-index:3}
 .hs-left .whl-eyebrow{color:var(--teal-soft)}
-.hs-left h1{color:#fff;font-weight:900;font-size:clamp(34px,4.4vw,56px);line-height:1.04;text-wrap:balance}
+/* One step down the scale from 56px: the panel is 44% rather than 51% wide
+   now, and the old size broke "founding" onto a line of its own. */
+.hs-left h1{color:#fff;font-weight:900;font-size:clamp(34px,3.8vw,48px);line-height:1.06;text-wrap:balance}
 .hs-left .sub{margin-top:18px;font-size:clamp(15.5px,1.5vw,18px);line-height:1.65;color:rgba(255,255,255,.72);max-width:520px}
 .hs-left .sub b{color:#fff}
 .trust{margin-top:30px;display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center}
 .trust span{display:inline-flex;align-items:center;gap:7px;font-family:var(--label);font-weight:600;font-size:13px;color:rgba(255,255,255,.82)}
 .trust svg{width:15px;height:15px;stroke:var(--teal-soft);stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:none}
 
-.hs-right{background:var(--mist);display:flex;align-items:center;justify-content:center;position:relative}
-.form-pane{width:min(480px,100%);padding:clamp(30px,4vw,48px) clamp(22px,3vw,36px)}
+/* The pane used to be centred in this column under a 480px width, so a 616px
+   column put 68px of dead mist on each side and the pane's own 36px of padding
+   sat on top of that: 104px between the panel edge and the first field, all of
+   it accidental. It is left-aligned against the panel now and the inline start
+   padding is stated once, on the column. */
+.hs-right{background:var(--mist);display:flex;align-items:center;justify-content:flex-start;position:relative;padding-inline:clamp(40px,4vw,72px) clamp(24px,3vw,48px)}
+.form-pane{width:100%;max-width:560px;margin-inline-end:auto;padding:clamp(30px,4vw,48px) 0}
 .form-pane h3{font-size:23px;font-weight:900}
 .form-pane .fsub{margin-top:6px;font-size:13.5px;color:var(--ink-2)}
 .jf{margin-top:15px}
@@ -407,28 +423,11 @@
 .share .cp{flex:none;background:var(--teal);border:none;color:#fff;border-radius:10px;font-size:12.5px;font-weight:600;padding:0 16px;cursor:pointer;transition:background .18s}
 .share .cp:hover{background:var(--teal-deep)}
 
-.meter{margin-top:16px}
-.meter .mrow{display:flex;align-items:center;gap:8px;margin-bottom:7px}
-.meter .mrow span{font-family:var(--label);font-weight:600;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
-.meter .mrow b{margin-left:auto;font-family:var(--disp);font-weight:700;font-size:12.5px;color:var(--accent)}
-.segs{display:flex;gap:4px}
-.segs i{flex:1;height:7px;border-radius:99px;background:#DFE7E2;transition:background .3s}
-.segs i.f{background:var(--accent)}
-.j2f{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
-.j2f .full{grid-column:1/-1}
-.j2f label{display:block;font-family:var(--label);font-weight:600;font-size:11.5px;color:var(--teal);margin-bottom:5px}
-.j2f input,.j2f select,.j2f textarea{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:11px;color:var(--ink);padding:10px 12px;font-size:13.5px;appearance:none;font-family:var(--body)}
-.j2f select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2354625B' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center}
-.j2f input:focus,.j2f select:focus,.j2f textarea:focus{outline:none;border-color:var(--accent)}
-.j2f textarea{resize:vertical;min-height:44px}
-.thr{display:flex;gap:6px;flex-wrap:wrap}
-.thr button{font-size:11.5px;font-weight:600;color:var(--ink-2);background:var(--paper);border:1.5px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
-.thr button.on{background:var(--teal);color:#fff;border-color:var(--teal)}
-.jupl{display:flex;align-items:center;gap:9px;border:1.5px dashed #b9c8bf;border-radius:11px;padding:9px 12px;cursor:pointer;transition:border-color .15s;background:var(--paper)}
-.jupl:hover{border-color:var(--accent)}
-.jupl svg{width:15px;height:15px;flex:none;stroke:var(--accent);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
-.jupl span{font-size:12px;color:var(--ink-2)}
-.jupl em{font-style:normal;font-size:11px;color:var(--accent);font-weight:600}
+/* Stage 2 is one question, so no grid: the .j2f two-column layout, the spot
+   strength meter, the switch-threshold chips and the bill dropzone all went
+   with the fields they belonged to. */
+.j2one{margin-top:16px}
+.j2lab{display:block;font-family:var(--label);font-weight:600;font-size:11.5px;color:var(--teal);margin-bottom:5px}
 .save{margin-top:15px;width:100%;background:var(--accent);font-size:14.5px;padding:12px 18px}
 .skip{display:block;margin:11px auto 0;background:none;border:none;color:var(--ink-3);font-size:12px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .skip:hover{color:var(--ink)}
@@ -445,7 +444,7 @@
 .qty button{width:26px;height:26px;border:none;background:var(--mist);color:var(--teal);border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;line-height:1;display:grid;place-items:center}
 .qty button:hover{background:var(--green-tint)}
 .qty b{min-width:22px;text-align:center;font-family:var(--disp);font-weight:700;font-size:13.5px;color:var(--teal)}
-.svcx{flex:none;display:none;width:130px;background:var(--paper);border:1.5px solid var(--line);border-radius:11px;color:var(--ink);padding:9px 11px;font-size:12.5px;font-family:var(--body)}
+.svcx{flex:none;display:none;width:130px;min-width:0;background:var(--paper);border:1.5px solid var(--line);border-radius:11px;color:var(--ink);padding:9px 11px;font-size:12.5px;font-family:var(--body)}
 .svcrow.on .svcx{display:block}
 .svcx:focus{outline:none;border-color:var(--accent)}
 .sopt{font-weight:400;font-size:10.5px;color:var(--ink-3);text-transform:none;letter-spacing:0}
@@ -563,13 +562,26 @@
 .wm__x{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,.14);border:none;color:#fff;font-size:17px;cursor:pointer;display:grid;place-items:center;z-index:3;line-height:1}
 .wm__x:hover{background:rgba(255,255,255,.24)}
 
-@media (max-width:1020px){
-  .split{grid-template-columns:1fr;min-height:0}
-  .hs-left{min-height:44vh}
-  .hs-right{padding:10px 0 44px}
+/* Stacked below 1024: panel first, form beneath. The panel's desktop floor
+   comes off, so its height is its own padding and copy. */
+@media (max-width:1023.98px){
+  .split{grid-template-columns:1fr}
+  .hs-left{min-height:auto;height:auto;padding-block:clamp(40px,8vw,72px)}
+  .hs-left__in{padding-block:0}
+  .hs-right{padding:10px 20px 44px;justify-content:center}
+  .form-pane{max-width:560px;margin-inline:auto}
   .trio,.stay3{grid-template-columns:1fr}
 }
-@media (max-width:560px){.j2f{grid-template-columns:1fr}}
+@media (max-width:560px){
+  /* 14 rather than 20: the page carries the UA's 8px body margin, so this
+     lands the fields on a 22px gutter. */
+  .hs-right{padding-inline:14px}
+  /* 44px minimum on the stepper controls, and the "Something else" input
+     shares the row instead of forcing it onto a second line. */
+  .qty button{width:44px;height:44px;border-radius:10px}
+  .qty b{min-width:26px}
+  .svcx{flex:1 1 96px;width:auto}
+}
 
 /* thank-you popup */
 .ty-ov{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(10,32,24,.55);backdrop-filter:blur(6px);opacity:0;transition:opacity .3s var(--ease)}
@@ -731,47 +743,24 @@
 
       <div id="stage2" style="display:none">
         <h3 id="s2-h">Want it to count for more?</h3>
-        <p class="fsub">Cohorts get bid on when providers can see real demand. Every detail sharpens yours, and all of it is optional.</p>
-        <div class="meter">
-          <div class="mrow"><span>Spot strength</span><b id="m-label">Held</b></div>
-          <div class="segs" id="segs"><i class="f"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-        </div>
-        <div class="j2f">
-          <div><label for="s-prov">Provider</label>
-            <select id="s-prov" data-m><option value="">Choose&hellip;</option><option>Rogers</option><option>Bell</option><option>Telus</option><option>Shaw</option><option>Vid&eacute;otron</option><option>Cogeco</option><option>Eastlink</option><option>SaskTel</option><option>An independent</option><option>Other</option></select></div>
-          <!-- Same six questions the checkup asks, worded identically on
-               purpose: both forms write the SAME member_bills row, and that
-               write is a replacement rather than a merge. A shorter form here
-               would blank whatever the checkup had already learned. "Current
-               price" is the net figure paid TODAY, promo included, exactly as
-               bill-checkup.html's q03 means it. -->
-          <div><label for="s-cost">Current price (after all discounts)</label>
-            <input id="s-cost" placeholder="$ / mo" inputmode="decimal" data-m></div>
-          <div><label for="s-spd">Download speed</label>
-            <select id="s-spd" data-m><option value="">Choose&hellip;</option><option>25 or less</option><option>50</option><option>100</option><option>150</option><option>300</option><option>500</option><option>1 Gig</option><option>1.5 Gig+</option><option>Not sure</option></select></div>
-          <div><label for="s-date">Promo ends</label>
-            <input id="s-date" type="date" data-m></div>
-          <div><label for="s-disc">Discount/waiver</label>
-            <input id="s-disc" placeholder="$ / mo off" inputmode="decimal" data-m></div>
-          <div><label for="s-cstart">Contract start date</label>
-            <input id="s-cstart" type="date" data-m></div>
-          <div><label for="s-clen">Length of contract</label>
-            <select id="s-clen" data-m><option value="">Choose&hellip;</option><option value="12">12 months</option><option value="24">24 months</option><option value="36">36 months</option><option value="0">No contract / month-to-month</option><option value="-1">Not sure</option></select></div>
-          <div class="full"><label>You'd switch for</label>
-            <div class="thr" id="thr"><button type="button">$10+/mo</button><button type="button">$25+/mo</button><button type="button">Just curious</button></div></div>
-          <div class="full"><label class="jupl" for="s-file">
-            <svg viewBox="0 0 24 24"><path d="M12 16V5"></path><path d="M7 10l5-5 5 5"></path><path d="M4.5 18a4 4 0 0 1 1-7.9A6 6 0 0 1 17 7a5 5 0 0 1 3 9.5"></path></svg>
-            <span>Attach a bill (PDF / photo)</span><em id="s-filename"></em>
-            <input type="file" id="s-file" accept=".pdf,image/*" style="display:none"></label></div>
-          <div class="full"><label>Do you have any of these too? <span class="sopt">tap any, add a count if you like</span></label>
-            <div class="svc" id="svc">
-              <div class="svcrow" data-svc="ott"><button type="button" class="svct"><span class="tk"></span>OTT / streaming channels</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
-              <div class="svcrow" data-svc="tv"><button type="button" class="svct"><span class="tk"></span>TV plan</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
-              <div class="svcrow" data-svc="security"><button type="button" class="svct"><span class="tk"></span>Home security</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
-              <div class="svcrow" data-svc="mobile"><button type="button" class="svct"><span class="tk"></span>Cell phone plans</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
-              <div class="svcrow" data-svc="doorbell"><button type="button" class="svct"><span class="tk"></span>Video doorbells</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
-              <div class="svcrow" data-svc="other"><button type="button" class="svct"><span class="tk"></span>Something else</button><input type="text" class="svcx" placeholder="What is it?"></div>
-            </div>
+        <p class="fsub">Tell us what else is on your bill, all of it optional.</p>
+        <!-- One question. The provider, price, speed, promo end, discount and
+             contract answers this block used to ask are the checkup's own
+             questions, and /bill-checkup is where they are asked now: the
+             confirmation card below hands the member straight to it. Asking
+             them twice was a second toll on the same person, and because both
+             forms wrote the SAME member_bills row as a replacement rather than
+             a merge, the shorter copy here could also blank what the checkup
+             had already learned. -->
+        <div class="j2one">
+          <span class="j2lab" id="svc-lab">Do you have any of these too? <span class="sopt">tap any, add a count if you like</span></span>
+          <div class="svc" id="svc" role="group" aria-labelledby="svc-lab">
+            <div class="svcrow" data-svc="ott"><button type="button" class="svct"><span class="tk"></span>OTT / streaming channels</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
+            <div class="svcrow" data-svc="tv"><button type="button" class="svct"><span class="tk"></span>TV plan</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
+            <div class="svcrow" data-svc="security"><button type="button" class="svct"><span class="tk"></span>Home security</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
+            <div class="svcrow" data-svc="mobile"><button type="button" class="svct"><span class="tk"></span>Cell phone plans</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
+            <div class="svcrow" data-svc="doorbell"><button type="button" class="svct"><span class="tk"></span>Video doorbells</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
+            <div class="svcrow" data-svc="other"><button type="button" class="svct"><span class="tk"></span>Something else</button><input type="text" class="svcx" placeholder="What is it?" aria-label="What else do you have?"></div>
           </div>
         </div>
         <button class="whl-btn save" id="s-save" type="button">Save my details</button>
@@ -786,12 +775,11 @@
             <p id="done-p">Your spot is held. We'll text the moment bids land in your area.</p>
           </div>
         </div>
-        <!-- Stage 2 above takes four of the checkup's nine questions and saves
-             them as a bill, which is enough to fill a dashboard switch file
-             and nowhere near enough to price anything. The checkup itself
-             lives on the checkup page and nowhere else, so the confirmation
-             hands the member straight to it. ?from=join points its back link
-             at the dashboard rather than at this page. -->
+        <!-- Stage 2 above asks nothing about the bill any more, so this page
+             produces no reading at all and the checkup is the only place one
+             is taken. It lives on the checkup page and nowhere else, so the
+             confirmation hands the member straight to it. ?from=join points
+             its back link at the dashboard rather than at this page. -->
         <div class="jnext">
           <b>One step left: what should you actually be paying?</b>
           <p>Your spot is held either way. The checkup is nine questions and your real bill, about two minutes, and it is what the bid for your cohort gets built on.</p>
@@ -1148,11 +1136,12 @@ document.addEventListener('DOMContentLoaded',function(){
       if(!rec){busy(btn,false);submitErr(btn,new Error('You’re verified, but we couldn’t keep you signed in. Check that cookies are enabled and try again.'));return;}
       busy(btn,false);
       /* Signed in from here, so the next screen is the confirmation, not
-         /dashboard. The stage-2 form waiting behind the modal is where a cohort
-         stops being a postal code and becomes a bid: provider, charge, speed,
-         promo end. Nobody comes back to add those later, so they are asked once,
-         now, while the tile is still up. The code step originally replaced this
-         handoff with a redirect and took both the tile and the form with it. */
+         /dashboard. The stage-2 form waiting behind the modal asks one thing,
+         what else the household buys, which is a standing fact about them that
+         nobody comes back to add later. The bill itself is the checkup's
+         question and the confirmation routes there. The code step originally
+         replaced this handoff with a redirect and took both the tile and the
+         form with it. */
       $('#codestep').style.display='none';
       $('#stage2').style.display='block';
       openWelcome(S.name);
@@ -1238,88 +1227,31 @@ document.addEventListener('DOMContentLoaded',function(){
     document.addEventListener('keydown',e=>{if(e.key==='Escape'&&tyOv.classList.contains('on'))closeThankYou();});
 
     /* add-on form (stage 2) */
-    function filledCount(){
-      let n=0;
-      if($('#s-prov').value)n++;
-      if(parseFloat(($('#s-cost').value||'').replace(/[^0-9.]/g,'')))n++;
-      if($('#s-spd').value)n++;
-      if($('#s-date').value)n++;
-      if(parseFloat(($('#s-disc').value||'').replace(/[^0-9.]/g,'')))n++;
-      if($('#s-cstart').value)n++;
-      if($('#s-clen').value)n++;
-      if($$('#thr button.on').length)n++;
-      if(S.details.file)n++;
-      if($$('#svc .svcrow.on').length)n++;
-      return n;}
-    /* The ten questions plus the joining itself, which is the first bar and
-       is why nobody ever sees an empty meter. The eight segments are that
-       ratio rather than one-per-answer: adding a question must not silently
-       start overflowing the bar. */
-    const SPOT_TOTAL=11;
-    function meter(){
-      const n=1+filledCount(),segs=$$('#segs i'),fill=Math.round(n/SPOT_TOTAL*segs.length);
-      segs.forEach((s,i)=>s.classList.toggle('f',i<fill));
-      $('#m-label').textContent=n<=3?'Held':n<=7?'Useful':'Bid‑ready';}
-    $$('[data-m]').forEach(el=>{el.addEventListener('input',meter);el.addEventListener('change',meter);});
-    $$('#thr button').forEach(b=>b.addEventListener('click',()=>{
-      $$('#thr button').forEach(x=>x.classList.remove('on'));b.classList.add('on');meter();}));
     $$('#svc .svcrow').forEach(row=>{
       const svct=row.querySelector('.svct'),qb=row.querySelector('.qty b'),
             minus=row.querySelector('.qm'),plus=row.querySelector('.qp'),xin=row.querySelector('.svcx');
       svct.addEventListener('click',()=>{row.classList.toggle('on');
-        if(row.classList.contains('on')&&xin)setTimeout(()=>xin.focus(),0);meter();});
+        if(row.classList.contains('on')&&xin)setTimeout(()=>xin.focus(),0);});
       if(minus)minus.addEventListener('click',()=>{let n=Math.max(1,(+qb.textContent||1)-1);qb.textContent=n;});
       if(plus)plus.addEventListener('click',()=>{let n=Math.min(99,(+qb.textContent||1)+1);qb.textContent=n;});
     });
     function collectServices(){return $$('#svc .svcrow.on').map(row=>{
       const key=row.dataset.svc,qb=row.querySelector('.qty b'),xin=row.querySelector('.svcx');
       return {service:key,count:qb?(+qb.textContent||1):null,detail:xin?xin.value.trim()||null:null};});}
-    /* only attach what the backend will actually store, a rejected file must not cost the submission */
-    $('#s-file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;
-      /* Same checkUpload() the checkup page uses. HEIC (the iPhone camera
-         default) is storable but not machine-readable, so it attaches with a
-         note instead of being refused. */
-      const chk=W.checkUpload(f);
-      if(!chk.ok){
-        e.target.value='';S.details.file=null;
-        $('#s-filename').textContent=chk.message;
-        setTimeout(()=>{if(!S.details.file)$('#s-filename').textContent='';},8000);
-        return;}
-      S.details.file=f.name;
-      $('#s-filename').textContent=chk.code==='heic'?('✓ '+f.name+' (HEIC, we’ll open it by hand)'):('✓ '+f.name);
-      meter();});
-    function collect(){S.details={provider:$('#s-prov').value,cost:$('#s-cost').value,speed:$('#s-spd').value,
-      promoEnd:$('#s-date').value,discount:$('#s-disc').value,contractStart:$('#s-cstart').value,
-      contractLength:$('#s-clen').value,threshold:($$('#thr button.on')[0]||{}).textContent||null,
-      file:S.details.file||null,services:collectServices()};}
-
-    /* The same answers, written a second time to the member's own record.
-       The lead row is the CRM's copy and is keyed by an email string; this is
-       the one the signed-in dashboard reads, keyed by user_id. Two calls
-       because the two live in different functions: the lead goes cross-origin
-       to formSubmit, where no session cookie can travel, and /me/bill is
-       same-origin through the /api/auth rewrite. The member is signed in by
-       the time this form appears, the code step minted the session, so the
-       usual reason this fails is a dropped connection, and a failure here
-       must not retract a lead that already saved. GET /me/bill adopts the
-       WaitlistDetails row when it does. */
-    function saveMemberBill(){
-      const d=S.details;
-      const bill={provider:d.provider||null,monthly:d.cost||null,speed:d.speed||null,
-        promoEnd:d.promoEnd||null,discount:d.discount||null,contractStart:d.contractStart||null,
-        contractLength:d.contractLength||null,threshold:d.threshold||null,source:'waitlist'};
-      /* Mirrors the server's own "is there a bill in here at all" rule, so
-         skipping every question costs a round trip and a 400 rather than
-         being sent anyway. */
-      if(!bill.provider&&!bill.monthly&&!bill.speed&&!bill.promoEnd)return Promise.resolve();
-      if(!W.session||!W.session.billSave)return Promise.resolve();
-      return W.session.billSave(bill).catch(()=>{});
-    }
+    /* One key, because one question is left. The bill fields this used to
+       carry are gone from the form, so they are absent from the payload rather
+       than sent empty: an empty Provider on the lead row would read as a real
+       answer of "none", and POST /me/bill is not called at all rather than
+       writing a row of nulls over what the checkup may already have stored. */
+    function collect(){S.details={services:collectServices()};}
 
     /* The services checklist, saved to the account rather than only to the
        lead row. What else a household buys is a standing fact about them, not
        a snapshot of this form, and the lead row is keyed by an email string
-       while this is keyed by user_id. Same best-effort rule as the bill. */
+       while this is keyed by user_id. Best-effort: the lead row already saved
+       by the time this runs, and a dropped connection here must not retract
+       it. The member is signed in, the code step minted the session, so this
+       is same-origin through the /api/auth rewrite. */
     function saveMemberServices(){
       const list=S.details.services||[];
       if(!list.length)return Promise.resolve();
@@ -1340,9 +1272,9 @@ document.addEventListener('DOMContentLoaded',function(){
       const btn=$('#s-save');clearErr(btn);
       if(busy(btn,true,'Saving…')===false)return;
       try{
-        await submitForm('/waitlist-details',{firstName:S.name,lastName:S.last,email:S.email,fsa:S.fsa,postalFull:S.postalFull||'',province:S.province||'',provinceCode:S.provinceCode||'',...S.details},{billFile:$('#s-file').files[0]||null});
+        await submitForm('/waitlist-details',{firstName:S.name,lastName:S.last,email:S.email,fsa:S.fsa,postalFull:S.postalFull||'',province:S.province||'',provinceCode:S.provinceCode||'',...S.details});
       }catch(err){busy(btn,false);submitErr(btn,err);return;}
-      await Promise.all([saveMemberBill(),saveMemberServices()]);
+      await saveMemberServices();
       busy(btn,false);
       showJoinDone();
       showThankYou();
@@ -1482,14 +1414,13 @@ document.addEventListener('DOMContentLoaded',function(){
   .trust{margin-top:22px;gap:8px 16px}
   .trust span{font-size:12px}
   .hs-right{padding:6px 0 36px}
-  .form-pane{padding:26px 18px 30px}
+  .form-pane{padding:26px 14px 30px}
   .form-pane h3{font-size:21px}
   .namerow{grid-template-columns:1fr}
   .jf input{font-size:16px;padding:13px 14px}
   .go{padding:16px 20px;font-size:16px}
-  .j2f{grid-template-columns:1fr;gap:12px}
-  .j2f input,.j2f select,.j2f textarea{font-size:16px;padding:12px 13px}
-  .thr button{padding:9px 14px;font-size:12.5px}
+  .qty button{width:44px;height:44px;border-radius:10px}
+  .qty b{min-width:26px}
   .svcrow{flex-wrap:wrap}
   .svct{padding:12px}
   .svcx{width:100%;margin-left:26px}

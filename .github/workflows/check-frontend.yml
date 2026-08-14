@@ -88,6 +88,16 @@ jobs:
       - name: Campaign stage unit tests
         run: node --test scripts/test-campaign-stage.mjs
 
+      # scripts/cohort.mjs generates the ZCQL that opens and moves a cohort,
+      # and predicts both dashboards from the row. Both claims rest on it
+      # importing lib/catalog.js rather than restating its rules, so this
+      # asserts the generated statement against KINDS, TRANSITIONS, COLUMNS and
+      # DATE_COLUMNS. A tool that quietly disagrees with the server is worse
+      # than no tool: it is a statement an operator pasted because it looked
+      # checked.
+      - name: Cohort ZCQL tool unit tests
+        run: node --test scripts/test-cohort.mjs
+
       # The route guards. These decide whether an unapproved organisation can
       # place a bid, and they were copy-pasted across four route files before
       # being extracted into lib/guards.js. This is what stops the fifth copy.

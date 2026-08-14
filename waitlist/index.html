@@ -6,9 +6,9 @@
         t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
         y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
     })(window, document, "clarity", "script", "xrkpgls1yj");
-    /* This form collects a name, email, phone, postal code and optionally a
-       bill. Clarity records session replays, so mask text content by default
-       (PIPEDA / Quebec Law 25). */
+    /* This form collects a name, email, phone and postal code. Clarity records
+       session replays, so mask text content by default (PIPEDA / Quebec
+       Law 25). */
     window.clarity('set','mask','true');
 </script>
 <script src="/js/whollar-core.js?v=20260814a"></script>
@@ -157,47 +157,24 @@
 
       <div id="stage2" style="display:none">
         <h3 id="s2-h">Want it to count for more?</h3>
-        <p class="fsub">Cohorts get bid on when providers can see real demand. Every detail sharpens yours, and all of it is optional.</p>
-        <div class="meter">
-          <div class="mrow"><span>Spot strength</span><b id="m-label">Held</b></div>
-          <div class="segs" id="segs"><i class="f"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-        </div>
-        <div class="j2f">
-          <div><label for="s-prov">Provider</label>
-            <select id="s-prov" data-m><option value="">Choose&hellip;</option><option>Rogers</option><option>Bell</option><option>Telus</option><option>Shaw</option><option>Vid&eacute;otron</option><option>Cogeco</option><option>Eastlink</option><option>SaskTel</option><option>An independent</option><option>Other</option></select></div>
-          <!-- Same six questions the checkup asks, worded identically on
-               purpose: both forms write the SAME member_bills row, and that
-               write is a replacement rather than a merge. A shorter form here
-               would blank whatever the checkup had already learned. "Current
-               price" is the net figure paid TODAY, promo included, exactly as
-               bill-checkup.html's q03 means it. -->
-          <div><label for="s-cost">Current price (after all discounts)</label>
-            <input id="s-cost" placeholder="$ / mo" inputmode="decimal" data-m></div>
-          <div><label for="s-spd">Download speed</label>
-            <select id="s-spd" data-m><option value="">Choose&hellip;</option><option>25 or less</option><option>50</option><option>100</option><option>150</option><option>300</option><option>500</option><option>1 Gig</option><option>1.5 Gig+</option><option>Not sure</option></select></div>
-          <div><label for="s-date">Promo ends</label>
-            <input id="s-date" type="date" data-m></div>
-          <div><label for="s-disc">Discount/waiver</label>
-            <input id="s-disc" placeholder="$ / mo off" inputmode="decimal" data-m></div>
-          <div><label for="s-cstart">Contract start date</label>
-            <input id="s-cstart" type="date" data-m></div>
-          <div><label for="s-clen">Length of contract</label>
-            <select id="s-clen" data-m><option value="">Choose&hellip;</option><option value="12">12 months</option><option value="24">24 months</option><option value="36">36 months</option><option value="0">No contract / month-to-month</option><option value="-1">Not sure</option></select></div>
-          <div class="full"><label>You'd switch for</label>
-            <div class="thr" id="thr"><button type="button">$10+/mo</button><button type="button">$25+/mo</button><button type="button">Just curious</button></div></div>
-          <div class="full"><label class="jupl" for="s-file">
-            <svg viewBox="0 0 24 24"><path d="M12 16V5"></path><path d="M7 10l5-5 5 5"></path><path d="M4.5 18a4 4 0 0 1 1-7.9A6 6 0 0 1 17 7a5 5 0 0 1 3 9.5"></path></svg>
-            <span>Attach a bill (PDF / photo)</span><em id="s-filename"></em>
-            <input type="file" id="s-file" accept=".pdf,image/*" style="display:none"></label></div>
-          <div class="full"><label>Do you have any of these too? <span class="sopt">tap any, add a count if you like</span></label>
-            <div class="svc" id="svc">
-              <div class="svcrow" data-svc="ott"><button type="button" class="svct"><span class="tk"></span>OTT / streaming channels</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
-              <div class="svcrow" data-svc="tv"><button type="button" class="svct"><span class="tk"></span>TV plan</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
-              <div class="svcrow" data-svc="security"><button type="button" class="svct"><span class="tk"></span>Home security</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
-              <div class="svcrow" data-svc="mobile"><button type="button" class="svct"><span class="tk"></span>Cell phone plans</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
-              <div class="svcrow" data-svc="doorbell"><button type="button" class="svct"><span class="tk"></span>Video doorbells</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
-              <div class="svcrow" data-svc="other"><button type="button" class="svct"><span class="tk"></span>Something else</button><input type="text" class="svcx" placeholder="What is it?"></div>
-            </div>
+        <p class="fsub">Tell us what else is on your bill, all of it optional.</p>
+        <!-- One question. The provider, price, speed, promo end, discount and
+             contract answers this block used to ask are the checkup's own
+             questions, and /bill-checkup is where they are asked now: the
+             confirmation card below hands the member straight to it. Asking
+             them twice was a second toll on the same person, and because both
+             forms wrote the SAME member_bills row as a replacement rather than
+             a merge, the shorter copy here could also blank what the checkup
+             had already learned. -->
+        <div class="j2one">
+          <span class="j2lab" id="svc-lab">Do you have any of these too? <span class="sopt">tap any, add a count if you like</span></span>
+          <div class="svc" id="svc" role="group" aria-labelledby="svc-lab">
+            <div class="svcrow" data-svc="ott"><button type="button" class="svct"><span class="tk"></span>OTT / streaming channels</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
+            <div class="svcrow" data-svc="tv"><button type="button" class="svct"><span class="tk"></span>TV plan</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
+            <div class="svcrow" data-svc="security"><button type="button" class="svct"><span class="tk"></span>Home security</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
+            <div class="svcrow" data-svc="mobile"><button type="button" class="svct"><span class="tk"></span>Cell phone plans</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
+            <div class="svcrow" data-svc="doorbell"><button type="button" class="svct"><span class="tk"></span>Video doorbells</button><div class="qty"><button type="button" class="qm" aria-label="less">&minus;</button><b>1</b><button type="button" class="qp" aria-label="more">+</button></div></div>
+            <div class="svcrow" data-svc="other"><button type="button" class="svct"><span class="tk"></span>Something else</button><input type="text" class="svcx" placeholder="What is it?" aria-label="What else do you have?"></div>
           </div>
         </div>
         <button class="whl-btn save" id="s-save" type="button">Save my details</button>
@@ -212,12 +189,11 @@
             <p id="done-p">Your spot is held. We'll text the moment bids land in your area.</p>
           </div>
         </div>
-        <!-- Stage 2 above takes four of the checkup's nine questions and saves
-             them as a bill, which is enough to fill a dashboard switch file
-             and nowhere near enough to price anything. The checkup itself
-             lives on /bill-checkup and nowhere else, so the confirmation
-             hands the member straight to it. ?from=join points its back link
-             at the dashboard rather than at this page. -->
+        <!-- Stage 2 above asks nothing about the bill any more, so this page
+             produces no reading at all and the checkup is the only place one
+             is taken. It lives on /bill-checkup and nowhere else, so the
+             confirmation hands the member straight to it. ?from=join points
+             its back link at the dashboard rather than at this page. -->
         <div class="jnext">
           <b>One step left: what should you actually be paying?</b>
           <p>Your spot is held either way. The checkup is nine questions and your real bill, about two minutes, and it is what the bid for your cohort gets built on.</p>
@@ -574,11 +550,12 @@ document.addEventListener('DOMContentLoaded',function(){
       if(!rec){busy(btn,false);submitErr(btn,new Error('You’re verified, but we couldn’t keep you signed in. Check that cookies are enabled and try again.'));return;}
       busy(btn,false);
       /* Signed in from here, so the next screen is the confirmation, not
-         /dashboard. The stage-2 form waiting behind the modal is where a cohort
-         stops being a postal code and becomes a bid: provider, charge, speed,
-         promo end. Nobody comes back to add those later, so they are asked once,
-         now, while the tile is still up. The code step originally replaced this
-         handoff with a redirect and took both the tile and the form with it. */
+         /dashboard. The stage-2 form waiting behind the modal asks one thing,
+         what else the household buys, which is a standing fact about them that
+         nobody comes back to add later. The bill itself is the checkup's
+         question and the confirmation routes there. The code step originally
+         replaced this handoff with a redirect and took both the tile and the
+         form with it. */
       $('#codestep').style.display='none';
       $('#stage2').style.display='block';
       openWelcome(S.name);
@@ -664,88 +641,31 @@ document.addEventListener('DOMContentLoaded',function(){
     document.addEventListener('keydown',e=>{if(e.key==='Escape'&&tyOv.classList.contains('on'))closeThankYou();});
 
     /* add-on form (stage 2) */
-    function filledCount(){
-      let n=0;
-      if($('#s-prov').value)n++;
-      if(parseFloat(($('#s-cost').value||'').replace(/[^0-9.]/g,'')))n++;
-      if($('#s-spd').value)n++;
-      if($('#s-date').value)n++;
-      if(parseFloat(($('#s-disc').value||'').replace(/[^0-9.]/g,'')))n++;
-      if($('#s-cstart').value)n++;
-      if($('#s-clen').value)n++;
-      if($$('#thr button.on').length)n++;
-      if(S.details.file)n++;
-      if($$('#svc .svcrow.on').length)n++;
-      return n;}
-    /* The ten questions plus the joining itself, which is the first bar and
-       is why nobody ever sees an empty meter. The eight segments are that
-       ratio rather than one-per-answer: adding a question must not silently
-       start overflowing the bar. */
-    const SPOT_TOTAL=11;
-    function meter(){
-      const n=1+filledCount(),segs=$$('#segs i'),fill=Math.round(n/SPOT_TOTAL*segs.length);
-      segs.forEach((s,i)=>s.classList.toggle('f',i<fill));
-      $('#m-label').textContent=n<=3?'Held':n<=7?'Useful':'Bid‑ready';}
-    $$('[data-m]').forEach(el=>{el.addEventListener('input',meter);el.addEventListener('change',meter);});
-    $$('#thr button').forEach(b=>b.addEventListener('click',()=>{
-      $$('#thr button').forEach(x=>x.classList.remove('on'));b.classList.add('on');meter();}));
     $$('#svc .svcrow').forEach(row=>{
       const svct=row.querySelector('.svct'),qb=row.querySelector('.qty b'),
             minus=row.querySelector('.qm'),plus=row.querySelector('.qp'),xin=row.querySelector('.svcx');
       svct.addEventListener('click',()=>{row.classList.toggle('on');
-        if(row.classList.contains('on')&&xin)setTimeout(()=>xin.focus(),0);meter();});
+        if(row.classList.contains('on')&&xin)setTimeout(()=>xin.focus(),0);});
       if(minus)minus.addEventListener('click',()=>{let n=Math.max(1,(+qb.textContent||1)-1);qb.textContent=n;});
       if(plus)plus.addEventListener('click',()=>{let n=Math.min(99,(+qb.textContent||1)+1);qb.textContent=n;});
     });
     function collectServices(){return $$('#svc .svcrow.on').map(row=>{
       const key=row.dataset.svc,qb=row.querySelector('.qty b'),xin=row.querySelector('.svcx');
       return {service:key,count:qb?(+qb.textContent||1):null,detail:xin?xin.value.trim()||null:null};});}
-    /* only attach what the backend will actually store: a rejected file must not cost the submission */
-    $('#s-file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;
-      /* Same checkUpload() the checkup page uses. HEIC (the iPhone camera
-         default) is storable but not machine-readable, so it attaches with a
-         note instead of being refused. */
-      const chk=W.checkUpload(f);
-      if(!chk.ok){
-        e.target.value='';S.details.file=null;
-        $('#s-filename').textContent=chk.message;
-        setTimeout(()=>{if(!S.details.file)$('#s-filename').textContent='';},8000);
-        return;}
-      S.details.file=f.name;
-      $('#s-filename').textContent=chk.code==='heic'?('✓ '+f.name+' (HEIC, we’ll open it by hand)'):('✓ '+f.name);
-      meter();});
-    function collect(){S.details={provider:$('#s-prov').value,cost:$('#s-cost').value,speed:$('#s-spd').value,
-      promoEnd:$('#s-date').value,discount:$('#s-disc').value,contractStart:$('#s-cstart').value,
-      contractLength:$('#s-clen').value,threshold:($$('#thr button.on')[0]||{}).textContent||null,
-      file:S.details.file||null,services:collectServices()};}
-
-    /* The same answers, written a second time to the member's own record.
-       The lead row is the CRM's copy and is keyed by an email string; this is
-       the one the signed-in dashboard reads, keyed by user_id. Two calls
-       because the two live in different functions: the lead goes cross-origin
-       to formSubmit, where no session cookie can travel, and /me/bill is
-       same-origin through the /api/auth rewrite. The member is signed in by
-       the time this form appears, the code step minted the session, so the
-       usual reason this fails is a dropped connection, and a failure here
-       must not retract a lead that already saved. GET /me/bill adopts the
-       WaitlistDetails row when it does. */
-    function saveMemberBill(){
-      const d=S.details;
-      const bill={provider:d.provider||null,monthly:d.cost||null,speed:d.speed||null,
-        promoEnd:d.promoEnd||null,discount:d.discount||null,contractStart:d.contractStart||null,
-        contractLength:d.contractLength||null,threshold:d.threshold||null,source:'waitlist'};
-      /* Mirrors the server's own "is there a bill in here at all" rule, so
-         skipping every question costs a round trip and a 400 rather than
-         being sent anyway. */
-      if(!bill.provider&&!bill.monthly&&!bill.speed&&!bill.promoEnd)return Promise.resolve();
-      if(!W.session||!W.session.billSave)return Promise.resolve();
-      return W.session.billSave(bill).catch(()=>{});
-    }
+    /* One key, because one question is left. The bill fields this used to
+       carry are gone from the form, so they are absent from the payload rather
+       than sent empty: an empty Provider on the lead row would read as a real
+       answer of "none", and POST /me/bill is not called at all rather than
+       writing a row of nulls over what the checkup may already have stored. */
+    function collect(){S.details={services:collectServices()};}
 
     /* The services checklist, saved to the account rather than only to the
        lead row. What else a household buys is a standing fact about them, not
        a snapshot of this form, and the lead row is keyed by an email string
-       while this is keyed by user_id. Same best-effort rule as the bill. */
+       while this is keyed by user_id. Best-effort: the lead row already saved
+       by the time this runs, and a dropped connection here must not retract
+       it. The member is signed in, the code step minted the session, so this
+       is same-origin through the /api/auth rewrite. */
     function saveMemberServices(){
       const list=S.details.services||[];
       if(!list.length)return Promise.resolve();
@@ -766,9 +686,9 @@ document.addEventListener('DOMContentLoaded',function(){
       const btn=$('#s-save');clearErr(btn);
       if(busy(btn,true,'Saving…')===false)return;
       try{
-        await submitForm('/waitlist-details',{firstName:S.name,lastName:S.last,email:S.email,fsa:S.fsa,postalFull:S.postalFull||'',province:S.province||'',provinceCode:S.provinceCode||'',...S.details},{billFile:$('#s-file').files[0]||null});
+        await submitForm('/waitlist-details',{firstName:S.name,lastName:S.last,email:S.email,fsa:S.fsa,postalFull:S.postalFull||'',province:S.province||'',provinceCode:S.provinceCode||'',...S.details});
       }catch(err){busy(btn,false);submitErr(btn,err);return;}
-      await Promise.all([saveMemberBill(),saveMemberServices()]);
+      await saveMemberServices();
       busy(btn,false);
       showJoinDone();
       showThankYou();

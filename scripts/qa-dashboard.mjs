@@ -209,6 +209,34 @@ console.log('\n6. a degraded read keeps the seeds rather than blanking the page'
   await c.close();
 }
 
+/* THE SECOND REGRESSION THIS FILE EXISTS FOR. applyCampaign() used to return
+   early when the server named an id that was not one of the six seeded in
+   CAMPS, and the region row was four hardcoded cards. So every cohort created
+   in the Data Store after dashboard.html was written arrived on the wire and
+   was discarded: absent here, live on the partner desk, with nothing anywhere
+   saying why. The catalog was promoted out of code so a new cohort needs no
+   deploy; a local allowlist of ids put the deploy back. */
+console.log('\n6b. a cohort the page has never heard of renders anyway');
+{
+  const c = await ctx(browser, { campaigns: [
+    camp('kitchener-central', 'Kitchener', 'Autumn cohort', { members: 7 }),
+    camp('scarborough-east', 'Scarborough', 'Autumn cohort', { kind: 'auction', stage: 'bidding', members: 64 }),
+  ] });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  const row = await p.evaluate(() => (document.querySelector('#crow') || {}).innerText || '');
+  const s = await snapshot(p);
+  ok(/Kitchener/.test(row), 'an unseeded cohort is on the region row');
+  ok(/Scarborough/.test(row), 'and so is the second one');
+  ok(/7 of 100/.test(s.regmono || ''), `with the server's count, not a seeded one (${s.regmono})`);
+  /* The seeds are demo scaffolding. Once a live answer names two cohorts, four
+     invented regions must not still be sitting on the row beside them. */
+  ok(!/London East|Chatham-Kent|Windsor/.test(row), 'and no seeded region survives a live answer');
+  await c.close();
+}
+
 console.log('\n7. the demo tour renders all 13 states with no console error');
 {
   const c = await ctx(browser, { campaigns: [] });

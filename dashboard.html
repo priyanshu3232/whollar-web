@@ -1064,34 +1064,14 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
         </div>
         </div>
 
-        <!-- region row: London East counts repaint from CAMPS; the bells on
-             the other cards call POST /campaigns/notify -->
+        <!-- region row: every card is rendered by renderRegions() from CAMPS,
+             which is GET /campaigns once a live answer lands. Not one region is
+             written into this markup any more. Four of them used to be, and a
+             cohort created in the Data Store could not appear here without
+             someone editing this file, which put the deploy straight back into
+             a catalog that was promoted out of code to avoid one. -->
         <div class="rowhead"><h3>Campaigns near you</h3><button class="all" type="button" id="viewall">How regions open &rarr;</button></div>
-        <div class="crow">
-          <div class="cc" id="cc-first">
-            <span class="badge live" id="regbadge">Your cohort &middot; Forming</span>
-            <span class="cc__art"><img src="/images/regions/region-london-east.webp" srcset="/images/regions/region-london-east.webp 1x, /images/regions/region-london-east@2x.webp 2x" alt="Red-brick terraced homes on a tree-lined residential street" width="300" height="130" loading="lazy" decoding="async"></span>
-            <span class="cc__b"><b>London East</b><span class="m">Autumn cohort &middot; closes Sep 12</span><span class="miniprog"><i id="regprog" style="width:61%"></i></span><span class="mono" id="regmono">61 of 100 households</span></span>
-          </div>
-          <div class="cc">
-            <span class="badge soon">Opens after this round</span>
-            <button class="bell" type="button" data-bell="London North" aria-label="Notify me when London North opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>
-            <span class="cc__art"><img src="/images/regions/region-london-north.webp" srcset="/images/regions/region-london-north.webp 1x, /images/regions/region-london-north@2x.webp 2x" alt="Quiet suburban street of detached houses under an open sky" width="300" height="130" loading="lazy" decoding="async"></span>
-            <span class="cc__b"><b>London North</b><span class="m">Next opening in your city</span><span class="mono">We'll text you the day it opens</span></span>
-          </div>
-          <div class="cc">
-            <span class="badge soon">Waitlist forming</span>
-            <button class="bell" type="button" data-bell="Chatham-Kent" aria-label="Notify me when Chatham-Kent opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>
-            <span class="cc__art"><img src="/images/regions/region-chatham-kent.webp" srcset="/images/regions/region-chatham-kent.webp 1x, /images/regions/region-chatham-kent@2x.webp 2x" alt="Brick bungalow with a covered porch behind a blossoming tree" width="300" height="130" loading="lazy" decoding="async"></span>
-            <span class="cc__b"><b>Chatham-Kent</b><span class="m">Neighbours are gathering</span><span class="mono">Invite yours to speed it up</span></span>
-          </div>
-          <div class="cc">
-            <span class="badge soon">Waitlist forming</span>
-            <button class="bell" type="button" data-bell="Windsor" aria-label="Notify me when Windsor opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>
-            <span class="cc__art"><img src="/images/regions/region-windsor.webp" srcset="/images/regions/region-windsor.webp 1x, /images/regions/region-windsor@2x.webp 2x" alt="Cars parked along a shaded street of single-storey homes" width="300" height="130" loading="lazy" decoding="async"></span>
-            <span class="cc__b"><b>Windsor</b><span class="m">Neighbours are gathering</span><span class="mono">One launch per region</span></span>
-          </div>
-        </div>
+        <div class="crow" id="crow"></div>
       </section>
 
       <!-- ======== my bills ======== -->
@@ -1476,6 +1456,22 @@ var CAMPS=[
  {id:'hamilton-mountain',region:'Hamilton Mountain',sub:'Winter cohort',kind:'auction',target:null,members:58,households:58,joinable:false,you:null}
 ];
 var CAMPLIVE=false;
+/* Region photography, keyed by campaign id. Art is a repo asset, so a cohort
+   created today has none, and this is a lookup with a deliberate miss rather
+   than a required field: .cc__art keeps its mint block and the card is whole
+   without a photo. A missing image must never be the reason a real cohort
+   fails to render. */
+var REGION_ART={
+ 'london-east':['region-london-east','Red-brick terraced homes on a tree-lined residential street'],
+ 'london-north':['region-london-north','Quiet suburban street of detached houses under an open sky'],
+ 'chatham-kent':['region-chatham-kent','Brick bungalow with a covered porch behind a blossoming tree'],
+ 'windsor-core':['region-windsor','Cars parked along a shaded street of single-storey homes']
+};
+/* Badge per lifecycle kind, for a cohort that is not the member's own. The
+   member's own card names their stage instead. */
+var CCBADGE={forming:['live','Open to join'],planned:['soon','Opens after this round'],
+ waitlist:['soon','Waitlist forming'],auction:['soon','Sealed bidding'],
+ closed:['soon','Offers out'],archived:['soon','Closed']};
 var BLOGS=[
   ['The $487 problem: why most Canadians overpay for internet and never say a word','5 min','overpaying-internet-canada'],
   ['The promo cliff: why your internet bill quietly climbs after 12 to 24 months','6 min','internet-price-increase-promo-cliff'],
@@ -2572,8 +2568,7 @@ function render(){
   if(S.state in RAILMAP)(FEED[S.state]||[]).forEach(function(f){items.push(f)});
   EXTRA.forEach(function(f){items.push(f)});
   $('#feed').innerHTML=items.map(function(f){return '<li><span class="when">'+esc(f[0])+'</span>'+esc(f[1])+'</li>'}).reverse().join('');
-  var badge=$('#regbadge');if(badge){badge.textContent='Your cohort · '+(PILL[S.state]||'Not open yet');badge.classList.add('live')}
-  paintRegionCount();
+  renderRegions();
   paintHistory();
   $$('#sts button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-goto')===S.state)});
 }
@@ -2783,18 +2778,39 @@ function campById(id){for(var i=0;i<CAMPS.length;i++)if(CAMPS[i].id===id)return 
    Counts are a different matter and deliberately keep their seeds: they are
    cosmetic baselines that the code already chooses to hold on a failed poll.
    `you` is not cosmetic. An unmentioned campaign is one this member is not in. */
-function clearUnnamedMembership(list){
+/* The seeds are offline scaffolding. Once a live answer has arrived they are
+   not a fallback, they are four invented regions sitting in the row beside the
+   real ones, and one of them claiming a membership. Drop every seed the server
+   did not name, which takes its `you` with it. */
+function dropUnnamedSeeds(list){
   var named={};
   (list||[]).forEach(function(sc){if(sc&&sc.id)named[sc.id]=true});
-  CAMPS.forEach(function(c){if(!named[c.id])c.you=null});
+  CAMPS=CAMPS.filter(function(c){return named[c.id]});
 }
 function applyCampaign(sc){
-  var c=sc&&campById(sc.id);if(!c)return;
+  if(!sc||!sc.id)return;
+  var c=campById(sc.id);
+  /* UPSERT, not merge. This returned early when the id was not one of the six
+     seeded above, so every cohort created in the Data Store after this file was
+     written arrived on the wire and was silently discarded: absent from the
+     dashboard, present on the partner desk, with nothing anywhere saying why.
+     An unknown id is a new cohort, which is the normal case, not an error. */
+  if(!c){
+    c={id:sc.id,region:'',sub:'',kind:'planned',target:null,
+       members:0,households:0,joinable:false,you:null};
+    CAMPS.push(c);
+  }
+  if(sc.region)c.region=sc.region;
+  if(sc.sub!==undefined)c.sub=sc.sub;
   if(typeof sc.members==='number')c.members=sc.members;
   if(typeof sc.households==='number')c.households=sc.households;
-  if(sc.target)c.target=sc.target;
+  if(sc.target!==undefined)c.target=sc.target;
   if(sc.you!==undefined)c.you=sc.you;
   if(sc.kind)c.kind=sc.kind;
+  /* JOIN_STATUS is the server's and it moves: a forming cohort that goes to
+     auction stops being joinable. Reading this from the seed alone left a join
+     button live on a locked cohort, where its only possible answer was a 400. */
+  if(sc.joinable!==undefined)c.joinable=Boolean(sc.joinable);
   /* Server-owned stage and calendar. Carried onto the local record so
      deriveState() and paintDates() read one object, and left untouched when
      the field is absent so an older deployment degrades to `kind`. */
@@ -2802,16 +2818,27 @@ function applyCampaign(sc){
   if(sc.dates)c.dates=sc.dates;
   if(sc.next!==undefined)c.next=sc.next;
 }
+/* The cohort this page is ABOUT: the member's own if they have one, otherwise
+   the first joinable one the server sent. The server orders by sort_order, so
+   "first joinable" is an ops decision rather than an alphabetical accident. */
+function featuredCamp(){
+  var mine=CAMPLIVE?joinedCamp():null;
+  if(mine)return mine;
+  for(var i=0;i<CAMPS.length;i++)if(CAMPS[i].joinable)return CAMPS[i];
+  return CAMPS[0]||null;
+}
 /* One cohort drives the hero panel, and it is the member's own.
    This read london-east unconditionally, which is right for the "Campaigns near
    you" row (that card IS London East) and wrong for the panel above it: a
    member who joined Windsor got a dot cluster and an "N of 100 households" line
    counting London East's households, while the campaign history two cards down
    counted Windsor's. Two numbers for one cohort on one screen.
-   London East stays the fallback, because that is what the seeded card and the
-   join CTA are about for a member who has joined nothing yet. */
+   The featured cohort is the fallback, because that is what the row's first
+   card and the join CTA are about for a member who has joined nothing yet. It
+   used to be london-east by name, which was only ever right while the catalog
+   was the six ids hardcoded above. */
 function syncCohortFromCamps(){
-  var c=(CAMPLIVE&&joinedCamp())||campById('london-east');
+  var c=featuredCamp();
   if(!c)return;
   S.cohort.have=c.members;S.cohort.need=c.target||100;S.cohort.locked=c.households;
   FEED.forming[1]=['Today',c.members+' of '+S.cohort.need+' households in'];
@@ -3267,7 +3294,7 @@ function rvArriveX(){
 function rvResult(){
   var c=S.checkup||{prov:'your provider',bill:0,speed:'',promo:'Not sure'};
   var over=c.bill?Math.max(0,c.bill-MEDIAN):0;
-  var le=campById('london-east');
+  var le=featuredCamp();
   var have=le?le.members:61,need=le?(le.target||100):100;
   return '<section class="card vfirst" aria-label="Your result">'
   +'<div class="vres"><div>'
@@ -3276,14 +3303,59 @@ function rvResult(){
   +'<p class="cardnote">'+(over>0?('Households like yours around here typically pay about '+money(MEDIAN)+(c.speed?' for '+esc(c.speed):'')+'. Yours is '+money(c.bill)+(c.promo!=='Not sure'?', and your promo reset lands around '+esc(c.promo)+', which usually pushes it higher.':'.')):'Your promo is doing its job today. '+(c.promo!=='Not sure'?'The reset around '+esc(c.promo)+' is when that changes, and a cohort is how you get ahead of it.':'Add your promo end date and we’ll flag the reset before it lands.'))+'</p>'
   +'</div>'+(c.bill?'<div class="vnum"><b>'+money(c.bill)+'</b><span>your bill /mo</span></div>':'')+'</div>'
   +'</section>'
-  +'<section class="card" style="margin-top:16px" aria-label="Cohort you can join">'
-  +'<span class="eyebrow">Open in your area</span><h3>London East · Autumn cohort</h3>'
-  +'<p class="cardnote">'+have+' of '+need+' households in. Joining closes <b>Sep 12</b>, sealed bidding runs <b>Sep 15 to 17</b>, and the winning offer lands by <b>Sep 24</b>.</p>'
-  +'<div class="elig">'+(c.promo==='Not sure'
-    ?'Add your promo end date and we’ll check the timing works for you.'
-    :'Offer lands Sep 24 · your reset is around '+esc(c.promo)+' · <b>good timing: the offer beats your cliff.</b>')+'</div>'
+  +openCohortHTML(le,have,need,c);
+}
+
+/* ---------- the "Open in your area" card ----------
+   The one card that turns a checkup result into a join. Every word of it used
+   to be a literal: London East, Sep 12, Sep 15 to 17, Sep 24, and a
+   data-choose of 'le'. It now reads the featured cohort and its server-owned
+   calendar, so the cohort a household is offered is whichever one ops opened,
+   and the dates are that cohort's own. */
+function openCohortHTML(le,have,need,ck){
+  if(!le||!le.joinable){
+    /* No cohort is open to this household. Saying nothing here would leave the
+       result card ending on a diagnosis with no next step. */
+    return '<section class="card" style="margin-top:16px" aria-label="Cohorts near you">'
+    +'<span class="eyebrow">Open in your area</span><h3>Nothing open near you yet</h3>'
+    +'<p class="cardnote">We open one region at a time, and a cohort opens when enough households with renewal timing like yours are in. Your result and your cliff watch stay active meanwhile.</p>'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">'
+    +'<button class="btn terra" type="button" data-act="wnotify">Text me the day it opens</button>'
+    +'<button class="btn ghost" type="button" data-act="whyfree">Why it’s free</button>'
+    +'</div></section>';
+  }
+  var d=le.dates||{};
+  var bits=[have+' of '+need+' households in.'];
+  if(d.announce_at)bits.push('Joining closes <b>'+dstamp(d.announce_at)+'</b>,');
+  if(d.bidding_opens_at&&d.bidding_closes_at){
+    bits.push('sealed bidding runs <b>'+dstamp(d.bidding_opens_at)+' to '+dstamp(d.bidding_closes_at)+'</b>,');
+  }else if(d.bidding_closes_at){
+    bits.push('sealed bidding closes <b>'+dstamp(d.bidding_closes_at)+'</b>,');
+  }
+  var offer=d.offers_at||d.decision_at||null;
+  if(offer)bits.push('and the winning offer lands by <b>'+dstamp(offer)+'</b>.');
+  /* A cohort with no calendar set is the normal state of a new one, and a
+     sentence of dangling commas would be worse than one honest line. */
+  var line=bits.length>1?bits.join(' ').replace(/,$/,'.')
+    :bits[0]+' Joining is open now, and sealed bidding runs once the cohort locks.';
+  /* The timing note only claims the offer beats the cliff when there is an
+     offer date to compare against. It used to assert it from a literal. */
+  var elig;
+  if(ck.promo==='Not sure'){
+    elig='Add your promo end date and we’ll check the timing works for you.';
+  }else if(offer){
+    elig='Offer lands '+dstamp(offer)+' · your reset is around '+esc(ck.promo)
+      +' · <b>good timing: the offer beats your cliff.</b>';
+  }else{
+    elig='Your reset is around '+esc(ck.promo)+' · we time bidding to close before it.';
+  }
+  return '<section class="card" style="margin-top:16px" aria-label="Cohort you can join">'
+  +'<span class="eyebrow">Open in your area</span><h3>'+esc(le.region||le.id)
+  +(le.sub?' · '+esc(le.sub):'')+'</h3>'
+  +'<p class="cardnote">'+line+'</p>'
+  +'<div class="elig">'+elig+'</div>'
   +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">'
-  +'<button class="btn terra" type="button" data-choose="le">Choose this cohort</button>'
+  +'<button class="btn terra" type="button" data-choose="'+esc(le.id)+'">Choose this cohort</button>'
   +'<button class="btn ghost" type="button" data-act="whyfree">Why it’s free</button>'
   +'</div>'
   +'<p class="fnote">Joining is free and never obligates you. You’ll answer six quick questions so bids fit what you actually want.</p>'
@@ -3381,7 +3453,7 @@ function routeVisitor(){
     var mh=$('#member-home');
     if(mh)mh.insertAdjacentHTML('afterbegin',checkupPromptHTML());
   }
-  syncRegions();
+  renderRegions();
   $$('#sts button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-goto')===S.state)});
   /* Both directions, because the demo switcher moves between the two homes in
      one session: a member lane that ran after a visitor lane would otherwise
@@ -3391,43 +3463,83 @@ function routeVisitor(){
   return false;
 }
 
-/* The "Campaigns near you" London East row: its count and bar.
-   This lived inside render(), below the `if(routeVisitor()) return`, so it only
-   ever ran for a member already in a cohort. In every visitor lane, which is
-   where this card IS the join CTA, the row kept the 61 of 100 written into the
-   markup no matter what the server said the count was. Painted from CAMPS on
-   both lanes now, and always about london-east: this row is that card, not
-   whichever cohort the member joined. */
-function paintRegionCount(){
-  var le=campById('london-east');if(!le)return;
-  var need=le.target||100;
-  var joined=CAMPLIVE?joinedCamp():null;
-  var mine=joined&&joined.id==='london-east';
-  var rm=$('#regmono');
-  if(rm)rm.textContent=(mine&&S.state!=='forming'&&S.state!=='closing')
-    ? (le.households+' households, '+String(PILL[S.state]||'').toLowerCase())
-    : (le.members+' of '+need+' households');
-  var rp=$('#regprog');if(rp)rp.style.width=Math.min(100,Math.round(le.members/need*100))+'%';
+/* ---------- "Campaigns near you": one card per cohort the server sent ----------
+   This was four hardcoded cards plus a fifth whose count and bar were repainted
+   from london-east. Every region name, every subtitle and every count now comes
+   from the campaign record, so creating a cohort in the Data Store is the whole
+   act of putting it on this row. */
+function ccArt(c){
+  var a=REGION_ART[c.id];
+  if(!a)return '<span class="cc__art"></span>';
+  return '<span class="cc__art"><img src="/images/regions/'+a[0]+'.webp" srcset="/images/regions/'+a[0]
+   +'.webp 1x, /images/regions/'+a[0]+'@2x.webp 2x" alt="'+esc(a[1])
+   +'" width="300" height="130" loading="lazy" decoding="async"></span>';
 }
-
-/* ---------- region row sync (the London East card doubles as the join CTA) ---------- */
-function syncRegions(){
-  var first=$('#cc-first');if(!first)return;
-  paintRegionCount();
-  var badge=$('#regbadge'),btn=$('#ccjoin');
-  if(!S.joined&&VIS.indexOf(S.state)>-1){
-    badge.textContent=S.state==='waitlist'?'Elsewhere · open to join':'Open to join · closes Sep 12';
-    badge.classList.add('live');
-    if(!btn&&S.state==='result'){
-      var b=document.createElement('button');
-      b.className='btn terra ccbtn';b.id='ccjoin';b.type='button';b.textContent='Choose this cohort';
-      b.setAttribute('data-choose','le');
-      first.querySelector('.cc__b').appendChild(b);
-    }
-    if(btn&&S.state!=='result')btn.remove();
-  }else{
-    if(btn)btn.remove();
+/* The subtitle line: the cohort's own `sub`, plus the date joining shuts where
+   the calendar carries one. announce_at is that date: it is the moment the
+   brief is fixed and joins lock, which is what "closes" means to a household. */
+function ccSub(c){
+  var m=c.sub||'';
+  var d=c.dates&&c.dates.announce_at;
+  if(d&&(c.kind==='forming'||c.kind==='waitlist'||c.kind==='planned')){
+    m=(m?m+' · ':'')+'closes '+dstamp(d);
   }
+  return m;
+}
+function ccCard(c,feat){
+  var mine=c.you==='joined'||c.you==='waitlist';
+  var b=CCBADGE[c.kind]||CCBADGE.planned;
+  var badge=mine
+    ? '<span class="badge live">Your cohort · '+esc(PILL[S.state]||'In play')+'</span>'
+    : '<span class="badge '+b[0]+'">'+esc(b[1])+'</span>';
+  /* A bell belongs on a cohort nobody can join yet. On one at auction it would
+     offer to text the member about a window that has already shut. */
+  var bell=(!mine&&!c.joinable&&c.kind!=='auction'&&c.kind!=='closed'&&c.region)
+    ? '<button class="bell" type="button" data-bell="'+esc(c.region)+'" aria-label="Notify me when '
+      +esc(c.region)+' opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/>'
+      +'<path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>'
+    : '';
+  /* A bar needs something to fill toward. An auction cohort has no target by
+     design (it is closed, its number is final), so it gets a count and no bar. */
+  var need=c.target||0;
+  var bar=(need&&c.kind!=='auction'&&c.kind!=='closed')
+    ? '<span class="miniprog"><i style="width:'+Math.min(100,Math.round(c.members/need*100))+'%"></i></span>'
+    : '';
+  var mono;
+  if(mine&&S.state!=='forming'&&S.state!=='closing'){
+    mono=c.households+' households, '+String(PILL[S.state]||'').toLowerCase();
+  }else if(need){
+    mono=c.members+' of '+need+' households';
+  }else{
+    mono=c.households+' households, sealed';
+  }
+  /* The join CTA lives on the featured cohort only, and only in the lane where
+     this row IS the call to action. `data-choose` carries the real id: it used
+     to be the string 'le', which is why joining could only ever mean one
+     cohort no matter which card was on screen. */
+  var cta=(!mine&&c.joinable&&c===feat&&S.state==='result')
+    ? '<button class="btn terra ccbtn" type="button" data-choose="'+esc(c.id)+'">Choose this cohort</button>'
+    : '';
+  /* #cc-first and #regmono stay on the featured card. They are the handles
+     qa-dashboard.mjs reads to assert that this row shows the server's count and
+     not a number from the markup, which is the whole point of the rewrite, and
+     they are unique because only one card is ever the featured one. */
+  return '<div class="cc"'+(c===feat?' id="cc-first"':'')+'>'+badge+bell+ccArt(c)
+   +'<span class="cc__b"><b>'+esc(c.region||c.id)+'</b><span class="m">'+esc(ccSub(c))+'</span>'
+   +bar+'<span class="mono"'+(c===feat?' id="regmono"':'')+'>'+esc(mono)+'</span>'+cta+'</span></div>';
+}
+function renderRegions(){
+  var row=$('#crow');if(!row)return;
+  if(!CAMPS.length){
+    /* Live and empty is a real answer: the catalog has no visible cohort. Say
+       so rather than leaving a blank row that reads as a failed load. */
+    row.innerHTML='<div class="cc"><span class="cc__art"></span><span class="cc__b">'
+     +'<b>No cohorts open yet</b><span class="m">We open one region at a time.</span>'
+     +'<span class="mono">We’ll text you the day yours does</span></span></div>';
+    return;
+  }
+  var feat=featuredCamp();
+  row.innerHTML=CAMPS.map(function(c){return ccCard(c,feat)}).join('');
 }
 
 /* ---------- visitor events ----------
@@ -3443,8 +3555,12 @@ document.addEventListener('click',function(e){
     return;
   }
   var ch=e.target.closest('[data-choose]');
-  if(ch){openPrefs();return}
+  /* Which cohort was chosen has to survive the six questions: the save handler
+     runs long after this click, and it used to join london-east by name no
+     matter which card the member pressed. */
+  if(ch){CHOSEN=ch.getAttribute('data-choose')||null;openPrefs();return}
 });
+var CHOSEN=null;
 
 /* ---------- preferences: six questions -> the cohort brief ----------
    Saved to the account via POST /me/prefs under the `interests` key (the only
@@ -3484,9 +3600,9 @@ document.addEventListener('click',function(e){
   closeModal();
   if(!wasJoined){
     S.joined=true;OPTJOIN=true;
-    EXTRA.push(['Today','You joined London East · Autumn, preferences on file']);
-    var le=campById('london-east');
-    if(le&&le.you!=='joined'&&le.you!=='waitlist')doJoin('london-east');
+    var le=(CHOSEN&&campById(CHOSEN))||featuredCamp();
+    EXTRA.push(['Today','You joined '+(le?le.region+(le.sub?' · '+le.sub:''):'your cohort')+', preferences on file']);
+    if(le&&le.you!=='joined'&&le.you!=='waitlist')doJoin(le.id);
     S.state=deriveState();
     render();
   }else{
@@ -3708,12 +3824,15 @@ if(W&&W.session&&W.session.campaignsList){
       if(r.serverTime)SKEW=r.serverTime-Date.now();
       CAMPLIVE=Boolean(r.live);
       var before=S.state;
-      /* Before applying, not after: the server's silence about a campaign is
-         as much of an answer as its rows. See clearUnnamedMembership. Gated on
-         `live` for the same reason deriveState is, so a degraded read (counts
-         unavailable) does not read as "you left everything". */
-      if(CAMPLIVE)clearUnnamedMembership(r.campaigns);
+      /* After applying, not before: applyCampaign now creates records for ids
+         it has never seen, so the drop has to run once the server's own rows
+         are in or it would delete them on arrival. The server's silence about
+         a campaign is still as much of an answer as its rows. See
+         dropUnnamedSeeds. Gated on `live` for the same reason deriveState is,
+         so a degraded read (counts unavailable) does not read as "you left
+         everything". */
       (r.campaigns||[]).forEach(applyCampaign);
+      if(CAMPLIVE)dropUnnamedSeeds(r.campaigns);
       syncCohortFromCamps();
       applyDerived();
       /* Only announce a move the member did not make themselves. */
