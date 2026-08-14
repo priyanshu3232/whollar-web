@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Check if you're overpaying for internet — Whollar</title>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&f[]=general-sans@500,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --teal:#0E2A20; --teal-deep:#0A2018; --teal-bright:#178A5A; --teal-soft:#7FE3B0;
+  --accent:#1E9E63; --accent-hover:#178A5A;
+  --cream:#FAF8F3; --paper:#ffffff; --mist:#F6F4EE;
+  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#8A968F; --line:#e7ebe6;
+  --warn:#C2643B; --warn-soft:#F7E7DD; --green-tint:#E4F4EC; --gold:#C29B3C;
+  --label:'General Sans','Satoshi',system-ui,sans-serif;
+  --disp:'Satoshi',system-ui,sans-serif;
+  --body:'Inter',system-ui,sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
+  --wrap:1240px; --r:18px; --rf:26px;
+  --sh-1:0 1px 2px rgba(16,40,34,.04),0 8px 24px rgba(16,40,34,.05);
+  --sh-2:0 2px 6px rgba(16,40,34,.06),0 18px 44px rgba(16,40,34,.09);
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--body);-webkit-font-smoothing:antialiased;font-size:16px;line-height:1.5}
+h1,h2,h3,h4{font-family:var(--disp);color:var(--teal);letter-spacing:-.02em;margin:0}
+p{margin:0}
+button{font-family:var(--body)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes shake{0%,100%{transform:none}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}
+
+.whl-nav{position:sticky;top:0;z-index:60;background:rgba(250,248,243,.88);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.whl-nav__in{max-width:var(--wrap);margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:14px}
+.whl-mark{display:flex;align-items:center;gap:10px;text-decoration:none}
+.whl-mark svg{width:34px;height:34px}
+.whl-mark b{font-family:var(--disp);font-weight:900;font-size:20px;color:var(--teal)}
+.whl-nav__back{margin-left:8px;font-size:14px;color:var(--ink-2);text-decoration:none}
+.whl-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:pointer;font-weight:600;font-size:15px;color:#fff;background:var(--teal);border-radius:13px;padding:13px 22px;text-decoration:none;transition:background .18s,transform .18s;white-space:nowrap}
+.whl-btn:hover{background:var(--teal-deep);transform:translateY(-1px)}
+.whl-btn--sm{font-size:13.5px;padding:10px 18px;border-radius:11px;margin-left:auto}
+.whl-eyebrow{display:inline-block;font-family:var(--label);font-weight:600;font-size:12.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);margin:0 0 14px}
+
+.hero{padding:clamp(34px,4.6vw,54px) 0 10px}
+.hero h1{font-weight:900;font-size:clamp(27px,3.8vw,46px);line-height:1.06;max-width:none;text-wrap:balance}
+@media (min-width:880px){.hero h1{white-space:nowrap}}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.hero .sub{margin-top:14px;font-size:clamp(15px,1.5vw,17.5px);line-height:1.6;color:var(--ink-2);max-width:620px}
+.hero .sub b{color:var(--teal)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:26px;align-items:start;padding:20px 0 80px}
+.grid>aside{align-self:start}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--rf);box-shadow:var(--sh-1);padding:clamp(20px,2.6vw,28px)}
+.card>h2{font-size:clamp(19px,2.2vw,24px);font-weight:900}
+
+/* upload shortcut */
+.upl{display:flex;align-items:center;gap:13px;margin-top:16px;border:1.5px dashed #b9c8bf;border-radius:16px;padding:13px 15px;background:var(--green-tint)}
+.upl__ic{flex:none;width:38px;height:38px;border-radius:12px;background:#fff;display:grid;place-items:center}
+.upl__ic svg{width:18px;height:18px;stroke:var(--accent);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.upl b{display:block;font-family:var(--disp);font-weight:700;font-size:14px;color:var(--teal)}
+.upl span{font-size:12.5px;color:var(--ink-2);line-height:1.5}
+.upl .whl-btn{margin-left:auto;background:var(--accent);font-size:13.5px;padding:10px 16px}
+.filechip{display:none;margin-top:10px;background:var(--green-tint);border:1px solid #cfe9db;border-radius:11px;padding:9px 13px;font-size:12.5px;color:var(--teal-bright)}
+.filechip.on{display:block;animation:rise .3s var(--ease)}
+
+/* form grid */
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
+.fld{border:1px solid var(--line);border-radius:var(--r);padding:13px 15px 15px;background:var(--paper);transition:border-color .15s}
+.fld:focus-within{border-color:var(--accent)}
+.fld__h{display:flex;align-items:center;gap:9px;margin-bottom:9px;min-height:26px}
+.fld__n{flex:none;width:24px;height:20px;border-radius:6px;background:var(--mist);color:var(--ink-2);font-family:var(--mono);font-size:10.5px;font-weight:600;display:grid;place-items:center}
+.fld__l{font-family:var(--label);font-weight:600;font-size:14px;color:var(--teal)}
+.fld input,.fld select{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:11px;color:var(--ink);padding:11px 13px;font-size:14.5px;font-family:var(--body);appearance:none}
+.fld select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%2354625B' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center}
+.fld input:focus,.fld select:focus{outline:none;border-color:var(--accent)}
+.fld input::placeholder{color:#AEB8B2}
+.fld input:disabled,.fld select:disabled{background:var(--mist);color:var(--ink-3);cursor:not-allowed}
+.fld.err{border-color:var(--warn);animation:shake .3s}
+#pc{text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.phint{display:none;margin-top:7px;font-size:11.5px;color:var(--ink-3)}
+.phint.on{display:block}
+.pcok{display:none;margin-top:8px;font-size:12px;font-weight:600;color:var(--accent)}
+.pcok.on{display:block;animation:rise .25s var(--ease)}
+
+/* I don't know pill */
+.idk{margin-left:auto;flex:none;background:var(--paper);border:1.5px solid var(--line);color:var(--ink-2);font-size:11.5px;font-weight:600;border-radius:999px;padding:5px 12px;cursor:pointer;transition:all .15s}
+.idk:hover{border-color:#c6d5cc}
+.idk.on{background:var(--gold);border-color:var(--gold);color:#fff}
+.idknote{display:none;margin-top:8px;font-size:11.5px;color:var(--warn)}
+.idknote.on{display:block;animation:rise .25s var(--ease)}
+
+/* info tooltip */
+.info{flex:none;width:17px;height:17px;border-radius:50%;background:var(--mist);color:var(--ink-2);border:none;font-size:10.5px;font-weight:700;cursor:help;display:grid;place-items:center;position:relative;font-family:var(--body)}
+.info:hover{background:var(--green-tint);color:var(--teal-bright)}
+.info .tip{display:none;position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%);width:216px;background:var(--teal);color:#fff;font-size:11.5px;font-weight:400;line-height:1.5;border-radius:11px;padding:10px 12px;text-align:left;z-index:20;box-shadow:var(--sh-2)}
+.info .tip::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--teal)}
+.info:hover .tip,.info:focus .tip{display:block;animation:rise .18s var(--ease)}
+
+/* multi-promo consent row */
+.mp{display:flex;align-items:flex-start;gap:11px;margin-top:14px;background:var(--mist);border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;cursor:pointer;width:100%;text-align:left;max-width:none}
+.mp:hover{border-color:#c6d5cc}
+.mp.on{background:#F7FCF9;border-color:var(--accent)}
+.mp .bx{flex:none;width:19px;height:19px;border-radius:6px;border:1.5px solid var(--line);background:var(--paper);display:grid;place-items:center;margin-top:1px;transition:all .15s}
+.mp.on .bx{background:var(--accent);border-color:var(--accent)}
+.mp.on .bx::after{content:"";width:9px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translateY(-1px)}
+.mp__t{flex:1}
+.mp b{display:block;font-family:var(--disp);font-weight:700;font-size:14px;color:var(--teal)}
+.mp span{font-size:12.5px;color:var(--ink-2);line-height:1.55;font-weight:400}
+
+/* month-by-month table */
+.mbm{display:none;margin-top:14px;border:1px solid var(--line);border-radius:var(--rf);padding:18px 20px 20px;background:var(--mist)}
+.mbm.on{display:block;animation:rise .3s var(--ease)}
+.mbm__h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.mbm__h h3{font-size:16.5px;font-weight:900}
+.mbm__h .st{margin-left:auto;font-size:12px;color:var(--ink-3);font-weight:500}
+.mbm__h .st.good{color:var(--accent);font-weight:600}
+.mbm__h .st.warn{color:var(--warn);font-weight:600}
+.mbm>p{margin-top:7px;font-size:12.5px;color:var(--ink-2);line-height:1.55}
+.prow{display:flex;align-items:center;gap:9px;background:var(--paper);border:1px solid var(--line);border-radius:13px;padding:10px 12px;margin-top:9px}
+.prow .pn{flex:none;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);width:20px}
+.prow .amt{flex:none;width:112px}
+.prow .mon{flex:none;width:96px}
+.prow input{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;font-size:13.5px;font-family:var(--body);color:var(--ink)}
+.prow input:focus{outline:none;border-color:var(--accent)}
+.prow .lbl{font-size:12.5px;color:var(--ink-2);white-space:nowrap}
+.prow .rm{margin-left:auto;flex:none;width:28px;height:28px;border-radius:9px;border:none;background:var(--mist);color:var(--ink-3);font-size:15px;cursor:pointer;line-height:1}
+.prow .rm:hover{background:var(--warn-soft);color:var(--warn)}
+.addp{margin-top:11px;display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.addp button{background:var(--paper);border:1.5px solid var(--line);border-radius:11px;padding:9px 14px;font-size:13px;font-weight:600;color:var(--teal);cursor:pointer}
+.addp button:hover{border-color:var(--accent)}
+.addp span{font-size:12px;color:var(--ink-3)}
+.fallback{display:none;margin-top:13px;background:var(--warn-soft);border:1px solid #EBC3AE;border-radius:14px;padding:13px 15px}
+.fallback.on{display:block;animation:rise .28s var(--ease)}
+.fallback b{display:block;font-family:var(--disp);font-weight:700;font-size:13.5px;color:#A84E2C;margin-bottom:4px}
+.fallback p{font-size:12.5px;line-height:1.55;color:#A84E2C;margin-bottom:10px}
+.fallback input{width:150px;background:var(--paper);border:1.5px solid #EBC3AE;border-radius:11px;padding:10px 12px;font-size:14px;font-family:var(--body);color:var(--ink)}
+.fallback input:focus{outline:none;border-color:var(--warn)}
+
+/* email + cta */
+.emailbox{margin-top:16px;border:1px solid var(--line);border-radius:var(--r);padding:15px 17px}
+.emailbox label{display:block;font-family:var(--label);font-weight:600;font-size:14px;color:var(--teal);margin-bottom:9px}
+.emailbox input{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:11px;padding:11px 13px;font-size:14.5px;font-family:var(--body)}
+.emailbox input:focus{outline:none;border-color:var(--accent)}
+.emailbox .fine{margin-top:9px;font-size:11.5px;line-height:1.6;color:var(--ink-3)}
+.emailbox .fine a{color:var(--ink-2)}
+.fld--bar{margin-top:18px}
+.fld--bar .barrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.fld--bar .fld__l{margin-right:4px}
+.fld--bar #pc{max-width:220px}
+.fld--bar .pcok{margin-top:0}
+.nudge{display:none;margin-top:14px;background:var(--warn-soft);border:1px solid #EBC3AE;border-radius:var(--r);padding:15px 17px}
+.nudge.on{display:block;animation:rise .3s var(--ease)}
+.nudge__h{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.nudge__h svg{width:17px;height:17px;flex:none;stroke:#A84E2C;stroke-width:2;fill:none;stroke-linecap:round}
+.nudge__h b{font-family:var(--disp);font-weight:900;font-size:15px;color:#A84E2C}
+.nudge p{font-size:13px;line-height:1.6;color:#A84E2C}
+.nudge__w{margin-top:9px;font-weight:600}
+
+/* rail levers */
+.levsub{font-size:12.5px;line-height:1.55;color:var(--ink-2);margin-bottom:6px}
+.secdiv{display:flex;align-items:center;gap:11px;margin:16px 0 10px}
+.secdiv::before,.secdiv::after{content:"";flex:1;height:1px;background:var(--line)}
+.secdiv span{font-family:var(--label);font-weight:600;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
+.lev{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:13px;padding:10px 12px;margin-top:7px;background:var(--paper);transition:border-color .2s,background .2s}
+.lev.lit{border-color:#cfe9db;background:#F7FCF9;border-left:3px solid var(--accent)}
+.lev .ln{flex:none;font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-top:2px}
+.lev b{display:block;font-family:var(--disp);font-weight:700;font-size:13px;color:var(--teal)}
+.lev p{font-size:11.5px;line-height:1.5;color:var(--ink-3);margin-top:2px}
+.lev .yrs{margin-left:auto;flex:none;font-family:var(--label);font-weight:600;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:var(--accent);border-radius:999px;padding:3px 8px;align-self:flex-start}
+
+/* loading panel */
+.grid.solo{grid-template-columns:minmax(0,1fr)}
+.grid.solo>aside{display:none}
+.grid.solo #loading{max-width:780px;margin:0 auto}
+.loading{display:none;border-radius:var(--rf);background:linear-gradient(155deg,var(--teal-deep),#123B2C 58%,#17553D);color:#fff;padding:clamp(24px,3vw,34px);position:relative;overflow:hidden}
+.loading.on{display:block;animation:rise .4s var(--ease)}
+.loading::before{content:"";position:absolute;inset:0;background:radial-gradient(460px 220px at 88% -18%,rgba(127,227,176,.16),transparent 62%);pointer-events:none}
+.ld__top{display:flex;align-items:center;gap:11px;position:relative}
+.ld__spin{flex:none;width:17px;height:17px;border-radius:50%;border:2px solid rgba(127,227,176,.3);border-top-color:var(--teal-soft);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ld__st{font-family:var(--label);font-weight:600;font-size:12px;letter-spacing:.11em;text-transform:uppercase;color:var(--teal-soft)}
+.ld__pct{margin-left:auto;font-family:var(--mono);font-size:12px;color:rgba(255,255,255,.55)}
+.ld__bar{position:relative;height:4px;border-radius:99px;background:rgba(255,255,255,.14);margin-top:11px;overflow:hidden}
+.ld__fill{position:absolute;inset:0 auto 0 0;width:0%;background:linear-gradient(90deg,var(--accent),var(--teal-soft));border-radius:99px;transition:width .5s var(--ease)}
+.loading h2{color:#fff;font-size:clamp(23px,3vw,32px);font-weight:900;margin-top:22px;position:relative;letter-spacing:-.02em;text-wrap:balance}
+.ldlist{position:relative;margin-top:24px;display:grid;gap:15px}
+.ldrow{display:flex;gap:13px;align-items:flex-start}
+.ldrow .n{flex:none;width:26px;height:26px;border-radius:9px;background:rgba(127,227,176,.16);border:1px solid rgba(127,227,176,.3);color:var(--teal-soft);font-family:var(--mono);font-size:12px;font-weight:600;display:grid;place-items:center;margin-top:1px}
+.ldrow p{font-size:14px;line-height:1.6;color:rgba(255,255,255,.68)}
+.ldrow p b{color:#fff;font-weight:700}
+.ldfoot{margin-top:22px;padding-top:16px;border-top:1px solid rgba(255,255,255,.13);position:relative;font-size:12.5px;color:rgba(255,255,255,.45)}
+.ldp-old{position:relative}
+.ldc{display:none;animation:rise .45s var(--ease)}
+.ldc.on{display:block}
+.ldc .kk{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--teal-soft);text-transform:uppercase}
+.ldc b{display:block;font-family:var(--disp);font-weight:900;font-size:19px;color:#fff;margin-top:7px;letter-spacing:-.01em}
+.ldc p{font-size:13.5px;line-height:1.65;color:rgba(255,255,255,.72);margin-top:8px;max-width:520px}
+.lddots{display:flex;gap:6px;margin-top:16px;position:relative}
+.lddots i{width:22px;height:3px;border-radius:99px;background:rgba(255,255,255,.18);transition:background .3s}
+.lddots i.on{background:var(--teal-soft)}
+.ldfoot{margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,.13);position:relative;font-size:12px;color:rgba(255,255,255,.5)}
+
+/* results */
+.res{display:none}
+.res.on{display:block;animation:rise .45s var(--ease)}
+.vcard{border-radius:var(--rf);background:linear-gradient(155deg,var(--teal-deep),#123B2C 58%,#17553D);color:#fff;padding:clamp(24px,3.2vw,36px);position:relative;overflow:hidden;border-top:4px solid var(--accent)}
+.vcard.warn{border-top-color:var(--warn)}
+.vcard.mid{border-top-color:var(--gold)}
+.vcard::before{content:"";position:absolute;inset:0;background:radial-gradient(480px 230px at 92% -20%,rgba(127,227,176,.15),transparent 62%);pointer-events:none}
+.vbadge{display:inline-block;position:relative;font-family:var(--label);font-weight:600;font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;border-radius:999px;padding:8px 16px;border:1px solid var(--teal-soft);color:var(--teal-soft)}
+.vcard.warn .vbadge{border-color:#E8A07A;color:#E8A07A}
+.vcard.mid .vbadge{border-color:#E3C97F;color:#E3C97F}
+.vcard h2{color:#fff;font-size:clamp(24px,3.4vw,36px);font-weight:900;margin-top:18px;line-height:1.13;letter-spacing:-.02em;position:relative;max-width:620px;text-wrap:balance}
+.vrule{height:1px;background:rgba(255,255,255,.16);margin:22px 0 20px;position:relative}
+.vnum{position:relative}
+.vnum .kk{font-family:var(--label);font-weight:600;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.6)}
+.vnum .big{display:block;font-family:var(--disp);font-weight:900;font-size:clamp(38px,6vw,60px);letter-spacing:-.03em;color:#fff;margin-top:6px;line-height:1}
+.vcard.warn .vnum .big{color:#FFB894}
+.vcard.mid .vnum .big{color:#F0DBA0}
+.vnum .cap{font-size:13px;color:rgba(255,255,255,.6);margin-top:8px}
+.vbody{position:relative;margin-top:22px;font-size:14.5px;line-height:1.7;color:rgba(255,255,255,.78);max-width:600px}
+.vfacts{position:relative;margin-top:20px;display:grid;gap:11px}
+.vfact{border-left:3px solid var(--teal-soft);padding:2px 0 2px 13px}
+.vcard.warn .vfact{border-left-color:#E8A07A}
+.vfact b{font-family:var(--disp);font-weight:700;font-size:14px;color:#fff}
+.vfact span{font-size:13.5px;color:rgba(255,255,255,.62)}
+.vcta{position:relative;margin-top:26px}
+.vcta .whl-btn{background:var(--accent);font-size:16px;padding:15px 26px}
+.vcta .whl-btn:hover{background:var(--accent-hover)}
+.vfine{margin-top:11px;font-size:12px;color:rgba(255,255,255,.45);position:relative}
+
+.vfig{position:relative;display:flex;align-items:stretch;gap:clamp(18px,3vw,38px);margin-top:24px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:20px clamp(18px,2.6vw,26px)}
+.fig{display:flex;flex-direction:column;justify-content:flex-end;min-width:0}
+.figsep{width:1px;background:rgba(255,255,255,.14);flex:none}
+.figk{display:flex;align-items:center;gap:7px;font-family:var(--label);font-weight:600;font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:rgba(255,255,255,.55);line-height:1.4}
+.figv{font-family:var(--disp);font-weight:900;letter-spacing:-.03em;color:#fff;font-size:clamp(26px,3.4vw,36px);line-height:1.05;margin-top:9px}
+.figv em{font-style:normal;font-size:.5em;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:0}
+.fig--hero{flex:1}
+.figv--big{font-size:clamp(38px,5.6vw,58px);color:var(--teal-soft)}
+.vcard.warn .figv--big{color:#FFB894}
+.vcard.mid .figv--big{color:#F0DBA0}
+.figsub{font-size:12.5px;color:rgba(255,255,255,.5);margin-top:9px}
+.vstrip{display:none;position:relative;margin-top:16px;align-items:flex-start;gap:11px;background:rgba(0,0,0,.16);border-left:3px solid var(--teal-soft);border-radius:0 13px 13px 0;padding:13px 16px}
+.vstrip.on{display:flex;align-items:center}
+.vstrip .vst{flex:1;min-width:0}
+.vcliff{flex:none;margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:rgba(194,100,59,.22);border:1px solid #E8A07A;color:#FFC7A8;border-radius:999px;padding:6px 12px;font-family:var(--label);font-weight:600;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;white-space:nowrap}
+.vcliff i{width:6px;height:6px;border-radius:50%;background:#FFB894;animation:cliffpulse 1.8s var(--ease) infinite;font-style:normal}
+@keyframes cliffpulse{0%,100%{opacity:1}50%{opacity:.3}}
+@media (max-width:620px){.vstrip.on{flex-wrap:wrap}.vcliff{margin-left:0}}
+.vcard.warn .vstrip{border-left-color:#E8A07A}
+.vcard.mid .vstrip{border-left-color:#E3C97F}
+.vstrip svg{width:16px;height:16px;flex:none;stroke:rgba(255,255,255,.55);stroke-width:2;fill:none;stroke-linecap:round;margin-top:2px}
+.vstrip b{font-family:var(--disp);font-weight:700;font-size:14px;color:#fff}
+.vstrip span{font-size:13.5px;color:rgba(255,255,255,.62)}
+.vinfo{position:relative;width:17px;height:17px;border-radius:50%;background:rgba(255,255,255,.16);border:none;color:#fff;font-family:var(--body);font-size:10px;font-weight:700;cursor:help;display:none;place-items:center;line-height:1;flex:none}
+.vinfo.on{display:inline-grid}
+@media (max-width:620px){.vfig{flex-direction:column;gap:18px}.figsep{width:auto;height:1px}}
+.vinfo-old{position:relative;vertical-align:super;margin-left:8px;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);color:#fff;font-family:var(--body);font-size:11px;font-weight:700;cursor:help;display:inline-grid;place-items:center;line-height:1}
+.vinfo:hover{background:rgba(255,255,255,.26)}
+.vtip{display:none;position:absolute;bottom:calc(100% + 11px);left:50%;transform:translateX(-50%);width:290px;background:#fff;color:var(--ink);font-family:var(--body);font-size:12px;font-weight:400;line-height:1.6;border-radius:13px;padding:13px 15px;text-align:left;z-index:30;box-shadow:0 18px 44px rgba(10,32,24,.3);white-space:normal}
+.vtip b{display:block;font-family:var(--disp);font-weight:700;font-size:12.5px;color:var(--teal);margin-bottom:5px}
+.vtip em{font-style:normal;color:var(--warn);font-weight:600}
+.vtip::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:7px solid transparent;border-top-color:#fff}
+.vinfo:hover .vtip,.vinfo:focus .vtip{display:block;animation:rise .18s var(--ease)}
+@media (max-width:560px){.vtip{width:230px;left:auto;right:-8px;transform:none}.vtip::after{left:auto;right:16px;transform:none}}
+.joinbox{margin-top:14px;border-radius:var(--rf);background:linear-gradient(150deg,var(--teal-deep),#123B2C 60%,#17553D);color:#fff;padding:24px 26px;position:relative;overflow:hidden}
+.joinbox::after{content:"";position:absolute;inset:0;background:radial-gradient(360px 170px at 92% -20%,rgba(127,227,176,.16),transparent 60%);pointer-events:none}
+.joinbox h3{color:#fff;font-size:20px;font-weight:900;position:relative}
+.joinbox p{position:relative;margin-top:8px;font-size:13.5px;line-height:1.6;color:rgba(255,255,255,.72);max-width:560px}
+.joinbox .whl-btn{position:relative;margin-top:16px;background:var(--accent);font-size:15px;padding:13px 22px}
+.joinbox .whl-btn:hover{background:var(--accent-hover)}
+.told{margin-top:14px;background:var(--paper);border:1px solid var(--line);border-radius:var(--rf);box-shadow:var(--sh-1);padding:22px 24px}
+.told__h{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.told__h h3{font-family:var(--label);font-weight:600;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.told__h button{margin-left:auto;background:none;border:none;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer}
+.tgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tg{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:14px;padding:11px 13px;background:var(--paper);cursor:pointer;text-align:left;transition:border-color .15s,transform .15s;font-family:var(--body)}
+.tg:hover{border-color:#BBD9C8;transform:translateY(-1px)}
+.tg .ic{flex:none;width:32px;height:32px;border-radius:10px;background:var(--green-tint);display:grid;place-items:center}
+.tg .ic svg{width:15px;height:15px;stroke:var(--teal-bright);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.tg small{display:block;font-family:var(--label);font-weight:600;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.tg b{display:block;font-family:var(--disp);font-weight:700;font-size:14px;color:var(--teal);margin-top:2px;line-height:1.25}
+.tg.hot .ic{background:var(--warn-soft)}
+.tg.hot .ic svg{stroke:var(--warn)}
+.tg.hot b{color:var(--warn)}
+@media (max-width:860px){.tgrid{grid-template-columns:1fr 1fr}}
+@media (max-width:520px){.tgrid{grid-template-columns:1fr}}
+.formerr{display:none;margin-top:14px;background:#FBEEE7;border:1px solid #EBC3AE;border-radius:12px;padding:10px 14px;font-size:12.5px;line-height:1.5;color:#A84E2C}
+.formerr.on{display:block;animation:rise .25s var(--ease)}
+.cta{margin-top:16px;width:100%;background:var(--accent);font-size:16px;padding:15px 22px}
+.cta:hover{background:var(--accent-hover)}
+
+/* right rail */
+.know{background:var(--paper);border:1px solid var(--line);border-radius:var(--rf);box-shadow:var(--sh-1);padding:20px 22px}
+.know h4{font-family:var(--label);font-weight:600;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:14px}
+.kr{display:flex;gap:13px;padding:13px 0;border-bottom:1px solid var(--line)}
+.kr:last-of-type{border-bottom:none}
+.kr .big{flex:none;font-family:var(--disp);font-weight:900;font-size:19px;letter-spacing:-.02em;width:78px}
+.kr .big.g{color:var(--accent)}
+.kr .big.w{color:var(--warn);font-size:17px}
+.kr .big.s{font-size:15px;color:var(--warn)}
+.kr p{font-size:12.5px;line-height:1.55;color:var(--ink-2)}
+.kr p b{color:var(--teal)}
+.inv{margin-top:14px;border-radius:14px;overflow:hidden;box-shadow:var(--sh-1);border:1px solid var(--line)}
+.inv__top{height:5px;background:linear-gradient(90deg,var(--teal),var(--accent))}
+.inv__b{background:var(--paper);padding:14px 16px}
+.inv__b h5{font-family:var(--label);font-weight:600;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:0 0 11px}
+.il{display:flex;align-items:baseline;gap:8px;font-family:var(--mono);font-size:11.5px;color:var(--ink-2);padding:4px 0}
+.il .amt{margin-left:auto;color:var(--ink)}
+.il.disc{color:var(--teal-bright)}
+.il.disc .amt{color:var(--teal-bright)}
+.il.gone{color:var(--ink-3);text-decoration:line-through}
+.il .exp{font-family:var(--body);font-size:9.5px;font-weight:700;color:var(--warn);border:1px solid var(--warn);border-radius:5px;padding:1px 5px;text-decoration:none}
+.il small{display:block;font-size:9.5px;color:var(--ink-3)}
+.inv hr{border:none;border-top:1px dashed var(--line);margin:9px 0}
+.il.tot{font-weight:700;color:var(--teal)}
+.il.tot .amt{font-family:var(--disp);font-size:16px;font-weight:900;color:var(--warn)}
+.invcap{margin-top:11px;font-size:11.5px;line-height:1.55;color:var(--ink-3)}
+.invcap b{color:var(--teal)}
+.getnum{margin-top:14px;border-radius:var(--rf);background:linear-gradient(150deg,var(--teal-deep),#123B2C 60%,#17553D);color:#fff;padding:20px 22px;position:relative;overflow:hidden}
+.getnum::after{content:"";position:absolute;inset:0;background:radial-gradient(320px 150px at 90% -20%,rgba(127,227,176,.16),transparent 60%);pointer-events:none}
+.getnum h3{color:#fff;font-size:18px;font-weight:900;position:relative}
+.gp{display:flex;align-items:center;gap:10px;margin-top:11px;position:relative}
+.gp i{font-style:normal;flex:none;width:22px;height:22px;border-radius:7px;background:rgba(255,255,255,.12);color:var(--teal-soft);font-family:var(--mono);font-size:11px;font-weight:600;display:grid;place-items:center}
+.gp b{font-family:var(--disp);font-weight:700;font-size:13.5px;color:#fff}
+
+footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;color:var(--ink-3);line-height:1.7}
+
+@media (max-width:1020px){.grid{grid-template-columns:1fr}}
+@media (max-width:620px){.fg{grid-template-columns:1fr}.prow{flex-wrap:wrap}.prow .amt,.prow .mon{width:calc(50% - 20px)}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<nav class="whl-nav">
+  <div class="whl-nav__in">
+    <a class="whl-mark" href="index.html">
+      <svg viewBox="0 0 120 120"><defs><linearGradient id="wmk" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wmk)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
+      <b>Whollar</b>
+    </a>
+    <a class="whl-nav__back" href="index.html">&larr; Back to home</a>
+    <a class="whl-btn whl-btn--sm" href="whollar-join-v7.html">Join the cohort</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="whl-eyebrow">The Whollar checkup</span>
+    <h1>What's your internet <em>really</em> costing you?</h1>
+    <p class="sub">Not the sticker. The <b>complete bill</b>: your plan, the rented box, the credits, and the jump that lands when your promo quietly expires.</p>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+    <div>
+      <section class="card" id="form-card">
+        <h2>The part of your bill nobody explains</h2>
+
+        <div class="upl">
+          <span class="upl__ic"><svg viewBox="0 0 24 24"><path d="M12 16V5"/><path d="M7 10l5-5 5 5"/><path d="M4.5 18a4 4 0 0 1 1-7.9A6 6 0 0 1 17 7a5 5 0 0 1 3 9.5"/></svg></span>
+          <span><b>Shortcut: attach your bill.</b> <span>We'll decode every line for your results.</span></span>
+          <label class="whl-btn" for="bill-file">Upload &uarr;<input type="file" id="bill-file" accept=".pdf,image/*" style="display:none"></label>
+        </div>
+        <div class="filechip" id="filechip">&#10003;&nbsp; <b id="filename"></b>&nbsp;attached.</div>
+
+        <div class="fld fld--bar" id="f-pc">
+          <div class="barrow">
+            <span class="fld__n">01</span><span class="fld__l">Postal code</span>
+            <input id="pc" placeholder="L5V 2C9" maxlength="7" autocomplete="postal-code">
+            <span class="pcok" id="pc-ok"></span>
+          </div>
+        </div>
+
+        <div class="fg">
+          <div class="fld" id="f-prov">
+            <div class="fld__h"><span class="fld__n">02</span><span class="fld__l">Current provider</span></div>
+            <select id="prov"><option value="">Choose&hellip;</option><option>Rogers</option><option>Bell</option><option>Telus</option><option>Shaw</option><option>Videotron</option><option>Cogeco</option><option>Eastlink</option><option>SaskTel</option><option>TekSavvy</option><option>Start.ca</option><option>VMedia</option><option>Carrytel</option><option>Oxio</option><option>Fizz</option><option>Beanfield</option><option>Another independent</option><option>Other</option></select>
+          </div>
+
+          <div class="fld" id="f-spd">
+            <div class="fld__h"><span class="fld__n">03</span><span class="fld__l">Download speed</span></div>
+            <select id="spd"><option value="">Choose&hellip;</option><option value="25">25 Mbps or less</option><option value="50">50 Mbps</option><option value="100">100 Mbps</option><option value="150">150 Mbps</option><option value="300">300 Mbps</option><option value="500">500 Mbps</option><option value="750">750 Mbps</option><option value="1000">1 Gig</option><option value="1500">1.5 Gig and faster</option><option value="0">Not sure</option></select>
+          </div>
+
+          <div class="fld" id="f-tech">
+            <div class="fld__h"><span class="fld__n">04</span><span class="fld__l">How it reaches your house</span></div>
+            <select id="tech"><option value="">Choose&hellip;</option><option>Fibre to the home</option><option>Cable (TV coax jack)</option><option>DSL (phone jack)</option><option>Fixed wireless</option><option>Satellite</option><option>Not sure</option></select>
+          </div>
+
+          <div class="fld" id="f-start">
+            <div class="fld__h"><span class="fld__n">05</span><span class="fld__l">Contract start date</span><button type="button" class="idk" id="idk-start">I don't know</button></div>
+            <input type="date" id="startd">
+          </div>
+
+          <div class="fld" id="f-len">
+            <div class="fld__h"><span class="fld__n">06</span><span class="fld__l">Length of contract</span></div>
+            <select id="len"><option value="">Choose&hellip;</option><option value="0">No contract, month to month</option><option value="12">12 months</option><option value="24">24 months</option><option value="36">36 months</option></select>
+          </div>
+
+          <div class="fld" id="f-pend">
+            <div class="fld__h"><span class="fld__n">07</span><span class="fld__l">Promo end date</span><button type="button" class="idk" id="idk-pend">I don't know</button></div>
+            <input type="date" id="pend">
+          </div>
+        </div>
+
+        <div class="nudge" id="nudge">
+          <div class="nudge__h"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg><b id="nudge-t">Worth two minutes before you finish</b></div>
+          <p id="nudge-b"></p>
+          <p class="nudge__w">Check your signed agreement, the welcome email, or the savings line on a recent bill.</p>
+        </div>
+
+        <button type="button" class="mp" id="mp-toggle">
+          <span class="bx"></span>
+          <span class="mp__t"><b>I have more than one promo, and pay a different price in different months</b>
+          <span>A device credit that ends in June and a bundle discount that ends in December, for instance. Tick this and enter each amount below instead.</span></span>
+        </button>
+
+        <div class="fg" style="margin-top:12px">
+          <div class="fld" id="f-cost">
+            <div class="fld__h"><span class="fld__n">08</span><span class="fld__l">Price paid during promo period</span><button type="button" class="info" aria-label="What this means">i<span class="tip">The monthly amount you pay between your contract start date and your promo end date, after every discount is applied.</span></button></div>
+            <input id="cost" placeholder="$ 0" inputmode="decimal">
+            <p class="phint" id="hint-cost"></p>
+          </div>
+          <div class="fld" id="f-stick">
+            <div class="fld__h"><span class="fld__n">09</span><span class="fld__l">Price paid after promo ends</span><button type="button" class="info" aria-label="What this means">i<span class="tip">The monthly amount your bill goes to once the promo is over, for the rest of your term. Check your agreement for the rate before any discount.</span></button></div>
+            <input id="stick" placeholder="$ 0" inputmode="decimal">
+            <p class="phint" id="hint-stick"></p>
+          </div>
+        </div>
+
+        <div class="mbm" id="mbm">
+          <div class="mbm__h">
+            <h3>Your amounts, month by month</h3>
+            <span class="st" id="mbm-st">nothing entered yet</span>
+          </div>
+          <p>One row per price. Enter what you pay and for how many months, then the next amount and its months, until your contract is covered.</p>
+          <div id="prows"></div>
+          <div class="addp">
+            <button type="button" id="addp">+ Add another period</button>
+            <span id="addp-hint">Enter an amount and its months to see the total.</span>
+          </div>
+          <div class="fallback" id="fallback">
+            <b>What happens after those months?</b>
+            <p id="fb-msg">Your periods cover fewer months than your contract. Tell us the price you pay for the rest, usually the sticker price.</p>
+            <input id="fb-val" placeholder="$ 0" inputmode="decimal">
+          </div>
+        </div>
+
+        <div class="emailbox">
+          <label for="email">Email address</label>
+          <input type="email" id="email" placeholder="you@example.com">
+          <p class="fine">By submitting, you agree to receive email about your cohort and offers, and accept our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>. You can unsubscribe at any time.</p>
+          <p class="fine">Free for households. Providers pay us only when they win your group.</p>
+        </div>
+
+        <p class="formerr" id="ferr"></p>
+        <button class="whl-btn cta" id="check" type="button">Check my results</button>
+      </section>
+
+      <section class="loading" id="loading">
+        <div class="ld__top">
+          <span class="ld__spin"></span>
+          <span class="ld__st" id="ld-st">Reading what you pay today</span>
+          <span class="ld__pct" id="ld-pct">0%</span>
+        </div>
+        <div class="ld__bar"><span class="ld__fill" id="ld-fill"></span></div>
+
+        <h2 id="ld-h">While we add it up, here is the whole idea.</h2>
+
+        <div class="ldlist">
+          <div class="ldrow"><span class="n">1</span><p><b>On your own, you get the individual price list.</b> A discount to sign you, then the real rate once it runs out. No call, no letter, just a bigger number for the rest of the term.</p></div>
+          <div class="ldrow"><span class="n">2</span><p><b>Nothing announces the day it changes.</b> The number moves, autopay clears it, and most households find out two or three bills later.</p></div>
+          <div class="ldrow"><span class="n">3</span><p><b>On Whollar, your street pools into one cohort.</b> Providers bid for the whole block, and a block does not get quietly reset. One rate, no cheap half and expensive half.</p></div>
+          <div class="ldrow"><span class="n">4</span><p><b>You take the best offer, or stay put.</b> Switching fees are $0 by law, so the only way to lose is to not be in the room.</p></div>
+        </div>
+
+        <p class="ldfoot" id="ld-foot">Cohorts open street by street.</p>
+      </section>
+
+      <section class="res" id="res">
+        <div class="vcard" id="vcard">
+          <h2 id="v-head"></h2>
+
+          <div class="vfig">
+            <div class="fig">
+              <span class="figk" id="f-nowk">You pay now</span>
+              <span class="figv" id="f-now">&mdash;</span>
+            </div>
+            <span class="figsep"></span>
+            <div class="fig fig--hero">
+              <span class="figk" id="f-lbl">Extra by the end of your term<button class="vinfo" id="v-info" aria-label="How this was worked out">i<span class="vtip" id="v-tip"></span></button></span>
+              <span class="figv figv--big" id="f-hero">&mdash;</span>
+              <span class="figsub" id="f-sub"></span>
+            </div>
+          </div>
+
+          <p class="vbody" id="v-body"></p>
+          <div class="vstrip" id="v-strip"></div>
+        </div>
+
+        <div class="told">
+          <div class="told__h"><h3>What you told us</h3><button type="button" id="edit-all">&lsaquo; Edit my answers</button></div>
+          <div class="tgrid" id="tgrid"></div>
+        </div>
+
+        <div class="joinbox">
+          <h3>Join the cohort</h3>
+          <p>Households in your area get pooled together, then providers bid to win the group. Free to join, and you are never obligated to take an offer.</p>
+          <button class="whl-btn" type="button" id="v-join">Join the cohort &rarr;</button>
+        </div>
+
+        <section class="deep card" id="deep" style="margin-top:14px">
+          <h2 style="font-size:19px">Want the deep read?</h2>
+          <p style="margin-top:8px;font-size:14px;line-height:1.6;color:var(--ink-2)">The cliff, the reset date, the clauses that move your number. They are written in your paperwork. Share your agreement or a few more bills and we will decode every line.</p>
+          <div id="deep-form">
+            <label class="upl" for="deep-files" style="cursor:pointer">
+              <span class="upl__ic"><svg viewBox="0 0 24 24"><path d="M12 16V5"/><path d="M7 10l5-5 5 5"/><path d="M4.5 18a4 4 0 0 1 1-7.9A6 6 0 0 1 17 7a5 5 0 0 1 3 9.5"/></svg></span>
+              <span><b>Upload agreement / more bills</b> <span>pictures or PDFs</span></span>
+              <input type="file" id="deep-files" accept=".pdf,image/*" multiple style="display:none">
+            </label>
+            <div id="dchips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px"></div>
+            <div class="emailbox" style="margin-top:12px">
+              <label for="deep-note">Anything else we should know?</label>
+              <input id="deep-note" placeholder="Optional">
+            </div>
+            <button class="whl-btn cta" type="button" id="deep-send" style="margin-top:12px">Send for the deep read</button>
+            <p class="fine" style="margin-top:9px;font-size:11.5px;color:var(--ink-3)">We read every line and email you what we find.</p>
+          </div>
+          <div class="filechip" id="ddone">&#10003;&nbsp; Received. <b>You will see your results in your email shortly.</b></div>
+        </section>
+      </section>
+    </div>
+
+    <aside>
+      <div id="rail-form" style="display:block">
+      <div class="know">
+        <h4>Worth knowing</h4>
+        <div class="kr"><span class="big g">$0</span><p><b>What switching costs in fees since June 12, 2026.</b> Activation, change and cancellation fees are banned (CRTC 2026-43).</p></div>
+        <div class="kr"><span class="big w">30&ndash;60%</span><p><b>The average promo cliff.</b> How far prices reset when the discount expires. It lands on autopay, noticed a bill or two later.</p></div>
+        <div class="inv">
+          <div class="inv__top"></div>
+          <div class="inv__b">
+            <h5>Internet &middot; monthly statement</h5>
+            <div class="il">Gigabit 1.5 plan<span class="amt" id="inv-plan">$133.99</span></div>
+            <div class="il disc" id="inv-disc">Savings: Internet Discount<small>ends May 21/26</small><span class="amt">-$70.00</span></div>
+            <div class="il">Wi-Fi equipment<span class="amt">$10.00</span></div>
+            <div class="il">Pod rental<span class="amt">$7.00</span></div>
+            <hr>
+            <div class="il tot">Total before tax<span class="amt" id="inv-tot">$80.99</span></div>
+          </div>
+        </div>
+        <p class="invcap">A real household's statements, Jan to May 2026 (anonymized). The discount expired. <b>Nobody called to warn them.</b></p>
+        <div class="kr" style="border-top:1px solid var(--line);margin-top:6px"><span class="big s">$60&ndash;180<small style="font-size:10px">/yr</small></span><p><b>What the rented box adds.</b> Most independents include the modem free: same internet, no line item.</p></div>
+      </div>
+
+      <div class="getnum">
+        <h3>Get your number</h3>
+        <div class="gp"><i>1</i><b>Check your signal</b></div>
+        <div class="gp"><i>2</i><b>Join your street's cohort</b></div>
+        <div class="gp"><i>3</i><b>Providers bid. You decide.</b></div>
+      </div>
+      </div>
+
+      <div class="know" id="rail-levers" style="margin-top:14px;display:none">
+        <h4>What your price is built from</h4>
+        <p class="levsub">Eleven things decide what you pay. Most of them never appear on the bill.</p>
+        <div id="lev-list"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap"><b style="font-family:var(--disp);color:var(--teal)">Whollar</b> &middot; checkup &mdash; design v7, for review. Benchmarks from PlanSavvy provincial plan data plus published Bell and Rogers fibre offers.</div>
+</footer>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+
+/* ---------- benchmark data ---------- */
+/* Price frontier per province from PlanSavvy-Pricing.xlsx (Internet Plans). */
+const BENCH={"Alberta":[{"mb":30,"p":32.95,"who":"TekSavvy","plan":"Cable 30"},{"mb":100,"p":38.95,"who":"TekSavvy","plan":"Cable 100"},{"mb":120,"p":63.0,"who":"Oxio","plan":"Internet 120"},{"mb":150,"p":65.0,"who":"Eastlink","plan":"Internet 150"},{"mb":1000,"p":68.95,"who":"TekSavvy","plan":"Cable 1 Gig"}],"British Columbia":[{"mb":30,"p":32.95,"who":"TekSavvy","plan":"Cable 30"},{"mb":100,"p":38.95,"who":"TekSavvy","plan":"Cable 100"},{"mb":1000,"p":55.0,"who":"Novus","plan":"Internet 1000"}],"Manitoba":[{"mb":30,"p":32.95,"who":"TekSavvy","plan":"Cable 30"},{"mb":100,"p":38.95,"who":"TekSavvy","plan":"Cable 100"},{"mb":120,"p":63.0,"who":"Oxio","plan":"Internet 120"},{"mb":1000,"p":68.95,"who":"TekSavvy","plan":"Cable 1 Gig"}],"New Brunswick":[{"mb":30,"p":32.95,"who":"TekSavvy","plan":"Cable 30"},{"mb":100,"p":38.95,"who":"TekSavvy","plan":"Cable 100"},{"mb":150,"p":65.0,"who":"Eastlink","plan":"Internet 150"},{"mb":1000,"p":68.95,"who":"TekSavvy","plan":"Cable 1 Gig"}],"Newfoundland and Labrador":[{"mb":30,"p":32.95,"who":"TekSavvy","plan":"Cable 30"},{"mb":100,"p":38.95,"who":"TekSavvy","plan":"Cable 100"},{"mb":500,"p":60.0,"who":"Purple Cow","plan":"Purple Fibre 500"},{"mb":1000,"p":68.95,"who":"TekSavvy","plan":"Cable 1 Gig"}],"Northwest Territories":[{"mb":25,"p":50.0,"who":"Xplore","plan":"Fixed Wireless LTE 25"},{"mb":50,"p":60.0,"who":"Xplore","plan":"Fixed Wireless 5G 50"},{"mb":100,"p":75.0,"who":"Starlink","plan":"Residential 100"},{"mb":150,"p":110.0,"who":"Starlink","plan":"Roam Unlimited"},{"mb":200,"p":115.0,"who":"Starlink","plan":"Residential 200"},{"mb":400,"p":150.0,"who":"Starlink","plan":"Residential Max"},{"mb":1000,"p":219.95,"who":"Northwestel","plan":"1 Gigabit"}],"Nova Scotia":[{"mb":30,"p":32.95,"who":"TekSavvy","plan":"Cable 30"},{"mb":100,"p":38.95,"who":"TekSavvy","plan":"Cable 100"},{"mb":500,"p":60.0,"who":"Purple Cow","plan":"Purple Fibre 500"},{"mb":1000,"p":68.95,"who":"TekSavvy","plan":"Cable 1 Gig"}],"Nunavut":[{"mb":25,"p":50.0,"who":"Xplore","plan":"Fixed Wireless LTE 25"},{"mb":50,"p":60.0,"who":"Xplore","plan":"Fixed Wireless 5G 50"},{"mb":100,"p":75.0,"who":"Starlink","plan":"Residential 100"},{"mb":150,"p":110.0,"who":"Starlink","plan":"Roam Unlimited"},{"mb":200,"p":115.0,"who":"Starlink","plan":"Residential 200"},{"mb":400,"p":150.0,"who":"Starlink","plan":"Residential Max"},{"mb":1000,"p":219.95,"who":"Northwestel","plan":"1 Gigabit"}],"Ontario":[{"mb":30,"p":32.95,"who":"TekSavvy","plan":"Cable 30"},{"mb":100,"p":38.95,"who":"TekSavvy","plan":"Cable 100"},{"mb":500,"p":44.99,"who":"Carrytel","plan":"Internet 500"}],"Prince Edward Island":[{"mb":30,"p":32.95,"who":"TekSavvy","plan":"Cable 30"},{"mb":100,"p":38.95,"who":"TekSavvy","plan":"Cable 100"},{"mb":500,"p":60.0,"who":"Purple Cow","plan":"Purple Fibre 500"},{"mb":1000,"p":68.95,"who":"TekSavvy","plan":"Cable 1 Gig"}],"Quebec":[{"mb":30,"p":32.95,"who":"TekSavvy","plan":"Cable 30"},{"mb":100,"p":38.95,"who":"TekSavvy","plan":"Cable 100"},{"mb":500,"p":44.99,"who":"Carrytel","plan":"Internet 500"}],"Saskatchewan":[{"mb":30,"p":32.95,"who":"TekSavvy","plan":"Cable 30"},{"mb":100,"p":38.95,"who":"TekSavvy","plan":"Cable 100"},{"mb":120,"p":63.0,"who":"Oxio","plan":"Internet 120"},{"mb":1000,"p":68.95,"who":"TekSavvy","plan":"Cable 1 Gig"}],"Yukon":[{"mb":25,"p":50.0,"who":"Xplore","plan":"Fixed Wireless LTE 25"},{"mb":50,"p":60.0,"who":"Xplore","plan":"Fixed Wireless 5G 50"},{"mb":100,"p":75.0,"who":"Starlink","plan":"Residential 100"},{"mb":150,"p":110.0,"who":"Starlink","plan":"Roam Unlimited"},{"mb":200,"p":115.0,"who":"Starlink","plan":"Residential 200"},{"mb":400,"p":150.0,"who":"Starlink","plan":"Residential Max"},{"mb":1000,"p":219.95,"who":"Northwestel","plan":"1 Gigabit"}]};
+
+/* Published offers supplied by Whollar. mb = minimum download delivered. */
+const OFFERS=[
+  {who:"Bell",plan:"Pure Fibre 150",mb:150,p:55,note:"2-year price guarantee, no install, no modem rental"},
+  {who:"Rogers or Fido",plan:"1.5 Gig",mb:1500,p:55,note:"lowest published 1.5 Gig offer"},
+  {who:"Bell",plan:"Pure Fibre 1.5 Gig",mb:1500,p:60,note:"2-year price guarantee, no install, no modem rental"}
+];
+/* Offers are Ontario/GTA. Elsewhere they are used only as a fallback when the
+   provincial plan data has nothing at or above the household's speed. */
+const OFFER_PROVINCE='Ontario';
+
+const FSA={A:'Newfoundland and Labrador',B:'Nova Scotia',C:'Prince Edward Island',E:'New Brunswick',G:'Quebec',H:'Quebec',J:'Quebec',K:'Ontario',L:'Ontario',M:'Ontario',N:'Ontario',P:'Ontario',R:'Manitoba',S:'Saskatchewan',T:'Alberta',V:'British Columbia',X:'Northwest Territories',Y:'Yukon'};
+
+const S={pc:null,province:null,prov:'',spd:null,tech:'',startd:null,len:null,pend:null,cost:0,stick:0,multi:false,periods:[],fallback:0,idkStart:false,idkPend:false,file:null,email:''};
+
+/* ---------- postal ---------- */
+function parsePC(){
+  const v=$('#pc').value.toUpperCase();$('#pc').value=v;
+  const m=v.replace(/\s/g,'').match(/^([A-Z])\d[A-Z]/);
+  if(m&&FSA[m[1]]){S.pc=v.replace(/\s/g,'').slice(0,3);S.province=FSA[m[1]];
+    $('#pc-ok').textContent='\u2713 '+S.province+' \u00b7 the '+S.pc+' cohort';$('#pc-ok').classList.add('on');}
+  else{S.pc=null;S.province=null;$('#pc-ok').classList.remove('on');}
+}
+$('#pc').addEventListener('input',parsePC);
+
+/* price-field hints built from the dates above */
+const MSHORT=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function mLabel(v){if(!v)return null;const d=new Date(v+'T00:00:00');return MSHORT[d.getMonth()]+' '+d.getFullYear();}
+function syncHints(){
+  const st=S.idkStart?null:mLabel(S.startd), pe=S.idkPend?null:mLabel(S.pend);
+  const a=$('#hint-cost'),b=$('#hint-stick');
+  if(st&&pe){a.textContent='Between '+st+' and '+pe+'.';a.classList.add('on');}
+  else if(pe){a.textContent='Up to '+pe+'.';a.classList.add('on');}
+  else if(st){a.textContent='From '+st+' until your promo ends.';a.classList.add('on');}
+  else a.classList.remove('on');
+  if(pe){b.textContent='After '+pe+'.';b.classList.add('on');}
+  else b.classList.remove('on');
+}
+
+/* ---------- simple bindings ---------- */
+$('#prov').addEventListener('change',e=>S.prov=e.target.value);
+$('#spd').addEventListener('change',e=>S.spd=e.target.value===''?null:+e.target.value);
+$('#tech').addEventListener('change',e=>S.tech=e.target.value);
+$('#len').addEventListener('change',e=>{S.len=e.target.value===''?null:+e.target.value;syncMBM();});
+$('#startd').addEventListener('change',e=>{S.startd=e.target.value||null;syncHints();});
+$('#pend').addEventListener('change',e=>{S.pend=e.target.value||null;syncHints();});
+$('#cost').addEventListener('input',e=>S.cost=num(e.target.value));
+$('#stick').addEventListener('input',e=>S.stick=num(e.target.value));
+$('#fb-val').addEventListener('input',e=>{S.fallback=num(e.target.value);syncMBM();});
+function num(v){const n=parseFloat(String(v).replace(/[^0-9.]/g,''));return isNaN(n)?0:n;}
+
+$('#bill-file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;
+  S.file=f.name;$('#filename').textContent=f.name;$('#filechip').classList.add('on');});
+
+/* ---------- I don't know pills -> guidance nudge ---------- */
+const NUDGE={
+  start:{t:'Your start date is worth finding',b:'It tells us how much of your term is still ahead at the higher rate. With it, this is accurate rather than approximate.'},
+  pend:{t:'Your promo end date is the one that matters',b:'The month your discount stops decides whether you act in time or find out three bills later. If it is close, it can be worth several hundred dollars over your term.'},
+  both:{t:'Two dates decide your number',b:'When your contract started and when your promo ends. Together they tell us what is still ahead at the higher rate, and whether the jump is close enough to act on.'}
+};
+function syncNudge(){
+  const a=S.idkStart,b=S.idkPend;
+  const box=$('#nudge');
+  if(!a&&!b){box.classList.remove('on');return;}
+  const k=a&&b?'both':(a?'start':'pend');
+  $('#nudge-t').textContent=NUDGE[k].t;$('#nudge-b').textContent=NUDGE[k].b;
+  box.classList.add('on');
+}
+function idk(btn,field,key){
+  $(btn).addEventListener('click',()=>{
+    const on=!$(btn).classList.contains('on');
+    $(btn).classList.toggle('on',on);
+    $(field).disabled=on; if(on)$(field).value='';
+    S[key]=on; if(on&&key==='idkStart')S.startd=null; if(on&&key==='idkPend')S.pend=null;
+    syncNudge();syncHints();
+  });
+}
+idk('#idk-start','#startd','idkStart');
+idk('#idk-pend','#pend','idkPend');
+
+/* ---------- multi promo ---------- */
+$('#mp-toggle').addEventListener('click',()=>{
+  S.multi=!S.multi;
+  $('#mp-toggle').classList.toggle('on',S.multi);
+  $('#mbm').classList.toggle('on',S.multi);
+  ['#cost','#stick'].forEach(sel=>{$(sel).disabled=S.multi;if(S.multi)$(sel).value='';});
+  if(S.multi){S.cost=0;S.stick=0;if(!S.periods.length){addPeriod();addPeriod();}}
+  syncMBM();
+});
+
+function addPeriod(){
+  S.periods.push({amt:0,months:0});
+  renderPeriods();
+}
+function renderPeriods(){
+  $('#prows').innerHTML=S.periods.map((p,i)=>
+    '<div class="prow" data-i="'+i+'">'+
+      '<span class="pn">'+String(i+1).padStart(2,'0')+'</span>'+
+      '<span class="amt"><input class="p-amt" inputmode="decimal" placeholder="$ 0" value="'+(p.amt||'')+'"></span>'+
+      '<span class="lbl">a month, for</span>'+
+      '<span class="mon"><input class="p-mon" inputmode="numeric" placeholder="0" value="'+(p.months||'')+'"></span>'+
+      '<span class="lbl">months</span>'+
+      '<button type="button" class="rm" aria-label="Remove">&times;</button>'+
+    '</div>').join('');
+  $$('#prows .prow').forEach(row=>{
+    const i=+row.dataset.i;
+    row.querySelector('.p-amt').addEventListener('input',e=>{S.periods[i].amt=num(e.target.value);syncMBM();});
+    row.querySelector('.p-mon').addEventListener('input',e=>{S.periods[i].months=Math.max(0,parseInt(e.target.value)||0);syncMBM();});
+    row.querySelector('.rm').addEventListener('click',()=>{S.periods.splice(i,1);renderPeriods();syncMBM();});
+  });
+}
+$('#addp').addEventListener('click',addPeriod);
+
+function periodMonths(){return S.periods.reduce((a,p)=>a+(p.months||0),0);}
+function syncMBM(){
+  if(!S.multi)return;
+  const m=periodMonths(),st=$('#mbm-st'),target=horizon();
+  if(!m){st.textContent='nothing entered yet';st.className='st';}
+  else{st.textContent=m+' of '+target+' months covered';st.className='st '+(m>=target?'good':'warn');}
+  const short=m>0&&m<target;
+  $('#fallback').classList.toggle('on',short);
+  if(short)$('#fb-msg').textContent='Your periods cover '+m+' of '+target+' months. Tell us the price you pay for the remaining '+(target-m)+', usually the sticker price.';
+}
+
+/* ---------- benchmark engine ---------- */
+function bestPlan(province,speed){
+  const want=speed||0;
+  let local=[];
+  (BENCH[province]||[]).forEach(r=>{if(r.mb>=want)local.push({who:r.who,plan:r.plan,mb:r.mb,p:r.p,src:'plansavvy'});});
+  const offers=OFFERS.filter(o=>o.mb>=want).map(o=>({who:o.who,plan:o.plan,mb:o.mb,p:o.p,src:'offer',note:o.note||null}));
+  let pool;
+  if(province===OFFER_PROVINCE) pool=local.concat(offers);
+  else pool=local.length?local:offers.map(o=>Object.assign({},o,{fallback:true}));
+  if(!pool.length)return null;
+  return pool.reduce((a,b)=>b.p<a.p?b:a);
+}
+
+function monthsUntil(dateStr){
+  if(!dateStr)return null;
+  const d=new Date(dateStr+'T00:00:00'),now=new Date();
+  let m=(d.getFullYear()-now.getFullYear())*12+(d.getMonth()-now.getMonth());
+  if(d.getDate()<now.getDate())m-=1;
+  return m;
+}
+
+/* Exit fees are $0 since June 2026, so a household can move in any month.
+   The window is therefore a fixed year ahead, not whatever is left of a term. */
+const WINDOW=12;
+function horizon(){return WINDOW;}
+/* Months already elapsed on the current contract. */
+function elapsedMonths(){
+  if(S.idkStart||!S.startd)return null;
+  const e=-monthsUntil(S.startd);
+  return e>0?e:0;
+}
+
+/* Cost over the horizon on the household's current arrangement. */
+function currentCost(N){
+  if(S.multi){
+    let total=0,filled=0,skip=elapsedMonths()||0;
+    for(const p of S.periods){
+      let avail=p.months||0;
+      if(skip>0){const s=Math.min(skip,avail);avail-=s;skip-=s;}
+      if(avail<=0)continue;
+      if(filled>=N)break;
+      const take=Math.min(avail,N-filled);
+      total+=take*(p.amt||0);filled+=take;
+    }
+    if(filled<N){
+      const rest=N-filled,rate=S.fallback||S.stick||0;
+      total+=rest*rate;
+      return {basis:'periods',total:total,monthsPriced:filled,assumedRate:rate||null,uncovered:rate?0:rest};
+    }
+    return {basis:'periods',total:total,monthsPriced:N,assumedRate:null,uncovered:0};
+  }
+  const haveEnd=!S.idkPend&&!!S.pend, haveStick=S.stick>0;
+  /* no end date and no sticker: price what they actually pay today */
+  if(!haveEnd&&!haveStick)
+    return {basis:'current-only',total:N*S.cost,monthsAtCurrent:N,monthsAtSticker:0,assumedRate:null,uncovered:0};
+  /* sticker known but no end date: assume the cliff lands mid-term */
+  if(!haveEnd&&haveStick){
+    const half=Math.round(N/2);
+    return {basis:'midpoint-estimate',total:half*S.cost+(N-half)*S.stick,
+            monthsAtCurrent:half,monthsAtSticker:N-half,assumedRate:null,uncovered:0};
+  }
+  /* end date known */
+  const cliff=Math.max(0,Math.min(N,monthsUntil(S.pend)));
+  const after=N-cliff, rate=haveStick?S.stick:S.cost;
+  return {basis:haveStick?'dated':'dated-no-sticker',total:cliff*S.cost+after*rate,
+          monthsAtCurrent:cliff,monthsAtSticker:after,assumedRate:haveStick?null:S.cost,uncovered:0};
+}
+
+function computeSavings(){
+  const N=horizon();
+  const cur=currentCost(N);
+  const best=bestPlan(S.province,S.spd);
+  if(!best)return {ok:false,reason:'no benchmark for '+(S.province||'unknown province')+' at '+(S.spd||'?')+' Mbps'};
+  const bench=best.p*N;
+  return {ok:true,months:N,termBasis:S.len&&S.len>0?'contract':'12-month default',province:S.province,speed:S.spd,
+    current:{total:+cur.total.toFixed(2),detail:cur},
+    benchmark:{total:+bench.toFixed(2),perMonth:best.p,who:best.who,plan:best.plan,mb:best.mb,src:best.src,note:best.note||null,fallbackGeo:!!best.fallback},
+    savings:+(cur.total-bench).toFixed(2),
+    perMonth:+((cur.total-bench)/N).toFixed(2)};
+}
+
+/* ---------- validation + submit ---------- */
+function fail(sel,msg){
+  $('#ferr').textContent=msg;$('#ferr').classList.add('on');
+  const el=$(sel);el.classList.add('err');
+  (el.querySelector('input,select')||el).focus();
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+  setTimeout(()=>el.classList.remove('err'),700);
+  return false;
+}
+$('#check').addEventListener('click',()=>{
+  $('#ferr').classList.remove('on');
+  if(!S.province)return fail('#f-pc','Enter a full postal code, like L5V 2C9, so we can find your cohort.');
+  if(!S.prov)return fail('#f-prov','Choose your current provider.');
+  if(S.spd===null)return fail('#f-spd','Choose your download speed.');
+  if(!S.tech)return fail('#f-tech','Tell us how the internet reaches your house.');
+  if(S.len===null)return fail('#f-len','Choose your contract length.');
+  if(S.multi){
+    if(!periodMonths())return fail('#mbm','Add at least one amount and how many months you pay it for.');
+    if(periodMonths()<horizon()&&!S.fallback)return fail('#fallback','Add the price you pay for the remaining months, usually the sticker price.');
+  }else{
+    if(!S.cost)return fail('#f-cost','Enter the price you pay during your promo period.');
+  }
+  const em=$('#email').value.trim();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em))return fail('.emailbox','Enter a valid email address so we can send your results.');
+  S.email=em;
+
+  const result=computeSavings();
+  /* WIRE-UP POINT: POST checkup payload here */
+  console.log('[whollar-checkup] inputs',JSON.parse(JSON.stringify(S)));
+  console.log('[whollar-checkup] result',result);
+  window.__whollarResult=result;
+  runLoading(result);
+});
+
+/* ---------- loading sequence ---------- */
+const LD_STEPS=[
+  {t:'Reading what you pay today',f:'Your plan, your credits, and the months each one runs.',p:18},
+  {t:'Checking the best advertised prices',f:'Every plan we track in your province at your speed or above.',p:44},
+  {t:'Working out when your promo ends',f:'The month the discount stops is the month the number moves.',p:68},
+  {t:'Adding up the rest of your term',f:'What is still ahead of you, at the rate that comes next.',p:88},
+  {t:'Putting your cohort together',f:'Households near you, pooled by postal code and renewal window.',p:100}
+];
+function runLoading(result){
+  $('#form-card').style.display='none';
+  document.querySelector('.grid').classList.add('solo');
+  $('#loading').classList.add('on');
+  window.scrollTo({top:0,behavior:'smooth'});
+  let i=0,c=0;
+  const step=()=>{
+    const s=LD_STEPS[i];
+    $('#ld-st').textContent=s.t;
+    $('#ld-fill').style.width=s.p+'%';$('#ld-pct').textContent=s.p+'%';
+    i++;
+    if(i<LD_STEPS.length)setTimeout(step,1150);
+    else setTimeout(()=>showResults(result),1000);
+  };
+  step();
+}
+
+/* ---------- results ---------- */
+const TAILC='Pooled with your street, providers bid for the whole block at once. Prices reduce and become transparent with Whollar.';
+const MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
+function fmt(n){return '$'+Math.abs(n).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fmt0(n){return '$'+Math.round(Math.abs(n)).toLocaleString('en-CA');}
+function cliffText(){
+  if(S.multi)return null;
+  if(S.idkPend||!S.pend)return null;
+  const d=new Date(S.pend+'T00:00:00'),now=new Date();
+  const label=MON[d.getMonth()]+' '+d.getFullYear();
+  const rate=S.stick?fmt0(S.stick):null;
+  if(d<now)return {b:'Your promotion ended '+label+'.',s:rate?('The rate is '+rate+'/mo and stays there.'):'The higher rate is already on your bill.'};
+  return {b:'Your promotion ends '+label+'.',s:rate?('The rate goes to '+rate+'/mo.'):'That is the month the number moves.'};
+}
+/* What they are actually paying today, not what they signed up at. */
+function nowPrice(){
+  if(S.multi){
+    if(!S.idkStart&&S.startd){
+      const elapsed=-monthsUntil(S.startd);
+      let acc=0;
+      for(const p of S.periods){acc+=(p.months||0);if(elapsed<acc)return p.amt||0;}
+      return S.fallback||S.stick||((S.periods[S.periods.length-1]||{}).amt||0);
+    }
+    return (S.periods[0]||{}).amt||0;
+  }
+  const lapsed=!S.idkPend&&S.pend&&(new Date(S.pend+'T00:00:00')<new Date());
+  if(lapsed)return S.stick||S.cost;
+  return S.cost;
+}
+/* What the gap has already cost them, netted: months where the promo beat the
+   benchmark are subtracted, not ignored. Null unless it is worth saying. */
+function paidRateAtMonth(i){
+  if(S.multi){
+    let acc=0;
+    for(const p of S.periods){acc+=(p.months||0);if(i<acc)return p.amt||0;}
+    return S.fallback||S.stick||0;
+  }
+  if(S.idkPend||!S.pend)return S.cost;
+  const promoMonths=(elapsedMonths()||0)+monthsUntil(S.pend);
+  return i<promoMonths?S.cost:(S.stick||S.cost);
+}
+function overpaidToDate(benchPerMonth){
+  const el=elapsedMonths();
+  if(el===null||el<3||!benchPerMonth)return null;
+  let sum=0;
+  for(let i=0;i<el;i++)sum+=(paidRateAtMonth(i)-benchPerMonth);
+  return sum>=60?sum:null;
+}
+function cliffSoon(){
+  if(S.multi||S.idkPend||!S.pend)return false;
+  const m=monthsUntil(S.pend);
+  return m!==null&&m>=0&&m<=4;
+}
+function showResults(r){
+  $('#loading').classList.remove('on');
+  document.querySelector('.grid').classList.remove('solo');
+  $('#res').classList.add('on');
+  window.scrollTo({top:0,behavior:'smooth'});
+  renderTold();renderLevers();$('#rail-levers').style.display='block';$('#rail-form').style.display='none';
+  const card=$('#vcard'),term=r.ok?r.months:horizon();
+
+  /* the (i) appears only where we had to assume something they did not give us */
+  const notes=[];
+  const basis=r.ok?r.current.detail.basis:null;
+  if(basis==='midpoint-estimate')notes.push('<em>We estimated the timing.</em> You did not have a promo end date to hand, so we assumed the increase lands halfway through your term. Add the date and this number sharpens.');
+  if(basis==='current-only')notes.push('<em>We assumed no increase.</em> Without a promo end date or a sticker price we held your current rate for the whole term. If a jump is coming, the real figure is larger.');
+  if(basis==='dated-no-sticker')notes.push('<em>We assumed no increase.</em> Without a sticker price we held your current rate rather than guess at the jump. If a jump is coming, the real figure is larger.');
+  if(r.ok&&r.current.detail.uncovered)notes.push('<em>'+r.current.detail.uncovered+' months are unpriced.</em> The periods you entered do not cover your full term, so those months sit outside this figure.');
+  const showInfo=notes.length>0;
+  $('#v-info').classList.toggle('on',showInfo);
+  if(showInfo)$('#v-tip').innerHTML='<b>Where we had to assume</b>'+notes.join('<br><br>');
+
+  const now=nowPrice();
+  $('#f-now').innerHTML=now?fmt0(now)+'<em>/mo</em>':'&mdash;';
+  $('#f-nowk').textContent=(!S.idkPend&&S.pend&&new Date(S.pend+'T00:00:00')<new Date())?'You pay now, post promo':'You pay now';
+
+  const cliff=cliffText();
+  const strip=$('#v-strip');
+  if(cliff){strip.classList.add('on');
+    strip.innerHTML='<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg><span class="vst"><b>'+cliff.b+'</b> <span>'+cliff.s+'</span></span>'
+      +(cliffSoon()?'<span class="vcliff"><i></i>Promo cliff ahead</span>':'');}
+  else strip.classList.remove('on');
+
+  if(!r.ok){
+    card.className='vcard mid';
+    $('#v-head').textContent='Nobody is publishing a price for what you have.';
+    $('#f-lbl').innerHTML='What the next '+term+' months cost you'+$('#v-info').outerHTML;
+    $('#f-hero').textContent=fmt0(currentCost(term).total);
+    $('#f-sub').textContent='at the rates you are on now';
+    $('#v-body').innerHTML='At your speed there is no published rate in your province to hold your bill against, which tells you something on its own. '+TAILC;
+    return;
+  }
+
+  const over=r.savings, pct=over/(r.current.total||1);
+  const span='by moving to the best rate at your speed, over the next '+term+' months';
+  const paid=overpaidToDate(r.benchmark.perMonth);
+  const since=(!S.idkStart&&S.startd)?(' since '+mLabel(S.startd)):' so far';
+  let cls,head,lbl,hero,sub,body;
+  if(pct<0.10){
+    cls='vcard';
+    head='You are ahead today. Terms end, and prices reset.';
+    lbl='What the next '+term+' months cost you';
+    hero=fmt0(r.current.total);sub='at the rates you are on now';
+    body='You found a good rate on your own, which most households never manage. The catch is that it holds only as long as your term does, and the reset is never announced. '+TAILC;
+  }else if(pct<0.35){
+    cls='vcard mid';
+    head='Staying put has a price. Here is yours.';
+    lbl='You could save up to';
+    hero=fmt0(over);sub=span;
+    body='You never signed up for this price. Gaps this size are set deliberately, large enough to matter over a year and small enough that checking never feels urgent. <b>You just checked.</b>'
+      +(paid?(' It has already cost you around '+fmt0(paid)+since+'.'):'')
+      +' '+TAILC;
+  }else{
+    cls='vcard warn';
+    head='Your loyalty is costing you a fortune.';
+    lbl='You could save up to';
+    hero=fmt0(over);sub=span;
+    body='You never signed up for this price. '
+      +(paid?('It has already cost you around '+fmt0(paid)+since+'. ')
+             :'It arrived when a promotion ended, and every month since has carried it. ')
+      +'Prices do not fall because a household deserves it. They fall when someone has to win the household. '+TAILC;
+  }
+  card.className=cls;
+  $('#v-head').textContent=head;
+  $('#f-lbl').innerHTML=lbl+$('#v-info').outerHTML;
+  $('#f-hero').textContent=hero;$('#f-sub').textContent=sub;
+  $('#v-body').innerHTML=body;
+}
+
+/* what you told us */
+const TIC={pin:'<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',bld:'<rect x="4" y="3" width="12" height="18" rx="2"/><path d="M8 7h4M8 11h4M8 15h4M16 9h4v12h-4"/>',dol:'<circle cx="12" cy="12" r="9"/><path d="M12 7v10M15 9.5c0-1.4-1.3-2.5-3-2.5s-3 .9-3 2.2c0 3 6 1.6 6 4.6 0 1.3-1.3 2.2-3 2.2s-3-1.1-3-2.5"/>',gau:'<path d="M4 14a8 8 0 1 1 16 0"/><path d="M12 14l4-4"/><circle cx="12" cy="14" r="1.4"/>',plg:'<path d="M9 3v5M15 3v5M7 8h10v4a5 5 0 0 1-10 0V8Z"/><path d="M12 17v4"/>',cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>',tag:'<path d="M3 12V4h8l9 9-8 8-9-9Z"/><circle cx="7.5" cy="8.5" r="1.4"/>'};
+function tg(label,val,target,ic,hot){return '<button class="tg'+(hot?' hot':'')+'" data-t="'+target+'"><span class="ic"><svg viewBox="0 0 24 24">'+(TIC[ic]||TIC.tag)+'</svg></span><span style="min-width:0"><small>'+label+'</small><b>'+val+'</b></span></button>';}
+function renderTold(){
+  const dt=d=>d?new Date(d+'T00:00:00').toLocaleDateString('en-CA',{month:'short',year:'numeric'}):'Not sure yet';
+  const cliff=cliffText();
+  $('#tgrid').innerHTML=
+    tg('Cohort',S.pc?S.pc+' \u00b7 '+S.province:'Add postal code','#f-pc','pin')+
+    tg('Provider',S.prov||'\u2014','#f-prov','bld')+
+    tg('Speed',S.spd?(S.spd>=1000?(S.spd/1000)+' Gig':S.spd+' Mbps'):'Not sure','#f-spd','gau')+
+    tg('Connection',S.tech||'\u2014','#f-tech','plg')+
+    tg('Contract start',S.idkStart?'Not sure yet':dt(S.startd),'#f-start','cal')+
+    tg('Contract length',S.len?S.len+' months':'Month to month','#f-len','cal')+
+    tg('Promo ends',S.idkPend?'Not sure yet':dt(S.pend),'#f-pend','cal',!!cliff)+
+    (S.multi?tg('Pricing',S.periods.length+' periods entered','#mbm','tag')
+            :tg('During promo',S.cost?fmt0(S.cost)+'/mo':'\u2014','#f-cost','dol'))+
+    (S.multi?'':tg('After promo',S.stick?fmt0(S.stick)+'/mo':'Not given','#f-stick','tag'));
+  $$('#tgrid .tg').forEach(b=>b.addEventListener('click',()=>backToForm(b.dataset.t)));
+}
+function backToForm(target){
+  $('#res').classList.remove('on');$('#loading').classList.remove('on');
+  document.querySelector('.grid').classList.remove('solo');
+  $('#form-card').style.display='block';$('#rail-levers').style.display='none';$('#rail-form').style.display='block';
+  const el=target&&$(target);
+  if(el){el.scrollIntoView({behavior:'smooth',block:'center'});
+    const inp=el.querySelector('input,select');if(inp&&!inp.disabled)setTimeout(()=>inp.focus(),400);}
+  else window.scrollTo({top:0,behavior:'smooth'});
+}
+$('#edit-all').addEventListener('click',()=>backToForm(null));
+$('#v-join').addEventListener('click',()=>{
+  /* WIRE-UP POINT: hand off to the join page with cohort + email prefilled */
+  const q='?fsa='+encodeURIComponent(S.pc||'')+'&email='+encodeURIComponent(S.email||'');
+  console.log('[whollar-checkup] join handoff',q);
+  window.location.href='whollar-join-v7.html'+q;
+});
+
+/* 11 levers */
+const LEVERS=[
+  {n:'01',t:'Speed',d:'The tier you are rated for. Every rung up adds to the price, used or not.',g:0},
+  {n:'02',t:'How it reaches you',d:'Fibre, cable, DSL or wireless. The same speed is priced differently on each.',g:0},
+  {n:'03',t:'Who you buy from',d:'Big carrier or independent, often the same physical line, twenty to forty percent apart.',g:0},
+  {n:'04',t:'Your address',d:'Decides which providers can reach you, and how many have to compete for you.',g:0},
+  {n:'05',t:'Leaving your provider',d:'No cancellation or change fee since June 2026. Exit costs nothing.',g:1},
+  {n:'06',t:'Getting set up',d:'Installation and activation are $0, so a switch adds nothing to your bill.',g:1},
+  {n:'07',t:'Promo versus regular rate',d:'A discount with an end date, sitting on a price without one.',g:2},
+  {n:'08',t:'The rented box',d:'Modem and pods at five to fifteen dollars a month, included free by many providers.',g:2},
+  {n:'09',t:'Data limits',d:'Unlimited plans that slow you down past a threshold rather than charge you.',g:2},
+  {n:'10',t:'Bundles',d:'Savings quoted against list prices almost nobody actually pays.',g:2},
+  {n:'11',t:'Extras',d:'Static IP, mesh units, priority support: easy to add to a bill, rarely written into the contract.',g:2}
+];
+const GROUPS=['On your bill','What switching costs','In your agreement'];
+function renderLevers(){
+  const lit={'01':S.spd!==null,'02':!!S.tech,'03':!!S.prov,'04':!!S.pc,'07':!S.idkPend&&!!S.pend};
+  let html='';
+  GROUPS.forEach((g,gi)=>{
+    html+='<div class="secdiv"><span>'+g+'</span></div>';
+    LEVERS.filter(l=>l.g===gi).forEach(l=>{
+      const on=lit[l.n];
+      html+='<div class="lev'+(on?' lit':'')+'"><span class="ln">'+l.n+'</span><span style="min-width:0"><b>'+l.t+'</b><p>'+l.d+'</p></span>'+(on?'<span class="yrs">on your bill</span>':'')+'</div>';
+    });
+  });
+  $('#lev-list').innerHTML=html;
+}
+
+/* deep read */
+let deepFiles=[];
+$('#deep-files').addEventListener('change',e=>{
+  deepFiles=[...e.target.files].map(f=>f.name);
+  $('#dchips').innerHTML=deepFiles.map(n=>'<span style="font-size:11px;color:var(--teal-bright);background:var(--green-tint);border:1px solid #cfe9db;border-radius:999px;padding:4px 10px">'+n+'</span>').join('');});
+$('#deep-send').addEventListener('click',()=>{
+  /* WIRE-UP POINT: POST deep-read payload */
+  console.log('[whollar-checkup] deep read',{email:S.email,files:deepFiles,note:$('#deep-note').value.trim()});
+  $('#deep-form').style.display='none';$('#ddone').classList.add('on');});
+
+/* invoice loop */
+(function(){
+  const plan=$('#inv-plan'),disc=$('#inv-disc'),tot=$('#inv-tot');
+  let on=false;
+  setInterval(()=>{
+    on=!on;
+    if(on){disc.classList.add('gone');disc.querySelector('small').innerHTML='ends May 21/26 <span class="exp">Expired</span>';
+      plan.textContent='$133.99';tot.textContent='$150.99';}
+    else{disc.classList.remove('gone');disc.querySelector('small').textContent='ends May 21/26';
+      plan.textContent='$133.99';tot.textContent='$80.99';}
+  },3200);
+})();
+})();
+</script>
+</body>
+</html>
