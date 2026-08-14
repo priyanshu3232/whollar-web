@@ -347,13 +347,12 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 /* The campaign card runs shorter than the aside beside it in most states, and
    `align-items:start` left the difference as a beige void under the card: two
    columns of one row ending on different lines, with the next row starting
-   below the taller one. The card fills the row now, and the slack goes to the
-   forming panel, the one block on it that is a filled shape and reads as
-   breathing room rather than as a gap. The feed keeps its place at the bottom.
+   below the taller one. The card fills the row now and spreads the difference
+   between its own sections, which reads as breathing room. Handing it all to
+   one block instead (the forming panel, or the feed) reads as a dead rectangle
+   inside the card, which is the same void moved rather than closed.
    Below 900px each child is its own row, so none of this applies there. */
-.grid2>.card{display:flex;flex-direction:column}
-.grid2>.card>.panel{flex:2 1 auto}
-.grid2>.card>.feed{flex:1 1 auto}
+.grid2>.card{display:flex;flex-direction:column;justify-content:space-between}
 .camp__head{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:18px}
 .camp__head h3{font-size:clamp(20px,2.7vw,25px);font-weight:800}
 .camp__head .sub{font-size:13px;color:var(--sub);margin-top:2px}
