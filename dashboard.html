@@ -177,11 +177,23 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .tog i::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#FCFAF5;transition:left .2s;box-shadow:0 1px 3px rgba(26,37,32,.25)}
 .tog input:checked + i{background:var(--accent)}
 .tog input:checked + i::after{left:19px}
-.reads li a{display:flex;gap:12px;align-items:center;width:100%;padding:13px 0}
-.rthumb{width:64px;height:64px;border-radius:12px;overflow:hidden;flex:none;border:1px solid var(--line);background:var(--mint)}
+/* A Worth a read row: fixed thumbnail column, fluid text column, thumbnail
+   centred against the text so a one line and a two line title both sit right.
+   The whole anchor is the row, so the whole row is the click target and the
+   one tab stop, and :focus-visible at the top of this sheet rings all of it. */
+.reads li a{display:grid;grid-template-columns:72px 1fr;gap:14px;align-items:center;width:100%;padding:16px 0;border-radius:10px;transition:background 120ms ease}
+.reads li a:hover{background:rgba(30,158,99,.035)}
+.reads li a:hover .rttl{color:var(--accent-deep)}
+.rthumb{width:72px;height:72px;border-radius:10px;overflow:hidden;background:var(--mint);box-shadow:inset 0 0 0 1px rgba(43,58,51,.06)}
 .rthumb img{display:block;width:100%;height:100%;object-fit:cover}
-.rtxt{min-width:0}
-.rtxt small{display:block;font-family:var(--mono);font-size:11px;color:var(--sub);font-weight:400;margin-top:3px}
+/* The tint above is also the placeholder: .rthumb is sized, the img is not, so
+   the column holds its width before the image arrives and there is no reflow
+   when it does. An image that fails is hidden and leaves the tint, rather than
+   a broken icon in a collapsed column. */
+.rthumb img.gone{display:none}
+.rtxt{min-width:0;display:flex;flex-direction:column;gap:6px}
+.rttl{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;line-height:1.35;transition:color 120ms ease}
+.rtxt small{font-family:var(--mono);font-size:12px;color:var(--sub);font-weight:400}
 .kcard{display:flex;gap:13px;align-items:flex-start}
 .kthumb{width:52px;height:52px;border-radius:12px;overflow:hidden;flex:none;border:1px solid var(--line)}
 .kthumb svg{display:block;width:100%;height:100%}
@@ -292,10 +304,14 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .liacts{display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid #00000014;font-size:13.5px;font-weight:600;color:#00000099}
 /* Worth a read: a lead article, then rows. The card opposite runs tall, and
    four flat rows split evenly leave a band of dead space at every width. */
-.reads li.rlead{flex:none;display:block;min-height:0}
+/* The lead's own rule is down to the two things that still differ from a plain
+   row: it stacks instead of gridding, and its padding is bottom only. Its old
+   flex:none / display:block / min-height:0 were undoing the flex row that .reads
+   li no longer is. */
 .reads li.rlead a{display:block;padding:0 0 15px}
 .rlead__media{display:block;aspect-ratio:16/9;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--mint)}
 .rlead__media img{display:block;width:100%;height:100%;object-fit:cover}
+.rlead__media img.gone{display:none}
 .rlead__body{display:block;padding-top:12px}
 .rlead__body b{display:block;font-family:var(--disp);font-size:17px;font-weight:750;line-height:1.28;margin:5px 0}
 .rlead__body small{display:block;margin-top:8px}
@@ -491,12 +507,29 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .dots button.on{background:var(--accent)}
 /* Grows to eat whatever height the tallest card in the trio forces on us, so the
    rows spread instead of leaving dead space above "See all". */
-.reads{list-style:none;margin-top:6px;display:flex;flex-direction:column;flex:1}
-.reads li{flex:1;display:flex;align-items:center;min-height:74px}
-.reads li + li{border-top:1px solid var(--line)}
-.reads a{display:block;font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.4}
-.reads a:hover{color:var(--accent-deep)}
-.reads small{font-family:var(--mono);font-size:11px;color:var(--sub)}
+/* WHY THE ROWS WERE THREE TIMES THEIR CONTENT. Not a stray margin, an hr, or
+   an unreset heading: the list and every row carried flex:1, and this card is
+   a grid item in .trio, which stretches. So the card was pulled to the height
+   of the member room card beside it (805px, most of it a phone mock) and the
+   rows divided the surplus between them: 230px of row around 90px of content.
+   The min-height:74px never bound; it was not the cause and removing it alone
+   would have changed nothing.
+   Two halves to the fix, and both are needed. flex:1 is gone here, so rows are
+   their content's height, and .rcard below stops the stretch at its source. */
+.reads{list-style:none;margin-top:4px;display:flex;flex-direction:column}
+.reads li{display:block}
+.reads li:not(:last-child){border-block-end:1px solid var(--line)}
+.reads a{font-size:15px;font-weight:600;color:var(--ink);line-height:1.35}
+.reads small{font-family:var(--mono);font-size:12px;color:var(--sub)}
+/* Sizes to its content instead of to the tallest card in the row. Without this
+   the rows are tight but the card is still 805px, with the slack moved to the
+   bottom rather than removed.
+   The block padding is this card's alone, 20px against the shared 25px. Three
+   rows at the specified 72px thumbnail and 16px block padding are 314px of list
+   before any chrome, and the eyebrow and the See all footer take another 58px,
+   so 25px top and bottom would land at 426px and miss the 420px ceiling by six.
+   The inline padding is untouched, so the card still lines up with its row. */
+.rcard{align-self:start;padding-block:20px}
 
 /* ---------- region row (v2, tamed) ---------- */
 .rowhead{display:flex;align-items:baseline;gap:12px;margin:26px 0 12px}
@@ -553,7 +586,14 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .tile.dark .tn{color:#B5CDB9}
 .tile.dark b{color:var(--glow)}
 .tlink{font-size:13.5px;font-weight:650;color:var(--accent-deep);margin-top:10px;display:inline-block}
-.reads + .tlink{padding-top:15px;border-top:1px solid var(--line)}
+.reads + .tlink{margin-top:8px;padding-top:16px;border-top:1px solid var(--line)}
+/* 390px: a narrower thumbnail and gap, and the card's own inline padding
+   opened to 20px. The row is 64 + 32 = 96px, well past the 56px touch floor. */
+@media (max-width:430px){
+  .rcard{padding-inline:20px}
+  .reads li a{grid-template-columns:64px 1fr;gap:12px}
+  .rthumb{width:64px;height:64px}
+}
 
 /* ---------- toast & controls ---------- */
 .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;font-size:13.5px;font-weight:600;border-radius:12px;padding:11px 18px;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:70}
@@ -892,7 +932,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
         </div>
 
         <div class="trio">
-<section class="card" aria-label="Worth a read">
+<section class="card rcard" aria-label="Worth a read">
               <span class="eyebrow">Worth a read</span>
               <ul class="reads" id="reads"></ul>
               <button class="tlink" type="button" data-nav="knowledge">See all &rarr;</button>
@@ -2951,10 +2991,23 @@ $('#reads').innerHTML=BLOGS.slice(0,4).map(function(b,i){
     +'<b>'+esc(b[0])+'</b><span class="rdeck">'+esc(m[2])+'</span>'
     +'<small>'+b[1]+'</small></span></a></li>';
   }
+  /* The title is its own element so it can clamp at two lines on its own. It
+     used to be a bare text node beside the <small>, which put both inside any
+     clamp and cut the read time off with the title. */
   return '<li><a href="/blog/'+b[2]+'">'
-  +'<span class="rthumb"><img src="'+img+'.webp" srcset="'+img+'.webp 800w, '+img+'@2x.webp 1600w" sizes="64px" alt="'+esc(m[4])+'" loading="lazy" decoding="async" width="800" height="533"></span>'
-  +'<span class="rtxt">'+esc(b[0])+'<small>'+b[1]+'</small></span></a></li>'
+  +'<span class="rthumb"><img src="'+img+'.webp" srcset="'+img+'.webp 800w, '+img+'@2x.webp 1600w" sizes="72px" alt="'+esc(m[4])+'" loading="lazy" decoding="async" width="800" height="533"></span>'
+  +'<span class="rtxt"><b class="rttl">'+esc(b[0])+'</b><small>'+b[1]+'</small></span></a></li>'
 }).join('');
+/* A thumbnail that 404s leaves the mint placeholder rather than a broken icon
+   in a collapsed column. `error` does not bubble, hence the capture phase, and
+   it is bound to document rather than to the list because the visitor lane
+   builds its own copy of this card long after this line runs. */
+document.addEventListener('error',function(e){
+  var t=e.target;
+  if(!t||t.tagName!=='IMG')return;
+  var p=t.parentNode;
+  if(p&&(p.classList.contains('rthumb')||p.classList.contains('rlead__media')))t.classList.add('gone');
+},true);
 $('#klist').innerHTML=BLOGS.map(function(b,i){
   var m=KMETA[i], n=(i<9?'0':'')+(i+1), img='/images/resources/'+m[0];
   return '<a class="ktile" href="/blog/'+b[2]+'">'
@@ -3128,10 +3181,10 @@ function readsCardHTML(){
   var lis=BLOGS.slice(0,3).map(function(b,i){
     var m=KMETA[i], img='/images/resources/'+m[0];
     return '<li><a href="/blog/'+b[2]+'">'
-    +'<span class="rthumb"><img src="'+img+'.webp" srcset="'+img+'.webp 800w, '+img+'@2x.webp 1600w" sizes="56px" alt="'+esc(m[4])+'" loading="lazy" decoding="async" width="800" height="533"></span>'
-    +'<span class="rtxt">'+esc(b[0])+'<small>'+b[1]+'</small></span></a></li>';
+    +'<span class="rthumb"><img src="'+img+'.webp" srcset="'+img+'.webp 800w, '+img+'@2x.webp 1600w" sizes="72px" alt="'+esc(m[4])+'" loading="lazy" decoding="async" width="800" height="533"></span>'
+    +'<span class="rtxt"><b class="rttl">'+esc(b[0])+'</b><small>'+b[1]+'</small></span></a></li>';
   }).join('');
-  return '<section class="card" aria-label="Worth a read"><span class="eyebrow">Worth a read</span><ul class="reads">'+lis+'</ul><button class="tlink" type="button" data-nav="knowledge">See all &rarr;</button></section>';
+  return '<section class="card rcard" aria-label="Worth a read"><span class="eyebrow">Worth a read</span><ul class="reads">'+lis+'</ul><button class="tlink" type="button" data-nav="knowledge">See all &rarr;</button></section>';
 }
 /* The visitor lane's own member-room card used to be built here. It is gone:
    mountMemberRoom() moves the real one into this row instead, so the toggle,

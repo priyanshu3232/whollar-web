@@ -89,3 +89,14 @@ node_modules
 # Source data for scripts/build-benchmarks.mjs. The site ships the generated
 # js/whollar-benchmarks.js, not the 390 KB spreadsheet.
 *.xlsx
+
+# Pre-change copies kept only so a change is easy to reverse by hand. Not .html,
+# so cleanUrls does not touch them, but they would still be served verbatim at
+# their own path, and both carry the full signed-in join flow.
+*.pre-form-reduction.bak
+
+# Same reason, for the "Worth a read" pass. Named separately rather than folded
+# into a single *.bak: a per-change name says which change a copy belongs to,
+# and a copy nobody can date is a copy nobody deletes. All three carry a full
+# signed-in dashboard.
+*.pre-worth-a-read.bak
