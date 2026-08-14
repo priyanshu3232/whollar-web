@@ -120,6 +120,14 @@ function termsRow(c) {
   var title = 'Standard cohort terms · ' + esc(t.version || 'v1');
   var body = 'Unlimited data, equipment stated on the face of the bid, the after-rate stated, no teaser structures.';
 
+  /* The title itself opens the terms, accepted or not: the six lines are what
+     every bid runs on, and a partner rereading them should not have to press a
+     button labelled "accept" to do it. Unreadable is the one case with nothing
+     to open, since the modal would render a version it could not confirm. */
+  if (t.live) {
+    title = '<button class="rowopen" type="button" data-action="terms:open">' + title + '</button>';
+  }
+
   if (t.current) {
     return [title,
       body + (t.acceptedAt ? ' Accepted ' + esc(fmtDate(t.acceptedAt)) : '')
@@ -209,7 +217,19 @@ function termsModal() {
     + (t.acceptedVersion && t.acceptedVersion !== t.version
       ? '<p class="cardnote">You accepted ' + esc(t.acceptedVersion) + '. That acceptance stays on record; this is a new version, and bidding resumes once it is accepted.</p>'
       : '')
-    + '<label class="consent"><input type="checkbox" id="terms-ok" data-action="terms:toggle">'
+    /* Already on the version in force: this is a reread, not a second signing.
+       Offering the checkbox again would suggest the acceptance had lapsed, and
+       the route is idempotent anyway, so there is nothing to press. */
+    + (t.current
+      ? '<div class="receipt" style="margin-top:12px"><b>Accepted</b>'
+        + (t.acceptedAt ? ' on ' + esc(fmtDate(t.acceptedAt)) : '')
+        + (t.acceptedBy ? ' by ' + esc(t.acceptedBy) : '')
+        + '. Every auction on your desk runs on these terms.</div>'
+      : consent(t, org));
+}
+
+function consent(t, org) {
+  return '<label class="consent"><input type="checkbox" id="terms-ok" data-action="terms:toggle">'
     + '<span>' + esc(org) + ' accepts the standard cohort terms, ' + esc(t.version || 'v1') + '.</span></label>'
     + '<button class="btn" type="button" id="terms-go" data-action="terms:accept" disabled '
     + 'style="width:100%;justify-content:center;margin-top:12px">Accept</button>';

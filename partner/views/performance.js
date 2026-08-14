@@ -25,7 +25,7 @@
  * not hold.
  */
 
-import { get } from '../core/state.js';
+import { get, termsState } from '../core/state.js';
 import { esc, plural } from '../core/format.js';
 import { fmtDate } from '../core/time.js';
 import { goTo } from '../components/emptystate.js';
@@ -176,13 +176,23 @@ function band(S, r) {
       goTo('desk', 'See what is open now', 'btn forest'));
   }
 
+  /* Nothing on record yet. Where the record starts depends on what is in the
+     way: with the standard terms unaccepted there is no sealed number to be
+     had, so the CTA is the acceptance and not the desk. Only on 'pending',
+     never on 'unknown', for the reason core/state.js termsState() gives: a
+     contracts payload still in flight would otherwise flash this at a partner
+     who accepted months ago. */
   var next = nextOpen(S);
+  var cta = termsState() === 'pending'
+    ? goTo('contracts', 'Accept the standard terms to bid', 'btn forest')
+    : (next
+      ? goTo('desk', next.region + ' · closes ' + fmtDate(next.close), 'btn forest')
+      : goTo('desk', 'Open the bid desk', 'btn forest'));
+
   return card({ text: 'Why these four' },
     'The numbers that will win you auctions',
     'Nothing here is bought and nothing is written by marketing: all four are recorded from what you deliver, and future auction briefs carry them beside your bid. The record starts at your first sealed number.',
-    next
-      ? goTo('desk', next.region + ' · closes ' + fmtDate(next.close), 'btn forest')
-      : goTo('desk', 'Open the bid desk', 'btn forest'),
+    cta,
     coverageNote(r));
 }
 

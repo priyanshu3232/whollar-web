@@ -4436,7 +4436,7 @@
    */
 
   var __ns0 = __require("core/state.js");
-  var get = __ns0.get;
+  var get = __ns0.get, termsState = __ns0.termsState;
   var __ns1 = __require("core/format.js");
   var esc = __ns1.esc, plural = __ns1.plural;
   var __ns2 = __require("core/time.js");
@@ -4590,13 +4590,23 @@
         goTo('desk', 'See what is open now', 'btn forest'));
     }
 
+    /* Nothing on record yet. Where the record starts depends on what is in the
+       way: with the standard terms unaccepted there is no sealed number to be
+       had, so the CTA is the acceptance and not the desk. Only on 'pending',
+       never on 'unknown', for the reason core/state.js termsState() gives: a
+       contracts payload still in flight would otherwise flash this at a partner
+       who accepted months ago. */
     var next = nextOpen(S);
+    var cta = termsState() === 'pending'
+      ? goTo('contracts', 'Accept the standard terms to bid', 'btn forest')
+      : (next
+        ? goTo('desk', next.region + ' · closes ' + fmtDate(next.close), 'btn forest')
+        : goTo('desk', 'Open the bid desk', 'btn forest'));
+
     return card({ text: 'Why these four' },
       'The numbers that will win you auctions',
       'Nothing here is bought and nothing is written by marketing: all four are recorded from what you deliver, and future auction briefs carry them beside your bid. The record starts at your first sealed number.',
-      next
-        ? goTo('desk', next.region + ' · closes ' + fmtDate(next.close), 'btn forest')
-        : goTo('desk', 'Open the bid desk', 'btn forest'),
+      cta,
       coverageNote(r));
   }
 
@@ -4785,6 +4795,14 @@
     var title = 'Standard cohort terms · ' + esc(t.version || 'v1');
     var body = 'Unlimited data, equipment stated on the face of the bid, the after-rate stated, no teaser structures.';
 
+    /* The title itself opens the terms, accepted or not: the six lines are what
+       every bid runs on, and a partner rereading them should not have to press a
+       button labelled "accept" to do it. Unreadable is the one case with nothing
+       to open, since the modal would render a version it could not confirm. */
+    if (t.live) {
+      title = '<button class="rowopen" type="button" data-action="terms:open">' + title + '</button>';
+    }
+
     if (t.current) {
       return [title,
         body + (t.acceptedAt ? ' Accepted ' + esc(fmtDate(t.acceptedAt)) : '')
@@ -4874,7 +4892,19 @@
       + (t.acceptedVersion && t.acceptedVersion !== t.version
         ? '<p class="cardnote">You accepted ' + esc(t.acceptedVersion) + '. That acceptance stays on record; this is a new version, and bidding resumes once it is accepted.</p>'
         : '')
-      + '<label class="consent"><input type="checkbox" id="terms-ok" data-action="terms:toggle">'
+      /* Already on the version in force: this is a reread, not a second signing.
+         Offering the checkbox again would suggest the acceptance had lapsed, and
+         the route is idempotent anyway, so there is nothing to press. */
+      + (t.current
+        ? '<div class="receipt" style="margin-top:12px"><b>Accepted</b>'
+          + (t.acceptedAt ? ' on ' + esc(fmtDate(t.acceptedAt)) : '')
+          + (t.acceptedBy ? ' by ' + esc(t.acceptedBy) : '')
+          + '. Every auction on your desk runs on these terms.</div>'
+        : consent(t, org));
+  }
+
+  function consent(t, org) {
+    return '<label class="consent"><input type="checkbox" id="terms-ok" data-action="terms:toggle">'
       + '<span>' + esc(org) + ' accepts the standard cohort terms, ' + esc(t.version || 'v1') + '.</span></label>'
       + '<button class="btn" type="button" id="terms-go" data-action="terms:accept" disabled '
       + 'style="width:100%;justify-content:center;margin-top:12px">Accept</button>';

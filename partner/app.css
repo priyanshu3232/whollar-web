@@ -510,6 +510,8 @@ tr.exp + tr.dwr{display:table-row}
 .conrow:last-child{border-bottom:0}
 .conrow b{display:block;font-family:var(--disp);font-size:14px}
 .conrow small{display:block;font-size:12px;color:var(--sub);margin-top:2px;max-width:64ch}
+.conrow .rowopen{font:inherit;color:inherit;text-align:left;padding:0;text-decoration:underline;text-decoration-color:var(--tintb);text-decoration-thickness:1.5px;text-underline-offset:3px}
+.conrow .rowopen:hover{color:var(--forest2);text-decoration-color:var(--forest2)}
 .conact{margin-left:auto;white-space:nowrap}
 .alertbar{background:#7A2E12;color:#fff;border-radius:12px;padding:11px 16px;font-size:13px;margin-bottom:16px}
 .rtbl td{vertical-align:middle}
