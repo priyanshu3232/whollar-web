@@ -34,6 +34,7 @@ const audit = require('../lib/audit');
 const catalog = require('../lib/catalog');
 const siteconfig = require('../lib/siteconfig');
 const guards = require('../lib/guards');
+const bids = require('../lib/bids');
 const { wrap, badRequest, AppError } = require('../lib/errors');
 
 const TABLE = 'campaign_members';
@@ -281,6 +282,129 @@ function mount(router) {
       serverTime: now,
       live: rows !== null,
       campaigns: visible(cat.list).map((c) => publicCampaign(c, counts, mineBy[c.id], now)),
+    });
+  }));
+
+  /**
+   * The winning offer on a cohort this member belongs to.
+   * -> { ok, sealed, closesAt, bidCount, offer }
+   *
+   * THE SEAL IS THE WHOLE POINT. Nothing about any bid crosses to a household
+   * before `bidding_closes_at`. Not the price, not the count, not whether a
+   * single partner has bid at all: a member who could watch the count climb
+   * could tell a partner how much competition it has, and that is the same
+   * leak as showing the bid. Before the close this answers `sealed: true` and
+   * nothing else, and the answer is identical for a cohort with six bids and
+   * one with none.
+   *
+   * After the close, ONE offer. The design is a single winning offer for the
+   * whole cohort, not a shortlist to browse: the household compares it against
+   * its own bill, not against other partners. The winner is the lowest
+   * headline price, which `provider_bids.price` already holds (the lowest
+   * tier's effective price, written on seal).
+   *
+   * The losing bids never appear, not even as a redacted row. `bidCount` says
+   * how many were read and nothing about who or what they were.
+   *
+   * Membership is required. A cohort's offer is not public: a household that
+   * did not join has nothing to compare it against and no business seeing it.
+   */
+  router.get('/campaigns/:id/offer', wrap(async (req, res) => {
+    const user = requireMember(req);
+    const cat = await catalog.load(req.catalyst);
+    const campaign = campaignFrom(cat, { campaign: req.params.id });
+
+    /* Membership, checked against the flattened composite. A member who is on
+       the waitlist rather than in the cohort is still a member of it. */
+    const key = `${campaign.id}:${user.user_id}`;
+    let mine = null;
+    try {
+      mine = await datastore.findBy(req.catalyst, TABLE, 'membership_key', key, ['status']);
+    } catch {
+      mine = null;
+    }
+    if (!mine) {
+      throw new AppError('FORBIDDEN', 'This offer belongs to a cohort you have not joined.', {
+        logDetail: 'offer read without membership',
+      });
+    }
+
+    const now = Date.now();
+    const closesAt = (campaign.dates && campaign.dates.bidding_closes_at) || null;
+    /* Closed means the calendar says so, or an admin moved the cohort past the
+       auction. An auction with no close date has not closed: absent a date,
+       the seal holds rather than falling open. */
+    const closed = (closesAt && now >= closesAt)
+      || campaign.kind === 'closed' || campaign.kind === 'archived';
+
+    if (!closed) {
+      return res.status(200).json({
+        ok: true, sealed: true, closesAt, bidCount: null, offer: null,
+      });
+    }
+
+    const rows = await bids.campaignBidRows(req.catalyst, campaign.id);
+    if (rows === null) {
+      /* Unreadable, which above all means the auction tables are not created
+         yet. Distinct from "nobody bid", and the dashboard renders it as such
+         rather than telling a household its cohort drew no interest. */
+      return res.status(200).json({
+        ok: true, sealed: false, live: false, closesAt, bidCount: null, offer: null,
+      });
+    }
+    if (!rows.length) {
+      return res.status(200).json({
+        ok: true, sealed: false, live: true, closesAt, bidCount: 0, offer: null,
+      });
+    }
+
+    /* Lowest headline wins. Money is a string everywhere (rule 3), so compare
+       as numbers here and hand the string back untouched. A row with an
+       unreadable price cannot win, rather than sorting to the front as NaN. */
+    const priced = rows
+      .map((r) => ({ row: r, n: Number(r.price) }))
+      .filter((x) => Number.isFinite(x.n));
+    if (!priced.length) {
+      return res.status(200).json({
+        ok: true, sealed: false, live: true, closesAt, bidCount: rows.length, offer: null,
+      });
+    }
+    priced.sort((a, b) => (a.n - b.n) || String(a.row.bid_key).localeCompare(String(b.row.bid_key)));
+    const win = priced[0].row;
+
+    /* The winner is named to the household. That is the reveal the design
+       intends, and it is one-directional: no partner learns who else bid. */
+    let partner = null;
+    try {
+      const org = await datastore.findBy(req.catalyst, 'provider_orgs', 'org_id', win.org_id, ['legal_name']);
+      partner = (org && org.legal_name) || null;
+    } catch {
+      partner = null;
+    }
+
+    const pub = bids.publicBid(win);
+    const cheapest = pub.tiers.slice().sort((a, b) =>
+      Number(a.effectivePrice) - Number(b.effectivePrice))[0] || null;
+
+    res.status(200).json({
+      ok: true,
+      sealed: false,
+      live: true,
+      closesAt,
+      bidCount: rows.length,
+      offer: {
+        partner,
+        price: win.price,
+        speed: cheapest ? cheapest.name : null,
+        technology: cheapest ? cheapest.technology : null,
+        guaranteeMonths: pub.guaranteeMonths,
+        afterLine: pub.afterLine,
+        equipment: pub.equipment,
+        rentalMonthly: pub.rentalMonthly,
+        committedHouseholds: pub.committedHouseholds,
+        reference: pub.reference,
+        tiers: pub.tiers,
+      },
     });
   }));
 
