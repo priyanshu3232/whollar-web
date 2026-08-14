@@ -264,8 +264,10 @@ console only ever reads **counts** from this table — no member identity
 crosses to providers.
 
 Written by `POST /campaigns/join|leave|notify`, read by `GET /campaigns`
-(member) and `GET /provider/campaigns` (partner). The campaign catalog itself
-is code (`routes/campaigns.js`), not a table — only membership lives here.
+(member) and `GET /provider/campaigns` (partner). Only membership lives here;
+the campaign catalog itself is the `campaigns` table, section 16. It used to be
+a code constant in `routes/campaigns.js`, and that constant survives as the
+fallback `src/lib/catalog.js` uses whenever the table is missing or empty.
 
 | Column | Type | Length | Unique | Mandatory | PII | Notes |
 |---|---|---|:--:|:--:|:--:|---|
@@ -385,6 +387,426 @@ defaults; writes throw a clear "not available" rather than a generic 500.
 
 ---
 
+## 16. `campaigns`, `site_config`, `provider_bids`, `provider_coverage`
+
+**These four were live in code and undocumented here.** All four are declared
+in `src/lib/schema.js` and reported by `/health/diagnostics`, and all four are
+written by deployed routes. Rule 1 above says this file is the only record of
+what a hand-created table must contain, so the omission meant that recreating
+this environment from scratch, or standing Production up, would have produced
+a site that looked fine and silently fell back to defaults. Section 12 of this
+file still said "the campaign catalog itself is code, not a table"; it has not
+been true since the admin console shipped.
+
+Nothing here is a new instruction if the tables already exist. Check with the
+Verify queries first.
+
+### `campaigns`
+
+The catalog, promoted from a code constant so that "open bidding on Windsor" is
+an ops decision rather than a deploy. `src/lib/catalog.js` reads it with a 60
+second memo and **falls back to the code catalog when the table is missing or
+empty**, which is why its absence has been invisible.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `campaign_id` | Var Char | 64 | ✅ | ✅ | slug, immutable once created |
+| `region` | Var Char | 100 | | ✅ | |
+| `sub` | Var Char | 100 | | | e.g. `Autumn cohort` |
+| `kind` | Var Char | 16 | | ✅ | `planned` \| `waitlist` \| `forming` \| `auction` \| `closed` \| `archived` |
+| `target` | Int | — | | | households the cohort is aiming at |
+| `seed_members` | Int | — | | | |
+| `seed_households` | Int | — | | | |
+| `bidding_open` | Boolean | — | | | only meaningful while `kind = auction` |
+| `sort_order` | Int | — | | | |
+| `updated_by` | Var Char | 64 | | | |
+| `updated_at` | DateTime | — | | | |
+
+**The auction calendar, seven columns, all optional.** A cohort with none of
+them behaves exactly as it did before they existed, because `kind` and
+`bidding_open` remain the authority. `src/lib/catalog.js` derives the
+partner-facing stage from these on every read, for **display only**.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `announce_at` | DateTime | — | | | brief fixed, coverage-matched partners told |
+| `bidding_opens_at` | DateTime | — | | | |
+| `bidding_closes_at` | DateTime | — | | | **the one with teeth**, see below |
+| `offers_at` | DateTime | — | | | winning offer goes to each household |
+| `decision_at` | DateTime | — | | | household confirmations lock |
+| `switch_window_at` | DateTime | — | | | installs and transfers run |
+| `reconcile_at` | DateTime | — | | | final counts settle |
+
+`bidding_closes_at` is the only one that changes behaviour rather than
+labelling. `requireBiddingOpen()` refuses a bid once it has passed, so a cohort
+cannot stay open past its own published deadline just because nobody was at a
+keyboard to flip `bidding_open` at 5pm. **Dates may close a bid window and may
+never open one**: bidding still opens only when an admin says so, so a mistyped
+date cannot let anyone in early.
+
+### `site_config`
+
+One row per tunable. Read by `/public/config` (60s cacheable) and written by
+the admin console. `bidding_enabled` is the global bidding kill switch.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `config_key` | Var Char | 64 | ✅ | ✅ | |
+| `value` | Text | 10000 | | ✅ | JSON-encoded, typed by `value_type`, so a boolean is `true` and not `"true"` |
+| `value_type` | Var Char | 16 | | ✅ | `string` \| `number` \| `boolean` \| `json` |
+| `published` | Boolean | — | | | only published keys reach `/public/config` |
+| `description` | Var Char | 255 | | | what the admin console shows beside the editor |
+| `updated_by` | Var Char | 64 | | | |
+| `updated_at` | DateTime | — | | | |
+
+> **Corrected.** This list previously showed `value` as Var Char 255 and
+> omitted `value_type`, `published` and `description`, all three of which
+> `lib/siteconfig.js` requires. A table built from the old list would fail
+> every read of it, and the failure is invisible: every caller falls back to
+> the code DEFAULTS.
+
+### `provider_bids`
+
+One live sealed bid per (campaign, org). Rule 4 above: Catalyst's unique
+constraint is per column, so the pair is flattened into `bid_key`.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `bid_key` | Var Char | 130 | ✅ | ✅ | `${campaign_id}:${org_id}` |
+| `campaign_id` | Var Char | 64 | | ✅ | |
+| `org_id` | Var Char | 64 | | ✅ | |
+| `user_id` | Var Char | 64 | | ✅ | who placed it, for the org's own record |
+| `price` | Var Char | 16 | | ✅ | money as a string, see rule 3. The headline: the lowest tier's effective price |
+| `status` | Var Char | 16 | | ✅ | `sealed` \| `improved` |
+| `updated_at` | DateTime | — | | | |
+
+> **Corrected.** This list previously omitted `user_id`, which every insert
+> writes, and carried `updated_by`, which nothing writes. It also carried
+> `speed`, `term`, `includes` and `completion` from the flat experimental
+> shape; the tiered bid in section 18 replaced all four, nothing reads them,
+> and a table created today does not need them.
+
+**Section 18 adds fifteen more columns to this table.** If you are creating it
+for the first time, create the seven above and the fifteen there in one pass.
+
+### `provider_coverage`
+
+The regions an org claims, and what it can render there.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `coverage_key` | Var Char | 200 | ✅ | ✅ | `${org_id}:${region-slug}`, truncated to 200 by the write path |
+| `org_id` | Var Char | 64 | | ✅ | |
+| `region` | Var Char | 100 | | ✅ | as typed |
+| `techs` | Var Char | 64 | | ✅ | CSV of `cable` \| `fibre` \| `fwa` \| `dsl` |
+| `speed` | Var Char | 16 | | | the write path caps this at 16 |
+| `lead` | Var Char | 32 | | | install lead time, capped at 32 |
+| `status` | Var Char | 16 | | ✅ | `verifying` \| `active` \| `soon` \| `rejected` |
+| `updated_at` | DateTime | — | | ✅ | |
+
+> **Corrected against `lib/schema.js`, which is what `/health/diagnostics`
+> verifies.** This list previously showed `coverage_key` as 130 (the write path
+> builds a key it truncates at 200), `speed` as 32 (capped at 16 on write) and
+> `lead` as 64 (capped at 32), and left `techs` and `updated_at` optional when
+> both are required.
+
+> **Known gap, not a schema problem.** New rows land `verifying` and **no route
+> anywhere moves them on**, so `active` is currently unreachable. The admin
+> **Resolved.** `POST /admin/providers/:orgId/coverage/:region/verify` and
+> `.../reject` are the routes that were missing, and they are the only place
+> `active` is ever written. Add the two columns below before deploying them.
+
+**Two columns to add to `provider_coverage`.** Both optional, and the code
+falls back to the original column list if they are absent, so the table keeps
+working while you add them.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `rejection_reason` | Var Char | 255 | | | the sentence a refused partner is shown |
+| `verified_at` | DateTime | — | | | stamped by the admin verify route |
+
+---
+
+## 17. The founding partner application
+
+Five tables. The application is the partner's first screen and, until it
+clears, their only one.
+
+**Why one row per task rather than five columns on the application.** The
+screen says "each piece starts its own check the moment it lands". With five
+booleans that sentence is decoration: a submitted document and a cleared one
+look identical, and a partner whose registration was flagged sees "under
+review" forever with no idea which number did not match.
+
+### `provider_applications`
+
+One per org. `state` here is a **hint**, not the authority: `routes/application.js`
+derives the real state from the task rows plus `submitted_at` and `decided_at`,
+for the same reason the campaign stage is derived. A state written by whoever
+spoke last is a state nobody can reason about.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `application_id` | Var Char | 64 | ✅ | ✅ | `app-${org_id}` |
+| `org_id` | Var Char | 64 | ✅ | ✅ | one application per org |
+| `state` | Var Char | 16 | | ✅ | `draft` \| `submitted` \| `under_review` \| `info_needed` \| `approved` \| `rejected` |
+| `legal_name` | Var Char | 160 | | | |
+| `operating_name` | Var Char | 160 | | | |
+| `crtc_registration` | Var Char | 64 | | | checked against the public register by a person |
+| `business_number` | Var Char | 32 | | | optional at application time |
+| `submitted_at` | DateTime | — | | | **written once.** See below |
+| `decision_due_at` | DateTime | — | | | `submitted_at` + 48h |
+| `decided_at` | DateTime | — | | | |
+| `decision_note` | Var Char | 500 | | | shown verbatim on a declined application |
+| `review_note` | Var Char | 500 | | | shown when one task is flagged |
+| `reapply_after` | DateTime | — | | | |
+| `source` | Var Char | 16 | | | `self_serve` \| `outreach` \| `distributor` |
+| `role_route` | Var Char | 24 | | | carried from the public onboarding page |
+| `updated_at` | DateTime | — | | | |
+
+> **`submitted_at` is written only if unset, and that is load-bearing.** The
+> console calls submit the moment the fifth task lands, and a re-render or a
+> double click calls it again. Writing it unconditionally would move
+> `decision_due_at` every time, and that deadline is the one number on the
+> screen a partner is entitled to trust.
+
+### `application_tasks`
+
+One row per (org, task). Rule 4 applies: Catalyst's unique constraint is per
+column, so the pair is flattened into `task_key_org`.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `task_key_org` | Var Char | 200 | ✅ | ✅ | `${org_id}:${task_key}` |
+| `org_id` | Var Char | 64 | | ✅ | |
+| `task_key` | Var Char | 16 | | ✅ | `coverage` \| `registration` \| `documents` \| `agreement` \| `reference` |
+| `state` | Var Char | 16 | | ✅ | `empty` \| `submitted` \| `verifying` \| `cleared` \| `flagged` |
+| `completed_at` | DateTime | — | | | when the partner finished their half |
+| `checked_at` | DateTime | — | | | when a reviewer finished theirs |
+| `note` | Var Char | 500 | | | reviewer's note, or the consent hash for `agreement` |
+| `updated_at` | DateTime | — | | | |
+
+> A partner's own write can reach `submitted`, never `cleared`. Only
+> `registration` cleared by a reviewer means the CRTC number matched. A partner
+> able to clear their own check would make the vetting story decorative.
+> `agreement` is the exception: signing it IS the whole of that task.
+
+### `provider_documents`
+
+**PII.** The bytes never pass through the auth function: uploads go to the file
+store through a presigned URL and only the reference is stored here. Never a
+public bucket, never a guessable URL, and `retention_delete_after` is what
+makes the deletion promise on the application screen real.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `document_id` | Var Char | 64 | ✅ | ✅ | |
+| `org_id` | Var Char | 64 | | ✅ | |
+| `kind` | Var Char | 32 | | ✅ | `crtc_registration` \| `business_registration` \| `insurance` \| `other` |
+| `file_store_ref` | Var Char | 255 | | ✅ | |
+| `filename` | Var Char | 255 | | | as uploaded |
+| `bytes` | Int | — | | | |
+| `mime` | Var Char | 64 | | | |
+| `uploaded_by` | Var Char | 64 | | | `user_id` |
+| `uploaded_at` | DateTime | — | | | |
+| `review_state` | Var Char | 16 | | ✅ | `pending` \| `accepted` \| `rejected` |
+| `retention_delete_after` | DateTime | — | | | |
+
+### `provider_references`
+
+One contact, contacted once, told exactly why, **never added to any list**.
+That last part is a promise made on the application screen, so there is no
+marketing consent column here and there must not be one.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `reference_key` | Var Char | 200 | ✅ | ✅ | `${org_id}:ref` |
+| `org_id` | Var Char | 64 | | ✅ | |
+| `name_role` | Var Char | 160 | | ✅ | |
+| `email` | Var Char | 255 | | ✅ | |
+| `contacted_at` | DateTime | — | | | |
+| `response_state` | Var Char | 16 | | ✅ | `pending` \| `responded` \| `no_response` |
+| `updated_at` | DateTime | — | | | |
+
+### `coverage_verifications`
+
+Append only. Every serviceability decision, with who made it. Written **before**
+the `provider_coverage` row moves: if the row update then fails the region
+stays `verifying` and can be verified again, which is harmless. The reverse
+order would leave a region live with no record of who made it live, on the one
+decision that determines whether a partner can bid at all.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `coverage_key` | Var Char | 200 | | ✅ | matches `provider_coverage.coverage_key` |
+| `org_id` | Var Char | 64 | | ✅ | |
+| `region` | Var Char | 100 | | ✅ | as declared |
+| `result` | Var Char | 16 | | ✅ | `active` \| `rejected` |
+| `reason` | Var Char | 32 | | | `no_facilities` \| `outside_footprint` \| `tech_unsupported` \| `needs_evidence` |
+| `checked_by` | Var Char | 64 | | ✅ | admin `user_id` |
+| `checked_at` | DateTime | — | | ✅ | |
+
+> The reason is an **enum, not prose**, because it feeds the serviceability
+> accuracy figure that future auction briefs carry beside a partner's bid. Free
+> text would make that number unbuildable.
+
+---
+
+## 18. The auction core: bid revisions, the tiered bid, the brief
+
+The bid ticket increment. One new table, fifteen columns added to
+`provider_bids`, one column added to `campaigns`, and one optional
+`site_config` row. Code deploys safely before or after this section is done:
+every read tries the extended column list first and falls back to the original,
+so the window between deploy and console work degrades instead of erroring.
+Bid WRITES, however, need all of it: placing a bid inserts into
+`bid_revisions` first, so until this section is done the place route answers
+"Bidding is not available right now."
+
+> **FIRST, find out what actually exists.** Section 16's four tables were
+> documented after the fact, on the assumption they had been created. Do not
+> assume: sign in as an admin and call `GET /api/auth/health/diagnostics`,
+> which runs `lib/schema.js verify()` and names every missing table, missing
+> column, and wrong constraint in one answer. Nothing in this system tells you
+> otherwise on its own, and that is deliberate: `lib/catalog.js` falls back to
+> the code catalog when `campaigns` is unreadable, and every other read
+> answers `live: false` and renders an empty state. A missing table looks
+> exactly like a quiet week.
+>
+> If a table below does not exist, create it from the FULL column list in
+> section 16 plus the additions here, not from the additions alone.
+
+### Columns to add to `provider_bids`
+
+The head row grows from the flat experimental shape to the full sealed bid.
+Existing columns keep their names and meanings; `price` becomes the headline
+(the lowest tier's effective price) and `status` stays the state column, with
+`improved` joining `sealed` as a value.
+
+Note that section 16's list of this table is **wrong in one way that matters**:
+it omits `user_id`, which every insert writes, and lists `updated_by`, which
+nothing writes. Section 16 has been corrected. It also listed `speed`, `term`,
+`includes` and `completion`, which the tiered bid replaced: a bid's speeds
+live in `tiers` and its term in `guarantee_months`. Nothing reads or writes
+those four any more, so a table created today does not need them, and a table
+that already has them is unaffected.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `tiers` | Text | 10000 | | | JSON array, one entry per tier: `{name, uploadMbps, technology, stickerPrice, effectivePrice, afterPrice}`, money as canonical strings |
+| `guarantee_months` | Int | | | | 12 \| 24 \| 36 |
+| `after_mode` | Var Char | 8 | | | `none` \| `new` |
+| `after_line` | Var Char | 255 | | | derived display line: `$69 / 500 Mbps, ...` or `no scheduled change` |
+| `equipment` | Var Char | 8 | | | `inc` \| `rent` \| `byod` |
+| `rental_monthly` | Var Char | 16 | | | money string; set only when `equipment = rent` |
+| `extra_pod_monthly` | Var Char | 16 | | | money string; null means included |
+| `reduction_presentation` | Var Char | 16 | | | `member` \| `promo` \| `cash` \| `none` \| `custom` |
+| `mechanism_label` | Var Char | 64 | | | only when `custom`; validated against pressure language server side |
+| `commitment_cap` | Int | | | | households the org commits to serve |
+| `revision_count` | Int | | | | convenience mirror of the revisions table, which is authoritative |
+| `receipt_no` | Var Char | 32 | | | the latest sealed receipt |
+| `payload_hash` | Var Char | 64 | | | sha256 of the sealed payload; the duplicate-submit detector |
+| `submitted_at` | DateTime | | | | first sealing, written once |
+| `last_revised_at` | DateTime | | | | |
+
+### `bid_revisions` (new table)
+
+**The sealed record. Append-only, permanently.** One row per sealing, written
+BEFORE the head row, so a bid can never exist without its sealed record. No
+route updates or deletes a row here, no admin backdoor removes one, and there
+is no withdraw path anywhere in the system: the latest revision at close is
+the binding one. Addresses never enter this table, so retention never redacts
+it.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `revision_key` | Var Char | 200 | ✅ | ✅ | `${campaign_id}:${org_id}:${revision_no}`, the flattened composite (rule 4) and the race guard: concurrent revisions collide here and the loser gets a clean conflict |
+| `bid_key` | Var Char | 130 | | ✅ | matches `provider_bids.bid_key` |
+| `campaign_id` | Var Char | 64 | | ✅ | |
+| `org_id` | Var Char | 64 | | ✅ | |
+| `revision_no` | Int | | | ✅ | 1-based |
+| `payload` | Text | 10000 | | ✅ | the full canonical bid JSON, exactly as sealed |
+| `payload_hash` | Var Char | 64 | | ✅ | |
+| `receipt_no` | Var Char | 32 | | ✅ | random, not sequential: a sequence would leak platform bid counts |
+| `submitted_by` | Var Char | 64 | | ✅ | `user_id` |
+| `server_received_at` | DateTime | | | ✅ | the server clock reading the close boundary was judged against |
+
+### One column to add to `campaigns`
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `brief_json` | Text | 10000 | | | the brief's demand profile, ops-maintained: `{"renewalWindow": "Oct to Dec", "speedMix": [["1 Gig", 42], ["500 Mbps", 41], ["Under 500", 17]], "plantMix": [["Cable", 58], ["FTTP", 33], ["FTTN", 9]]}` |
+
+Deliberately NOT in `catalog.js`'s column list: the catalog falls back to the
+code catalog when its query throws, so naming this column there before it
+exists in the console would knock the whole site back to seed data. The brief
+route reads it with its own one-row query and degrades to "profile to come"
+when the column or value is absent. Percentages are content, not arithmetic:
+the server renders what ops recorded and invents nothing.
+
+### One optional `site_config` row
+
+`success_fee` (type `number`, unpublished). The code default is 95, marked in
+`lib/siteconfig.js` as an unconfirmed planning number; create the row only to
+override it. Unpublished means it never appears on `/public/config`: partners
+see it on their own briefs.
+
+---
+
+## 19. The v17 checkup: columns to add to `BillCheckupSubmissions`
+
+The bill checkup was rebuilt on 2026-08-13 (the v17 migration). The household
+now states two prices, the promo window each applies to, and optionally a
+month-by-month promo ladder; the engine's outputs are stored so historical
+results stay reproducible. Like section 14, this is a column *addition* to a
+Do-not-touch-family table, which is the one edit that family takes.
+
+The insert tolerates every column below being missing (they are a tolerated
+group, dropped together on retry), so the site keeps working before you do
+this; it just keeps discarding these answers. The retry now drops groups
+newest-first, so a gap here no longer costs `ContractStartDate` /
+`ContractLength` the way the 2026-08-12 outage did.
+
+| Column | Type | Notes |
+|---|---|---|
+| `PriceDuringPromo` | Double | field 08, the monthly price during the promo |
+| `PriceAfterPromo` | Double | field 09, nullable |
+| `PromoPeriods` | Text | JSON `[{"amount":50,"months":6}, …]`, nullable |
+| `PromoFallbackPrice` | Double | the price for months the periods do not cover, nullable |
+| `IsMultiPromo` | Boolean | the checkbox state |
+| `StartDateUnknown` | Boolean | "I don't know" on field 05 |
+| `PromoEndUnknown` | Boolean | "I don't know" on field 07 |
+| `ComputedWindowMonths` | Int | always 12 in this release; stored so old rows stay reproducible |
+| `ComputedCurrentCost` | Double | engine: cost of the next 12 months as they stand |
+| `ComputedBenchmarkMonthly` | Double | engine, INTERNAL ONLY: never shown to a household |
+| `ComputedSavings` | Double | engine: currentCost minus benchmark times 12 |
+| `ComputedOverpaidToDate` | Double | engine, netted, nullable |
+| `ComputedBasis` | Var Char (32) | `dated` \| `dated-no-sticker` \| `midpoint-estimate` \| `current-only` \| `periods` |
+| `ComputedTone` | Var Char (16) | `high` \| `moderate` \| `fair` \| `no-benchmark` |
+
+### What changed for the old columns
+
+- **`MonthlyCost` keeps its meaning**: the price paid TODAY, promo included
+  (the 2026-08-08 definition). The v17 page derives it from the promo
+  structure, so it stays correct even for lapsed promos. Nothing rereads it
+  differently.
+- **`DiscountAmount` is retired.** The discount/waiver field was deleted from
+  the form (the promo price already nets discounts out; keeping it double
+  counts), so the insert no longer names the column. The 2026-08-12 note
+  saying it must be re-added in the console is superseded: do not re-add it.
+  Where it still exists it just holds the historical answers.
+- **Backfill for pre-v17 rows** is done at read time, not by rewriting rows:
+  a row with `ComputedWindowMonths` null is a pre-engine row, and its
+  `MonthlyCost` stands in for `PriceDuringPromo` (`PriceAfterPromo` stays
+  null). Old rows were produced by a different engine and are never
+  recomputed.
+
+The `member_bills` side needs no change: `/me/bill` keeps storing `monthly`
+as the price paid today, and the page has stopped sending `discount`
+(`discount_amount` remains, nullable, for historical rows).
+
+---
+
 ## Verify
 
 In the console: **Data Store → ZCQL** (or **Explore**), and run each of these.
@@ -398,6 +820,12 @@ SELECT ROWID FROM credentials LIMIT 1;
 SELECT ROWID FROM sessions LIMIT 1;
 SELECT ROWID FROM auth_challenges LIMIT 1;
 SELECT ROWID FROM oauth_state LIMIT 1;
+SELECT ROWID FROM provider_applications LIMIT 1;
+SELECT ROWID FROM application_tasks LIMIT 1;
+SELECT ROWID FROM provider_documents LIMIT 1;
+SELECT ROWID FROM provider_references LIMIT 1;
+SELECT ROWID FROM coverage_verifications LIMIT 1;
+SELECT rejection_reason, verified_at FROM provider_coverage LIMIT 1;
 SELECT ROWID FROM consents LIMIT 1;
 SELECT ROWID FROM provider_orgs LIMIT 1;
 SELECT ROWID FROM provider_users LIMIT 1;
@@ -405,6 +833,10 @@ SELECT ROWID FROM auth_events LIMIT 1;
 SELECT ROWID FROM member_bills LIMIT 1;
 SELECT ROWID FROM campaign_members LIMIT 1;
 SELECT ROWID FROM provider_ratings LIMIT 1;
+SELECT ROWID FROM campaigns LIMIT 1;
+SELECT ROWID FROM site_config LIMIT 1;
+SELECT ROWID FROM provider_bids LIMIT 1;
+SELECT ROWID FROM provider_coverage LIMIT 1;
 ```
 
 Then one that exercises the column names the hot path depends on:
@@ -421,6 +853,24 @@ SELECT ContractStartDate, ContractLength FROM BillCheckupSubmissions LIMIT 1;
 SELECT contract_start_date, contract_length FROM member_bills LIMIT 1;
 SELECT pref_key, prefs FROM user_prefs LIMIT 1;
 SELECT user_id, kind, payload FROM user_events LIMIT 1;
+SELECT bid_key, campaign_id, org_id, status FROM provider_bids LIMIT 1;
+SELECT coverage_key, org_id, region, status FROM provider_coverage LIMIT 1;
+-- The auction calendar. Errors here mean section 16's seven columns are
+-- missing, which is silent: stage falls back to kind + bidding_open, and
+-- bidding never auto-closes at its published deadline.
+SELECT announce_at, bidding_opens_at, bidding_closes_at, offers_at,
+       decision_at, switch_window_at, reconcile_at FROM campaigns LIMIT 1;
+```
+
+And section 18, the auction core. The first two fail loudly until the columns
+and table exist; while they fail, reads degrade and bid writes refuse.
+
+```sql
+SELECT tiers, guarantee_months, revision_count, receipt_no, payload_hash
+  FROM provider_bids LIMIT 1;
+SELECT revision_key, bid_key, revision_no, payload, receipt_no,
+       server_received_at FROM bid_revisions LIMIT 1;
+SELECT brief_json FROM campaigns LIMIT 1;
 ```
 
 Run the discount columns too. On 2026-08-12 every `/bill-checkup-join` insert

@@ -16,6 +16,7 @@ on:
     paths:
       - "**.html"
       - "js/**"
+      - "partner/**"
       - "scripts/**"
       - "MobileVersion/**"
       - "Whollar Pricing Model.xlsx"
@@ -23,6 +24,7 @@ on:
     paths:
       - "**.html"
       - "js/**"
+      - "partner/**"
       - "scripts/**"
       - "MobileVersion/**"
       - "Whollar Pricing Model.xlsx"
@@ -78,8 +80,76 @@ jobs:
       - name: Contract schedule engine unit tests
         run: node --test scripts/test-contract-quote.mjs
 
+      # The cohort auction stage, derived on read from the campaign calendar.
+      # Pure (campaign, now) -> stage, so it needs no database and no clock,
+      # which is exactly why stage is derived rather than written by a
+      # scheduler. Guards the boundaries that decide whether a bid window is
+      # shown as open.
+      - name: Campaign stage unit tests
+        run: node --test scripts/test-campaign-stage.mjs
+
+      # The route guards. These decide whether an unapproved organisation can
+      # place a bid, and they were copy-pasted across four route files before
+      # being extracted into lib/guards.js. This is what stops the fifth copy.
+      - name: Route guard unit tests
+        run: node --test scripts/test-guards.mjs
+
+      # Which organisation an email address resolves to, which is transitively
+      # the answer to "who can see my sealed bid". Partner signup accepts
+      # personal addresses now, and the whole safety of that rests on a free
+      # provider keying on the full address rather than the bare domain.
+      - name: Organisation key unit tests
+        run: node --test scripts/test-org-key.mjs
+
+      # The v17 checkup savings engine (js/checkup-savings.js): the 12-month
+      # window, benchmark selection with the Ontario offer pool and the
+      # out-of-province fallback, the four single-promo bases, multi-promo
+      # walking, netted overpaid-to-date, tone thresholds, cliff pill.
+      - name: Checkup savings engine acceptance tests
+        run: node --test scripts/test-checkup-savings.mjs
+
+      # The checkup page itself, driven in headless Chrome (playwright-core +
+      # the runner's system Chrome; no browser download). Field order, the
+      # multi-promo and I-don't-know states, the three-screen rail swap, the
+      # verdict card, validation messages, and the rail clipping regression
+      # guard (aside.scrollHeight - aside.clientHeight <= 1).
+      - name: Checkup page DOM acceptance tests
+        run: |
+          npm ci --ignore-scripts
+          node --test scripts/test-checkup-dom.mjs
+
       - name: Device router parses
         run: node --check js/device-router.js
+
+      # The partner console is the one place in this repo with a build step.
+      # This single check covers three failures at once, which is why it is
+      # first: the module graph still resolves (an unimported or missing module
+      # is an error, not a shrug), the committed bundle matches its source, and
+      # the ?v= stamp in partner/index.html matches the bundle. /partner is
+      # cached 24h, so a changed console with an unchanged stamp means partners
+      # run new markup against old JavaScript for a day.
+      - name: Partner console bundle is current
+        run: node scripts/build-console.mjs --check
+
+      # And that the thing a browser actually loads parses as a CLASSIC script.
+      # This is what keeps the no-ESM rule true: partner/*.js is source and may
+      # contain imports, the bundle may not, and node --check is what says so.
+      - name: Partner console bundle parses
+        run: node --check partner/console.build.js
+
+      # The fixtures are a classic script loaded on demand, outside the bundle,
+      # so nothing above covers them. They are .vercelignore'd, which means a
+      # syntax error here would never fail a deploy and would only show up on
+      # someone's laptop mid-QA.
+      - name: Partner console fixtures parse
+        run: node --check partner/demo/fixtures.js
+
+      # Em dashes and the banned terminology, scoped to the console files where
+      # the count is currently zero. Scoped rather than repo-wide on purpose:
+      # older pages carry hundreds of em dashes, and a gate that is red on day
+      # one gets switched off on day one.
+      - name: Console copy rules
+        run: node scripts/check-console-copy.mjs
 
       # Catches an unclosed brace or a stray character inside any inline
       # <script>, including the ones inside the self-unpacking bundle pages,

@@ -36,6 +36,7 @@ const sessions = require('../lib/sessions');
 const mailer = require('../lib/mailer');
 const audit = require('../lib/audit');
 const ratelimit = require('../lib/ratelimit');
+const envelope = require('../lib/envelope');
 const { canRevealCode } = require('./otp');
 
 const PURPOSE = 'signup';
@@ -103,19 +104,17 @@ function mount(router, cfg) {
 
     if (!users.isEmail(email)) throw badRequest('Enter a valid work email address.');
 
-    /**
-     * The one place a partner signup answers a question about itself.
-     *
-     * Everything else here is deliberately opaque, but this cannot be: a person
-     * typing their Gmail address needs to be told to use their work address, or
-     * they will simply try again, and again, and conclude the form is broken.
-     * It also leaks nothing — that gmail.com is a free provider is not a fact
-     * about our users.
-     */
-    if (orgs.isFreeEmailDomain(email)) {
-      throw badRequest('Please use your work email address — a personal mailbox cannot be linked to a provider account.');
-    }
+    /* A personal address is accepted. It used to be refused outright, on the
+       reasoning that the domain is the identity claim; that reasoning was
+       sound but the remedy was too blunt, since a small operator really does
+       run on a personal mailbox and had no way in at all.
 
+       What replaces it is orgs.orgKeyFor(): a free-provider address keys its
+       organisation on the FULL ADDRESS rather than the bare domain, so two
+       unrelated gmail signups get two organisations. Without that, both would
+       resolve to 'gmail.com', land in one org, and see each other's coverage,
+       team and sealed bids. Approval is unchanged and is still the real gate:
+       every new org is created 'pending' and only a human moves it. */
     credentials.assertAcceptable(password, email);
 
     await ratelimit.enforce(req.catalyst, req, { key: 'provider.signup.ip', max: 10, windowSec: 3600 });
@@ -127,9 +126,54 @@ function mount(router, cfg) {
     // different. The owner is told by email; the caller learns only that the
     // request was accepted.
     if (existing && existing.status === 'active') {
+      /**
+       * Actually send it.
+       *
+       * This branch audited and returned, sending nothing at all, while the
+       * comment above and the signup screen both said an email had gone out
+       * ("Already had an account with this address? We've emailed you about
+       * that instead of sending a code"). The template for it has existed in
+       * mailer.js since the copy deck landed and had exactly one caller,
+       * password.js. So the one path a partner hits by signing up twice was
+       * the one path that stayed silent, and from outside it is indis-
+       * tinguishable from mail being broken. It is what sent us hunting
+       * through DNS.
+       *
+       * Best-effort, and the try/catch is not defensive clutter: a throw here
+       * would change the response, and a timing difference between "taken" and
+       * "free" reinstates the account-enumeration oracle this whole opaque
+       * answer exists to close.
+       */
+      let delivered = false;
+      let sendError = null;
+      try {
+        const result = await mailer.send(cfg, {
+          to: email,
+          ...mailer.existingAccountEmail({
+            appBaseUrl: cfg.APP_BASE_URL,
+            firstName: existing.first_name,
+            signInPath: '/whollar-login-provider',
+          }),
+        });
+        delivered = Boolean(result && result.delivered !== false);
+      } catch (err) {
+        sendError = String((err && err.message) || err).slice(0, 300);
+        console.error(JSON.stringify({
+          req_id: req.id, level: 'error', message: 'existing-account notice failed',
+          detail: sendError,
+        }));
+      }
+
       audit.recordAsync(req.catalyst, req, {
         type: 'provider.signup', outcome: 'failure', email, userId: existing.user_id,
-        detail: { reason: 'already_active' },
+        /* `delivered` and `transport` are what /health/mail filters on, so
+           without them this row is invisible there. The single most common
+           reason a signup produces no code was the one case the mail
+           diagnostics could not see. */
+        detail: {
+          reason: 'already_active', delivered,
+          transport: mailer.transportName(cfg), send_error: sendError,
+        },
       });
       return opaqueOk(cfg, res, { ttlMinutes: challenges.TTL_MINUTES });
     }
@@ -149,10 +193,16 @@ function mount(router, cfg) {
     await credentials.set(req.catalyst, user.user_id, password);
 
     const { org } = await orgs.findOrCreateForDomain(req.catalyst, {
-      domain: orgs.domainOf(email),
+      // NOT domainOf(). orgKeyFor() returns the bare domain for a company
+      // address and the full address for a personal one, which is what keeps
+      // two unrelated gmail signups in two organisations rather than one.
+      domain: orgs.orgKeyFor(email),
       // The company name as typed. Falls back to the domain, because the
-      // console heads every screen with it and "" is not a heading.
-      legalName: body.orgName || body.company || orgs.domainOf(email),
+      // console heads every screen with it and "" is not a heading. For a
+      // personal address the domain is a poor heading, so the local part is
+      // the better guess at what to call them until they say otherwise.
+      legalName: body.orgName || body.company
+        || (orgs.isFreeEmailDomain(email) ? String(email).split('@')[0] : orgs.domainOf(email)),
     });
     await orgs.addMember(req.catalyst, { userId: user.user_id, orgId: org.org_id });
 
@@ -162,7 +212,13 @@ function mount(router, cfg) {
 
     audit.recordAsync(req.catalyst, req, {
       type: 'provider.signup', outcome: 'success', email, userId: user.user_id,
-      detail: { org_id: org.org_id, approval_status: org.approval_status, delivered, send_error: sendError },
+      /* transport was missing here while otp.js and the login challenge both
+         carry it, so /health/mail reported `transport: null` for the flow it
+         gets asked about most. */
+      detail: {
+        org_id: org.org_id, approval_status: org.approval_status,
+        delivered, transport: mailer.transportName(cfg), send_error: sendError,
+      },
     });
 
     return opaqueOk(cfg, res, { ttlMinutes, code });
@@ -390,8 +446,10 @@ function mount(router, cfg) {
       });
     }
     const context = await orgs.contextFor(req.catalyst, req.auth.user.user_id);
-    res.status(200).json({
-      ok: true,
+    /* envelope.ok, so this payload carries serverTime. The console anchors its
+       clock skew from whichever payload arrives first, and /provider/me is the
+       first call every boot makes. */
+    envelope.ok(res, {
       user: sessions.publicUser(req.auth.user),
       org: context,
       approved: Boolean(context && context.approved),

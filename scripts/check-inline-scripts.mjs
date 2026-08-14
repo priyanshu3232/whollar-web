@@ -25,7 +25,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PAGES = [
   'index.html', 'partners.html', 'bill-checkup.html', 'become-a-partner.html',
   'waitlist/index.html', 'blog/index.html', 'terms.html', 'privacy.html', 'contact.html',
-  'thank-you.html', 'dashboard.html', 'provider-dashboard.html',
+  'thank-you.html', 'dashboard.html', 'provider-dashboard.html', 'partner/index.html',
   'whollar-login-consumer.html', 'whollar-login-provider.html',
   'MobileVersion/consumer-mobile.html', 'MobileVersion/provider-mobile.html',
   'MobileVersion/bill-checkup-mobile.html', 'MobileVersion/become-a-partner-mobile.html',
@@ -61,6 +61,34 @@ function checkScripts(source, label) {
   }
 }
 
+/**
+ * Opening and closing <script> tags must balance.
+ *
+ * WHY THIS IS SEPARATE from the syntax check above. A page can carry a stray
+ * </script> that closes nothing, and every real script block on it still
+ * parses perfectly, so checkScripts() passes and the page ships. What the
+ * browser does with the orphan is treat everything before it as text: it
+ * renders the source of the preceding markup on screen.
+ *
+ * That is not hypothetical. partner/index.html was assembled by splitting its
+ * source on the literal string '<body>', and the boot guard's own comment
+ * contains the phrase "at the foot of <body>". The split landed inside the
+ * comment, the guard was written into the document twice, and the second copy
+ * rendered as a wall of JavaScript above the console. Every gate in this repo
+ * was green: both script blocks parsed, the footer matched, the bundle was
+ * current. One tag count would have caught it.
+ */
+function checkTagBalance(source, label) {
+  const opens = (source.match(/<script\b/gi) || []).length;
+  const closes = (source.match(/<\/script\s*>/gi) || []).length;
+  if (opens === closes) return;
+  failures++;
+  console.error(
+    `FAIL  ${label} — ${opens} <script> vs ${closes} </script>. `
+    + 'An unmatched closing tag renders the markup before it as visible text.'
+  );
+}
+
 for (const page of PAGES) {
   const path = join(ROOT, page);
   let source;
@@ -68,6 +96,7 @@ for (const page of PAGES) {
   catch { console.error(`FAIL  ${page} — missing`); failures++; continue; }
 
   checkScripts(source, page);
+  checkTagBalance(source, page);
 
   if (source.includes('<script type="__bundler/template">')) {
     let inner;

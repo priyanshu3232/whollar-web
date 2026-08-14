@@ -223,13 +223,13 @@ button{font-family:var(--body)}
       <!-- SIGN IN -->
       <section id="signin">
         <h2>Partner sign in</h2>
-        <p class="fsub">Access your cohort dashboard with your work email.</p>
+        <p class="fsub">Access your cohort dashboard.</p>
 
         <form id="signin-form" novalidate>
         <div class="field" id="si-email-f">
           <label for="si-email">Work email</label>
           <input id="si-email" type="email" autocomplete="email" inputmode="email" placeholder="you@provider.ca" maxlength="254" aria-describedby="si-email-err">
-          <div class="err-inline" id="si-email-err" role="alert" style="display:none">Enter a valid work email address.</div>
+          <div class="err-inline" id="si-email-err" role="alert" style="display:none">Enter a valid email address.</div>
         </div>
         <div class="field" id="si-pass-f">
           <label for="si-pass">Password</label>
@@ -300,13 +300,13 @@ button{font-family:var(--body)}
              longer collected after the code. -->
         <div id="su-step1">
           <h2>Create a partner account</h2>
-          <p class="fsub">Use your work email. It links you to your company. We'll email a code to confirm it.</p>
+          <p class="fsub">A company address links you to your colleagues automatically. A personal one works too, and gets its own account. We'll email a code to confirm it.</p>
 
           <form id="signup-form" novalidate>
           <div class="field" id="su-email-f">
-            <label for="su-email">Work email</label>
+            <label for="su-email">Email</label>
             <input id="su-email" type="email" autocomplete="email" inputmode="email" placeholder="you@provider.ca" maxlength="254" aria-describedby="su-email-err">
-            <div class="err-inline" id="su-email-err" role="alert" style="display:none">Enter a valid work email address.</div>
+            <div class="err-inline" id="su-email-err" role="alert" style="display:none">Enter a valid email address.</div>
           </div>
           <!-- The console heads every screen with the company name, so it has
                to be collected. Deriving it from the email domain guessed
@@ -383,7 +383,7 @@ button{font-family:var(--body)}
           <div class="field" id="fp-email-f">
             <label for="fp-email">Work email</label>
             <input id="fp-email" type="email" autocomplete="email" inputmode="email" placeholder="you@provider.ca" maxlength="254" aria-describedby="fp-email-err">
-            <div class="err-inline" id="fp-email-err" role="alert" style="display:none">Enter a valid work email address.</div>
+            <div class="err-inline" id="fp-email-err" role="alert" style="display:none">Enter a valid email address.</div>
           </div>
           <div class="err-inline" id="fp-start-err" role="alert" style="display:none"></div>
           <button class="submit" type="submit" id="fp-send">Send reset code</button>
@@ -460,10 +460,12 @@ button{font-family:var(--body)}
  * ------------------------------------------------------------------ */
 var W=window.WHOLLAR;
 
-/* Where a partner lands once signed in. /provider-dashboard is the default;
-   anything carried in ?next= is validated same-origin before it is followed. */
+/* Where a partner lands once signed in. /partner is the console; anything
+   carried in ?next= is validated same-origin before it is followed.
+   /provider-dashboard is the previous console and still deploys, so a partner
+   who has it bookmarked keeps working while the remaining views land. */
 function nextTarget(){
-  return W.safeNext(new URLSearchParams(location.search).get('next'), '/provider-dashboard');
+  return W.safeNext(new URLSearchParams(location.search).get('next'), '/partner');
 }
 
 /* Already signed in? Don't strand a partner on a form they don't need. The
@@ -801,7 +803,7 @@ document.getElementById('signup-form').addEventListener('submit',function(e){
 
   var okEmail=W.isEmail(em.value);
   markField('su-email-f',!okEmail,'su-email');
-  document.getElementById('su-email-err').textContent='Enter a valid work email address.';
+  document.getElementById('su-email-err').textContent='Enter a valid email address.';
   document.getElementById('su-email-err').style.display=okEmail?'none':'block';
   if(!okEmail){ em.focus(); return; }
 
@@ -835,12 +837,6 @@ document.getElementById('signup-form').addEventListener('submit',function(e){
          form-level failure it reads like the whole signup is broken. Any
          other message the pattern misses still lands below, so nothing is
          swallowed if the wording changes. */
-      if(err&&err.status===400&&/work email|personal mailbox/i.test(err.message||'')){
-        setErr('su-email-err',err.message);
-        markField('su-email-f',true,'su-email');
-        em.focus();
-        return;
-      }
       setErr('signup-err',serverMessage(err));
     });
 });

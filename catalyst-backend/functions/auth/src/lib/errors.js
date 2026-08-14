@@ -34,6 +34,10 @@ class AppError extends Error {
    * @param {object} [opts]
    * @param {string} [opts.logDetail]  The honest reason. Never sent to the client.
    * @param {object} [opts.headers]    e.g. { 'Retry-After': '60' }
+   * @param {object} [opts.extra]      Machine-readable fields merged into the
+   *   error body, e.g. { serverTime, closedAt } on a bid refused at close, so
+   *   the console can prove to the partner that the server's clock decided.
+   *   Data the client can act on only; never internals.
    */
   constructor(code, message, opts = {}) {
     super(message);
@@ -42,6 +46,7 @@ class AppError extends Error {
     this.status = CODES[this.code];
     this.logDetail = opts.logDetail || null;
     this.headers = opts.headers || null;
+    this.extra = opts.extra || null;
     this.expose = true;
   }
 }
@@ -82,7 +87,9 @@ function errorHandler(err, req, res, _next) {
 
   if (app.headers) for (const [k, v] of Object.entries(app.headers)) res.setHeader(k, v);
   res.setHeader('Cache-Control', 'no-store');
-  res.status(app.status).json({ error: { code: app.code, message: app.message } });
+  res.status(app.status).json({
+    error: Object.assign({ code: app.code, message: app.message }, app.extra || {}),
+  });
 }
 
 /**

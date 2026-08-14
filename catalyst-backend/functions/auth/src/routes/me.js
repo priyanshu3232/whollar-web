@@ -26,25 +26,17 @@ const prefs = require('../lib/prefs');
 const audit = require('../lib/audit');
 const cookies = require('../lib/cookies');
 const ratelimit = require('../lib/ratelimit');
-const { wrap, badRequest, unauthorized, forbidden } = require('../lib/errors');
+const guards = require('../lib/guards');
+const { wrap, badRequest, forbidden } = require('../lib/errors');
 
 const EVENTS = 'user_events';
 const EVENT_KINDS = new Set(['rating', 'outage', 'interest', 'provider-notify']);
 
-function requireUser(req) {
-  if (!req.auth) throw unauthorized('Please sign in again.');
-  return req.auth.user;
-}
-
-function requireMember(req) {
-  const user = requireUser(req);
-  if (user.user_type !== 'member') {
-    throw forbidden('This account is not a member account.', {
-      logDetail: 'non-member hit /me',
-    });
-  }
-  return user;
-}
+/* Moved to lib/guards.js. requireUser is deliberately type-agnostic: /me/prefs,
+   /me/event, /me/export and /me/delete already serve partners as well as
+   members, and the partner console relies on that. */
+const requireUser = (req) => guards.requireUser(req);
+const requireMember = (req) => guards.requireMember(req, '/me');
 
 /**
  * The member's share code, derived rather than stored: the first four hex
