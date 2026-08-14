@@ -6,14 +6,13 @@
  * meanwhile, which is the only honest third option.
  *
  * Each becomes its own module under views/ when it is built, as the bids
- * record now has (views/bids.js). Splitting the rest out now would create
- * files whose entire content is a paragraph, and the build refuses
- * unreferenced modules, so they would have to be wired up twice.
+ * record, the performance page and the contracts registry now have
+ * (views/bids.js, views/performance.js, views/contracts.js). Splitting the
+ * rest out now would create files whose entire content is a paragraph, and the
+ * build refuses unreferenced modules, so they would have to be wired up twice.
  */
 
 import { get } from '../core/state.js';
-import { esc } from '../core/format.js';
-import { fmtDate } from '../core/time.js';
 import { empty, goTo } from '../components/emptystate.js';
 
 export function render() {
@@ -21,8 +20,6 @@ export function render() {
 
   put('billing-body', billing(S));
   put('del-body', delivery(S));
-  put('perf-body', performance(S));
-  put('con-body', contracts(S));
   put('plan-body', empty('Pick a cohort to see its plan',
     'Every cohort has one timeline: announced, open, closed, offers out, decision, switching window, reconciliation. Open one from the bid desk.',
     goTo('desk', 'Open the bid desk', 'btn ghost')));
@@ -43,20 +40,4 @@ function delivery() {
   return empty('Your first delivery board builds itself',
     'Win a cohort and every confirmed household lands here with an order number, an install slot the member picks, and a state that becomes a statement line only when the line tests clean. Addresses release at confirmation, under each household’s consent, and to nobody else.',
     goTo('desk', 'Open the bid desk', 'btn ghost'));
-}
-
-function performance() {
-  return empty('Four numbers, none of them written yet',
-    'Win rate, completion, serviceability, and delivered as bid. None is bought and none is written by marketing: all four are recorded from what you deliver, and future auction briefs carry them beside your bid. The record starts at your first sealed number.');
-}
-
-function contracts(S) {
-  var app = S.application;
-  if (app && app.agreementAcceptedAt) {
-    return empty('Your agreements are on file',
-      'The application agreement is signed and versioned, dated ' + esc(fmtDate(app.agreementAcceptedAt)) + '. '
-      + 'The partner agreement signs at approval, and the standard cohort terms accept before your first bid. Both appear here when they do.');
-  }
-  return empty('Agreements appear here as they are signed',
-    'Everything binding lives here, versioned: the partner agreement, the standard cohort terms, your regional schedule, and every sealed bid receipt. If the standard terms change, bidding pauses until the new version is accepted.');
 }

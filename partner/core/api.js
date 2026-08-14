@@ -247,10 +247,21 @@ api.bidVersions = function (id) {
 
 /* ---- 7.6 terms and contracts (38-39) ---- */
 
-/* 38 */ api.contracts = todo('GET /provider/contracts');
-/* 39. Gates bidding. If the standard terms change, every org that has not
-       accepted the new version is paused. */
-/* 39 */ api.termsAccept = todo('POST /provider/contracts/terms/accept');
+/* 38. LIVE. A read over records other routes own: the approval decision, the
+       registration on the application, the declared coverage, the sealed bid
+       heads, and the terms acceptance. Each section degrades on its own, so a
+       nullable section means "could not read", never "you have none". */
+api.contracts = function () {
+  return request('GET', '/provider/contracts').then(function (r) { return check('contracts', r); });
+};
+/* 39. LIVE, and it gates bidding. If the standard terms change, every org that
+       has not accepted the new version is paused: the server refuses the bid
+       whatever this console renders. The version being accepted travels in the
+       body, so accepting a page that went stale is refused rather than
+       recorded against text nobody displayed. */
+api.termsAccept = function (body) {
+  return request('POST', '/provider/contracts/terms/accept', body);
+};
 
 /* ---- 7.7 roster and delivery (40-52) ----
    THE INTIMATION BOUNDARY. routes/campaigns.js states in code that no member

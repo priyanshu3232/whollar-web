@@ -33,6 +33,9 @@ var state = {
   briefs: {},           /* GET .../brief payloads keyed by campaign id;
                            'loading' while in flight, { failed: true } on error */
 
+  /* what binds them */
+  contracts: null,      /* GET /provider/contracts, null until it answers */
+
   /* health */
   biddingPaused: false,
   biddingNotice: null,
@@ -121,6 +124,23 @@ export function biddableCampaigns() {
 
 function slug(s) {
   return String(s || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+/**
+ * Where the org stands on the standard cohort terms, in three states rather
+ * than two.
+ *
+ * 'unknown' is the one that matters. Between boot and the contracts payload
+ * arriving, `contracts` is null, and collapsing that to "not accepted" would
+ * flash "accept the standard terms to bid" at a partner who accepted months
+ * ago, every single load. The bid ticket therefore prompts only on 'pending'
+ * and leaves its button alone on 'unknown': the server refuses the bid either
+ * way, so guessing buys nothing and costs a lie.
+ */
+export function termsState() {
+  var t = state.contracts && state.contracts.terms;
+  if (!t) return 'unknown';
+  return t.current ? 'accepted' : 'pending';
 }
 
 /** How many of the five application tasks have cleared or been submitted. */

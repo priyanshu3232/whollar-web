@@ -18,10 +18,11 @@
  * COVERS: the four boot-guard paths (signed out, approved, pending, expired),
  * the one that must NOT sign anyone out (a network failure), the router across
  * all 11 views, four widths, the burger's two behaviours, the completeness of
- * the 67-endpoint register, all 18 fixture states, the fixture layer declining
+ * the 67-endpoint register, all 19 fixture states, the fixture layer declining
  * to install off localhost, the bid ticket (seven-column tier table, consent
  * gate, a sealed place round-trip), the sealed receipt with no withdraw path
- * anywhere, and the my-bids record with its nudge and result pills.
+ * anywhere, the my-bids record with its nudge and result pills, and the
+ * contracts registry with its terms gate on the desk.
  */
 
 import { chromium } from 'playwright-core';
@@ -286,9 +287,10 @@ console.log('\n10. the endpoint register is complete');
   ok(reg.total === 67, `67 endpoints present (${reg.total})`);
   ok(reg.live + reg.pending === reg.total, `every one is either live or a tagged stub (${reg.live} live, ${reg.pending} stubbed)`);
   /* The auction core flipped four stubs live (brief, improve, bid, versions),
-     bringing the register to 24. A refactor that quietly turns a live endpoint
-     back into a stub must fail here, not in production. */
-  ok(reg.live >= 24, `at least 24 endpoints are live (${reg.live})`);
+     bringing the register to 24, and the contracts registry flipped two more
+     (contracts, termsAccept) for 26. A refactor that quietly turns a live
+     endpoint back into a stub must fail here, not in production. */
+  ok(reg.live >= 26, `at least 26 endpoints are live (${reg.live})`);
   /* A stub must fail the way the server will, or views learn the wrong error path. */
   const stub = await p.evaluate(() =>
     window.WHOLLAR.console.api.statements().then(() => null, e => ({ code: e.code, status: e.status })));
@@ -305,7 +307,7 @@ console.log('\n11. every fixture renders, with no console error');
     await new Promise(r => { const s = document.createElement('script'); s.src = '/partner/demo/fixtures.js'; s.onload = r; s.onerror = r; document.head.appendChild(s); });
     return window.WHOLLAR.console.fixtures ? window.WHOLLAR.console.fixtures.names : [];
   });
-  ok(names.length >= 18, `fixture states defined (${names.length})`);
+  ok(names.length >= 19, `fixture states defined (${names.length})`);
   await c.close();
 
   let clean = 0;
@@ -422,6 +424,10 @@ console.log('\n12b. coverage is declared from a controlled vocabulary');
   ok(await p.locator('#regpanel').isHidden(), 'and picking closes it');
 
   await p.locator('#addtech button').first().click();
+  /* A speed tier is required now that the field is a SET of tiers rather than
+     one top speed: declaring without one is refused, so the harness picks one
+     the way a partner does. */
+  await p.locator('#addspeed button[data-s]').first().click();
   await p.locator('[data-action="coverage:add"]').first().click();
   await p.waitForTimeout(400);
   const cov = await p.locator('#cov-body').innerText();
@@ -667,6 +673,76 @@ console.log('\n18. my bids: the record, the nudge, and the result pills');
   await p3.waitForTimeout(120);
   const lost = await p3.locator('#bids-body').innerText();
   ok(/Not selected/.test(lost), 'a lost bid says not selected, on the record');
+  await c3.close();
+}
+
+console.log('\n19. contracts: the registry, the terms gate, and the accept path');
+{
+  /* Accepted terms: six rows, three pills, no accept button. */
+  const c = await ctx(browser, { record: REC, me: APPROVED });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/partner?fixture=open#contracts`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(120);
+  const rows = await p.$$eval('#con-body .conrow b', els => els.map(e => e.textContent.trim()));
+  ok(rows.length === 6, `the registry paints six rows (${rows.length})`);
+  ok(/Master services agreement/.test(rows[0] || '') && /Standard cohort terms/.test(rows[1] || ''),
+    'the agreement rows come first, in the prototype\'s order');
+  const pills = await p.$$eval('#con-body .pill', els => els.map(e => e.textContent.trim()));
+  ok(pills.includes('Signed') && pills.includes('Accepted') && pills.includes('Verified'), `states render as pills (${pills.join(', ')})`);
+  ok(await p.locator('#con-body [data-action="terms:open"]').count() === 0,
+    'no accept button when the version in force is already accepted');
+  await c.close();
+
+  /* A version bump pauses bidding. The desk must not offer a bid the server
+     will refuse, and accepting must unlock it in the same session. */
+  const c2 = await ctx(browser, { record: REC, me: APPROVED });
+  const p2 = await c2.newPage();
+  collect(p2, errors);
+  await p2.goto(`${BASE}/partner?fixture=terms#contracts`, { waitUntil: 'networkidle' });
+  await p2.waitForTimeout(120);
+  const bumped = await p2.locator('#con-body').innerText();
+  ok(/You accepted v1/.test(bumped) && /accept v2/.test(bumped),
+    'a bumped version names both, rather than reading as never accepted');
+
+  await p2.evaluate(() => window.WHOLLAR.console.nav('desk'));
+  await p2.waitForTimeout(120);
+  await p2.click('[data-action="desk:open"]');
+  await p2.waitForTimeout(600);
+  const gated = await p2.locator('.tkt').innerText();
+  ok(/Accept the standard terms to bid/.test(gated),
+    'the ticket sends the partner to Contracts instead of offering a bid');
+
+  await p2.evaluate(() => window.WHOLLAR.console.nav('contracts'));
+  await p2.waitForTimeout(120);
+  await p2.click('#con-body [data-action="terms:open"]');
+  await p2.waitForTimeout(120);
+  ok(await p2.locator('#modal .termls li').count() === 6, 'the modal lists the six standard terms');
+  ok(await p2.locator('#terms-go').isDisabled(), 'accept is disabled until the box is ticked');
+  await p2.click('#terms-ok');
+  ok(!(await p2.locator('#terms-go').isDisabled()), 'ticking enables it');
+  await p2.click('#terms-go');
+  await p2.waitForTimeout(400);
+  ok(await p2.locator('#modal').isHidden(), 'the modal closes on accept');
+  ok((await p2.locator('#con-body').innerText()).includes('Accepted'), 'the row flips to accepted');
+
+  await p2.evaluate(() => window.WHOLLAR.console.nav('desk'));
+  await p2.waitForTimeout(300);
+  const open = await p2.locator('.tkt').innerText();
+  ok(/Place sealed bid/.test(open) && !/Accept the standard terms/.test(open),
+    'and the desk unlocks in the same session');
+  await c2.close();
+
+  /* An unreadable registry says so. A zero here would be read as "you have
+     never bid", which is a different fact from "we could not tell". */
+  const c3 = await ctx(browser, { record: REC, me: APPROVED });
+  const p3 = await c3.newPage();
+  collect(p3, errors);
+  await p3.goto(`${BASE}/partner#contracts`, { waitUntil: 'networkidle' });
+  await p3.waitForTimeout(200);
+  const bare = await p3.locator('#con-body').innerText();
+  ok(/could not be read|loading/.test(bare), 'a registry that did not answer says so');
+  ok(!/0 on record/.test(bare), 'and invents no zero');
   await c3.close();
 }
 

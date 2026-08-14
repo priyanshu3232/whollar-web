@@ -1,4 +1,10 @@
-/* Account: what we hold, and the four alert toggles.
+/* Account: what we hold.
+ *
+ * The four alert toggles live on the overview, where the prototype put them
+ * and where a partner is already looking at cohort timing. The markup and the
+ * save handler stay here, because the preference is an account record and one
+ * module owning `account:notify` is what keeps a second registration from
+ * claiming it.
  *
  * Editing is read-only for now and says so. A field that silently does nothing
  * is worse than one that is honestly not editable yet, and the edit path is
@@ -26,11 +32,25 @@ export function roleLabel(r) {
   return r ? titleCase(r) : null;
 }
 
+/* The alerts card, rendered into the overview aside. Only one copy may exist
+   at a time: the change handler reads every box back by data-key, so a second
+   copy would save the first one's state over the one just clicked. */
+export function alertsHTML() {
+  var notify = (get().prefs && get().prefs.notify) || {};
+  return '<section class="card" aria-label="Auction alerts">'
+    + '<span class="eyebrow">Auction alerts</span><h3>When cohorts move</h3>'
+    + NOTIFY.map(function (n) {
+      return '<label class="tog"><input type="checkbox" data-action="account:notify" data-key="' + n[0] + '"'
+        + (notify[n[0]] === false ? '' : ' checked') + '><i></i><span>' + esc(n[1]) + '</span></label>';
+    }).join('')
+    + '<p class="fnote">Saved to your account, not to this browser.</p>'
+    + '</section>';
+}
+
 export function render() {
   var S = get();
   var org = S.org || {};
   var user = S.user || {};
-  var notify = (S.prefs && S.prefs.notify) || {};
 
   var sub = document.getElementById('acct-sub');
   if (sub) {
@@ -55,14 +75,6 @@ export function render() {
     + '<button class="tlink" type="button" data-action="account:signout" style="margin-top:12px">Sign out</button>'
     + '</section>'
     + '<aside class="aside">'
-    + '<section class="card" aria-label="Auction alerts">'
-    + '<span class="eyebrow">Auction alerts</span><h3>When cohorts move</h3>'
-    + NOTIFY.map(function (n) {
-      return '<label class="tog"><input type="checkbox" data-action="account:notify" data-key="' + n[0] + '"'
-        + (notify[n[0]] === false ? '' : ' checked') + '><i></i><span>' + esc(n[1]) + '</span></label>';
-    }).join('')
-    + '<p class="fnote">Saved to your account, not to this browser.</p>'
-    + '</section>'
     + '<section class="card" aria-label="Your Whollar contact">'
     + '<span class="eyebrow">Your Whollar contact</span><h3>Talk to someone who can act</h3>'
     + '<p class="cardnote">Auction briefs, coverage verification, statement questions: your message lands with the team running your cohorts. Weekdays, usually within the hour.</p>'

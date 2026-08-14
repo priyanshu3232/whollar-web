@@ -30,8 +30,65 @@ import { byId, byName, search, grouped } from '../core/districts.js';
 /* The technologies desk.js accepts, in its own spelling. The console shows the
    label; the wire carries the value. Getting this wrong is a 400. */
 var TECHS = [['fibre', 'Fibre'], ['cable', 'Cable'], ['dsl', 'DSL'], ['fwa', 'Fixed wireless']];
-var SPEEDS = ['500 Mbps', '1 Gig', '2.5 Gig'];
+
+/* The speed ladder, ascending, as [Mbps, label]. Mbps is what goes on the wire
+   and Mbps is what the desk compares, so the label can be reworded without
+   invalidating a single declared row.
+
+   THIS IS A SET, NOT A CEILING. It used to be "Top speed offered", one value
+   from three, and a top speed cannot say that a partner sells 500 Mbps and 1
+   Gig on the same street but nothing under it. Cohorts are matched on the tier
+   a household actually wants, so declaring the ceiling made every partner look
+   serviceable at every tier beneath it.
+
+   ON THE WIRE it is a CSV of Mbps in ascending order, the same shape `techs`
+   already uses: "500,1000". That needs provider_coverage.speed at 64
+   characters, not the original 16; see create-tables.md. All six selected is
+   "50,100,200,500,1000,2500", 24 characters, so 64 has room for the ladder to
+   grow twice over. */
+var SPEEDS = [
+  [50, '50 Mbps'], [100, '100 Mbps'], [200, '200 Mbps'],
+  [500, '500 Mbps'], [1000, '1 Gig'], [2500, '2.5 Gig']
+];
 var LEAD_TIMES = ['5 business days', '7 business days', '10 business days'];
+
+/* Read whatever is on the record into an array of Mbps numbers.
+   Tolerates all three shapes that can arrive: the new CSV ("500,1000"), an
+   array, and the single legacy label ("1 Gig") written before this was a set.
+   A row declared under the old field keeps meaning what it meant. */
+function speedList(v) {
+  if (v === null || v === undefined || v === '') return [];
+  var parts = Array.isArray(v) ? v : String(v).split(',');
+  var out = [];
+  parts.forEach(function (p) {
+    var s = String(p).trim();
+    if (!s) return;
+    var n = parseInt(s, 10);
+    if (!isFinite(n) || n <= 0) return;
+    /* "1 Gig" and "2.5 Gig" parse to 1 and 2, so the legacy labels are matched
+       whole before the bare number is trusted. */
+    for (var i = 0; i < SPEEDS.length; i++) {
+      if (SPEEDS[i][1] === s) { n = SPEEDS[i][0]; break; }
+    }
+    if (out.indexOf(n) < 0) out.push(n);
+  });
+  return out.sort(function (a, b) { return a - b; });
+}
+function speedLabel(mbps) {
+  for (var i = 0; i < SPEEDS.length; i++) if (SPEEDS[i][0] === mbps) return SPEEDS[i][1];
+  return mbps + ' Mbps';
+}
+/** Ascending CSV of Mbps: what the record stores and the desk compares. */
+function speedWire(list) {
+  return speedList(list).join(',');
+}
+/** "500 Mbps, 1 Gig", or "every tier" once the whole ladder is on. */
+function speedText(v) {
+  var list = speedList(v);
+  if (!list.length) return '';
+  if (list.length === SPEEDS.length) return 'every tier';
+  return list.map(speedLabel).join(', ');
+}
 
 var STATE_UI = {
   active: ['', 'Active'],
@@ -47,7 +104,10 @@ function techLabel(v) {
 
 function services(c) {
   var t = (c.techs || []).map(techLabel).join(' · ');
-  return t + (c.speed ? (t ? ' · ' : '') + 'up to ' + c.speed : '');
+  /* "up to X" was true of a ceiling and is false of a set: a partner offering
+     500 Mbps and 1 Gig is not offering everything up to 1 Gig. */
+  var s = speedText(c.speed);
+  return t + (s ? (t ? ' · ' : '') + s : '');
 }
 
 function find(slug) {
@@ -155,10 +215,8 @@ function editRow(c, slug) {
         + (chosen.indexOf(t[0]) > -1 ? 'on' : '') + '">' + t[1] + '</button>';
     }).join('')
     + '</div>'
-    + '<div class="ceform"><div><label>Top speed offered</label><select id="ce-speed">'
-    + SPEEDS.map(function (s) { return '<option' + (c.speed === s ? ' selected' : '') + '>' + s + '</option>'; }).join('')
-    + '</select></div>'
-    + '<div><label>Install lead time</label><select id="ce-lead">'
+    + speedChips('ce-speed', c.speed)
+    + '<div class="ceform"><div><label>Install lead time</label><select id="ce-lead">'
     + LEAD_TIMES.map(function (s) { return '<option' + (c.lead === s ? ' selected' : '') + '>' + s + '</option>'; }).join('')
     + '</select></div>'
     + '<div><button class="btn forest" type="button" data-action="coverage:save" data-region="' + esc(slug) + '">Save</button></div>'
@@ -269,14 +327,44 @@ function choose(id) {
   closePanel();
 }
 
+/* Speeds pick the same way technologies do, one row of toggles, because they
+   are the same kind of answer: several true at once, all visible without
+   opening anything. A native multi-select hides every unselected option behind
+   a scroll and needs a modifier key nobody discovers, which is how the old
+   control ended up looking like it offered three tiers in total.
+
+   `data-sp` marks the group so the one chip handler can tell a speed chip from
+   a technology chip; the selection is read from the DOM at save time. */
+function speedChips(id, value) {
+  var on = speedList(value);
+  var all = on.length === SPEEDS.length;
+  return '<div class="cespeeds"><label>Speed tiers offered'
+    + '<button type="button" class="tlink" data-action="coverage:allspeeds" data-sp-all="' + id + '">'
+    + (all ? 'Clear all' : 'Select all') + '</button></label>'
+    + '<div class="cechips" id="' + id + '" data-sp="1">'
+    + SPEEDS.map(function (s) {
+      return '<button type="button" data-action="coverage:chip" data-s="' + s[0] + '" class="'
+        + (on.indexOf(s[0]) > -1 ? 'on' : '') + '">' + s[1] + '</button>';
+    }).join('')
+    + '</div></div>';
+}
+
+/** The Mbps currently toggled on inside one chip group. */
+function chosenSpeeds(id) {
+  var wrap = document.getElementById(id);
+  if (!wrap) return [];
+  return Array.prototype.slice.call(wrap.querySelectorAll('button.on'))
+    .map(function (b) { return parseInt(b.getAttribute('data-s'), 10); })
+    .filter(function (n) { return isFinite(n); })
+    .sort(function (a, b) { return a - b; });
+}
+
 function addRow(standalone) {
   var inner = '<td colspan="2">' + picker() + '</td>'
     + '<td><div class="cechips" id="addtech" style="margin:0">'
     + TECHS.map(function (t) { return '<button type="button" data-action="coverage:chip" data-t="' + t[0] + '">' + t[1] + '</button>'; }).join('')
     + '</div></td>'
-    + '<td><select id="addspeed" class="covspeed">'
-    + SPEEDS.map(function (s) { return '<option>' + s + '</option>'; }).join('')
-    + '</select></td>'
+    + '<td>' + speedChips('addspeed', '') + '</td>'
     + '<td><button class="btn forest" type="button" data-action="coverage:add" style="width:100%;justify-content:center">Declare</button></td>';
   if (!standalone) return '<tr class="addrow">' + inner + '</tr>';
   return '<div class="twrap" style="margin-top:14px"><table class="tbl"><tbody><tr class="addrow">' + inner + '</tr></tbody></table></div>';
@@ -295,9 +383,32 @@ export function mount() {
   /* Chip toggles are local until Save, and the draft lives in the store rather
      than in the DOM so a background refresh cannot silently discard a
      half-made edit. */
+  /* Select all / Clear all. Toggling six chips one at a time to say "I serve
+     everything here" is the commonest declaration there is. */
+  on('click', 'coverage:allspeeds', function (el) {
+    var id = el.getAttribute('data-sp-all');
+    var wrap = document.getElementById(id);
+    if (!wrap) return;
+    var btns = Array.prototype.slice.call(wrap.querySelectorAll('button[data-s]'));
+    var turnOn = btns.some(function (b) { return b.className.indexOf('on') < 0; });
+    btns.forEach(function (b) { b.classList.toggle('on', turnOn); });
+    el.textContent = turnOn ? 'Clear all' : 'Select all';
+  });
+
   on('click', 'coverage:chip', function (el) {
     el.classList.toggle('on');
     var wrap = el.closest('.cechips');
+    /* A speed chip carries no draft: its group is read from the DOM at save
+       time, and it lives in the same row as its Save button, so a background
+       refresh cannot land between the toggle and the write. */
+    if (wrap && wrap.getAttribute('data-sp')) {
+      var link = document.querySelector('[data-sp-all="' + wrap.id + '"]');
+      if (link) {
+        var total = wrap.querySelectorAll('button[data-s]').length;
+        link.textContent = wrap.querySelectorAll('button.on').length === total ? 'Clear all' : 'Select all';
+      }
+      return;
+    }
     if (wrap && wrap.getAttribute('data-ce')) {
       set('covDraft', Array.prototype.slice.call(wrap.querySelectorAll('button.on'))
         .map(function (b) { return b.getAttribute('data-t'); }));
@@ -311,15 +422,17 @@ export function mount() {
     var techs = get().covDraft || (c.techs || []);
     if (!techs.length) { toast('Pick at least one technology you serve there.'); return; }
 
+    var speeds = chosenSpeeds('ce-speed');
+    if (!speeds.length) { toast('Pick at least one speed tier you can render there.'); return; }
+
     var W = window.WHOLLAR;
     if (!W.busy(el, true, 'Saving')) return;
-    var speedEl = document.getElementById('ce-speed');
     var leadEl = document.getElementById('ce-lead');
 
     api.coverageUpdate({
       region: c.region,
       techs: techs,
-      speed: speedEl ? speedEl.value : c.speed,
+      speed: speedWire(speeds),
       lead: leadEl ? leadEl.value : c.lead
     }).then(function (r) {
       W.busy(el, false);
@@ -402,11 +515,13 @@ export function mount() {
       .map(function (b) { return b.getAttribute('data-t'); });
     if (!techs.length) { toast('Pick at least one technology you serve there.'); return; }
 
+    var speeds = chosenSpeeds('addspeed');
+    if (!speeds.length) { toast('Pick at least one speed tier you can render there.'); return; }
+
     var W = window.WHOLLAR;
     if (!W.busy(el, true, 'Declaring')) return;
-    var speedEl = document.getElementById('addspeed');
 
-    api.coverageDeclare({ region: d.name, techs: techs, speed: speedEl ? speedEl.value : SPEEDS[0] })
+    api.coverageDeclare({ region: d.name, techs: techs, speed: speedWire(speeds) })
       .then(function (r) {
         W.busy(el, false);
         pQuery = ''; pPick = null; pOpen = false; pActive = -1;

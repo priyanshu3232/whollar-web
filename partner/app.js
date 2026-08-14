@@ -29,6 +29,8 @@ import { render as renderBids, mount as mountBids } from './views/bids.js';
 import { render as renderCoverage, mount as mountCoverage } from './views/coverage.js';
 import { render as renderApplication, mount as mountApplication, load as loadApplication } from './views/application.js';
 import { render as renderAccount, mount as mountAccount, paintChrome } from './views/account.js';
+import { render as renderPerformance } from './views/performance.js';
+import { render as renderContracts, mount as mountContracts, load as loadContracts } from './views/contracts.js';
 import { render as renderPlaceholders } from './views/placeholders.js';
 
 /* ------------------------------------------------------------------ *
@@ -44,6 +46,8 @@ function renderAll() {
   renderCoverage();
   renderApplication();
   renderAccount();
+  renderPerformance();
+  renderContracts();
   renderPlaceholders();
 
   /* Under review the console is one centred card: no nav pane, no search.
@@ -98,7 +102,13 @@ function loadAll() {
 
     /* The application. A 501 here is not an error to show anyone: it means the
        route is not deployed yet, and the view already renders that honestly. */
-    loadApplication()
+    loadApplication(),
+
+    /* The contracts registry. It also carries the terms acceptance, which is
+       what the bid ticket reads to know whether to send a partner to Contracts
+       before bidding, so it loads on boot rather than on first view of the
+       Contracts page. */
+    loadContracts()
   ];
   return Promise.all(jobs).then(function () { startTicker(); });
 }
@@ -158,6 +168,7 @@ function start(partner) {
   mountCoverage();
   mountApplication();
   mountAccount();
+  mountContracts();
 
   on('click', 'nav', function (el) { go(el.getAttribute('data-view')); });
 

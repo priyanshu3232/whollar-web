@@ -1,6 +1,6 @@
-/* The 18 fixture states.
+/* The 19 fixture states.
  *
- * EIGHTEEN, not the brief's fourteen. Fourteen are the prototype's SCEN array
+ * NINETEEN, not the brief's fourteen. Fourteen are the prototype's SCEN array
  * (docs/prototype/provider-console-v12.html:1656-1671), two are additions the
  * prototype cannot reach (a rejected application, a rejected region), the
  * seventeenth is `open`, which exists because the prototype had no fixture for
@@ -10,7 +10,8 @@
  * distant close is a different render path and had no coverage at all.
  * Splitting them is the point of doing this from the data rather than from the
  * scenario names. The eighteenth, `infoneeded`, joined when the flagged-task
- * review state shipped.
+ * review state shipped, and the nineteenth, `terms`, when the standard cohort
+ * terms became a server record with a gate on it.
  *
  * A CLASSIC SCRIPT, deliberately, and not part of the bundle. It is loaded on
  * demand by app.js and scripts/build-console.mjs skips demo/ entirely, so the
@@ -173,6 +174,35 @@
     return t;
   }
 
+  /* The contracts registry. Derived from the fixture's own me/coverage/bids so
+     it cannot say "signed" for an org the same fixture has under review, which
+     is the class of drift a hand-written registry payload invites. `terms` is
+     the one part a fixture overrides, because the accept path and the ticket's
+     terms gate are the two things worth exercising here. */
+  function contracts(f, termsOver) {
+    var approved = !!(f.me && f.me.approved);
+    var cov = (f.coverage && f.coverage.coverage) || [];
+    var list = ((f.bids && f.bids.bids) || []);
+    var t = { docType: 'cohort_terms', version: 'v1', acceptedVersion: 'v1',
+      acceptedAt: NOW - 7 * D, acceptedBy: 'sam@northline.ca', current: true, live: true };
+    for (var k in (termsOver || {})) t[k] = termsOver[k];
+    return {
+      ok: true, serverTime: NOW, live: true,
+      terms: t,
+      msa: { state: approved ? 'signed' : 'pending', signedAt: approved ? NOW - 7 * D : null },
+      registration: { crtc: '8740-N42', state: approved ? 'cleared' : 'verifying' },
+      schedule: {
+        declared: cov.length,
+        active: cov.filter(function (r) { return r.status === 'active'; }).length,
+        regions: cov.map(function (r) { return r.region; })
+      },
+      receipts: {
+        cohorts: list.length,
+        sealed: list.reduce(function (n, b) { return n + (b.version || 1); }, 0)
+      }
+    };
+  }
+
   /* ---------------------------------------------------------------- *
    * the states
    * ---------------------------------------------------------------- */
@@ -298,6 +328,32 @@
     bids: { ok: true, serverTime: NOW, live: true, bids: [] },
     brief: brief(campaign('kw', 'Scarborough East', 'open'), null),
     bidResult: sealedReceipt('sealed', 1, 'WB-4368')
+  };
+
+  /* Approved, a cohort open, and the standard cohort terms not accepted. The
+     server refuses a bid in this state, so the desk must not offer one: this
+     is the fixture that catches a ticket which renders "Place sealed bid"
+     anyway. It also carries an OLDER acceptance, which is the harder half:
+     bidding pauses on a version bump, and "you accepted v1, v2 is in force" is
+     a different sentence from "you have never accepted". */
+  S.terms = {
+    label: 'Terms version bumped, bidding paused',
+    view: 'contracts',
+    me: APPROVED_ME, application: APPROVED_APP,
+    coverage: coverage(COV_ACTIVE),
+    campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [campaign('kw', 'Scarborough East', 'open')] },
+    bids: { ok: true, serverTime: NOW, live: true, bids: [] },
+    brief: brief(campaign('kw', 'Scarborough East', 'open'), null)
+  };
+  S.terms.contracts = contracts(S.terms, {
+    version: 'v2', acceptedVersion: 'v1', acceptedAt: NOW - 40 * D, current: false
+  });
+  /* Accepting inside the fixture lands on v2, which is what unlocks the desk
+     in the same session. */
+  S.terms.termsAccepted = {
+    ok: true, serverTime: NOW,
+    terms: { docType: 'cohort_terms', version: 'v2', acceptedVersion: 'v2', acceptedAt: NOW,
+      acceptedBy: 'sam@northline.ca', current: true, live: true }
   };
 
   /* 'closing' is the last 24 hours: the countdown renders and the row goes
@@ -551,7 +607,8 @@
     roster: 'roster', orders: 'roster',
     statement: 'statement', statements: 'statement', billingCycle: 'statement',
     performance: 'performance', ratings: 'performance',
-    billingStatus: 'billingStatus'
+    billingStatus: 'billingStatus',
+    contracts: 'contracts', termsAccept: 'termsAccepted'
   };
 
   function install(name) {
@@ -561,6 +618,15 @@
       return null;
     }
     var api = W.console.api;
+    /* Every state gets a registry unless it states its own, so the Contracts
+       view and the ticket's terms gate render in all of them rather than only
+       in the one written for them. Accepting inside a fixture returns the
+       accepted registry, which is what the view sets straight back into the
+       store. */
+    if (!f.contracts) f.contracts = contracts(f);
+    if (!f.termsAccepted) {
+      f.termsAccepted = { ok: true, serverTime: NOW, terms: contracts(f).terms };
+    }
     var live = {
       prefs: { ok: true, prefs: { notify: {} } },
       prefsSave: { ok: true },

@@ -11,9 +11,12 @@
  *      form prefilled from the sealed head and posts to the improve route,
  *      which seals a new version; nothing anywhere removes a bid. The
  *      prototype's delete-and-reopen was convenience and did not ship.
- *   2. The terms-gate button branch (accept standard cohort terms before
- *      bidding) is deferred with the contracts registry increment; today the
- *      reachable button states are pending, paused, closed, and live.
+ *   2. The terms-gate button branch sends a partner to Contracts rather than
+ *      disabling: there is somewhere to go, and a dead button teaches nothing.
+ *      It renders only when the registry has answered and says the terms are
+ *      unaccepted, never while that is still unknown (core/state.js
+ *      termsState explains why the third state exists). The server refuses the
+ *      bid either way, so this branch is a courtesy, not the gate.
  *   3. The fee in the scenario table is brief.successFee from config, never a
  *      constant.
  *   4. In-progress form state lives in state.ticketDraft, so a repaint cannot
@@ -23,7 +26,7 @@
  *      the authority and its message renders verbatim.
  */
 
-import { get, set } from '../core/state.js';
+import { get, set, termsState } from '../core/state.js';
 import { api } from '../core/api.js';
 import { esc, money } from '../core/format.js';
 import { fmtDate, until } from '../core/time.js';
@@ -214,6 +217,12 @@ function formHTML(a, data, t, improving) {
     button = '<button class="btn" type="button" disabled>Bidding unlocks at approval</button>';
   } else if (S.biddingPaused) {
     button = '<button class="btn" type="button" disabled>Bidding paused</button>';
+  } else if (termsState() === 'pending') {
+    /* Not disabled: there is somewhere to go, and a dead button teaches
+       nothing. Only on 'pending', never on 'unknown': see core/state.js for
+       why the third state exists. The server refuses the bid regardless. */
+    button = '<button class="btn ghost" type="button" data-action="nav" data-view="contracts">'
+      + 'Accept the standard terms to bid</button>';
   } else if (closed) {
     button = '<button class="btn" type="button" disabled>Bidding closed</button>';
   } else {

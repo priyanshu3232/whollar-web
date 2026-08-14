@@ -317,6 +317,15 @@ tr.exp + tr.dwr{display:table-row}
 .cechips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
 .cechips button{border:1.5px solid var(--line);border-radius:999px;padding:5px 11px;font-size:11.5px;font-weight:600;background:#fff;color:#3A453E}
 .cechips button.on{background:var(--tint);border-color:var(--forest2);color:var(--forest2)}
+/* The speed group. Its label carries the select-all link on the right, which is
+   why it is flex rather than the plain block label .ceform uses. */
+.cespeeds{max-width:560px;margin:2px 0 4px}
+.cespeeds>label{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:11px;font-weight:700;color:var(--sub);margin-bottom:4px}
+.cespeeds .tlink{font-size:11px;font-weight:600}
+/* The add row puts this inside a table cell, where the 560px cap would let the
+   chips sprawl across the column. */
+.addrow .cespeeds{max-width:none;margin:0}
+.addrow .cespeeds .cechips{margin:4px 0 0}
 .ceform{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;max-width:560px}
 .ceform label{font-size:11px;font-weight:700;color:var(--sub);display:block;margin-bottom:4px}
 .ceform select{width:100%;font:inherit;font-size:13px;background:#fff;border:1.5px solid var(--line);border-radius:9px;padding:8px 10px}

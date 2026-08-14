@@ -298,10 +298,28 @@ const TABLES = Object.freeze({
     org_id:       'varchar(64) required',
     region:       'varchar(100) required',
     techs:        'varchar(64) required',         // CSV: cable, fibre, fwa, dsl
-    speed:        'varchar(16)',
+    /* CSV of Mbps tiers, ascending ("500,1000"), not a single top speed. */
+    speed:        'varchar(64)',
     lead:         'varchar(32)',
     status:       'varchar(16) required',         // 'active' | 'verifying'
     updated_at:   'datetime required',
+  },
+  provider_terms: {
+    // Acceptance of the standard cohort terms, one row per org per version and
+    // never updated. lib/terms.js is the only writer and its header is the
+    // contract; the short version is that accepting v2 must not erase the
+    // proof that v1 was accepted when the v1 bids were placed.
+    acceptance_key:  'varchar(200) unique required', // `${org_id}:cohort_terms:${version}`
+    org_id:          'varchar(64) required',
+    doc_type:        'varchar(32) required',         // 'cohort_terms'
+    doc_version:     'varchar(32) required',
+    accepted_at:     'datetime required',
+    accepted_by:     'varchar(64) required',         // user_id of the seat that accepted
+    accepted_email:  'varchar(255)',
+    // The hash of the text that was on screen, not just the version label: a
+    // label can be edited later, a hash is what makes the record provable.
+    consent_hash:    'varchar(64)',
+    ip_hash:         'varchar(64)',
   },
   auth_events: {
     event_type:       'varchar(64) required',

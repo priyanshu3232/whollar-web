@@ -208,6 +208,13 @@ export var SPECS = {
   /* What a place or improve returns: the new head and the sealed receipt. */
   bidReceipt: { ok: 'bool', serverTime: 'int', bid: 'obj', receipt: 'obj' },
 
+  /* The contracts registry. `terms` is asserted because the whole surface
+     turns on it: `current` false is what draws the accept button and what the
+     server is independently enforcing on every bid write. The other four
+     sections are nullable by design (null means "could not read that one"),
+     so they are not asserted here; the view checks each. */
+  contracts: { ok: 'bool', serverTime: 'int', terms: 'obj', live: 'bool' },
+
   /* The intimation boundary, asserted from the client side as well.
      Before the roster gate the response carries counts and the orders key is
      ABSENT, not an empty array: absent is unambiguous, whereas [] cannot be

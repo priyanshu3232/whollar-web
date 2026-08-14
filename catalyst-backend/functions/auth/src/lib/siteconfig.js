@@ -58,6 +58,13 @@ const DEFAULTS = Object.freeze({
     value: true, type: 'boolean', published: true,
     description: 'Whether new companies can start a partner application.',
   },
+  cohort_terms_version: {
+    value: 'v1', type: 'string', published: false,
+    description: 'The standard cohort terms version in force. Bidding pauses '
+      + 'for every partner who has not accepted THIS version, so publishing a '
+      + 'new one is a deliberate pause: change it only alongside the new text. '
+      + 'Unpublished: it is a partner-console fact, not a marketing-site one.',
+  },
   success_fee: {
     value: 95, type: 'number', published: false,
     description: 'Success fee per activated household, dollars. An unconfirmed '

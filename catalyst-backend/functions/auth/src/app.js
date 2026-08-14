@@ -36,6 +36,7 @@ const ratingRoutes = require('./routes/rating');
 const campaignRoutes = require('./routes/campaigns');
 const deskRoutes = require('./routes/desk');
 const applicationRoutes = require('./routes/application');
+const contractRoutes = require('./routes/contracts');
 const adminRoutes = require('./routes/admin');
 const publicRoutes = require('./routes/public');
 
@@ -240,6 +241,7 @@ function buildApp(cfg) {
   campaignRoutes.mount(router);
   deskRoutes.mount(router);
   applicationRoutes.mount(router);
+  contractRoutes.mount(router);
   // Mounts nothing unless the `admin` config group is set: see routes/admin.js.
   adminRoutes.mount(router, cfg);
   publicRoutes.mount(router);

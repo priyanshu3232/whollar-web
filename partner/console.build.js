@@ -58,6 +58,9 @@
     briefs: {},           /* GET .../brief payloads keyed by campaign id;
                              'loading' while in flight, { failed: true } on error */
 
+    /* what binds them */
+    contracts: null,      /* GET /provider/contracts, null until it answers */
+
     /* health */
     biddingPaused: false,
     biddingNotice: null,
@@ -148,6 +151,23 @@
     return String(s || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   }
 
+  /**
+   * Where the org stands on the standard cohort terms, in three states rather
+   * than two.
+   *
+   * 'unknown' is the one that matters. Between boot and the contracts payload
+   * arriving, `contracts` is null, and collapsing that to "not accepted" would
+   * flash "accept the standard terms to bid" at a partner who accepted months
+   * ago, every single load. The bid ticket therefore prompts only on 'pending'
+   * and leaves its button alone on 'unknown': the server refuses the bid either
+   * way, so guessing buys nothing and costs a lie.
+   */
+  function termsState() {
+    var t = state.contracts && state.contracts.terms;
+    if (!t) return 'unknown';
+    return t.current ? 'accepted' : 'pending';
+  }
+
   /** How many of the five application tasks have cleared or been submitted. */
   function applicationProgress() {
     var tasks = (state.application && state.application.tasks) || {};
@@ -168,6 +188,7 @@
   __exports.refresh = refresh;
   __exports.activeCoverage = activeCoverage;
   __exports.biddableCampaigns = biddableCampaigns;
+  __exports.termsState = termsState;
   __exports.applicationProgress = applicationProgress;
   __exports.applicationComplete = applicationComplete;
   };
@@ -385,6 +406,13 @@
 
     /* What a place or improve returns: the new head and the sealed receipt. */
     bidReceipt: { ok: 'bool', serverTime: 'int', bid: 'obj', receipt: 'obj' },
+
+    /* The contracts registry. `terms` is asserted because the whole surface
+       turns on it: `current` false is what draws the accept button and what the
+       server is independently enforcing on every bid write. The other four
+       sections are nullable by design (null means "could not read that one"),
+       so they are not asserted here; the view checks each. */
+    contracts: { ok: 'bool', serverTime: 'int', terms: 'obj', live: 'bool' },
 
     /* The intimation boundary, asserted from the client side as well.
        Before the roster gate the response carries counts and the orders key is
@@ -897,10 +925,21 @@
 
   /* ---- 7.6 terms and contracts (38-39) ---- */
 
-  /* 38 */ api.contracts = todo('GET /provider/contracts');
-  /* 39. Gates bidding. If the standard terms change, every org that has not
-         accepted the new version is paused. */
-  /* 39 */ api.termsAccept = todo('POST /provider/contracts/terms/accept');
+  /* 38. LIVE. A read over records other routes own: the approval decision, the
+         registration on the application, the declared coverage, the sealed bid
+         heads, and the terms acceptance. Each section degrades on its own, so a
+         nullable section means "could not read", never "you have none". */
+  api.contracts = function () {
+    return request('GET', '/provider/contracts').then(function (r) { return check('contracts', r); });
+  };
+  /* 39. LIVE, and it gates bidding. If the standard terms change, every org that
+         has not accepted the new version is paused: the server refuses the bid
+         whatever this console renders. The version being accepted travels in the
+         body, so accepting a page that went stale is refused rather than
+         recorded against text nobody displayed. */
+  api.termsAccept = function (body) {
+    return request('POST', '/provider/contracts/terms/accept', body);
+  };
 
   /* ---- 7.7 roster and delivery (40-52) ----
      THE INTIMATION BOUNDARY. routes/campaigns.js states in code that no member
@@ -2065,6 +2104,167 @@
   };
 
   /* ==================================================================
+     views/account.js
+     ================================================================== */
+  __defs["views/account.js"] = function (__exports, __require, root) {
+  /* Account: what we hold.
+   *
+   * The four alert toggles live on the overview, where the prototype put them
+   * and where a partner is already looking at cohort timing. The markup and the
+   * save handler stay here, because the preference is an account record and one
+   * module owning `account:notify` is what keeps a second registration from
+   * claiming it.
+   *
+   * Editing is read-only for now and says so. A field that silently does nothing
+   * is worse than one that is honestly not editable yet, and the edit path is
+   * endpoint 66, which is live for prefs and not for the org record.
+   */
+
+  var __ns0 = __require("core/state.js");
+  var get = __ns0.get, set = __ns0.set;
+  var __ns1 = __require("core/api.js");
+  var api = __ns1.api;
+  var __ns2 = __require("core/format.js");
+  var esc = __ns2.esc, titleCase = __ns2.titleCase, monogram = __ns2.monogram;
+  var __ns3 = __require("core/toast.js");
+  var toast = __ns3.toast;
+  var __ns4 = __require("core/actions.js");
+  var on = __ns4.on;
+  var __ns5 = __require("core/session.js");
+  var authFailed = __ns5.authFailed;
+
+  var NOTIFY = [
+    ['forming', 'New cohort forming in my coverage'],
+    ['opens', 'Bidding opens'],
+    ['closing', 'Closing in 24 hours and I have not bid'],
+    ['results', 'Results, win or lose']
+  ];
+
+  function roleLabel(r) {
+    if (r === 'admin') return 'Account admin';
+    if (r === 'bidder') return 'Bid authority';
+    if (r === 'viewer') return 'Viewer';
+    return r ? titleCase(r) : null;
+  }
+
+  /* The alerts card, rendered into the overview aside. Only one copy may exist
+     at a time: the change handler reads every box back by data-key, so a second
+     copy would save the first one's state over the one just clicked. */
+  function alertsHTML() {
+    var notify = (get().prefs && get().prefs.notify) || {};
+    return '<section class="card" aria-label="Auction alerts">'
+      + '<span class="eyebrow">Auction alerts</span><h3>When cohorts move</h3>'
+      + NOTIFY.map(function (n) {
+        return '<label class="tog"><input type="checkbox" data-action="account:notify" data-key="' + n[0] + '"'
+          + (notify[n[0]] === false ? '' : ' checked') + '><i></i><span>' + esc(n[1]) + '</span></label>';
+      }).join('')
+      + '<p class="fnote">Saved to your account, not to this browser.</p>'
+      + '</section>';
+  }
+
+  function render() {
+    var S = get();
+    var org = S.org || {};
+    var user = S.user || {};
+
+    var sub = document.getElementById('acct-sub');
+    if (sub) {
+      sub.textContent = [org.name, S.approved ? 'Founding partner' : 'Application under review']
+        .filter(Boolean).join(' · ');
+    }
+
+    var host = document.getElementById('acct-body');
+    if (!host) return;
+
+    host.innerHTML = '<div class="grid2">'
+      + '<section class="card" aria-label="Organization">'
+      + '<span class="eyebrow">Organization</span><h3>Who we have on file</h3>'
+      + '<ul class="pi">'
+      + row('Company', org.name)
+      + row('Approval', S.approved ? 'Approved' : 'Under review')
+      + row('Signed in as', [user.firstName, user.lastName].filter(Boolean).join(' '))
+      + row('Email', user.email)
+      + row('Your role', roleLabel(org.role))
+      + '</ul>'
+      + '<p class="fnote">To change any of this, email partners@whollar.ca and we will update it. Editing from this page lands with the account endpoints.</p>'
+      + '<button class="tlink" type="button" data-action="account:signout" style="margin-top:12px">Sign out</button>'
+      + '</section>'
+      + '<aside class="aside">'
+      + '<section class="card" aria-label="Your Whollar contact">'
+      + '<span class="eyebrow">Your Whollar contact</span><h3>Talk to someone who can act</h3>'
+      + '<p class="cardnote">Auction briefs, coverage verification, statement questions: your message lands with the team running your cohorts. Weekdays, usually within the hour.</p>'
+      + '<a class="tlink" href="mailto:partners@whollar.ca">Email partners@whollar.ca →</a>'
+      + '</section></aside></div>';
+  }
+
+  function row(label, value) {
+    return '<li><span>' + esc(label) + '</span><b>'
+      + (value ? esc(value) : '<span style="color:var(--sub)">Not on file</span>') + '</b></li>';
+  }
+
+  /** The pane and header chrome, from the real partner record. */
+  function paintChrome() {
+    var S = get();
+    var first = String((S.user && S.user.firstName) || (S.partner && S.partner.firstName) || '').trim();
+    var last = String((S.user && S.user.lastName) || '').trim();
+    var org = String((S.org && S.org.name) || (S.partner && S.partner.org) || '').trim();
+    var role = (S.org && S.org.role) || (S.partner && S.partner.role) || '';
+
+    var h = new Date().getHours();
+    var greet = h < 12 ? 'Good morning' : (h < 17 ? 'Good afternoon' : 'Good evening');
+
+    text('greetline', greet + (first ? ', ' + first : ''));
+    /* No org yet is a real state: the local record is written from the session,
+       which does not carry org context. Say nothing rather than guess a name
+       from the email domain the way the v3 console did. */
+    text('greetsub', org);
+    text('paneorg', org || 'Your company');
+    text('panerole', S.approved ? (roleLabel(role) || 'Partner') : 'Under review');
+    text('paneava', monogram(org || first || '?'));
+    text('topava', monogram([first, last].filter(Boolean).join(' ') || org || '?'));
+  }
+
+  function text(id, value) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = value;
+  }
+
+  function mount() {
+    on('change', 'account:notify', function (el) {
+      var next = {};
+      NOTIFY.forEach(function (n) {
+        var box = document.querySelector('[data-key="' + n[0] + '"]');
+        next[n[0]] = box ? box.checked : true;
+      });
+      api.prefsSave({ notify: next }).then(function () {
+        var prefs = get().prefs || {};
+        prefs.notify = next;
+        set('prefs', prefs);
+        toast('Preference saved.');
+      }, function (err) {
+        el.checked = !el.checked;    /* put the switch back, it did not take */
+        toast((err && err.message) || 'That did not save. Try again.');
+        authFailed(err);
+      });
+    });
+
+    on('click', 'account:signout', function () {
+      /* End the SERVER session, not just the local record. Clearing localStorage
+         alone leaves the cookie alive, and the boot guard would adopt() it on the
+         next visit and sign the visitor straight back in. */
+      var done = function () { location.replace('/whollar-login-provider'); };
+      api.signOut().then(done, done);
+    });
+  }
+
+  __exports.roleLabel = roleLabel;
+  __exports.alertsHTML = alertsHTML;
+  __exports.render = render;
+  __exports.paintChrome = paintChrome;
+  __exports.mount = mount;
+  };
+
+  /* ==================================================================
      components/emptystate.js
      ================================================================== */
   __defs["components/emptystate.js"] = function (__exports, __require, root) {
@@ -2135,6 +2335,14 @@
    * coverage, and approved-with-coverage, and each gets its own branch rather
    * than its own layer.
    *
+   * THE DAY ONE COMPOSITION. The prototype's #ov-day1 block is four things at
+   * once, and porting only the middle one loses the screen a new partner
+   * actually meets: a heading that says where they are going, the five step
+   * activation checklist with its progress bar, the auction calendar under it,
+   * and an aside carrying the three rules, the one next step, and the alert
+   * switches. All four are here, every one driven from state rather than from
+   * the prototype's demo flags.
+   *
    * §8.7, the rule that survives from all of it: never render a wall of zeros.
    * When a surface would show only zeros or only dashes, show what is coming and
    * when instead.
@@ -2145,40 +2353,102 @@
   var __ns1 = __require("core/format.js");
   var esc = __ns1.esc, plural = __ns1.plural;
   var __ns2 = __require("core/time.js");
-  var fmtDate = __ns2.fmtDate, until = __ns2.until, DAY = __ns2.DAY;
+  var fmtDate = __ns2.fmtDate, fmtTime = __ns2.fmtTime, fmtCountdown = __ns2.fmtCountdown, until = __ns2.until, sameDay = __ns2.sameDay, now = __ns2.now, DAY = __ns2.DAY;
   var __ns3 = __require("views/application.js");
   var checklistHTML = __ns3.checklistHTML;
-  var __ns4 = __require("components/emptystate.js");
-  var empty = __ns4.empty, goTo = __ns4.goTo;
+  var __ns4 = __require("views/account.js");
+  var alertsHTML = __ns4.alertsHTML;
+  var __ns5 = __require("components/tasks.js");
+  var activationTasks = __ns5.activationTasks, progress = __ns5.progress;
+  var __ns6 = __require("components/emptystate.js");
+  var empty = __ns6.empty, goTo = __ns6.goTo;
 
   function render() {
     var host = document.getElementById('ov-body');
     if (!host) return;
     var S = get();
 
-    var aside = howItWorks();
-
     /* Pending: the application checklist is the console. Precedence over the
        no-coverage branch, which is exactly the ordering the prototype had and
        could not express. */
     if (!S.approved) {
-      host.innerHTML = '<div class="grid2"><div>' + checklistHTML() + reviewCard(S) + '</div>'
-        + '<aside class="aside">' + aside + '</aside></div>';
+      host.innerHTML = head('Let’s get you to your first cohort.',
+        'Fill these at your pace: each piece starts its own check the moment it lands.')
+        + '<div class="grid2"><div>' + checklistHTML() + reviewCard(S) + calendar(S) + '</div>'
+        + '<aside class="aside">' + howItWorks() + alertsHTML() + '</aside></div>';
       return;
     }
 
-    /* Approved, nothing declared. */
-    if (!S.coverage.length) {
-      host.innerHTML = '<div class="grid2"><div>'
-        + empty('Declare your coverage first',
-          'Auctions only reach your desk from inside it. Name the regions you want to bid in and the services you can render there, and cohorts forming inside them appear the moment a region verifies.',
-          goTo('coverage', 'Declare your coverage'))
-        + '</div><aside class="aside">' + aside + '</aside></div>';
-      return;
+    var act = activation(S);
+
+    /* The checklist is the left column until a first sealed bid exists, which is
+       the prototype's renderOvLive swap with a condition the console can
+       actually answer. The stats card joins it only when it has something to
+       say, so a first day is not two cards deep in the same sentence. */
+    var left = act.bid ? '' : tasks(act);
+    if (deskWorthShowing(S)) left += left ? '<div style="margin-top:16px">' + desk(S) + '</div>' : desk(S);
+    left += calendar(S);
+
+    host.innerHTML = head(act.bid ? 'Your cohorts, at a glance' : 'Let’s get you to your first cohort.', subline(S, act))
+      + '<div class="grid2"><div>' + left + '</div>'
+      + '<aside class="aside">' + howItWorks() + nextStep(S) + alertsHTML() + '</aside></div>';
+  }
+
+  function head(title, sub) {
+    return '<div class="vhead"><h2>' + esc(title) + '</h2><p>' + esc(sub) + '</p></div>';
+  }
+
+  /* The one line under the heading: the prototype's #ov-sub with its precedence
+     flattened. No coverage wins over the open count, because a partner with
+     nothing declared has nothing open for a reason, and the reason is the line. */
+  function subline(S, act) {
+    if (!act.coverage) return 'Declare your coverage first: auctions only reach your desk from inside it.';
+
+    var open = openCampaigns(S);
+    if (!open.length) {
+      return agendaEvents(S).length
+        ? 'Nothing is open for bids right now. The calendar below shows what is coming.'
+        : 'Nothing is open for bids right now, and nothing is scheduled yet in the regions you have declared.';
     }
 
-    host.innerHTML = '<div class="grid2"><div>' + desk(S) + '</div>'
-      + '<aside class="aside">' + aside + '</aside></div>';
+    var closesToday = sameDay(closeAt(open[0]), now());
+    return open.length + (open.length === 1 ? ' auction is' : ' auctions are')
+      + ' open in your coverage right now' + (closesToday ? ', one closes today.' : '.');
+  }
+
+  /* ------------------------------------------------------------------ *
+   * activation
+   *
+   * Five steps, each derived from real state rather than from a stored flag,
+   * because a checklist that can disagree with the console is worse than no
+   * checklist. Two of them read fields no endpoint writes yet (endpoint 39,
+   * POST /provider/contracts/terms/accept, and endpoint 58, GET
+   * /provider/billing/method), so those two rows stay open until those routes
+   * land. That is the honest state rather than a defect: a partner cannot accept
+   * the standard terms or add a card from this console today, and each row links
+   * to the view that says so.
+   * ------------------------------------------------------------------ */
+
+  function activation(S) {
+    var sealed = Object.keys(S.bids).length > 0;
+    return {
+      coverage: S.coverage.length > 0,
+      terms: !!(S.application && S.application.cohortTermsAcceptedAt),
+      pay: !!(S.billing && S.billing.method),
+      brief: sealed || Object.keys(S.briefs).length > 0,
+      bid: sealed
+    };
+  }
+
+  function tasks(act) {
+    var built = activationTasks(act);
+    return '<section class="card" aria-label="Activation">'
+      + '<span class="eyebrow gld">Getting started</span>'
+      + '<h3>Five steps to your first sealed bid</h3>'
+      + '<div class="tasks">' + built.html + '</div>'
+      + progress(built.done, built.total)
+      + '<div class="pline"><span>Setup progress</span><b>' + esc(built.label) + '</b></div>'
+      + '</section>';
   }
 
   /* The review card next to the checklist, with the one link into the frame. */
@@ -2204,19 +2474,42 @@
       + '</section>';
   }
 
-  /* Approved with coverage. Two shapes: the desk at a glance when something is
-     happening, and demand approaching when nothing is. */
+  /* ------------------------------------------------------------------ *
+   * the desk at a glance
+   * ------------------------------------------------------------------ */
+
+  function closeAt(c) { return ((c.dates || {}).bidding_closes_at) || Infinity; }
+  function openAt(c) { return ((c.dates || {}).bidding_opens_at) || Infinity; }
+
+  function openCampaigns(S) {
+    return S.campaigns.filter(function (c) { return c.stage === 'open' || c.stage === 'closing'; })
+      .sort(function (a, b) { return closeAt(a) - closeAt(b); });
+  }
+
+  function approachingCampaigns(S) {
+    return S.campaigns.filter(function (c) { return c.stage === 'planned' || c.stage === 'announced'; })
+      .sort(function (a, b) { return openAt(a) - openAt(b); });
+  }
+
+  /* Whether the stats card has anything to say. Without this a partner on their
+     first day gets the activation checklist and, directly under it, a card
+     explaining that nothing is forming yet, which is the sentence the aside is
+     already carrying. */
+  function deskWorthShowing(S) {
+    if (!S.coverage.length) return false;
+    return openCampaigns(S).length > 0
+      || approachingCampaigns(S).length > 0
+      || Object.keys(S.bids).length > 0;
+  }
+
   function desk(S) {
-    var open = S.campaigns.filter(function (c) { return c.stage === 'open' || c.stage === 'closing'; });
-    var approaching = S.campaigns.filter(function (c) { return c.stage === 'planned' || c.stage === 'announced'; });
+    var open = openCampaigns(S);
     var sealed = Object.keys(S.bids).length;
     var pending = S.campaigns.filter(function (c) { return c.stage === 'offers_out' && S.bids[c.id]; }).length;
 
-    if (!open.length && !sealed && !pending) return demandApproaching(approaching);
+    if (!open.length && !sealed && !pending) return demandApproaching(approachingCampaigns(S));
 
-    var next = open.slice().sort(function (a, b) {
-      return ((a.dates || {}).bidding_closes_at || Infinity) - ((b.dates || {}).bidding_closes_at || Infinity);
-    })[0];
+    var next = open[0];
 
     return '<section class="card" aria-label="Right now">'
       + '<span class="eyebrow gld">Right now</span><h3>Your desk at a glance</h3>'
@@ -2224,10 +2517,9 @@
       + stat(open.length, 'open in your coverage')
       + stat(sealed, 'your sealed bids')
       + stat(pending, 'results pending')
-      + stat(next ? fmtDate((next.dates || {}).bidding_closes_at) : '·',
+      + stat(next ? fmtDate(closeAt(next)) : '·',
         next ? 'next close · ' + next.region : 'no close scheduled')
       + '</div>'
-      + upcoming(S)
       + goTo('desk', 'Open the bid desk', 'btn forest')
       + '</section>';
   }
@@ -2242,11 +2534,9 @@
     }
 
     var households = approaching.reduce(function (t, c) { return t + (c.households || 0); }, 0);
-    var first = approaching.slice().sort(function (a, b) {
-      return ((a.dates || {}).bidding_opens_at || Infinity) - ((b.dates || {}).bidding_opens_at || Infinity);
-    })[0];
-    var opensAt = (first.dates || {}).bidding_opens_at;
-    var days = opensAt ? Math.max(1, Math.round(until(opensAt) / DAY)) : null;
+    var first = approaching[0];
+    var opensAt = openAt(first);
+    var days = isFinite(opensAt) ? Math.max(1, Math.round(until(opensAt) / DAY)) : null;
 
     return '<section class="card" aria-label="Demand approaching">'
       + '<span class="eyebrow gld">Demand approaching</span>'
@@ -2255,7 +2545,9 @@
       + stat(plural(approaching.length, 'cohort'), households
         ? households + ' households combined, forming in your coverage'
         : 'forming in your coverage')
-      + stat(first.region, opensAt ? 'first to open · ' + fmtDate(opensAt) + (days ? ', in ' + plural(days, 'day') : '') : 'first to open')
+      + stat(first.region, days
+        ? 'first to open · ' + fmtDate(opensAt) + ', in ' + plural(days, 'day')
+        : 'first to open')
       + '</div>'
       + '<p class="cardnote" style="margin-top:12px">Every household arrives bill-verified, address-validated, serviceability-checked, with a known promo cliff and a declared intent to switch. Known volume and known timing means you price to win a whole cohort instead of gambling one subscriber at a time.</p>'
       + goTo('desk', 'Open the bid desk', 'btn forest')
@@ -2266,24 +2558,67 @@
     return '<div class="ovstat"><b>' + esc(String(value)) + '</b><span>' + esc(label) + '</span></div>';
   }
 
-  /* The next four dated things, from campaign timestamps. Not a separate feed:
-     one source means the calendar, the alerts and this list cannot disagree. */
-  function upcoming(S) {
+  /* ------------------------------------------------------------------ *
+   * the calendar
+   *
+   * The next dated things, from campaign timestamps. Not a separate feed: one
+   * source means the calendar, the aside and the desk cannot disagree, which is
+   * also why the prototype's #agenda1 and #agenda2 are one function here.
+   * ------------------------------------------------------------------ */
+
+  function agendaEvents(S) {
     var events = [];
     S.campaigns.forEach(function (c) {
       var d = c.dates || {};
-      if (c.stage === 'open' || c.stage === 'closing') events.push(['Bidding closes', c, d.bidding_closes_at]);
-      else if (c.stage === 'planned' || c.stage === 'announced') events.push(['Bidding opens', c, d.bidding_opens_at]);
-      else if (c.stage === 'offers_out') events.push(['Decisions lock', c, d.decision_at]);
+      if (c.stage === 'planned' || c.stage === 'announced') {
+        events.push({ at: d.bidding_opens_at, title: c.region + ' · bidding opens', note: householdLine(c) });
+      } else if (c.stage === 'open' || c.stage === 'closing') {
+        events.push({ at: d.bidding_closes_at, title: c.region + ' · bids close', note: 'Improve your bid until this moment' });
+      } else if (c.stage === 'offers_out') {
+        events.push({ at: d.decision_at, title: c.region + ' · decisions lock', note: householdLine(c) });
+      }
     });
-    events = events.filter(function (e) { return !!e[2]; }).sort(function (a, b) { return a[2] - b[2]; }).slice(0, 4);
-    if (!events.length) return '';
-
-    return '<div class="uplist">' + events.map(function (e) {
-      return '<div class="uprow"><span>' + esc(e[0]) + '</span><b>' + esc(e[1].region) + '</b>'
-        + '<em>' + esc(fmtDate(e[2])) + '</em></div>';
-    }).join('') + '</div>';
+    return events.filter(function (e) { return !!e.at && e.at >= now(); })
+      .sort(function (a, b) { return a.at - b.at; })
+      .slice(0, 5);
   }
+
+  function householdLine(c) {
+    return c.households ? c.households + ' households' : 'A cohort in your coverage';
+  }
+
+  function calendar(S) {
+    var events = agendaEvents(S);
+    return '<section class="card" style="margin-top:16px" aria-label="This week">'
+      + '<span class="eyebrow">This week</span><h3>Auction calendar</h3>'
+      + (events.length
+        ? '<div class="agenda">' + events.map(agendaRow).join('') + '</div>'
+        : '<p class="cardnote">Nothing scheduled in the next while.</p>')
+      + '</section>';
+  }
+
+  var MONTH = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+  function agendaRow(e) {
+    var d = new Date(e.at);
+    return '<div class="ag" role="button" tabindex="0" data-action="nav" data-view="desk">'
+      + '<span class="d' + (sameDay(e.at, now()) ? ' today' : '') + '">'
+      + '<b>' + d.getDate() + '</b><span>' + MONTH[d.getMonth()] + '</span></span>'
+      + '<span class="t"><b>' + esc(e.title) + '</b><small>' + esc(e.note) + '</small></span>'
+      + chip(e.at) + '</div>';
+  }
+
+  /* The chip the one ticker in time.js drives, inside the last day only. A
+     countdown on something eight days out is noise, and the date is already
+     rendered beside it. */
+  function chip(ts) {
+    if (until(ts) > DAY || until(ts) <= 0) return '';
+    return '<span class="cdchip" data-until="' + ts + '">' + fmtCountdown(until(ts)) + '</span>';
+  }
+
+  /* ------------------------------------------------------------------ *
+   * the aside
+   * ------------------------------------------------------------------ */
 
   function howItWorks() {
     return '<section class="card" aria-label="How auctions work">'
@@ -2292,6 +2627,46 @@
       + '<div class="h"><i>2</i><span><b>Binding until the deadline.</b> Improve any time before close. No withdrawals after sealing.</span></div>'
       + '<div class="h"><i>3</i><span><b>Pay on completion.</b> Confirmed households cost nothing. The fee is the activation with a clean line test.</span></div>'
       + '</div></section>';
+  }
+
+  /* The prototype's closing-soon card, carrying layer 2's first-step copy when
+     nothing is declared. Its button went to the bid desk in every branch, which
+     for a partner with no coverage is a click into an empty table; the
+     first-step branch sends them where the step actually is. */
+  function nextStep(S) {
+    var eyebrow, title, line, cta;
+
+    if (!S.coverage.length) {
+      eyebrow = 'First step';
+      title = 'No coverage declared yet';
+      line = 'State the areas you want to bid in and the services you can render there. Auctions appear the moment a region verifies.';
+      cta = goTo('coverage', 'Declare your coverage');
+    } else {
+      var next = openCampaigns(S)[0];
+      if (next) {
+        var at = closeAt(next);
+        eyebrow = sameDay(at, now()) ? 'Closing today' : 'Closing next';
+        title = next.region + (next.households ? ' · ' + next.households + ' households' : '');
+        line = until(at) <= DAY
+          ? 'Sealed bidding closes in <span class="cdchip" data-until="' + at + '">' + fmtCountdown(until(at)) + '</span>'
+          : esc('Sealed bidding closes ' + fmtDate(at) + ' at ' + fmtTime(at) + '.');
+      } else {
+        var soon = approachingCampaigns(S)[0];
+        eyebrow = 'Up next';
+        title = 'Nothing closing right now';
+        line = soon && isFinite(openAt(soon))
+          ? esc('Bidding opens on ' + soon.region + ' ' + fmtDate(openAt(soon)) + '. It is on your calendar below.')
+          : 'When a cohort forms inside a region you have declared, it lands on your desk and in your inbox.';
+      }
+      cta = goTo('desk', 'Open the bid desk');
+    }
+
+    return '<section class="card" aria-label="Next step">'
+      + '<span class="eyebrow gld">' + esc(eyebrow) + '</span>'
+      + '<h3>' + esc(title) + '</h3>'
+      + '<p class="cardnote">' + line + '</p>'
+      + '<div style="margin-top:12px">' + cta + '</div>'
+      + '</section>';
   }
 
   __exports.render = render;
@@ -2449,9 +2824,12 @@
    *      form prefilled from the sealed head and posts to the improve route,
    *      which seals a new version; nothing anywhere removes a bid. The
    *      prototype's delete-and-reopen was convenience and did not ship.
-   *   2. The terms-gate button branch (accept standard cohort terms before
-   *      bidding) is deferred with the contracts registry increment; today the
-   *      reachable button states are pending, paused, closed, and live.
+   *   2. The terms-gate button branch sends a partner to Contracts rather than
+   *      disabling: there is somewhere to go, and a dead button teaches nothing.
+   *      It renders only when the registry has answered and says the terms are
+   *      unaccepted, never while that is still unknown (core/state.js
+   *      termsState explains why the third state exists). The server refuses the
+   *      bid either way, so this branch is a courtesy, not the gate.
    *   3. The fee in the scenario table is brief.successFee from config, never a
    *      constant.
    *   4. In-progress form state lives in state.ticketDraft, so a repaint cannot
@@ -2462,7 +2840,7 @@
    */
 
   var __ns0 = __require("core/state.js");
-  var get = __ns0.get, set = __ns0.set;
+  var get = __ns0.get, set = __ns0.set, termsState = __ns0.termsState;
   var __ns1 = __require("core/api.js");
   var api = __ns1.api;
   var __ns2 = __require("core/format.js");
@@ -2659,6 +3037,12 @@
       button = '<button class="btn" type="button" disabled>Bidding unlocks at approval</button>';
     } else if (S.biddingPaused) {
       button = '<button class="btn" type="button" disabled>Bidding paused</button>';
+    } else if (termsState() === 'pending') {
+      /* Not disabled: there is somewhere to go, and a dead button teaches
+         nothing. Only on 'pending', never on 'unknown': see core/state.js for
+         why the third state exists. The server refuses the bid regardless. */
+      button = '<button class="btn ghost" type="button" data-action="nav" data-view="contracts">'
+        + 'Accept the standard terms to bid</button>';
     } else if (closed) {
       button = '<button class="btn" type="button" disabled>Bidding closed</button>';
     } else {
@@ -3511,8 +3895,65 @@
   /* The technologies desk.js accepts, in its own spelling. The console shows the
      label; the wire carries the value. Getting this wrong is a 400. */
   var TECHS = [['fibre', 'Fibre'], ['cable', 'Cable'], ['dsl', 'DSL'], ['fwa', 'Fixed wireless']];
-  var SPEEDS = ['500 Mbps', '1 Gig', '2.5 Gig'];
+
+  /* The speed ladder, ascending, as [Mbps, label]. Mbps is what goes on the wire
+     and Mbps is what the desk compares, so the label can be reworded without
+     invalidating a single declared row.
+
+     THIS IS A SET, NOT A CEILING. It used to be "Top speed offered", one value
+     from three, and a top speed cannot say that a partner sells 500 Mbps and 1
+     Gig on the same street but nothing under it. Cohorts are matched on the tier
+     a household actually wants, so declaring the ceiling made every partner look
+     serviceable at every tier beneath it.
+
+     ON THE WIRE it is a CSV of Mbps in ascending order, the same shape `techs`
+     already uses: "500,1000". That needs provider_coverage.speed at 64
+     characters, not the original 16; see create-tables.md. All six selected is
+     "50,100,200,500,1000,2500", 24 characters, so 64 has room for the ladder to
+     grow twice over. */
+  var SPEEDS = [
+    [50, '50 Mbps'], [100, '100 Mbps'], [200, '200 Mbps'],
+    [500, '500 Mbps'], [1000, '1 Gig'], [2500, '2.5 Gig']
+  ];
   var LEAD_TIMES = ['5 business days', '7 business days', '10 business days'];
+
+  /* Read whatever is on the record into an array of Mbps numbers.
+     Tolerates all three shapes that can arrive: the new CSV ("500,1000"), an
+     array, and the single legacy label ("1 Gig") written before this was a set.
+     A row declared under the old field keeps meaning what it meant. */
+  function speedList(v) {
+    if (v === null || v === undefined || v === '') return [];
+    var parts = Array.isArray(v) ? v : String(v).split(',');
+    var out = [];
+    parts.forEach(function (p) {
+      var s = String(p).trim();
+      if (!s) return;
+      var n = parseInt(s, 10);
+      if (!isFinite(n) || n <= 0) return;
+      /* "1 Gig" and "2.5 Gig" parse to 1 and 2, so the legacy labels are matched
+         whole before the bare number is trusted. */
+      for (var i = 0; i < SPEEDS.length; i++) {
+        if (SPEEDS[i][1] === s) { n = SPEEDS[i][0]; break; }
+      }
+      if (out.indexOf(n) < 0) out.push(n);
+    });
+    return out.sort(function (a, b) { return a - b; });
+  }
+  function speedLabel(mbps) {
+    for (var i = 0; i < SPEEDS.length; i++) if (SPEEDS[i][0] === mbps) return SPEEDS[i][1];
+    return mbps + ' Mbps';
+  }
+  /** Ascending CSV of Mbps: what the record stores and the desk compares. */
+  function speedWire(list) {
+    return speedList(list).join(',');
+  }
+  /** "500 Mbps, 1 Gig", or "every tier" once the whole ladder is on. */
+  function speedText(v) {
+    var list = speedList(v);
+    if (!list.length) return '';
+    if (list.length === SPEEDS.length) return 'every tier';
+    return list.map(speedLabel).join(', ');
+  }
 
   var STATE_UI = {
     active: ['', 'Active'],
@@ -3528,7 +3969,10 @@
 
   function services(c) {
     var t = (c.techs || []).map(techLabel).join(' · ');
-    return t + (c.speed ? (t ? ' · ' : '') + 'up to ' + c.speed : '');
+    /* "up to X" was true of a ceiling and is false of a set: a partner offering
+       500 Mbps and 1 Gig is not offering everything up to 1 Gig. */
+    var s = speedText(c.speed);
+    return t + (s ? (t ? ' · ' : '') + s : '');
   }
 
   function find(slug) {
@@ -3636,10 +4080,8 @@
           + (chosen.indexOf(t[0]) > -1 ? 'on' : '') + '">' + t[1] + '</button>';
       }).join('')
       + '</div>'
-      + '<div class="ceform"><div><label>Top speed offered</label><select id="ce-speed">'
-      + SPEEDS.map(function (s) { return '<option' + (c.speed === s ? ' selected' : '') + '>' + s + '</option>'; }).join('')
-      + '</select></div>'
-      + '<div><label>Install lead time</label><select id="ce-lead">'
+      + speedChips('ce-speed', c.speed)
+      + '<div class="ceform"><div><label>Install lead time</label><select id="ce-lead">'
       + LEAD_TIMES.map(function (s) { return '<option' + (c.lead === s ? ' selected' : '') + '>' + s + '</option>'; }).join('')
       + '</select></div>'
       + '<div><button class="btn forest" type="button" data-action="coverage:save" data-region="' + esc(slug) + '">Save</button></div>'
@@ -3750,14 +4192,44 @@
     closePanel();
   }
 
+  /* Speeds pick the same way technologies do, one row of toggles, because they
+     are the same kind of answer: several true at once, all visible without
+     opening anything. A native multi-select hides every unselected option behind
+     a scroll and needs a modifier key nobody discovers, which is how the old
+     control ended up looking like it offered three tiers in total.
+
+     `data-sp` marks the group so the one chip handler can tell a speed chip from
+     a technology chip; the selection is read from the DOM at save time. */
+  function speedChips(id, value) {
+    var on = speedList(value);
+    var all = on.length === SPEEDS.length;
+    return '<div class="cespeeds"><label>Speed tiers offered'
+      + '<button type="button" class="tlink" data-action="coverage:allspeeds" data-sp-all="' + id + '">'
+      + (all ? 'Clear all' : 'Select all') + '</button></label>'
+      + '<div class="cechips" id="' + id + '" data-sp="1">'
+      + SPEEDS.map(function (s) {
+        return '<button type="button" data-action="coverage:chip" data-s="' + s[0] + '" class="'
+          + (on.indexOf(s[0]) > -1 ? 'on' : '') + '">' + s[1] + '</button>';
+      }).join('')
+      + '</div></div>';
+  }
+
+  /** The Mbps currently toggled on inside one chip group. */
+  function chosenSpeeds(id) {
+    var wrap = document.getElementById(id);
+    if (!wrap) return [];
+    return Array.prototype.slice.call(wrap.querySelectorAll('button.on'))
+      .map(function (b) { return parseInt(b.getAttribute('data-s'), 10); })
+      .filter(function (n) { return isFinite(n); })
+      .sort(function (a, b) { return a - b; });
+  }
+
   function addRow(standalone) {
     var inner = '<td colspan="2">' + picker() + '</td>'
       + '<td><div class="cechips" id="addtech" style="margin:0">'
       + TECHS.map(function (t) { return '<button type="button" data-action="coverage:chip" data-t="' + t[0] + '">' + t[1] + '</button>'; }).join('')
       + '</div></td>'
-      + '<td><select id="addspeed" class="covspeed">'
-      + SPEEDS.map(function (s) { return '<option>' + s + '</option>'; }).join('')
-      + '</select></td>'
+      + '<td>' + speedChips('addspeed', '') + '</td>'
       + '<td><button class="btn forest" type="button" data-action="coverage:add" style="width:100%;justify-content:center">Declare</button></td>';
     if (!standalone) return '<tr class="addrow">' + inner + '</tr>';
     return '<div class="twrap" style="margin-top:14px"><table class="tbl"><tbody><tr class="addrow">' + inner + '</tr></tbody></table></div>';
@@ -3776,9 +4248,32 @@
     /* Chip toggles are local until Save, and the draft lives in the store rather
        than in the DOM so a background refresh cannot silently discard a
        half-made edit. */
+    /* Select all / Clear all. Toggling six chips one at a time to say "I serve
+       everything here" is the commonest declaration there is. */
+    on('click', 'coverage:allspeeds', function (el) {
+      var id = el.getAttribute('data-sp-all');
+      var wrap = document.getElementById(id);
+      if (!wrap) return;
+      var btns = Array.prototype.slice.call(wrap.querySelectorAll('button[data-s]'));
+      var turnOn = btns.some(function (b) { return b.className.indexOf('on') < 0; });
+      btns.forEach(function (b) { b.classList.toggle('on', turnOn); });
+      el.textContent = turnOn ? 'Clear all' : 'Select all';
+    });
+
     on('click', 'coverage:chip', function (el) {
       el.classList.toggle('on');
       var wrap = el.closest('.cechips');
+      /* A speed chip carries no draft: its group is read from the DOM at save
+         time, and it lives in the same row as its Save button, so a background
+         refresh cannot land between the toggle and the write. */
+      if (wrap && wrap.getAttribute('data-sp')) {
+        var link = document.querySelector('[data-sp-all="' + wrap.id + '"]');
+        if (link) {
+          var total = wrap.querySelectorAll('button[data-s]').length;
+          link.textContent = wrap.querySelectorAll('button.on').length === total ? 'Clear all' : 'Select all';
+        }
+        return;
+      }
       if (wrap && wrap.getAttribute('data-ce')) {
         set('covDraft', Array.prototype.slice.call(wrap.querySelectorAll('button.on'))
           .map(function (b) { return b.getAttribute('data-t'); }));
@@ -3792,15 +4287,17 @@
       var techs = get().covDraft || (c.techs || []);
       if (!techs.length) { toast('Pick at least one technology you serve there.'); return; }
 
+      var speeds = chosenSpeeds('ce-speed');
+      if (!speeds.length) { toast('Pick at least one speed tier you can render there.'); return; }
+
       var W = window.WHOLLAR;
       if (!W.busy(el, true, 'Saving')) return;
-      var speedEl = document.getElementById('ce-speed');
       var leadEl = document.getElementById('ce-lead');
 
       api.coverageUpdate({
         region: c.region,
         techs: techs,
-        speed: speedEl ? speedEl.value : c.speed,
+        speed: speedWire(speeds),
         lead: leadEl ? leadEl.value : c.lead
       }).then(function (r) {
         W.busy(el, false);
@@ -3883,11 +4380,13 @@
         .map(function (b) { return b.getAttribute('data-t'); });
       if (!techs.length) { toast('Pick at least one technology you serve there.'); return; }
 
+      var speeds = chosenSpeeds('addspeed');
+      if (!speeds.length) { toast('Pick at least one speed tier you can render there.'); return; }
+
       var W = window.WHOLLAR;
       if (!W.busy(el, true, 'Declaring')) return;
-      var speedEl = document.getElementById('addspeed');
 
-      api.coverageDeclare({ region: d.name, techs: techs, speed: speedEl ? speedEl.value : SPEEDS[0] })
+      api.coverageDeclare({ region: d.name, techs: techs, speed: speedWire(speeds) })
         .then(function (r) {
           W.busy(el, false);
           pQuery = ''; pPick = null; pOpen = false; pActive = -1;
@@ -3906,14 +4405,280 @@
   };
 
   /* ==================================================================
-     views/account.js
+     views/performance.js
      ================================================================== */
-  __defs["views/account.js"] = function (__exports, __require, root) {
-  /* Account: what we hold, and the four alert toggles.
+  __defs["views/performance.js"] = function (__exports, __require, root) {
+  /* Performance: the four numbers future briefs carry beside a bid.
    *
-   * Editing is read-only for now and says so. A field that silently does nothing
-   * is worse than one that is honestly not editable yet, and the edit path is
-   * endpoint 66, which is live for prefs and not for the org record.
+   * Ported from the prototype's SECOND renderPerf (line 2805, the one that wins
+   * by hoisting) rather than the first at 1566, per render-inventory.md. The
+   * prototype's history branch is not ported at all: it renders 3 of 6, 87%,
+   * 96%, 100% and a four-row region table, none of which came from anywhere.
+   *
+   * WHAT IS REAL HERE AND WHAT IS NOT. Only two of the four numbers have a
+   * source in this build:
+   *
+   *   Win rate        wins over decided bids, from the bid record. REAL.
+   *   Completion      activated over serviceable, from a delivery board.
+   *   Serviceability  declared coverage that proved real at install, from the
+   *                   release reasons on that same board (contract.js
+   *                   RELEASE_REASON says so, which is why that enum exists).
+   *   Delivered as bid  households' day-30 bill checks.
+   *
+   * The last three need an orders table that no route writes yet, so they render
+   * the centred dot and name what writes them. The dot is load-bearing: a 0% on
+   * completion is a claim about delivery this partner has not been given the
+   * chance to make, and it would follow them into every brief.
+   *
+   * The region table is built from the real bid record joined to campaigns, so
+   * it grows a row per region bid in and never carries a figure the store does
+   * not hold.
+   */
+
+  var __ns0 = __require("core/state.js");
+  var get = __ns0.get;
+  var __ns1 = __require("core/format.js");
+  var esc = __ns1.esc, plural = __ns1.plural;
+  var __ns2 = __require("core/time.js");
+  var fmtDate = __ns2.fmtDate;
+  var __ns3 = __require("components/emptystate.js");
+  var goTo = __ns3.goTo;
+
+  function render() {
+    var host = document.getElementById('perf-body');
+    if (!host) return;
+    var S = get();
+    var r = record(S);
+
+    host.innerHTML = tiles(r) + band(S, r) + (r.rows.length ? regions(S, r) : '');
+  }
+
+  /* ------------------------------------------------------------------ *
+   * the record, derived once
+   * ------------------------------------------------------------------ */
+
+  /* One pass over the bid store, so the tiles, the band and the table cannot
+     disagree about how many bids there are. A bid is decided when it came back
+     won or not_selected; sealed, improved and locked are all still in flight. */
+  function record(S) {
+    var byCampaign = {};
+    S.campaigns.forEach(function (c) { byCampaign[c.id] = c; });
+
+    var r = { bids: 0, sealed: 0, won: 0, decided: 0, confirmed: 0, rows: [], byRegion: {} };
+
+    Object.keys(S.bids).forEach(function (k) {
+      var b = S.bids[k];
+      var c = byCampaign[b.campaignId || k] || {};
+      var region = c.region || b.campaignId || k;
+      var won = b.state === 'won';
+      var decided = won || b.state === 'not_selected';
+
+      r.bids += 1;
+      if (!decided) r.sealed += 1;
+      if (decided) r.decided += 1;
+      if (won) r.won += 1;
+
+      var row = r.byRegion[region];
+      if (!row) { row = r.byRegion[region] = { region: region, bids: 0, won: 0, confirmed: null }; r.rows.push(row); }
+      row.bids += 1;
+      if (won) {
+        row.won += 1;
+        if (c.confirmed != null) {
+          row.confirmed = (row.confirmed || 0) + c.confirmed;
+          r.confirmed += c.confirmed;
+        }
+      }
+    });
+
+    r.rows.sort(function (a, b) { return b.won - a.won || b.bids - a.bids; });
+
+    /* Districts, not households: this is the verification pass rate on declared
+       coverage, which is a different figure from the serviceability accuracy the
+       tile will eventually carry. It is reported as districts, in words, for
+       exactly that reason. */
+    r.covActive = 0;
+    r.covRejected = 0;
+    r.covVerifying = 0;
+    S.coverage.forEach(function (c) {
+      if (c.status === 'active') r.covActive += 1;
+      else if (c.status === 'rejected') r.covRejected += 1;
+      else r.covVerifying += 1;
+    });
+
+    return r;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * the four tiles
+   * ------------------------------------------------------------------ */
+
+  function tile(label, n, sub, cls) {
+    return '<div class="card mt"><span class="l">' + esc(label) + '</span>'
+      + '<span class="n' + (cls ? ' ' + cls : '') + '">' + n + '</span>'
+      + '<span class="s">' + sub + '</span></div>';
+  }
+
+  var DOT = '·';
+
+  function tiles(r) {
+    return '<div class="tiles">'
+      + tile('Win rate',
+        r.decided ? esc(r.won + ' of ' + r.decided) : DOT,
+        r.decided
+          ? 'your record so far'
+          : (r.sealed ? 'your first result writes the first number' : 'sealed bids to wins, beside your bid in every brief'),
+        '')
+      + tile('Completion', DOT, 'activated of serviceable, written by your delivery board')
+      + tile('Serviceability', DOT, 'declared coverage proving real at install')
+      + tile('Delivered as bid', DOT, 'records at households’ day-30 bill checks')
+      + '</div>';
+  }
+
+  /* ------------------------------------------------------------------ *
+   * the band: one card, saying what the next number depends on
+   * ------------------------------------------------------------------ */
+
+  function card(eyebrow, title, note, cta, foot) {
+    return '<section class="card" style="margin-top:16px">'
+      + '<span class="eyebrow' + (eyebrow.gold ? ' gld' : '') + '">' + esc(eyebrow.text) + '</span>'
+      + '<h3>' + esc(title) + '</h3>'
+      + '<p class="cardnote">' + note + '</p>'
+      + (cta || '')
+      + (foot ? '<p class="fnote">' + foot + '</p>' : '')
+      + '</section>';
+  }
+
+  function band(S, r) {
+    /* Still under review. Nothing on this page can start until an application
+       clears, so the page says that rather than showing four dots and no path. */
+    if (!S.approved) {
+      var submitted = S.application && S.application.submittedAt;
+      return card({ text: 'Before the record starts' },
+        submitted ? 'Your record starts at approval' : 'Your record starts at your first sealed number',
+        'None of the four is bought and none is written by marketing: all four are recorded from what you deliver, and future auction briefs carry them beside your bid.'
+        + (submitted ? ' Approved partners reach the bid desk the same day.' : ''),
+        goTo(submitted ? 'pending' : 'application', submitted ? 'See where the review stands' : 'Finish your application', 'btn forest'));
+    }
+
+    /* Won something. This is the state the screenshot is about: the win is on
+       the board, and the three numbers still on a dot are the ones the delivery
+       board writes. Point at it, and do not pretend it is running yet. */
+    if (r.won) {
+      return card({ text: 'The whole gap', gold: true },
+        'A clean sheet is in reach',
+        'You are ' + esc(r.won + ' of ' + r.decided) + ' on decided cohorts'
+        + (r.confirmed ? ', with ' + esc(plural(r.confirmed, 'household')) + ' confirmed' : '')
+        + '. Completion, serviceability and delivered-as-bid start at the delivery board: every confirmed household lands there, and what happens to it becomes the record every future brief quotes.',
+        goTo('delivery', 'Open the delivery board', 'btn forest'),
+        'Ratings unlock at 25 responses. Nothing bills before an activation with a clean line test.');
+    }
+
+    /* Bids in flight, nothing decided. */
+    if (r.sealed) {
+      return card({ text: 'Results pending', gold: true },
+        esc(plural(r.sealed, 'sealed bid') + ' waiting on a result'),
+        'Each result writes the win rate above, win or lose. A loss on the same standard terms costs you nothing here: standing is untouched, and the next cohorts in your coverage are already forming.',
+        goTo('bids', 'See your bid record', 'btn forest'));
+    }
+
+    /* Decided, none won. Said plainly, because the alternative reads as a
+       scoreboard and this page is a record. */
+    if (r.decided) {
+      return card({ text: 'The record starts here' },
+        esc('0 of ' + r.decided),
+        'The record starts here, not ends here. Nothing about a result changes your standing, your terms, or which cohorts reach your desk.',
+        goTo('desk', 'See what is open now', 'btn forest'));
+    }
+
+    var next = nextOpen(S);
+    return card({ text: 'Why these four' },
+      'The numbers that will win you auctions',
+      'Nothing here is bought and nothing is written by marketing: all four are recorded from what you deliver, and future auction briefs carry them beside your bid. The record starts at your first sealed number.',
+      next
+        ? goTo('desk', next.region + ' · closes ' + fmtDate(next.close), 'btn forest')
+        : goTo('desk', 'Open the bid desk', 'btn forest'),
+      coverageNote(r));
+  }
+
+  /* The verification pass rate on declared districts. Deliberately a sentence
+     and not the serviceability tile: that tile is written by install outcomes,
+     and putting this number in it would ship a figure into future briefs that
+     measured something else. */
+  function coverageNote(r) {
+    if (!r.covActive && !r.covVerifying && !r.covRejected) return '';
+    var parts = [];
+    if (r.covActive) parts.push(r.covActive + ' verified');
+    if (r.covVerifying) parts.push(r.covVerifying + ' still checking');
+    if (r.covRejected) parts.push(r.covRejected + ' not serviceable');
+    return 'Declared coverage: ' + esc(parts.join(', ')) + '. Serviceability above is a different number, written at install.';
+  }
+
+  function nextOpen(S) {
+    var best = null;
+    S.campaigns.forEach(function (c) {
+      if (c.stage !== 'open' && c.stage !== 'closing') return;
+      var close = (c.dates || {}).bidding_closes_at;
+      if (!close) return;
+      if (!best || close < best.close) best = { region: c.region, close: close };
+    });
+    return best;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * region by region, from the bid record
+   * ------------------------------------------------------------------ */
+
+  function regions(S, r) {
+    var rows = r.rows.map(function (row) {
+      return '<tr><td>' + esc(row.region) + '</td>'
+        + '<td class="num">' + row.bids + '</td>'
+        + '<td class="num">' + (row.won || DOT) + '</td>'
+        + '<td class="num">' + (row.confirmed == null ? DOT : row.confirmed) + '</td>'
+        + '<td class="num">' + DOT + '</td></tr>';
+    }).join('');
+
+    return '<section class="card" style="margin-top:16px"><span class="eyebrow">Region by region</span>'
+      + '<h3>What the auctions have delivered</h3>'
+      + '<div class="twrap"><table class="tbl"><thead><tr><th>Region</th>'
+      + '<th class="num">Bids</th><th class="num">Won</th>'
+      + '<th class="num">Confirmed</th><th class="num">Completed</th></tr></thead><tbody>'
+      + rows
+      + '</tbody></table></div>'
+      + '<p class="fnote">Confirmed is households who accepted your offer. Completed is live connections, the only column that ever bills, and it fills from the delivery board.</p>'
+      + '</section>';
+  }
+
+  __exports.render = render;
+  };
+
+  /* ==================================================================
+     views/contracts.js
+     ================================================================== */
+  __defs["views/contracts.js"] = function (__exports, __require, root) {
+  /* Contracts: everything binding, versioned, in one place.
+   *
+   * Ported from the prototype's renderContracts, and specifically from the
+   * SECOND declaration (provider-console-v12.html:1966, "contracts: full
+   * registry"), which is a full replacement rather than a decorator: the v5
+   * override at 1588 is the one hoisting discards, and it is two rows shorter.
+   * See docs/console/render-inventory.md. openTerms() is declared once and is
+   * ported as it stands, minus its prototype-only side effects.
+   *
+   * WHAT CHANGED IN THE PORT, and why:
+   *
+   *   The prototype's rows are constants. Every row here is a real record or it
+   *   says it could not be read. `S.tasks.terms` was a client boolean anyone
+   *   could flip in a console; acceptance is now a server record, keyed on the
+   *   version in force, and the SERVER refuses a bid without it. This view can
+   *   only ever be wrong about it, never permissive.
+   *
+   *   The prototype's "Cohort delivery agreement" rows are not ported. They came
+   *   from a demo array of won campaigns; there is no award record yet, so
+   *   inventing the row would be inventing the win. The line that says where
+   *   they will appear is in the footnote instead.
+   *
+   *   "6 on record" in the receipts row was a literal +6. It is the org's own
+   *   sealed revision count, or a dash.
    */
 
   var __ns0 = __require("core/state.js");
@@ -3921,135 +4686,279 @@
   var __ns1 = __require("core/api.js");
   var api = __ns1.api;
   var __ns2 = __require("core/format.js");
-  var esc = __ns2.esc, titleCase = __ns2.titleCase, monogram = __ns2.monogram;
-  var __ns3 = __require("core/toast.js");
-  var toast = __ns3.toast;
+  var esc = __ns2.esc;
+  var __ns3 = __require("core/time.js");
+  var fmtDate = __ns3.fmtDate;
   var __ns4 = __require("core/actions.js");
   var on = __ns4.on;
-  var __ns5 = __require("core/session.js");
-  var authFailed = __ns5.authFailed;
+  var __ns5 = __require("core/modal.js");
+  var openModal = __ns5.open, closeModal = __ns5.close;
+  var __ns6 = __require("core/toast.js");
+  var toast = __ns6.toast, failed = __ns6.failed;
+  var __ns7 = __require("core/session.js");
+  var authFailed = __ns7.authFailed;
 
-  var NOTIFY = [
-    ['forming', 'New cohort forming in my coverage'],
-    ['opens', 'Bidding opens'],
-    ['closing', 'Closing in 24 hours and I have not bid'],
-    ['results', 'Results, win or lose']
-  ];
-
-  function roleLabel(r) {
-    if (r === 'admin') return 'Account admin';
-    if (r === 'bidder') return 'Bid authority';
-    if (r === 'viewer') return 'Viewer';
-    return r ? titleCase(r) : null;
-  }
+  /* The terms, as one declaration.
+   *
+   * The modal renders these and the acceptance hash is taken over them, so the
+   * text that was agreed to is provable rather than inferred from a version
+   * label. Editing this list without publishing a new `cohort_terms_version`
+   * would leave old acceptances pointing at text that has since changed, which
+   * is the whole failure mode the hash exists to catch: change both. */
+  var TERMS = Object.freeze([
+    'Unlimited data, no deprioritization, on every bid',
+    'Modem and in-home WiFi included in the bid price, no equipment line items',
+    'The price is guaranteed for the stated window, and the after-rate is stated on the face of the bid',
+    'No bundle-conditional, autopay-conditional, or cash-incentive structures',
+    'Bids are sealed and binding until the deadline, improvable, never withdrawable',
+    'You are invoiced per completed switch only, confirmed households are never billed'
+  ]);
 
   function render() {
+    var host = document.getElementById('con-body');
+    if (!host) return;
     var S = get();
-    var org = S.org || {};
-    var user = S.user || {};
-    var notify = (S.prefs && S.prefs.notify) || {};
+    var c = S.contracts;
 
-    var sub = document.getElementById('acct-sub');
-    if (sub) {
-      sub.textContent = [org.name, S.approved ? 'Founding partner' : 'Application under review']
-        .filter(Boolean).join(' · ');
+    /* Not loaded, or the whole route refused. The registry is a read over five
+       other records, so "we could not reach it" is a different sentence from
+       "you have nothing on file", and the second one would be a lie here. */
+    if (!c) {
+      host.innerHTML = '<section class="card"><span class="eyebrow">On file</span>'
+        + '<h3>Agreements and records</h3>'
+        + '<p class="cardnote">Everything binding lives here, versioned: the master services agreement, '
+        + 'the standard cohort terms, your regional schedule, your registration, and every sealed bid receipt. '
+        + 'This list is loading, or could not be read just now.</p></section>';
+      return;
     }
 
-    var host = document.getElementById('acct-body');
-    if (!host) return;
+    var rows = [
+      msaRow(c),
+      termsRow(c),
+      scheduleRow(c),
+      registrationRow(c),
+      receiptsRow(c),
+      ['Campaign statements',
+        'Generated per campaign from activations only, net-15, line-level disputes.',
+        link('billing', 'Open billing')]
+    ];
 
-    host.innerHTML = '<div class="grid2">'
-      + '<section class="card" aria-label="Organization">'
-      + '<span class="eyebrow">Organization</span><h3>Who we have on file</h3>'
-      + '<ul class="pi">'
-      + row('Company', org.name)
-      + row('Approval', S.approved ? 'Approved' : 'Under review')
-      + row('Signed in as', [user.firstName, user.lastName].filter(Boolean).join(' '))
-      + row('Email', user.email)
-      + row('Your role', roleLabel(org.role))
-      + '</ul>'
-      + '<p class="fnote">To change any of this, email partners@whollar.ca and we will update it. Editing from this page lands with the account endpoints.</p>'
-      + '<button class="tlink" type="button" data-action="account:signout" style="margin-top:12px">Sign out</button>'
-      + '</section>'
-      + '<aside class="aside">'
-      + '<section class="card" aria-label="Auction alerts">'
-      + '<span class="eyebrow">Auction alerts</span><h3>When cohorts move</h3>'
-      + NOTIFY.map(function (n) {
-        return '<label class="tog"><input type="checkbox" data-action="account:notify" data-key="' + n[0] + '"'
-          + (notify[n[0]] === false ? '' : ' checked') + '><i></i><span>' + esc(n[1]) + '</span></label>';
+    host.innerHTML = '<section class="card"><span class="eyebrow">On file</span>'
+      + '<h3>Agreements and records</h3>'
+      + '<div class="conls">'
+      + rows.map(function (r) {
+        return '<div class="conrow"><span><b>' + r[0] + '</b><small>' + r[1] + '</small></span>'
+          + '<span class="conact">' + (r[2] || '') + '</span></div>';
       }).join('')
-      + '<p class="fnote">Saved to your account, not to this browser.</p>'
-      + '</section>'
-      + '<section class="card" aria-label="Your Whollar contact">'
-      + '<span class="eyebrow">Your Whollar contact</span><h3>Talk to someone who can act</h3>'
-      + '<p class="cardnote">Auction briefs, coverage verification, statement questions: your message lands with the team running your cohorts. Weekdays, usually within the hour.</p>'
-      + '<a class="tlink" href="mailto:partners@whollar.ca">Email partners@whollar.ca →</a>'
-      + '</section></aside></div>';
+      + '</div>'
+      + '<p class="fnote">Everything binding lives here, versioned. If the standard terms change, bidding pauses '
+      + 'until you have accepted the new version. A cohort delivery agreement joins this list for each cohort you win, '
+      + 'holding your offer as the households accepted it.'
+      + (c.live ? '' : ' One or more records could not be read just now, so this list may be short.')
+      + '</p></section>';
   }
 
-  function row(label, value) {
-    return '<li><span>' + esc(label) + '</span><b>'
-      + (value ? esc(value) : '<span style="color:var(--sub)">Not on file</span>') + '</b></li>';
+  /* ------------------------------------------------------------------ *
+   * the rows
+   *
+   * Each returns [title, description, action], and each says "could not read"
+   * rather than reporting a zero. A registry that renders 0 for an unreadable
+   * table is worse than one that renders nothing: a partner acts on it.
+   * ------------------------------------------------------------------ */
+
+  function msaRow(c) {
+    var m = c.msa;
+    if (!m) return ['Master services agreement', unread(), ''];
+    if (m.state === 'signed') {
+      return ['Master services agreement',
+        'The relationship itself: sealed auctions, delivery obligations, settlement, exit. Signed at approval'
+        + (m.signedAt ? ' on ' + esc(fmtDate(m.signedAt)) : '') + '.',
+        '<span class="pill won">Signed</span>'];
+    }
+    return ['Master services agreement',
+      'The relationship itself: sealed auctions, delivery obligations, settlement, exit. It signs at approval, and nothing is owed before then.',
+      '<span class="pill pending">Signs at approval</span>'];
   }
 
-  /** The pane and header chrome, from the real partner record. */
-  function paintChrome() {
+  function termsRow(c) {
+    var t = c.terms || {};
+    var title = 'Standard cohort terms · ' + esc(t.version || 'v1');
+    var body = 'Unlimited data, equipment stated on the face of the bid, the after-rate stated, no teaser structures.';
+
+    if (t.current) {
+      return [title,
+        body + (t.acceptedAt ? ' Accepted ' + esc(fmtDate(t.acceptedAt)) : '')
+        + (t.acceptedBy ? ' by ' + esc(t.acceptedBy) : '') + '.',
+        '<span class="pill won">Accepted</span>'];
+    }
+    if (!t.live) return [title, unread() + ' Bidding is held until it can be.', ''];
+    if (t.acceptedVersion) {
+      return [title,
+        body + ' You accepted ' + esc(t.acceptedVersion) + '. Bidding is paused until you accept ' + esc(t.version) + '.',
+        button('Review and accept')];
+    }
+    return [title, body, button('Review and accept')];
+  }
+
+  function scheduleRow(c) {
+    var s = c.schedule;
+    if (!s) return ['Regional schedule', unread(), link('coverage', 'Open coverage')];
+    var named = (s.regions || []).slice(0, 2).map(esc).join(', ');
+    var rest = (s.declared || 0) - Math.min(2, (s.regions || []).length);
+    var where = named ? (named + (rest > 0 ? ' and ' + rest + ' more' : '')) : null;
+    return ['Regional schedule' + (where ? ' · ' + where : ''),
+      s.declared
+        ? 'Your regions, declared services, and install capacity as an appendix to the agreement. '
+          + s.active + ' of ' + s.declared + ' verified. Updates when coverage does.'
+        : 'Your regions and declared services become an appendix to the agreement the moment you declare them.',
+      link('coverage', s.declared ? 'Open coverage' : 'Declare coverage')];
+  }
+
+  function registrationRow(c) {
+    var r = c.registration;
+    if (!r) return ['CRTC registration', unread(), ''];
+    if (!r.crtc) {
+      return ['CRTC registration',
+        'Your registration number goes on the application, and is verified before approval.',
+        '<span class="pill pending">Not on file</span>'];
+    }
+    var pill = r.state === 'cleared'
+      ? '<span class="pill won">Verified</span>'
+      : (r.state === 'flagged'
+        ? '<span class="pill lost">Needs another look</span>'
+        : '<span class="pill pending">With the reviewer</span>');
+    return ['CRTC registration', 'Registration ' + esc(r.crtc) + ' on file.', pill];
+  }
+
+  function receiptsRow(c) {
+    var r = c.receipts;
+    if (!r) return ['Sealed bid receipts', unread(), link('bids', 'Open record')];
+    if (!r.sealed) {
+      return ['Sealed bid receipts',
+        'Every bid you place is binding until its deadline, and lands here as a sealed receipt. None yet.',
+        link('desk', 'Open the bid desk')];
+    }
+    return ['Sealed bid receipts',
+      'Every bid you place is binding until its deadline. ' + r.sealed + ' on record across '
+      + r.cohorts + ' cohort' + (r.cohorts === 1 ? '' : 's') + '. An improvement is a new sealed record, never an edit.',
+      link('bids', 'Open record')];
+  }
+
+  function unread() {
+    return 'This record could not be read just now. It is not gone, and nothing has changed about it.';
+  }
+
+  function link(view, label) {
+    return '<button class="tlink" type="button" data-action="nav" data-view="' + esc(view) + '">'
+      + esc(label) + ' →</button>';
+  }
+
+  function button(label) {
+    return '<button class="btn ghost" type="button" data-action="terms:open">' + esc(label) + '</button>';
+  }
+
+  /* ------------------------------------------------------------------ *
+   * the modal
+   * ------------------------------------------------------------------ */
+
+  function termsModal() {
     var S = get();
-    var first = String((S.user && S.user.firstName) || (S.partner && S.partner.firstName) || '').trim();
-    var last = String((S.user && S.user.lastName) || '').trim();
-    var org = String((S.org && S.org.name) || (S.partner && S.partner.org) || '').trim();
-    var role = (S.org && S.org.role) || (S.partner && S.partner.role) || '';
-
-    var h = new Date().getHours();
-    var greet = h < 12 ? 'Good morning' : (h < 17 ? 'Good afternoon' : 'Good evening');
-
-    text('greetline', greet + (first ? ', ' + first : ''));
-    /* No org yet is a real state: the local record is written from the session,
-       which does not carry org context. Say nothing rather than guess a name
-       from the email domain the way the v3 console did. */
-    text('greetsub', org);
-    text('paneorg', org || 'Your company');
-    text('panerole', S.approved ? (roleLabel(role) || 'Partner') : 'Under review');
-    text('paneava', monogram(org || first || '?'));
-    text('topava', monogram([first, last].filter(Boolean).join(' ') || org || '?'));
+    var t = (S.contracts && S.contracts.terms) || {};
+    var org = (S.org && S.org.name) || 'Your company';
+    return '<div class="mhead"><h3>Standard cohort terms · ' + esc(t.version || 'v1') + '</h3>'
+      + '<button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
+      + '<p class="msub">One agreement covers every auction, so every sealed bid is comparable and every household reads one page.</p>'
+      + '<ul class="termls">'
+      + TERMS.map(function (line) { return '<li>' + esc(line) + '</li>'; }).join('')
+      + '</ul>'
+      + (t.acceptedVersion && t.acceptedVersion !== t.version
+        ? '<p class="cardnote">You accepted ' + esc(t.acceptedVersion) + '. That acceptance stays on record; this is a new version, and bidding resumes once it is accepted.</p>'
+        : '')
+      + '<label class="consent"><input type="checkbox" id="terms-ok" data-action="terms:toggle">'
+      + '<span>' + esc(org) + ' accepts the standard cohort terms, ' + esc(t.version || 'v1') + '.</span></label>'
+      + '<button class="btn" type="button" id="terms-go" data-action="terms:accept" disabled '
+      + 'style="width:100%;justify-content:center;margin-top:12px">Accept</button>';
   }
 
-  function text(id, value) {
-    var el = document.getElementById(id);
-    if (el) el.textContent = value;
+  /**
+   * A stable hash of the text that was on screen, sent with the acceptance.
+   *
+   * NOT a security control and not pretending to be one: it is a fingerprint, so
+   * an operator settling a dispute can tell whether the six lines this org saw
+   * are the six lines in force today. It is computed over the same TERMS array
+   * the modal renders, so the two cannot drift. No crypto API is used because
+   * none is needed, and because SubtleCrypto is async and unavailable on
+   * insecure origins, which would make the button fail on a dev machine.
+   */
+  function consentHash(version) {
+    var s = String(version || '') + '\n' + TERMS.join('\n');
+    var h1 = 0x811c9dc5, h2 = 0x01000193;
+    for (var i = 0; i < s.length; i++) {
+      var ch = s.charCodeAt(i);
+      h1 = (h1 ^ ch) >>> 0; h1 = (h1 * 16777619) >>> 0;
+      h2 = (h2 + ch * (i + 1)) >>> 0; h2 = (h2 ^ (h2 << 5)) >>> 0;
+    }
+    return ('00000000' + h1.toString(16)).slice(-8) + ('00000000' + h2.toString(16)).slice(-8);
+  }
+
+  /* ------------------------------------------------------------------ *
+   * load and actions
+   * ------------------------------------------------------------------ */
+
+  /** Boot-path read: a failure degrades the view rather than blanking it, and
+      never signs anyone out on its own. */
+  function load() {
+    return api.contracts().then(function (r) {
+      set('contracts', r || null);
+    }, function (err) {
+      authFailed(err);
+      set('contracts', null);
+    });
   }
 
   function mount() {
-    on('change', 'account:notify', function (el) {
-      var next = {};
-      NOTIFY.forEach(function (n) {
-        var box = document.querySelector('[data-key="' + n[0] + '"]');
-        next[n[0]] = box ? box.checked : true;
-      });
-      api.prefsSave({ notify: next }).then(function () {
-        var prefs = get().prefs || {};
-        prefs.notify = next;
-        set('prefs', prefs);
-        toast('Preference saved.');
-      }, function (err) {
-        el.checked = !el.checked;    /* put the switch back, it did not take */
-        toast((err && err.message) || 'That did not save. Try again.');
-        authFailed(err);
-      });
+    on('click', 'terms:open', function () { openModal(termsModal()); });
+
+    on('change', 'terms:toggle', function (el) {
+      var go = document.getElementById('terms-go');
+      if (go) go.disabled = !el.checked;
     });
 
-    on('click', 'account:signout', function () {
-      /* End the SERVER session, not just the local record. Clearing localStorage
-         alone leaves the cookie alive, and the boot guard would adopt() it on the
-         next visit and sign the visitor straight back in. */
-      var done = function () { location.replace('/whollar-login-provider'); };
-      api.signOut().then(done, done);
+    on('click', 'terms:accept', function (el) {
+      var S = get();
+      var t = (S.contracts && S.contracts.terms) || {};
+      var W = window.WHOLLAR;
+      if (!W.busy(el, true, 'Accepting')) return;
+      api.termsAccept({
+        accepted: true,
+        /* The version that was on screen, so a page that went stale is refused
+           rather than recorded against text nobody displayed. */
+        version: t.version || null,
+        consentHash: consentHash(t.version)
+      }).then(function (r) {
+        W.busy(el, false);
+        closeModal();
+        /* Take the server's terms object, not an optimistic local flip: the
+           acceptance that counts is the row, and the desk unlocks from the same
+           fact the server will check on the next bid. */
+        if (r && r.terms) set('contracts', Object.assign({}, S.contracts, { terms: r.terms }));
+        else load();
+        toast('Standard terms accepted. Every auction on your desk runs on them.');
+      }, function (err) {
+        W.busy(el, false);
+        failed(err);
+        authFailed(err);
+        /* A refusal here is usually a version bump between the page load and the
+           click, and the fix is to re-read rather than to leave a stale modal
+           claiming a version that is no longer in force. */
+        load();
+      });
     });
   }
 
-  __exports.roleLabel = roleLabel;
+  __exports.TERMS = TERMS;
   __exports.render = render;
-  __exports.paintChrome = paintChrome;
+  __exports.load = load;
   __exports.mount = mount;
   };
 
@@ -4065,27 +4974,22 @@
    * meanwhile, which is the only honest third option.
    *
    * Each becomes its own module under views/ when it is built, as the bids
-   * record now has (views/bids.js). Splitting the rest out now would create
-   * files whose entire content is a paragraph, and the build refuses
-   * unreferenced modules, so they would have to be wired up twice.
+   * record, the performance page and the contracts registry now have
+   * (views/bids.js, views/performance.js, views/contracts.js). Splitting the
+   * rest out now would create files whose entire content is a paragraph, and the
+   * build refuses unreferenced modules, so they would have to be wired up twice.
    */
 
   var __ns0 = __require("core/state.js");
   var get = __ns0.get;
-  var __ns1 = __require("core/format.js");
-  var esc = __ns1.esc;
-  var __ns2 = __require("core/time.js");
-  var fmtDate = __ns2.fmtDate;
-  var __ns3 = __require("components/emptystate.js");
-  var empty = __ns3.empty, goTo = __ns3.goTo;
+  var __ns1 = __require("components/emptystate.js");
+  var empty = __ns1.empty, goTo = __ns1.goTo;
 
   function render() {
     var S = get();
 
     put('billing-body', billing(S));
     put('del-body', delivery(S));
-    put('perf-body', performance(S));
-    put('con-body', contracts(S));
     put('plan-body', empty('Pick a cohort to see its plan',
       'Every cohort has one timeline: announced, open, closed, offers out, decision, switching window, reconciliation. Open one from the bid desk.',
       goTo('desk', 'Open the bid desk', 'btn ghost')));
@@ -4106,22 +5010,6 @@
     return empty('Your first delivery board builds itself',
       'Win a cohort and every confirmed household lands here with an order number, an install slot the member picks, and a state that becomes a statement line only when the line tests clean. Addresses release at confirmation, under each household’s consent, and to nobody else.',
       goTo('desk', 'Open the bid desk', 'btn ghost'));
-  }
-
-  function performance() {
-    return empty('Four numbers, none of them written yet',
-      'Win rate, completion, serviceability, and delivered as bid. None is bought and none is written by marketing: all four are recorded from what you deliver, and future auction briefs carry them beside your bid. The record starts at your first sealed number.');
-  }
-
-  function contracts(S) {
-    var app = S.application;
-    if (app && app.agreementAcceptedAt) {
-      return empty('Your agreements are on file',
-        'The application agreement is signed and versioned, dated ' + esc(fmtDate(app.agreementAcceptedAt)) + '. '
-        + 'The partner agreement signs at approval, and the standard cohort terms accept before your first bid. Both appear here when they do.');
-    }
-    return empty('Agreements appear here as they are signed',
-      'Everything binding lives here, versioned: the partner agreement, the standard cohort terms, your regional schedule, and every sealed bid receipt. If the standard terms change, bidding pauses until the new version is accepted.');
   }
 
   __exports.render = render;
@@ -4178,8 +5066,12 @@
   var renderApplication = __ns14.render, mountApplication = __ns14.mount, loadApplication = __ns14.load;
   var __ns15 = __require("views/account.js");
   var renderAccount = __ns15.render, mountAccount = __ns15.mount, paintChrome = __ns15.paintChrome;
-  var __ns16 = __require("views/placeholders.js");
-  var renderPlaceholders = __ns16.render;
+  var __ns16 = __require("views/performance.js");
+  var renderPerformance = __ns16.render;
+  var __ns17 = __require("views/contracts.js");
+  var renderContracts = __ns17.render, mountContracts = __ns17.mount, loadContracts = __ns17.load;
+  var __ns18 = __require("views/placeholders.js");
+  var renderPlaceholders = __ns18.render;
 
   /* ------------------------------------------------------------------ *
    * render
@@ -4194,6 +5086,8 @@
     renderCoverage();
     renderApplication();
     renderAccount();
+    renderPerformance();
+    renderContracts();
     renderPlaceholders();
 
     /* Under review the console is one centred card: no nav pane, no search.
@@ -4248,7 +5142,13 @@
 
       /* The application. A 501 here is not an error to show anyone: it means the
          route is not deployed yet, and the view already renders that honestly. */
-      loadApplication()
+      loadApplication(),
+
+      /* The contracts registry. It also carries the terms acceptance, which is
+         what the bid ticket reads to know whether to send a partner to Contracts
+         before bidding, so it loads on boot rather than on first view of the
+         Contracts page. */
+      loadContracts()
     ];
     return Promise.all(jobs).then(function () { startTicker(); });
   }
@@ -4308,6 +5208,7 @@
     mountCoverage();
     mountApplication();
     mountAccount();
+    mountContracts();
 
     on('click', 'nav', function (el) { go(el.getAttribute('data-view')); });
 

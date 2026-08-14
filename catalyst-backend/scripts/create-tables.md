@@ -499,7 +499,7 @@ The regions an org claims, and what it can render there.
 | `org_id` | Var Char | 64 | | ✅ | |
 | `region` | Var Char | 100 | | ✅ | as typed |
 | `techs` | Var Char | 64 | | ✅ | CSV of `cable` \| `fibre` \| `fwa` \| `dsl` |
-| `speed` | Var Char | 16 | | | the write path caps this at 16 |
+| `speed` | Var Char | 64 | | | CSV of Mbps tiers, ascending: `500,1000`. **Widen from 16 if this table predates the multi-tier picker,** see below |
 | `lead` | Var Char | 32 | | | install lead time, capped at 32 |
 | `status` | Var Char | 16 | | ✅ | `verifying` \| `active` \| `soon` \| `rejected` |
 | `updated_at` | DateTime | - | | ✅ | |
@@ -509,6 +509,17 @@ The regions an org claims, and what it can render there.
 > builds a key it truncates at 200), `speed` as 32 (capped at 16 on write) and
 > `lead` as 64 (capped at 32), and left `techs` and `updated_at` optional when
 > both are required.
+
+> **`speed` must be widened to 64 on any table created before the multi-tier
+> picker.** It carried one label ("1 Gig") while the console asked for a top
+> speed; it now carries the SET of tiers a partner can render there, as an
+> ascending CSV of Mbps, exactly the way `techs` carries its list. The whole
+> ladder is `50,100,200,500,1000,2500`, 24 characters, so 16 truncates a
+> partner who declares more than two tiers, and it truncates silently: the row
+> saves, and the desk then matches them on tiers they never picked. Widen the
+> column in the Zoho console before a partner declares, and note that the
+> **column length is the only thing that has to change** (existing single-label
+> rows still read correctly: the client parses `"1 Gig"` back to 1000).
 
 > **Known gap, not a schema problem.** New rows land `verifying` and **no route
 > anywhere moves them on**, so `active` is currently unreachable. The admin
@@ -807,6 +818,51 @@ as the price paid today, and the page has stopped sending `discount`
 
 ---
 
+## 20. The standard cohort terms: `provider_terms`
+
+One new table and one optional `site_config` row, for the Contracts view and
+the terms gate on bidding.
+
+> **THIS ONE BLOCKS BIDDING, unlike section 18's tolerant reads.** `lib/terms.js`
+> fails **closed**: if `provider_terms` cannot be read it refuses the bid rather
+> than waving it through, because an unreadable table means acceptance cannot be
+> proved and a bid placed without provable acceptance is the exact thing the gate
+> exists to prevent. So create this table **before** deploying the code, or every
+> `POST /provider/bids` answers "Bidding is not available right now." The refusal
+> is logged with `provider_terms unreadable: terms gate failed closed`, which is
+> the string to search for if bidding stops after a deploy.
+
+### `provider_terms` (new table)
+
+One row per org per version, written once and never updated. Accepting v2 must
+not erase the proof that v1 was accepted when the v1 bids were placed, which is
+the same append-only rule `consents` and `bid_revisions` follow.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `acceptance_key` | Var Char | 200 | ✅ | ✅ | `${org_id}:cohort_terms:${version}`. The unique constraint is what makes a double-tapped button and a network retry one acceptance |
+| `org_id` | Var Char | 64 | | ✅ | |
+| `doc_type` | Var Char | 32 | | ✅ | `cohort_terms` today. The partner agreement and the application agreement are different records with different lifecycles; this column is what keeps them apart if they ever land here |
+| `doc_version` | Var Char | 32 | | ✅ | matches `cohort_terms_version` in `site_config` |
+| `accepted_at` | DateTime | - | | ✅ | |
+| `accepted_by` | Var Char | 64 | | ✅ | `user_id` of the seat that accepted. The org is bound; the person is on the record |
+| `accepted_email` | Var Char | 255 | | | shown back in Contracts as who accepted |
+| `consent_hash` | Var Char | 64 | | | hash of the text that was on screen, not just the version label: a label can be edited later, a hash is what makes the record provable |
+| `ip_hash` | Var Char | 64 | | | same salted hash as `consents.ip_hash` |
+
+### One optional `site_config` row
+
+`cohort_terms_version` (type `string`, unpublished). The code default is `v1`.
+Create the row only to publish a new version, and understand what that does:
+**every org that has not accepted the new version is paused at its next bid
+attempt**, with a refusal naming the new version and pointing at Contracts.
+That is the intended behaviour, not a side effect, so change the row in the
+same sitting as the new text. A value outside `[A-Za-z0-9][A-Za-z0-9._-]{0,31}`
+is treated as a misconfigured row and falls back to `v1` with a warning in the
+logs, rather than stopping bidding.
+
+---
+
 ## Verify
 
 In the console: **Data Store → ZCQL** (or **Explore**), and run each of these.
@@ -871,6 +927,15 @@ SELECT tiers, guarantee_months, revision_count, receipt_no, payload_hash
 SELECT revision_key, bid_key, revision_no, payload, receipt_no,
        server_received_at FROM bid_revisions LIMIT 1;
 SELECT brief_json FROM campaigns LIMIT 1;
+```
+
+And section 20, the terms gate. This one refuses bids while it errors, rather
+than degrading:
+
+```sql
+SELECT acceptance_key, org_id, doc_type, doc_version, accepted_at,
+       accepted_by, accepted_email, consent_hash, ip_hash
+  FROM provider_terms LIMIT 1;
 ```
 
 Run the discount columns too. On 2026-08-12 every `/bill-checkup-join` insert

@@ -25,6 +25,11 @@
  * per-campaign window are checked in one place, here included. The bid rules
  * themselves (validation, the append-only revision record, sealed-ness) live
  * in lib/bids.js; its header is the contract.
+ *
+ * They also pass lib/terms.js requireAccepted(): one agreement covers every
+ * auction, so a bid from an org that has not accepted the version in force is
+ * refused here as well as hidden in the console. A published version bump
+ * pauses every org that has not accepted the new one.
  */
 
 const datastore = require('../lib/datastore');
@@ -35,6 +40,7 @@ const siteconfig = require('../lib/siteconfig');
 const audit = require('../lib/audit');
 const envelope = require('../lib/envelope');
 const bids = require('../lib/bids');
+const terms = require('../lib/terms');
 const { requireBiddingOpen, allRows, tally, publicPartnerCampaign } = require('./campaigns');
 const { requirePartner: guardPartner, requireApproved } = require('../lib/guards');
 const { wrap, badRequest, forbidden, AppError } = require('../lib/errors');
@@ -346,6 +352,11 @@ function mount(router) {
 
     await requireBiddingOpen(req.catalyst, campaign);
     await requireActiveCoverage(req.catalyst, context.orgId, campaign);
+    /* One agreement covers every auction, which is the only reason two bids on
+       one cohort are comparable line by line. lib/terms.js is the gate and its
+       header is the contract; it is checked here whatever the console
+       rendered, and again on improve below. */
+    await terms.requireAccepted(req.catalyst, context.orgId);
 
     const draft = bids.readBid(body, await householdCount(req.catalyst, campaign));
 
@@ -456,6 +467,9 @@ function mount(router) {
 
     await requireBiddingOpen(req.catalyst, campaign);
     await requireActiveCoverage(req.catalyst, context.orgId, campaign);
+    /* An improvement is a new sealed bid, so it passes the same terms gate as
+       a first one. A version bump between placing and improving pauses both. */
+    await terms.requireAccepted(req.catalyst, context.orgId);
 
     const draft = bids.readBid(req.body, await householdCount(req.catalyst, campaign));
     const payload = bids.draftPayload(campaign.id, draft);
@@ -612,7 +626,13 @@ function mount(router) {
     const fields = {
       region,
       techs: techs.join(','),
-      speed: str(body.speed, 16),
+      /* A CSV of Mbps tiers, ascending, the same shape `techs` uses above:
+         "500,1000". It was one label in 16 characters back when the field was
+         a single top speed. The whole ladder is "50,100,200,500,1000,2500",
+         24 characters, and silently truncating that would leave a partner
+         declared at tiers they never picked, so the column is 64 and so is
+         this cap. See create-tables.md, provider_coverage. */
+      speed: str(body.speed, 64),
       lead: str(body.lead, 32),
       updated_at: datastore.nowDb(),
     };
