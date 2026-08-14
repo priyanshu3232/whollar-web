@@ -289,6 +289,42 @@ console.log('\n10. every view renders, and every link on them resolves');
   await c.close();
 }
 
+console.log('\n11. the retired discount field is gone, and historical values survive a save');
+{
+  /* create-tables.md retired DiscountAmount with the v17 checkup: the monthly
+     charge is the price paid today with the promo already applied, so asking
+     for the discount on top double counts. The column stays nullable for
+     historical rows, so the save has to carry an old value through rather than
+     erase it: POST /me/bill replaces the whole row. */
+  const bill = { provider: 'Rogers', monthly: 92, speed: '500', discount: 15, source: 'bill-checkup' };
+  const c = await ctx(browser, { campaigns: [], bill });
+  let posted = null;
+  await c.route('**/api/auth/me/bill', async r => {
+    if (r.request().method() === 'POST') {
+      posted = JSON.parse(r.request().postData() || '{}');
+      return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, bill: posted }) });
+    }
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, bill }) });
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  ok(await p.locator('#bu-disc').count() === 0, 'no discount input on the bill form');
+  ok(await p.locator('[data-fld="discount"]').count() === 0, 'no discount row in the switch file');
+  ok(!/Monthly discount/.test(await p.locator('.view[data-v="bills"]').innerText()), 'and the label is gone with it');
+
+  await p.click('#pnav button[data-view="bills"]');
+  await p.waitForTimeout(250);
+  await p.fill('#bu-cost', '88');
+  await p.click('#bu-save');
+  await p.waitForTimeout(700);
+  ok(posted !== null, 'the form still saves');
+  ok(posted && posted.monthly === 88, `and sends the edited charge (${posted && posted.monthly})`);
+  ok(posted && posted.discount === 15, `and carries the historical discount through untouched (${posted && posted.discount})`);
+  await c.close();
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${new Set(errors).size} distinct console error(s)`);
 for (const e of new Set(errors)) console.log('  console: ' + e);
 await browser.close();

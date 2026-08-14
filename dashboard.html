@@ -1078,7 +1078,6 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
                 <li><span class="tick no">&middot;</span>Monthly charge<span class="val editable" data-fld="monthly">Add</span></li>
                 <li><span class="tick no">&middot;</span>Download speed<span class="val editable" data-fld="speed">Add</span></li>
                 <li><span class="tick no">&middot;</span>How it reaches you<span class="val editable" data-fld="tech">Add</span></li>
-                <li><span class="tick no">&middot;</span>Monthly discount<span class="val editable" data-fld="discount">Add</span></li>
                 <li><span class="tick no">&middot;</span>Promo end date<span class="val editable" data-fld="promoEnd">Add</span></li>
                 <li><span class="tick no">&middot;</span>Contract start<span class="val editable" data-fld="contractStart">Add</span></li>
                 <li><span class="tick no">&middot;</span>Contract length<span class="val editable" data-fld="contractLength">Add</span></li>
@@ -1115,12 +1114,19 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
                   <label>How it reaches your house
                     <select id="bu-tech" class="osel"><option value="">Choose&hellip;</option><option>Cable (TV coax jack)</option><option>Fibre (thin glass line)</option><option>DSL (old phone line)</option><option>Fixed wireless (5G antenna)</option><option>Satellite (dish)</option><option>Not sure</option></select>
                   </label>
-                  <label>Promo / discount end date
+                  <label>Promo end date
                     <input id="bu-date" class="osel" type="date">
                   </label>
-                  <label>Monthly discount, if any
-                    <input id="bu-disc" class="osel" inputmode="decimal" maxlength="12" autocomplete="off" placeholder="$ 0">
-                  </label>
+                  <!-- No "monthly discount" field. It was retired with the v17
+                       checkup (catalyst-backend/scripts/create-tables.md, "What
+                       changed for the old columns"): the monthly charge above is
+                       the price paid TODAY with the promo already applied, so
+                       asking for the discount on top of it counts the same money
+                       twice. The checkup stopped collecting it and stopped
+                       sending it; this card was still asking. `discount_amount`
+                       survives nullable for historical rows, and the save below
+                       passes any existing value straight through rather than
+                       erasing what an older answer put there. -->
                   <!-- The contract pair the checkup asks as Q06/Q07. They were
                        absent here while POST /me/bill replaced the whole row,
                        so every save from this card quietly erased them. -->
@@ -1247,14 +1253,16 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
         <div class="tiles">
           <div class="card tile">
             <span class="eyebrow">Your concierge</span>
-            <h4>Text or email, we answer</h4>
-            <p class="tn">Switching questions, bill questions, or just what happens next. Weekdays, usually within the hour.</p>
+            <h4>Email us, and we answer</h4>
+            <p class="tn">Switching questions, bill questions, or just what happens next. Weekdays, usually within the hour. Once your cohort is live we text you at each step, and a reply to any of those reaches the same person.</p>
             <!-- Anchors, not buttons wired to location.href. An address you can
                  copy, open in a new tab, or hand to a screen reader as the link
-                 it is; and it still works if the script never runs. -->
+                 it is; and it still works if the script never runs.
+                 There is no "Text us" control: no inbound number exists, and
+                 the button that used to be here only raised a toast reading
+                 "Prototype: opens your messages" at a signed-in member. -->
             <a class="tlink" href="mailto:info@whollar.com">Email us &rarr;</a><br>
-            <a class="tlink" href="/contact">Send us a message &rarr;</a><br>
-            <button class="tlink" type="button" id="c-text">Text us &rarr;</button>
+            <a class="tlink" href="/contact">Send us a message &rarr;</a>
           </div>
           <div class="card tile dark">
             <h4>Mid-switch?</h4>
@@ -1366,7 +1374,7 @@ var mobile=function(){return window.innerWidth<=920};
 
 /* ---------- demo state ---------- */
 var STATES=['forming','locked','bidding','offers','confirm','switching','done'];
-var S={state:'forming',sub:null,deposit:10,chosen:null,member:{bill:92},cohort:{have:61,need:100,locked:112,you:16}};
+var S={state:'forming',deposit:10,chosen:null,member:{bill:92},cohort:{have:61,need:100,locked:112,you:16}};
 var OFFERS=[
   {id:'a',name:'Provider A',price:54.5,speed:'500 Mbps',term:'24 months',note:'Install included'},
   {id:'b',name:'Provider B',price:58,speed:'1 Gig',term:'24 months',note:'Modem included'},
@@ -1678,7 +1686,6 @@ function fmtPromoEnd(bill){
    fmtTech drops the parenthetical the <select> carries ("Cable (TV coax
    jack)") because the row is four inches wide; the full phrase is still what
    is stored and what the editor shows. */
-function fmtDiscount(v){var n=Number(v);return isFinite(n)&&n>0?('−$'+(n%1===0?n:n.toFixed(2))+'/mo'):null}
 function fmtTech(v){var s=String(v==null?'':v).trim();return s?s.split(' (')[0]:null}
 function fmtMonthYear(raw){
   var d=parsePromoEnd(raw);
@@ -1711,14 +1718,17 @@ function paintBillSource(bill){
     el.hidden=false;
   });
 }
-/* Spot strength is the ten rows the bills card lists: nine bill fields plus
+/* Spot strength is the nine rows the bills card lists: eight bill fields plus
    the uploaded bill. Eight segments scale off that count so the meter can
    only claim what the ticks below it show. The home card lists a subset, but
-   the strength is a fact about the file, not about which card you're on. */
-var SPOT_TOTAL=10;
+   the strength is a fact about the file, not about which card you're on.
+   Was ten while "Monthly discount" was one of the rows. Retiring that field
+   has to move this number too, or the meter permanently reads one ninth short
+   of what the ticks show and no file can ever be complete. */
+var SPOT_TOTAL=9;
 function paintSpot(bill){
   var have=[bill&&bill.provider,bill&&fmtMonthly(bill.monthly),bill&&fmtSpeed(bill.speed),
-            bill&&fmtTech(bill.tech),bill&&fmtDiscount(bill.discount),fmtPromoEnd(bill),
+            bill&&fmtTech(bill.tech),fmtPromoEnd(bill),
             bill&&fmtMonthYear(bill.contractStart),bill&&fmtContractLength(bill.contractLength),
             bill&&bill.threshold,billDone()||null]
            .filter(function(v){return v!=null&&v!==''}).length;
@@ -1735,7 +1745,6 @@ function paintBill(){
   setFld('monthly',bill?fmtMonthly(bill.monthly):null);
   setFld('speed',bill?fmtSpeed(bill.speed):null);
   setFld('tech',bill?fmtTech(bill.tech):null);
-  setFld('discount',bill?fmtDiscount(bill.discount):null);
   setFld('threshold',bill&&bill.threshold||null);
   setFld('promoEnd',fmtPromoEnd(bill));
   setFld('contractStart',bill?fmtMonthYear(bill.contractStart):null);
@@ -1842,7 +1851,6 @@ window.addEventListener('focus',refreshCliff);
         var end=parsePromoEnd(bill.promoEnd);
         if(end)$('#bu-date').value=end.getFullYear()+'-'+String(end.getMonth()+1).padStart(2,'0')+'-'+String(end.getDate()).padStart(2,'0');
       }
-      if(bill.discount!=null&&bill.discount!=='')$('#bu-disc').value=bill.discount;
       /* A month-granular contract start ('YYYY-MM', which /me/bill does store)
          is not a value <input type=date> will take, so it stays on the row
          above rather than being shown here as blank-and-therefore-lost: the
@@ -1872,7 +1880,6 @@ window.addEventListener('focus',refreshCliff);
     if(fields.downloadSpeedMbps!=null)$('#bu-spd').value=fields.downloadSpeedMbps;
     if(fields.accessTechnology)$('#bu-tech').value=fields.accessTechnology;
     if(fields.promoEndDate)$('#bu-date').value=fields.promoEndDate;
-    if(fields.discountAmountDollars!=null)$('#bu-disc').value=fields.discountAmountDollars;
   }
 
   function buExtract(f){
@@ -1947,12 +1954,11 @@ window.addEventListener('focus',refreshCliff);
     e.preventDefault();
     if(busy)return;
     W.clearFieldError($('#bu-cost'));
-    W.clearFieldError($('#bu-disc'));
     $('#bu-err').textContent='';
     $('#bu-err').style.display='none';
 
     var existing=(MEMBER&&MEMBER.bill)||{};
-    var cost=$('#bu-cost').value.trim(),disc=$('#bu-disc').value.trim();
+    var cost=$('#bu-cost').value.trim();
 
     if(cost){
       var costR=W.parseMoneyInRange(cost,W.BILL_MIN,W.BILL_MAX);
@@ -1964,17 +1970,6 @@ window.addEventListener('focus',refreshCliff);
       }
       cost=costR.value;
     }else cost=null;
-
-    if(disc){
-      var discR=W.parseMoneyInRange(disc,0,W.BILL_MAX);
-      if(!discR.ok){W.fieldError($('#bu-disc'),'Enter your discount as a number, e.g. 15.');return}
-      disc=discR.value;
-    }else disc=null;
-
-    if(disc!=null&&cost!=null&&disc>=cost){
-      W.fieldError($('#bu-disc'),'Your discount can’t be as large as your monthly charge. Check both numbers.');
-      return;
-    }
 
     var promoEnd=$('#bu-date').value||existing.promoEnd||null;
     /* daysUntil only parses a full YYYY-MM-DD; a fallback month-only date
@@ -1988,7 +1983,11 @@ window.addEventListener('focus',refreshCliff);
       speed:$('#bu-spd').value||existing.speed||null,
       tech:$('#bu-tech').value||existing.tech||null,
       promoEnd:promoEnd,
-      discount:disc!=null?disc:existing.discount||null,
+      /* Nothing on this card collects a discount any more, but the save is a
+         whole-row replacement, so naming it is what stops a member's older
+         answer being erased by an unrelated edit. Passed through, never asked
+         for. Same reason as mergedPayload's keep() below. */
+      discount:existing.discount||null,
       /* Named for the same reason as mergedPayload's keep(): the save is a
          replacement, so an omitted contract date is an erased one. */
       contractStart:$('#bu-cstart').value||existing.contractStart||null,
@@ -2115,26 +2114,9 @@ window.addEventListener('focus',refreshCliff);
       read:function(el){return {value:el.value||null};},
       live:true
     },
-    discount:{
-      build:function(bill){
-        var inp=document.createElement('input');
-        inp.type='text';inp.inputMode='decimal';inp.autocomplete='off';inp.maxLength=12;
-        inp.className='fld-edit';inp.placeholder='$ 0';
-        inp.value=(bill&&bill.discount!=null)?bill.discount:'';
-        return inp;
-      },
-      read:function(el){
-        var v=el.value.trim();
-        if(!v)return {value:null};
-        /* Floor of 0, not BILL_MIN: a $5 credit is a real discount, while $5
-           would not be a real bill. The "smaller than the charge" rule is the
-           bill form's (bu-disc) and stays there: this editor only sees one
-           field at a time. */
-        var r=W.parseMoneyInRange(v,0,W.BILL_MAX);
-        if(!r.ok)return {error:'Enter your monthly discount as a number, e.g. 15.'};
-        return {value:r.value};
-      }
-    },
+    /* No `discount` editor: the row it edited is gone with the field. See the
+       note on the bill form above. mergedPayload's keep('discount') still
+       carries any historical value through every save made here. */
     contractStart:{
       build:function(bill){
         var inp=document.createElement('input');
@@ -2455,13 +2437,13 @@ function tplBidding(){
 }
 /* One winning offer for the whole cohort (v10): the auction produces a single
    best bid against the cohort's standard terms, compared against the member's
-   own bill when one is on file. */
+   own bill when one is on file.
+   There is no "stayed" sub-state. It had a panel here, a pill, a warm badge
+   and an `unstay` control, and nothing anywhere ever set it: passing goes
+   through openPass() to the `passed` state, which says the same thing and
+   records why. The dead branch is gone rather than given a button, because two
+   ways to decline one offer is two records of the same decision. */
 function tplOffers(){
-  if(S.sub==='stayed'){
-    return '<h3>Staying put, noted</h3>'
-    +'<p class="p">You keep your current plan and pay nothing, ever. We\u2019ll check in before your next promo cliff, and your spot in the next cohort is held.</p>'
-    +'<button class="btn ghost" type="button" data-act="unstay">Back to my offers</button>';
-  }
   var o=OFFERS[0];var save=S.member.bill-o.price;
   var c=S.checkup||{};
   return '<h3>Your cohort\u2019s winning offer is in</h3>'
@@ -2537,8 +2519,8 @@ function render(){
   });
   $('#railfill').style.width=(idx/(STATES.length-1)*100)+'%';
   var pill=$('#statepill');
-  pill.textContent=S.sub==='stayed'?'Staying put':PILL[S.state];
-  pill.className='statepill'+((S.state==='confirm'||S.state==='closing'||S.state==='passed'||S.state==='short'||S.sub==='stayed')?' warm':'');
+  pill.textContent=PILL[S.state];
+  pill.className='statepill'+((S.state==='confirm'||S.state==='closing'||S.state==='passed'||S.state==='short')?' warm':'');
   cdStop();
   $('#panel').innerHTML=TPL[S.state]();
   if(S.state==='bidding')cdStart();
@@ -2550,14 +2532,13 @@ function render(){
   if(S.state in RAILMAP)(FEED[S.state]||[]).forEach(function(f){items.push(f)});
   EXTRA.forEach(function(f){items.push(f)});
   $('#feed').innerHTML=items.map(function(f){return '<li><span class="when">'+esc(f[0])+'</span>'+esc(f[1])+'</li>'}).reverse().join('');
-  var badge=$('#regbadge');if(badge){badge.textContent='Your cohort · '+(S.sub==='stayed'?'Staying put':PILL[S.state]);badge.classList.add('live')}
+  var badge=$('#regbadge');if(badge){badge.textContent='Your cohort · '+(PILL[S.state]||'Not open yet');badge.classList.add('live')}
   paintRegionCount();
   paintHistory();
   $$('#sts button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-goto')===S.state)});
 }
 function go(state){
   S.state=state;
-  if(state!=='offers')S.sub=null;
   if((state==='confirm'||state==='switching'||state==='done')&&!S.chosen)S.chosen='a';
   /* Demo jumps into member states need the member-side fixtures a real member
      would have accumulated; never fabricate them outside ?demo=1. */
@@ -2575,8 +2556,6 @@ $('#panel').addEventListener('click',function(e){
   var take=t.getAttribute('data-take');
   var act=t.getAttribute('data-act');
   if(take){S.chosen=take;go('confirm');return}
-  if(act==='stay'){S.sub='stayed';render();return}
-  if(act==='unstay'){S.sub=null;render();return}
   if(act==='backoffers'){go('offers');return}
   if(act==='invite'){shareRef();return}
   if(t.id==='paydep'){t.disabled=true;t.textContent='Placing deposit\u2026';setTimeout(function(){go('switching');openSavings();toast('Deposit placed: '+dep()+', credited to your first bill.')},reduce?350:900);return}
@@ -2845,9 +2824,8 @@ document.addEventListener('click',function(e){
   var l=e.target.closest('[data-leave]');
   if(l){doLeave(l.getAttribute('data-leave'));return}
 });
-$('#c-text').addEventListener('click',function(){toast('Prototype: opens your messages.')});
-/* "Email us" and "Send us a message" are plain anchors now; only the SMS
-   placeholder still needs a handler. */
+/* No handler for the contact tile: "Email us" and "Send us a message" are
+   plain anchors, and the "Text us" button they used to sit beside is gone. */
 /* Notify bells: a region card's bell sets a real opening-day alert via
    POST /campaigns/notify (idempotent server-side; never downgrades a join).
    Bells with no matching campaign (Mobile cohorts, Streaming tracking) log
@@ -2879,8 +2857,12 @@ document.addEventListener('click',function(e){
     done();
   }
 });
+/* Search is not built. It said "Prototype: search lands with multi-region
+   campaigns", which tells a member the surface they are signed into is a
+   prototype. Say what is true instead: there is one region per member today,
+   so there is nothing to search across yet. */
 $('#q').addEventListener('keydown',function(e){
-  if(e.key==='Enter'){e.preventDefault();toast('Prototype: search lands with multi-region campaigns.')}
+  if(e.key==='Enter'){e.preventDefault();toast('Nothing to search yet: you are in one region at a time. Search arrives with multi-region cohorts.')}
 });
 
 /* ---------- profile ----------
@@ -3138,7 +3120,10 @@ function redditCardHTML(){
 document.addEventListener('click',function(e){
   if(e.target.closest('.copyrefc')){copyRef();return}
   if(e.target.closest('.sharerefc')){shareRef();return}
-  if(e.target.closest('.redditgo'))toast('Prototype: this will open the member subreddit.');
+  /* Same answer the member card's own CTA gives (MROOM.reddit.msg): there is
+     no subreddit address yet, so this says so rather than calling itself a
+     prototype at somebody who is signed in. */
+  if(e.target.closest('.redditgo'))toast(MROOM.reddit.msg);
 });
 
 /* ---------- animated invoice (the promo-cliff story, from the checkup) ---------- */
@@ -3565,7 +3550,7 @@ if(DEMO){
   });
   $('#rst').addEventListener('click',function(){
     TOURED=false;OPTJOIN=false;
-    S.sub=null;S.chosen=null;S.deposit=10;S.joined=false;S.checkup=null;S.prefs=null;S.pass=null;
+    S.chosen=null;S.deposit=10;S.joined=false;S.checkup=null;S.prefs=null;S.pass=null;
     EXTRA.length=0;$('#cfg-dep').value=10;cdSecs=26*3600+14*60+9;
     applyDerived();nav('dashboard');
   });
