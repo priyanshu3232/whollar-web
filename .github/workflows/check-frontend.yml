@@ -101,6 +101,23 @@ jobs:
       - name: Organisation key unit tests
         run: node --test scripts/test-org-key.mjs
 
+      # The v17 checkup savings engine (js/checkup-savings.js): the 12-month
+      # window, benchmark selection with the Ontario offer pool and the
+      # out-of-province fallback, the four single-promo bases, multi-promo
+      # walking, netted overpaid-to-date, tone thresholds, cliff pill.
+      - name: Checkup savings engine acceptance tests
+        run: node --test scripts/test-checkup-savings.mjs
+
+      # The checkup page itself, driven in headless Chrome (playwright-core +
+      # the runner's system Chrome; no browser download). Field order, the
+      # multi-promo and I-don't-know states, the three-screen rail swap, the
+      # verdict card, validation messages, and the rail clipping regression
+      # guard (aside.scrollHeight - aside.clientHeight <= 1).
+      - name: Checkup page DOM acceptance tests
+        run: |
+          npm ci --ignore-scripts
+          node --test scripts/test-checkup-dom.mjs
+
       - name: Device router parses
         run: node --check js/device-router.js
 

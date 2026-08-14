@@ -357,29 +357,40 @@ async function insert(catalystApp, tableName, row) {
   return table.insertRow(row);
 }
 
-// Same as insert(), but tolerant of a named set of columns not existing yet
+// Same as insert(), but tolerant of named sets of columns not existing yet
 // in the live table — a schema change routinely ships in code before the
 // column is added by hand in the Catalyst console (see catalyst-backend/
 // scripts/create-tables.md). Rather than fail the whole submission on a gap
-// in optional columns, retry once with them dropped, so the lead is still
+// in optional columns, retry with them dropped, so the record is still
 // captured; the original error is logged so the gap stays visible.
-async function insertTolerant(catalystApp, tableName, row, optionalKeys) {
+//
+// `optional` is either a flat array (one group) or an array of arrays,
+// NEWEST GROUP FIRST. Groups are dropped cumulatively: the first retry drops
+// only the newest group, the next drops the next group too, and so on. The
+// 2026-08-12 outage showed why: a single all-or-nothing strip meant one
+// missing new column also discarded older optional columns that DID exist
+// (ContractStartDate/ContractLength were lost to DiscountAmount's absence).
+async function insertTolerant(catalystApp, tableName, row, optional) {
   try {
     return await insert(catalystApp, tableName, row);
   } catch (err) {
-    if (!optionalKeys || !optionalKeys.length) throw err;
+    const groups = (optional && optional.length && Array.isArray(optional[0])) ? optional
+      : (optional && optional.length ? [optional] : []);
+    if (!groups.length) throw err;
     const stripped = { ...row };
-    for (const k of optionalKeys) delete stripped[k];
-    try {
-      const saved = await insert(catalystApp, tableName, stripped);
-      console.error(
-        `[formSubmit] ${tableName} insert only succeeded after dropping ${optionalKeys.join(', ')} — ` +
-        `add these columns in the Catalyst console (create-tables.md). Original error:`, err
-      );
-      return saved;
-    } catch (err2) {
-      throw err; // neither attempt worked — surface the ORIGINAL error, it's the real one
+    const dropped = [];
+    for (const group of groups) {
+      for (const k of group) { delete stripped[k]; dropped.push(k); }
+      try {
+        const saved = await insert(catalystApp, tableName, stripped);
+        console.error(
+          `[formSubmit] ${tableName} insert only succeeded after dropping ${dropped.join(', ')} — ` +
+          `add these columns in the Catalyst console (create-tables.md). Original error:`, err
+        );
+        return saved;
+      } catch (err2) { /* drop the next group as well and retry */ }
     }
+    throw err; // no attempt worked — surface the ORIGINAL error, it's the real one
   }
 }
 
@@ -549,20 +560,46 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
       Via: orNull(str(b.via)) || 'form',
       PostalFSA: postal.fsa,
       Provider: orNull(str(b.prov)),
+      // The price paid TODAY, promo included (unchanged meaning since
+      // 2026-08-08). The v17 checkup computes it from the promo structure
+      // below; DiscountAmount is retired with the deleted discount field.
       MonthlyCost: toNumber(b.cost),
       DownloadSpeed: orNull(str(b.spd)),
       AccessTech: orNull(str(b.tech)),
       PromoEndDate: orNull(str(b.pdate)),
       MonthsToRenewal: b.pmo != null && b.pmo !== '' ? parseInt(b.pmo, 10) : null,
       PromoExpired: str(b.expired) === 'true',
-      DiscountAmount: toNumber(b.disc),
       ContractStartDate: orNull(str(b.contractStart)),
       ContractLength: orNull(str(b.contractLength)),
       SwitchThreshold: orNull(str(b.switchFor)),
+      // v17 checkup columns (create-tables.md section 19). Tolerated as a
+      // group below until they exist in the console.
+      PriceDuringPromo: toNumber(b.priceDuringPromo),
+      PriceAfterPromo: toNumber(b.priceAfterPromo),
+      PromoPeriods: orNull(str(b.promoPeriods) === '[]' ? null : str(b.promoPeriods)),
+      PromoFallbackPrice: toNumber(b.promoFallbackPrice),
+      IsMultiPromo: str(b.isMultiPromo) === 'true',
+      StartDateUnknown: str(b.startUnknown) === 'true',
+      PromoEndUnknown: str(b.promoUnknown) === 'true',
+      ComputedWindowMonths: b.windowMonths != null && b.windowMonths !== '' ? parseInt(b.windowMonths, 10) : null,
+      ComputedCurrentCost: toNumber(b.computedCurrentCost),
+      ComputedBenchmarkMonthly: toNumber(b.computedBenchmarkMonthly),
+      ComputedSavings: toNumber(b.computedSavings),
+      ComputedOverpaidToDate: toNumber(b.computedOverpaidToDate),
+      ComputedBasis: orNull(str(b.computedBasis)),
+      ComputedTone: orNull(str(b.computedTone)),
       BillFileId: orNull(file?.id ?? null),
       BillFileName: orNull(file?.name ?? (req.fileRejected ? `[rejected: ${req.fileRejected}]` : null)),
       SubmittedAt: catalystNow()
-    }, ['ContractStartDate', 'ContractLength']);
+    }, [
+      // newest group first: the v17 columns land in the console after this
+      // code ships, and their absence must not cost the contract columns.
+      ['PriceDuringPromo', 'PriceAfterPromo', 'PromoPeriods', 'PromoFallbackPrice',
+       'IsMultiPromo', 'StartDateUnknown', 'PromoEndUnknown',
+       'ComputedWindowMonths', 'ComputedCurrentCost', 'ComputedBenchmarkMonthly',
+       'ComputedSavings', 'ComputedOverpaidToDate', 'ComputedBasis', 'ComputedTone'],
+      ['ContractStartDate', 'ContractLength']
+    ]);
     await enqueueCrm(catalystApp, {
       source: 'BillCheckupSubmissions', rowId: row.ROWID, email, leadType: 'consumer',
       data: {
@@ -570,27 +607,33 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
         via: str(b.via) || 'form',
         fsa: postal.fsa, postal: postal.full,
         province: str(b.province) || null, provinceCode: str(b.provinceCode) || null,
-        provider: str(b.prov), cost: toNumber(b.cost), discount: toNumber(b.disc), speed: str(b.spd),
+        provider: str(b.prov), cost: toNumber(b.cost), speed: str(b.spd),
         tech: str(b.tech), promoEnd: str(b.pdate),
         monthsToRenewal: b.pmo != null && b.pmo !== '' ? parseInt(b.pmo, 10) : null,
         contractStart: str(b.contractStart) || null,
         contractLength: str(b.contractLength) || null,
         threshold: str(b.switchFor),
-        // What the visitor was actually shown. Without these, sales sees the
-        // gross charge and has no idea which of the four verdicts appeared on
-        // screen — the number the conversation has to start from.
         effectiveCost: toNumber(b.effectiveCost),
-        verdict: str(b.verdict) || null,
-        verdictReason: str(b.verdictReason) || null,
-        benchmarkScope: str(b.benchmarkScope) || null,
-        benchmarkPrice: toNumber(b.benchmarkPrice),
-        // Which level of the fallback cascade answered, how many advertised
-        // plans stood behind it, and whether the comparison was flagged as
-        // thin. Without these a rep cannot tell an exact provider match from a
-        // national average that happened to land on the same verdict.
-        benchmarkLevel: str(b.benchmarkLevel) || null,
-        benchmarkSample: toNumber(b.benchmarkSample),
-        benchmarkCaveat: str(b.benchmarkCaveat) || null,
+        // What the household was actually shown (the v17 engine). Without
+        // these, sales sees a single charge and has no idea which of the four
+        // results appeared on screen — the number the conversation has to
+        // start from. The benchmark figure is internal: it may appear in this
+        // note for a rep, never in anything household-facing.
+        priceDuringPromo: toNumber(b.priceDuringPromo),
+        priceAfterPromo: toNumber(b.priceAfterPromo),
+        isMultiPromo: str(b.isMultiPromo) === 'true' ? 'true' : null,
+        promoPeriods: str(b.promoPeriods) === '[]' ? null : (str(b.promoPeriods) || null),
+        promoFallbackPrice: toNumber(b.promoFallbackPrice),
+        startUnknown: str(b.startUnknown) === 'true' ? 'true' : null,
+        promoUnknown: str(b.promoUnknown) === 'true' ? 'true' : null,
+        windowMonths: b.windowMonths != null && b.windowMonths !== '' ? parseInt(b.windowMonths, 10) : null,
+        currentCost12: toNumber(b.computedCurrentCost),
+        benchmarkMonthly: toNumber(b.computedBenchmarkMonthly),
+        savings12: toNumber(b.computedSavings),
+        overpaidToDate: toNumber(b.computedOverpaidToDate),
+        basis: str(b.computedBasis) || null,
+        tone: str(b.computedTone) || null,
+        fallbackGeo: str(b.fallbackGeo) === 'true' ? 'true' : null,
         billFileName: file?.name ?? (req.fileRejected ? `[rejected: ${req.fileRejected}]` : null),
         ...consentFrom(b, req)
       }

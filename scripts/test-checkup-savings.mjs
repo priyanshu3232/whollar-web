@@ -1,215 +1,185 @@
 #!/usr/bin/env node
-/* The 14 acceptance tests from the savings-logic spec (2026-08-08).
- * Run: node scripts/test-checkup-savings.mjs
- * These pin the field-semantics fix: currentPrice = what you pay TODAY,
- * discountAmount = the monthly amount taken OFF, postPromo = current + discount.
+/* Engine acceptance tests for the v17 checkup migration (spec section 9.3,
+ * plus the tone thresholds from 9.4 and the assumption tags from 6.2).
+ * Run: node --test scripts/test-checkup-savings.mjs
+ *
+ * Every date-sensitive case injects `today`, so these are deterministic.
  */
+import test from 'node:test';
+import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const { calculateCheckup, lookupBenchmark, monthsBetween, provinceFromPostalCode,
-        buildCard, money, INTERNET_PLANS } =
-  require(join(ROOT, 'js/checkup-savings.js'));
+const E = require(join(ROOT, 'js/checkup-savings.js'));
 
-let failed = 0;
-function eq(name, got, want) {
-  const ok = JSON.stringify(got) === JSON.stringify(want);
-  if (!ok) { failed++; console.error(`FAIL ${name}\n  got  ${JSON.stringify(got)}\n  want ${JSON.stringify(want)}`); }
-  else console.log(`ok   ${name}`);
-}
+const TODAY = '2026-08-13';
+const base = (over) => Object.assign({
+  province: 'Ontario', speedMbps: 100,
+  during: 0, after: 0, multi: false, periods: [], fallback: 0,
+  startDate: null, promoEnd: null, today: TODAY
+}, over);
 
-/* Shared golden input (spec §5 / test 3) */
-const GOLDEN = {
-  postalCode: 'L5V 1A9', downloadMbps: 500,
-  currentPrice: 120, discountAmount: 80, contractLengthMonths: 36,
-  contractStartDate: '2025-06-08', promoEndDate: '2026-11-26',
-  today: '2026-08-08',
-};
-
-/* 1 — benchmark lookup */
-{
-  const b = lookupBenchmark('L5V 1A9', 500);
-  eq('1 benchmark price', b.monthly, 44.99);
-  eq('1 benchmark plan', `${b.provider} ${b.plan}`, 'Carrytel Internet 500');
-  eq('1 benchmark province', b.province, 'Ontario');
-}
-
-/* 2 — promo month count */
-eq('2 monthsBetween', monthsBetween('2025-06-08', '2026-11-26'), 18);
-
-/* 3 — GOLDEN promo active */
-{
-  const r = calculateCheckup(GOLDEN);
-  eq('3 postPromo', r.postPromoPrice, 200);
-  eq('3 promoMonths', r.promoMonths, 18);
-  eq('3 totalPaid', r.totalPaid, 5760);
-  eq('3 totalSavings', r.totalSavings, 4140.36);
-  eq('3 cliff', r.cliff, { month: 18, date: '2026-12-08', monthsAway: 4, from: 120, to: 200 });
-}
-
-/* 4 — GOLDEN multi-promo */
-{
-  const r = calculateCheckup({
-    ...GOLDEN, contractLengthMonths: 24,
-    promoPeriods: [{ monthlyAmount: 35, months: 3 }, { monthlyAmount: 60, months: 6 }],
-  });
-  eq('4 totalPaid', r.totalPaid, 3465);
-  eq('4 totalSavings', r.totalSavings, 2385.24);
-}
-
-/* 5 — promo already expired: today's price is the rack rate */
-{
-  const r = calculateCheckup({ ...GOLDEN, promoEndDate: '2026-05-26' });
-  eq('5 promoActive', r.promoActive, false);
-  eq('5 promoPrice (schedule[0])', r.schedule[0], 40);   // current - discount
-  eq('5 postPromo', r.postPromoPrice, 120);              // current
-}
-
-/* 6 — discount 0: flat schedule, no cliff */
-{
-  const r = calculateCheckup({ ...GOLDEN, discountAmount: 0 });
-  eq('6 flat schedule', r.schedule.every((x) => x === 120), true);
-  eq('6 cliff', r.cliff, null);
-  eq('6 zero-discount warning', r.warnings.some((w) => w.includes('$0')), true);
-}
-
-/* 7 — promo covers the full term: no cliff */
-{
-  const r = calculateCheckup({ ...GOLDEN, promoEndDate: '2028-07-01' });
-  eq('7 promoMonths === term', r.promoMonths, 36);
-  eq('7 cliff', r.cliff, null);
-}
-
-/* 8 — already below benchmark: savings clamp to 0, never abs() */
-{
-  const r = calculateCheckup({ ...GOLDEN, currentPrice: 30, discountAmount: 0, promoEndDate: null });
-  eq('8 totalSavings', r.totalSavings, 0);
-}
-
-/* 9 — periods overrun the term: schedule truncates */
-{
-  const r = calculateCheckup({
-    ...GOLDEN, contractLengthMonths: 12,
-    promoPeriods: [{ monthlyAmount: 50, months: 10 }, { monthlyAmount: 70, months: 10 }],
-  });
-  eq('9 schedule length', r.schedule.length, 12);
-}
-
-/* 10 — X0A is Nunavut */
-eq('10 X0A 1H0', provinceFromPostalCode('X0A 1H0'), 'Nunavut');
-
-/* 11 — speed above every plan in the province */
-{
-  const b = lookupBenchmark('X1A 0A1', 2000); // Northwest Territories, top plan 1000
-  eq('11 matched flag', b.matched, 'below_requested_speed');
-  eq('11 fallback plan speed', b.mbps, 1000);
-}
-
-/* 12 — month-end anchor clamps */
-eq('12 Jan31->Feb28', monthsBetween('2025-01-31', '2025-02-28'), 1);
-eq('12 Jan31->Mar01', monthsBetween('2025-01-31', '2025-03-01'), 2);
-
-/* 13 — promo end unknown: assume 12 months, warn */
-{
-  const r = calculateCheckup({ ...GOLDEN, promoEndDate: null });
-  eq('13 promoMonths', r.promoMonths, 12);
-  eq('13 warning', r.warnings.some((w) => w.includes('assumed 12 months')), true);
-}
-
-/* 14 — discount larger than what you pay: warn, do not explode */
-{
-  const r = calculateCheckup({ ...GOLDEN, currentPrice: 60, discountAmount: 80 });
-  eq('14 warning', r.warnings.some((w) => w.includes('post-promo price')), true);
-  eq('14 postPromo still derived', r.postPromoPrice, 140);
-}
-
-/* ================= Result-card content layer (13 tests) ================= */
-
-/* Flat-price helper: run a real checkup with no promo. */
-const flat = (price, term) => calculateCheckup({
-  postalCode: 'L5V 1A9', downloadMbps: 100, currentPrice: price,
-  discountAmount: 0, contractLengthMonths: term, promoEndDate: null, today: '2026-08-08',
+/* ---- 12: the window is always 12 months ---- */
+test('12: window is 12 regardless of contract or elapsed time', () => {
+  assert.equal(E.WINDOW_MONTHS, 12);
+  const r1 = E.computeCheckup(base({ during: 80 }));
+  const r2 = E.computeCheckup(base({ during: 80, startDate: '2024-09-13', promoEnd: '2026-09-13', after: 130 }));
+  assert.equal(r1.months, 12);
+  assert.equal(r2.months, 12);
 });
-const allText = (c) => [c.badge, c.headline, c.body, c.basis, c.note || '', c.caveat || '',
-  c.cta, c.ctaSub, ...c.stats.flatMap((s) => [s.label, s.value, s.sub || ''])].join(' | ');
 
-/* C1 — $50 vs $38.95 over 36 months -> moderate_saving */
-const c1 = buildCard(flat(50, 36), 'L5V');
-eq('C1 case', c1.case, 'moderate_saving');
+/* ---- 13: 23 months into a 24 month term still gets a full figure ---- */
+test('13: late-term household does not collapse toward zero', () => {
+  const r = E.computeCheckup(base({ during: 80, after: 130, startDate: '2024-09-13', promoEnd: '2026-09-13' }));
+  assert.equal(r.basis, 'dated');
+  assert.equal(r.current.detail.monthsAtCurrent, 1);
+  assert.equal(r.current.detail.monthsAtSticker, 11);
+  assert.equal(r.current.total, 1 * 80 + 11 * 130); /* 1510: a full 12 months */
+  assert.equal(r.savings, +(1510 - 38.95 * 12).toFixed(2));
+  assert.ok(r.savings > 1000);
+});
 
-/* C2 — $42 vs $38.95 over 24 months -> small_saving */
-const c2 = buildCard(flat(42, 24), 'L5V');
-eq('C2 case', c2.case, 'small_saving');
+/* ---- 14: lapsed promo pays the after-promo price now ---- */
+test('14: promo already lapsed: now = after-promo price, flagged post promo', () => {
+  const r = E.computeCheckup(base({ during: 60, after: 110, promoEnd: '2026-05-01' }));
+  assert.equal(r.now.amount, 110);
+  assert.equal(r.now.postPromo, true);
+  const running = E.computeCheckup(base({ during: 60, after: 110, promoEnd: '2026-11-01' }));
+  assert.equal(running.now.amount, 60);
+  assert.equal(running.now.postPromo, false);
+});
 
-/* C3 — $35 vs $38.95 -> no_saving: ONE stat, "anyway" CTA, no $0 anywhere */
-const c3 = buildCard(flat(35, 24), 'L5V');
-eq('C3 case', c3.case, 'no_saving');
-eq('C3 one stat', c3.stats.length, 1);
-eq('C3 cta', c3.cta.endsWith('anyway'), true);
-eq('C3 no $0', allText(c3).includes('$0'), false);
-
-/* C4 — $130 vs $44.99 -> big_saving with the multiple in the headline */
-const c4 = buildCard(calculateCheckup({
-  postalCode: 'L5V 1A9', downloadMbps: 500, currentPrice: 130,
-  discountAmount: 0, contractLengthMonths: 24, promoEndDate: null, today: '2026-08-08',
-}), 'L5V');
-eq('C4 case', c4.case, 'big_saving');
-eq('C4 multiple', c4.headline.includes('2.9×'), true);
-
-/* C5 — the golden promo scenario: big_saving, note present, case unmoved by it */
-const c5r = calculateCheckup(GOLDEN);
-const c5 = buildCard(c5r, 'L5V');
-eq('C5 case', c5.case, 'big_saving');
-eq('C5 note', c5.note, 'Your promo ends Dec 2026. The bill goes to $200.');
-
-/* C6 — below_requested_speed sets the caveat; case still chosen on overPct */
-const c6 = buildCard(calculateCheckup({
-  postalCode: 'X1A 0A1', downloadMbps: 2000, currentPrice: 300,
-  discountAmount: 0, contractLengthMonths: 24, promoEndDate: null, today: '2026-08-08',
-}), 'X1A');
-eq('C6 caveat', c6.caveat, 'Nothing we track in Northwest Territories hits 2000 Mbps. Treat this as a floor.');
-
-/* C7 — basis line on every case, identical */
-const cards = [c1, c2, c3, c4, c5, c6];
-eq('C7 basis identical', new Set(cards.map((c) => c.basis)).size, 1);
-eq('C7 basis non-empty', cards.every((c) => c.basis.length > 0), true);
-
-/* C8 — ctaSub on every case */
-eq('C8 ctaSub', cards.every((c) => c.ctaSub.includes('No switching fee')), true);
-
-/* C9 — banned vocabulary */
-eq('C9 banned words', cards.every((c) => !/typical|list price/i.test(allText(c))), true);
-
-/* C10 — no provider or plan name from the sheet may appear */
-{
-  const names = Object.values(INTERNET_PLANS).flat()
-    .flatMap((p) => [p.provider, p.plan]);
-  const leaked = cards.filter((c) => names.some((n) => allText(c).includes(n)));
-  eq('C10 no plan names', leaked.map((c) => c.case), []);
-}
-
-/* C11 — never tie price to cohort size */
-eq('C11 no headcount pricing',
-  cards.every((c) => !/more members|cohort fills|the bigger the|headcount/i.test(allText(c))), true);
-
-/* C12 — money formatting */
-eq('C12 money(4140.36)', money(4140.36), '$4,140.36');
-eq('C12 money(50)', money(50), '$50');
-
-/* C13 — band boundaries land in the HIGHER band (synthetic results) */
-{
-  const fake = (savings, bench) => ({
-    currentMonthly: 50, totalSavings: savings, totalBenchmark: bench,
-    totalPaid: bench + savings, termMonths: 24, cliff: null,
-    benchmark: { matched: 'at_or_above_speed', province: 'Ontario' }, downloadMbps: 100,
+/* ---- 15: multi promo, 8 months elapsed, 6@50 then 18@95 ---- */
+test('15: multi promo walks elapsed months before pricing the window', () => {
+  const input = base({
+    multi: true,
+    periods: [{ amount: 50, months: 6 }, { amount: 95, months: 18 }],
+    startDate: '2025-12-13'
   });
-  eq('C13 0.02 -> small', buildCard(fake(2, 100), 'L5V').case, 'small_saving');
-  eq('C13 0.15 -> moderate', buildCard(fake(15, 100), 'L5V').case, 'moderate_saving');
-  eq('C13 0.50 -> big', buildCard(fake(50, 100), 'L5V').case, 'big_saving');
-}
+  const cur = E.currentCost(input);
+  assert.equal(cur.basis, 'periods');
+  assert.equal(cur.total, 1140);
+  assert.equal(cur.uncovered, 0);
+  assert.equal(E.nowPrice(input).amount, 95);
+});
 
-if (failed) { console.error(`\n${failed} assertion(s) failed`); process.exit(1); }
-console.log('\nall tests passed');
+/* ---- 16: Ontario pools provincial data with offers ---- */
+test('16: Ontario at 1.5 Gig takes the cheapest qualifying offer', () => {
+  const b = E.bestPlan('Ontario', 1500);
+  assert.equal(b.p, 55);
+  assert.equal(b.src, 'offer');
+  assert.ok(!b.fallbackGeo);
+});
+test('16: Ontario at 100 Mbps takes the provincial dataset', () => {
+  const b = E.bestPlan('Ontario', 100);
+  assert.equal(b.p, 38.95);
+  assert.equal(b.src, 'plansavvy');
+});
+
+/* ---- 17: outside Ontario offers are a fallback only ---- */
+test('17: BC at 100 Mbps stays provincial', () => {
+  const b = E.bestPlan('British Columbia', 100);
+  assert.equal(b.p, 38.95);
+  assert.equal(b.src, 'plansavvy');
+  assert.ok(!b.fallbackGeo);
+});
+test('17: BC at 1.5 Gig falls back to offers and flags fallbackGeo', () => {
+  const b = E.bestPlan('British Columbia', 1500);
+  assert.equal(b.p, 55);
+  assert.equal(b.src, 'offer');
+  assert.equal(b.fallbackGeo, true);
+});
+
+/* ---- 18: the four single promo bases ---- */
+test('18: basis tags across the four single promo permutations', () => {
+  const noneNone = E.currentCost(base({ during: 90 }));
+  assert.equal(noneNone.basis, 'current-only');
+  assert.equal(noneNone.total, 12 * 90);
+
+  const stickOnly = E.currentCost(base({ during: 90, after: 140 }));
+  assert.equal(stickOnly.basis, 'midpoint-estimate');
+  assert.equal(stickOnly.total, 6 * 90 + 6 * 140);
+
+  const dateOnly = E.currentCost(base({ during: 90, promoEnd: '2026-12-13' }));
+  assert.equal(dateOnly.basis, 'dated-no-sticker');
+  assert.equal(dateOnly.total, 12 * 90); /* held at the current rate */
+  assert.equal(dateOnly.assumedRate, 90);
+
+  const both = E.currentCost(base({ during: 90, after: 140, promoEnd: '2026-12-13' }));
+  assert.equal(both.basis, 'dated');
+  assert.equal(both.total, 4 * 90 + 8 * 140);
+});
+
+/* ---- 19: overpaid to date ---- */
+test('19: overpaid is null without a start date', () => {
+  assert.equal(E.overpaidToDate(base({ during: 200 }), 38.95), null);
+});
+test('19: overpaid is null under 3 elapsed months', () => {
+  assert.equal(E.overpaidToDate(base({ during: 200, startDate: '2026-06-13' }), 38.95), null);
+});
+test('19: overpaid is null under the 60 dollar floor', () => {
+  const r = E.overpaidToDate(base({ during: 55, startDate: '2026-05-13' }), 38.95);
+  assert.equal(r, null); /* 3 * 16.05 = 48.15 */
+});
+test('19: overpaid nets promo months that beat the benchmark', () => {
+  /* 12 elapsed, promo ended 2 months ago: 10 months at during, 2 at after */
+  const above = E.overpaidToDate(base({ during: 60, after: 110, startDate: '2025-08-13', promoEnd: '2026-06-13' }), 38.95);
+  assert.equal(+above.toFixed(2), +(10 * (60 - 38.95) + 2 * (110 - 38.95)).toFixed(2));
+  /* same shape but the promo genuinely beat the market: netted below floor */
+  const netted = E.overpaidToDate(base({ during: 30, after: 110, startDate: '2025-08-13', promoEnd: '2026-06-13' }), 38.95);
+  assert.equal(netted, null); /* 10*(30-38.95) + 2*(110-38.95) = 52.6 < 60 */
+});
+
+/* ---- tone thresholds (9.4 test 20, engine side) ---- */
+test('20: tone bands at overPct 0.05 / 0.20 / 0.50', () => {
+  /* current-only basis so cur = 12 * during; ON 100 bench = 38.95 * 12 = 467.40 */
+  const tone = (during) => E.computeCheckup(base({ during })).tone;
+  assert.equal(tone(41), 'fair');       /* pct = 24.60 / 492.00 = .05 */
+  assert.equal(tone(48.68), 'moderate');/* pct = .1998 */
+  assert.equal(tone(77.9), 'high');     /* pct = .50 */
+});
+test('no-benchmark tone when nothing qualifies at the speed', () => {
+  const r = E.computeCheckup(base({ during: 90, speedMbps: 99999 }));
+  assert.equal(r.ok, false);
+  assert.equal(r.tone, 'no-benchmark');
+  assert.equal(r.benchmark, null);
+  assert.equal(r.current.total, 1080); /* the hero still has a figure to show */
+});
+
+/* ---- cliff pill (9.4 test 23, engine side) ---- */
+test('23: cliff pill at 75 days, absent at 400 days, absent when ended', () => {
+  assert.equal(E.cliffSoon(base({ promoEnd: '2026-10-27' })), true);   /* ~75 days */
+  assert.equal(E.cliffSoon(base({ promoEnd: '2027-09-17' })), false);  /* ~400 days */
+  assert.equal(E.cliffSoon(base({ promoEnd: '2026-05-01' })), false);  /* ended */
+  assert.equal(E.cliffSoon(base({ multi: true, promoEnd: '2026-10-27' })), false);
+});
+
+/* ---- assumption tags (6.2 triggers) ---- */
+test('assumption tags: one per trigger, none when fully specified', () => {
+  const full = E.computeCheckup(base({ during: 90, after: 140, promoEnd: '2026-12-13' }));
+  assert.deepEqual(full.assumptions, []);
+  assert.deepEqual(E.computeCheckup(base({ during: 90, after: 140 })).assumptions, ['midpoint-estimate']);
+  assert.deepEqual(E.computeCheckup(base({ during: 90 })).assumptions, ['current-only']);
+  assert.deepEqual(E.computeCheckup(base({ during: 90, promoEnd: '2026-12-13' })).assumptions, ['dated-no-sticker']);
+  const short = E.computeCheckup(base({ multi: true, periods: [{ amount: 80, months: 5 }] }));
+  assert.deepEqual(short.assumptions, ['uncovered']);
+  assert.equal(short.current.detail.uncovered, 7);
+});
+
+/* ---- multi promo fallback price covers the tail ---- */
+test('periods short of the window price the tail at the fallback', () => {
+  const cur = E.currentCost(base({ multi: true, periods: [{ amount: 80, months: 5 }], fallback: 120 }));
+  assert.equal(cur.total, 5 * 80 + 7 * 120);
+  assert.equal(cur.uncovered, 0);
+  assert.equal(cur.assumedRate, 120);
+});
+
+/* ---- monthsUntil counts whole months only ---- */
+test('monthsUntil subtracts one before the day of month is reached', () => {
+  assert.equal(E.monthsUntil('2026-09-12', TODAY), 0);
+  assert.equal(E.monthsUntil('2026-09-13', TODAY), 1);
+  assert.equal(E.monthsUntil('2026-08-01', TODAY), -1);
+});

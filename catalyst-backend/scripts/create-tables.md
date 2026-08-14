@@ -495,14 +495,20 @@ The regions an org claims, and what it can render there.
 
 | Column | Type | Length | Unique | Mandatory | Notes |
 |---|---|---|:--:|:--:|---|
-| `coverage_key` | Var Char | 130 | ✅ | ✅ | `${org_id}:${region-slug}` |
+| `coverage_key` | Var Char | 200 | ✅ | ✅ | `${org_id}:${region-slug}`, truncated to 200 by the write path |
 | `org_id` | Var Char | 64 | | ✅ | |
 | `region` | Var Char | 100 | | ✅ | as typed |
-| `techs` | Var Char | 64 | | | CSV of `cable` \| `fibre` \| `fwa` \| `dsl` |
-| `speed` | Var Char | 32 | | | |
-| `lead` | Var Char | 64 | | | install lead time |
+| `techs` | Var Char | 64 | | ✅ | CSV of `cable` \| `fibre` \| `fwa` \| `dsl` |
+| `speed` | Var Char | 16 | | | the write path caps this at 16 |
+| `lead` | Var Char | 32 | | | install lead time, capped at 32 |
 | `status` | Var Char | 16 | | ✅ | `verifying` \| `active` \| `soon` \| `rejected` |
-| `updated_at` | DateTime | — | | | |
+| `updated_at` | DateTime | — | | ✅ | |
+
+> **Corrected against `lib/schema.js`, which is what `/health/diagnostics`
+> verifies.** This list previously showed `coverage_key` as 130 (the write path
+> builds a key it truncates at 200), `speed` as 32 (capped at 16 on write) and
+> `lead` as 64 (capped at 32), and left `techs` and `updated_at` optional when
+> both are required.
 
 > **Known gap, not a schema problem.** New rows land `verifying` and **no route
 > anywhere moves them on**, so `active` is currently unreachable. The admin
@@ -744,6 +750,60 @@ the server renders what ops recorded and invents nothing.
 `lib/siteconfig.js` as an unconfirmed planning number; create the row only to
 override it. Unpublished means it never appears on `/public/config`: partners
 see it on their own briefs.
+
+---
+
+## 19. The v17 checkup: columns to add to `BillCheckupSubmissions`
+
+The bill checkup was rebuilt on 2026-08-13 (the v17 migration). The household
+now states two prices, the promo window each applies to, and optionally a
+month-by-month promo ladder; the engine's outputs are stored so historical
+results stay reproducible. Like section 14, this is a column *addition* to a
+Do-not-touch-family table, which is the one edit that family takes.
+
+The insert tolerates every column below being missing (they are a tolerated
+group, dropped together on retry), so the site keeps working before you do
+this; it just keeps discarding these answers. The retry now drops groups
+newest-first, so a gap here no longer costs `ContractStartDate` /
+`ContractLength` the way the 2026-08-12 outage did.
+
+| Column | Type | Notes |
+|---|---|---|
+| `PriceDuringPromo` | Double | field 08, the monthly price during the promo |
+| `PriceAfterPromo` | Double | field 09, nullable |
+| `PromoPeriods` | Text | JSON `[{"amount":50,"months":6}, …]`, nullable |
+| `PromoFallbackPrice` | Double | the price for months the periods do not cover, nullable |
+| `IsMultiPromo` | Boolean | the checkbox state |
+| `StartDateUnknown` | Boolean | "I don't know" on field 05 |
+| `PromoEndUnknown` | Boolean | "I don't know" on field 07 |
+| `ComputedWindowMonths` | Int | always 12 in this release; stored so old rows stay reproducible |
+| `ComputedCurrentCost` | Double | engine: cost of the next 12 months as they stand |
+| `ComputedBenchmarkMonthly` | Double | engine, INTERNAL ONLY: never shown to a household |
+| `ComputedSavings` | Double | engine: currentCost minus benchmark times 12 |
+| `ComputedOverpaidToDate` | Double | engine, netted, nullable |
+| `ComputedBasis` | Var Char (32) | `dated` \| `dated-no-sticker` \| `midpoint-estimate` \| `current-only` \| `periods` |
+| `ComputedTone` | Var Char (16) | `high` \| `moderate` \| `fair` \| `no-benchmark` |
+
+### What changed for the old columns
+
+- **`MonthlyCost` keeps its meaning**: the price paid TODAY, promo included
+  (the 2026-08-08 definition). The v17 page derives it from the promo
+  structure, so it stays correct even for lapsed promos. Nothing rereads it
+  differently.
+- **`DiscountAmount` is retired.** The discount/waiver field was deleted from
+  the form (the promo price already nets discounts out; keeping it double
+  counts), so the insert no longer names the column. The 2026-08-12 note
+  saying it must be re-added in the console is superseded: do not re-add it.
+  Where it still exists it just holds the historical answers.
+- **Backfill for pre-v17 rows** is done at read time, not by rewriting rows:
+  a row with `ComputedWindowMonths` null is a pre-engine row, and its
+  `MonthlyCost` stands in for `PriceDuringPromo` (`PriceAfterPromo` stays
+  null). Old rows were produced by a different engine and are never
+  recomputed.
+
+The `member_bills` side needs no change: `/me/bill` keeps storing `monthly`
+as the price paid today, and the page has stopped sending `discount`
+(`discount_amount` remains, nullable, for historical rows).
 
 ---
 

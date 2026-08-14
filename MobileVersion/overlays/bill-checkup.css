@@ -2,7 +2,11 @@
    Breakpoint MUST match BREAKPOINT in js/device-router.js (768). It was 720,
    so viewports 721-768px were routed to this page and then rendered with the
    desktop layout: a confirmed unstyled band on iPad portrait and on small
-   laptop windows. */
+   laptop windows.
+   Class names follow the v17 checkup (2026-08-13): fld/fg, mbm/prow, vcard,
+   loading, tgrid, joinbox. The page's own stylesheet already collapses the
+   grid at 1020 and the field grid at 620; this overlay is typography and
+   spacing for the 768-and-under band. */
 @media (max-width:768px){
   body{font-size:15px}
   .wrap{padding:0 18px}
@@ -11,46 +15,34 @@
   .whl-mark b{font-size:17px}
   .whl-nav__back{font-size:12.5px}
   .whl-btn--sm{font-size:12.5px;padding:9px 13px}
-  .hero{padding:30px 0 0}
+  .hero{padding:28px 0 6px}
   .hero h1{font-size:29px;line-height:1.1}
   .hero .sub{font-size:15px;margin-top:12px}
-  .grid{gap:18px;padding:14px 0 56px}
-  .card{padding:20px 16px 18px;border-radius:20px}
-  .card h2{font-size:20px}
-  .upload{padding:13px 14px;gap:11px;margin-top:16px}
-  .upload__cta{margin-left:0;width:100%;justify-content:center;padding:12px}
-  .qgrid{grid-template-columns:1fr;gap:13px;margin-top:18px}
-  .f.q{padding:15px 15px 14px}
-  .f.q label{font-size:15.5px}
-  .f input,.f select{font-size:16px;padding:12px 13px}
-  .mpq,.mbm{padding:16px}
-  .mpq h3,.mbm__head h3{font-size:17px}
-  .mpq__opt{padding:10px 15px;font-size:13px}
-  .mbm__row{gap:8px;padding:10px 11px}
-  .mbm__amt{width:88px;font-size:16px}
-  .mbm__mos input{width:52px;font-size:16px}
-  .wl{padding:14px}
-  .cta-row{flex-direction:column;align-items:stretch;margin-top:18px}
-  .cta-row .whl-btn{width:100%;padding:16px;font-size:15.5px}
-  .prog__track{flex:1}
-  .rail{gap:11px}
-  .know,.lev{padding:16px}
-  .krow .kn{min-width:56px;font-size:17px}
-  .sig{padding:20px 18px}
-  .sig h3{font-size:22px}
-  .sig .read{font-size:13.5px}
-  .recap,.join2{padding:18px 16px}
-  .deep{padding:18px 16px}
-  .rgrid{grid-template-columns:1fr}
-  .gerow{flex-direction:column}
-  .gerow .whl-btn{width:100%;padding:13px}
-  .gerow input{font-size:16px}
-  .drow{flex-direction:column;align-items:stretch}
-  .drow input{min-width:0;font-size:16px}
-  .deep textarea{font-size:16px}
-  footer{padding:20px 0 34px}
-}
-@media (max-width:430px){
-  .whl-nav__back{display:none}
-  .whl-btn--sm{margin-left:auto}
+  .grid{gap:16px;padding:12px 0 56px}
+  .card{padding:20px 16px;border-radius:20px}
+  .card>h2{font-size:20px}
+  .upl{padding:12px 13px;gap:11px}
+  .fg{grid-template-columns:1fr;gap:12px}
+  .fld{padding:13px 13px 14px}
+  .fld input,.fld select{font-size:16px;padding:12px 13px}
+  .fld--bar .barrow{gap:9px}
+  .fld--bar #pc{max-width:none;flex:1;min-width:150px}
+  .mbm{padding:15px 13px 16px}
+  .mbm__h h3{font-size:15.5px}
+  .prow{gap:8px;padding:10px 11px}
+  .prow input{font-size:16px}
+  .emailbox input{font-size:16px;padding:12px 13px}
+  .cta{padding:16px;font-size:15.5px}
+  .loading{padding:22px 18px}
+  .loading h2{font-size:21px}
+  .ldrow p{font-size:13.5px}
+  .vcard{padding:22px 18px}
+  .vcard h2{font-size:23px}
+  .vfig{padding:16px 15px}
+  .vbody{font-size:14px}
+  .told{padding:18px 15px}
+  .joinbox{padding:20px 17px}
+  .deep{padding:20px 16px}
+  .know,.getnum{padding:16px}
+  .kr .big{width:64px;font-size:17px}
 }

@@ -319,6 +319,33 @@ function noteFor(source, email, data, isProd, dropped) {
     }
   }
 
+  // The v17 checkup (2026-08-13): what the household was shown, engine terms.
+  // `tone` is the card that appeared. The benchmark figure is INTERNAL: it may
+  // sit in this note for a rep, it must never reach anything household-facing.
+  if (data.tone) {
+    const TONE = {
+      high: 'HIGH — loyalty is costing them a fortune',
+      moderate: 'MODERATE — staying put has a price',
+      fair: 'FAIR — ahead today',
+      'no-benchmark': 'NOT SCORED — no published rate at their speed'
+    };
+    add('Result shown', TONE[data.tone] || data.tone);
+    if (data.savings12 !== undefined && data.savings12 !== null && data.tone !== 'no-benchmark') {
+      add(`Could save over ${data.windowMonths || 12} months`, money(data.savings12));
+    }
+    add('Their next 12 months cost', money(data.currentCost12));
+    add('Benchmark monthly (internal, never shown)', money(data.benchmarkMonthly));
+    add('Overpaid to date (netted)', money(data.overpaidToDate));
+    add('Calculation basis', data.basis);
+    if (data.fallbackGeo) add('⚠ Benchmark geography', 'out-of-province offer fallback');
+    add('Price during promo', money(data.priceDuringPromo));
+    add('Price after promo', money(data.priceAfterPromo));
+    if (data.isMultiPromo) add('Multi promo', data.promoPeriods || 'yes');
+    add('Fallback price for uncovered months', money(data.promoFallbackPrice));
+    if (data.startUnknown) add('Contract start', 'not known to the household');
+    if (data.promoUnknown) add('Promo end', 'not known to the household');
+  }
+
   add('Provider', data.provider);
   // What `cost` means changed on 2026-08-08: it is now the net figure the
   // household pays TODAY, promo included, not the regular price. The label
