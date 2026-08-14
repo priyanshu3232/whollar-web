@@ -47,7 +47,13 @@ button{font-family:var(--body)}
 ::selection{background:var(--accent);color:#fff}
 :focus-visible{outline:2.5px solid var(--accent);outline-offset:2px;border-radius:8px}
 
-.shell{min-height:100vh;display:grid;grid-template-columns:1.02fr 1fr}
+/* The brand panel is sized, not split by ratio. On a 1fr split it kept every
+   pixel the viewport grew, so at 1440+ it was mostly empty gutter beside a
+   504px headline while the sign-in card stayed boxed at 404px. Sizing it
+   instead caps that dead space and hands the remainder to the form side.
+   The clamp is tuned so the headline still clears one line at every width
+   down to the 900px switch: see the nowrap note on .brand h1. */
+.shell{min-height:100vh;display:grid;grid-template-columns:clamp(430px,46vw,660px) minmax(0,1fr)}
 @media(max-width:900px){.shell{grid-template-columns:1fr}}
 
 /* ---------- brand panel ---------- */
@@ -67,7 +73,11 @@ button{font-family:var(--body)}
 .mark b{font-family:var(--disp);font-weight:900;font-size:21px;color:#fff;letter-spacing:-.02em}
 .brand__mid{margin-top:auto;margin-bottom:auto;position:relative;z-index:2;padding:34px 0}
 .eyebrow{font-family:var(--label);font-weight:600;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--teal-soft);margin-bottom:16px}
-.brand h1{color:#fff;font-size:clamp(30px,3.4vw,42px);line-height:1.04;letter-spacing:-.03em;max-width:14ch}
+/* One line above the 900px switch. max-width:14ch used to force the wrap by
+   itself, and the type scale is set so the line still fits the narrowest
+   brand column (430px less 92px of padding) rather than overflowing it. */
+.brand h1{color:#fff;font-size:clamp(25px,2.9vw,40px);line-height:1.04;letter-spacing:-.03em}
+@media(min-width:901px){.brand h1{white-space:nowrap}}
 .brand h1 em{font-style:normal;color:var(--teal-soft)}
 .brand__sub{margin-top:16px;color:#CFE2D5;font-size:16px;line-height:1.55;max-width:40ch}
 

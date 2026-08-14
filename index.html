@@ -321,12 +321,12 @@ img,svg{display:block}
 
 /* layout */
 .whl-wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}
-.whl-section{padding:clamp(60px,8.5vw,104px) 0}
+.whl-section{padding:clamp(44px,5.4vw,68px) 0}
 .whl-eyebrow{display:inline-block;font-family:var(--label);font-weight:600;font-size:12.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);margin:0 0 16px}
 .whl-h2{font-weight:900;font-size:clamp(28px,4.2vw,46px)}
 .whl-lead{font-size:clamp(16px,1.6vw,18.5px);line-height:1.55}
-.whl-head{max-width:680px;margin-bottom:46px}
-.whl-head--split{max-width:none;display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(24px,5vw,64px);align-items:start;margin-bottom:48px}
+.whl-head{max-width:680px;margin-bottom:clamp(26px,3.2vw,36px)}
+.whl-head--split{max-width:none;display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(24px,5vw,64px);align-items:start;margin-bottom:clamp(26px,3.4vw,38px)}
 .whl-head--split .whl-head__main{max-width:560px}
 .whl-head--split .whl-head__aside{padding-top:6px}
 .whl-head--split .whl-credit{margin-top:0}
@@ -525,22 +525,28 @@ img,svg{display:block}
 .whl-divider span{height:1px;flex:1;max-width:120px;background:#cdd9d3}
 
 /* HARD PARTS DISAPPEAR: Endl-style scroll-driven layout + sticky preview */
-.whl-hard__track{position:relative;margin-top:0;height:calc(100vh * 2.4)}
-.whl-hard__sticky{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;justify-content:center;gap:clamp(16px,3vh,32px);padding:clamp(14px,3vh,32px) 0}
+/* The sticky block centres its content in a full viewport, so the section's own
+   padding stacks on top of that slack. Trim the padding, keep the centring. */
+#why{padding-top:clamp(6px,1vw,14px);padding-bottom:clamp(6px,1vw,14px)}
+.whl-hard__track{position:relative;margin-top:0;height:calc(100vh * 2.05)}
+.whl-hard__sticky{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;justify-content:center;gap:clamp(14px,2.4vh,26px);padding:clamp(8px,1.6vh,18px) 0}
 .whl-hard__head{max-width:none;text-align:center;margin:0}
 .whl-hard__head .whl-eyebrow{margin:0 0 10px}
 .whl-hard__head .whl-h2{font-size:clamp(26px,3.6vw,40px)}
 .whl-hard{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start;width:100%;margin:0}
 @media(max-width:880px){
   .whl-hard{gap:28px}
+  /* unpinned: no centring slack to absorb, so the section pays for its own rhythm */
+  #why{padding-top:clamp(44px,5.4vw,68px);padding-bottom:clamp(44px,5.4vw,68px)}
   .whl-hard__track{height:auto;margin-top:0}
   .whl-hard__sticky{position:static;height:auto;display:block;padding:0}
-  .whl-hard__head{text-align:left;margin-bottom:36px}
+  .whl-hard__head{text-align:left;margin-bottom:30px}
 }
 @media (prefers-reduced-motion:reduce){
+  #why{padding-top:clamp(44px,5.4vw,68px);padding-bottom:clamp(44px,5.4vw,68px)}
   .whl-hard__track{height:auto}
   .whl-hard__sticky{position:static;height:auto;display:block;padding:0}
-  .whl-hard__head{margin-bottom:36px}
+  .whl-hard__head{margin-bottom:30px}
 }
 
 .whl-hard__left{flex:1 1 360px;min-width:0;display:flex;flex-direction:column;gap:6px}
@@ -1048,8 +1054,8 @@ img,svg{display:block}
 /* HOW WHOLLAR WORKS: three simple steps */
 /* ── HOW IT WORKS – phone + timeline ── */
 .whl-how{background:var(--cream);position:relative}
-.whl-how .whl-wrap{padding-top:clamp(48px,6vw,80px);padding-bottom:clamp(28px,3.4vw,48px)}
-.whl-how + .whl-section{padding-top:clamp(32px,4vw,56px)}
+.whl-how .whl-wrap{padding-top:clamp(38px,4.4vw,58px);padding-bottom:clamp(16px,2vw,26px)}
+.whl-how + .whl-section{padding-top:clamp(18px,2.2vw,30px)}
 
 /* intro blurb */
 .how-intro{max-width:680px;margin:0 auto 64px;text-align:center}
@@ -1057,7 +1063,7 @@ img,svg{display:block}
 .how-intro b{font-weight:700;color:var(--teal)}
 
 /* band: laptop left, timeline right */
-.how-band{display:grid;grid-template-columns:minmax(340px,520px) 1fr;gap:64px;align-items:center;margin-bottom:72px}
+.how-band{display:grid;grid-template-columns:minmax(340px,520px) 1fr;gap:56px;align-items:center;margin-bottom:clamp(16px,2.2vw,30px)}
 
 /* macbook laptop frame */
 .how-laptop-stage{display:flex;justify-content:center;position:relative;padding:16px 0}
@@ -1204,7 +1210,7 @@ img,svg{display:block}
 }
 
 /* need-to-talk placecard (above footer) */
-.whl-talk{background:var(--navy-deep);color:#fff;padding:84px 0 88px;position:relative;overflow:hidden}
+.whl-talk{background:var(--navy-deep);color:#fff;padding:clamp(48px,5.6vw,68px) 0 clamp(52px,6vw,72px);position:relative;overflow:hidden}
 .whl-talk::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 18% 30%,rgba(127,227,176,.10),transparent 55%),radial-gradient(circle at 82% 70%,rgba(30,158,99,.08),transparent 55%);pointer-events:none}
 .whl-talk__in{position:relative;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:60px;align-items:center}
 .whl-talk__copy h2{font-family:var(--disp);font-size:clamp(40px,5.2vw,60px);font-weight:800;letter-spacing:-.025em;line-height:1.02;color:#fff;margin-bottom:20px}
@@ -1221,7 +1227,7 @@ img,svg{display:block}
 .whl-talk__tile b{display:block;color:#fff;font-size:16px;font-weight:700;margin-bottom:2px;font-family:var(--disp)}
 .whl-talk__tile span{font-size:13.5px;color:#8FB39B}
 @media(max-width:880px){
-  .whl-talk{padding:60px 0 64px}
+  .whl-talk{padding:46px 0 50px}
   .whl-talk__in{grid-template-columns:1fr;gap:40px}
 }
 
@@ -2085,9 +2091,9 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
 </section>
 
 <!-- SECTION 4: BIG IDEA -->
-  <section style="position:relative;z-index:1;padding:clamp(80px,11vh,140px) 0;background:linear-gradient(180deg,transparent,rgba(16,185,129,0.05),transparent);">
+  <section style="position:relative;z-index:1;padding:clamp(48px,6vw,76px) 0;background:linear-gradient(180deg,transparent,rgba(16,185,129,0.05),transparent);">
     <div style="width:100%;max-width:1080px;margin:0 auto;padding:0 clamp(24px,5vw,40px);text-align:center;">
-      <h2 class="whl-reveal" style="font-family:'Satoshi',sans-serif;font-weight:900;font-size:clamp(30px,4.6vw,54px);line-height:1.06;letter-spacing:-0.03em;color:var(--ink);margin:0 auto 56px;max-width:820px;text-wrap:balance;">One household has no leverage. <span style="color:var(--green)">Hundreds do.</span></h2>
+      <h2 class="whl-reveal" style="font-family:'Satoshi',sans-serif;font-weight:900;font-size:clamp(30px,4.6vw,54px);line-height:1.06;letter-spacing:-0.03em;color:var(--ink);margin:0 auto clamp(28px,3.6vw,40px);max-width:820px;text-wrap:balance;">One household has no leverage. <span style="color:var(--green)">Hundreds do.</span></h2>
       <div class="whl-reveal" style="display:grid;grid-template-columns:0.8fr auto 1.2fr;gap:clamp(20px,4vw,52px);align-items:center;background:#fff;border:1px solid rgba(14,42,32,0.07);border-radius:28px;padding:clamp(28px,5vw,52px);box-shadow:0 40px 90px -50px rgba(14,42,32,0.4);">
         <div style="text-align:center;">
           <div class="whl-home-lottie" autoplay="" loop="" style="width:160px;height:160px;display:inline-block;margin-bottom:-8px"></div>
@@ -2716,8 +2722,8 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
 </section>
 
 <!-- SECTION 10: FINAL CTA -->
-<section id="cta" style="position:relative;z-index:1;padding:clamp(40px,6vh,72px) clamp(24px,5vw,40px);">
-  <div class="whl-reveal" style="position:relative;width:100%;max-width:1180px;margin:0 auto;border-radius:32px;overflow:hidden;background:linear-gradient(155deg,var(--ink),#022C22);padding:clamp(56px,9vw,100px) clamp(28px,6vw,80px);text-align:center;">
+<section id="cta" style="position:relative;z-index:1;padding:clamp(28px,3.4vw,44px) clamp(24px,5vw,40px);">
+  <div class="whl-reveal" style="position:relative;width:100%;max-width:1180px;margin:0 auto;border-radius:32px;overflow:hidden;background:linear-gradient(155deg,var(--ink),#022C22);padding:clamp(48px,7vw,76px) clamp(28px,6vw,80px);text-align:center;">
     <svg viewBox="0 0 1180 400" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%;opacity:0.55;" fill="none">
       <g stroke="var(--accent)" stroke-width="1" opacity="0.45">
         <line x1="120" y1="320" x2="260" y2="200"></line><line x1="260" y1="200" x2="420" y2="290"></line><line x1="420" y1="290" x2="560" y2="180"></line><line x1="560" y1="180" x2="720" y2="270"></line><line x1="720" y1="270" x2="880" y2="170"></line><line x1="880" y1="170" x2="1040" y2="250"></line><line x1="260" y1="200" x2="560" y2="180"></line><line x1="560" y1="180" x2="880" y2="170"></line>
