@@ -356,31 +356,35 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
    member should recognise the room before reading a word of it. */
 /* HORIZONTAL. As a span 4 card with the handset stacked under the copy this
    was ~950px tall, three times its neighbour, and it pulled every bit of the
-   page's weight to the bottom right. It is a full width card now: copy and the
-   network tabs in the left five columns, the handset in the right seven,
-   vertically centred against them, and the handset itself capped so it is a
-   glimpse of the room rather than the whole thread rendered at full height. */
-.mroom{display:grid;grid-template-columns:5fr 7fr;column-gap:24px;row-gap:16px;grid-template-rows:max-content max-content}
-/* The handset spans both rows and is the taller of the two columns, so the
-   surplus is handed to the rows. The copy hangs from the bottom of row one and
-   the CTA sits at the top of row two, which puts the pair together in the
-   vertical middle with one row-gap between them. align-items:center on the
-   card instead centred each of the three children separately, which left the
-   CTA marooned at the foot of a 470px column. */
-.mroom{align-content:center}
-.mrcopy{grid-column:1;grid-row:1;align-self:end;display:flex;flex-direction:column;min-width:0}
-.mroom .mrstage{grid-column:2;grid-row:1/span 2;align-self:center}
+   page's weight to the bottom right. It is a full width card now: copy, the
+   network tabs and the CTA in the left five columns, the handset in the right
+   seven, showing the whole screen rather than a clipped glimpse of it. */
+/* THREE ROWS, and everything hangs from the TOP. The handset spans all three
+   and is the taller column, so the surplus lands in row three, which is where
+   the artwork goes: the copy and its CTA read as one block against the top
+   edge instead of floating in the middle of a 520px card, and the space they
+   leave behind is filled rather than empty. minmax(0,1fr) rather than 1fr so
+   a tall left column can take that row to zero instead of overflowing. */
+.mroom{display:grid;grid-template-columns:5fr 7fr;column-gap:24px;row-gap:16px;grid-template-rows:max-content max-content minmax(0,1fr);align-content:start}
+.mrcopy{grid-column:1;grid-row:1;align-self:start;display:flex;flex-direction:column;min-width:0}
+.mroom .mrstage{grid-column:2;grid-row:1/span 3;align-self:start}
 .mroom .mrcta{grid-column:1;grid-row:2;align-self:start}
+/* Decorative, and alt="" on purpose: the three tabs above it already name the
+   networks, so a description here would be the card saying it twice to a
+   screen reader. object-fit:contain means the row can be any height without
+   the cubes distorting. */
+.mrart{grid-column:1;grid-row:3;min-height:0;width:100%;height:100%;object-fit:contain;object-position:center;margin-top:4px;pointer-events:none}
 .mrtabs{display:flex;gap:3px;background:#EDE8DB;border-radius:999px;padding:4px;margin-top:13px}
 .mrtab{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:transparent;border-radius:999px;padding:9px 6px;font-family:var(--disp);font-size:13px;font-weight:750;color:var(--sub);transition:background .15s,color .15s,box-shadow .15s}
 .mrtab svg{width:16px;height:16px;flex:none}
 .mrtab.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(26,37,32,.06),0 4px 12px rgba(26,37,32,.11)}
 .mrstage{display:flex;justify-content:center;align-items:center;margin:0}
-/* 420px of an 800px screen, clipped, with the bottom edge dissolved into the
-   card rather than guillotined. The device scale is untouched, so every type
-   size inside the mock keeps the proportion it was drawn at. */
-.mrview{position:relative;width:263px;height:420px;overflow:hidden;flex:none}
-.mrview::after{content:"";position:absolute;left:0;right:0;bottom:0;height:104px;z-index:6;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,0) 0,var(--card) 88%)}
+/* The WHOLE handset, not 420px of it. 414 x 822 (an 800px screen inside 11px
+   of bezel) at scale .635 is 263 x 522, so the box is sized to exactly what
+   the transform draws and there is nothing left to clip or dissolve. The
+   device scale is untouched, so every type size inside the mock keeps the
+   proportion it was drawn at. */
+.mrview{position:relative;width:263px;height:522px;flex:none}
 .mrdev{position:absolute;top:0;left:0;width:414px;padding:11px;transform-origin:0 0;transform:scale(.635);background:linear-gradient(150deg,#3A3A3C,#1C1C1E 42%,#2C2C2E);border-radius:58px;box-shadow:0 22px 54px rgba(26,37,32,.22),inset 0 0 0 1px rgba(255,255,255,.1)}
 .mrscr{position:relative;height:800px;border-radius:47px;overflow:hidden;background:#000}
 .mrscr::before{content:"";position:absolute;top:12px;left:50%;transform:translateX(-50%);width:112px;height:33px;border-radius:999px;background:#000;z-index:5}
@@ -818,8 +822,11 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 @media (max-width:768px){
   .content{padding-inline:20px}
   .card{padding:20px}
-  .mroom{grid-template-columns:1fr;row-gap:16px}
-  .mrcopy,.mroom .mrstage,.mroom .mrcta{grid-column:1;grid-row:auto;align-self:auto}
+  .mroom{grid-template-columns:1fr;grid-template-rows:none;row-gap:16px}
+  .mrcopy,.mroom .mrstage,.mroom .mrcta,.mrart{grid-column:1;grid-row:auto;align-self:auto}
+  /* One column has no surplus row to fill, so the artwork stops being the
+     thing that fills it and becomes a band of its own. */
+  .mrart{height:auto;max-height:150px;order:0}
   .crowband{margin-top:8px}
   /* Touch targets. A 20px rating dot and a 21px text link are fine under a
      cursor and are not fine under a thumb. The dots keep their drawn size and
@@ -1318,6 +1325,8 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               </div>
 
               <button class="btn mrcta" type="button" id="mrcta">Join r/whollar</button>
+
+              <img class="mrart" src="/images/social/member-room-networks.webp" alt="" width="603" height="408" loading="lazy" decoding="async">
             </section>
         </div>
         </div>

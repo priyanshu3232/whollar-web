@@ -209,9 +209,14 @@ for (const vw of [1440, 1280]) {
       const g = m.rail.x - m.mcol.r;
       if (!near(g, 24, 1)) badGutter.push(`${st}: ${g}px`);
     }
-    /* 5: height ceilings. */
+    /* 5: height ceilings.
+       The member room's cap was 520 while its handset was 420px of an 800px
+       screen, clipped, with the bottom dissolved into the card. It shows the
+       WHOLE screen now (263 x 522 at scale .635), which with the card's own
+       padding is 572. 580 keeps this a regression guard on the next accidental
+       growth rather than a ceiling loose enough to stop catching one. */
     for (const card of m.cards) {
-      const cap = /member room/i.test(card.name) ? 520 : /Worth a read/i.test(card.name) ? 420 : 560;
+      const cap = /member room/i.test(card.name) ? 580 : /Worth a read/i.test(card.name) ? 420 : 560;
       if (card.h <= cap) continue;
       (TALL_OK.test(card.name) ? tallNoted : badTall).push(`${st}/${card.name} ${card.h}px > ${cap}`);
     }
