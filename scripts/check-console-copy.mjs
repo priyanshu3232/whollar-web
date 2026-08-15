@@ -32,7 +32,7 @@ const FILES = [
   'partner/core/session.js',
   'partner/core/time.js',
   'partner/core/format.js',
-  'partner/core/districts.js',
+  'partner/core/places.js',
   'partner/core/toast.js',
   'partner/core/modal.js',
   'partner/components/banner.js',
@@ -53,7 +53,7 @@ const FILES = [
   'partner/views/ticket.js',
   'partner/demo/fixtures.js',
   'scripts/qa-console.mjs',
-  'scripts/test-districts.mjs',
+  'scripts/test-places.mjs',
   'scripts/build-console.mjs',
 
   /* Not console files, but written after this gate existed and clean on day

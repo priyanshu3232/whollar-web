@@ -171,6 +171,27 @@ export var SPECS = {
 
   providerMe: { ok: 'bool', user: 'obj', org: 'obj?', approved: 'bool' },
 
+  /* The org inside providerMe, checked separately because the validator above
+     is flat and `org: 'obj?'` proves only that something arrived.
+
+     It proved nothing useful, and the gap shipped. orgs.contextFor() builds
+     this object and spells the company ORGNAME; the console read `org.name` in
+     six places, so every partner's Account screen said "Company: Not on file"
+     over a legal_name that was sitting in the table the whole time, and the
+     sidebar and greeting rendered a blank company. The fixtures spelled it
+     `name` as well, so the browser suite agreed with the bug and stayed green
+     across 145 assertions. This is the `closesAt` failure the campaign spec
+     below was written for, repeated one seam over: a shape two sides build
+     independently needs an assertion, not a convention. */
+  providerOrg: {
+    orgId: 'str',
+    orgName: 'str?',
+    role: 'str',
+    approvalStatus: 'str',
+    approved: 'bool',
+    name: ['absent']
+  },
+
   campaignList: { ok: 'bool', campaigns: 'arr', serverTime: 'int' },
 
   /* One campaign, checked per row. This spec exists because it was missing

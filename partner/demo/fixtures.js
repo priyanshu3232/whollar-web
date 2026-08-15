@@ -74,7 +74,11 @@
     return { firstName: 'Sam', lastName: 'Kaur', email: 'sam@northline.ca', userType: 'provider' };
   }
   function org(over) {
-    var o = { orgId: 'org-nl', name: 'Northline Internet', role: 'admin', emailDomain: 'northline.ca' };
+    /* orgs.contextFor()'s shape EXACTLY, orgName and not name. The old key
+       here agreed with the console's old bug, so the suite went green over an
+       Account screen that said "Company: Not on file". contract.js providerOrg
+       now refuses `name`, which is what keeps these two honest. */
+    var o = { orgId: 'org-nl', orgName: 'Northline Internet', role: 'admin', approvalStatus: 'approved', approved: true };
     for (var k in (over || {})) o[k] = over[k];
     return o;
   }
@@ -130,9 +134,14 @@
     /* The two 'soon' rows. They are a platform state, not a partner one, and
        until this pair existed nothing exercised that branch: no fixture, no
        "Queued for launch" row, and no check that the application counts
-       declared regions WITHOUT them. */
-    { region: 'Hamilton', slug: 'hamilton', status: 'soon', techs: ['fibre'], speed: '1 Gig', lead: '10 business days' },
-    { region: 'Ottawa', slug: 'ottawa', status: 'soon', techs: ['fibre'], speed: '1 Gig', lead: '10 business days' }
+       declared regions WITHOUT them.
+
+       Both name a REGION inside a queued city, not the city: since the picker
+       became city-then-region a bare "Hamilton" is a city with eight regions
+       under it and not something a partner can declare. scripts/test-places.mjs
+       is the gate that says so. */
+    { region: 'Downtown Hamilton', slug: 'downtown-hamilton', status: 'soon', techs: ['fibre'], speed: '1 Gig', lead: '10 business days' },
+    { region: 'Downtown Ottawa', slug: 'downtown-ottawa', status: 'soon', techs: ['fibre'], speed: '1 Gig', lead: '10 business days' }
   ];
 
   /* One order row. `addressLine` is present ONLY after the gate; the fixture

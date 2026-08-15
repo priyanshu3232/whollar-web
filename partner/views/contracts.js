@@ -251,7 +251,7 @@ function button(label) {
 function termsModal() {
   var S = get();
   var t = (S.contracts && S.contracts.terms) || {};
-  var org = (S.org && S.org.name) || 'Your company';
+  var org = (S.org && S.org.orgName) || 'Your company';
   return '<div class="mhead"><h3>Standard cohort terms · ' + esc(t.version || 'v1') + '</h3>'
     + '<button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
     + '<p class="msub">One agreement covers every auction, so every sealed bid is comparable and every household reads one page.</p>'

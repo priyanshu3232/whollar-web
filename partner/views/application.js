@@ -61,7 +61,7 @@ export function render() {
 function underReview(app) {
   var t = app.tasks || {};
   var complete = applicationComplete();
-  var org = (get().org && get().org.name) || (app.operatingName) || 'Your company';
+  var org = (get().org && get().org.orgName) || (app.operatingName) || 'Your company';
   var regions = get().coverage.filter(function (c) { return c.status !== 'soon'; }).length;
 
   function anyOf(keys, states) {
@@ -235,7 +235,7 @@ function documentsModal() {
 }
 
 function agreementModal() {
-  var org = (get().org && get().org.name) || 'Your company';
+  var org = (get().org && get().org.orgName) || 'Your company';
   return '<div class="mhead"><h3>Application agreement</h3>'
     + '<button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
     + '<p class="msub">The application-stage agreement only. The partner agreement signs at approval, and the standard cohort terms accept before your first bid.</p>'

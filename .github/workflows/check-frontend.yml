@@ -206,8 +206,8 @@ jobs:
       # is the half of that the browser cannot enforce: a fixture, a seed or a
       # campaign naming a region the vocabulary does not have renders perfectly
       # and matches nothing, which is the free-text bug arriving by post.
-      - name: Districts and everything that names one
-        run: node --test scripts/test-districts.mjs
+      - name: The coverage vocabulary and everything that names a region
+        run: node --test scripts/test-places.mjs
 
       # Em dashes and the banned terminology, scoped to the console files where
       # the count is currently zero. Scoped rather than repo-wide on purpose:

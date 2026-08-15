@@ -116,8 +116,9 @@ async function ctx(browser, { record = null, me = null, meStatus = 200, applicat
   return c;
 }
 
-const APPROVED = { ok: true, approved: true, user: { firstName: 'Sam', lastName: 'Kaur', email: 'sam@northline.ca' }, org: { name: 'Northline Internet', role: 'admin' } };
-const PENDING = { ok: true, approved: false, user: { firstName: 'Sam', lastName: 'Kaur', email: 'sam@northline.ca' }, org: { name: 'Northline Internet', role: 'admin' } };
+/* orgs.contextFor()'s shape, orgName and not name: see contract.js providerOrg. */
+const APPROVED = { ok: true, approved: true, user: { firstName: 'Sam', lastName: 'Kaur', email: 'sam@northline.ca' }, org: { orgId: 'org-nl', orgName: 'Northline Internet', role: 'admin', approvalStatus: 'approved', approved: true } };
+const PENDING = { ok: true, approved: false, user: { firstName: 'Sam', lastName: 'Kaur', email: 'sam@northline.ca' }, org: { orgId: 'org-nl', orgName: 'Northline Internet', role: 'admin', approvalStatus: 'pending', approved: false } };
 
 const browser = await chromium.launch();
 const errors = [];

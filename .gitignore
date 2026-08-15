@@ -20,3 +20,8 @@ admin-console/
 .membrane/
 skills-lock.json
 custom-skills/
+
+# Zoho Catalyst table exports pulled from the console for a look. These are
+# rows, not code: the one that prompted this line was provider_orgs, i.e. real
+# partner companies. Never commit one.
+catalyst-backend/Export_*.zip

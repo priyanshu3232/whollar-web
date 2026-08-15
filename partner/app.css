@@ -38,17 +38,20 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 /* frame */
 .app{display:grid;grid-template-columns:var(--panew) 1fr;min-height:100vh;transition:grid-template-columns .28s ease}
 .app.collapsed{grid-template-columns:var(--panec) 1fr}
-.pane{background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow:hidden}
+.pane{background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:var(--bannerh,0px);height:calc(100vh - var(--bannerh,0px));overflow:hidden}
 .pane__top{display:flex;align-items:center;gap:10px;padding:18px 18px 8px}
 .pane__top svg{width:36px;height:36px;flex:none}
 .pane__top b{font-family:var(--disp);font-weight:800;font-size:20px;white-space:nowrap}
 .roompill{margin:0 18px 10px;align-self:flex-start;font-size:11.5px;font-weight:700;color:var(--gold-deep);background:var(--gold-soft);border:1px solid #E8D6A8;border-radius:999px;padding:3px 11px;white-space:nowrap}
-.pnav{display:flex;flex-direction:column;gap:4px;padding:4px 12px;flex:1}
+/* The nav takes the slack and gives it back: on a short window it scrolls
+   itself rather than growing the pane, so the profile button below it stays
+   on screen instead of being clipped by the pane's overflow. */
+.pnav{display:flex;flex-direction:column;gap:4px;padding:4px 12px;flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin}
 .pnav button{display:flex;align-items:center;gap:12px;padding:10px 13px;border-radius:12px;font-size:14px;font-weight:600;color:#3A453E;text-align:left;white-space:nowrap;transition:background .15s}
 .pnav button svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .pnav button:hover{background:#EDE8DB}
 .pnav button.on{background:var(--tint);color:var(--forest2);box-shadow:inset 3px 0 0 var(--gold)}
-.pane__prof{display:flex;align-items:center;gap:10px;margin:8px 12px 14px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--card);text-align:left;transition:background .15s}
+.pane__prof{display:flex;flex:none;align-items:center;gap:10px;margin:8px 12px 14px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--card);text-align:left;transition:background .15s}
 .pane__prof:hover{background:#EDE8DB}
 .pane__prof.on{background:var(--tint);border-color:var(--tintb)}
 .ava2{width:34px;height:34px;border-radius:10px;background:linear-gradient(140deg,var(--forest),var(--forest2));color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700;font-family:var(--disp);flex:none}
@@ -61,7 +64,7 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .app.collapsed .pane__prof{justify-content:center;padding:10px 0;border:0;background:none;margin:8px 6px 12px}
 .app.collapsed .pane__prof .pp,.app.collapsed .pane__prof .chev{display:none}
 .overlay{display:none}
-.top{display:flex;align-items:center;gap:16px;padding:13px clamp(16px,3vw,30px);background:rgba(241,237,226,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30}
+.top{display:flex;align-items:center;gap:16px;padding:13px clamp(16px,3vw,30px);background:rgba(241,237,226,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);position:sticky;top:var(--bannerh,0px);z-index:30}
 .burger{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:#3A453E}
 .burger:hover{background:#EDE8DB}
 .burger svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
@@ -596,7 +599,7 @@ tr.exp + tr.dwr{display:table-row}
 .gated .top .search{visibility:hidden}
 @media (max-width:940px){
   .app,.app.collapsed{grid-template-columns:1fr}
-  .pane{position:fixed;left:0;top:0;bottom:0;width:min(78vw,300px);z-index:80;transform:translateX(-102%);transition:transform .28s ease;box-shadow:14px 0 40px rgba(18,55,43,.18)}
+  .pane{position:fixed;left:0;top:var(--bannerh,0px);bottom:0;height:auto;width:min(78vw,300px);z-index:80;transform:translateX(-102%);transition:transform .28s ease;box-shadow:14px 0 40px rgba(18,55,43,.18)}
   .app.paneopen .pane{transform:translateX(0)}
   .app.collapsed .pane__top b,.app.collapsed .pnav button span,.app.collapsed .roompill{display:initial}
   .app.collapsed .pnav button{justify-content:flex-start;padding:10px 13px}
@@ -633,7 +636,15 @@ tr.exp + tr.dwr{display:table-row}
 .savedot::before{content:"\2713 ";}
 
 /* The banner. The review variant is informational, not an alert, so it does
-   not borrow the failure colour. */
+   not borrow the failure colour.
+
+   The bar holds the top of the frame rather than scrolling off it: it is the
+   one thing on every view, and the pane and the header both offset from its
+   height (--bannerh, written by components/banner.js). Full bleed, because a
+   rounded card floating at the top of the viewport reads as a dismissed
+   toast. Empty host, no bar and no offset. */
+#mainbanner:not(:empty){position:sticky;top:0;z-index:60}
+#mainbanner .alertbar{border-radius:0;margin-bottom:0}
 .alertbar.review{background:var(--forest);color:#EAF2EC}
 .bannerlink{color:#fff;text-decoration:underline}
 

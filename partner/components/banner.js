@@ -15,29 +15,50 @@
 import { get } from '../core/state.js';
 import { esc } from '../core/format.js';
 
+/* The bar is sticky, so the nav pane and the view header both start below it
+   and the pane is exactly one viewport minus the bar. Nothing else can know
+   that height: the copy wraps to a second line on a narrow window, and a
+   hardcoded number would push the pane's profile button off screen again.
+   Measured here, where the only code that changes the bar lives. */
+function measure(host) {
+  var h = host.firstElementChild ? Math.ceil(host.getBoundingClientRect().height) : 0;
+  document.documentElement.style.setProperty('--bannerh', h + 'px');
+}
+
 export function render() {
   var host = document.getElementById('mainbanner');
   if (!host) return;
   var S = get();
+  var html = '';
 
   var billing = S.billing;
   if (billing && billing.state === 'failed') {
-    host.innerHTML = '<div class="alertbar">'
+    html = '<div class="alertbar">'
       + '<b>' + esc(billing.invoice ? 'Statement ' + billing.invoice + ' payment failed.' : 'Your payment method failed.') + '</b> '
       + 'Update your billing method: bidding pauses 14 days after a failed statement. '
       + '<button class="tlink bannerlink" type="button" data-action="nav" data-view="billing">Update method →</button>'
       + '</div>';
-    return;
-  }
-
-  if (!S.approved) {
-    host.innerHTML = '<div class="alertbar review">'
+  } else if (!S.approved) {
+    html = '<div class="alertbar review">'
       + '<b>Your application is with our team.</b> You can look around and set up your account, '
       + 'but cohorts and bidding open when you are approved. Nothing is owed at any point. '
       + '<button class="tlink bannerlink" type="button" data-action="nav" data-view="pending">See where it stands</button>'
       + '</div>';
-    return;
   }
 
-  host.innerHTML = '';
+  host.innerHTML = html;
+  measure(host);
+}
+
+/* A render is not the only thing that changes the bar's height: a resize
+   rewraps the copy, and a late webfont reflows it. Watch the element rather
+   than the window, which covers both. */
+export function mount() {
+  var host = document.getElementById('mainbanner');
+  if (!host) return;
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(function () { measure(host); }).observe(host);
+    return;
+  }
+  window.addEventListener('resize', function () { measure(host); });
 }

@@ -383,6 +383,27 @@
 
     providerMe: { ok: 'bool', user: 'obj', org: 'obj?', approved: 'bool' },
 
+    /* The org inside providerMe, checked separately because the validator above
+       is flat and `org: 'obj?'` proves only that something arrived.
+
+       It proved nothing useful, and the gap shipped. orgs.contextFor() builds
+       this object and spells the company ORGNAME; the console read `org.name` in
+       six places, so every partner's Account screen said "Company: Not on file"
+       over a legal_name that was sitting in the table the whole time, and the
+       sidebar and greeting rendered a blank company. The fixtures spelled it
+       `name` as well, so the browser suite agreed with the bug and stayed green
+       across 145 assertions. This is the `closesAt` failure the campaign spec
+       below was written for, repeated one seam over: a shape two sides build
+       independently needs an assertion, not a convention. */
+    providerOrg: {
+      orgId: 'str',
+      orgName: 'str?',
+      role: 'str',
+      approvalStatus: 'str',
+      approved: 'bool',
+      name: ['absent']
+    },
+
     campaignList: { ok: 'bool', campaigns: 'arr', serverTime: 'int' },
 
     /* One campaign, checked per row. This spec exists because it was missing
@@ -1189,6 +1210,11 @@
   function revalidate() {
     return api.me().then(function (r) {
       check('providerMe', r);
+      /* The org's own keys, and not only that an org arrived. See contract.js
+         providerOrg: `name` versus `orgName` cost every partner their company
+         on the Account screen, silently, because nothing asserted the inside of
+         this object. */
+      if (r && r.org) check('providerOrg', r.org);
       set({
         user: r.user || null,
         org: r.org || null,
@@ -1591,34 +1617,56 @@
   var __ns1 = __require("core/format.js");
   var esc = __ns1.esc;
 
+  /* The bar is sticky, so the nav pane and the view header both start below it
+     and the pane is exactly one viewport minus the bar. Nothing else can know
+     that height: the copy wraps to a second line on a narrow window, and a
+     hardcoded number would push the pane's profile button off screen again.
+     Measured here, where the only code that changes the bar lives. */
+  function measure(host) {
+    var h = host.firstElementChild ? Math.ceil(host.getBoundingClientRect().height) : 0;
+    document.documentElement.style.setProperty('--bannerh', h + 'px');
+  }
+
   function render() {
     var host = document.getElementById('mainbanner');
     if (!host) return;
     var S = get();
+    var html = '';
 
     var billing = S.billing;
     if (billing && billing.state === 'failed') {
-      host.innerHTML = '<div class="alertbar">'
+      html = '<div class="alertbar">'
         + '<b>' + esc(billing.invoice ? 'Statement ' + billing.invoice + ' payment failed.' : 'Your payment method failed.') + '</b> '
         + 'Update your billing method: bidding pauses 14 days after a failed statement. '
         + '<button class="tlink bannerlink" type="button" data-action="nav" data-view="billing">Update method →</button>'
         + '</div>';
-      return;
-    }
-
-    if (!S.approved) {
-      host.innerHTML = '<div class="alertbar review">'
+    } else if (!S.approved) {
+      html = '<div class="alertbar review">'
         + '<b>Your application is with our team.</b> You can look around and set up your account, '
         + 'but cohorts and bidding open when you are approved. Nothing is owed at any point. '
         + '<button class="tlink bannerlink" type="button" data-action="nav" data-view="pending">See where it stands</button>'
         + '</div>';
-      return;
     }
 
-    host.innerHTML = '';
+    host.innerHTML = html;
+    measure(host);
+  }
+
+  /* A render is not the only thing that changes the bar's height: a resize
+     rewraps the copy, and a late webfont reflows it. Watch the element rather
+     than the window, which covers both. */
+  function mount() {
+    var host = document.getElementById('mainbanner');
+    if (!host) return;
+    if (typeof ResizeObserver === 'function') {
+      new ResizeObserver(function () { measure(host); }).observe(host);
+      return;
+    }
+    window.addEventListener('resize', function () { measure(host); });
   }
 
   __exports.render = render;
+  __exports.mount = mount;
   };
 
   /* ==================================================================
@@ -1887,7 +1935,7 @@
   function underReview(app) {
     var t = app.tasks || {};
     var complete = applicationComplete();
-    var org = (get().org && get().org.name) || (app.operatingName) || 'Your company';
+    var org = (get().org && get().org.orgName) || (app.operatingName) || 'Your company';
     var regions = get().coverage.filter(function (c) { return c.status !== 'soon'; }).length;
 
     function anyOf(keys, states) {
@@ -2061,7 +2109,7 @@
   }
 
   function agreementModal() {
-    var org = (get().org && get().org.name) || 'Your company';
+    var org = (get().org && get().org.orgName) || 'Your company';
     return '<div class="mhead"><h3>Application agreement</h3>'
       + '<button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
       + '<p class="msub">The application-stage agreement only. The partner agreement signs at approval, and the standard cohort terms accept before your first bid.</p>'
@@ -2302,7 +2350,7 @@
 
     var sub = document.getElementById('acct-sub');
     if (sub) {
-      sub.textContent = [org.name, S.approved ? 'Founding partner' : 'Application under review']
+      sub.textContent = [org.orgName, S.approved ? 'Founding partner' : 'Application under review']
         .filter(Boolean).join(' · ');
     }
 
@@ -2313,7 +2361,7 @@
       + '<section class="card" aria-label="Organization">'
       + '<span class="eyebrow">Organization</span><h3>Who we have on file</h3>'
       + '<ul class="pi">'
-      + row('Company', org.name)
+      + row('Company', org.orgName)
       + row('Approval', S.approved ? 'Approved' : 'Under review')
       + row('Signed in as', [user.firstName, user.lastName].filter(Boolean).join(' '))
       + row('Email', user.email)
@@ -2340,7 +2388,7 @@
     var S = get();
     var first = String((S.user && S.user.firstName) || (S.partner && S.partner.firstName) || '').trim();
     var last = String((S.user && S.user.lastName) || '').trim();
-    var org = String((S.org && S.org.name) || (S.partner && S.partner.org) || '').trim();
+    var org = String((S.org && S.org.orgName) || (S.partner && S.partner.org) || '').trim();
     var role = (S.org && S.org.role) || (S.partner && S.partner.role) || '';
 
     var h = new Date().getHours();
@@ -5743,7 +5791,7 @@
   function termsModal() {
     var S = get();
     var t = (S.contracts && S.contracts.terms) || {};
-    var org = (S.org && S.org.name) || 'Your company';
+    var org = (S.org && S.org.orgName) || 'Your company';
     return '<div class="mhead"><h3>Standard cohort terms · ' + esc(t.version || 'v1') + '</h3>'
       + '<button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
       + '<p class="msub">One agreement covers every auction, so every sealed bid is comparable and every household reads one page.</p>'
@@ -6864,7 +6912,7 @@
   var startTicker = __ns7.startTicker;
 
   var __ns8 = __require("components/banner.js");
-  var renderBanner = __ns8.render;
+  var renderBanner = __ns8.render, mountBanner = __ns8.mount;
   var __ns9 = __require("views/overview.js");
   var renderOverview = __ns9.render;
   var __ns10 = __require("views/desk.js");
@@ -7036,6 +7084,7 @@
     setStrict(location.hostname === 'localhost' || location.hostname === '127.0.0.1');
 
     mountActions();
+    mountBanner();
     mountModal();
     mountRouter();
     mountSession();

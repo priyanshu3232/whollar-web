@@ -21,7 +21,7 @@ import { mount as mountModal } from './core/modal.js';
 import { VIEWS, go, current, onChange, mount as mountRouter, setGated } from './core/router.js';
 import { startTicker } from './core/time.js';
 
-import { render as renderBanner } from './components/banner.js';
+import { render as renderBanner, mount as mountBanner } from './components/banner.js';
 import { render as renderOverview } from './views/overview.js';
 import { render as renderDesk, mount as mountDesk } from './views/desk.js';
 import { mount as mountTicket } from './views/ticket.js';
@@ -181,6 +181,7 @@ function start(partner) {
   setStrict(location.hostname === 'localhost' || location.hostname === '127.0.0.1');
 
   mountActions();
+  mountBanner();
   mountModal();
   mountRouter();
   mountSession();

@@ -61,6 +61,11 @@ export function authFailed(err) {
 export function revalidate() {
   return api.me().then(function (r) {
     check('providerMe', r);
+    /* The org's own keys, and not only that an org arrived. See contract.js
+       providerOrg: `name` versus `orgName` cost every partner their company
+       on the Account screen, silently, because nothing asserted the inside of
+       this object. */
+    if (r && r.org) check('providerOrg', r.org);
     set({
       user: r.user || null,
       org: r.org || null,

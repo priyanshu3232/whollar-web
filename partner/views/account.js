@@ -54,7 +54,7 @@ export function render() {
 
   var sub = document.getElementById('acct-sub');
   if (sub) {
-    sub.textContent = [org.name, S.approved ? 'Founding partner' : 'Application under review']
+    sub.textContent = [org.orgName, S.approved ? 'Founding partner' : 'Application under review']
       .filter(Boolean).join(' · ');
   }
 
@@ -65,7 +65,7 @@ export function render() {
     + '<section class="card" aria-label="Organization">'
     + '<span class="eyebrow">Organization</span><h3>Who we have on file</h3>'
     + '<ul class="pi">'
-    + row('Company', org.name)
+    + row('Company', org.orgName)
     + row('Approval', S.approved ? 'Approved' : 'Under review')
     + row('Signed in as', [user.firstName, user.lastName].filter(Boolean).join(' '))
     + row('Email', user.email)
@@ -92,7 +92,7 @@ export function paintChrome() {
   var S = get();
   var first = String((S.user && S.user.firstName) || (S.partner && S.partner.firstName) || '').trim();
   var last = String((S.user && S.user.lastName) || '').trim();
-  var org = String((S.org && S.org.name) || (S.partner && S.partner.org) || '').trim();
+  var org = String((S.org && S.org.orgName) || (S.partner && S.partner.org) || '').trim();
   var role = (S.org && S.org.role) || (S.partner && S.partner.role) || '';
 
   var h = new Date().getHours();
