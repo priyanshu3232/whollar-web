@@ -15,10 +15,30 @@ const datastore = require('./datastore');
 const USERS = 'users';
 const IDENTITIES = 'auth_identities';
 
-const USER_COLUMNS = ['ROWID', 'user_id', 'email_normalized', 'email_display',
+/**
+ * TWO LISTS, and this is the one place in the codebase where that pattern is
+ * not a convenience but an outage guard.
+ *
+ * Tables here are created BY HAND (there is no DDL API), so code and schema
+ * deploy separately and in either order, and asking ZCQL for a column that
+ * does not exist throws. Every authenticated request in the system reads a
+ * user, so a projection naming one column the live table has not got does not
+ * degrade one screen: it returns 500 from sign-in, from the session load, and
+ * therefore from every route behind it. That is a total auth outage caused by
+ * a column nothing on the sign-in path even reads.
+ *
+ * BASE is what authentication genuinely needs. The two newest columns are
+ * additions from later work (`referral_code` from the referral system,
+ * `crm_contact_id` written back by crm-sync), and neither is load-bearing for
+ * letting somebody in. They are tried first and dropped if the table has not
+ * caught up. The consequence of the fallback is a referral not being credited
+ * on that read, which is a bug worth having instead of nobody being able to
+ * sign in at all.
+ */
+const USER_COLUMNS_BASE = ['ROWID', 'user_id', 'email_normalized', 'email_display',
   'first_name', 'last_name', 'user_type', 'status',
-  'postal_code', 'fsa', 'province_code', 'phone', 'referral_code',
-  'crm_contact_id'];
+  'postal_code', 'fsa', 'province_code', 'phone'];
+const USER_COLUMNS = USER_COLUMNS_BASE.concat(['referral_code', 'crm_contact_id']);
 
 /**
  * The signup fields that are not identity: everything the waitlist form
@@ -85,11 +105,36 @@ function firstNameFrom(email, given) {
   return local ? titleCase(local).slice(0, 100) : null;
 }
 
+/**
+ * One user, read with the full projection and retried with the base one.
+ *
+ * The retry is narrow on purpose: it re-runs the same lookup with fewer
+ * columns, so a genuinely broken table still throws on the second attempt and
+ * the caller still sees the failure. What it will not do is turn a missing
+ * optional column into a sign-in outage. The miss is logged, once per process
+ * is not worth the machinery, so every time: an auth path quietly running
+ * degraded is exactly the thing that should be noisy.
+ */
+async function readUser(catalystApp, column, value) {
+  try {
+    return await datastore.findBy(catalystApp, USERS, column, value, USER_COLUMNS);
+  } catch (err) {
+    const row = await datastore.findBy(catalystApp, USERS, column, value, USER_COLUMNS_BASE);
+    console.error(JSON.stringify({
+      level: 'error',
+      message: 'users read fell back to the base projection',
+      detail: String((err && err.message) || err).slice(0, 200),
+      missing_one_of: ['referral_code', 'crm_contact_id'],
+    }));
+    return row;
+  }
+}
+
 const findByEmail = (catalystApp, email) =>
-  datastore.findBy(catalystApp, USERS, 'email_normalized', normalizeEmail(email), USER_COLUMNS);
+  readUser(catalystApp, 'email_normalized', normalizeEmail(email));
 
 const findById = (catalystApp, userId) =>
-  datastore.findBy(catalystApp, USERS, 'user_id', userId, USER_COLUMNS);
+  readUser(catalystApp, 'user_id', userId);
 
 /**
  * Create a user, or return the existing one if a concurrent request won.
@@ -215,7 +260,7 @@ async function touchLastLogin(catalystApp, user) {
 }
 
 module.exports = {
-  USERS, IDENTITIES, USER_COLUMNS,
+  USERS, IDENTITIES, USER_COLUMNS, USER_COLUMNS_BASE,
   normalizeEmail, isEmail, firstNameFrom, profileFrom,
   findByEmail, findById, findOrCreate,
   linkIdentity, findByIdentity, touchLastLogin, setStatus, updateProfile,
