@@ -18,10 +18,11 @@ whollar-member-dashboard-v8.html
 # (its features were ported in), no login guard, must never deploy.
 Consumerdashboard.html
 
-# The v3 partner console, superseded on 2026-08-15 by the v12 transplant now at
-# provider-dashboard.html. Kept in the repo until sign-off so the change is easy
-# to reverse by hand, and not published: it carries the full signed-in surface,
-# and cleanUrls would otherwise serve a second, stale console at its own path.
+# The v3 partner console. Superseded on 2026-08-15 by the v12 transplant that
+# briefly ran at /provider, and both are now retired: the real console is
+# partner/. Kept in the repo until sign-off so the change is easy to reverse by
+# hand, and not published: it carries the full signed-in surface, and cleanUrls
+# would otherwise serve a second, stale console at its own path.
 provider-dashboard.legacy.html
 
 # Reference prototypes being ported into real pages. Same reason again, and
