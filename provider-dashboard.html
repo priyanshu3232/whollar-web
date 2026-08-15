@@ -514,6 +514,58 @@ tr.exp + tr.dwr{display:table-row}
   .brief{border-right:0;border-bottom:1px solid var(--line)}
   .funnel{grid-template-columns:repeat(2,1fr)}
 }
+/* ===== v13 additions: coverage city and region picker ===== */
+.cvgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.cvfield{min-width:0}
+.cvfield label{display:block;font-size:11px;font-weight:700;color:var(--sub);margin-bottom:6px}
+.cvfield label em{font-style:normal;font-weight:500}
+.cvcombo{position:relative}
+.cvbtn{width:100%;display:flex;align-items:center;gap:8px;text-align:left;font:inherit;font-size:13px;border:1.5px solid var(--line);border-radius:10px;background:#fff;padding:9px 12px;cursor:pointer;color:var(--ink)}
+.cvbtn:hover{border-color:#C9C3B2}
+.cvcombo.open .cvbtn{border-color:var(--gold)}
+.cvcombo.off .cvbtn{background:#F4F2EB;color:var(--sub);cursor:not-allowed;border-color:var(--line)}
+.cvlab{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cvlab.ph{color:var(--sub)}
+.cvcar{flex:none;color:var(--sub);font-size:10px;transition:transform .15s}
+.cvcombo.open .cvcar{transform:rotate(180deg)}
+.cvpanel{position:absolute;z-index:40;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1.5px solid var(--line);border-radius:12px;box-shadow:0 16px 38px rgba(18,55,43,.16);padding:8px;display:none}
+.cvcombo.open .cvpanel{display:block}
+.cvsearch{width:100%;font:inherit;font-size:12.5px;border:1.5px solid var(--line);border-radius:9px;padding:7px 10px;background:#FBFAF5;margin-bottom:6px}
+.cvsearch:focus{outline:none;border-color:var(--gold)}
+.cvlist{max-height:262px;overflow-y:auto;scrollbar-width:thin}
+.cvgroup{font-size:9.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--sub);padding:9px 10px 4px;position:sticky;top:0;background:#fff}
+.cvitem{width:100%;display:flex;align-items:center;gap:8px;text-align:left;font:inherit;font-size:13px;border:0;background:none;border-radius:8px;padding:8px 10px;cursor:pointer;color:var(--ink)}
+.cvitem:hover{background:var(--tint)}
+.cvitem .cvsub{color:var(--sub);font-size:11.5px}
+.cvitem .cvtag{margin-left:auto;flex:none;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--forest2);background:var(--tint);border-radius:20px;padding:2px 8px}
+.cvitem .cvtag.soon{color:var(--gold-deep);background:var(--gold-soft)}
+.cvitem .cvchk{margin-left:auto;flex:none;color:var(--forest2);font-weight:700}
+.cvbox{flex:none;width:17px;height:17px;border:1.5px solid var(--line);border-radius:5px;display:grid;place-items:center;font-size:11px;line-height:1;color:#fff;background:#fff}
+.cvitem.on{font-weight:650}
+.cvitem.on .cvbox{background:var(--forest2);border-color:var(--forest2)}
+.cvempty{padding:14px 10px;color:var(--sub);font-size:12.5px;text-align:center}
+.cvresolved{margin-top:12px;border-top:1px dashed var(--line);padding-top:11px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:12.5px;color:var(--sub)}
+.cvresolved b{font-family:var(--mono);font-size:12px;color:var(--forest2)}
+.cvrow2{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-top:14px}
+.cvchips{display:flex;gap:7px;flex-wrap:wrap}
+.cvchip{font:inherit;font-size:12px;border:1.5px solid var(--line);background:#fff;border-radius:20px;padding:6px 13px;cursor:pointer;color:#3A453E}
+.cvchip.on{border-color:var(--forest2);background:var(--tint);color:var(--forest2);font-weight:650}
+.cvspeedw{min-width:210px}
+.cvsmall{display:block;font-size:11px;color:var(--sub);margin-top:10px;line-height:1.5}
+.covrm{flex:none;border:0;background:#F1EDE0;color:#8C3B1B;width:26px;height:26px;border-radius:8px;font-size:15px;line-height:1;cursor:pointer}
+.covrm:hover{background:#E8DFC9}
+.pill.queued{background:#EFEAD9;color:var(--sub)}
+.covls{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.covitem{border:1px solid var(--line);border-radius:12px;background:#fff;padding:12px 14px}
+.covhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.covhead .cvmain{flex:1;min-width:160px}
+.covhead .cvmain b{display:block;font-family:var(--disp);font-weight:750;font-size:14px}
+.covhead .cvmain small{display:block;font-size:11.5px;color:var(--sub);margin-top:2px}
+.covhead .cvsvc{font-family:var(--mono);font-size:11px;color:var(--sub);max-width:34ch}
+.covhead .cvopen{font-family:var(--mono);font-size:11px;color:var(--forest2);white-space:nowrap}
+.covempty{border:1px dashed var(--line);border-radius:12px;padding:20px;text-align:center;color:var(--sub);font-size:13px;margin-top:12px}
+@media (max-width:760px){.cvgrid{grid-template-columns:1fr}.cvrow2{align-items:stretch}.cvspeedw{min-width:0;width:100%}}
+
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -705,18 +757,7 @@ tr.exp + tr.dwr{display:table-row}
       <!-- ============ coverage ============ -->
       <section class="view" data-v="coverage">
         <div class="vhead"><h2>Coverage</h2><p>Starting with the Greater Toronto Area: declare where you serve and what you can render there. Other regions open as their cohorts form; declaring now queues you for launch.</p></div>
-        
-          <section class="card" style="padding-top:14px" aria-label="Your regions">
-            <div class="twrap">
-            <table class="tbl">
-              <thead><tr><th>Region</th><th>Status</th><th>Services declared</th><th class="num">Open</th><th></th></tr></thead>
-              <tbody id="covrows"></tbody>
-            </table>
-            </div>
-            <p class="fnote">State the areas you want to bid in and the services you can render there. New regions verify against serviceability before auctions appear.</p>
-          </section>
-          
-        
+        <div id="covbody"></div>
 </section>
 
       <!-- ============ delivery ============ -->
@@ -3061,6 +3102,251 @@ document.addEventListener('change',function(e){
   var form=e.target.closest('.bidform');if(!form)return;
   var w=$('.mechtxtw',form);if(w)w.hidden=e.target.value!=='custom';
 });
+
+/* ================= v13: coverage city and region picker ================= */
+/* Replaces the free-text "Add a region you want to bid in" row with a
+   controlled two-step pick: a searchable city list grouped by province, then
+   the regions inside that city, which are the unit a cohort actually runs in.
+   A declared row carries its city and province, so the table reads back
+   exactly Region, City, Province. Nothing else on Coverage changes: the
+   edit-services row, its chips, and its save button are the same markup and
+   are still driven by the same handlers. */
+
+var PLACES=[{"city":"Brampton","province":"Ontario","launch":true,"regions":["Brampton Central","Brampton East","Brampton West"]},{"city":"Markham","province":"Ontario","launch":true,"regions":["Markham Centre","Markham North","Markham South"]},{"city":"Mississauga","province":"Ontario","launch":true,"regions":["Mississauga City Centre","Mississauga Lakeshore","Mississauga West","Mississauga East","Mississauga North"]},{"city":"Richmond Hill","province":"Ontario","launch":true,"regions":["Richmond Hill South","Richmond Hill North"]},{"city":"Toronto","province":"Ontario","launch":true,"regions":["Scarborough Southwest","Scarborough Centre","Scarborough East","Scarborough North","North York West","North York Central","North York East","North York South","Etobicoke Lakeshore","Etobicoke Centre","Etobicoke North","East York","York","Downtown Core","Downtown East","Downtown West","Midtown","The Annex","West End","East End"]},{"city":"Vaughan","province":"Ontario","launch":true,"regions":["Vaughan Woodbridge","Maple and VMC","Thornhill Vaughan","Kleinburg"]},{"city":"Ajax","province":"Ontario","launch":false,"regions":["Ajax"]},{"city":"Arnprior","province":"Ontario","launch":false,"regions":["Arnprior"]},{"city":"Aurora","province":"Ontario","launch":false,"regions":["Aurora"]},{"city":"Barrie","province":"Ontario","launch":false,"regions":["Barrie"]},{"city":"Belleville","province":"Ontario","launch":false,"regions":["Belleville"]},{"city":"Bracebridge","province":"Ontario","launch":false,"regions":["Bracebridge"]},{"city":"Bradford","province":"Ontario","launch":false,"regions":["Bradford"]},{"city":"Brant","province":"Ontario","launch":false,"regions":["Brant"]},{"city":"Brantford","province":"Ontario","launch":false,"regions":["Brantford"]},{"city":"Brockville","province":"Ontario","launch":false,"regions":["Brockville"]},{"city":"Burlington","province":"Ontario","launch":false,"regions":["Burlington"]},{"city":"Caledon","province":"Ontario","launch":false,"regions":["Caledon"]},{"city":"Cambridge","province":"Ontario","launch":false,"regions":["Cambridge"]},{"city":"Carleton Place","province":"Ontario","launch":false,"regions":["Carleton Place"]},{"city":"Chatham-Kent","province":"Ontario","launch":false,"regions":["Chatham-Kent"]},{"city":"Clarington","province":"Ontario","launch":false,"regions":["Clarington"]},{"city":"Cobourg","province":"Ontario","launch":false,"regions":["Cobourg"]},{"city":"Collingwood","province":"Ontario","launch":false,"regions":["Collingwood"]},{"city":"Cornwall","province":"Ontario","launch":false,"regions":["Cornwall"]},{"city":"East Gwillimbury","province":"Ontario","launch":false,"regions":["East Gwillimbury"]},{"city":"Elliot Lake","province":"Ontario","launch":false,"regions":["Elliot Lake"]},{"city":"Fort Erie","province":"Ontario","launch":false,"regions":["Fort Erie"]},{"city":"Gananoque","province":"Ontario","launch":false,"regions":["Gananoque"]},{"city":"Georgina","province":"Ontario","launch":false,"regions":["Georgina"]},{"city":"Goderich","province":"Ontario","launch":false,"regions":["Goderich"]},{"city":"Gravenhurst","province":"Ontario","launch":false,"regions":["Gravenhurst"]},{"city":"Greater Sudbury","province":"Ontario","launch":false,"regions":["Greater Sudbury"]},{"city":"Grimsby","province":"Ontario","launch":false,"regions":["Grimsby"]},{"city":"Guelph","province":"Ontario","launch":false,"regions":["Guelph"]},{"city":"Haldimand","province":"Ontario","launch":false,"regions":["Haldimand"]},{"city":"Halton Hills","province":"Ontario","launch":false,"regions":["Halton Hills"]},{"city":"Hamilton","province":"Ontario","launch":false,"regions":["Downtown Hamilton","Hamilton East End","Hamilton Mountain","Stoney Creek","Dundas","Ancaster","Flamborough","Glanbrook"]},{"city":"Huntsville","province":"Ontario","launch":false,"regions":["Huntsville"]},{"city":"Ingersoll","province":"Ontario","launch":false,"regions":["Ingersoll"]},{"city":"Innisfil","province":"Ontario","launch":false,"regions":["Innisfil"]},{"city":"Kenora","province":"Ontario","launch":false,"regions":["Kenora"]},{"city":"Kincardine","province":"Ontario","launch":false,"regions":["Kincardine"]},{"city":"King City","province":"Ontario","launch":false,"regions":["King City"]},{"city":"Kingston","province":"Ontario","launch":false,"regions":["Kingston"]},{"city":"Kitchener","province":"Ontario","launch":false,"regions":["Kitchener"]},{"city":"London","province":"Ontario","launch":false,"regions":["Downtown London","North London","East London","South London","West London"]},{"city":"Midland","province":"Ontario","launch":false,"regions":["Midland"]},{"city":"Milton","province":"Ontario","launch":false,"regions":["Milton"]},{"city":"Newmarket","province":"Ontario","launch":false,"regions":["Newmarket"]},{"city":"Niagara Falls","province":"Ontario","launch":false,"regions":["Niagara Falls"]},{"city":"Niagara-on-the-Lake","province":"Ontario","launch":false,"regions":["Niagara-on-the-Lake"]},{"city":"Norfolk","province":"Ontario","launch":false,"regions":["Norfolk"]},{"city":"North Bay","province":"Ontario","launch":false,"regions":["North Bay"]},{"city":"Oakville","province":"Ontario","launch":false,"regions":["Oakville"]},{"city":"Orillia","province":"Ontario","launch":false,"regions":["Orillia"]},{"city":"Oshawa","province":"Ontario","launch":false,"regions":["Oshawa"]},{"city":"Ottawa","province":"Ontario","launch":false,"regions":["Downtown Ottawa","Centretown","Kanata","Nepean","Barrhaven","Orleans","Gloucester","Vanier","Stittsville","Riverside South","Alta Vista"]},{"city":"Owen Sound","province":"Ontario","launch":false,"regions":["Owen Sound"]},{"city":"Parry Sound","province":"Ontario","launch":false,"regions":["Parry Sound"]},{"city":"Pembroke","province":"Ontario","launch":false,"regions":["Pembroke"]},{"city":"Perth","province":"Ontario","launch":false,"regions":["Perth"]},{"city":"Petawawa","province":"Ontario","launch":false,"regions":["Petawawa"]},{"city":"Peterborough","province":"Ontario","launch":false,"regions":["Peterborough"]},{"city":"Pickering","province":"Ontario","launch":false,"regions":["Pickering"]},{"city":"Port Hope","province":"Ontario","launch":false,"regions":["Port Hope"]},{"city":"Quinte West","province":"Ontario","launch":false,"regions":["Quinte West"]},{"city":"Renfrew","province":"Ontario","launch":false,"regions":["Renfrew"]},{"city":"Sarnia","province":"Ontario","launch":false,"regions":["Sarnia"]},{"city":"Sault Ste. Marie","province":"Ontario","launch":false,"regions":["Sault Ste. Marie"]},{"city":"Simcoe","province":"Ontario","launch":false,"regions":["Simcoe"]},{"city":"Smiths Falls","province":"Ontario","launch":false,"regions":["Smiths Falls"]},{"city":"St. Catharines","province":"Ontario","launch":false,"regions":["St. Catharines"]},{"city":"Stratford","province":"Ontario","launch":false,"regions":["Stratford"]},{"city":"Thunder Bay","province":"Ontario","launch":false,"regions":["Thunder Bay"]},{"city":"Tillsonburg","province":"Ontario","launch":false,"regions":["Tillsonburg"]},{"city":"Timmins","province":"Ontario","launch":false,"regions":["Timmins"]},{"city":"Walkerton","province":"Ontario","launch":false,"regions":["Walkerton"]},{"city":"Wasaga Beach","province":"Ontario","launch":false,"regions":["Wasaga Beach"]},{"city":"Waterloo","province":"Ontario","launch":false,"regions":["Waterloo"]},{"city":"Welland","province":"Ontario","launch":false,"regions":["Welland"]},{"city":"Whitby","province":"Ontario","launch":false,"regions":["Whitby"]},{"city":"Whitchurch-Stouffville","province":"Ontario","launch":false,"regions":["Whitchurch-Stouffville"]},{"city":"Windsor","province":"Ontario","launch":false,"regions":["Downtown Windsor","East Windsor","South Windsor","Riverside","Walkerville"]},{"city":"Woodstock","province":"Ontario","launch":false,"regions":["Woodstock"]},{"city":"Abbotsford","province":"British Columbia","launch":false,"regions":["Abbotsford West","Abbotsford East","Clearbrook"]},{"city":"Agassiz","province":"British Columbia","launch":false,"regions":["Agassiz"]},{"city":"Burnaby","province":"British Columbia","launch":false,"regions":["Metrotown","Brentwood","Lougheed","Edmonds"]},{"city":"Campbell River","province":"British Columbia","launch":false,"regions":["Campbell River"]},{"city":"Castlegar","province":"British Columbia","launch":false,"regions":["Castlegar"]},{"city":"Central Saanich","province":"British Columbia","launch":false,"regions":["Central Saanich"]},{"city":"Chilliwack","province":"British Columbia","launch":false,"regions":["Chilliwack"]},{"city":"Colwood","province":"British Columbia","launch":false,"regions":["Colwood"]},{"city":"Comox","province":"British Columbia","launch":false,"regions":["Comox"]},{"city":"Coquitlam","province":"British Columbia","launch":false,"regions":["Coquitlam"]},{"city":"Courtenay","province":"British Columbia","launch":false,"regions":["Courtenay"]},{"city":"Cranbrook","province":"British Columbia","launch":false,"regions":["Cranbrook"]},{"city":"Dawson Creek","province":"British Columbia","launch":false,"regions":["Dawson Creek"]},{"city":"Delta","province":"British Columbia","launch":false,"regions":["North Delta","Ladner","Tsawwassen"]},{"city":"Duncan","province":"British Columbia","launch":false,"regions":["Duncan"]},{"city":"Esquimalt","province":"British Columbia","launch":false,"regions":["Esquimalt"]},{"city":"Fernie","province":"British Columbia","launch":false,"regions":["Fernie"]},{"city":"Fort St. John","province":"British Columbia","launch":false,"regions":["Fort St. John"]},{"city":"Gibsons","province":"British Columbia","launch":false,"regions":["Gibsons"]},{"city":"Golden","province":"British Columbia","launch":false,"regions":["Golden"]},{"city":"Hope","province":"British Columbia","launch":false,"regions":["Hope"]},{"city":"Kamloops","province":"British Columbia","launch":false,"regions":["Kamloops"]},{"city":"Kelowna","province":"British Columbia","launch":false,"regions":["Kelowna"]},{"city":"Kent","province":"British Columbia","launch":false,"regions":["Kent"]},{"city":"Kimberley","province":"British Columbia","launch":false,"regions":["Kimberley"]},{"city":"Kitimat","province":"British Columbia","launch":false,"regions":["Kitimat"]},{"city":"Ladysmith","province":"British Columbia","launch":false,"regions":["Ladysmith"]},{"city":"Langford","province":"British Columbia","launch":false,"regions":["Langford"]},{"city":"Langley City","province":"British Columbia","launch":false,"regions":["Langley City"]},{"city":"Langley Township","province":"British Columbia","launch":false,"regions":["Langley Township"]},{"city":"Maple Ridge","province":"British Columbia","launch":false,"regions":["Maple Ridge"]},{"city":"Mission","province":"British Columbia","launch":false,"regions":["Mission"]},{"city":"Nanaimo","province":"British Columbia","launch":false,"regions":["Nanaimo"]},{"city":"Nelson","province":"British Columbia","launch":false,"regions":["Nelson"]},{"city":"New Westminster","province":"British Columbia","launch":false,"regions":["New Westminster"]},{"city":"North Saanich","province":"British Columbia","launch":false,"regions":["North Saanich"]},{"city":"North Vancouver City","province":"British Columbia","launch":false,"regions":["North Vancouver City"]},{"city":"North Vancouver District","province":"British Columbia","launch":false,"regions":["North Vancouver District"]},{"city":"Oak Bay","province":"British Columbia","launch":false,"regions":["Oak Bay"]},{"city":"Parksville","province":"British Columbia","launch":false,"regions":["Parksville"]},{"city":"Pemberton","province":"British Columbia","launch":false,"regions":["Pemberton"]},{"city":"Penticton","province":"British Columbia","launch":false,"regions":["Penticton"]},{"city":"Pitt Meadows","province":"British Columbia","launch":false,"regions":["Pitt Meadows"]},{"city":"Port Alberni","province":"British Columbia","launch":false,"regions":["Port Alberni"]},{"city":"Port Coquitlam","province":"British Columbia","launch":false,"regions":["Port Coquitlam"]},{"city":"Port Moody","province":"British Columbia","launch":false,"regions":["Port Moody"]},{"city":"Powell River","province":"British Columbia","launch":false,"regions":["Powell River"]},{"city":"Prince George","province":"British Columbia","launch":false,"regions":["Prince George"]},{"city":"Prince Rupert","province":"British Columbia","launch":false,"regions":["Prince Rupert"]},{"city":"Qualicum Beach","province":"British Columbia","launch":false,"regions":["Qualicum Beach"]},{"city":"Quesnel","province":"British Columbia","launch":false,"regions":["Quesnel"]},{"city":"Revelstoke","province":"British Columbia","launch":false,"regions":["Revelstoke"]},{"city":"Richmond","province":"British Columbia","launch":false,"regions":["Richmond City Centre","Steveston"]},{"city":"Saanich","province":"British Columbia","launch":false,"regions":["Saanich"]},{"city":"Salmon Arm","province":"British Columbia","launch":false,"regions":["Salmon Arm"]},{"city":"Sechelt","province":"British Columbia","launch":false,"regions":["Sechelt"]},{"city":"Sidney","province":"British Columbia","launch":false,"regions":["Sidney"]},{"city":"Smithers","province":"British Columbia","launch":false,"regions":["Smithers"]},{"city":"Sooke","province":"British Columbia","launch":false,"regions":["Sooke"]},{"city":"Squamish","province":"British Columbia","launch":false,"regions":["Squamish"]},{"city":"Surrey","province":"British Columbia","launch":false,"regions":["Surrey City Centre","Guildford","Fleetwood","Newton","Cloverdale","South Surrey"]},{"city":"Terrace","province":"British Columbia","launch":false,"regions":["Terrace"]},{"city":"Trail","province":"British Columbia","launch":false,"regions":["Trail"]},{"city":"Vancouver","province":"British Columbia","launch":false,"regions":["Arbutus-Ridge","Downtown","Dunbar-Southlands","Fairview","Grandview-Woodland","Hastings-Sunrise","Kensington-Cedar Cottage","Kerrisdale","Killarney","Kitsilano","Marpole","Mount Pleasant","Oakridge","Renfrew-Collingwood","Riley Park","Shaughnessy","South Cambie","Strathcona","Sunset","Victoria-Fraserview","West End","West Point Grey"]},{"city":"Vernon","province":"British Columbia","launch":false,"regions":["Vernon"]},{"city":"Victoria","province":"British Columbia","launch":false,"regions":["Downtown Victoria","James Bay","Fairfield","Fernwood","Vic West","Rockland"]},{"city":"View Royal","province":"British Columbia","launch":false,"regions":["View Royal"]},{"city":"West Kelowna","province":"British Columbia","launch":false,"regions":["West Kelowna"]},{"city":"West Vancouver","province":"British Columbia","launch":false,"regions":["West Vancouver"]},{"city":"Whistler","province":"British Columbia","launch":false,"regions":["Whistler"]},{"city":"White Rock","province":"British Columbia","launch":false,"regions":["White Rock"]},{"city":"Williams Lake","province":"British Columbia","launch":false,"regions":["Williams Lake"]}];
+
+var CVSPEEDS=['50 Mbps','100 Mbps','200 Mbps','500 Mbps','1 Gbps','1.5 Gbps'];
+var CVSEL={city:null,province:null,region:null,launch:false};
+var CVTECH=['Cable'];
+var CVSPEEDSEL=['500 Mbps','1 Gbps'];
+var CVOPEN=null;
+
+/* A campaign names the area it runs in at city grain ("Scarborough"); a
+   declared region is finer ("Scarborough East"). Match either way round so a
+   region declared through the picker still puts its cohorts on the desk. */
+function covMatchName(a,b){
+  if(!a||!b)return false;
+  a=String(a).toLowerCase();b=String(b).toLowerCase();
+  return a===b||a.indexOf(b)===0||b.indexOf(a)===0;
+}
+function covOf(name){
+  var i;
+  for(i=0;i<COVER.length;i++)if(COVER[i].r===name)return COVER[i];
+  for(i=0;i<COVER.length;i++)if(covMatchName(COVER[i].r,name))return COVER[i];
+  return null;
+}
+
+function cvPlace(city,prov){
+  for(var i=0;i<PLACES.length;i++)if(PLACES[i].city===city&&PLACES[i].province===prov)return PLACES[i];
+  return null;
+}
+function cvWholeCity(p){return !!(p&&p.regions.length===1&&p.regions[0]===p.city)}
+function cvTopSpeed(list){
+  var top=null;
+  CVSPEEDS.forEach(function(s){if(list.indexOf(s)>-1)top=s});
+  return top||(list[0]||'');
+}
+function cvDup(){
+  if(!CVSEL.region)return false;
+  return COVER.filter(function(c){return c.r===CVSEL.region&&(c.city||CVSEL.city)===CVSEL.city}).length>0;
+}
+function cvCityLabel(){return CVSEL.city?(CVSEL.city+', '+CVSEL.province):'Search a city'}
+function cvRegionLabel(){
+  if(!CVSEL.city)return 'Choose a city first';
+  if(cvWholeCity(cvPlace(CVSEL.city,CVSEL.province)))return 'Whole city ('+CVSEL.city+')';
+  return CVSEL.region||'Choose a region';
+}
+function cvSpeedLabel(){
+  var a=CVSPEEDS.filter(function(s){return CVSPEEDSEL.indexOf(s)>-1});
+  return !a.length?'Select speeds':(a.length<=2?a.join(', '):a.length+' speeds');
+}
+function cvCityListHTML(q){
+  q=(q||'').trim().toLowerCase();
+  var out='',lastG=null,n=0;
+  PLACES.forEach(function(p){
+    if(q&&p.city.toLowerCase().indexOf(q)<0&&p.province.toLowerCase().indexOf(q)<0)return;
+    n++;
+    if(p.province!==lastG){out+='<div class="cvgroup">'+esc(p.province)+'</div>';lastG=p.province}
+    var on=CVSEL.city===p.city&&CVSEL.province===p.province;
+    out+='<button type="button" class="cvitem" data-cvcity="'+esc(p.city+'|'+p.province)+'">'+esc(p.city)
+      +' <span class="cvsub">· '+esc(p.province)+'</span>'
+      +(on?'<span class="cvchk">✓</span>':'<span class="cvtag'+(p.launch?'':' soon')+'">'+(p.launch?'Launch':'Soon')+'</span>')
+      +'</button>';
+  });
+  return n?out:'<div class="cvempty">No cities match</div>';
+}
+function cvRegionListHTML(q){
+  var p=cvPlace(CVSEL.city,CVSEL.province);
+  if(!p)return '<div class="cvempty">Choose a city first</div>';
+  q=(q||'').trim().toLowerCase();
+  var whole=cvWholeCity(p),out='',n=0;
+  p.regions.forEach(function(r){
+    if(q&&r.toLowerCase().indexOf(q)<0)return;
+    n++;
+    out+='<button type="button" class="cvitem" data-cvregion="'+esc(r)+'">'+esc(r)
+      +(whole?' <span class="cvsub">· whole city</span>':'')
+      +(CVSEL.region===r?'<span class="cvchk">✓</span>':'')+'</button>';
+  });
+  return n?out:'<div class="cvempty">No regions match</div>';
+}
+function cvSpeedListHTML(){
+  return CVSPEEDS.map(function(s){
+    var on=CVSPEEDSEL.indexOf(s)>-1;
+    return '<button type="button" class="cvitem'+(on?' on':'')+'" data-cvspeed="'+esc(s)+'"><span class="cvbox">'+(on?'✓':'')+'</span>'+esc(s)+'</button>';
+  }).join('');
+}
+function cvPickerHTML(){
+  var dup=cvDup();
+  var ok=CVSEL.city&&CVSEL.region&&CVTECH.length&&CVSPEEDSEL.length&&!dup;
+  return '<div id="cvpicker">'
+   +'<div class="cvgrid">'
+   +'<div class="cvfield"><label>City and province</label>'
+   +'<div class="cvcombo'+(CVOPEN==='city'?' open':'')+'">'
+   +'<button type="button" class="cvbtn" data-cvtog="city"><span class="cvlab'+(CVSEL.city?'':' ph')+'">'+esc(cvCityLabel())+'</span><span class="cvcar">▾</span></button>'
+   +'<div class="cvpanel"><input type="text" class="cvsearch" id="cv-city-q" placeholder="Type a city or province" aria-label="Search city" autocomplete="off">'
+   +'<div class="cvlist" id="cv-city-list" role="listbox">'+cvCityListHTML('')+'</div></div></div></div>'
+   +'<div class="cvfield"><label>Region <em>the bid unit</em></label>'
+   +'<div class="cvcombo'+(CVSEL.city?'':' off')+(CVOPEN==='region'?' open':'')+'">'
+   +'<button type="button" class="cvbtn" data-cvtog="region"'+(CVSEL.city?'':' disabled')+'><span class="cvlab'+(CVSEL.region?'':' ph')+'">'+esc(cvRegionLabel())+'</span><span class="cvcar">▾</span></button>'
+   +'<div class="cvpanel"><input type="text" class="cvsearch" id="cv-region-q" placeholder="Type a region" aria-label="Search region" autocomplete="off">'
+   +'<div class="cvlist" id="cv-region-list" role="listbox">'+cvRegionListHTML('')+'</div></div></div></div>'
+   +'</div>'
+   +'<div class="cvresolved"><span>Your selection will read as</span> <b>'
+   +((CVSEL.city&&CVSEL.region)?esc(CVSEL.region+', '+CVSEL.city+', '+CVSEL.province):'Region, City, Province')+'</b></div>'
+   +'<div class="cvrow2">'
+   +'<div class="cvfield"><label>Technology you render there</label><div class="cvchips">'
+   +TECHS.map(function(t){return '<button type="button" class="cvchip'+(CVTECH.indexOf(t)>-1?' on':'')+'" data-cvtech="'+esc(t)+'">'+esc(t)+'</button>'}).join('')
+   +'</div></div>'
+   +'<div class="cvfield cvspeedw"><label>Speeds you offer there <em>pick all that apply</em></label>'
+   +'<div class="cvcombo'+(CVOPEN==='speed'?' open':'')+'">'
+   +'<button type="button" class="cvbtn" data-cvtog="speed"><span class="cvlab'+(CVSPEEDSEL.length?'':' ph')+'">'+esc(cvSpeedLabel())+'</span><span class="cvcar">▾</span></button>'
+   +'<div class="cvpanel"><div class="cvlist" id="cv-speed-list">'+cvSpeedListHTML()+'</div></div></div></div>'
+   +'<button class="btn forest" type="button" id="cvdeclare"'+(ok?'':' disabled')+'>'+(dup?'Already declared':'Declare region')+'</button>'
+   +'</div>'
+   +'<small class="cvsmall">Regions inside a launch city start their serviceability check the moment you declare them. Anywhere else is recorded and queued, and begins checking when that city opens.</small>'
+   +'</div>';
+}
+function cvRepaint(){
+  var host=$('#cvpicker');if(!host)return;
+  var tmp=document.createElement('div');
+  tmp.innerHTML=cvPickerHTML();
+  host.parentNode.replaceChild(tmp.firstChild,host);
+}
+function cvDeclare(){
+  if(!(CVSEL.city&&CVSEL.region))return;
+  if(!CVTECH.length){toast('Pick at least one technology you serve there.');return}
+  if(!CVSPEEDSEL.length){toast('Pick at least one speed you offer there.');return}
+  if(cvDup()){toast(CVSEL.region+' is already declared.');return}
+  COVER.push({r:CVSEL.region,city:CVSEL.city,province:CVSEL.province,
+    st:CVSEL.launch?'verifying':'soon',
+    tech:CVTECH.slice(),speed:cvTopSpeed(CVSPEEDSEL),speeds:CVSPEEDSEL.slice(),
+    lead:CVSEL.launch?'To confirm':'Opens when the city launches'});
+  var line=CVSEL.region+', '+CVSEL.city+', '+CVSEL.province,launch=CVSEL.launch;
+  S.tasks.cov=1;if(S.ptasks)S.ptasks.cov=1;
+  CVSEL.region=cvWholeCity(cvPlace(CVSEL.city,CVSEL.province))?CVSEL.city:null;
+  CVOPEN=null;
+  renderTasks();renderCov();renderDesk();renderOverviewBits();
+  toast(line+' declared with '+CVTECH.join(', ')+'. '+(launch?'Verifying serviceability.':'Queued for launch.'));
+}
+function cvEditSpeedOpts(cur){
+  var all=['500 Mbps','1 Gig','2.5 Gig'];
+  CVSPEEDS.forEach(function(s){if(all.indexOf(s)<0)all.push(s)});
+  if(cur&&all.indexOf(cur)<0)all.push(cur);
+  return all.map(function(s){return '<option'+(s===cur?' selected':'')+'>'+esc(s)+'</option>'}).join('');
+}
+function renderCov(){
+  var el=$('#covbody');if(!el)return;
+  var rows=COVER.map(function(c,i){
+    var openN=deskList().filter(function(a){return covMatchName(a.cov,c.r)&&(stageOf(a)===1||stageOf(a)===2)}).length;
+    var pill=c.st==='active'?'<span class="pill won">Active</span>'
+      :(c.st==='soon'?'<span class="pill queued">Queued for launch</span>':'<span class="pill pending">Verifying</span>');
+    var place=c.city?(c.r+', '+c.city+', '+c.province):null;
+    var out='<div class="covitem"><div class="covhead">'
+     +'<span class="cvmain"><b>'+esc(c.r)+'</b>'+(place?'<small>'+esc(place)+'</small>':'')+'</span>'
+     +pill
+     +'<span class="cvsvc">'+esc(c.tech.join(' · '))+' · '+esc((c.speeds&&c.speeds.length?c.speeds.join(', '):'up to '+c.speed))+'</span>'
+     +'<span class="cvopen">'+(openN?(openN+' open'):'no auctions yet')+'</span>'
+     +(c.st==='soon'?'':'<button class="tlink" type="button" data-covedit="'+i+'">Edit services</button>')
+     +'<button class="covrm" type="button" data-covrm="'+i+'" aria-label="Remove '+esc(c.r)+'">×</button>'
+     +'</div>';
+    if(covEdit===i){
+      out+='<div style="margin-top:12px;border-top:1px dashed var(--line);padding-top:12px"><div class="dh">Services in '+esc(c.r)+'</div>'
+       +'<div class="cechips" data-ce="'+i+'">'+TECHS.map(function(t){return '<button type="button" data-t="'+esc(t)+'" class="'+(c.tech.indexOf(t)>-1?'on':'')+'">'+esc(t)+'</button>'}).join('')+'</div>'
+       +'<div class="ceform"><div><label>Top speed offered</label><select id="ce-speed">'+cvEditSpeedOpts(c.speed)+'</select></div>'
+       +'<div><label>Install lead time</label><select id="ce-lead"><option'+(c.lead==='5 business days'?' selected':'')+'>5 business days</option><option'+(c.lead==='7 business days'?' selected':'')+'>7 business days</option><option'+(c.lead==='10 business days'?' selected':'')+'>10 business days</option></select></div>'
+       +'<div><button class="btn forest" type="button" data-covsave="'+i+'">Save</button></div></div></div>';
+    }
+    return out+'</div>';
+  }).join('');
+  el.innerHTML='<section class="card" aria-label="Declare a region">'
+   +'<span class="eyebrow gld">Where do you serve?</span>'
+   +'<h3>Pick your city, then the region inside it</h3>'
+   +'<p class="cardnote">A region is the unit a cohort runs in, so it is the unit you bid in. Declare as many as you serve; each one starts its own serviceability check.</p>'
+   +cvPickerHTML()
+   +'</section>'
+   +'<section class="card" style="margin-top:16px" aria-label="Declared coverage">'
+   +'<span class="eyebrow">Declared coverage</span>'
+   +'<h3>'+(COVER.length?(COVER.length+' region'+(COVER.length>1?'s':'')+' on file'):'Nothing declared yet')+'</h3>'
+   +'<p class="cardnote">Each row is one region you will receive cohorts from. New regions verify against serviceability before auctions appear.</p>'
+   +(COVER.length?('<div class="covls">'+rows+'</div>')
+     :'<div class="covempty">Pick a city, then a region, then Declare. Auctions only reach your desk from inside your declared coverage.</div>')
+   +'</section>';
+  var cr=$('#capregs');
+  if(cr)cr.textContent=COVER.filter(function(c){return c.st==='active'}).length+' active · '+COVER.filter(function(c){return c.st!=='active'}).length+' verifying';
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest)return;
+  var tog=e.target.closest('[data-cvtog]');
+  if(tog){
+    var w=tog.getAttribute('data-cvtog');
+    if(w==='region'&&!CVSEL.city)return;
+    CVOPEN=CVOPEN===w?null:w;
+    cvRepaint();
+    if(CVOPEN==='city'||CVOPEN==='region'){var q=$('#cv-'+CVOPEN+'-q');if(q)q.focus()}
+    return;
+  }
+  var ci=e.target.closest('[data-cvcity]');
+  if(ci){
+    var parts=ci.getAttribute('data-cvcity').split('|');
+    var p=cvPlace(parts[0],parts[1]);
+    CVSEL={city:parts[0],province:parts[1],region:cvWholeCity(p)?parts[0]:null,launch:!!(p&&p.launch)};
+    CVOPEN=null;cvRepaint();return;
+  }
+  var ri=e.target.closest('[data-cvregion]');
+  if(ri){CVSEL.region=ri.getAttribute('data-cvregion');CVOPEN=null;cvRepaint();return}
+  var tc=e.target.closest('[data-cvtech]');
+  if(tc){
+    var t=tc.getAttribute('data-cvtech'),ix=CVTECH.indexOf(t);
+    if(ix>-1)CVTECH.splice(ix,1);else CVTECH.push(t);
+    cvRepaint();return;
+  }
+  var sp=e.target.closest('[data-cvspeed]');
+  if(sp){
+    var s=sp.getAttribute('data-cvspeed'),j=CVSPEEDSEL.indexOf(s);
+    if(j>-1)CVSPEEDSEL.splice(j,1);else CVSPEEDSEL.push(s);
+    CVOPEN='speed';cvRepaint();return;
+  }
+  if(e.target.closest('#cvdeclare')){cvDeclare();return}
+  var rm=e.target.closest('[data-covrm]');
+  if(rm){
+    var k=+rm.getAttribute('data-covrm'),gone=COVER[k];
+    if(!gone)return;
+    COVER.splice(k,1);covEdit=null;
+    if(!COVER.length){S.tasks.cov=0;if(S.ptasks)S.ptasks.cov=0}
+    renderTasks();renderCov();renderDesk();renderOverviewBits();
+    toast(gone.r+' removed. Its cohorts leave your desk with it.');
+    return;
+  }
+  if(CVOPEN&&!e.target.closest('.cvcombo')){CVOPEN=null;cvRepaint()}
+});
+document.addEventListener('input',function(e){
+  if(e.target.id==='cv-city-q'){var a=$('#cv-city-list');if(a)a.innerHTML=cvCityListHTML(e.target.value);return}
+  if(e.target.id==='cv-region-q'){var b=$('#cv-region-list');if(b)b.innerHTML=cvRegionListHTML(e.target.value)}
+});
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Escape'||!CVOPEN)return;
+  if(e.target.closest&&e.target.closest('.cvcombo')){CVOPEN=null;cvRepaint()}
+});
+/* ================= end v13 ================= */
 
 /* ---------- boot ---------- */
 renderTasks();lastSig=sig();renderAll();renderBilling();renderAcq();
