@@ -5784,7 +5784,7 @@
     var S = get();
     var B = S.billing;
 
-    if (B === 'loading') return '';
+    if (B === 'loading' || (B && B.partial)) return '';
     if (!B) {
       return empty('No statements yet, by design',
         'Bids are free. Winning is free. Households who accept are free. The first line on the first statement is the first activation with a clean line test, and statements settle per cohort rather than per month.'
@@ -5901,6 +5901,28 @@
   function signedOut(err) {
     if (err && err.status === 401) bounce();
     return !!(err && err.status === 401);
+  }
+
+  /**
+   * The method on file, and nothing else.
+   *
+   * One row, one read. The overview checklist ticks its billing step from this
+   * and the roster gate is refused without it, so it is the one part of billing
+   * a partner who never opens this page still needs. The statements are four
+   * reads (awards, orders, settlements, config) and they wait for the view.
+   *
+   * That split is not only tidiness. The Data Store is metered, and this used to
+   * pull the whole statement set on every console boot to decide whether to draw
+   * one tick.
+   */
+  function loadMethod() {
+    return api.paymentMethod().then(function (r) {
+      var B = get().billing;
+      var base = (B && B !== 'loading') ? B : { statements: [], cycle: {}, live: true, partial: true };
+      set('billing', Object.assign({}, base, { method: (r && r.method) || null }));
+    }, function (err) {
+      signedOut(err);
+    });
   }
 
   function load() {
@@ -6068,6 +6090,7 @@
   }
 
   __exports.render = render;
+  __exports.loadMethod = loadMethod;
   __exports.load = load;
   __exports.mount = mount;
   };
@@ -6164,7 +6187,7 @@
   var __ns18 = __require("views/delivery.js");
   var renderDelivery = __ns18.render, mountDelivery = __ns18.mount, loadDelivery = __ns18.load;
   var __ns19 = __require("views/billing.js");
-  var renderBilling = __ns19.render, mountBilling = __ns19.mount, loadBilling = __ns19.load;
+  var renderBilling = __ns19.render, mountBilling = __ns19.mount, loadBilling = __ns19.load, loadMethod = __ns19.loadMethod;
   var __ns20 = __require("views/placeholders.js");
   var renderPlaceholders = __ns20.render;
 
@@ -6254,16 +6277,16 @@
          Contracts page. */
       loadContracts(),
 
-      /* Statements, on boot rather than on view-open. Two other surfaces read
-         the same payload: the overview checklist ticks its billing step from the
-         method on file, and the roster gate is refused without one, so a partner
-         who never opens Billing still needs it read. It carries no household
-         identity and is not audited, which is what makes that safe.
+      /* The billing METHOD on boot, and not the statements. Two other surfaces
+         need the method: the overview checklist ticks its billing step from it,
+         and the roster gate is refused without one, so a partner who never opens
+         Billing still needs it read. That is one row. The statements behind it
+         are four more reads and they wait for the view, because the Data Store
+         is metered and a tick on a checklist is not worth four reads a boot.
 
-         The delivery board is the opposite and is NOT loaded here: a released
-         roster carries addresses and every read writes an audit row, so it is
-         fetched when the view opens and on explicit refresh. See onChange below. */
-      loadBilling()
+         The delivery board waits too, for a different reason: a released roster
+         carries addresses and every read writes an audit row. See onChange. */
+      loadMethod()
     ];
     return Promise.all(jobs).then(function () { startTicker(); });
   }
@@ -6354,6 +6377,8 @@
        read forty households' addresses. */
     onChange(function (view) {
       if (view === 'delivery' && get().delivery == null) loadDelivery();
+      var B = get().billing;
+      if (view === 'billing' && (!B || B === 'loading' || B.partial)) loadBilling();
     });
 
     /* Paint from the local record first so the chrome is never empty, then

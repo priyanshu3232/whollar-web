@@ -104,7 +104,7 @@ function statements() {
   var S = get();
   var B = S.billing;
 
-  if (B === 'loading') return '';
+  if (B === 'loading' || (B && B.partial)) return '';
   if (!B) {
     return empty('No statements yet, by design',
       'Bids are free. Winning is free. Households who accept are free. The first line on the first statement is the first activation with a clean line test, and statements settle per cohort rather than per month.'
@@ -221,6 +221,28 @@ function method() {
 function signedOut(err) {
   if (err && err.status === 401) bounce();
   return !!(err && err.status === 401);
+}
+
+/**
+ * The method on file, and nothing else.
+ *
+ * One row, one read. The overview checklist ticks its billing step from this
+ * and the roster gate is refused without it, so it is the one part of billing
+ * a partner who never opens this page still needs. The statements are four
+ * reads (awards, orders, settlements, config) and they wait for the view.
+ *
+ * That split is not only tidiness. The Data Store is metered, and this used to
+ * pull the whole statement set on every console boot to decide whether to draw
+ * one tick.
+ */
+export function loadMethod() {
+  return api.paymentMethod().then(function (r) {
+    var B = get().billing;
+    var base = (B && B !== 'loading') ? B : { statements: [], cycle: {}, live: true, partial: true };
+    set('billing', Object.assign({}, base, { method: (r && r.method) || null }));
+  }, function (err) {
+    signedOut(err);
+  });
 }
 
 export function load() {

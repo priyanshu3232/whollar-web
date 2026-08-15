@@ -32,7 +32,7 @@ import { render as renderAccount, mount as mountAccount, paintChrome } from './v
 import { render as renderPerformance } from './views/performance.js';
 import { render as renderContracts, mount as mountContracts, load as loadContracts } from './views/contracts.js';
 import { render as renderDelivery, mount as mountDelivery, load as loadDelivery } from './views/delivery.js';
-import { render as renderBilling, mount as mountBilling, load as loadBilling } from './views/billing.js';
+import { render as renderBilling, mount as mountBilling, load as loadBilling, loadMethod } from './views/billing.js';
 import { render as renderPlaceholders } from './views/placeholders.js';
 
 /* ------------------------------------------------------------------ *
@@ -121,16 +121,16 @@ function loadAll() {
        Contracts page. */
     loadContracts(),
 
-    /* Statements, on boot rather than on view-open. Two other surfaces read
-       the same payload: the overview checklist ticks its billing step from the
-       method on file, and the roster gate is refused without one, so a partner
-       who never opens Billing still needs it read. It carries no household
-       identity and is not audited, which is what makes that safe.
+    /* The billing METHOD on boot, and not the statements. Two other surfaces
+       need the method: the overview checklist ticks its billing step from it,
+       and the roster gate is refused without one, so a partner who never opens
+       Billing still needs it read. That is one row. The statements behind it
+       are four more reads and they wait for the view, because the Data Store
+       is metered and a tick on a checklist is not worth four reads a boot.
 
-       The delivery board is the opposite and is NOT loaded here: a released
-       roster carries addresses and every read writes an audit row, so it is
-       fetched when the view opens and on explicit refresh. See onChange below. */
-    loadBilling()
+       The delivery board waits too, for a different reason: a released roster
+       carries addresses and every read writes an audit row. See onChange. */
+    loadMethod()
   ];
   return Promise.all(jobs).then(function () { startTicker(); });
 }
@@ -221,6 +221,8 @@ function start(partner) {
      read forty households' addresses. */
   onChange(function (view) {
     if (view === 'delivery' && get().delivery == null) loadDelivery();
+    var B = get().billing;
+    if (view === 'billing' && (!B || B === 'loading' || B.partial)) loadBilling();
   });
 
   /* Paint from the local record first so the chrome is never empty, then
