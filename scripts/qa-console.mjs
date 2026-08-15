@@ -370,140 +370,141 @@ console.log('\n12. coverage is the gate, and it explains itself');
   await c2.close();
 }
 
-console.log('\n12b. coverage is declared from a controlled vocabulary');
+console.log('\n12b. coverage is declared by city, then region inside it');
 {
-  /* The declared region IS the bid unit. While this was a text box a partner
-     could declare "downtown-ish", the row wrote, and no cohort ever matched
-     it. These checks are about the one property that fixes: nothing but a
-     launch district can leave this field. */
+  /* The declared region IS the bid unit, and routes/desk.js matches a bid
+     against it with slug(row.region) === slug(campaign.region), an EXACT match
+     server side. So two properties are load-bearing and both are asserted
+     here: nothing but a region we run cohorts in can leave this field, and the
+     REGION ALONE goes on the wire. A composite "Region, City, Province" would
+     read beautifully and refuse every bid. */
   const c = await ctx(browser, { record: REC, me: APPROVED });
   /* Against the real declare path, not a fixture: the fixture layer has no
      entry for coverageDeclare, so a fixture run would test the 501 branch and
      call it a pass. Registered after ctx's routes, so this one wins. */
-  const seeded = [
-    { region: 'Scarborough East', slug: 'scarborough-east', status: 'active', techs: ['fibre'], speed: '1 Gig', lead: '5 business days' }
-  ];
+  const rows = [];
   let posted = null;
   await c.route('**/api/auth/provider/coverage', r => {
-    const body = { ok: true, live: true, serverTime: Date.now(), coverage: seeded };
     if (r.request().method() === 'POST') {
       posted = JSON.parse(r.request().postData() || '{}');
-      body.coverage = seeded.concat([{
-        region: posted.region, slug: String(posted.region).toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-        status: 'verifying', techs: posted.techs, speed: posted.speed, lead: '5 business days'
-      }]);
+      rows.push({
+        region: posted.region, status: 'verifying',
+        techs: String(posted.techs).split(','), speed: posted.speed, lead: '5 business days'
+      });
     }
-    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+    r.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ ok: true, live: true, serverTime: Date.now(), coverage: rows })
+    });
   });
   const p = await c.newPage();
   const errs = [];
   collect(p, errs);
   await p.goto(`${BASE}/partner#coverage`, { waitUntil: 'networkidle' });
-  await p.waitForTimeout(120);
+  await p.waitForTimeout(150);
 
-  const combo = p.locator('#regin');
-  ok(await combo.getAttribute('role') === 'combobox', 'the add row carries a combobox, not a free-text region');
-  ok(await p.locator('#regpanel').count() === 1, 'and a results panel to filter into');
+  const cityBtn = p.locator('.cvbtn[data-combo="city"]');
+  const regionBtn = p.locator('.cvbtn[data-combo="region"]');
+  ok(await cityBtn.count() === 1 && await regionBtn.count() === 1, 'two combos, not one free-text region');
+  ok(await regionBtn.isDisabled(), 'the region combo is inert until a city is chosen');
 
-  await combo.click();
-  await combo.fill('scar');
-  await p.waitForTimeout(80);
-  const opts = await p.locator('#regpanel .dopt').allInnerTexts();
-  const heads = await p.locator('#regpanel .dgrp').allInnerTexts();
-  ok(opts.length === 4 && opts.every((t) => /Scarborough/.test(t)), `"scar" narrows to the four Scarborough districts (${opts.length})`);
-  ok(heads.length === 1 && /Scarborough/i.test(heads[0]), 'grouped under one municipality header');
-  ok(/Already declared/.test(opts.join('|')), 'a district already in coverage says so');
-  ok(await p.locator('#regpanel .dopt.off[aria-disabled="true"]').count() >= 1, 'and is not selectable');
+  /* A city we have not opened is visible and inert, both halves of it: the
+     city carries a Soon tag, and every region inside it refuses to be picked.
+     A partner should see the ambition without declaring into a market with no
+     cohorts. */
+  await cityBtn.click();
+  await p.fill('#cv-city-q', 'oakville');
+  await p.waitForTimeout(100);
+  ok(/soon/i.test(await p.locator('#cv-city-list').innerText()), 'a city we have not opened is tagged Soon, not hidden');
+  await p.locator('.cvitem[data-action="coverage:city"]').first().click();
+  await p.waitForTimeout(150);
+  await regionBtn.click();
+  await p.waitForTimeout(150);
+  ok(await p.locator('#cv-region-list .cvitem.is-disabled').count() >= 1, 'and its regions cannot be picked');
+  /* Oakville is a whole-city entry, so choosing the city resolves the region
+     too. Picked is not the same question as declarable, and the button has to
+     ask both or it goes live on a closed market. */
+  ok(await p.locator('[data-action="coverage:add"]').isDisabled(), 'Declare stays off for a region that is not open');
+  ok(/not open yet/i.test(await p.locator('[data-action="coverage:add"]').innerText()), 'and says so on its face');
+  await p.keyboard.press('Escape');
 
-  /* A queued district is visible and inert: a partner should see the ambition
-     without being able to declare into a market that is not open. */
-  await combo.fill('oakville');
-  await p.waitForTimeout(80);
-  const soon = await p.locator('#regpanel .dopt').first();
-  ok(/Queued for launch/.test(await soon.innerText()), 'a soon district is tagged, not hidden');
-  ok(await soon.getAttribute('aria-disabled') === 'true', 'and cannot be picked');
+  /* The happy path, and the sentence the whole two-step exists to produce. */
+  await cityBtn.click();
+  await p.fill('#cv-city-q', 'toronto');
+  await p.waitForTimeout(100);
+  await p.locator('.cvitem[data-action="coverage:city"]').first().click();
+  await p.waitForTimeout(150);
+  await regionBtn.click();
+  await p.waitForTimeout(100);
+  await p.fill('#cv-region-q', 'scarborough');
+  await p.waitForTimeout(100);
+  const scar = await p.locator('#cv-region-list .cvitem').allInnerTexts();
+  ok(scar.length === 4 && scar.every((t) => /Scarborough/.test(t)), `"scarborough" narrows to four regions (${scar.length})`);
+  await p.locator('.cvitem[data-region="Scarborough Centre"]').click();
+  await p.waitForTimeout(150);
+  ok(await p.locator('.cvresolved b').innerText() === 'Scarborough Centre, Toronto, Ontario',
+    'the resolved line reads back Region, City, Province');
 
-  await combo.fill('scarberia');
-  await p.waitForTimeout(80);
-  ok(await p.locator('#regpanel .dnone').count() === 1, 'gibberish matches nothing');
-  await p.locator('[data-action="coverage:add"]').first().click();
-  await p.waitForTimeout(200);
-  ok(posted === null, 'Declare on an invented region sends nothing');
-  const said = await p.evaluate(() => (document.getElementById('toast') || {}).textContent || '');
-  ok(/Pick a district from the list/.test(said), `and says why (${said})`);
-  ok(!(await p.locator('#cov-body').innerText()).includes('scarberia'), 'and no free-text region reaches the table');
-
-  /* Keyboard: down then Enter picks the first selectable row. */
-  await combo.fill('scarborough n');
-  await p.waitForTimeout(80);
-  await combo.press('ArrowDown');
-  await combo.press('Enter');
-  ok(await combo.inputValue() === 'Scarborough North', 'up, down and Enter drive the list');
-  ok(await p.locator('#regpanel').isHidden(), 'and picking closes it');
-
-  /* Both selectors are dropdowns, so the harness opens each one the way a
-     partner does. A pick that worked without opening would mean the options
-     were reachable while the panel was closed. */
-  await p.locator('.mseltrig[data-for="addtech"]').click();
-  await p.locator('#addtech button').first().click();
-  ok(await p.locator('#addtech').isVisible(), 'the services panel stays open across a pick');
-  /* A speed tier is required now that the field is a SET of tiers rather than
-     one top speed: declaring without one is refused, so the harness picks one
-     the way a partner does. */
+  await p.locator('#addtech button[data-t="cable"]').click();
+  ok(await p.locator('#addtech button[data-t="cable"]').getAttribute('class') === 'on',
+    'technology is chips on the card, toggled in place');
   await p.locator('.mseltrig[data-for="addspeed"]').click();
-  ok(await p.locator('#addtech').isHidden(), 'and opening the other one closes it');
-  await p.locator('#addspeed button[data-s]').first().click();
-  await p.locator('#addspeed button[data-s]').nth(1).click();
-  ok(/50 Mbps, 100 Mbps/.test(await p.locator('.mseltrig[data-for="addspeed"]').innerText()),
+  await p.locator('#addspeed button[data-s="500"]').click();
+  await p.locator('#addspeed button[data-s="1000"]').click();
+  ok(/500 Mbps, 1 Gig/.test(await p.locator('.mseltrig[data-for="addspeed"]').innerText()),
     'two tiers select together and the trigger reads back both');
-  /* Only one of the two is wanted here, and the second pick was to prove the
-     control is a multi-select, so it comes back off. */
-  await p.locator('#addspeed button[data-s]').nth(1).click();
-  await p.locator('[data-action="coverage:add"]').first().click();
+  await p.locator('.cvresolved').click();
+  await p.locator('[data-action="coverage:add"]').click();
   await p.waitForTimeout(400);
-  const cov = await p.locator('#cov-body').innerText();
-  const declared = await p.evaluate(() =>
-    window.WHOLLAR.console.state().coverage.filter((c) => c.region === 'Scarborough North').length);
-  ok(posted && posted.region === 'Scarborough North', 'Declare sends the district name the vocabulary owns');
-  ok(declared === 1, 'and the table gains exactly one row for it');
-  ok(/Scarborough North/.test(cov) && /Verifying/.test(cov), 'landing verifying, against facilities data');
 
-  /* Second attempt on the same district: the list says it is taken and the
-     button refuses, so a duplicate cannot be declared by either route. */
+  /* THE assertion. Region alone, no city, no province. */
+  ok(posted && posted.region === 'Scarborough Centre', `Declare sends the region name alone (${posted && posted.region})`);
+  ok(posted && !('city' in posted) && !('province' in posted),
+    'and never a composite, which the server match would refuse');
+  ok(posted && posted.speed === '500,1000', `speeds go as an ascending Mbps CSV (${posted && posted.speed})`);
+
+  const cov = await p.locator('#cov-body').innerText();
+  ok(/Scarborough Centre, Toronto, Ontario/.test(cov), 'the declared row reads back the full address');
+  ok(/Verifying/.test(cov), 'landing verifying, against facilities data');
+  ok(/1 region on file/.test(cov), 'and the card counts what is on file');
+  ok(/Toronto/.test(await cityBtn.innerText()), 'the city stays, so the next region in it is one pick away');
+
+  /* Second attempt on the same region: refused by the list and by the button,
+     so a duplicate cannot be declared by either route. */
   posted = null;
-  await combo.click();
-  await combo.fill('Scarborough North');
-  await p.waitForTimeout(80);
-  const dup = await p.locator('#regpanel .dopt').first();
-  ok(/Already declared/.test(await dup.innerText()), 'a declared district is marked in the list');
-  await p.locator('[data-action="coverage:add"]').first().click();
+  await regionBtn.click();
+  await p.waitForTimeout(300);
+  ok(/declared/i.test(await p.locator('#cv-region-list').innerText()), 'a region already on file is marked in the list');
+  ok(await p.locator('#cv-region-list .cvitem[data-region="Scarborough Centre"]').count() === 0, 'and cannot be picked again');
+  await p.keyboard.press('Escape');
+  await p.locator('[data-action="coverage:add"]').click({ force: true });
   await p.waitForTimeout(200);
   ok(posted === null, 'and Declare on it sends nothing');
 
-  ok(!errs.length, `no page errors through the picker (${errs.length})`);
+  ok(!errs.length, `no page errors through the picker (${errs.length ? errs[0].slice(0, 70) : 0})`);
   await c.close();
 
-  /* On a phone, with the list open. The panel sits in flow rather than
-     absolutely positioned precisely so it cannot be clipped by the table's
-     horizontal scroll box or push the page sideways, and that claim is worth
-     nothing unmeasured. */
+  /* On a phone, with a list open. The panel is absolutely positioned now, so
+     the claim worth measuring is that it does not push the page sideways and
+     that its rows are still a thumb tall. */
   for (const w of [1280, 390]) {
     const cc = await ctx(browser, { record: REC, me: APPROVED });
     const pp = await cc.newPage();
     await pp.setViewportSize({ width: w, height: 900 });
     await pp.goto(`${BASE}/partner#coverage`, { waitUntil: 'networkidle' });
-    await pp.waitForTimeout(120);
-    await pp.locator('#regin').click();
-    await pp.waitForTimeout(120);
+    await pp.waitForTimeout(150);
+    await pp.locator('.cvbtn[data-combo="city"]').click();
+    await pp.waitForTimeout(150);
     const m = await pp.evaluate(() => {
-      const opt = document.querySelector('#regpanel .dopt');
+      const opt = document.querySelector('#cv-city-list .cvitem');
+      const panel = document.querySelector('.cvcombo[data-combo="city"] .cvpanel');
       return {
         over: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-        shown: !document.getElementById('regpanel').hasAttribute('hidden'),
+        shown: !!panel && !panel.hasAttribute('hidden'),
         tap: opt ? Math.round(opt.getBoundingClientRect().height) : 0
       };
     });
-    ok(m.shown && m.over <= 0 && m.tap >= 36,
+    ok(m.shown && m.over <= 0 && m.tap >= 30,
       `${w}px: the open list fits, no sideways scroll, ${m.tap}px rows`);
     await cc.close();
   }
@@ -945,15 +946,20 @@ console.log('\n21b. and neither is a 403 on a WRITE the partner clicked');
   await p.goto(`${BASE}/partner#coverage`, { waitUntil: 'networkidle' });
   await p.waitForTimeout(120);
 
-  await p.locator('#regin').click();
-  await p.locator('#regin').fill('Scarborough North');
-  await p.waitForTimeout(80);
-  await p.locator('#regpanel .dopt').first().click();
-  await p.locator('.mseltrig[data-for="addtech"]').click();
-  await p.locator('#addtech button').first().click();
+  await p.locator('.cvbtn[data-combo="city"]').click();
+  await p.fill('#cv-city-q', 'toronto');
+  await p.waitForTimeout(100);
+  await p.locator('.cvitem[data-action="coverage:city"]').first().click();
+  await p.waitForTimeout(150);
+  await p.locator('.cvbtn[data-combo="region"]').click();
+  await p.waitForTimeout(100);
+  await p.locator('.cvitem[data-region="Scarborough North"]').click();
+  await p.waitForTimeout(150);
+  await p.locator('#addtech button[data-t="cable"]').click();
   await p.locator('.mseltrig[data-for="addspeed"]').click();
   await p.locator('#addspeed button[data-s]').first().click();
-  await p.locator('[data-action="coverage:add"]').first().click();
+  await p.locator('.cvresolved').click();
+  await p.locator('[data-action="coverage:add"]').click();
   await p.waitForTimeout(500);
 
   ok(!/whollar-login-provider/.test(p.url()), `a refused Declare stays on the console (${p.url().split('/').pop()})`);

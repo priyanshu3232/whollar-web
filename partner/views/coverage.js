@@ -14,6 +14,11 @@
  *               Whollar has not opened it. No edit affordance, because there
  *               is nothing the partner can do about it.
  *
+ * A REGION IS PICKED, NEVER TYPED. The declarable list is core/places.js: a
+ * city, then a region inside it. That file explains at length why only the
+ * region name goes on the wire, and why city and province are read back out
+ * of the list rather than stored.
+ *
  * Until the admin verify route shipped alongside this, `active` was
  * unreachable: every declared region sat in 'verifying' forever and no cohort
  * ever reached any desk. That was the single blocker under the whole console.
@@ -25,7 +30,7 @@ import { esc, regionSlug } from '../core/format.js';
 import { toast, failed } from '../core/toast.js';
 import { on, onAnyClick } from '../core/actions.js';
 import { authFailed } from '../core/session.js';
-import { byId, byName, search, grouped } from '../core/districts.js';
+import { cityKey, findCity, isWholeCity, placeOf, readsAs, isLaunchRegion, searchCities } from '../core/places.js';
 
 /* The technologies desk.js accepts, in its own spelling. The console shows the
    label; the wire carries the value. Getting this wrong is a 400. */
@@ -124,18 +129,22 @@ function find(slug) {
  * Paint, and hand the caret back.
  *
  * A refresh anywhere in the console repaints this view, which replaces the
- * picker's input node. Mid-search that reads as the field going dead under
- * your hands, so if the picker had focus it gets it back with the caret at the
- * end of what was typed.
+ * open panel's search field. Mid-search that reads as the field going dead
+ * under your hands, so if one had focus it gets it back with its text and the
+ * caret at the end.
  */
 function paint(host, html) {
-  var live = document.activeElement && document.activeElement.id === 'regin';
+  var live = document.activeElement;
+  var id = live && live.className === 'cvsearch' ? live.id : null;
+  var text = id ? live.value : '';
   host.innerHTML = html;
-  if (!live) return;
-  var input = document.getElementById('regin');
+  if (!id) return;
+  var input = document.getElementById(id);
   if (!input) return;
+  input.value = text;
+  paintList(id === 'cv-city-q' ? 'city' : 'region', text);
   input.focus();
-  try { input.setSelectionRange(input.value.length, input.value.length); } catch (e) { /* not all inputs allow it */ }
+  try { input.setSelectionRange(text.length, text.length); } catch (e) { /* not all inputs allow it */ }
 }
 
 export function render() {
@@ -151,22 +160,36 @@ export function render() {
     return;
   }
 
-  if (!S.coverage.length) {
-    paint(host, '<section class="card"><div class="empty">'
-      + '<h3>Nothing declared yet, so nothing reaches your desk</h3>'
-      + '<p>Auctions are matched to partners by coverage. Pick a district and the services you can render there, and cohorts forming inside it start appearing on your bid desk. Serviceability is checked against facilities data; you do not have to wait for that to declare more.</p>'
-      + '</div>' + addRow(true) + '</section>');
-    return;
-  }
+  paint(host, pickerCard() + declaredCard(S));
+}
 
-  var rows = S.coverage.map(function (c) { return regionRow(c, S); }).join('');
+/* The picker, as one card. Its own heading rather than the view's, because the
+   view header has to keep saying what Coverage is for to a partner who already
+   has ten regions on file and is not declaring anything today. */
+function pickerCard() {
+  return '<section class="card" aria-label="Declare a region">'
+    + '<span class="eyebrow gld">Where do you serve?</span>'
+    + '<h3>Pick your city, then the region inside it</h3>'
+    + '<p class="cardnote">A region is the unit a cohort runs in, so it is the unit you bid in. '
+    + 'Declare as many as you serve; each one starts its own serviceability check.</p>'
+    + picker()
+    + '</section>';
+}
 
-  paint(host, '<section class="card" style="padding-top:14px" aria-label="Your regions">'
-    + '<div class="twrap"><table class="tbl">'
-    + '<thead><tr><th>Region</th><th>Status</th><th>Services declared</th><th class="num">Open</th><th></th></tr></thead>'
-    + '<tbody>' + rows + addRow(false) + '</tbody></table></div>'
-    + '<p class="fnote">Pick the districts you want to bid in and the services you can render there. A district is roughly 25k to 40k households, and a new one verifies against serviceability before auctions appear.</p>'
-    + '</section>');
+function declaredCard(S) {
+  var n = S.coverage.length;
+  var body = n
+    ? '<div class="twrap"><table class="tbl">'
+      + '<thead><tr><th>Region</th><th>Status</th><th>Services declared</th><th class="num">Open</th><th></th></tr></thead>'
+      + '<tbody>' + S.coverage.map(function (c) { return regionRow(c, S); }).join('') + '</tbody></table></div>'
+    : '<div class="cvnone">Pick a city, then a region, then Declare. Auctions only reach your desk from inside your declared coverage.</div>';
+
+  return '<section class="card" style="margin-top:16px" aria-label="Declared coverage">'
+    + '<span class="eyebrow">Declared coverage</span>'
+    + '<h3>' + (n ? n + ' region' + (n === 1 ? '' : 's') + ' on file' : 'Nothing declared yet') + '</h3>'
+    + '<p class="cardnote">Each row is one region you will receive cohorts from, read back as '
+    + 'Region, City, Province. A new one verifies against serviceability before auctions appear.</p>'
+    + body + '</section>';
 }
 
 function regionRow(c, S) {
@@ -176,7 +199,13 @@ function regionRow(c, S) {
     return regionSlug(a.coverageRegion || a.region) === slug && (a.stage === 'open' || a.stage === 'closing');
   }).length;
 
-  var main = '<tr><td><span class="rg" style="font-size:13.5px">' + esc(c.region) + '</span></td>'
+  /* The row reads back exactly what the picker promised: Region, City,
+     Province. The city half is derived from core/places.js, because the record
+     does not carry it; a region we do not recognise shows its name alone
+     rather than an invented city. */
+  var place = placeOf(c.region);
+  var main = '<tr><td><span class="rg" style="font-size:13.5px">' + esc(c.region)
+    + (place ? '<small>' + esc(readsAs(c.region)) + '</small>' : '') + '</span></td>'
     + '<td><span class="covdot ' + ui[0] + '"></span>' + ui[1] + '</td>'
     + '<td class="covsvc">' + esc(services(c)) + '</td>'
     + '<td class="num">' + (openN || '·') + '</td>'
@@ -221,107 +250,145 @@ function editRow(c, slug) {
 }
 
 /* ------------------------------------------------------------------ *
- * the district picker
+ * the city and region picker
  *
- * Free text used to write straight into coverage, and a declared region IS the
- * bid unit, so "downtown-ish" was a region no cohort could ever match. The
- * field now only yields districts from core/districts.js.
+ * TWO STEPS, because a region name alone is not an address. "Downtown" and
+ * "West End" mean different places in Toronto and Vancouver, and a partner
+ * scanning one flat list of 251 names has no way to tell which one they are
+ * about to declare. City first narrows it to a handful and makes the answer
+ * readable back: Region, City, Province.
  *
- * WHY THE PICKER STATE IS MODULE LOCAL AND NOT IN THE STORE. Every set() in
- * this console repaints every view, so a query in the store would rebuild the
- * table on each keystroke and take the caret with it. These three live here,
- * render() paints from them, and typing repaints the results panel only. A
- * background refresh still restores the typed text and the open panel, which
- * is the property the store was giving us, without the repaint.
+ * ONLY THE REGION NAME GOES ON THE WIRE. core/places.js explains why at
+ * length: the server matches a bid to coverage on the region slug alone, so a
+ * composite value would refuse every bid. City and province are read back out
+ * of the list for display.
+ *
+ * WHY THIS STATE IS MODULE LOCAL AND NOT IN THE STORE. Every set() in this
+ * console repaints every view, so a query in the store would rebuild the whole
+ * page on each keystroke and take the caret with it. These live here, render()
+ * paints from them, and typing repaints one list.
  * ------------------------------------------------------------------ */
 
-var pQuery = '';    /* what is typed */
-var pPick = null;   /* district id chosen from the list, or null */
-var pOpen = false;  /* is the results panel showing */
-var pActive = -1;   /* index into the selectable rows, for up and down */
+var cvCity = null;      /* chosen city name */
+var cvProv = null;      /* chosen province */
+var cvRegion = null;    /* chosen region, the bid unit */
+var cvOpen = null;      /* 'city' | 'region' | null: which panel is showing */
 
-/** Districts already declared cannot be declared twice. */
+function cvPlace() { return findCity(cvCity, cvProv); }
+
+/** Regions already declared cannot be declared twice. */
 function declaredSlugs() {
   var out = {};
   get().coverage.forEach(function (c) { out[regionSlug(c.region)] = true; });
   return out;
 }
 
-/**
- * Every row the panel will draw, in order, each labelled with why it is or is
- * not selectable. One pass so the keyboard and the mouse cannot disagree about
- * which rows are pickable.
- */
-function results() {
-  var taken = declaredSlugs();
-  return search(pQuery).map(function (d) {
-    var why = d.tier !== 'launch' ? 'Queued for launch'
-      : (taken[regionSlug(d.name)] ? 'Already declared' : '');
-    return { d: d, tag: why, pickable: !why };
-  });
+function cvDuplicate() {
+  return !!(cvRegion && declaredSlugs()[regionSlug(cvRegion)]);
 }
 
-function pickable(rows) { return rows.filter(function (r) { return r.pickable; }); }
+/* ---- the city list ---- */
 
-function panelHtml() {
-  var rows = results();
-  if (!rows.length) {
-    return '<p class="dnone">No district by that name yet. Try a municipality, like Brampton or Vaughan.</p>';
-  }
-  var order = pickable(rows);
-  return grouped(rows.map(function (r) { return r.d; })).map(function (g) {
-    var body = rows.filter(function (r) { return r.d.muni === g.muni; }).map(function (r) {
-      var i = order.indexOf(r);
-      if (!r.pickable) {
-        return '<div class="dopt off" role="option" aria-disabled="true" aria-selected="false">'
-          + '<span>' + esc(r.d.name) + '</span><span class="dtag">' + r.tag + '</span></div>';
-      }
-      return '<div class="dopt' + (i === pActive ? ' act' : '') + '" role="option" id="dopt-' + esc(r.d.id) + '"'
-        + ' aria-selected="' + (i === pActive ? 'true' : 'false') + '"'
-        + ' data-action="coverage:pick" data-id="' + esc(r.d.id) + '">'
-        + '<span>' + esc(r.d.name) + '</span></div>';
-    }).join('');
-    return '<div class="dgrp">' + esc(g.muni) + '</div>' + body;
+function cityListHtml(q) {
+  var rows = searchCities(q);
+  if (!rows.length) return '<div class="cvempty">No city by that name yet.</div>';
+  var lastGroup = null;
+  return rows.map(function (p) {
+    var head = p.province !== lastGroup
+      ? '<div class="cvgroup">' + esc(p.province) + '</div>'
+      : '';
+    lastGroup = p.province;
+    var on = cvCity === p.city && cvProv === p.province;
+    var tail = on
+      ? '<span class="cvchk" aria-hidden="true">✓</span>'
+      : '<span class="cvtag' + (p.launch ? '' : ' soon') + '">' + (p.launch ? 'Launch' : 'Soon') + '</span>';
+    return head
+      + '<button type="button" class="cvitem" role="option" aria-selected="' + (on ? 'true' : 'false') + '"'
+      + ' data-action="coverage:city" data-key="' + esc(cityKey(p.city, p.province)) + '">'
+      + esc(p.city) + ' <span class="cvsub">· ' + esc(p.province) + '</span>' + tail + '</button>';
   }).join('');
 }
 
-function picker() {
-  return '<div class="dsel" id="regsel">'
-    + '<input id="regin" type="text" role="combobox" aria-expanded="' + (pOpen ? 'true' : 'false') + '"'
-    + ' aria-controls="regpanel" aria-autocomplete="list" autocomplete="off" spellcheck="false"'
-    + ' placeholder="Choose a district you want to bid in" aria-label="Choose a district"'
-    + ' data-action="coverage:query" value="' + esc(pQuery) + '">'
-    + '<div class="dpanel" id="regpanel" role="listbox" aria-label="Districts"' + (pOpen ? '' : ' hidden') + '>'
-    + (pOpen ? panelHtml() : '') + '</div></div>';
+/* ---- the region list ----
+ *
+ * A region inside a city we have not opened renders and does not pick, which
+ * is what the lede promises. The row says which city is holding it rather than
+ * going grey with no reason: "queued" beside a name a partner just searched
+ * for is a dead end they cannot act on. */
+
+function regionListHtml(q) {
+  var p = cvPlace();
+  if (!p) return '<div class="cvempty">Choose a city first.</div>';
+  var k = String(q || '').trim().toLowerCase();
+  var taken = declaredSlugs();
+  var whole = isWholeCity(p);
+  var rows = p.regions.filter(function (r) {
+    return !k || r.toLowerCase().indexOf(k) > -1;
+  });
+  if (!rows.length) return '<div class="cvempty">No region by that name in ' + esc(p.city) + '.</div>';
+
+  return rows.map(function (r) {
+    var why = !p.launch ? 'Soon' : (taken[regionSlug(r)] ? 'Declared' : '');
+    if (why) {
+      return '<div class="cvitem is-disabled" role="option" aria-disabled="true" aria-selected="false">'
+        + esc(r) + '<span class="cvtag' + (why === 'Soon' ? ' soon' : '') + '">' + why + '</span></div>';
+    }
+    return '<button type="button" class="cvitem" role="option" aria-selected="' + (cvRegion === r ? 'true' : 'false') + '"'
+      + ' data-action="coverage:region" data-region="' + esc(r) + '">'
+      + esc(r) + (whole ? ' <span class="cvsub">· whole city</span>' : '')
+      + (cvRegion === r ? '<span class="cvchk" aria-hidden="true">✓</span>' : '') + '</button>';
+  }).join('');
 }
 
-/** Repaint the panel alone, so the input keeps focus and caret while typing. */
-function paintPanel() {
-  var input = document.getElementById('regin');
-  var panel = document.getElementById('regpanel');
-  if (!panel || !input) return;
-  panel.innerHTML = pOpen ? panelHtml() : '';
-  if (pOpen) panel.removeAttribute('hidden'); else panel.setAttribute('hidden', '');
-  input.setAttribute('aria-expanded', pOpen ? 'true' : 'false');
-  var act = panel.querySelector('.dopt.act');
-  if (act && act.scrollIntoView) act.scrollIntoView({ block: 'nearest' });
+/* ---- the two combos ---- */
+
+function cityLabel() { return cvCity ? cvCity + ', ' + cvProv : 'Search a city'; }
+
+function regionLabel() {
+  if (!cvCity) return 'Choose a city first';
+  if (isWholeCity(cvPlace())) return 'Whole city (' + cvCity + ')';
+  return cvRegion || 'Choose a region';
 }
 
-function closePanel() {
-  if (!pOpen) return;
-  pOpen = false;
-  pActive = -1;
-  paintPanel();
+/**
+ * @param {string} id        'city' or 'region'
+ * @param {string} label     what the trigger reads
+ * @param {boolean} filled   false renders it as a placeholder
+ * @param {boolean} enabled
+ * @param {string} placeholder  the search field's own prompt
+ * @param {string} list      trusted HTML
+ */
+function combo(id, label, filled, enabled, placeholder, list) {
+  var open = cvOpen === id;
+  return '<div class="cvcombo' + (open ? ' open' : '') + (enabled ? '' : ' off') + '" data-combo="' + id + '">'
+    + '<button type="button" class="cvbtn" data-action="coverage:combo" data-combo="' + id + '"'
+    + (enabled ? '' : ' disabled') + ' aria-expanded="' + (open ? 'true' : 'false') + '" aria-haspopup="listbox">'
+    + '<span class="cvlab' + (filled ? '' : ' ph') + '">' + esc(label) + '</span>'
+    + '<i class="cvcar" aria-hidden="true"></i></button>'
+    + '<div class="cvpanel"' + (open ? '' : ' hidden') + '>'
+    + '<input type="text" class="cvsearch" id="cv-' + id + '-q" autocomplete="off" spellcheck="false"'
+    + ' placeholder="' + esc(placeholder) + '" aria-label="' + esc(placeholder) + '"'
+    + ' data-action="coverage:filter" data-combo="' + id + '">'
+    + '<div class="cvlist" id="cv-' + id + '-list" role="listbox">' + list + '</div>'
+    + '</div></div>';
 }
 
-function choose(id) {
-  var d = byId(id);
-  if (!d) return;
-  pPick = d.id;
-  pQuery = d.name;
-  var input = document.getElementById('regin');
-  if (input) { input.value = d.name; input.focus(); }
-  closePanel();
+/** Repaint one list alone, so the search field keeps focus and caret. */
+function paintList(id, q) {
+  var el = document.getElementById('cv-' + id + '-list');
+  if (!el) return;
+  el.innerHTML = id === 'city' ? cityListHtml(q) : regionListHtml(q);
+}
+
+function closeCombos() {
+  if (!cvOpen) return;
+  cvOpen = null;
+  Array.prototype.slice.call(document.querySelectorAll('.cvcombo')).forEach(function (c) {
+    c.classList.remove('open');
+    var b = c.querySelector('.cvbtn'), p = c.querySelector('.cvpanel');
+    if (b) b.setAttribute('aria-expanded', 'false');
+    if (p) p.setAttribute('hidden', '');
+  });
 }
 
 /* ------------------------------------------------------------------ *
@@ -329,8 +396,8 @@ function choose(id) {
  *
  * Technologies and speed tiers are the same kind of answer: several true at
  * once. They used to be two rows of always-visible chips, which was honest but
- * ten controls wide, and the add row could not hold them alongside the district
- * picker without the table scrolling sideways. They are now one dropdown each.
+ * ten controls wide, and the edit row could not hold them alongside the two
+ * region fields without the table scrolling sideways. They are now one dropdown each.
  *
  * NOT a native <select multiple>: that hides every unselected option behind a
  * scroll, needs a modifier key nobody discovers, and closes on the first pick,
@@ -442,13 +509,49 @@ function chosenSpeeds(id) {
     .sort(function (a, b) { return a - b; });
 }
 
-function addRow(standalone) {
-  var inner = '<td colspan="2">' + picker() + '</td>'
-    + '<td>' + techSelect('addtech', [], null) + '</td>'
-    + '<td>' + speedSelect('addspeed', '') + '</td>'
-    + '<td><button class="btn forest" type="button" data-action="coverage:add" style="width:100%;justify-content:center">Declare</button></td>';
-  if (!standalone) return '<tr class="addrow">' + inner + '</tr>';
-  return '<div class="twrap" style="margin-top:14px"><table class="tbl"><tbody><tr class="addrow">' + inner + '</tr></tbody></table></div>';
+/* The picker body: two combos, the resolved line, then what is rendered there.
+   Technology stays as visible chips rather than a dropdown: there are four,
+   they fit, and the commonest edit is toggling one. Speeds keep the dropdown,
+   because there are six and the trigger reads the whole set back. */
+function picker() {
+  var p = cvPlace();
+  var dup = cvDuplicate();
+  /* A whole-city entry resolves the region the moment the city is picked, so
+     "a region is chosen" is not the same question as "this can be declared".
+     Oshawa picks itself and is still closed. The button has to ask both, or it
+     goes live on a city we have not opened and the only thing standing between
+     the partner and a pointless write is a toast. */
+  var open = !!(cvRegion && isLaunchRegion(cvRegion));
+  var ready = !!(cvCity && cvRegion && open && !dup);
+
+  return '<div class="cvgrid">'
+    + '<div class="cvfield"><label class="celab">City and province</label>'
+    + combo('city', cityLabel(), !!cvCity, true, 'Type a city or province', cityListHtml('')) + '</div>'
+    + '<div class="cvfield"><label class="celab">Region <em>the bid unit</em></label>'
+    + combo('region', regionLabel(), !!cvRegion, !!p, 'Type a region', regionListHtml('')) + '</div>'
+    + '</div>'
+
+    + '<div class="cvresolved"><span>Your selection will read as</span> <b>'
+    + esc(ready ? readsAs(cvRegion) : 'Region, City, Province') + '</b></div>'
+
+    + '<div class="cvrow2">'
+    + '<div class="cvfield"><label class="celab">Technology you render there</label>'
+    + '<div class="cechips cvchips" id="addtech">'
+    + TECHS.map(function (t) {
+      return '<button type="button" data-action="coverage:chip" data-t="' + t[0] + '">'
+        + t[1] + '</button>';
+    }).join('')
+    + '</div></div>'
+    + '<div class="cvfield"><label class="celab">Speeds you offer there <em>pick all that apply</em></label>'
+    + speedSelect('addspeed', '') + '</div>'
+    + '<button class="btn forest" type="button" data-action="coverage:add"'
+    + (ready ? '' : ' disabled') + '>'
+    + (dup ? 'Already declared' : (cvRegion && !open ? 'Not open yet' : 'Declare region')) + '</button>'
+    + '</div>'
+
+    + '<small class="cvsmall">Regions inside a launch city start their serviceability check the moment '
+    + 'you declare them, against facilities data. You do not have to wait for one to clear before '
+    + 'declaring the next.</small>';
 }
 
 /* ------------------------------------------------------------------ *
@@ -523,6 +626,16 @@ export function mount() {
     }
   });
 
+  /* Attention moved elsewhere: close, rather than leaving a listbox floating
+     over the chips a partner is now clicking. This runs before the data-action
+     lookup, so a click on a trigger or an option is excluded by containment
+     rather than by ordering. Both control families close the same way. */
+  onAnyClick(function (e) {
+    if (!e.target.closest) return;
+    if (!e.target.closest('.msel')) closeMsel(null);
+    if (cvOpen && !e.target.closest('.cvcombo')) closeCombos();
+  });
+
   on('click', 'coverage:save', function (el) {
     var slug = el.getAttribute('data-region');
     var c = find(slug);
@@ -553,76 +666,73 @@ export function mount() {
     });
   });
 
-  /* ---- the district picker ---- */
+  /* ---- the city and region picker ---- */
 
-  /* Typing filters. A keystroke invalidates any earlier pick: the pick is what
-     Declare trusts, so leaving it set while the text says something else is
-     how a partner declares a district they are no longer looking at. */
-  on('input', 'coverage:query', function (el) {
-    pQuery = el.value;
-    pPick = null;
-    pOpen = true;
-    pActive = -1;
-    paintPanel();
+  /* Open one panel, and only one. Two listboxes overlapping is how a partner
+     picks a region belonging to a city they cannot see. */
+  on('click', 'coverage:combo', function (el) {
+    var which = el.getAttribute('data-combo');
+    if (which === 'region' && !cvPlace()) return;
+    var wasOpen = cvOpen === which;
+    closeCombos();
+    if (wasOpen) return;
+    cvOpen = which;
+    var wrap = document.querySelector('.cvcombo[data-combo="' + which + '"]');
+    if (!wrap) return;
+    wrap.classList.add('open');
+    el.setAttribute('aria-expanded', 'true');
+    var panel = wrap.querySelector('.cvpanel');
+    if (panel) panel.removeAttribute('hidden');
+    var q = document.getElementById('cv-' + which + '-q');
+    if (q) { q.value = ''; paintList(which, ''); q.focus(); }
   });
 
-  on('click', 'coverage:query', function () {
-    if (pOpen) return;
-    pOpen = true;
-    pActive = -1;
-    paintPanel();
+  /* Typing repaints one list, never the view: a set() here would rebuild the
+     card and take the caret with it. */
+  on('input', 'coverage:filter', function (el) {
+    paintList(el.getAttribute('data-combo'), el.value);
   });
 
-  on('keydown', 'coverage:query', function (el, e) {
-    var rows = pickable(results());
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (!pOpen) { pOpen = true; pActive = -1; }
-      if (rows.length) {
-        pActive = e.key === 'ArrowDown'
-          ? Math.min(pActive + 1, rows.length - 1)
-          : Math.max(pActive - 1, 0);
-      }
-      paintPanel();
-      return;
-    }
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      if (pOpen && pActive > -1 && rows[pActive]) choose(rows[pActive].d.id);
-      /* One exact-match convenience, and only that: typing a full district
-         name and pressing Enter picks it. Anything else leaves the pick unset,
-         and Declare refuses. */
-      else if (byName(el.value)) choose(byName(el.value).id);
-      return;
-    }
-    if (e.key === 'Escape') { closePanel(); return; }
+  on('keydown', 'coverage:filter', function (el, e) {
+    if (e.key !== 'Escape') return;
+    var which = el.getAttribute('data-combo');
+    closeCombos();
+    var trig = document.querySelector('.cvbtn[data-combo="' + which + '"]');
+    if (trig) trig.focus();
   });
 
-  on('click', 'coverage:pick', function (el) { choose(el.getAttribute('data-id')); });
+  /* Choosing a city clears the region under it. Keeping the old one would let
+     a partner declare "Kitsilano, Toronto, Ontario", which is not a place. A
+     whole-city entry resolves to itself, so one pick is the whole answer. */
+  on('click', 'coverage:city', function (el) {
+    var parts = String(el.getAttribute('data-key') || '').split('|');
+    var p = findCity(parts[0], parts[1]);
+    if (!p) return;
+    cvCity = p.city;
+    cvProv = p.province;
+    cvRegion = isWholeCity(p) ? p.city : null;
+    closeCombos();
+    render();
+  });
 
-  /* Attention moved elsewhere: close, rather than leaving a listbox floating
-     over the chips a partner is now clicking. */
-  onAnyClick(function (e) {
-    if (!e.target.closest) return;
-    /* The dropdowns close the same way and for the same reason. This runs
-       before the data-action lookup, so a click on a trigger or an option is
-       excluded by containment, not by ordering. */
-    if (!e.target.closest('.msel')) closeMsel(null);
-    if (!pOpen) return;
-    if (e.target.closest('#regsel')) return;
-    closePanel();
+  on('click', 'coverage:region', function (el) {
+    cvRegion = el.getAttribute('data-region');
+    closeCombos();
+    render();
   });
 
   on('click', 'coverage:add', function (el) {
-    /* The vocabulary is the whole point: nothing but a launch district can be
-       declared, so this resolves the field back to one and refuses otherwise.
-       An unresolvable field is a typo, not a new region. */
-    var input = document.getElementById('regin');
-    var typed = input ? input.value.trim() : '';
-    var d = pPick ? byId(pPick) : byName(typed);
-    if (!d) { toast('Pick a district from the list.'); return; }
-    if (d.tier !== 'launch') { toast(d.name + ' is queued for launch. Pick a district that is open.'); return; }
-    if (declaredSlugs()[regionSlug(d.name)]) { toast('You have already declared ' + d.name + '.'); return; }
+    /* The vocabulary is the whole point. Both halves have to resolve back to
+       a real place, and a region in a city we have not opened is refused here
+       as well as greyed in the list: the server would write it 'verifying'
+       and an operator would have to reject it by hand. */
+    if (!cvCity || !cvRegion) { toast('Pick a city, then a region inside it.'); return; }
+    var region = cvRegion;
+    if (!isLaunchRegion(region)) {
+      toast(cvCity + ' has not opened yet. Pick a city tagged Launch.');
+      return;
+    }
+    if (declaredSlugs()[regionSlug(region)]) { toast('You have already declared ' + region + '.'); return; }
 
     var techs = Array.prototype.slice.call(document.querySelectorAll('#addtech button.on'))
       .map(function (b) { return b.getAttribute('data-t'); });
@@ -634,12 +744,19 @@ export function mount() {
     var W = window.WHOLLAR;
     if (!W.busy(el, true, 'Declaring')) return;
 
-    api.coverageDeclare({ region: d.name, techs: techs, speed: speedWire(speeds) })
+    /* Region alone on the wire. core/places.js says why: the server matches a
+       bid on the region slug, so a composite would refuse every bid. */
+    api.coverageDeclare({ region: region, techs: techs, speed: speedWire(speeds) })
       .then(function (r) {
         W.busy(el, false);
-        pQuery = ''; pPick = null; pOpen = false; pActive = -1;
+        /* The city stays, the region clears. Declaring a second region in the
+           same city is the commonest next act, and re-picking Toronto to do it
+           is a step nobody needs. */
+        var p = cvPlace();
+        cvRegion = p && isWholeCity(p) ? p.city : null;
+        cvOpen = null;
         set({ coverage: (r && r.coverage) || get().coverage, covEdit: null, covDraft: null });
-        toast(d.name + ' declared. Verifying serviceability against facilities data.');
+        toast(readsAs(region) + ' declared. Verifying serviceability against facilities data.');
       }, function (err) {
         W.busy(el, false);
         failed(err);

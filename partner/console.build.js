@@ -3970,156 +3970,430 @@
   };
 
   /* ==================================================================
-     core/districts.js
+     core/places.js
      ================================================================== */
-  __defs["core/districts.js"] = function (__exports, __require, root) {
-  /* The declarable vocabulary: districts a partner may bid in.
+  __defs["core/places.js"] = function (__exports, __require, root) {
+  /* Where a partner may declare coverage: the city, then the region inside it.
    *
-   * WHY THIS EXISTS. Coverage used to be a free-text box. A partner could type
-   * "Scarberia" or "downtown-ish", the row wrote, and then no cohort ever matched
-   * that coverage cleanly: the declared region IS the bid unit, and a bid unit
-   * nobody else spells the same way is a bid unit that never fires. So the field
-   * became a controlled vocabulary and this file is the vocabulary.
+   * WHY A CONTROLLED LIST AT ALL. Coverage used to be a free-text box. A partner
+   * could type "Scarberia" or "downtown-ish", the row wrote, and no cohort ever
+   * matched it: the declared region IS the bid unit, and a bid unit nobody else
+   * spells the same way is a bid unit that never fires.
    *
-   * SIZE OF A DISTRICT. Roughly 25k to 40k households: uniform plant, big enough
+   * WHY THE REGION NAME IS THE WHOLE WIRE VALUE, and city and province are not
+   * sent. routes/desk.js requireActiveCoverage() matches a bid against coverage
+   * with slug(row.region) === slug(campaign.region), an EXACT match, server side,
+   * on the region alone. So this list is only useful if a campaign's region is
+   * drawn from the same list, and once it is, the region name carries all the
+   * matching there is. Sending a composite like "Scarborough Centre, Toronto,
+   * Ontario" would make every bid refuse. Whoever creates a campaigns row picks
+   * its region from here.
+   *
+   * CITY AND PROVINCE ARE DERIVED, not stored. provider_coverage has no column
+   * for either (create-tables.md section 16), so placeOf() below reads them back
+   * out of this list. 250 of the 251 region names are unique, so that lookup is
+   * exact for all but one: "West End" exists in both Toronto and Vancouver, and
+   * the launch city wins, because it is the only one of the two running cohorts.
+   * Adding city and province columns would make this exact; until then a wrong
+   * answer is possible for exactly one name in a city we have not opened.
+   *
+   * LAUNCH. Six cities run cohorts. The rest render in the list, tagged Soon and
+   * not selectable: a partner should see the ambition without declaring into a
+   * market that has no cohorts, and the server would only write the row as
+   * 'verifying' for an operator to reject by hand.
+   *
+   * SIZE OF A REGION. Roughly 25k to 40k households: uniform plant, big enough
    * that an incumbent repricing it hurts, small enough to stay coherent. That is
-   * why the launch tier splits Scarborough into four and leaves Oshawa whole.
+   * why Toronto splits into twenty and Oshawa stays whole. Municipal and
+   * former-municipality names are official; the compass groupings inside them
+   * (Scarborough East, North York Central) are ours.
    *
-   * NAMES. Municipal and former-municipality names are official. The compass
-   * groupings inside them (Scarborough East, North York Central) are ours, and
-   * they match the house style already on the site.
-   *
-   * TIERS. 'launch' is selectable. 'soon' renders in the list, greyed, tagged
-   * "Queued for launch", and cannot be picked: a partner should see the ambition
-   * without being able to declare into a market Whollar has not opened. That is
-   * the same treatment the coverage table already gives a 'soon' row.
-   *
-   * FSA IS NOT HERE, DELIBERATELY. Serviceability and facilities-owner checks run
-   * on FSA, so each district will carry an FSA set as backend data. The GTA
-   * structure is well known at the first three characters (M1x Scarborough, M5x
-   * downtown, L4/L5 Mississauga and so on), but exact FSA to district assignment
-   * has to be validated against a Canada Post boundary file before production,
-   * and a fabricated list here would be indistinguishable from a validated one.
-   * The console needs id, name, muni, tier and nothing else.
+   * FSA IS NOT HERE, DELIBERATELY. Serviceability runs on FSA, so each region
+   * will carry an FSA set as backend data. Exact FSA to region assignment has to
+   * be validated against a Canada Post boundary file, and a fabricated list here
+   * would be indistinguishable from a validated one.
    */
 
-  var DISTRICTS = [
-    /* City of Toronto */
-    { id: 'scar-sw', name: 'Scarborough Southwest', muni: 'Scarborough', tier: 'launch' },
-    { id: 'scar-c', name: 'Scarborough Centre', muni: 'Scarborough', tier: 'launch' },
-    { id: 'scar-e', name: 'Scarborough East', muni: 'Scarborough', tier: 'launch' },
-    { id: 'scar-n', name: 'Scarborough North', muni: 'Scarborough', tier: 'launch' },
-    { id: 'ny-w', name: 'North York West', muni: 'North York', tier: 'launch' },
-    { id: 'ny-c', name: 'North York Central', muni: 'North York', tier: 'launch' },
-    { id: 'ny-e', name: 'North York East', muni: 'North York', tier: 'launch' },
-    { id: 'ny-s', name: 'North York South', muni: 'North York', tier: 'launch' },
-    { id: 'etob-l', name: 'Etobicoke Lakeshore', muni: 'Etobicoke', tier: 'launch' },
-    { id: 'etob-c', name: 'Etobicoke Centre', muni: 'Etobicoke', tier: 'launch' },
-    { id: 'etob-n', name: 'Etobicoke North', muni: 'Etobicoke', tier: 'launch' },
-    { id: 'eyork', name: 'East York', muni: 'East York', tier: 'launch' },
-    { id: 'york', name: 'York', muni: 'York', tier: 'launch' },
-    { id: 'dt-core', name: 'Downtown Core', muni: 'Old Toronto', tier: 'launch' },
-    { id: 'dt-e', name: 'Downtown East', muni: 'Old Toronto', tier: 'launch' },
-    { id: 'dt-w', name: 'Downtown West', muni: 'Old Toronto', tier: 'launch' },
-    { id: 'midtown', name: 'Midtown', muni: 'Old Toronto', tier: 'launch' },
-    { id: 'annex', name: 'The Annex', muni: 'Old Toronto', tier: 'launch' },
-    { id: 'westend', name: 'West End', muni: 'Old Toronto', tier: 'launch' },
-    { id: 'eastend', name: 'East End', muni: 'Old Toronto', tier: 'launch' },
-    /* Peel */
-    { id: 'miss-cc', name: 'Mississauga City Centre', muni: 'Mississauga', tier: 'launch' },
-    { id: 'miss-l', name: 'Mississauga Lakeshore', muni: 'Mississauga', tier: 'launch' },
-    { id: 'miss-w', name: 'Mississauga West', muni: 'Mississauga', tier: 'launch' },
-    { id: 'miss-e', name: 'Mississauga East', muni: 'Mississauga', tier: 'launch' },
-    { id: 'miss-n', name: 'Mississauga North', muni: 'Mississauga', tier: 'launch' },
-    { id: 'bram-c', name: 'Brampton Central', muni: 'Brampton', tier: 'launch' },
-    { id: 'bram-e', name: 'Brampton East', muni: 'Brampton', tier: 'launch' },
-    { id: 'bram-w', name: 'Brampton West', muni: 'Brampton', tier: 'launch' },
-    /* York Region */
-    { id: 'mark-c', name: 'Markham Centre', muni: 'Markham', tier: 'launch' },
-    { id: 'mark-n', name: 'Markham North', muni: 'Markham', tier: 'launch' },
-    { id: 'mark-s', name: 'Markham South', muni: 'Markham', tier: 'launch' },
-    { id: 'vau-wb', name: 'Vaughan Woodbridge', muni: 'Vaughan', tier: 'launch' },
-    { id: 'vau-vmc', name: 'Maple and VMC', muni: 'Vaughan', tier: 'launch' },
-    { id: 'vau-th', name: 'Thornhill Vaughan', muni: 'Vaughan', tier: 'launch' },
-    { id: 'vau-kl', name: 'Kleinburg', muni: 'Vaughan', tier: 'launch' },
-    { id: 'rh-s', name: 'Richmond Hill South', muni: 'Richmond Hill', tier: 'launch' },
-    { id: 'rh-n', name: 'Richmond Hill North', muni: 'Richmond Hill', tier: 'launch' },
-    /* Queued for launch: outer GTA and beyond, kept at municipality level until
-       the household counts there justify splitting them. */
-    { id: 'newmarket', name: 'Newmarket', muni: 'York Region', tier: 'soon' },
-    { id: 'aurora', name: 'Aurora', muni: 'York Region', tier: 'soon' },
-    { id: 'stouffville', name: 'Whitchurch-Stouffville', muni: 'York Region', tier: 'soon' },
-    { id: 'georgina', name: 'Georgina', muni: 'York Region', tier: 'soon' },
-    { id: 'pickering', name: 'Pickering', muni: 'Durham', tier: 'soon' },
-    { id: 'ajax', name: 'Ajax', muni: 'Durham', tier: 'soon' },
-    { id: 'whitby', name: 'Whitby', muni: 'Durham', tier: 'soon' },
-    { id: 'oshawa', name: 'Oshawa', muni: 'Durham', tier: 'soon' },
-    { id: 'clarington', name: 'Clarington', muni: 'Durham', tier: 'soon' },
-    { id: 'oakville', name: 'Oakville', muni: 'Halton', tier: 'soon' },
-    { id: 'burlington', name: 'Burlington', muni: 'Halton', tier: 'soon' },
-    { id: 'milton', name: 'Milton', muni: 'Halton', tier: 'soon' },
-    { id: 'haltonhills', name: 'Halton Hills', muni: 'Halton', tier: 'soon' },
-    { id: 'caledon', name: 'Caledon', muni: 'Peel', tier: 'soon' },
-    { id: 'hamilton', name: 'Hamilton', muni: 'Hamilton', tier: 'soon' },
-    { id: 'ottawa', name: 'Ottawa', muni: 'Ottawa', tier: 'soon' }
+  var PLACES = [
+    { city: "Brampton", province: "Ontario", launch: true,
+      regions: ["Brampton Central", "Brampton East", "Brampton West"] },
+    { city: "Markham", province: "Ontario", launch: true,
+      regions: ["Markham Centre", "Markham North", "Markham South"] },
+    { city: "Mississauga", province: "Ontario", launch: true,
+      regions: ["Mississauga City Centre", "Mississauga Lakeshore", "Mississauga West", "Mississauga East", "Mississauga North"] },
+    { city: "Richmond Hill", province: "Ontario", launch: true,
+      regions: ["Richmond Hill South", "Richmond Hill North"] },
+    { city: "Toronto", province: "Ontario", launch: true,
+      regions: ["Scarborough Southwest", "Scarborough Centre", "Scarborough East", "Scarborough North", "North York West", "North York Central", "North York East", "North York South", "Etobicoke Lakeshore", "Etobicoke Centre", "Etobicoke North", "East York", "York", "Downtown Core", "Downtown East", "Downtown West", "Midtown", "The Annex", "West End", "East End"] },
+    { city: "Vaughan", province: "Ontario", launch: true,
+      regions: ["Vaughan Woodbridge", "Maple and VMC", "Thornhill Vaughan", "Kleinburg"] },
+    { city: "Ajax", province: "Ontario", launch: false,
+      regions: ["Ajax"] },
+    { city: "Arnprior", province: "Ontario", launch: false,
+      regions: ["Arnprior"] },
+    { city: "Aurora", province: "Ontario", launch: false,
+      regions: ["Aurora"] },
+    { city: "Barrie", province: "Ontario", launch: false,
+      regions: ["Barrie"] },
+    { city: "Belleville", province: "Ontario", launch: false,
+      regions: ["Belleville"] },
+    { city: "Bracebridge", province: "Ontario", launch: false,
+      regions: ["Bracebridge"] },
+    { city: "Bradford", province: "Ontario", launch: false,
+      regions: ["Bradford"] },
+    { city: "Brant", province: "Ontario", launch: false,
+      regions: ["Brant"] },
+    { city: "Brantford", province: "Ontario", launch: false,
+      regions: ["Brantford"] },
+    { city: "Brockville", province: "Ontario", launch: false,
+      regions: ["Brockville"] },
+    { city: "Burlington", province: "Ontario", launch: false,
+      regions: ["Burlington"] },
+    { city: "Caledon", province: "Ontario", launch: false,
+      regions: ["Caledon"] },
+    { city: "Cambridge", province: "Ontario", launch: false,
+      regions: ["Cambridge"] },
+    { city: "Carleton Place", province: "Ontario", launch: false,
+      regions: ["Carleton Place"] },
+    { city: "Chatham-Kent", province: "Ontario", launch: false,
+      regions: ["Chatham-Kent"] },
+    { city: "Clarington", province: "Ontario", launch: false,
+      regions: ["Clarington"] },
+    { city: "Cobourg", province: "Ontario", launch: false,
+      regions: ["Cobourg"] },
+    { city: "Collingwood", province: "Ontario", launch: false,
+      regions: ["Collingwood"] },
+    { city: "Cornwall", province: "Ontario", launch: false,
+      regions: ["Cornwall"] },
+    { city: "East Gwillimbury", province: "Ontario", launch: false,
+      regions: ["East Gwillimbury"] },
+    { city: "Elliot Lake", province: "Ontario", launch: false,
+      regions: ["Elliot Lake"] },
+    { city: "Fort Erie", province: "Ontario", launch: false,
+      regions: ["Fort Erie"] },
+    { city: "Gananoque", province: "Ontario", launch: false,
+      regions: ["Gananoque"] },
+    { city: "Georgina", province: "Ontario", launch: false,
+      regions: ["Georgina"] },
+    { city: "Goderich", province: "Ontario", launch: false,
+      regions: ["Goderich"] },
+    { city: "Gravenhurst", province: "Ontario", launch: false,
+      regions: ["Gravenhurst"] },
+    { city: "Greater Sudbury", province: "Ontario", launch: false,
+      regions: ["Greater Sudbury"] },
+    { city: "Grimsby", province: "Ontario", launch: false,
+      regions: ["Grimsby"] },
+    { city: "Guelph", province: "Ontario", launch: false,
+      regions: ["Guelph"] },
+    { city: "Haldimand", province: "Ontario", launch: false,
+      regions: ["Haldimand"] },
+    { city: "Halton Hills", province: "Ontario", launch: false,
+      regions: ["Halton Hills"] },
+    { city: "Hamilton", province: "Ontario", launch: false,
+      regions: ["Downtown Hamilton", "Hamilton East End", "Hamilton Mountain", "Stoney Creek", "Dundas", "Ancaster", "Flamborough", "Glanbrook"] },
+    { city: "Huntsville", province: "Ontario", launch: false,
+      regions: ["Huntsville"] },
+    { city: "Ingersoll", province: "Ontario", launch: false,
+      regions: ["Ingersoll"] },
+    { city: "Innisfil", province: "Ontario", launch: false,
+      regions: ["Innisfil"] },
+    { city: "Kenora", province: "Ontario", launch: false,
+      regions: ["Kenora"] },
+    { city: "Kincardine", province: "Ontario", launch: false,
+      regions: ["Kincardine"] },
+    { city: "King City", province: "Ontario", launch: false,
+      regions: ["King City"] },
+    { city: "Kingston", province: "Ontario", launch: false,
+      regions: ["Kingston"] },
+    { city: "Kitchener", province: "Ontario", launch: false,
+      regions: ["Kitchener"] },
+    { city: "London", province: "Ontario", launch: false,
+      regions: ["Downtown London", "North London", "East London", "South London", "West London"] },
+    { city: "Midland", province: "Ontario", launch: false,
+      regions: ["Midland"] },
+    { city: "Milton", province: "Ontario", launch: false,
+      regions: ["Milton"] },
+    { city: "Newmarket", province: "Ontario", launch: false,
+      regions: ["Newmarket"] },
+    { city: "Niagara Falls", province: "Ontario", launch: false,
+      regions: ["Niagara Falls"] },
+    { city: "Niagara-on-the-Lake", province: "Ontario", launch: false,
+      regions: ["Niagara-on-the-Lake"] },
+    { city: "Norfolk", province: "Ontario", launch: false,
+      regions: ["Norfolk"] },
+    { city: "North Bay", province: "Ontario", launch: false,
+      regions: ["North Bay"] },
+    { city: "Oakville", province: "Ontario", launch: false,
+      regions: ["Oakville"] },
+    { city: "Orillia", province: "Ontario", launch: false,
+      regions: ["Orillia"] },
+    { city: "Oshawa", province: "Ontario", launch: false,
+      regions: ["Oshawa"] },
+    { city: "Ottawa", province: "Ontario", launch: false,
+      regions: ["Downtown Ottawa", "Centretown", "Kanata", "Nepean", "Barrhaven", "Orleans", "Gloucester", "Vanier", "Stittsville", "Riverside South", "Alta Vista"] },
+    { city: "Owen Sound", province: "Ontario", launch: false,
+      regions: ["Owen Sound"] },
+    { city: "Parry Sound", province: "Ontario", launch: false,
+      regions: ["Parry Sound"] },
+    { city: "Pembroke", province: "Ontario", launch: false,
+      regions: ["Pembroke"] },
+    { city: "Perth", province: "Ontario", launch: false,
+      regions: ["Perth"] },
+    { city: "Petawawa", province: "Ontario", launch: false,
+      regions: ["Petawawa"] },
+    { city: "Peterborough", province: "Ontario", launch: false,
+      regions: ["Peterborough"] },
+    { city: "Pickering", province: "Ontario", launch: false,
+      regions: ["Pickering"] },
+    { city: "Port Hope", province: "Ontario", launch: false,
+      regions: ["Port Hope"] },
+    { city: "Quinte West", province: "Ontario", launch: false,
+      regions: ["Quinte West"] },
+    { city: "Renfrew", province: "Ontario", launch: false,
+      regions: ["Renfrew"] },
+    { city: "Sarnia", province: "Ontario", launch: false,
+      regions: ["Sarnia"] },
+    { city: "Sault Ste. Marie", province: "Ontario", launch: false,
+      regions: ["Sault Ste. Marie"] },
+    { city: "Simcoe", province: "Ontario", launch: false,
+      regions: ["Simcoe"] },
+    { city: "Smiths Falls", province: "Ontario", launch: false,
+      regions: ["Smiths Falls"] },
+    { city: "St. Catharines", province: "Ontario", launch: false,
+      regions: ["St. Catharines"] },
+    { city: "Stratford", province: "Ontario", launch: false,
+      regions: ["Stratford"] },
+    { city: "Thunder Bay", province: "Ontario", launch: false,
+      regions: ["Thunder Bay"] },
+    { city: "Tillsonburg", province: "Ontario", launch: false,
+      regions: ["Tillsonburg"] },
+    { city: "Timmins", province: "Ontario", launch: false,
+      regions: ["Timmins"] },
+    { city: "Walkerton", province: "Ontario", launch: false,
+      regions: ["Walkerton"] },
+    { city: "Wasaga Beach", province: "Ontario", launch: false,
+      regions: ["Wasaga Beach"] },
+    { city: "Waterloo", province: "Ontario", launch: false,
+      regions: ["Waterloo"] },
+    { city: "Welland", province: "Ontario", launch: false,
+      regions: ["Welland"] },
+    { city: "Whitby", province: "Ontario", launch: false,
+      regions: ["Whitby"] },
+    { city: "Whitchurch-Stouffville", province: "Ontario", launch: false,
+      regions: ["Whitchurch-Stouffville"] },
+    { city: "Windsor", province: "Ontario", launch: false,
+      regions: ["Downtown Windsor", "East Windsor", "South Windsor", "Riverside", "Walkerville"] },
+    { city: "Woodstock", province: "Ontario", launch: false,
+      regions: ["Woodstock"] },
+    { city: "Abbotsford", province: "British Columbia", launch: false,
+      regions: ["Abbotsford West", "Abbotsford East", "Clearbrook"] },
+    { city: "Agassiz", province: "British Columbia", launch: false,
+      regions: ["Agassiz"] },
+    { city: "Burnaby", province: "British Columbia", launch: false,
+      regions: ["Metrotown", "Brentwood", "Lougheed", "Edmonds"] },
+    { city: "Campbell River", province: "British Columbia", launch: false,
+      regions: ["Campbell River"] },
+    { city: "Castlegar", province: "British Columbia", launch: false,
+      regions: ["Castlegar"] },
+    { city: "Central Saanich", province: "British Columbia", launch: false,
+      regions: ["Central Saanich"] },
+    { city: "Chilliwack", province: "British Columbia", launch: false,
+      regions: ["Chilliwack"] },
+    { city: "Colwood", province: "British Columbia", launch: false,
+      regions: ["Colwood"] },
+    { city: "Comox", province: "British Columbia", launch: false,
+      regions: ["Comox"] },
+    { city: "Coquitlam", province: "British Columbia", launch: false,
+      regions: ["Coquitlam"] },
+    { city: "Courtenay", province: "British Columbia", launch: false,
+      regions: ["Courtenay"] },
+    { city: "Cranbrook", province: "British Columbia", launch: false,
+      regions: ["Cranbrook"] },
+    { city: "Dawson Creek", province: "British Columbia", launch: false,
+      regions: ["Dawson Creek"] },
+    { city: "Delta", province: "British Columbia", launch: false,
+      regions: ["North Delta", "Ladner", "Tsawwassen"] },
+    { city: "Duncan", province: "British Columbia", launch: false,
+      regions: ["Duncan"] },
+    { city: "Esquimalt", province: "British Columbia", launch: false,
+      regions: ["Esquimalt"] },
+    { city: "Fernie", province: "British Columbia", launch: false,
+      regions: ["Fernie"] },
+    { city: "Fort St. John", province: "British Columbia", launch: false,
+      regions: ["Fort St. John"] },
+    { city: "Gibsons", province: "British Columbia", launch: false,
+      regions: ["Gibsons"] },
+    { city: "Golden", province: "British Columbia", launch: false,
+      regions: ["Golden"] },
+    { city: "Hope", province: "British Columbia", launch: false,
+      regions: ["Hope"] },
+    { city: "Kamloops", province: "British Columbia", launch: false,
+      regions: ["Kamloops"] },
+    { city: "Kelowna", province: "British Columbia", launch: false,
+      regions: ["Kelowna"] },
+    { city: "Kent", province: "British Columbia", launch: false,
+      regions: ["Kent"] },
+    { city: "Kimberley", province: "British Columbia", launch: false,
+      regions: ["Kimberley"] },
+    { city: "Kitimat", province: "British Columbia", launch: false,
+      regions: ["Kitimat"] },
+    { city: "Ladysmith", province: "British Columbia", launch: false,
+      regions: ["Ladysmith"] },
+    { city: "Langford", province: "British Columbia", launch: false,
+      regions: ["Langford"] },
+    { city: "Langley City", province: "British Columbia", launch: false,
+      regions: ["Langley City"] },
+    { city: "Langley Township", province: "British Columbia", launch: false,
+      regions: ["Langley Township"] },
+    { city: "Maple Ridge", province: "British Columbia", launch: false,
+      regions: ["Maple Ridge"] },
+    { city: "Mission", province: "British Columbia", launch: false,
+      regions: ["Mission"] },
+    { city: "Nanaimo", province: "British Columbia", launch: false,
+      regions: ["Nanaimo"] },
+    { city: "Nelson", province: "British Columbia", launch: false,
+      regions: ["Nelson"] },
+    { city: "New Westminster", province: "British Columbia", launch: false,
+      regions: ["New Westminster"] },
+    { city: "North Saanich", province: "British Columbia", launch: false,
+      regions: ["North Saanich"] },
+    { city: "North Vancouver City", province: "British Columbia", launch: false,
+      regions: ["North Vancouver City"] },
+    { city: "North Vancouver District", province: "British Columbia", launch: false,
+      regions: ["North Vancouver District"] },
+    { city: "Oak Bay", province: "British Columbia", launch: false,
+      regions: ["Oak Bay"] },
+    { city: "Parksville", province: "British Columbia", launch: false,
+      regions: ["Parksville"] },
+    { city: "Pemberton", province: "British Columbia", launch: false,
+      regions: ["Pemberton"] },
+    { city: "Penticton", province: "British Columbia", launch: false,
+      regions: ["Penticton"] },
+    { city: "Pitt Meadows", province: "British Columbia", launch: false,
+      regions: ["Pitt Meadows"] },
+    { city: "Port Alberni", province: "British Columbia", launch: false,
+      regions: ["Port Alberni"] },
+    { city: "Port Coquitlam", province: "British Columbia", launch: false,
+      regions: ["Port Coquitlam"] },
+    { city: "Port Moody", province: "British Columbia", launch: false,
+      regions: ["Port Moody"] },
+    { city: "Powell River", province: "British Columbia", launch: false,
+      regions: ["Powell River"] },
+    { city: "Prince George", province: "British Columbia", launch: false,
+      regions: ["Prince George"] },
+    { city: "Prince Rupert", province: "British Columbia", launch: false,
+      regions: ["Prince Rupert"] },
+    { city: "Qualicum Beach", province: "British Columbia", launch: false,
+      regions: ["Qualicum Beach"] },
+    { city: "Quesnel", province: "British Columbia", launch: false,
+      regions: ["Quesnel"] },
+    { city: "Revelstoke", province: "British Columbia", launch: false,
+      regions: ["Revelstoke"] },
+    { city: "Richmond", province: "British Columbia", launch: false,
+      regions: ["Richmond City Centre", "Steveston"] },
+    { city: "Saanich", province: "British Columbia", launch: false,
+      regions: ["Saanich"] },
+    { city: "Salmon Arm", province: "British Columbia", launch: false,
+      regions: ["Salmon Arm"] },
+    { city: "Sechelt", province: "British Columbia", launch: false,
+      regions: ["Sechelt"] },
+    { city: "Sidney", province: "British Columbia", launch: false,
+      regions: ["Sidney"] },
+    { city: "Smithers", province: "British Columbia", launch: false,
+      regions: ["Smithers"] },
+    { city: "Sooke", province: "British Columbia", launch: false,
+      regions: ["Sooke"] },
+    { city: "Squamish", province: "British Columbia", launch: false,
+      regions: ["Squamish"] },
+    { city: "Surrey", province: "British Columbia", launch: false,
+      regions: ["Surrey City Centre", "Guildford", "Fleetwood", "Newton", "Cloverdale", "South Surrey"] },
+    { city: "Terrace", province: "British Columbia", launch: false,
+      regions: ["Terrace"] },
+    { city: "Trail", province: "British Columbia", launch: false,
+      regions: ["Trail"] },
+    { city: "Vancouver", province: "British Columbia", launch: false,
+      regions: ["Arbutus-Ridge", "Downtown", "Dunbar-Southlands", "Fairview", "Grandview-Woodland", "Hastings-Sunrise", "Kensington-Cedar Cottage", "Kerrisdale", "Killarney", "Kitsilano", "Marpole", "Mount Pleasant", "Oakridge", "Renfrew-Collingwood", "Riley Park", "Shaughnessy", "South Cambie", "Strathcona", "Sunset", "Victoria-Fraserview", "West End", "West Point Grey"] },
+    { city: "Vernon", province: "British Columbia", launch: false,
+      regions: ["Vernon"] },
+    { city: "Victoria", province: "British Columbia", launch: false,
+      regions: ["Downtown Victoria", "James Bay", "Fairfield", "Fernwood", "Vic West", "Rockland"] },
+    { city: "View Royal", province: "British Columbia", launch: false,
+      regions: ["View Royal"] },
+    { city: "West Kelowna", province: "British Columbia", launch: false,
+      regions: ["West Kelowna"] },
+    { city: "West Vancouver", province: "British Columbia", launch: false,
+      regions: ["West Vancouver"] },
+    { city: "Whistler", province: "British Columbia", launch: false,
+      regions: ["Whistler"] },
+    { city: "White Rock", province: "British Columbia", launch: false,
+      regions: ["White Rock"] },
+    { city: "Williams Lake", province: "British Columbia", launch: false,
+      regions: ["Williams Lake"] }
   ];
 
-  function norm(s) { return String(s === null || s === undefined ? '' : s).trim().toLowerCase(); }
+  function norm(s) { return String(s == null ? '' : s).trim().toLowerCase(); }
 
-  /** The district with this id, or null. */
-  function byId(id) {
-    var k = norm(id);
-    for (var i = 0; i < DISTRICTS.length; i++) if (DISTRICTS[i].id === k) return DISTRICTS[i];
+  /** The key a city option carries, since a city name alone is not unique. */
+  function cityKey(city, province) { return city + '|' + province; }
+
+  function findCity(city, province) {
+    for (var i = 0; i < PLACES.length; i++) {
+      if (PLACES[i].city === city && PLACES[i].province === province) return PLACES[i];
+    }
     return null;
   }
 
-  /**
-   * The district with this name, case and space insensitive, or null. This is
-   * what turns a typed string back into vocabulary, so Declare can refuse
-   * anything that is not one of these.
-   */
-  function byName(name) {
-    var k = norm(name);
-    if (!k) return null;
-    for (var i = 0; i < DISTRICTS.length; i++) if (norm(DISTRICTS[i].name) === k) return DISTRICTS[i];
-    return null;
+  /** A city with no sub-regions declares as itself, and the picker says so. */
+  function isWholeCity(p) {
+    return !!(p && p.regions.length === 1 && p.regions[0] === p.city);
   }
 
   /**
-   * Districts matching a typed fragment, in vocabulary order.
-   *
-   * Municipality is matched as well as name, and on purpose: a partner typing
-   * "vaughan" means the four Vaughan districts, two of which (Maple and VMC,
-   * Kleinburg) do not carry the word. Matching name only would answer a
-   * reasonable question with an empty list.
+   * The city a region belongs to, preferring a launch city on the one collision.
+   * Used to read city and province back for a stored row, which carries neither.
    */
-  function search(q) {
-    var k = norm(q);
-    if (!k) return DISTRICTS.slice();
-    return DISTRICTS.filter(function (d) {
-      return norm(d.name).indexOf(k) > -1 || norm(d.muni).indexOf(k) > -1;
-    });
-  }
-
-  /** [{ muni, rows }], municipalities in the order the vocabulary lists them. */
-  function grouped(list) {
-    var out = [];
-    var seen = {};
-    (list || []).forEach(function (d) {
-      if (!Object.prototype.hasOwnProperty.call(seen, d.muni)) {
-        seen[d.muni] = { muni: d.muni, rows: [] };
-        out.push(seen[d.muni]);
+  function placeOf(region) {
+    var k = norm(region), hit = null;
+    for (var i = 0; i < PLACES.length; i++) {
+      var p = PLACES[i];
+      for (var j = 0; j < p.regions.length; j++) {
+        if (norm(p.regions[j]) !== k) continue;
+        if (p.launch) return p;
+        if (!hit) hit = p;
       }
-      seen[d.muni].rows.push(d);
-    });
-    return out;
+    }
+    return hit;
   }
 
-  __exports.DISTRICTS = DISTRICTS;
-  __exports.byId = byId;
-  __exports.byName = byName;
-  __exports.search = search;
-  __exports.grouped = grouped;
+  /** "Scarborough Centre, Toronto, Ontario", or just the region if unplaced. */
+  function readsAs(region) {
+    var p = placeOf(region);
+    return p ? region + ', ' + p.city + ', ' + p.province : region;
+  }
+
+  /** Is this region name one we run cohorts in? Declare refuses anything else. */
+  function isLaunchRegion(region) {
+    var p = placeOf(region);
+    return !!(p && p.launch);
+  }
+
+  /** Cities matching a query, in list order, grouped by province downstream. */
+  function searchCities(q) {
+    var k = norm(q);
+    if (!k) return PLACES.slice();
+    return PLACES.filter(function (p) {
+      return norm(p.city).indexOf(k) > -1 || norm(p.province).indexOf(k) > -1;
+    });
+  }
+
+  __exports.PLACES = PLACES;
+  __exports.cityKey = cityKey;
+  __exports.findCity = findCity;
+  __exports.isWholeCity = isWholeCity;
+  __exports.placeOf = placeOf;
+  __exports.readsAs = readsAs;
+  __exports.isLaunchRegion = isLaunchRegion;
+  __exports.searchCities = searchCities;
   };
 
   /* ==================================================================
@@ -4142,6 +4416,11 @@
    *               Whollar has not opened it. No edit affordance, because there
    *               is nothing the partner can do about it.
    *
+   * A REGION IS PICKED, NEVER TYPED. The declarable list is core/places.js: a
+   * city, then a region inside it. That file explains at length why only the
+   * region name goes on the wire, and why city and province are read back out
+   * of the list rather than stored.
+   *
    * Until the admin verify route shipped alongside this, `active` was
    * unreachable: every declared region sat in 'verifying' forever and no cohort
    * ever reached any desk. That was the single blocker under the whole console.
@@ -4159,8 +4438,8 @@
   var on = __ns4.on, onAnyClick = __ns4.onAnyClick;
   var __ns5 = __require("core/session.js");
   var authFailed = __ns5.authFailed;
-  var __ns6 = __require("core/districts.js");
-  var byId = __ns6.byId, byName = __ns6.byName, search = __ns6.search, grouped = __ns6.grouped;
+  var __ns6 = __require("core/places.js");
+  var cityKey = __ns6.cityKey, findCity = __ns6.findCity, isWholeCity = __ns6.isWholeCity, placeOf = __ns6.placeOf, readsAs = __ns6.readsAs, isLaunchRegion = __ns6.isLaunchRegion, searchCities = __ns6.searchCities;
 
   /* The technologies desk.js accepts, in its own spelling. The console shows the
      label; the wire carries the value. Getting this wrong is a 400. */
@@ -4259,18 +4538,22 @@
    * Paint, and hand the caret back.
    *
    * A refresh anywhere in the console repaints this view, which replaces the
-   * picker's input node. Mid-search that reads as the field going dead under
-   * your hands, so if the picker had focus it gets it back with the caret at the
-   * end of what was typed.
+   * open panel's search field. Mid-search that reads as the field going dead
+   * under your hands, so if one had focus it gets it back with its text and the
+   * caret at the end.
    */
   function paint(host, html) {
-    var live = document.activeElement && document.activeElement.id === 'regin';
+    var live = document.activeElement;
+    var id = live && live.className === 'cvsearch' ? live.id : null;
+    var text = id ? live.value : '';
     host.innerHTML = html;
-    if (!live) return;
-    var input = document.getElementById('regin');
+    if (!id) return;
+    var input = document.getElementById(id);
     if (!input) return;
+    input.value = text;
+    paintList(id === 'cv-city-q' ? 'city' : 'region', text);
     input.focus();
-    try { input.setSelectionRange(input.value.length, input.value.length); } catch (e) { /* not all inputs allow it */ }
+    try { input.setSelectionRange(text.length, text.length); } catch (e) { /* not all inputs allow it */ }
   }
 
   function render() {
@@ -4286,22 +4569,36 @@
       return;
     }
 
-    if (!S.coverage.length) {
-      paint(host, '<section class="card"><div class="empty">'
-        + '<h3>Nothing declared yet, so nothing reaches your desk</h3>'
-        + '<p>Auctions are matched to partners by coverage. Pick a district and the services you can render there, and cohorts forming inside it start appearing on your bid desk. Serviceability is checked against facilities data; you do not have to wait for that to declare more.</p>'
-        + '</div>' + addRow(true) + '</section>');
-      return;
-    }
+    paint(host, pickerCard() + declaredCard(S));
+  }
 
-    var rows = S.coverage.map(function (c) { return regionRow(c, S); }).join('');
+  /* The picker, as one card. Its own heading rather than the view's, because the
+     view header has to keep saying what Coverage is for to a partner who already
+     has ten regions on file and is not declaring anything today. */
+  function pickerCard() {
+    return '<section class="card" aria-label="Declare a region">'
+      + '<span class="eyebrow gld">Where do you serve?</span>'
+      + '<h3>Pick your city, then the region inside it</h3>'
+      + '<p class="cardnote">A region is the unit a cohort runs in, so it is the unit you bid in. '
+      + 'Declare as many as you serve; each one starts its own serviceability check.</p>'
+      + picker()
+      + '</section>';
+  }
 
-    paint(host, '<section class="card" style="padding-top:14px" aria-label="Your regions">'
-      + '<div class="twrap"><table class="tbl">'
-      + '<thead><tr><th>Region</th><th>Status</th><th>Services declared</th><th class="num">Open</th><th></th></tr></thead>'
-      + '<tbody>' + rows + addRow(false) + '</tbody></table></div>'
-      + '<p class="fnote">Pick the districts you want to bid in and the services you can render there. A district is roughly 25k to 40k households, and a new one verifies against serviceability before auctions appear.</p>'
-      + '</section>');
+  function declaredCard(S) {
+    var n = S.coverage.length;
+    var body = n
+      ? '<div class="twrap"><table class="tbl">'
+        + '<thead><tr><th>Region</th><th>Status</th><th>Services declared</th><th class="num">Open</th><th></th></tr></thead>'
+        + '<tbody>' + S.coverage.map(function (c) { return regionRow(c, S); }).join('') + '</tbody></table></div>'
+      : '<div class="cvnone">Pick a city, then a region, then Declare. Auctions only reach your desk from inside your declared coverage.</div>';
+
+    return '<section class="card" style="margin-top:16px" aria-label="Declared coverage">'
+      + '<span class="eyebrow">Declared coverage</span>'
+      + '<h3>' + (n ? n + ' region' + (n === 1 ? '' : 's') + ' on file' : 'Nothing declared yet') + '</h3>'
+      + '<p class="cardnote">Each row is one region you will receive cohorts from, read back as '
+      + 'Region, City, Province. A new one verifies against serviceability before auctions appear.</p>'
+      + body + '</section>';
   }
 
   function regionRow(c, S) {
@@ -4311,7 +4608,13 @@
       return regionSlug(a.coverageRegion || a.region) === slug && (a.stage === 'open' || a.stage === 'closing');
     }).length;
 
-    var main = '<tr><td><span class="rg" style="font-size:13.5px">' + esc(c.region) + '</span></td>'
+    /* The row reads back exactly what the picker promised: Region, City,
+       Province. The city half is derived from core/places.js, because the record
+       does not carry it; a region we do not recognise shows its name alone
+       rather than an invented city. */
+    var place = placeOf(c.region);
+    var main = '<tr><td><span class="rg" style="font-size:13.5px">' + esc(c.region)
+      + (place ? '<small>' + esc(readsAs(c.region)) + '</small>' : '') + '</span></td>'
       + '<td><span class="covdot ' + ui[0] + '"></span>' + ui[1] + '</td>'
       + '<td class="covsvc">' + esc(services(c)) + '</td>'
       + '<td class="num">' + (openN || '·') + '</td>'
@@ -4356,107 +4659,145 @@
   }
 
   /* ------------------------------------------------------------------ *
-   * the district picker
+   * the city and region picker
    *
-   * Free text used to write straight into coverage, and a declared region IS the
-   * bid unit, so "downtown-ish" was a region no cohort could ever match. The
-   * field now only yields districts from core/districts.js.
+   * TWO STEPS, because a region name alone is not an address. "Downtown" and
+   * "West End" mean different places in Toronto and Vancouver, and a partner
+   * scanning one flat list of 251 names has no way to tell which one they are
+   * about to declare. City first narrows it to a handful and makes the answer
+   * readable back: Region, City, Province.
    *
-   * WHY THE PICKER STATE IS MODULE LOCAL AND NOT IN THE STORE. Every set() in
-   * this console repaints every view, so a query in the store would rebuild the
-   * table on each keystroke and take the caret with it. These three live here,
-   * render() paints from them, and typing repaints the results panel only. A
-   * background refresh still restores the typed text and the open panel, which
-   * is the property the store was giving us, without the repaint.
+   * ONLY THE REGION NAME GOES ON THE WIRE. core/places.js explains why at
+   * length: the server matches a bid to coverage on the region slug alone, so a
+   * composite value would refuse every bid. City and province are read back out
+   * of the list for display.
+   *
+   * WHY THIS STATE IS MODULE LOCAL AND NOT IN THE STORE. Every set() in this
+   * console repaints every view, so a query in the store would rebuild the whole
+   * page on each keystroke and take the caret with it. These live here, render()
+   * paints from them, and typing repaints one list.
    * ------------------------------------------------------------------ */
 
-  var pQuery = '';    /* what is typed */
-  var pPick = null;   /* district id chosen from the list, or null */
-  var pOpen = false;  /* is the results panel showing */
-  var pActive = -1;   /* index into the selectable rows, for up and down */
+  var cvCity = null;      /* chosen city name */
+  var cvProv = null;      /* chosen province */
+  var cvRegion = null;    /* chosen region, the bid unit */
+  var cvOpen = null;      /* 'city' | 'region' | null: which panel is showing */
 
-  /** Districts already declared cannot be declared twice. */
+  function cvPlace() { return findCity(cvCity, cvProv); }
+
+  /** Regions already declared cannot be declared twice. */
   function declaredSlugs() {
     var out = {};
     get().coverage.forEach(function (c) { out[regionSlug(c.region)] = true; });
     return out;
   }
 
-  /**
-   * Every row the panel will draw, in order, each labelled with why it is or is
-   * not selectable. One pass so the keyboard and the mouse cannot disagree about
-   * which rows are pickable.
-   */
-  function results() {
-    var taken = declaredSlugs();
-    return search(pQuery).map(function (d) {
-      var why = d.tier !== 'launch' ? 'Queued for launch'
-        : (taken[regionSlug(d.name)] ? 'Already declared' : '');
-      return { d: d, tag: why, pickable: !why };
-    });
+  function cvDuplicate() {
+    return !!(cvRegion && declaredSlugs()[regionSlug(cvRegion)]);
   }
 
-  function pickable(rows) { return rows.filter(function (r) { return r.pickable; }); }
+  /* ---- the city list ---- */
 
-  function panelHtml() {
-    var rows = results();
-    if (!rows.length) {
-      return '<p class="dnone">No district by that name yet. Try a municipality, like Brampton or Vaughan.</p>';
-    }
-    var order = pickable(rows);
-    return grouped(rows.map(function (r) { return r.d; })).map(function (g) {
-      var body = rows.filter(function (r) { return r.d.muni === g.muni; }).map(function (r) {
-        var i = order.indexOf(r);
-        if (!r.pickable) {
-          return '<div class="dopt off" role="option" aria-disabled="true" aria-selected="false">'
-            + '<span>' + esc(r.d.name) + '</span><span class="dtag">' + r.tag + '</span></div>';
-        }
-        return '<div class="dopt' + (i === pActive ? ' act' : '') + '" role="option" id="dopt-' + esc(r.d.id) + '"'
-          + ' aria-selected="' + (i === pActive ? 'true' : 'false') + '"'
-          + ' data-action="coverage:pick" data-id="' + esc(r.d.id) + '">'
-          + '<span>' + esc(r.d.name) + '</span></div>';
-      }).join('');
-      return '<div class="dgrp">' + esc(g.muni) + '</div>' + body;
+  function cityListHtml(q) {
+    var rows = searchCities(q);
+    if (!rows.length) return '<div class="cvempty">No city by that name yet.</div>';
+    var lastGroup = null;
+    return rows.map(function (p) {
+      var head = p.province !== lastGroup
+        ? '<div class="cvgroup">' + esc(p.province) + '</div>'
+        : '';
+      lastGroup = p.province;
+      var on = cvCity === p.city && cvProv === p.province;
+      var tail = on
+        ? '<span class="cvchk" aria-hidden="true">✓</span>'
+        : '<span class="cvtag' + (p.launch ? '' : ' soon') + '">' + (p.launch ? 'Launch' : 'Soon') + '</span>';
+      return head
+        + '<button type="button" class="cvitem" role="option" aria-selected="' + (on ? 'true' : 'false') + '"'
+        + ' data-action="coverage:city" data-key="' + esc(cityKey(p.city, p.province)) + '">'
+        + esc(p.city) + ' <span class="cvsub">· ' + esc(p.province) + '</span>' + tail + '</button>';
     }).join('');
   }
 
-  function picker() {
-    return '<div class="dsel" id="regsel">'
-      + '<input id="regin" type="text" role="combobox" aria-expanded="' + (pOpen ? 'true' : 'false') + '"'
-      + ' aria-controls="regpanel" aria-autocomplete="list" autocomplete="off" spellcheck="false"'
-      + ' placeholder="Choose a district you want to bid in" aria-label="Choose a district"'
-      + ' data-action="coverage:query" value="' + esc(pQuery) + '">'
-      + '<div class="dpanel" id="regpanel" role="listbox" aria-label="Districts"' + (pOpen ? '' : ' hidden') + '>'
-      + (pOpen ? panelHtml() : '') + '</div></div>';
+  /* ---- the region list ----
+   *
+   * A region inside a city we have not opened renders and does not pick, which
+   * is what the lede promises. The row says which city is holding it rather than
+   * going grey with no reason: "queued" beside a name a partner just searched
+   * for is a dead end they cannot act on. */
+
+  function regionListHtml(q) {
+    var p = cvPlace();
+    if (!p) return '<div class="cvempty">Choose a city first.</div>';
+    var k = String(q || '').trim().toLowerCase();
+    var taken = declaredSlugs();
+    var whole = isWholeCity(p);
+    var rows = p.regions.filter(function (r) {
+      return !k || r.toLowerCase().indexOf(k) > -1;
+    });
+    if (!rows.length) return '<div class="cvempty">No region by that name in ' + esc(p.city) + '.</div>';
+
+    return rows.map(function (r) {
+      var why = !p.launch ? 'Soon' : (taken[regionSlug(r)] ? 'Declared' : '');
+      if (why) {
+        return '<div class="cvitem is-disabled" role="option" aria-disabled="true" aria-selected="false">'
+          + esc(r) + '<span class="cvtag' + (why === 'Soon' ? ' soon' : '') + '">' + why + '</span></div>';
+      }
+      return '<button type="button" class="cvitem" role="option" aria-selected="' + (cvRegion === r ? 'true' : 'false') + '"'
+        + ' data-action="coverage:region" data-region="' + esc(r) + '">'
+        + esc(r) + (whole ? ' <span class="cvsub">· whole city</span>' : '')
+        + (cvRegion === r ? '<span class="cvchk" aria-hidden="true">✓</span>' : '') + '</button>';
+    }).join('');
   }
 
-  /** Repaint the panel alone, so the input keeps focus and caret while typing. */
-  function paintPanel() {
-    var input = document.getElementById('regin');
-    var panel = document.getElementById('regpanel');
-    if (!panel || !input) return;
-    panel.innerHTML = pOpen ? panelHtml() : '';
-    if (pOpen) panel.removeAttribute('hidden'); else panel.setAttribute('hidden', '');
-    input.setAttribute('aria-expanded', pOpen ? 'true' : 'false');
-    var act = panel.querySelector('.dopt.act');
-    if (act && act.scrollIntoView) act.scrollIntoView({ block: 'nearest' });
+  /* ---- the two combos ---- */
+
+  function cityLabel() { return cvCity ? cvCity + ', ' + cvProv : 'Search a city'; }
+
+  function regionLabel() {
+    if (!cvCity) return 'Choose a city first';
+    if (isWholeCity(cvPlace())) return 'Whole city (' + cvCity + ')';
+    return cvRegion || 'Choose a region';
   }
 
-  function closePanel() {
-    if (!pOpen) return;
-    pOpen = false;
-    pActive = -1;
-    paintPanel();
+  /**
+   * @param {string} id        'city' or 'region'
+   * @param {string} label     what the trigger reads
+   * @param {boolean} filled   false renders it as a placeholder
+   * @param {boolean} enabled
+   * @param {string} placeholder  the search field's own prompt
+   * @param {string} list      trusted HTML
+   */
+  function combo(id, label, filled, enabled, placeholder, list) {
+    var open = cvOpen === id;
+    return '<div class="cvcombo' + (open ? ' open' : '') + (enabled ? '' : ' off') + '" data-combo="' + id + '">'
+      + '<button type="button" class="cvbtn" data-action="coverage:combo" data-combo="' + id + '"'
+      + (enabled ? '' : ' disabled') + ' aria-expanded="' + (open ? 'true' : 'false') + '" aria-haspopup="listbox">'
+      + '<span class="cvlab' + (filled ? '' : ' ph') + '">' + esc(label) + '</span>'
+      + '<i class="cvcar" aria-hidden="true"></i></button>'
+      + '<div class="cvpanel"' + (open ? '' : ' hidden') + '>'
+      + '<input type="text" class="cvsearch" id="cv-' + id + '-q" autocomplete="off" spellcheck="false"'
+      + ' placeholder="' + esc(placeholder) + '" aria-label="' + esc(placeholder) + '"'
+      + ' data-action="coverage:filter" data-combo="' + id + '">'
+      + '<div class="cvlist" id="cv-' + id + '-list" role="listbox">' + list + '</div>'
+      + '</div></div>';
   }
 
-  function choose(id) {
-    var d = byId(id);
-    if (!d) return;
-    pPick = d.id;
-    pQuery = d.name;
-    var input = document.getElementById('regin');
-    if (input) { input.value = d.name; input.focus(); }
-    closePanel();
+  /** Repaint one list alone, so the search field keeps focus and caret. */
+  function paintList(id, q) {
+    var el = document.getElementById('cv-' + id + '-list');
+    if (!el) return;
+    el.innerHTML = id === 'city' ? cityListHtml(q) : regionListHtml(q);
+  }
+
+  function closeCombos() {
+    if (!cvOpen) return;
+    cvOpen = null;
+    Array.prototype.slice.call(document.querySelectorAll('.cvcombo')).forEach(function (c) {
+      c.classList.remove('open');
+      var b = c.querySelector('.cvbtn'), p = c.querySelector('.cvpanel');
+      if (b) b.setAttribute('aria-expanded', 'false');
+      if (p) p.setAttribute('hidden', '');
+    });
   }
 
   /* ------------------------------------------------------------------ *
@@ -4464,8 +4805,8 @@
    *
    * Technologies and speed tiers are the same kind of answer: several true at
    * once. They used to be two rows of always-visible chips, which was honest but
-   * ten controls wide, and the add row could not hold them alongside the district
-   * picker without the table scrolling sideways. They are now one dropdown each.
+   * ten controls wide, and the edit row could not hold them alongside the two
+   * region fields without the table scrolling sideways. They are now one dropdown each.
    *
    * NOT a native <select multiple>: that hides every unselected option behind a
    * scroll, needs a modifier key nobody discovers, and closes on the first pick,
@@ -4577,13 +4918,49 @@
       .sort(function (a, b) { return a - b; });
   }
 
-  function addRow(standalone) {
-    var inner = '<td colspan="2">' + picker() + '</td>'
-      + '<td>' + techSelect('addtech', [], null) + '</td>'
-      + '<td>' + speedSelect('addspeed', '') + '</td>'
-      + '<td><button class="btn forest" type="button" data-action="coverage:add" style="width:100%;justify-content:center">Declare</button></td>';
-    if (!standalone) return '<tr class="addrow">' + inner + '</tr>';
-    return '<div class="twrap" style="margin-top:14px"><table class="tbl"><tbody><tr class="addrow">' + inner + '</tr></tbody></table></div>';
+  /* The picker body: two combos, the resolved line, then what is rendered there.
+     Technology stays as visible chips rather than a dropdown: there are four,
+     they fit, and the commonest edit is toggling one. Speeds keep the dropdown,
+     because there are six and the trigger reads the whole set back. */
+  function picker() {
+    var p = cvPlace();
+    var dup = cvDuplicate();
+    /* A whole-city entry resolves the region the moment the city is picked, so
+       "a region is chosen" is not the same question as "this can be declared".
+       Oshawa picks itself and is still closed. The button has to ask both, or it
+       goes live on a city we have not opened and the only thing standing between
+       the partner and a pointless write is a toast. */
+    var open = !!(cvRegion && isLaunchRegion(cvRegion));
+    var ready = !!(cvCity && cvRegion && open && !dup);
+
+    return '<div class="cvgrid">'
+      + '<div class="cvfield"><label class="celab">City and province</label>'
+      + combo('city', cityLabel(), !!cvCity, true, 'Type a city or province', cityListHtml('')) + '</div>'
+      + '<div class="cvfield"><label class="celab">Region <em>the bid unit</em></label>'
+      + combo('region', regionLabel(), !!cvRegion, !!p, 'Type a region', regionListHtml('')) + '</div>'
+      + '</div>'
+
+      + '<div class="cvresolved"><span>Your selection will read as</span> <b>'
+      + esc(ready ? readsAs(cvRegion) : 'Region, City, Province') + '</b></div>'
+
+      + '<div class="cvrow2">'
+      + '<div class="cvfield"><label class="celab">Technology you render there</label>'
+      + '<div class="cechips cvchips" id="addtech">'
+      + TECHS.map(function (t) {
+        return '<button type="button" data-action="coverage:chip" data-t="' + t[0] + '">'
+          + t[1] + '</button>';
+      }).join('')
+      + '</div></div>'
+      + '<div class="cvfield"><label class="celab">Speeds you offer there <em>pick all that apply</em></label>'
+      + speedSelect('addspeed', '') + '</div>'
+      + '<button class="btn forest" type="button" data-action="coverage:add"'
+      + (ready ? '' : ' disabled') + '>'
+      + (dup ? 'Already declared' : (cvRegion && !open ? 'Not open yet' : 'Declare region')) + '</button>'
+      + '</div>'
+
+      + '<small class="cvsmall">Regions inside a launch city start their serviceability check the moment '
+      + 'you declare them, against facilities data. You do not have to wait for one to clear before '
+      + 'declaring the next.</small>';
   }
 
   /* ------------------------------------------------------------------ *
@@ -4658,6 +5035,16 @@
       }
     });
 
+    /* Attention moved elsewhere: close, rather than leaving a listbox floating
+       over the chips a partner is now clicking. This runs before the data-action
+       lookup, so a click on a trigger or an option is excluded by containment
+       rather than by ordering. Both control families close the same way. */
+    onAnyClick(function (e) {
+      if (!e.target.closest) return;
+      if (!e.target.closest('.msel')) closeMsel(null);
+      if (cvOpen && !e.target.closest('.cvcombo')) closeCombos();
+    });
+
     on('click', 'coverage:save', function (el) {
       var slug = el.getAttribute('data-region');
       var c = find(slug);
@@ -4688,76 +5075,73 @@
       });
     });
 
-    /* ---- the district picker ---- */
+    /* ---- the city and region picker ---- */
 
-    /* Typing filters. A keystroke invalidates any earlier pick: the pick is what
-       Declare trusts, so leaving it set while the text says something else is
-       how a partner declares a district they are no longer looking at. */
-    on('input', 'coverage:query', function (el) {
-      pQuery = el.value;
-      pPick = null;
-      pOpen = true;
-      pActive = -1;
-      paintPanel();
+    /* Open one panel, and only one. Two listboxes overlapping is how a partner
+       picks a region belonging to a city they cannot see. */
+    on('click', 'coverage:combo', function (el) {
+      var which = el.getAttribute('data-combo');
+      if (which === 'region' && !cvPlace()) return;
+      var wasOpen = cvOpen === which;
+      closeCombos();
+      if (wasOpen) return;
+      cvOpen = which;
+      var wrap = document.querySelector('.cvcombo[data-combo="' + which + '"]');
+      if (!wrap) return;
+      wrap.classList.add('open');
+      el.setAttribute('aria-expanded', 'true');
+      var panel = wrap.querySelector('.cvpanel');
+      if (panel) panel.removeAttribute('hidden');
+      var q = document.getElementById('cv-' + which + '-q');
+      if (q) { q.value = ''; paintList(which, ''); q.focus(); }
     });
 
-    on('click', 'coverage:query', function () {
-      if (pOpen) return;
-      pOpen = true;
-      pActive = -1;
-      paintPanel();
+    /* Typing repaints one list, never the view: a set() here would rebuild the
+       card and take the caret with it. */
+    on('input', 'coverage:filter', function (el) {
+      paintList(el.getAttribute('data-combo'), el.value);
     });
 
-    on('keydown', 'coverage:query', function (el, e) {
-      var rows = pickable(results());
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        if (!pOpen) { pOpen = true; pActive = -1; }
-        if (rows.length) {
-          pActive = e.key === 'ArrowDown'
-            ? Math.min(pActive + 1, rows.length - 1)
-            : Math.max(pActive - 1, 0);
-        }
-        paintPanel();
-        return;
-      }
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        if (pOpen && pActive > -1 && rows[pActive]) choose(rows[pActive].d.id);
-        /* One exact-match convenience, and only that: typing a full district
-           name and pressing Enter picks it. Anything else leaves the pick unset,
-           and Declare refuses. */
-        else if (byName(el.value)) choose(byName(el.value).id);
-        return;
-      }
-      if (e.key === 'Escape') { closePanel(); return; }
+    on('keydown', 'coverage:filter', function (el, e) {
+      if (e.key !== 'Escape') return;
+      var which = el.getAttribute('data-combo');
+      closeCombos();
+      var trig = document.querySelector('.cvbtn[data-combo="' + which + '"]');
+      if (trig) trig.focus();
     });
 
-    on('click', 'coverage:pick', function (el) { choose(el.getAttribute('data-id')); });
+    /* Choosing a city clears the region under it. Keeping the old one would let
+       a partner declare "Kitsilano, Toronto, Ontario", which is not a place. A
+       whole-city entry resolves to itself, so one pick is the whole answer. */
+    on('click', 'coverage:city', function (el) {
+      var parts = String(el.getAttribute('data-key') || '').split('|');
+      var p = findCity(parts[0], parts[1]);
+      if (!p) return;
+      cvCity = p.city;
+      cvProv = p.province;
+      cvRegion = isWholeCity(p) ? p.city : null;
+      closeCombos();
+      render();
+    });
 
-    /* Attention moved elsewhere: close, rather than leaving a listbox floating
-       over the chips a partner is now clicking. */
-    onAnyClick(function (e) {
-      if (!e.target.closest) return;
-      /* The dropdowns close the same way and for the same reason. This runs
-         before the data-action lookup, so a click on a trigger or an option is
-         excluded by containment, not by ordering. */
-      if (!e.target.closest('.msel')) closeMsel(null);
-      if (!pOpen) return;
-      if (e.target.closest('#regsel')) return;
-      closePanel();
+    on('click', 'coverage:region', function (el) {
+      cvRegion = el.getAttribute('data-region');
+      closeCombos();
+      render();
     });
 
     on('click', 'coverage:add', function (el) {
-      /* The vocabulary is the whole point: nothing but a launch district can be
-         declared, so this resolves the field back to one and refuses otherwise.
-         An unresolvable field is a typo, not a new region. */
-      var input = document.getElementById('regin');
-      var typed = input ? input.value.trim() : '';
-      var d = pPick ? byId(pPick) : byName(typed);
-      if (!d) { toast('Pick a district from the list.'); return; }
-      if (d.tier !== 'launch') { toast(d.name + ' is queued for launch. Pick a district that is open.'); return; }
-      if (declaredSlugs()[regionSlug(d.name)]) { toast('You have already declared ' + d.name + '.'); return; }
+      /* The vocabulary is the whole point. Both halves have to resolve back to
+         a real place, and a region in a city we have not opened is refused here
+         as well as greyed in the list: the server would write it 'verifying'
+         and an operator would have to reject it by hand. */
+      if (!cvCity || !cvRegion) { toast('Pick a city, then a region inside it.'); return; }
+      var region = cvRegion;
+      if (!isLaunchRegion(region)) {
+        toast(cvCity + ' has not opened yet. Pick a city tagged Launch.');
+        return;
+      }
+      if (declaredSlugs()[regionSlug(region)]) { toast('You have already declared ' + region + '.'); return; }
 
       var techs = Array.prototype.slice.call(document.querySelectorAll('#addtech button.on'))
         .map(function (b) { return b.getAttribute('data-t'); });
@@ -4769,12 +5153,19 @@
       var W = window.WHOLLAR;
       if (!W.busy(el, true, 'Declaring')) return;
 
-      api.coverageDeclare({ region: d.name, techs: techs, speed: speedWire(speeds) })
+      /* Region alone on the wire. core/places.js says why: the server matches a
+         bid on the region slug, so a composite would refuse every bid. */
+      api.coverageDeclare({ region: region, techs: techs, speed: speedWire(speeds) })
         .then(function (r) {
           W.busy(el, false);
-          pQuery = ''; pPick = null; pOpen = false; pActive = -1;
+          /* The city stays, the region clears. Declaring a second region in the
+             same city is the commonest next act, and re-picking Toronto to do it
+             is a step nobody needs. */
+          var p = cvPlace();
+          cvRegion = p && isWholeCity(p) ? p.city : null;
+          cvOpen = null;
           set({ coverage: (r && r.coverage) || get().coverage, covEdit: null, covDraft: null });
-          toast(d.name + ' declared. Verifying serviceability against facilities data.');
+          toast(readsAs(region) + ' declared. Verifying serviceability against facilities data.');
         }, function (err) {
           W.busy(el, false);
           failed(err);
