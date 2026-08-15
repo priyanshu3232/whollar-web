@@ -40,10 +40,15 @@ export function render() {
      no-coverage branch, which is exactly the ordering the prototype had and
      could not express. */
   if (!S.approved) {
+    /* The review card sits in the ASIDE, in the slot the approved console
+       gives to nextStep(): it is the same kind of thing, the one card that
+       says what happens next, and the left column stays the work itself.
+       That is also the prototype's layout, where #cs-title is a static card
+       between "How auctions work" and the alert switches. */
     host.innerHTML = head('Let’s get you to your first cohort.',
       'Fill these at your pace: each piece starts its own check the moment it lands.')
-      + '<div class="grid2"><div>' + checklistHTML() + reviewCard(S) + calendar(S) + '</div>'
-      + '<aside class="aside">' + howItWorks() + alertsHTML() + '</aside></div>';
+      + '<div class="grid2"><div>' + checklistHTML() + calendar(S) + '</div>'
+      + '<aside class="aside">' + howItWorks() + reviewCard(S) + alertsHTML() + '</aside></div>';
     return;
   }
 
@@ -119,26 +124,38 @@ function tasks(act) {
     + '</section>';
 }
 
-/* The review card next to the checklist, with the one link into the frame. */
+/* The review card next to the checklist, with the one link into the frame.
+ *
+ * The line names each track by what is happening to it rather than counting
+ * them. "2 pieces still to come" tells a partner how much is left and nothing
+ * about which; "registration details and documents still to come" is the same
+ * length and is the answer. Ported from the prototype's v9 #cs-line, with the
+ * per-track states read from application_tasks instead of its five booleans.
+ */
 function reviewCard(S) {
   var app = S.application;
-  var tasks = (app && app.tasks) || {};
-  var running = Object.keys(tasks).filter(function (k) { return tasks[k] === 'verifying'; });
-  var waiting = Object.keys(tasks).filter(function (k) { return !tasks[k] || tasks[k] === 'empty'; });
+  var t = (app && app.tasks) || {};
+  var waiting = Object.keys(t).filter(function (k) { return !t[k] || t[k] === 'empty'; });
+  var done = function (k) { return t[k] && t[k] !== 'empty'; };
 
   var line = app && app.submittedAt && !waiting.length
-    ? 'Everything is in. Serviceability is running on your declared regions, the register check is underway, and your reference gets one short email.'
+    ? 'Everything is in. Serviceability is running on your declared regions, the register check is underway, and your reference gets one short email. Approved partners land on the bid desk the same day.'
     : 'Application received. '
-      + (running.length ? plural(running.length, 'check') + ' running now. ' : '')
-      + (waiting.length ? plural(waiting.length, 'piece') + ' still to come.' : '');
+      + 'Serviceability ' + (done('coverage') ? 'is checking your declared regions' : 'starts when coverage lands') + '. '
+      + 'Registration ' + (done('registration') && done('documents') ? 'and documents are in review' : 'details and documents still to come') + '. '
+      + (done('agreement') ? 'Agreement signed.' : 'Agreement not yet signed.');
 
-  return '<section class="card" style="margin-top:16px" aria-label="Your application">'
+  return '<section class="card" aria-label="Your application">'
     + '<span class="eyebrow gld">Your application</span>'
     + '<h3>' + (app && app.decisionDueAt
       ? 'Under review · decision by ' + esc(fmtDate(app.decisionDueAt))
       : 'Review runs as you complete') + '</h3>'
     + '<p class="cardnote">' + esc(line)
     + ' <button class="tlink" type="button" data-action="nav" data-view="pending">See the review timeline →</button></p>'
+    /* The desk is not empty of information for a partner under review: it says
+       what reaches it and when, and links back here. This is the prototype's
+       button, kept in the pending branch for that reason. */
+    + '<div style="margin-top:12px">' + goTo('desk', 'Open the bid desk') + '</div>'
     + '</section>';
 }
 
@@ -291,9 +308,9 @@ function chip(ts) {
 function howItWorks() {
   return '<section class="card" aria-label="How auctions work">'
     + '<span class="eyebrow">How auctions work</span><h3>Three rules, no surprises</h3><div class="how">'
-    + '<div class="h"><i>1</i><span><b>Sealed.</b> One best number by the deadline. Nobody sees yours, and you see nobody else’s.</span></div>'
-    + '<div class="h"><i>2</i><span><b>Binding until the deadline.</b> Improve any time before close. No withdrawals after sealing.</span></div>'
-    + '<div class="h"><i>3</i><span><b>Pay on completion.</b> Confirmed households cost nothing. The fee is the activation with a clean line test.</span></div>'
+    + '<div class="h"><i>1</i><span><b>Sealed.</b> One best number by the deadline.</span></div>'
+    + '<div class="h"><i>2</i><span><b>Binding until the deadline.</b> Improve any time before close; no withdrawals after sealing.</span></div>'
+    + '<div class="h"><i>3</i><span><b>Pay on completion.</b> Confirmed households set your volume tiers; the invoice is live connections only.</span></div>'
     + '</div></section>';
 }
 

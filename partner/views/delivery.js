@@ -113,7 +113,7 @@ function waiting(S) {
   }
 
   return empty('Your first delivery board builds itself',
-    'Win a cohort and every household that accepted your offer lands here with an order number, the install slot they picked, and a state that becomes a statement line only when the line tests clean. Addresses release at acceptance, under each household’s consent, and to nobody else.',
+    'Win a cohort and every confirmed household lands here bill-verified and address-validated, with an install slot and a state that becomes an invoice line only when the line tests clean.',
     goTo('desk', 'Open the bid desk', 'btn'));
 }
 

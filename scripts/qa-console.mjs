@@ -799,13 +799,34 @@ console.log('\n20. the landing view: where a partner arrives with no hash');
   ok(!(await p.locator('.pane').isVisible()), 'the nav pane is hidden, not merely unstyled');
   const draft = await p.innerText('#pend-body');
   ok(/Received. The rest is yours to start/.test(draft), 'the card reads as an application to start');
-  ok(/Continue your application · 0 of 5 done/.test(draft), 'the one button counts what is done');
+  /* Nothing started is an invitation, not a score of zero. "0 of 5 done" is
+     the first thing a partner reads a minute after signing up, and it reads as
+     a penalty for having just arrived. The count appears once there is
+     something to count, which the partial case below asserts. */
+  ok(/Complete your application/.test(draft), 'nothing started: the button invites rather than scores');
+  ok(!/0 of 5 done/.test(draft), 'and it does not open on a zero');
 
   /* A deep link is still a deep link. */
   await p.evaluate(() => { location.hash = '#coverage'; });
   await p.waitForTimeout(150);
   ok(!(await p.evaluate(() => document.body.classList.contains('gated'))), 'leaving the frame ungates it');
   await c.close();
+
+  /* Partway through: now there is something to count, so the button counts it. */
+  const cPart = await ctx(browser, {
+    record: REC, me: PENDING,
+    application: {
+      ok: true, state: 'draft', serverTime: Date.now(),
+      tasks: { ...EMPTY, coverage: 'verifying', registration: 'submitted' },
+    },
+  });
+  const pPart = await cPart.newPage();
+  collect(pPart, errors);
+  await pPart.goto(`${BASE}/partner`, { waitUntil: 'networkidle' });
+  await pPart.waitForTimeout(200);
+  const part = await pPart.innerText('#pend-body');
+  ok(/Continue your application · 2 of 5 done/.test(part), 'partway through: the button counts what is done');
+  await cPart.close();
 
   const c2 = await ctx(browser, {
     record: REC, me: PENDING,

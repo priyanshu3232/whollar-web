@@ -34,7 +34,7 @@ import { on } from '../core/actions.js';
 import { open as openModal, close as closeModal } from '../core/modal.js';
 import { toast, failed } from '../core/toast.js';
 import { bounce } from '../core/session.js';
-import { empty, goTo } from '../components/emptystate.js';
+import { goTo } from '../components/emptystate.js';
 
 export function render() {
   var host = document.getElementById('billing-body');
@@ -58,10 +58,15 @@ function model() {
   return '<section class="card" aria-label="How billing works">'
     + '<span class="eyebrow">The model</span>'
     + '<h3>Pay per delivered household</h3>'
-    + '<p class="cardnote">Households who accept your offer set the size of the job and cost nothing. '
-    + 'The line on a statement is the completed switch: a live connection with a clean line test. '
-    + 'Statements settle per cohort rather than per month, net-15, and any single line can be '
-    + 'disputed without holding up the rest.</p>'
+    /* The prototype's paragraph, with one clause corrected. It said fees
+       "invoice monthly", and the cycle line directly under it says statements
+       settle per campaign, not per month. Both cannot be true and the second
+       one is: statements are issued per cohort, which is what the server
+       does. */
+    + '<p class="cardnote">Confirmed counts set your volume tiers and sharpen your bids. '
+    + 'The invoice line is the completed switch: a live connection at the cohort rate. '
+    + 'Fees accrue at completion and settle per campaign, net-15, with a 14 day '
+    + 'reconciliation window.</p>'
     + '<div class="receipt" style="margin-top:12px">' + cycle() + '</div>'
     + '</section>';
 }
@@ -70,9 +75,9 @@ function reconciliation() {
   return '<section class="card" aria-label="Reconciliation">'
     + '<span class="eyebrow">Reconciliation</span>'
     + '<h3>Dispute a line, keep it simple</h3>'
-    + '<p class="cardnote">Every line names the order it came from and the day it activated. '
-    + 'Flag one and it freezes out of the total until it is resolved. The rest of the statement, '
-    + 'and the household on your delivery board, are untouched.</p>'
+    + '<p class="cardnote">Every invoice line names a completion date and an anonymized '
+    + 'household reference. Flag any line within 14 days and it holds out of the total '
+    + 'until resolved.</p>'
     + '</section>';
 }
 
@@ -88,8 +93,15 @@ function cycle() {
 
   var c = B.cycle || {};
   if (!c.activated) {
-    return '<b>Current cycle:</b> nothing owed. Your first statement line is your first activation '
-      + 'with a clean line test, at ' + esc(money(c.feeEach)) + ' per household, and statements settle per cohort.';
+    /* The fee is configuration on the agreement record and arrives with the
+       statements payload. When it has not, the sentence drops the figure
+       rather than printing whatever money() makes of undefined: a billing
+       page is the last surface that should show a placeholder where a price
+       goes. */
+    var each = c.feeEach != null ? money(c.feeEach) : '';
+    return '<b>Current cycle:</b> nothing owed. Your first statement generates from your first '
+      + 'activated household' + (each ? ', at ' + esc(each) + ' each' : ' at the fee on your agreement')
+      + ', per campaign.';
   }
   return '<b>Current cycle:</b> <span class="mono">'
     + esc(c.activated + ' activated · ' + money(c.feeEach) + ' each · ' + money(c.accruing) + ' accruing across '
@@ -106,9 +118,7 @@ function statements() {
 
   if (B === 'loading' || (B && B.partial)) return '';
   if (!B) {
-    return empty('No statements yet, by design',
-      'Bids are free. Winning is free. Households who accept are free. The first line on the first statement is the first activation with a clean line test, and statements settle per cohort rather than per month.'
-      + (S.approved ? '' : ' Nothing is owed at any point before approval either.'));
+    return none(S.approved ? '' : ' Nothing is owed at any point before approval either.', '');
   }
   if (!B.live) {
     return '<section class="card"><span class="eyebrow">Statements</span>'
@@ -117,11 +127,21 @@ function statements() {
       + 'Every line is derived from your delivery board, so it can be checked there in the meantime.</p></section>';
   }
   if (!B.statements.length) {
-    return empty('No statements yet, by design',
-      'Bids are free. Winning is free. Households who accept are free. The first line on the first statement is the first activation with a clean line test, and statements settle per cohort rather than per month.',
-      goTo('delivery', 'Open the delivery board', 'btn ghost'));
+    return none('', goTo('delivery', 'Open the delivery board', 'btn ghost'));
   }
   return B.statements.map(statement).join('');
+}
+
+/* Nothing to settle, said as a property of the model rather than as an absence.
+   The eyebrow is what makes the card legible before the sentence is read: this
+   is the statements slot, and it is empty on purpose. */
+function none(extra, cta) {
+  return '<section class="card"><span class="eyebrow">Statements</span>'
+    + '<div class="empty" style="padding:26px 20px 14px">'
+    + '<h3 style="font-size:16.5px">No statements yet, by design</h3>'
+    + '<p>Bids are free. Winning is free. Confirmed households are free. The first statement line '
+    + 'is the first activation with a clean line test, and statements settle per campaign, not per month.'
+    + extra + '</p>' + cta + '</div></section>';
 }
 
 var STATE_PILL = { accruing: 'pending', issued: 'due', paid: 'paid', disputed: 'lost' };
@@ -192,16 +212,16 @@ function method() {
   var m = (B && B !== 'loading' && B.method) || null;
 
   if (m && m.onFile) {
-    return '<span class="eyebrow">Billing method</span><h3>Statements go out by invoice</h3>'
+    return '<span class="eyebrow">Payment method</span><h3>Statements go out by invoice</h3>'
       + '<p class="cardnote mono">' + esc(m.email) + '</p>'
       + '<p class="cardnote" style="font-size:12px">Addressed to ' + esc(m.contact || 'your billing contact')
       + '. Settlement is net-15 from each cohort statement, and nothing is ever charged before an activation.</p>'
       + '<button class="tlink" type="button" data-action="bill:method">Update the method →</button>';
   }
-  return '<span class="eyebrow">Billing method</span><h3>Nothing on file yet</h3>'
-    + '<p class="cardnote">A method on file is one of the two checks that release a won roster, so it is worth doing '
-    + 'before you win. Nothing is charged when you add it, and nothing is charged until a switch completes.</p>'
-    + '<button class="btn forest" type="button" data-action="bill:method" style="margin-top:12px">Add a billing method</button>';
+  return '<span class="eyebrow">Payment method</span><h3>Nothing on file yet</h3>'
+    + '<p class="cardnote">Add one now so your first activation bills cleanly. Nothing is charged '
+    + 'until then, and a method on file is one of the two checks that release a won roster.</p>'
+    + '<button class="btn forest" type="button" data-action="bill:method" style="margin-top:12px">Add payment method</button>';
 }
 
 /* ------------------------------------------------------------------ *

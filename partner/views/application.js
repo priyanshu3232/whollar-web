@@ -25,9 +25,10 @@
 import { get, set, applicationComplete } from '../core/state.js';
 import { api } from '../core/api.js';
 import { esc } from '../core/format.js';
-import { fmtDate } from '../core/time.js';
+import { fmtDate, fmtStamp } from '../core/time.js';
 import { toast, failed } from '../core/toast.js';
 import { on } from '../core/actions.js';
+import { go } from '../core/router.js';
 import { open as openModal, close as closeModal } from '../core/modal.js';
 import { authFailed } from '../core/session.js';
 import { gateRow } from '../components/gate.js';
@@ -75,20 +76,30 @@ function underReview(app) {
   var paperState = allOf(paperKeys, ['cleared']) ? 'dn'
     : (anyOf(paperKeys, ['submitted', 'verifying', 'flagged']) ? 'now' : '');
   var decisionState = complete ? 'now' : '';
+  var done = countDone(t);
 
   return '<section class="card" style="max-width:640px;margin:0 auto">'
     + '<span class="eyebrow">Founding partner application</span>'
     + '<h3>' + (complete ? 'Received. The clock is running.' : 'Received. The rest is yours to start.') + '</h3>'
 
+    /* "signed up", and the date is the ACCOUNT's, not the application's. The
+       application row is created on the first task write, so its own stamp
+       would date a partner's signup to whenever they first touched the form,
+       which for anyone who read the card and came back tomorrow is wrong by a
+       day. publicUser.memberSince is the account's creation stamp, so it is
+       the one that matches the sentence. */
     + gateRow('dn', '', 'Application received',
-      esc(org) + (app.submittedAt ? ' · started ' + esc(fmtDate(app.submittedAt)) : ''))
+      esc(org) + (signedUp() ? ' · signed up ' + esc(signedUp()) : ''))
 
-    /* One button in both states. Complete is not the same as done with us: the
-       partner still wants to see what they sent while the clock runs, and a
-       card with no way back into the file reads as a dead end. */
+    /* One button in all three states. Complete is not the same as done with
+       us: the partner still wants to see what they sent while the clock runs,
+       and a card with no way back into the file reads as a dead end. Nothing
+       started gets the plain invitation rather than a score of zero, which is
+       the first thing a new partner reads. */
     + '<div class="pendcta">'
     + '<button class="btn" type="button" data-action="app:tasks" style="width:100%;justify-content:center">'
-    + (complete ? 'Review your application' : 'Continue your application · ' + countDone(t) + ' of 5 done')
+    + (complete ? 'Review your application'
+      : (done === 0 ? 'Complete your application' : 'Continue your application · ' + done + ' of 5 done'))
     + '</button>'
     + '<small>' + (complete
       ? 'Nothing further is needed. Everything you sent stays readable while the review runs.'
@@ -98,8 +109,8 @@ function underReview(app) {
 
     + gateRow(covState, 2, 'Serviceability check',
       t.coverage && t.coverage !== 'empty'
-        ? 'Running on your ' + regions + ' declared region' + (regions === 1 ? '' : 's') + ' against facilities data.'
-        : 'Starts the moment your coverage lands, against facilities data.')
+        ? 'Running on your ' + regions + ' declared region' + (regions === 1 ? '' : 's') + ' against real plant data.'
+        : 'Starts the moment your coverage lands, against real plant data.')
 
     + gateRow(paperState, 3, 'Registration and agreements',
       anyOf(paperKeys, ['submitted', 'verifying', 'cleared'])
@@ -156,6 +167,13 @@ function countDone(t) {
   return Object.keys(t).filter(function (k) { return t[k] && t[k] !== 'empty'; }).length;
 }
 
+/** When this account was created, as "Aug 14", or '' if the server has not
+    answered yet. It arrives on GET /provider/me, one round trip after boot. */
+function signedUp() {
+  var u = get().user || {};
+  return u.memberSince ? fmtStamp(u.memberSince) : '';
+}
+
 /* ------------------------------------------------------------------ *
  * the checklist, on the overview
  * ------------------------------------------------------------------ */
@@ -169,7 +187,7 @@ export function checklistHTML() {
     + '<h3>Finish these, review runs as they land</h3>'
     + '<div class="tasks">' + built.html + '</div>'
     + progress(built.done, built.total)
-    + '<div class="pline"><span>Application progress</span><b>' + esc(built.label) + '</b></div>'
+    + '<div class="pline"><span>Setup progress</span><b>' + esc(built.label) + '</b></div>'
     + '</section>';
 }
 
@@ -290,8 +308,13 @@ export function mount() {
     if (build) openModal(build());
   });
 
+  /* Out of the gated frame and into the console. setGated() is derived in
+     renderAll() from current(), and go() runs its listeners synchronously, so
+     the frame drops and the nav pane comes back in the same paint rather than
+     one hashchange later. */
   on('click', 'app:tasks', function () {
-    location.hash = '#overview';
+    go('overview');
+    if (!applicationComplete()) toast('Pick any order. Each piece starts its own check as it lands.');
   });
 
   /* Save on blur. The indicator is deliberately quiet and deliberately
