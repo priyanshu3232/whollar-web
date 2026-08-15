@@ -209,13 +209,10 @@ function regionRow(c, S) {
 function editRow(c, slug) {
   var chosen = get().covDraft || (c.techs || []).slice();
   return '<tr class="covedit"><td colspan="5"><div class="dh">Services in ' + esc(c.region) + '</div>'
-    + '<div class="cechips" data-ce="' + esc(slug) + '">'
-    + TECHS.map(function (t) {
-      return '<button type="button" data-action="coverage:chip" data-t="' + t[0] + '" class="'
-        + (chosen.indexOf(t[0]) > -1 ? 'on' : '') + '">' + t[1] + '</button>';
-    }).join('')
+    + '<div class="cerow">'
+    + '<div><label class="celab">Services</label>' + techSelect('ce-tech', chosen, slug) + '</div>'
+    + '<div><label class="celab">Speed tiers offered</label>' + speedSelect('ce-speed', c.speed) + '</div>'
     + '</div>'
-    + speedChips('ce-speed', c.speed)
     + '<div class="ceform"><div><label>Install lead time</label><select id="ce-lead">'
     + LEAD_TIMES.map(function (s) { return '<option' + (c.lead === s ? ' selected' : '') + '>' + s + '</option>'; }).join('')
     + '</select></div>'
@@ -327,26 +324,112 @@ function choose(id) {
   closePanel();
 }
 
-/* Speeds pick the same way technologies do, one row of toggles, because they
-   are the same kind of answer: several true at once, all visible without
-   opening anything. A native multi-select hides every unselected option behind
-   a scroll and needs a modifier key nobody discovers, which is how the old
-   control ended up looking like it offered three tiers in total.
+/* ------------------------------------------------------------------ *
+ * the two multi-selects
+ *
+ * Technologies and speed tiers are the same kind of answer: several true at
+ * once. They used to be two rows of always-visible chips, which was honest but
+ * ten controls wide, and the add row could not hold them alongside the district
+ * picker without the table scrolling sideways. They are now one dropdown each.
+ *
+ * NOT a native <select multiple>: that hides every unselected option behind a
+ * scroll, needs a modifier key nobody discovers, and closes on the first pick,
+ * which is exactly how the original "top speed" control ended up reading as a
+ * one-of-three. These panels stay open across picks, mark what is on with a
+ * check, and the trigger reads back the whole selection.
+ *
+ * UNDERNEATH, NOTHING CHANGED. The options are still buttons carrying data-t /
+ * data-s and toggling class `on` inside a `.cechips` group, so the chip
+ * handler, `chosenSpeeds`, and both save paths read the DOM exactly as before.
+ * `data-sp` still marks the speed group so the one chip handler can tell the
+ * two apart.
+ * ------------------------------------------------------------------ */
 
-   `data-sp` marks the group so the one chip handler can tell a speed chip from
-   a technology chip; the selection is read from the DOM at save time. */
-function speedChips(id, value) {
+/** What the trigger says for a set of labels: none, some, or the lot. */
+function summary(labels, total, empty, all) {
+  if (!labels.length) return empty;
+  if (labels.length === total) return all;
+  return labels.join(', ');
+}
+
+/**
+ * One dropdown. `head` is optional panel chrome (the speed group's select-all).
+ * The trigger carries its own empty/all wording in data attributes so the sync
+ * after a toggle can rebuild the text without knowing which group it is in.
+ */
+function dropdown(id, group, text, empty, all, head) {
+  return '<div class="msel">'
+    + '<button type="button" class="mseltrig" data-action="coverage:mopen"'
+    + ' data-for="' + id + '" data-empty="' + esc(empty) + '" data-all="' + esc(all) + '"'
+    + ' aria-expanded="false" aria-haspopup="listbox">'
+    + '<span class="mseltxt' + (text === empty ? ' ph' : '') + '">' + esc(text) + '</span>'
+    + '<i class="mselcar" aria-hidden="true"></i></button>'
+    + '<div class="mselpanel" id="' + id + '-p" role="listbox" aria-multiselectable="true" hidden>'
+    + (head || '') + group + '</div></div>';
+}
+
+function techSelect(id, chosen, ce) {
+  var labels = TECHS.filter(function (t) { return chosen.indexOf(t[0]) > -1; })
+    .map(function (t) { return t[1]; });
+  var group = '<div class="cechips" id="' + id + '"' + (ce ? ' data-ce="' + esc(ce) + '"' : '') + '>'
+    + TECHS.map(function (t) {
+      return '<button type="button" data-action="coverage:chip" data-t="' + t[0] + '" class="'
+        + (chosen.indexOf(t[0]) > -1 ? 'on' : '') + '">' + t[1] + '</button>';
+    }).join('')
+    + '</div>';
+  return dropdown(id, group, summary(labels, TECHS.length, 'Services offered', 'All services'),
+    'Services offered', 'All services', null);
+}
+
+function speedSelect(id, value) {
   var on = speedList(value);
   var all = on.length === SPEEDS.length;
-  return '<div class="cespeeds"><label>Speed tiers offered'
-    + '<button type="button" class="tlink" data-action="coverage:allspeeds" data-sp-all="' + id + '">'
-    + (all ? 'Clear all' : 'Select all') + '</button></label>'
-    + '<div class="cechips" id="' + id + '" data-sp="1">'
+  var group = '<div class="cechips" id="' + id + '" data-sp="1">'
     + SPEEDS.map(function (s) {
       return '<button type="button" data-action="coverage:chip" data-s="' + s[0] + '" class="'
         + (on.indexOf(s[0]) > -1 ? 'on' : '') + '">' + s[1] + '</button>';
     }).join('')
-    + '</div></div>';
+    + '</div>';
+  /* Select all lives inside the panel now rather than beside a label, because
+     the label is no longer always on screen. Declaring the whole ladder is the
+     commonest answer there is, so it stays one click. */
+  var head = '<div class="mselhead"><span>Speed tiers offered</span>'
+    + '<button type="button" class="tlink" data-action="coverage:allspeeds" data-sp-all="' + id + '">'
+    + (all ? 'Clear all' : 'Select all') + '</button></div>';
+  return dropdown(id, group, speedText(value) || 'Speed tiers',
+    'Speed tiers', 'Every tier', head);
+}
+
+/** Close every open dropdown. */
+function closeMsel(except) {
+  Array.prototype.slice.call(document.querySelectorAll('.mseltrig[aria-expanded="true"]'))
+    .forEach(function (t) {
+      if (t === except) return;
+      t.setAttribute('aria-expanded', 'false');
+      var p = document.getElementById(t.getAttribute('data-for') + '-p');
+      if (p) p.setAttribute('hidden', '');
+    });
+}
+
+/**
+ * Read the group back into its trigger.
+ *
+ * The panel is where the answer is made and the trigger is the only part of it
+ * still on screen once it closes, so a toggle that does not reach the trigger
+ * is a selection the partner cannot see.
+ */
+function syncTrig(wrap) {
+  if (!wrap || !wrap.id) return;
+  var trig = document.querySelector('.mseltrig[data-for="' + wrap.id + '"]');
+  if (!trig) return;
+  var opts = Array.prototype.slice.call(wrap.querySelectorAll('button[data-t],button[data-s]'));
+  var labels = opts.filter(function (b) { return b.className.indexOf('on') > -1; })
+    .map(function (b) { return b.textContent; });
+  var txt = summary(labels, opts.length, trig.getAttribute('data-empty'), trig.getAttribute('data-all'));
+  var span = trig.querySelector('.mseltxt');
+  if (!span) return;
+  span.textContent = txt;
+  span.classList.toggle('ph', !labels.length);
 }
 
 /** The Mbps currently toggled on inside one chip group. */
@@ -361,10 +444,8 @@ function chosenSpeeds(id) {
 
 function addRow(standalone) {
   var inner = '<td colspan="2">' + picker() + '</td>'
-    + '<td><div class="cechips" id="addtech" style="margin:0">'
-    + TECHS.map(function (t) { return '<button type="button" data-action="coverage:chip" data-t="' + t[0] + '">' + t[1] + '</button>'; }).join('')
-    + '</div></td>'
-    + '<td>' + speedChips('addspeed', '') + '</td>'
+    + '<td>' + techSelect('addtech', [], null) + '</td>'
+    + '<td>' + speedSelect('addspeed', '') + '</td>'
     + '<td><button class="btn forest" type="button" data-action="coverage:add" style="width:100%;justify-content:center">Declare</button></td>';
   if (!standalone) return '<tr class="addrow">' + inner + '</tr>';
   return '<div class="twrap" style="margin-top:14px"><table class="tbl"><tbody><tr class="addrow">' + inner + '</tr></tbody></table></div>';
@@ -393,11 +474,38 @@ export function mount() {
     var turnOn = btns.some(function (b) { return b.className.indexOf('on') < 0; });
     btns.forEach(function (b) { b.classList.toggle('on', turnOn); });
     el.textContent = turnOn ? 'Clear all' : 'Select all';
+    syncTrig(wrap);
+  });
+
+  /* Open one dropdown, and only one: two panels overlapping in the same table
+     row is how a partner ends up toggling a speed they cannot see. */
+  on('click', 'coverage:mopen', function (el) {
+    var panel = document.getElementById(el.getAttribute('data-for') + '-p');
+    if (!panel) return;
+    var open = el.getAttribute('aria-expanded') === 'true';
+    closeMsel(el);
+    el.setAttribute('aria-expanded', open ? 'false' : 'true');
+    if (open) panel.setAttribute('hidden', ''); else panel.removeAttribute('hidden');
+  });
+
+  /* Escape closes from wherever focus is inside the control. Both actions get
+     it, because focus sits on the trigger before the first pick and on an
+     option after it. */
+  on('keydown', 'coverage:mopen', function (el, e) { if (e.key === 'Escape') closeMsel(null); });
+  on('keydown', 'coverage:chip', function (el, e) {
+    if (e.key !== 'Escape') return;
+    var trig = document.querySelector('.mseltrig[aria-expanded="true"]');
+    closeMsel(null);
+    if (trig) trig.focus();
   });
 
   on('click', 'coverage:chip', function (el) {
     el.classList.toggle('on');
     var wrap = el.closest('.cechips');
+    /* The panel stays open. Picking a second tier is the normal case, not the
+       exception, so a click that closed the list would cost a reopen every
+       time. Attention leaving the control is what closes it. */
+    syncTrig(wrap);
     /* A speed chip carries no draft: its group is read from the DOM at save
        time, and it lives in the same row as its Save button, so a background
        refresh cannot land between the toggle and the write. */
@@ -495,8 +603,13 @@ export function mount() {
   /* Attention moved elsewhere: close, rather than leaving a listbox floating
      over the chips a partner is now clicking. */
   onAnyClick(function (e) {
+    if (!e.target.closest) return;
+    /* The dropdowns close the same way and for the same reason. This runs
+       before the data-action lookup, so a click on a trigger or an option is
+       excluded by containment, not by ordering. */
+    if (!e.target.closest('.msel')) closeMsel(null);
     if (!pOpen) return;
-    if (e.target.closest && e.target.closest('#regsel')) return;
+    if (e.target.closest('#regsel')) return;
     closePanel();
   });
 

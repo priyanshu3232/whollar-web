@@ -439,11 +439,24 @@ console.log('\n12b. coverage is declared from a controlled vocabulary');
   ok(await combo.inputValue() === 'Scarborough North', 'up, down and Enter drive the list');
   ok(await p.locator('#regpanel').isHidden(), 'and picking closes it');
 
+  /* Both selectors are dropdowns, so the harness opens each one the way a
+     partner does. A pick that worked without opening would mean the options
+     were reachable while the panel was closed. */
+  await p.locator('.mseltrig[data-for="addtech"]').click();
   await p.locator('#addtech button').first().click();
+  ok(await p.locator('#addtech').isVisible(), 'the services panel stays open across a pick');
   /* A speed tier is required now that the field is a SET of tiers rather than
      one top speed: declaring without one is refused, so the harness picks one
      the way a partner does. */
+  await p.locator('.mseltrig[data-for="addspeed"]').click();
+  ok(await p.locator('#addtech').isHidden(), 'and opening the other one closes it');
   await p.locator('#addspeed button[data-s]').first().click();
+  await p.locator('#addspeed button[data-s]').nth(1).click();
+  ok(/50 Mbps, 100 Mbps/.test(await p.locator('.mseltrig[data-for="addspeed"]').innerText()),
+    'two tiers select together and the trigger reads back both');
+  /* Only one of the two is wanted here, and the second pick was to prove the
+     control is a multi-select, so it comes back off. */
+  await p.locator('#addspeed button[data-s]').nth(1).click();
   await p.locator('[data-action="coverage:add"]').first().click();
   await p.waitForTimeout(400);
   const cov = await p.locator('#cov-body').innerText();
