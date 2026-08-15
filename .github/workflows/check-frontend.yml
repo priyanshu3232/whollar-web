@@ -87,8 +87,16 @@ jobs:
       # generated, so this is what stops it drifting back to the retired
       # province-only estimator. Also asserts the POST body carries the FSA
       # and never the full postal code.
+      # playwright-core has to be installed for this one, exactly as the
+      # checkup DOM step below does it. --ignore-scripts so no browser is
+      # downloaded: the test finds the runner's own Chrome by path, and
+      # check-frontend stays install-free everywhere it can. Without this line
+      # the step failed on ERR_MODULE_NOT_FOUND from the day it was added and
+      # was invisible behind two earlier failures in the same job.
       - name: Homepage estimator DOM tests
-        run: node --test scripts/test-estimator-dom.mjs
+        run: |
+          npm ci --ignore-scripts
+          node --test scripts/test-estimator-dom.mjs
 
       # Pure-function unit tests for the band-selection thresholds and
       # guardrails (js/whollar-core.js's W.selectBand). No DOM, no build step.
