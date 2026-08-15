@@ -60,6 +60,10 @@
 
     /* what binds them */
     contracts: null,      /* GET /provider/contracts, null until it answers */
+    contractsError: null, /* why it did not answer: { status, code, message }.
+                             Kept because "refused" and "still loading" are the
+                             same blank card otherwise, and only one of them is
+                             something a partner can act on. */
 
     /* what they have won, and what it is worth */
     delivery: null,       /* GET /provider/orders; 'loading' while in flight.
@@ -4838,13 +4842,19 @@
 
     /* Not loaded, or the whole route refused. The registry is a read over five
        other records, so "we could not reach it" is a different sentence from
-       "you have nothing on file", and the second one would be a lie here. */
+       "you have nothing on file", and the second one would be a lie here.
+       Three different sentences, though, and not one: this card spent a while
+       saying "loading, or could not be read" at an account that was simply not
+       attached to an organisation, which is a fact the server states outright
+       and the page had no business paraphrasing as a maybe. */
     if (!c) {
       host.innerHTML = '<section class="card"><span class="eyebrow">On file</span>'
         + '<h3>Agreements and records</h3>'
-        + '<p class="cardnote">Everything binding lives here, versioned: the master services agreement, '
-        + 'the standard cohort terms, your regional schedule, your registration, and every sealed bid receipt. '
-        + 'This list is loading, or could not be read just now.</p></section>';
+        + '<p class="cardnote">' + unreadable(S) + '</p>'
+        + (S.contractsError && S.contractsError.status === 403
+          ? '<p class="fnote">Nothing is wrong with your agreements. This account cannot read them, which is a different thing.</p>'
+          : '')
+        + '</section>';
       return;
     }
 
@@ -4872,6 +4882,39 @@
       + 'holding your offer as the households accepted it.'
       + (c.live ? '' : ' One or more records could not be read just now, so this list may be short.')
       + '</p></section>';
+  }
+
+  /**
+   * Why the registry is not on screen, in the server's terms rather than ours.
+   *
+   * A refusal, a transport failure and a read still in flight look identical to
+   * a partner and are three different things to act on: the first is an account
+   * problem somebody has to fix, the second usually fixes itself, the third
+   * needs nothing at all. Naming them is the difference between a screenshot
+   * that says what is wrong and a screenshot that has to be diagnosed.
+   */
+  function unreadable(S) {
+    var e = S.contractsError;
+    if (!e) {
+      return 'Everything binding lives here, versioned: the master services agreement, '
+        + 'the standard cohort terms, your regional schedule, your registration, and every '
+        + 'sealed bid receipt. Reading them now.';
+    }
+    if (e.status === 403) {
+      return esc(e.message || 'This account is not attached to a partner organisation.')
+        + ' Your agreements are read against an organisation, so this list stays empty until '
+        + 'this account is a seat on one. An organisation admin can add it, and nothing about '
+        + 'the records themselves has changed.';
+    }
+    if (e.status === 401) {
+      return 'Your session ended while this page was open. Sign in again and the registry comes back with it.';
+    }
+    if (e.code === 'NETWORK') {
+      return 'We could not reach Whollar to read your agreements. Nothing has changed about them, '
+        + 'and this page will fill in as soon as the connection does.';
+    }
+    return 'Your agreements could not be read just now. They are not gone, nothing about them has '
+      + 'changed, and bidding is held rather than opened while the standard terms cannot be confirmed.';
   }
 
   /* ------------------------------------------------------------------ *
@@ -5050,10 +5093,20 @@
       never signs anyone out on its own. */
   function load() {
     return api.contracts().then(function (r) {
-      set('contracts', r || null);
+      set({ contracts: r || null, contractsError: r ? null : { status: 0, code: 'EMPTY' } });
     }, function (err) {
       authFailed(err);
-      set('contracts', null);
+      /* Keep the refusal, not just the absence. The card renders the reason, and
+         a 403 here is the single most common one: a provider account with no org
+         membership can read nothing that is scoped to an org. */
+      set({
+        contracts: null,
+        contractsError: {
+          status: (err && err.status) || 0,
+          code: (err && err.code) || 'SERVER_ERROR',
+          message: (err && err.message) || null
+        }
+      });
     });
   }
 

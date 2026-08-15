@@ -35,6 +35,10 @@ var state = {
 
   /* what binds them */
   contracts: null,      /* GET /provider/contracts, null until it answers */
+  contractsError: null, /* why it did not answer: { status, code, message }.
+                           Kept because "refused" and "still loading" are the
+                           same blank card otherwise, and only one of them is
+                           something a partner can act on. */
 
   /* what they have won, and what it is worth */
   delivery: null,       /* GET /provider/orders; 'loading' while in flight.
