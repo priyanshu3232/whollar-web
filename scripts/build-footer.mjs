@@ -154,9 +154,13 @@ const PAGES = [
   { file: 'bill-checkup.html', current: null },
   { file: 'waitlist/index.html', current: null },
   { file: 'thank-you.html', current: null },
-  { file: 'dashboard.html', current: null },
-  { file: 'provider-dashboard.html', current: null },
-  { file: 'partner/index.html', current: null },
+  /* NO FOOTER ON A SIGNED-IN SURFACE. dashboard.html, provider-dashboard.html
+     and partner/index.html are app chrome, not marketing pages: a member or a
+     partner who has signed in is inside the product, and a marketing footer
+     under the console is a route back out of it. The login pages keep theirs,
+     because nobody is signed in yet. Deliberately absent from this list, and
+     the footer markers are stripped from those three files, so `--check` has
+     nothing to call stale. */
   { file: 'whollar-login-consumer.html', current: null },
   { file: 'whollar-login-provider.html', current: null },
   { file: 'blog/index.html', current: 'resources' },
