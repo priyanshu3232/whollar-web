@@ -3,14 +3,51 @@
 <html lang="en-CA">
 <head>
 <meta charset="utf-8">
-<!-- ===== v13 head block: demo gate. Not in docs/prototype/provider-console-v12.html. =====
-     This file is the prototype, seed data and all: a fake org, invented cohorts,
-     an HST registration string, and no session behind any of it. It is a design
-     reference and a demo surface, never a partner's console. Without ?demo=1 it
-     hands the visitor to the real one. noindex here and X-Robots-Tag in
-     vercel.json say the same thing to a crawler, which does not run scripts. -->
+<!-- ===== v13 head block. Not in docs/prototype/provider-console-v12.html. =====
+     /provider runs the same door as /partner: the same localStorage record,
+     the same adopt-then-reload, the same bounce to the same sign-in. A visitor
+     who is not a signed-in partner never sees this page, and a partner who
+     signs out of one tab loses it in the other.
+
+     What the door does NOT change is what is behind it. Every figure here is
+     seed data: a fake org, invented cohorts, an HST registration string. That
+     is the whole reason for the flag at the bottom-left, and the reason this
+     is noindex here and X-Robots-Tag in vercel.json, since a crawler runs no
+     scripts. Both come out at Phase 4, when /provider becomes /partner. -->
 <meta name="robots" content="noindex">
-<script>if(new URLSearchParams(location.search).get('demo')!=='1')location.replace('/partner');</script>
+<style>#demoflag{position:fixed;left:14px;bottom:20px;z-index:80;background:#7A2E12;color:#fff;font:700 11px/1 'Inter',system-ui,sans-serif;letter-spacing:.05em;text-transform:uppercase;border-radius:999px;padding:9px 15px;box-shadow:0 6px 18px rgba(18,55,43,.28);pointer-events:none}@media (max-width:940px){#demoflag{left:8px;bottom:12px;font-size:10px;padding:7px 12px}}</style>
+<script src="/js/whollar-core.js?v=20260814b"></script>
+<script>
+(function(){
+  "use strict";
+  /* A file:// copy has no backend to ask and is not a deployed surface, so the
+     door does not apply to it. Everything below is for http(s) only. */
+  if(location.protocol==='file:')return;
+  var W=window.WHOLLAR;
+  function toSignIn(){location.replace('/whollar-login-provider?next='+encodeURIComponent(location.pathname+location.search+location.hash))}
+  /* Core failed to load: fail closed. An unguarded demo console is the one
+     outcome worth a wrong bounce. */
+  if(!W||!W.partner||!W.session){toSignIn();return}
+  if(!W.partner.read()){
+    /* An empty local record is not proof of being signed out: a verify that
+       finished in another tab set the cookie and wrote nothing here. Ask the
+       server with the page hidden, so the console never flashes at someone who
+       turns out not to be signed in. */
+    document.documentElement.style.visibility='hidden';
+    W.session.adopt('provider').then(function(rec){if(rec){location.reload();return}toSignIn()},toSignIn);
+    return;
+  }
+  /* A bfcache restore does not re-run the guard, and a sign-out in another tab
+     must not leave a live console behind here. */
+  window.addEventListener('pageshow',function(e){if(e.persisted&&!W.partner.read())location.reload()});
+  window.addEventListener('storage',function(e){if((!e.key||e.key===W.PARTNER_KEY)&&!W.partner.read())location.reload()});
+  document.addEventListener('DOMContentLoaded',function(){
+    var f=document.createElement('div');
+    f.id='demoflag';f.textContent='Demo data · not your account';
+    document.body.appendChild(f);
+  });
+})();
+</script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Whollar · Partner console v12 (prototype)</title>
 <meta name="description" content="Whollar partner console prototype: activation, bid desk, sealed bids, acquisition, completion-based billing. Demo data.">
