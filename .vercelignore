@@ -18,21 +18,11 @@ whollar-member-dashboard-v8.html
 # (its features were ported in), no login guard, must never deploy.
 Consumerdashboard.html
 
-# The v3 partner console, superseded by partner/ and retired on 2026-08-14.
-# It IS guarded, which is exactly what made it worse than the prototypes above:
-# a real, approved partner reaching /provider-dashboard was shown seven declared
-# coverage regions they never declared, four auctions with live countdowns, and
-# a billing cycle reading "24 completed, $95 each": every figure a demo seed,
-# none of it labelled as one, and none of it replaced when the campaigns and
-# coverage APIs answered with the partner's real (empty) lists. It also derives
-# cohort stage in the browser from a virtual clock and hardcodes the $95 success
-# fee, which CLAUDE.md forbids on both counts.
-# The file stays in the repo as the port's reference (partner/index.html cites
-# it) and stays registered in the footer and inline-script gates. It just does
-# not publish. vercel.json redirects /provider-dashboard to /partner, so an old
-# bookmark still lands somewhere real: redirects are evaluated before the
-# filesystem, so that holds whether or not this line is here.
-provider-dashboard.html
+# The v3 partner console, superseded on 2026-08-15 by the v12 transplant now at
+# provider-dashboard.html. Kept in the repo until sign-off so the change is easy
+# to reverse by hand, and not published: it carries the full signed-in surface,
+# and cleanUrls would otherwise serve a second, stale console at its own path.
+provider-dashboard.legacy.html
 
 # Reference prototypes being ported into real pages. Same reason again, and
 # note docs/ itself IS deployed (the .md files are harmless), so an .html file
