@@ -5199,7 +5199,7 @@
   var __ns6 = __require("core/toast.js");
   var toast = __ns6.toast, failed = __ns6.failed;
   var __ns7 = __require("core/session.js");
-  var authFailed = __ns7.authFailed;
+  var bounce = __ns7.bounce;
   var __ns8 = __require("components/emptystate.js");
   var empty = __ns8.empty, goTo = __ns8.goTo;
   var __ns9 = __require("components/gate.js");
@@ -5437,6 +5437,21 @@
    * load and actions
    * ------------------------------------------------------------------ */
 
+
+  /* A 403 is not a signed-out session, and this page must not treat it as one.
+   *
+   * core/session.js authFailed() bounces on 401 AND 403, which is right for a
+   * read only a signed-in partner can make at all. It is wrong for this one:
+   * these routes sit behind requireApproved, so an org still under review, or an
+   * account with no org membership, answers 403 on every boot, and bouncing on
+   * that signs the partner straight back out of the console they just signed
+   * into. Only a 401 means the session is gone.
+   */
+  function signedOut(err) {
+    if (err && err.status === 401) bounce();
+    return !!(err && err.status === 401);
+  }
+
   /** Fetched on view-open and explicit refresh, never polled: every read of a
       released roster writes an audit row naming the count. */
   function load() {
@@ -5447,7 +5462,7 @@
         live: !!r && r.live !== false
       });
     }, function (err) {
-      authFailed(err);
+      signedOut(err);
       set('delivery', { cohorts: [], live: false });
     });
   }
@@ -5463,7 +5478,7 @@
       api.capacitySave(el.getAttribute('data-id'), n).then(function () {
         toast('Capacity updated. Households see ' + n + ' slots a week when they book.');
         refresh();
-      }, function (err) { failed(err); authFailed(err); });
+      }, function (err) { failed(err); signedOut(err); });
     });
 
     /* The gate. Three checks, and the button sends the two this page collects;
@@ -5493,7 +5508,7 @@
       }, function (err) {
         W.busy(el, false);
         failed(err);
-        authFailed(err);
+        signedOut(err);
         /* A refusal here is almost always the billing row: re-read, so the gate
            redraws against what the server actually holds. */
         refresh();
@@ -5548,7 +5563,7 @@
     }, function (err) {
       W.busy(el, false);
       failed(err);
-      authFailed(err);
+      signedOut(err);
     });
   }
 
@@ -5697,7 +5712,7 @@
   var __ns6 = __require("core/toast.js");
   var toast = __ns6.toast, failed = __ns6.failed;
   var __ns7 = __require("core/session.js");
-  var authFailed = __ns7.authFailed;
+  var bounce = __ns7.bounce;
   var __ns8 = __require("components/emptystate.js");
   var empty = __ns8.empty, goTo = __ns8.goTo;
 
@@ -5873,6 +5888,21 @@
    * load and actions
    * ------------------------------------------------------------------ */
 
+
+  /* A 403 is not a signed-out session, and this page must not treat it as one.
+   *
+   * core/session.js authFailed() bounces on 401 AND 403, which is right for a
+   * read only a signed-in partner can make at all. It is wrong for this one:
+   * these routes sit behind requireApproved, so an org still under review, or an
+   * account with no org membership, answers 403 on every boot, and bouncing on
+   * that signs the partner straight back out of the console they just signed
+   * into. Only a 401 means the session is gone.
+   */
+  function signedOut(err) {
+    if (err && err.status === 401) bounce();
+    return !!(err && err.status === 401);
+  }
+
   function load() {
     set('billing', 'loading');
     return api.statements().then(function (r) {
@@ -5883,7 +5913,7 @@
         live: !!r && r.live !== false
       });
     }, function (err) {
-      authFailed(err);
+      signedOut(err);
       /* 403 before approval is not a failure to report: there is nothing to bill
          and the empty state already says so. */
       set('billing', err && err.status === 403 ? null : { statements: [], cycle: {}, method: null, live: false });
@@ -5922,7 +5952,7 @@
       }, function (err) {
         W.busy(el, false);
         failed(err);
-        authFailed(err);
+        signedOut(err);
       });
     });
 
@@ -5938,14 +5968,14 @@
       }, function (err) {
         W.busy(el, false);
         failed(err);
-        authFailed(err);
+        signedOut(err);
       });
     });
 
     on('click', 'bill:lines', function (el) {
       var id = el.getAttribute('data-id');
       api.statement(id).then(function (r) { openModal(linesModal(r)); },
-        function (err) { failed(err); authFailed(err); });
+        function (err) { failed(err); signedOut(err); });
     });
 
     on('click', 'bill:dispute', function (el) { openModal(disputeModal(el.getAttribute('data-id'))); });
@@ -5966,7 +5996,7 @@
       }, function (err) {
         W.busy(el, false);
         failed(err);
-        authFailed(err);
+        signedOut(err);
       });
     });
   }

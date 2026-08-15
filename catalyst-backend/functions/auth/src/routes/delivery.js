@@ -81,8 +81,11 @@ function readCapacity(value) {
  * campaign that does not exist.
  */
 async function requireWon(req, context) {
+  /* catalog.load() returns { list, byId, source }, not an array. Reaching for
+     .find on it is how this route answered every request with a 500 for one
+     deploy: the lookup is byId, the same as every other caller. */
   const cat = await catalog.load(req.catalyst);
-  const campaign = (cat || []).find((c) => c.id === String(req.params.id || ''));
+  const campaign = cat.byId.get(String(req.params.id || ''));
   if (!campaign) throw notFound('That cohort is not on your board.');
 
   const bidRows = await bids.campaignBidRows(req.catalyst, campaign.id);

@@ -33,7 +33,7 @@ import { fmtDate } from '../core/time.js';
 import { on } from '../core/actions.js';
 import { open as openModal, close as closeModal } from '../core/modal.js';
 import { toast, failed } from '../core/toast.js';
-import { authFailed } from '../core/session.js';
+import { bounce } from '../core/session.js';
 import { empty, goTo } from '../components/emptystate.js';
 
 export function render() {
@@ -208,6 +208,21 @@ function method() {
  * load and actions
  * ------------------------------------------------------------------ */
 
+
+/* A 403 is not a signed-out session, and this page must not treat it as one.
+ *
+ * core/session.js authFailed() bounces on 401 AND 403, which is right for a
+ * read only a signed-in partner can make at all. It is wrong for this one:
+ * these routes sit behind requireApproved, so an org still under review, or an
+ * account with no org membership, answers 403 on every boot, and bouncing on
+ * that signs the partner straight back out of the console they just signed
+ * into. Only a 401 means the session is gone.
+ */
+function signedOut(err) {
+  if (err && err.status === 401) bounce();
+  return !!(err && err.status === 401);
+}
+
 export function load() {
   set('billing', 'loading');
   return api.statements().then(function (r) {
@@ -218,7 +233,7 @@ export function load() {
       live: !!r && r.live !== false
     });
   }, function (err) {
-    authFailed(err);
+    signedOut(err);
     /* 403 before approval is not a failure to report: there is nothing to bill
        and the empty state already says so. */
     set('billing', err && err.status === 403 ? null : { statements: [], cycle: {}, method: null, live: false });
@@ -257,7 +272,7 @@ export function mount() {
     }, function (err) {
       W.busy(el, false);
       failed(err);
-      authFailed(err);
+      signedOut(err);
     });
   });
 
@@ -273,14 +288,14 @@ export function mount() {
     }, function (err) {
       W.busy(el, false);
       failed(err);
-      authFailed(err);
+      signedOut(err);
     });
   });
 
   on('click', 'bill:lines', function (el) {
     var id = el.getAttribute('data-id');
     api.statement(id).then(function (r) { openModal(linesModal(r)); },
-      function (err) { failed(err); authFailed(err); });
+      function (err) { failed(err); signedOut(err); });
   });
 
   on('click', 'bill:dispute', function (el) { openModal(disputeModal(el.getAttribute('data-id'))); });
@@ -301,7 +316,7 @@ export function mount() {
     }, function (err) {
       W.busy(el, false);
       failed(err);
-      authFailed(err);
+      signedOut(err);
     });
   });
 }

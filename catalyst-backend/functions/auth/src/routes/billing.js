@@ -67,9 +67,9 @@ function readContact(value) {
  * statement reading zero, which is a true and useful thing to see.
  */
 async function buildStatements(req, context) {
+  /* { list, byId, source }, never an array: see routes/delivery.js. */
   const cat = await catalog.load(req.catalyst);
-  const byId = {};
-  (cat || []).forEach((c) => { byId[c.id] = c; });
+  const byId = cat.byId;
 
   const awardRows = await awards.rowsForOrg(req.catalyst, context.orgId);
   const orderRows = await orders.rowsForOrg(req.catalyst, context.orgId);
@@ -82,9 +82,9 @@ async function buildStatements(req, context) {
   });
 
   const statements = (awardRows || [])
-    .filter((a) => byId[a.campaign_id])
+    .filter((a) => byId.get(a.campaign_id))
     .map((a) => billing.statementFor({
-      campaign: byId[a.campaign_id],
+      campaign: byId.get(a.campaign_id),
       rows: byCampaign[a.campaign_id] || [],
       t,
       settlement: settlements[a.campaign_id] || null,

@@ -839,6 +839,45 @@ console.log('\n20. the landing view: where a partner arrives with no hash');
   await c4.close();
 }
 
+console.log('\n21. a 403 on a boot-path read is not a signed-out session');
+{
+  /* THE BOUNCE LOOP. Billing loads on boot and /provider/statements sits behind
+     requireApproved, so an org under review answers 403 every time. The view
+     called session.authFailed(), which bounces on 401 AND 403, so the console
+     signed the partner out of the page they had just signed into, they signed
+     back in, and it happened again. Delivery had the same shape on view-open.
+     Only a 401 may bounce; anything else is a page state. */
+  const c = await ctx(browser, { record: REC, me: APPROVED });
+  const p = await c.newPage();
+  /* No collect() here, alone among the groups: a refused fetch is logged by the
+     browser itself as "Failed to load resource: 403", and this test exists to
+     cause exactly that. Counting it would make the suite fail on the behaviour
+     it is asserting. */
+  await c.route('**/api/auth/provider/statements', r => r.fulfill({
+    status: 403,
+    contentType: 'application/json',
+    body: JSON.stringify({ error: { code: 'FORBIDDEN', message: 'Your organisation is still under review.' } }),
+  }));
+  await c.route('**/api/auth/provider/orders', r => r.fulfill({
+    status: 403,
+    contentType: 'application/json',
+    body: JSON.stringify({ error: { code: 'FORBIDDEN', message: 'Your organisation is still under review.' } }),
+  }));
+  await p.goto(`${BASE}/partner`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(300);
+  ok(!/whollar-login-provider/.test(p.url()), `a 403 from statements does not bounce to sign-in (${p.url().split('/').pop()})`);
+  await p.evaluate(() => window.WHOLLAR.console.nav('billing'));
+  await p.waitForTimeout(150);
+  const bill = await p.locator('#billing-body').innerText();
+  ok(/statement/i.test(bill), 'billing renders a page rather than an empty host');
+  await p.evaluate(() => window.WHOLLAR.console.nav('delivery'));
+  await p.waitForTimeout(250);
+  ok(!/whollar-login-provider/.test(p.url()), 'and neither does a 403 from the delivery board');
+  const del = await p.locator('#del-body').innerText();
+  ok(del.trim().length > 20, 'delivery renders a page too');
+  await c.close();
+}
+
 await browser.close();
 const uniq = [...new Set(errors)];
 if (uniq.length) { console.log('\nconsole errors:'); uniq.forEach(e => console.log('  ! ' + e.slice(0, 160))); }

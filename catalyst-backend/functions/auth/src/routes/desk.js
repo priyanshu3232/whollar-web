@@ -337,13 +337,12 @@ function mount(router) {
        whose cohort closed while nobody happened to open the member offer page
        would otherwise sit on a bid marked 'sealed' long after it was decided.
        Only closed cohorts are touched, and the seal is idempotent. */
+    /* { list, byId, source }, never an array. */
     const cat = await catalog.load(req.catalyst);
-    const byId = {};
-    (cat || []).forEach((c) => { byId[c.id] = c; });
 
     const decided = {};
     for (const id of new Set((rows || []).map((r) => r.campaign_id))) {
-      const campaign = byId[id];
+      const campaign = cat.byId.get(id);
       if (!campaign || !awards.isClosed(campaign)) continue;
       /* eslint-disable no-await-in-loop */
       const all = await bids.campaignBidRows(req.catalyst, id);
