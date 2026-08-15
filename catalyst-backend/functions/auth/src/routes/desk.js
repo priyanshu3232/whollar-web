@@ -340,13 +340,23 @@ function mount(router) {
     /* { list, byId, source }, never an array. */
     const cat = await catalog.load(req.catalyst);
 
+    /* AWARD FIRST, BID ROWS ONLY IF THERE IS NO AWARD. The Data Store is
+       metered per fetch, and the first version of this read the whole
+       campaign's bid table on every boot for every closed cohort this org had
+       ever bid on, only to hand the rows to a seal that had nothing left to
+       do. Once a cohort is awarded the answer never changes, so the cheap
+       lookup is the one that runs every time and the expensive one runs once
+       in the life of the cohort. */
     const decided = {};
     for (const id of new Set((rows || []).map((r) => r.campaign_id))) {
       const campaign = cat.byId.get(id);
       if (!campaign || !awards.isClosed(campaign)) continue;
       /* eslint-disable no-await-in-loop */
-      const all = await bids.campaignBidRows(req.catalyst, id);
-      const award = await awards.seal(req.catalyst, campaign, all);
+      let award = await awards.findByCampaign(req.catalyst, id);
+      if (!award) {
+        const all = await bids.campaignBidRows(req.catalyst, id);
+        award = await awards.seal(req.catalyst, campaign, all);
+      }
       /* eslint-enable no-await-in-loop */
       if (award) decided[id] = award;
     }
