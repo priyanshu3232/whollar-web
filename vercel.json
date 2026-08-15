@@ -79,7 +79,7 @@
     },
     {
       "source": "/provider",
-      "destination": "/provider-dashboard.html"
+      "destination": "/provider-dashboard"
     }
   ],
   "redirects": [
