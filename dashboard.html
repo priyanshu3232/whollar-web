@@ -3685,6 +3685,13 @@ document.addEventListener('click',function(e){
   else{$$('button',grp).forEach(function(x){x.classList.remove('on')});c.classList.add('on')}
   if(grp.id==='pf-bundle'){var n=$('#bundlenote');if(n)n.hidden=c.getAttribute('data-v')!=='yes'}
   if(grp.id==='pf-building'){var n2=$('#bldgnote');if(n2)n2.hidden=c.getAttribute('data-v')!=='bulk'}
+  /* Other reveals its own field. Turning it back off clears what was typed, so
+     a name can't be saved from a chip the member just switched off. */
+  if(grp.id==='pf-avoid'&&c.getAttribute('data-v')===AVOIDOTHER){
+    var w=$('#pf-avoidwrap'),f=$('#pf-avoidother'),on=c.classList.contains('on');
+    if(w)w.hidden=!on;
+    if(f){if(on)f.focus();else f.value=''}
+  }
 });
 function chipVal(id){var b=$('#'+id+' button.on');return b?b.getAttribute('data-v'):null}
 function chipVals(id){return $$('#'+id+' button.on').map(function(b){return b.getAttribute('data-v')})}
@@ -4263,8 +4270,30 @@ var CHOSEN=null;
    member-writable keys are alerts/interests/notify), and joining London East
    goes through the same doJoin() the campaign cards use. */
 function chip(v,l,on){return '<button type="button" data-v="'+esc(v)+'"'+(on?' class="on"':'')+'>'+l+'</button>'}
+/* The avoid list is the one multi-select, and the only one a member can add to.
+   AVOIDOTHER is a sentinel chip value, never a partner name: it opens the text
+   field and is stripped before the list is saved, so `avoid` stays a plain list
+   of names whether they came from a chip or from typing. */
+var AVOIDNAMED=['Bell','Rogers','Cogeco','TekSavvy','Start.ca'],AVOIDOTHER='__other';
+function avoidExtras(list){
+  return (list||[]).filter(function(n){return n&&n!==AVOIDOTHER&&AVOIDNAMED.indexOf(n)<0});
+}
+/* Chips first, then whatever was typed under Other: comma separated, trimmed,
+   deduped case-insensitively so "bell" typed next to the Bell chip is one name. */
+function avoidPicked(){
+  var out=[],seen={};
+  var add=function(n){
+    n=String(n||'').trim().replace(/\s+/g,' ').slice(0,40);
+    if(!n||n===AVOIDOTHER)return;
+    var k=n.toLowerCase();if(seen[k])return;seen[k]=1;out.push(n);
+  };
+  chipVals('pf-avoid').forEach(add);
+  (($('#pf-avoidother')||{}).value||'').split(',').forEach(add);
+  return out.slice(0,10);
+}
 function openPrefs(edit){
   var p=S.prefs||{};
+  var other=avoidExtras(p.avoid).join(', ');
   openModal('<div class="mhead"><h3>'+(edit?'Your preferences':'Six quick questions')+'</h3><button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
   +'<p class="msub">Bids fit better when partners know what the cohort actually wants. This shapes the auction; it never obligates you.</p>'
   +'<label class="plabel">When would you actually switch?</label>'
@@ -4280,7 +4309,10 @@ function openPrefs(edit){
   +'<div class="pchips" id="pf-building">'+chip('house','House',!p.building||p.building==='house')+chip('unit','Condo or apartment, I pick my own internet',p.building==='unit')+chip('bulk','My building controls the internet',p.building==='bulk')+'</div>'
   +'<div class="pfnote" id="bldgnote" '+(p.building==='bulk'?'':'hidden')+'>Then switching runs through your building, not around it. We’ll flag this cohort as informational for you and can talk to your board or landlord: that’s often a hundred households in one decision.</div>'
   +'<label class="plabel">Partners you’d rather avoid <span class="opt">optional</span></label>'
-  +'<div class="pchips" id="pf-avoid" data-multi="1">'+['Bell','Rogers','Cogeco','TekSavvy','Start.ca'].map(function(n){return chip(n,n,(p.avoid||[]).indexOf(n)>-1)}).join('')+'</div>'
+  +'<div class="pchips" id="pf-avoid" data-multi="1">'+AVOIDNAMED.map(function(n){return chip(n,n,(p.avoid||[]).indexOf(n)>-1)}).join('')
+   +chip(AVOIDOTHER,'Other',!!other)+'</div>'
+  +'<div id="pf-avoidwrap" style="margin-top:10px"'+(other?'':' hidden')+'><input class="minput" id="pf-avoidother" type="text" maxlength="120"'
+   +' placeholder="Who else? Separate names with commas" value="'+esc(other)+'"></div>'
   +'<p class="pfhint">This shapes bids, it doesn’t bind them: whoever wins, you still see the offer and you can still say no.</p>'
   +'<button class="btn terra" type="button" id="pf-save" style="width:100%;justify-content:center;margin-top:16px">'+(edit?'Save preferences':'Join London East · free')+'</button>'
   +'<p class="fnote" style="text-align:center">No card, no commitment. A deposit only ever appears if you accept a winning offer later.</p>');
@@ -4289,7 +4321,7 @@ document.addEventListener('click',function(e){
   if(!e.target.closest('#pf-save'))return;
   var wasJoined=S.joined;
   S.prefs={when:chipVal('pf-when'),speed:chipVal('pf-speed'),tech:chipVal('pf-tech'),
-    bundle:chipVal('pf-bundle'),building:chipVal('pf-building'),avoid:chipVals('pf-avoid')};
+    bundle:chipVal('pf-bundle'),building:chipVal('pf-building'),avoid:avoidPicked()};
   if(W&&W.session&&W.session.prefsSave){
     W.session.prefsSave({interests:S.prefs}).then(null,function(){/* kept locally; retried on next save */});
   }
