@@ -20,6 +20,11 @@ on:
       - "scripts/**"
       - "MobileVersion/**"
       - "Whollar Pricing Model.xlsx"
+      # The gate itself. Without this a change to a check does not run the
+      # check, so a broken step ships green and is only found later by
+      # something unrelated, which is exactly how the estimator DOM step went
+      # unnoticed from the day it was added.
+      - ".github/workflows/check-frontend.yml"
   pull_request:
     paths:
       - "**.html"
@@ -28,6 +33,11 @@ on:
       - "scripts/**"
       - "MobileVersion/**"
       - "Whollar Pricing Model.xlsx"
+      # The gate itself. Without this a change to a check does not run the
+      # check, so a broken step ships green and is only found later by
+      # something unrelated, which is exactly how the estimator DOM step went
+      # unnoticed from the day it was added.
+      - ".github/workflows/check-frontend.yml"
   workflow_dispatch:
 
 jobs:
