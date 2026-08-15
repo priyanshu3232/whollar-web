@@ -116,7 +116,7 @@ button{font-family:var(--body)}
 .preview-note b{font-weight:700}
 .preview-note a{color:#7A3A19;text-decoration:underline}
 .err-inline{display:none;color:var(--warn-text);font-size:12.5px;margin:-8px 0 14px;font-weight:500}
-.linkbtn{background:none;border:none;padding:0;cursor:pointer;color:var(--accent-hover);font-weight:600;font-size:inherit;font-family:inherit}
+.linkbtn{background:none;border:none;padding:0;cursor:pointer;color:var(--accent-hover);font-weight:600;font-size:inherit;font-family:inherit;text-decoration:none}
 .linkbtn:hover{text-decoration:underline}
 .linkbtn:disabled{color:var(--ink-3);cursor:default;text-decoration:none}
 .otp.err input{border-color:var(--warn-text);background:#FDF6F2}
@@ -249,7 +249,13 @@ button{font-family:var(--body)}
         <button class="submit" type="submit" id="signin-cta">Sign in</button>
         </form>
 
-        <p class="foot-switch">New provider? <button type="button" class="linkbtn" id="to-signup">Create a partner account</button></p>
+        <!-- A link to the waitlist page (/waitlist/), not the in-page signup
+             view below: account creation lives there, with the pitch around
+             it. This link was the signup view's only entry point, so that
+             view and its stepper are now unreachable, kept in the file but
+             dead until someone re-links or removes them. Matches what
+             whollar-login-consumer.html does with its own signup view. -->
+        <p class="foot-switch">New provider? <a class="linkbtn" href="/waitlist/">Create a partner account</a></p>
       </section>
 
       <!-- SIGN IN, STEP 2: the emailed code.
@@ -641,9 +647,10 @@ function serverMessage(err){
 
 /* ---------- view switching ---------- */
 
-document.getElementById('to-signup').addEventListener('click',function(){
-  clearErr('signin-err'); goStep(1); showView('signup');
-});
+/* No 'to-signup' handler: the sign-in footer now links straight to /waitlist/,
+   so nothing in this page opens the signup view. Binding a listener to an
+   element that no longer exists would throw and take the rest of this script
+   with it. */
 document.getElementById('to-signin').addEventListener('click',function(){
   clearErr('signup-err'); showView('signin');
 });
