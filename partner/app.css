@@ -75,12 +75,18 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .main{min-width:0}
 .content{padding:clamp(18px,2.6vw,28px);max-width:1200px;width:100%;margin:0 auto}
 .view{display:none}
-.view.on{display:block}
 .vhead{margin-bottom:16px}
 .vhead h2{font-size:clamp(21px,2.7vw,26px);font-weight:800}
 .vhead p{color:var(--sub);font-size:13.5px;margin-top:2px}
 @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.view.on .card{animation:rise .45s ease both}
+/* ON THE VIEW, NOT ON THE CARD. A card is a fresh element after every
+   host.innerHTML, and a fresh element restarts the animation from opacity 0.
+   Boot repaints every view about a dozen times as the load jobs settle one by
+   one, so keying the rise to .card made the console blink for two seconds on
+   landing. The view container is toggled only by router.paint(), and
+   classList.toggle with an explicit boolean does not touch an element that is
+   already .on, so this plays once per navigation and never on a repaint. */
+.view.on{display:block;animation:rise .45s ease both}
 
 /* cards */
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:clamp(16px,2.3vw,22px);box-shadow:0 1px 2px rgba(23,33,27,.04),0 8px 24px rgba(23,33,27,.05)}
