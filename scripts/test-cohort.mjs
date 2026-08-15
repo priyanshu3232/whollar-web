@@ -218,11 +218,33 @@ test('seed emits one INSERT per cohort, carrying every column catalog reads', ()
   const rows = seededRows(out);
   assert.equal(rows.length, IDS.length);
   assert.deepEqual(rows.map((r) => r.id), IDS);
-  const skip = new Set(['updated_by', 'updated_at']);
+  /* `target` and an unset `sub` are omitted, not written NULL or '': the row
+     reads back the same either way, and the console has write access, so the
+     statement pasted into it should carry nothing it does not need. Every
+     other column the catalog reads has to be there. */
+  const omitted = new Set(['target', 'sub', 'updated_by', 'updated_at']);
   for (const col of catalog.COLUMNS) {
-    if (skip.has(col)) continue;
+    if (omitted.has(col)) continue;
     assert.ok(out.includes(col), `seed INSERT is missing ${col}`);
   }
+  assert.doesNotMatch(out, /NULL/, 'seed emitted a NULL, which it omits the column for instead');
+  assert.doesNotMatch(out, /''/, "seed emitted an empty literal, which it omits the column for instead");
+});
+
+test('seed writes sub only when it is given', () => {
+  assert.doesNotMatch(run('seed', 'scarborough-east').out, /\bsub\b/);
+  const { out } = run('seed', 'scarborough-east', '--sub', 'Winter cohort');
+  assert.match(out, /\bsub\b/);
+  assert.match(out, /'Winter cohort'/);
+});
+
+test('seed says the console takes one statement at a time', () => {
+  /* Five INSERTs pasted as a block is a syntax error, and the tool prints five
+     of them, so it has to say so where they are. */
+  const { out } = run('seed', ...IDS);
+  assert.match(out, /ONE statement per submission/);
+  assert.match(out, /1 of 5: scarborough-east/);
+  assert.match(out, /5 of 5: vaughan-west/);
 });
 
 test('every seeded cohort lands on the calendar, with its event still ahead', () => {
@@ -288,4 +310,44 @@ test('seed says what else the rows need before a partner can see them', () => {
   const { out } = run('seed', ...IDS);
   assert.match(out, /provider_coverage row at status=active/);
   assert.match(out, /cohort.mjs verify/);
+});
+
+test('--update rewrites the same row instead of creating a second one', () => {
+  const { out, code } = run('seed', ...IDS, '--update');
+  assert.equal(code, 0);
+  assert.doesNotMatch(out, /INSERT INTO/);
+  assert.equal((out.match(/UPDATE campaigns SET/g) || []).length, IDS.length);
+  for (const id of IDS) {
+    assert.match(out, new RegExp(`WHERE campaign_id = '${id}';`), `${id} has no WHERE clause`);
+  }
+});
+
+test('--update never sets campaign_id, which is the key and is immutable', () => {
+  const { out } = run('seed', ...IDS, '--update');
+  for (const stmt of out.match(/UPDATE campaigns SET [^;]+;/g)) {
+    const set = stmt.slice(0, stmt.indexOf('WHERE'));
+    assert.doesNotMatch(set, /campaign_id/, 'campaign_id is in the SET list');
+  }
+});
+
+test('--update writes the same values the INSERT would have', () => {
+  /* The two modes differing would mean a rescheduled cohort is not the cohort
+     a fresh one would have been, which is the whole point of the flag. */
+  const ins = seededRows(run('seed', ...IDS, '--seed', '40').out);
+  const upd = run('seed', ...IDS, '--seed', '40', '--update').out;
+  for (const row of ins) {
+    for (const col of catalog.DATE_COLUMNS) {
+      const m = upd.match(new RegExp(`${col} = '([^']+)'`, 'g'));
+      assert.ok(m && m.length === IDS.length, `${col} is not set on every UPDATE`);
+    }
+    assert.match(upd, new RegExp(`region = '${row.region}'`), `${row.id}: region differs from the INSERT`);
+  }
+  assert.equal((upd.match(/seed_households = 40/g) || []).length, IDS.length);
+});
+
+test('the INSERT path says what a duplicate key means, and that deleting is wrong', () => {
+  const { out } = run('seed', ...IDS);
+  assert.match(out, /duplicate-key refusal/);
+  assert.match(out, /Do NOT delete it/);
+  assert.match(out, /--update/);
 });

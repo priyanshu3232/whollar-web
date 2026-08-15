@@ -383,6 +383,10 @@ function cmdSeed() {
   if (hour > 23) die('--hour is a UTC hour, 0 to 23');
   const sub = flag('sub', '') === true ? '' : flag('sub', '');
   const seed = num(flag('seed', '0'), 'seed');
+  /* A duplicate-key refusal means the row is already there. Rescheduling it is
+     an UPDATE: DELETE is never the answer, because there are no foreign keys
+     and any campaign_members row would survive pointing at nothing. */
+  const update = has('update');
 
   const now = new Date();
   const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
@@ -410,28 +414,63 @@ function cmdSeed() {
     }
   }
 
-  const cols = ['campaign_id', 'region', 'sub', 'kind', 'target', 'seed_members',
-    'seed_households', 'bidding_open', 'sort_order', 'updated_by', 'updated_at',
-    ...DATE_COLUMNS];
+  console.log(`\nSEED: ${rows.length} auction cohorts, one closing every ${every} day(s)`);
+  console.log(update
+    ? '  --update: these RESCHEDULE rows that already exist. Nothing is created.\n'
+    : '');
+  console.log('  ZCQL runs ONE statement per submission. Paste these one at a time: a block of');
+  console.log(`  ${rows.length} is a syntax error, and so is the second one in any pair.`);
+  if (!update) {
+    console.log('  A duplicate-key refusal means that cohort already exists. Do NOT delete it:');
+    console.log('  there are no foreign keys, so its campaign_members rows would survive pointing');
+    console.log('  at nothing. Re-run with --update and paste that statement instead.');
+  }
+  console.log('');
 
-  console.log(`\nSEED: ${rows.length} auction cohorts, one closing every ${every} day(s)\n`);
   rows.forEach((r, i) => {
-    const vals = [
-      lit(r.id, { max: 64, what: 'campaign_id' }),
-      lit(r.region, { max: 100, what: 'region' }),
-      lit(sub, { max: 100, what: '--sub' }),
-      lit('auction'),
-      'NULL',
-      lit(seed), lit(seed),
-      lit(r.biddingOpen),
-      lit(i),
-      lit('manual', { max: 64 }),
-      lit(utc(new Date())),
-      ...DATE_COLUMNS.map((c) => lit(utc(new Date(r.dates[c])))),
-    ];
-    console.log(`  INSERT INTO campaigns (${cols.join(', ')})`);
-    console.log(`  VALUES (${vals.join(', ')});\n`);
+    /* A column is omitted rather than written NULL or ''. Both are legal SQL
+       and neither is worth finding out about in a console with write access:
+       an absent column reads back as an absent value, which is what target and
+       an unset sub mean anyway. target is absent on every auction because the
+       household count is the join count, not a goal. */
+    const pairs = [
+      ['campaign_id', lit(r.id, { max: 64, what: 'campaign_id' })],
+      ['region', lit(r.region, { max: 100, what: 'region' })],
+      ['sub', sub ? lit(sub, { max: 100, what: '--sub' }) : null],
+      ['kind', lit('auction')],
+      ['seed_members', lit(seed)],
+      ['seed_households', lit(seed)],
+      ['bidding_open', lit(r.biddingOpen)],
+      ['sort_order', lit(i)],
+      ['updated_by', lit('manual', { max: 64 })],
+      ['updated_at', lit(utc(new Date()))],
+      ...DATE_COLUMNS.map((c) => [c, lit(utc(new Date(r.dates[c])))]),
+    ].filter(([, v]) => v !== null);
+
+    console.log(`  ${i + 1} of ${rows.length}: ${r.id}`);
+    if (update) {
+      /* campaign_id is the key, so it moves from the SET list to the WHERE.
+         It is also immutable by design: both dashboards and every bid_key are
+         built from it, so a row is rescheduled, never renamed. */
+      const sets = pairs.filter(([c]) => c !== 'campaign_id')
+        .map(([c, v]) => `${c} = ${v}`);
+      console.log(`  UPDATE campaigns SET ${sets.join(', ')}`);
+      console.log(`  WHERE campaign_id = ${lit(r.id, { max: 64 })};\n`);
+    } else {
+      console.log(`  INSERT INTO campaigns (${pairs.map(([c]) => c).join(', ')})`);
+      console.log(`  VALUES (${pairs.map(([, v]) => v).join(', ')});\n`);
+    }
   });
+
+  /* The console reports a parse failure as one unhelpful line, so the two
+     things it is most often actually objecting to are named here rather than
+     found by bisecting a statement in a window with write access. */
+  console.log('  If a single statement still reports a syntax error:\n');
+  console.log('    - drop the trailing semicolon. The console submits one statement and some');
+  console.log('      builds treat the terminator as a second, empty one.');
+  console.log(`    - quote the boolean: bidding_open = 'true' rather than true.`);
+  console.log('    Neither changes what is written. Tell me which one it was and this stops');
+  console.log('    guessing: the tool should emit the dialect the console actually parses.\n');
 
   console.log(`  The calendar these ${rows.length} rows make, from the same stage function the server uses.`);
   console.log('  The overview card shows the first five, soonest first:\n');
@@ -544,7 +583,7 @@ function usage() {
     move <id> --to <kind> [--from <kind>]
     bidding <id> --on | --off
     calendar <id> [--minutes N] [--start N]
-    seed <id> [<id>...] [--regions "A,B"] [--first N] [--every N] [--hour UTC] [--seed N]
+    seed <id> [<id>...] [--regions "A,B"] [--first N] [--every N] [--hour UTC] [--seed N] [--update]
     coverage <org_id> --region R [--techs cable,fibre] [--status active]
     verify [<id>]
     preview [--kind K] [--bidding-open] [--region R]
