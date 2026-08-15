@@ -974,7 +974,11 @@ function mount(router, cfg) {
         coverage_key: row.coverage_key,
         org_id: org.org_id,
         region: row.region,
-        result,
+        /* `outcome`, not `result`. ZCQL reserves `result`, so the console
+           refuses to create a column by that name at all. `outcome` is the
+           name auth_events already uses for the same idea, and that column has
+           been written on every request in production since launch. */
+        outcome: result,
         reason: reason || null,
         checked_by: admin.user_id,
         checked_at: datastore.nowDb(),

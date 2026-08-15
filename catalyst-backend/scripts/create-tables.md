@@ -568,8 +568,8 @@ spoke last is a state nobody can reason about.
 | `submitted_at` | DateTime | - | | | **written once.** See below |
 | `decision_due_at` | DateTime | - | | | `submitted_at` + 48h |
 | `decided_at` | DateTime | - | | | |
-| `decision_note` | Var Char | 500 | | | shown verbatim on a declined application |
-| `review_note` | Var Char | 500 | | | shown when one task is flagged |
+| `decision_note` | Text | 10000 | | | shown verbatim on a declined application. **Text, not Var Char 500:** rule 3 caps Var Char at 255 and the console enforces it. Never filtered on, so Text is the right column |
+| `review_note` | Text | 10000 | | | shown when one task is flagged. Text, for the same reason as `decision_note` |
 | `reapply_after` | DateTime | - | | | |
 | `source` | Var Char | 16 | | | `self_serve` \| `outreach` \| `distributor` |
 | `role_route` | Var Char | 24 | | | carried from the public onboarding page |
@@ -594,7 +594,7 @@ column, so the pair is flattened into `task_key_org`.
 | `state` | Var Char | 16 | | ✅ | `empty` \| `submitted` \| `verifying` \| `cleared` \| `flagged` |
 | `completed_at` | DateTime | - | | | when the partner finished their half |
 | `checked_at` | DateTime | - | | | when a reviewer finished theirs |
-| `note` | Var Char | 500 | | | reviewer's note, or the consent hash for `agreement` |
+| `note` | Text | 10000 | | | reviewer's note, or the consent hash for `agreement`. Text, for the same reason as `provider_applications.decision_note` |
 | `updated_at` | DateTime | - | | | |
 
 > A partner's own write can reach `submitted`, never `cleared`. Only
@@ -652,7 +652,7 @@ decision that determines whether a partner can bid at all.
 | `coverage_key` | Var Char | 200 | | ✅ | matches `provider_coverage.coverage_key` |
 | `org_id` | Var Char | 64 | | ✅ | |
 | `region` | Var Char | 100 | | ✅ | as declared |
-| `result` | Var Char | 16 | | ✅ | `active` \| `rejected` |
+| `outcome` | Var Char | 16 | | ✅ | `active` \| `rejected`. **Was `result`, which ZCQL reserves:** the console refuses to create a column by that name. `outcome` is what `auth_events` already calls the same idea |
 | `reason` | Var Char | 32 | | | `no_facilities` \| `outside_footprint` \| `tech_unsupported` \| `needs_evidence` |
 | `checked_by` | Var Char | 64 | | ✅ | admin `user_id` |
 | `checked_at` | DateTime | - | | ✅ | |

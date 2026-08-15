@@ -45,6 +45,21 @@ export function fmtDate(ts) {
   return MONTHS[d.getMonth()] + ' ' + d.getDate();
 }
 
+/**
+ * "Aug 14" from a datastore stamp, "YYYY-MM-DD HH:MM:SS".
+ *
+ * Only the calendar date is read, deliberately. That string is UTC with no
+ * zone marker, so handing the whole thing to new Date() shifts it by the
+ * reader's offset and can move the day, which is the bug the file header is
+ * about. Soft dates ("signed up", "member since") are the only callers: a
+ * deadline still comes through as an integer and goes through fmtDate.
+ */
+export function fmtStamp(s) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || ''));
+  if (!m) return '';
+  return MONTHS[+m[2] - 1] + ' ' + +m[3];
+}
+
 /** "5 PM", "5:30 PM". */
 export function fmtTime(ts) {
   var d = new Date(ts);

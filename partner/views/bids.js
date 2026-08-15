@@ -18,7 +18,7 @@ import { esc } from '../core/format.js';
 import { fmtDate } from '../core/time.js';
 import { on } from '../core/actions.js';
 import { toast } from '../core/toast.js';
-import { empty, goTo } from '../components/emptystate.js';
+import { empty, goTo, CLOCK } from '../components/emptystate.js';
 import { bidLine } from './ticket.js';
 
 export function render() {
@@ -30,8 +30,8 @@ export function render() {
 
   if (!list.length) {
     host.innerHTML = nudge(S) + empty('Your first bid lands here',
-      'Every bid you place sits on this record with everything it turned into: result, confirmed households, completed switches, fees. Bids are append-only, so an improvement adds a version and nothing is ever removed.',
-      goTo('desk', 'Open the bid desk'));
+      'Every bid you place sits on this record with everything it turns into: result, confirmed households, completed switches, fees.',
+      goTo('desk', 'Open the bid desk'), CLOCK);
     return;
   }
 

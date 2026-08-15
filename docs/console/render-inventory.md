@@ -156,3 +156,28 @@ Two things to carry over unchanged, because they look accidental and are not:
 reconstructed as fixtures instead, see `docs/console/fixtures.md`). `CAMPAIGNS`,
 `COVER`, `HBIDS`, `MONTHS`, `STREETS`, `TECHS` (demo constants).
 `window.__whollar` @2559 (debug handle).
+
+## E. States the prototype had no panel for
+
+Two gaps that are not redefinition and not decoration, so sections A and B do
+not catch them. Both are in `ticketHTML` @2578, whose state selection reads
+`st>=4 && mine`, then `st===3`, then `mine`, then falls through to the bid
+form.
+
+- **Decided, with no bid of ours.** Nothing matches, so the fall-through
+  applies and a cohort that ended days ago opens a seven-column pricing table
+  with a consent checkbox. The button reads "Bidding closed" and is disabled,
+  so nothing could ever be written, which is presumably why it survived every
+  demo. It is reachable: `bidAction` offers View on a decided row whether or
+  not a bid sits behind it. `partner/views/ticket.js` adds the panel, and
+  fixture `nobid` is the state.
+
+- **Won is two panels, not one.** The prototype branched on `P.gate[a.id]`: a
+  gated roster says complete the setup, a released one says schedule it from
+  the delivery board. Porting only the first told a partner who had already
+  passed the gate to go and pass it again. The console reads the release from
+  `S.delivery`, which is three-valued because the board is not loaded on boot,
+  and falls back to `S.billing.method.onFile`, which is. Never guess this one:
+  the wrong half is worse than a vaguer sentence.
+
+Both are asserted in `scripts/qa-console.mjs` group 22.

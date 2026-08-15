@@ -20,24 +20,20 @@ import { empty, goTo } from '../components/emptystate.js';
 import { briefHTML } from './brief.js';
 import { ticketHTML, refreshScn } from './ticket.js';
 
+/* The desk is TWO tables, as the prototype's markup is: what is live now, and
+   what is coming. A cohort that has not opened yet cannot be bid on and has no
+   clock to run, so putting it in the live table gives it five columns of
+   dashes and buries the one row that needs a decision today. Split on stage,
+   which the server owns.
+ *
+ * Both shells render even when they are empty, and each carries its own
+ * one-line explanation inside the table body rather than a bare header row.
+ * §8.7 is why: an empty table with column headings and nothing under them is
+ * the screen most likely to read as broken rather than as quiet. */
 export function render() {
   var host = document.getElementById('desk-body');
   if (!host) return;
   var S = get();
-
-  /* Four empty states, and they are NOT interchangeable. Collapsing them was a
-     regression the QA suite caught once already: it told a partner under
-     review that no cohorts were forming, which is both false and unactionable.
-     ORDER MATTERS, and approval comes FIRST. It is a fact from /provider/me
-     and does not depend on the campaigns table being readable, so a pending
-     partner gets the answer that is true and actionable rather than a
-     technical apology about a table they cannot bid against anyway. */
-  if (!S.approved) {
-    host.innerHTML = empty('Cohorts appear here once your application clears',
-      'Nothing is missing on your side. Bidding opens to approved partners, and cohorts forming in your coverage land on this desk the same day you are approved.',
-      goTo('pending', 'See where your application stands'));
-    return;
-  }
 
   if (!S.campaignsLive) {
     host.innerHTML = empty('We could not read the cohort list just now',
@@ -45,38 +41,81 @@ export function render() {
     return;
   }
 
-  if (!S.campaigns.length) {
-    if (!S.coverage.length) {
-      host.innerHTML = empty('Nothing reaches this desk without coverage',
-        'Auctions are matched to partners by the regions they have declared. Name one, with the services you can render there, and cohorts forming inside it appear here.',
-        goTo('coverage', 'Declare your coverage'));
-      return;
-    }
-    host.innerHTML = empty('Nothing needs you right now',
-      'No cohort in your coverage is open for bids. When one opens you will see it here, and you will get an email if that alert is on.',
-      goTo('account', 'Check your alerts', 'btn ghost'));
-    return;
-  }
-
   var active = {};
   S.coverage.forEach(function (c) { if (c.status === 'active') active[regionSlug(c.region)] = true; });
 
-  var rows = S.campaigns.slice().sort(sortByClock).map(function (a) {
+  var coming = S.campaigns.filter(isComing).sort(sortByOpen);
+  var live = S.campaigns.filter(function (a) { return !isComing(a); }).sort(sortByClock);
+
+  var rows = live.map(function (a) {
     return row(a, active[regionSlug(a.coverageRegion || a.region)]);
-  }).join('');
+  }).join('') || '<tr><td colspan="6">' + liveNote(S) + '</td></tr>';
 
   host.innerHTML = '<section class="card" style="padding-top:14px">'
     + '<div class="twrap"><table class="tbl" aria-label="Open auctions">'
     + '<thead><tr><th>Cohort</th><th class="num">Households</th><th>Stage</th><th>Window</th><th>Your bid</th><th></th></tr></thead>'
     + '<tbody>' + rows + '</tbody></table></div>'
     + '<p class="fnote">You see a cohort because it sits inside your declared coverage. You never see another partner’s bid, their count, or whether they bid at all.</p>'
-    + '</section>';
+    + '</section>'
+    + planned(coming);
 
   /* The scenario table lives in the brief but reads the open form, so it can
      only be computed once both are in the DOM. */
   refreshScn();
 
   startTicker();
+}
+
+function isComing(a) { return a.stage === 'planned' || a.stage === 'announced'; }
+function openAt(a) { return (a.dates && a.dates.bidding_opens_at) || Infinity; }
+function sortByOpen(a, b) { return openAt(a) - openAt(b); }
+
+/* Why the live table is empty, in the partner's terms. These four sentences
+   are NOT interchangeable and collapsing them was a regression the QA suite
+   caught once already: it told a partner under review that no cohorts were
+   forming, which is both false and unactionable. ORDER MATTERS, and approval
+   comes FIRST: it is a fact from /provider/me and does not depend on the
+   campaigns table being readable. */
+function liveNote(S) {
+  if (!S.approved) {
+    return note('Cohorts open to you the day your application clears. Nothing is missing on your side, and anything forming in your coverage before then is listed under Coming cohorts.',
+      goTo('pending', 'See where your application stands', 'tlink'));
+  }
+  if (!S.coverage.length) {
+    return note('Nothing reaches this desk without coverage. Auctions are matched to partners by the regions they have declared.',
+      goTo('coverage', 'Declare your coverage', 'tlink'));
+  }
+  return note('No cohort in your coverage is open for bids right now. When one opens it appears here, and you get an email if that alert is on.',
+    goTo('account', 'Check your alerts', 'tlink'));
+}
+
+function note(text, link) {
+  return '<p class="fnote" style="margin:6px 0 2px">' + esc(text) + ' ' + link + '</p>';
+}
+
+/* Coming cohorts. Planned and announced only: a cohort here has no bidding
+   window yet, which is exactly what its one column says. */
+function planned(coming) {
+  var rows = coming.map(function (a) {
+    return '<tr><td><span class="rg" style="font-size:13.5px">' + esc(a.region)
+      + '<small>' + esc(a.sub || '') + '</small></span></td>'
+      + '<td class="num">' + (isFinite(openAt(a)) ? esc(fmtDate(openAt(a))) + ' · expected' : 'Date to come') + '</td>'
+      + '<td style="font-size:12.5px;color:var(--sub)">'
+      + esc(a.stage === 'announced'
+        ? 'Announced' + (a.households ? ' · ' + a.households + ' households' : '')
+        : 'Still forming' + (a.households ? ' · ' + a.households + ' households so far' : ''))
+      + '</td></tr>';
+  }).join('')
+    || '<tr><td colspan="3"><p class="fnote" style="margin:6px 0 2px">'
+      + 'Nothing is forming in your coverage yet. A cohort forms when enough households in one area reach their promo cliff together, and it lands here before it opens for bids.</p></td></tr>';
+
+  return '<section class="card" style="margin-top:16px" aria-label="Planned cohorts">'
+    + '<span class="eyebrow">Planned in your coverage</span><h3>Coming cohorts</h3>'
+    + '<div class="twrap"><table class="tbl">'
+    + '<thead><tr><th>Cohort</th><th class="num">Expected bidding</th><th>Status</th></tr></thead>'
+    + '<tbody>' + rows + '</tbody></table></div>'
+    + '<p class="fnote">Expected dates are estimates; they firm up the day a cohort locks and is announced.</p>'
+    + '</section>';
 }
 
 function closeAt(a) { return (a.dates && a.dates.bidding_closes_at) || a.nextAt || Infinity; }

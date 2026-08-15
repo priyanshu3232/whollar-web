@@ -151,11 +151,11 @@ function tiles(r) {
       r.decided ? esc(r.won + ' of ' + r.decided) : DOT,
       r.decided
         ? 'your record so far'
-        : (r.sealed ? 'your first result writes the first number' : 'sealed bids to wins, beside your bid in every brief'),
+        : (r.sealed ? 'your first result writes the first number' : 'sealed bids to wins · future briefs show it beside your bid'),
       '')
-    + tile('Completion', DOT, 'activated of serviceable, written by your delivery board')
-    + tile('Serviceability', DOT, 'declared coverage proving real at install')
-    + tile('Delivered as bid', DOT, 'records at households’ day-30 bill checks')
+    + tile('Completion', DOT, 'activated of confirmed · written by your delivery board')
+    + tile('Serviceability', DOT, 'declared coverage that proves real at install')
+    + tile('Delivered as bid', DOT, 'day-30 bill checks against your sealed offer')
     + '</div>';
 }
 
@@ -175,14 +175,18 @@ function card(eyebrow, title, note, cta, foot) {
 
 function band(S, r) {
   /* Still under review. Nothing on this page can start until an application
-     clears, so the page says that rather than showing four dots and no path. */
+     clears, so the page says that rather than showing four dots and no path.
+     Both branches go to 'pending', the review frame, which is where the one
+     button back into the checklist lives. The unsubmitted branch used to name
+     a view called 'application', which is not in router.VIEWS, so go() dropped
+     it and the button did nothing at all. */
   if (!S.approved) {
     var submitted = S.application && S.application.submittedAt;
-    return card({ text: 'Before the record starts' },
-      submitted ? 'Your record starts at approval' : 'Your record starts at your first sealed number',
-      'None of the four is bought and none is written by marketing: all four are recorded from what you deliver, and future auction briefs carry them beside your bid.'
+    return card({ text: 'Why these four' },
+      'The numbers that will win you auctions',
+      'Nothing here is bought and nothing is written by marketing: all four are recorded from what you deliver, and future auction briefs carry them beside your bid. The record starts at your first sealed number.'
       + (submitted ? ' Approved partners reach the bid desk the same day.' : ''),
-      goTo(submitted ? 'pending' : 'application', submitted ? 'See where the review stands' : 'Finish your application', 'btn forest'));
+      goTo('pending', submitted ? 'See where the review stands' : 'Finish your application', 'btn forest'));
   }
 
   /* Won something. This is the state the screenshot is about: the win is on

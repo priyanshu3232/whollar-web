@@ -18,12 +18,14 @@
  * COVERS: the four boot-guard paths (signed out, approved, pending, expired),
  * the one that must NOT sign anyone out (a network failure), the router across
  * all 11 views, four widths, the burger's two behaviours, the completeness of
- * the 67-endpoint register, all 19 fixture states, the fixture layer declining
+ * the 67-endpoint register, all 20 fixture states, the fixture layer declining
  * to install off localhost, the bid ticket (seven-column tier table, consent
  * gate, a sealed place round-trip), the sealed receipt with no withdraw path
  * anywhere, the my-bids record with its nudge and result pills, and the
- * contracts registry with its terms gate on the desk, and the landing view an
- * unapproved partner arrives on with no hash.
+ * contracts registry with its terms gate on the desk, the landing view an
+ * unapproved partner arrives on with no hash, the four ticket panels a cohort
+ * wears after its close, and the two ways a 403 must NOT be read as a
+ * signed-out session.
  */
 
 import { chromium } from 'playwright-core';
@@ -799,13 +801,34 @@ console.log('\n20. the landing view: where a partner arrives with no hash');
   ok(!(await p.locator('.pane').isVisible()), 'the nav pane is hidden, not merely unstyled');
   const draft = await p.innerText('#pend-body');
   ok(/Received. The rest is yours to start/.test(draft), 'the card reads as an application to start');
-  ok(/Continue your application · 0 of 5 done/.test(draft), 'the one button counts what is done');
+  /* Nothing started is an invitation, not a score of zero. "0 of 5 done" is
+     the first thing a partner reads a minute after signing up, and it reads as
+     a penalty for having just arrived. The count appears once there is
+     something to count, which the partial case below asserts. */
+  ok(/Complete your application/.test(draft), 'nothing started: the button invites rather than scores');
+  ok(!/0 of 5 done/.test(draft), 'and it does not open on a zero');
 
   /* A deep link is still a deep link. */
   await p.evaluate(() => { location.hash = '#coverage'; });
   await p.waitForTimeout(150);
   ok(!(await p.evaluate(() => document.body.classList.contains('gated'))), 'leaving the frame ungates it');
   await c.close();
+
+  /* Partway through: now there is something to count, so the button counts it. */
+  const cPart = await ctx(browser, {
+    record: REC, me: PENDING,
+    application: {
+      ok: true, state: 'draft', serverTime: Date.now(),
+      tasks: { ...EMPTY, coverage: 'verifying', registration: 'submitted' },
+    },
+  });
+  const pPart = await cPart.newPage();
+  collect(pPart, errors);
+  await pPart.goto(`${BASE}/partner`, { waitUntil: 'networkidle' });
+  await pPart.waitForTimeout(200);
+  const part = await pPart.innerText('#pend-body');
+  ok(/Continue your application · 2 of 5 done/.test(part), 'partway through: the button counts what is done');
+  await cPart.close();
 
   const c2 = await ctx(browser, {
     record: REC, me: PENDING,
@@ -888,6 +911,107 @@ console.log('\n21. a 403 on a boot-path read is not a signed-out session');
   ok(!/whollar-login-provider/.test(p.url()), 'and neither does a 403 from the delivery board');
   const del = await p.locator('#del-body').innerText();
   ok(del.trim().length > 20, 'delivery renders a page too');
+  await c.close();
+}
+
+console.log('\n21b. and neither is a 403 on a WRITE the partner clicked');
+{
+  /* Group 21 covered the two boot-path reads and stopped there, so the same
+     bug survived on the one write an unapproved partner is most likely to
+     make: Declare. POST /provider/coverage was behind requireApproved, the
+     view called authFailed(), and the console blinked and threw them at the
+     login form mid-click. The route is requirePartner now, but the client
+     rule is what this asserts: a refused write is a toast, never a sign-out,
+     whatever the server decides about the act itself. */
+  const c = await ctx(browser, { record: REC, me: APPROVED });
+  const seeded = [
+    { region: 'Scarborough East', slug: 'scarborough-east', status: 'active', techs: ['fibre'], speed: '1 Gig', lead: '5 business days' }
+  ];
+  await c.route('**/api/auth/provider/coverage', r => {
+    if (r.request().method() === 'POST') {
+      return r.fulfill({
+        status: 403,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: { code: 'FORBIDDEN', message: 'Your organisation is still under review. This opens the moment it is approved.' } }),
+      });
+    }
+    return r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, live: true, serverTime: Date.now(), coverage: seeded }),
+    });
+  });
+  const p = await c.newPage();
+  await p.goto(`${BASE}/partner#coverage`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(120);
+
+  await p.locator('#regin').click();
+  await p.locator('#regin').fill('Scarborough North');
+  await p.waitForTimeout(80);
+  await p.locator('#regpanel .dopt').first().click();
+  await p.locator('.mseltrig[data-for="addtech"]').click();
+  await p.locator('#addtech button').first().click();
+  await p.locator('.mseltrig[data-for="addspeed"]').click();
+  await p.locator('#addspeed button[data-s]').first().click();
+  await p.locator('[data-action="coverage:add"]').first().click();
+  await p.waitForTimeout(500);
+
+  ok(!/whollar-login-provider/.test(p.url()), `a refused Declare stays on the console (${p.url().split('/').pop()})`);
+  ok(await p.evaluate(() => !!(window.WHOLLAR.partner && window.WHOLLAR.partner.read())),
+    'and the local partner record is still there, not cleared out from under them');
+  const toasted = await p.locator('.toast, #toast').innerText().catch(() => '');
+  ok(/under review/i.test(toasted), `the server's reason is what they read (${toasted.slice(0, 60)})`);
+  await c.close();
+}
+
+console.log('\n22. the end of a cohort: every ticket panel after the close');
+{
+  /* The v12 prototype selected ticket panels on `st>=4 && mine`, `st===3`,
+     `mine`, else the form. Two states fell through that: a decided cohort with
+     no bid of ours got a live-looking seven-column pricing form, and the won
+     panel had one copy for both sides of the roster gate. */
+  const c = await ctx(browser, { record: REC, me: APPROVED });
+  const p = await c.newPage();
+  const errs = [];
+  collect(p, errs);
+
+  await p.goto(`${BASE}/partner?fixture=nobid`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(150);
+  await p.click('[data-action="desk:open"]');
+  await p.waitForTimeout(250);
+  const over = await p.locator('.dwr .tkt').innerText();
+  ok(/did not bid on this cohort/i.test(over), 'a decided cohort we never bid on says exactly that');
+  ok(!(await p.locator('.dwr .bidform').count()), 'and does NOT open a pricing form for an auction that ended');
+  ok(!(await p.locator('.dwr .bconsent').count()), 'no sealing consent on a closed cohort either');
+
+  /* Won, gate not yet passed: the delivery board has not been read, so the
+     panel may not claim a roster is out. */
+  await p.goto(`${BASE}/partner?fixture=won`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(250);
+  await p.evaluate(() => window.WHOLLAR.console.nav('desk'));
+  await p.waitForTimeout(200);
+  await p.click('[data-action="desk:open"]');
+  await p.waitForTimeout(250);
+  const gated = await p.locator('.dwr .tkt').innerText();
+  ok(/\bWon\b/.test(gated), 'a won cohort still reads as won');
+  ok(/complete billing setup/i.test(gated), 'with the gate still to pass, it names the gate');
+  ok(!/roster released/i.test(gated), 'and never announces a roster that has not released');
+
+  /* Won with the roster already out. The board is not loaded on boot, so the
+     harness opens Delivery the way a partner does, then comes back. */
+  await p.goto(`${BASE}/partner?fixture=delivery`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(250);
+  const board = await p.locator('#del-body').innerText();
+  ok(/order management/i.test(board), `the delivery fixture renders the board, not the empty state (${board.slice(0, 40).replace(/\n/g, ' ')})`);
+  await p.evaluate(() => window.WHOLLAR.console.nav('desk'));
+  await p.waitForTimeout(200);
+  await p.click('[data-action="desk:open"]');
+  await p.waitForTimeout(250);
+  const rel = await p.locator('.dwr .tkt').innerText();
+  ok(/roster released/i.test(rel), 'and with the roster out the won panel says schedule it, not complete setup');
+  ok(!/complete billing setup/i.test(rel), 'never telling a partner to redo a gate they have passed');
+
+  ok(!errs.length, `no console errors across the four panels (${errs[0] ? errs[0].slice(0, 70) : 'clean'})`);
   await c.close();
 }
 

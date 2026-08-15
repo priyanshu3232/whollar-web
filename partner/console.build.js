@@ -605,6 +605,21 @@
     return MONTHS[d.getMonth()] + ' ' + d.getDate();
   }
 
+  /**
+   * "Aug 14" from a datastore stamp, "YYYY-MM-DD HH:MM:SS".
+   *
+   * Only the calendar date is read, deliberately. That string is UTC with no
+   * zone marker, so handing the whole thing to new Date() shifts it by the
+   * reader's offset and can move the day, which is the bug the file header is
+   * about. Soft dates ("signed up", "member since") are the only callers: a
+   * deadline still comes through as an integer and goes through fmtDate.
+   */
+  function fmtStamp(s) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || ''));
+    if (!m) return '';
+    return MONTHS[+m[2] - 1] + ' ' + +m[3];
+  }
+
   /** "5 PM", "5:30 PM". */
   function fmtTime(ts) {
     var d = new Date(ts);
@@ -675,6 +690,7 @@
   __exports.DAY = DAY;
   __exports.HOUR = HOUR;
   __exports.fmtDate = fmtDate;
+  __exports.fmtStamp = fmtStamp;
   __exports.fmtTime = fmtTime;
   __exports.fmtCountdown = fmtCountdown;
   __exports.relativeDays = relativeDays;
@@ -1107,11 +1123,11 @@
      core/session.js
      ================================================================== */
   __defs["core/session.js"] = function (__exports, __require, root) {
-  /* Session revalidation, and the one rule that matters about it.
+  /* Session revalidation, and the two rules that matter about it.
    *
    * The local record proves nothing: it is writable from a browser console and
-   * it can outlive the cookie. A definite 401 or 403 means the session is gone
-   * or now belongs to someone else, and the console must stop painting.
+   * it can outlive the cookie. A definite 401 means the session is gone and the
+   * console must stop painting.
    *
    * A NETWORK FAILURE IS NOT THAT, and must never sign anyone out. The provider
    * session is 12 hours and does not roll, so a partner who loses wifi for
@@ -1119,6 +1135,21 @@
    * and have to start again. scripts/qa-console.mjs asserts both halves: group 4
    * that a definite 401 signs the tab out, group 5 that a network failure does
    * not. Group 5 is the one that matters.
+   *
+   * A 403 IS NOT THAT EITHER, and this is the second rule because getting it
+   * wrong looked exactly like a broken login. Half the console sits behind
+   * requireApproved, so an org still under review answers 403 on the routes it
+   * cannot use yet: declaring coverage, placing a bid, reading statements or the
+   * delivery board. Bouncing on that signed a partner out of the console they
+   * had just signed into, mid-click, with no error they could read. It is a page
+   * state and the view that made the call owns it. Billing and delivery each
+   * carried a private 401-only copy of this helper for that reason; coverage did
+   * not, which is how POST /provider/coverage came to log people out. One rule
+   * here instead of three copies and a gap.
+   *
+   * The single exception is revalidate() below, where the read is /provider/me:
+   * that route refuses a non-partner with 403, and someone who is not a partner
+   * has no console to be left sitting in.
    */
 
   var __ns0 = __require("core/api.js");
@@ -1129,7 +1160,7 @@
   var set = __ns2.set;
 
   function isAuthError(err) {
-    return !!err && (err.status === 401 || err.status === 403 || err.code === 'UNAUTHENTICATED');
+    return !!err && (err.status === 401 || err.code === 'UNAUTHENTICATED');
   }
 
   /** Send them to sign in, carrying where they were so they come back here. */
@@ -1139,7 +1170,10 @@
     location.replace('/whollar-login-provider?next=' + encodeURIComponent(location.pathname + location.hash));
   }
 
-  /** Bounce only on a definite auth failure. Anything else is left to the caller. */
+  /**
+   * Bounce only on a definite auth failure. Anything else, a 403 from an
+   * approval gate included, is left to the caller to render.
+   */
   function authFailed(err) {
     if (isAuthError(err)) bounce();
     return isAuthError(err);
@@ -1163,7 +1197,11 @@
       });
       return r;
     }, function (err) {
-      if (isAuthError(err)) { bounce(); return null; }
+      /* The one place 403 still bounces: /provider/me answers it for a signed-in
+         account that is not a partner at all, and there is no partner console to
+         leave them in. Everywhere else 403 means "not yet approved for this",
+         which is a screen, not a sign-out. */
+      if (isAuthError(err) || (err && err.status === 403)) { bounce(); return null; }
       /* Offline or backend down. The chrome already has the local record, so
          leave it up rather than blanking a console over one failed poll. */
       if (typeof console !== 'undefined' && console.warn) {
@@ -1806,19 +1844,21 @@
   var __ns2 = __require("core/format.js");
   var esc = __ns2.esc;
   var __ns3 = __require("core/time.js");
-  var fmtDate = __ns3.fmtDate;
+  var fmtDate = __ns3.fmtDate, fmtStamp = __ns3.fmtStamp;
   var __ns4 = __require("core/toast.js");
   var toast = __ns4.toast, failed = __ns4.failed;
   var __ns5 = __require("core/actions.js");
   var on = __ns5.on;
-  var __ns6 = __require("core/modal.js");
-  var openModal = __ns6.open, closeModal = __ns6.close;
-  var __ns7 = __require("core/session.js");
-  var authFailed = __ns7.authFailed;
-  var __ns8 = __require("components/gate.js");
-  var gateRow = __ns8.gateRow;
-  var __ns9 = __require("components/tasks.js");
-  var applicationTasks = __ns9.applicationTasks, progress = __ns9.progress;
+  var __ns6 = __require("core/router.js");
+  var go = __ns6.go;
+  var __ns7 = __require("core/modal.js");
+  var openModal = __ns7.open, closeModal = __ns7.close;
+  var __ns8 = __require("core/session.js");
+  var authFailed = __ns8.authFailed;
+  var __ns9 = __require("components/gate.js");
+  var gateRow = __ns9.gateRow;
+  var __ns10 = __require("components/tasks.js");
+  var applicationTasks = __ns10.applicationTasks, progress = __ns10.progress;
 
   /* ------------------------------------------------------------------ *
    * the frame
@@ -1862,20 +1902,30 @@
     var paperState = allOf(paperKeys, ['cleared']) ? 'dn'
       : (anyOf(paperKeys, ['submitted', 'verifying', 'flagged']) ? 'now' : '');
     var decisionState = complete ? 'now' : '';
+    var done = countDone(t);
 
     return '<section class="card" style="max-width:640px;margin:0 auto">'
       + '<span class="eyebrow">Founding partner application</span>'
       + '<h3>' + (complete ? 'Received. The clock is running.' : 'Received. The rest is yours to start.') + '</h3>'
 
+      /* "signed up", and the date is the ACCOUNT's, not the application's. The
+         application row is created on the first task write, so its own stamp
+         would date a partner's signup to whenever they first touched the form,
+         which for anyone who read the card and came back tomorrow is wrong by a
+         day. publicUser.memberSince is the account's creation stamp, so it is
+         the one that matches the sentence. */
       + gateRow('dn', '', 'Application received',
-        esc(org) + (app.submittedAt ? ' · started ' + esc(fmtDate(app.submittedAt)) : ''))
+        esc(org) + (signedUp() ? ' · signed up ' + esc(signedUp()) : ''))
 
-      /* One button in both states. Complete is not the same as done with us: the
-         partner still wants to see what they sent while the clock runs, and a
-         card with no way back into the file reads as a dead end. */
+      /* One button in all three states. Complete is not the same as done with
+         us: the partner still wants to see what they sent while the clock runs,
+         and a card with no way back into the file reads as a dead end. Nothing
+         started gets the plain invitation rather than a score of zero, which is
+         the first thing a new partner reads. */
       + '<div class="pendcta">'
       + '<button class="btn" type="button" data-action="app:tasks" style="width:100%;justify-content:center">'
-      + (complete ? 'Review your application' : 'Continue your application · ' + countDone(t) + ' of 5 done')
+      + (complete ? 'Review your application'
+        : (done === 0 ? 'Complete your application' : 'Continue your application · ' + done + ' of 5 done'))
       + '</button>'
       + '<small>' + (complete
         ? 'Nothing further is needed. Everything you sent stays readable while the review runs.'
@@ -1885,8 +1935,8 @@
 
       + gateRow(covState, 2, 'Serviceability check',
         t.coverage && t.coverage !== 'empty'
-          ? 'Running on your ' + regions + ' declared region' + (regions === 1 ? '' : 's') + ' against facilities data.'
-          : 'Starts the moment your coverage lands, against facilities data.')
+          ? 'Running on your ' + regions + ' declared region' + (regions === 1 ? '' : 's') + ' against real plant data.'
+          : 'Starts the moment your coverage lands, against real plant data.')
 
       + gateRow(paperState, 3, 'Registration and agreements',
         anyOf(paperKeys, ['submitted', 'verifying', 'cleared'])
@@ -1943,6 +1993,13 @@
     return Object.keys(t).filter(function (k) { return t[k] && t[k] !== 'empty'; }).length;
   }
 
+  /** When this account was created, as "Aug 14", or '' if the server has not
+      answered yet. It arrives on GET /provider/me, one round trip after boot. */
+  function signedUp() {
+    var u = get().user || {};
+    return u.memberSince ? fmtStamp(u.memberSince) : '';
+  }
+
   /* ------------------------------------------------------------------ *
    * the checklist, on the overview
    * ------------------------------------------------------------------ */
@@ -1956,7 +2013,7 @@
       + '<h3>Finish these, review runs as they land</h3>'
       + '<div class="tasks">' + built.html + '</div>'
       + progress(built.done, built.total)
-      + '<div class="pline"><span>Application progress</span><b>' + esc(built.label) + '</b></div>'
+      + '<div class="pline"><span>Setup progress</span><b>' + esc(built.label) + '</b></div>'
       + '</section>';
   }
 
@@ -2077,8 +2134,13 @@
       if (build) openModal(build());
     });
 
+    /* Out of the gated frame and into the console. setGated() is derived in
+       renderAll() from current(), and go() runs its listeners synchronously, so
+       the frame drops and the nav pane comes back in the same paint rather than
+       one hashchange later. */
     on('click', 'app:tasks', function () {
-      location.hash = '#overview';
+      go('overview');
+      if (!applicationComplete()) toast('Pick any order. Each piece starts its own check as it lands.');
     });
 
     /* Save on blur. The indicator is deliberately quiet and deliberately
@@ -2356,14 +2418,24 @@
    *                        server string. Anything from the server goes through
    *                        esc() at the call site.
    * @param {string} [cta]  trusted HTML for a button or link
+   * @param {string} [icon] trusted inline SVG, sized by `.empty svg` in app.css
    */
-  function empty(title, body, cta) {
+  function empty(title, body, cta, icon) {
     return '<section class="card"><div class="empty">'
+      + (icon || '')
       + '<h3>' + esc(title) + '</h3>'
       + '<p>' + body + '</p>'
       + (cta || '')
       + '</div></section>';
   }
+
+  /* The one illustrated empty state. A waiting clock, not a "no results" glyph:
+     the bid record is not missing anything, it has not started yet. Inline
+     because the global CSP allows no external assets on this surface and a
+     64 pixel icon is not worth a request. */
+  var CLOCK = '<svg viewBox="0 0 80 80" fill="none" aria-hidden="true">'
+    + '<circle cx="40" cy="40" r="33" stroke="#CBDCCE" stroke-width="3"/>'
+    + '<path d="M40 24v16l11 7" stroke="#C29B3C" stroke-width="3.5" stroke-linecap="round"/></svg>';
 
   /**
    * The forward-looking variant. §8.7: when a surface would render only zeros or
@@ -2386,6 +2458,7 @@
   }
 
   __exports.empty = empty;
+  __exports.CLOCK = CLOCK;
   __exports.approaching = approaching;
   __exports.goTo = goTo;
   };
@@ -2443,10 +2516,15 @@
        no-coverage branch, which is exactly the ordering the prototype had and
        could not express. */
     if (!S.approved) {
+      /* The review card sits in the ASIDE, in the slot the approved console
+         gives to nextStep(): it is the same kind of thing, the one card that
+         says what happens next, and the left column stays the work itself.
+         That is also the prototype's layout, where #cs-title is a static card
+         between "How auctions work" and the alert switches. */
       host.innerHTML = head('Let’s get you to your first cohort.',
         'Fill these at your pace: each piece starts its own check the moment it lands.')
-        + '<div class="grid2"><div>' + checklistHTML() + reviewCard(S) + calendar(S) + '</div>'
-        + '<aside class="aside">' + howItWorks() + alertsHTML() + '</aside></div>';
+        + '<div class="grid2"><div>' + checklistHTML() + calendar(S) + '</div>'
+        + '<aside class="aside">' + howItWorks() + reviewCard(S) + alertsHTML() + '</aside></div>';
       return;
     }
 
@@ -2522,26 +2600,38 @@
       + '</section>';
   }
 
-  /* The review card next to the checklist, with the one link into the frame. */
+  /* The review card next to the checklist, with the one link into the frame.
+   *
+   * The line names each track by what is happening to it rather than counting
+   * them. "2 pieces still to come" tells a partner how much is left and nothing
+   * about which; "registration details and documents still to come" is the same
+   * length and is the answer. Ported from the prototype's v9 #cs-line, with the
+   * per-track states read from application_tasks instead of its five booleans.
+   */
   function reviewCard(S) {
     var app = S.application;
-    var tasks = (app && app.tasks) || {};
-    var running = Object.keys(tasks).filter(function (k) { return tasks[k] === 'verifying'; });
-    var waiting = Object.keys(tasks).filter(function (k) { return !tasks[k] || tasks[k] === 'empty'; });
+    var t = (app && app.tasks) || {};
+    var waiting = Object.keys(t).filter(function (k) { return !t[k] || t[k] === 'empty'; });
+    var done = function (k) { return t[k] && t[k] !== 'empty'; };
 
     var line = app && app.submittedAt && !waiting.length
-      ? 'Everything is in. Serviceability is running on your declared regions, the register check is underway, and your reference gets one short email.'
+      ? 'Everything is in. Serviceability is running on your declared regions, the register check is underway, and your reference gets one short email. Approved partners land on the bid desk the same day.'
       : 'Application received. '
-        + (running.length ? plural(running.length, 'check') + ' running now. ' : '')
-        + (waiting.length ? plural(waiting.length, 'piece') + ' still to come.' : '');
+        + 'Serviceability ' + (done('coverage') ? 'is checking your declared regions' : 'starts when coverage lands') + '. '
+        + 'Registration ' + (done('registration') && done('documents') ? 'and documents are in review' : 'details and documents still to come') + '. '
+        + (done('agreement') ? 'Agreement signed.' : 'Agreement not yet signed.');
 
-    return '<section class="card" style="margin-top:16px" aria-label="Your application">'
+    return '<section class="card" aria-label="Your application">'
       + '<span class="eyebrow gld">Your application</span>'
       + '<h3>' + (app && app.decisionDueAt
         ? 'Under review · decision by ' + esc(fmtDate(app.decisionDueAt))
         : 'Review runs as you complete') + '</h3>'
       + '<p class="cardnote">' + esc(line)
       + ' <button class="tlink" type="button" data-action="nav" data-view="pending">See the review timeline →</button></p>'
+      /* The desk is not empty of information for a partner under review: it says
+         what reaches it and when, and links back here. This is the prototype's
+         button, kept in the pending branch for that reason. */
+      + '<div style="margin-top:12px">' + goTo('desk', 'Open the bid desk') + '</div>'
       + '</section>';
   }
 
@@ -2694,9 +2784,9 @@
   function howItWorks() {
     return '<section class="card" aria-label="How auctions work">'
       + '<span class="eyebrow">How auctions work</span><h3>Three rules, no surprises</h3><div class="how">'
-      + '<div class="h"><i>1</i><span><b>Sealed.</b> One best number by the deadline. Nobody sees yours, and you see nobody else’s.</span></div>'
-      + '<div class="h"><i>2</i><span><b>Binding until the deadline.</b> Improve any time before close. No withdrawals after sealing.</span></div>'
-      + '<div class="h"><i>3</i><span><b>Pay on completion.</b> Confirmed households cost nothing. The fee is the activation with a clean line test.</span></div>'
+      + '<div class="h"><i>1</i><span><b>Sealed.</b> One best number by the deadline.</span></div>'
+      + '<div class="h"><i>2</i><span><b>Binding until the deadline.</b> Improve any time before close; no withdrawals after sealing.</span></div>'
+      + '<div class="h"><i>3</i><span><b>Pay on completion.</b> Confirmed households set your volume tiers; the invoice is live connections only.</span></div>'
       + '</div></section>';
   }
 
@@ -3027,9 +3117,46 @@
    * ------------------------------------------------------------------ */
 
   /**
-   * The ticket panel for one cohort. Four states, in the prototype's order:
-   * result (decided with a bid), closed (offers out), the sealed receipt, and
-   * the form.
+   * Whether this cohort's roster has already released to the org.
+   *
+   * Three-valued on purpose: true, false, and null for "the delivery board has
+   * not been read yet". The board is NOT loaded on boot, because every read of
+   * a released roster writes an audit row (app.js loadAll explains it), so on a
+   * partner who has not opened Delivery this is genuinely unknown and the won
+   * panel must not assert either way.
+   */
+  function rosterReleased(S, campaignId) {
+    var D = S.delivery;
+    if (!D || D === 'loading' || !D.cohorts) return null;
+    var found = null;
+    D.cohorts.forEach(function (c) { if (c.campaignId === campaignId) found = c; });
+    return found ? !!found.orders : null;
+  }
+
+  /**
+   * The ticket panel for one cohort. Six states, the prototype's four plus the
+   * two it did not have:
+   *
+   *   result, won         decided with a winning bid, itself two panels
+   *   result, not selected
+   *   closed              offers out
+   *   over, no bid        decided with no bid of ours   <- NOT in the prototype
+   *   sealed receipt
+   *   the form
+   *
+   * THE FIFTH IS A PORT FIX, NOT AN ADDITION. The prototype selected on
+   * `st>=4 && mine`, then `st===3`, then `mine`, then fell through to the bid
+   * form (v12 line 2578). A partner who did not bid on a cohort that has since
+   * decided therefore met a full seven-column pricing form, consent checkbox and
+   * all, for an auction that ended days ago. The button read "Bidding closed"
+   * and was disabled, so nothing could be written, but the screen was still the
+   * wrong screen and the desk's View control reaches it: bidAction() offers View
+   * on a decided row whether or not there is a bid behind it.
+   *
+   * THE WON PANEL IS TWO PANELS, and the port had collapsed them into one. The
+   * prototype branched on P.gate[a.id]: a roster still gated says complete the
+   * setup, a roster already released says go and schedule it. One copy for both
+   * told a partner who had finished the gate to go and finish the gate.
    */
   function ticketHTML(a, data, mine) {
     var S = get();
@@ -3051,20 +3178,53 @@
           + (fee ? ' and, at your fee, up to ' + money(String(conf * Number(fee))) + ' in success fees, billed per completed switch only' : '')
           + '.'
         : 'Household confirmations route to your delivery board.';
+
+      /* The next step, from what is actually known. A released roster is past
+         the gate; a card on file means only capacity is left, and that half is
+         known on every boot because loadMethod() runs there. Unknown release
+         state falls to the capacity wording, which is true in both remaining
+         cases and never tells a partner to add a card they already added. */
+      var released = rosterReleased(S, a.id);
+      var onFile = !!(S.billing && S.billing !== 'loading' && S.billing.method && S.billing.method.onFile);
+      var next = released === true
+        ? ' Roster released: schedule and activate it from the delivery board, and activations bill themselves.'
+        : (onFile
+          ? ' Confirm your install capacity and the roster releases to you.'
+          : ' Complete billing setup and confirm capacity, and the roster releases to you.');
+
       return '<div class="tkt"><div class="dh">Result</div><div class="receipt">'
-        + '<b>Won.</b> ' + wonLine
-        + ' Complete billing setup and confirm capacity, and the roster releases to you.</div>'
+        + '<b>Won.</b> ' + wonLine + next + '</div>'
         + '<button class="btn" type="button" data-action="nav" data-view="delivery" style="margin-top:12px">Open the delivery board</button></div>';
     }
 
-    /* Bids closed, offers with households. */
+    /* Bids closed, offers with households.
+     *
+     * The confirmed clause is gated on `mine` and not only on the field being
+     * present. Nothing populates a.confirmed today, so this reads the same
+     * either way, but a confirmation count on a cohort another partner won is
+     * that partner's count, and CLAUDE.md's rule has no exception for a figure
+     * that arrived by accident. The guard belongs here, before the field does. */
     if (a.stage === 'offers_out') {
       return '<div class="tkt"><div class="dh">Bids closed</div><div class="receipt">'
-        + (mine ? '<b>Your bid is in:</b> ' + bidLine(mine) + (mine.reference ? ' · Receipt ' + esc(mine.reference) : '') + '. ' : '')
+        + (mine
+          ? '<b>Your bid is in:</b> ' + bidLine(mine) + (mine.reference ? ' · Receipt ' + esc(mine.reference) : '') + '. '
+          : '<b>You did not bid on this cohort.</b> ')
         + 'Offers are out to every household, individually. '
-        + (a.confirmed != null ? 'Confirmed so far: <b>' + a.confirmed + ' of ' + esc(String(a.households)) + '</b>. ' : '')
+        + (mine && a.confirmed != null ? 'Confirmed so far: <b>' + a.confirmed + ' of ' + esc(String(a.households)) + '</b>. ' : '')
         + (d.decision_at ? 'Decisions lock ' + fmtDate(d.decision_at) + '; there' : 'There')
         + ' is nothing for you to do, and no way to see other bids.</div></div>';
+    }
+
+    /* Decided, and none of it was ours. The state the prototype dropped into a
+       bid form. Says the one true thing and offers the one useful thing, which
+       is the alert that stops it happening again. */
+    if (a.stage === 'decided') {
+      return '<div class="tkt"><div class="dh">Closed</div><div class="receipt">'
+        + '<b>You did not bid on this cohort.</b> Bidding closed'
+        + (d.bidding_closes_at ? ' ' + fmtDate(d.bidding_closes_at) : '')
+        + ' and the cohort is decided. Nothing is owed and nothing is pending on your side. '
+        + 'Cohorts keep forming in the regions you have declared, and you can be emailed the day one opens.</div>'
+        + '<button class="btn ghost" type="button" data-action="nav" data-view="account" style="margin-top:12px">Check your alerts</button></div>';
     }
 
     /* The sealed receipt, unless the improve form is open. */
@@ -3455,24 +3615,20 @@
   var __ns8 = __require("views/ticket.js");
   var ticketHTML = __ns8.ticketHTML, refreshScn = __ns8.refreshScn;
 
+  /* The desk is TWO tables, as the prototype's markup is: what is live now, and
+     what is coming. A cohort that has not opened yet cannot be bid on and has no
+     clock to run, so putting it in the live table gives it five columns of
+     dashes and buries the one row that needs a decision today. Split on stage,
+     which the server owns.
+   *
+   * Both shells render even when they are empty, and each carries its own
+   * one-line explanation inside the table body rather than a bare header row.
+   * §8.7 is why: an empty table with column headings and nothing under them is
+   * the screen most likely to read as broken rather than as quiet. */
   function render() {
     var host = document.getElementById('desk-body');
     if (!host) return;
     var S = get();
-
-    /* Four empty states, and they are NOT interchangeable. Collapsing them was a
-       regression the QA suite caught once already: it told a partner under
-       review that no cohorts were forming, which is both false and unactionable.
-       ORDER MATTERS, and approval comes FIRST. It is a fact from /provider/me
-       and does not depend on the campaigns table being readable, so a pending
-       partner gets the answer that is true and actionable rather than a
-       technical apology about a table they cannot bid against anyway. */
-    if (!S.approved) {
-      host.innerHTML = empty('Cohorts appear here once your application clears',
-        'Nothing is missing on your side. Bidding opens to approved partners, and cohorts forming in your coverage land on this desk the same day you are approved.',
-        goTo('pending', 'See where your application stands'));
-      return;
-    }
 
     if (!S.campaignsLive) {
       host.innerHTML = empty('We could not read the cohort list just now',
@@ -3480,38 +3636,81 @@
       return;
     }
 
-    if (!S.campaigns.length) {
-      if (!S.coverage.length) {
-        host.innerHTML = empty('Nothing reaches this desk without coverage',
-          'Auctions are matched to partners by the regions they have declared. Name one, with the services you can render there, and cohorts forming inside it appear here.',
-          goTo('coverage', 'Declare your coverage'));
-        return;
-      }
-      host.innerHTML = empty('Nothing needs you right now',
-        'No cohort in your coverage is open for bids. When one opens you will see it here, and you will get an email if that alert is on.',
-        goTo('account', 'Check your alerts', 'btn ghost'));
-      return;
-    }
-
     var active = {};
     S.coverage.forEach(function (c) { if (c.status === 'active') active[regionSlug(c.region)] = true; });
 
-    var rows = S.campaigns.slice().sort(sortByClock).map(function (a) {
+    var coming = S.campaigns.filter(isComing).sort(sortByOpen);
+    var live = S.campaigns.filter(function (a) { return !isComing(a); }).sort(sortByClock);
+
+    var rows = live.map(function (a) {
       return row(a, active[regionSlug(a.coverageRegion || a.region)]);
-    }).join('');
+    }).join('') || '<tr><td colspan="6">' + liveNote(S) + '</td></tr>';
 
     host.innerHTML = '<section class="card" style="padding-top:14px">'
       + '<div class="twrap"><table class="tbl" aria-label="Open auctions">'
       + '<thead><tr><th>Cohort</th><th class="num">Households</th><th>Stage</th><th>Window</th><th>Your bid</th><th></th></tr></thead>'
       + '<tbody>' + rows + '</tbody></table></div>'
       + '<p class="fnote">You see a cohort because it sits inside your declared coverage. You never see another partner’s bid, their count, or whether they bid at all.</p>'
-      + '</section>';
+      + '</section>'
+      + planned(coming);
 
     /* The scenario table lives in the brief but reads the open form, so it can
        only be computed once both are in the DOM. */
     refreshScn();
 
     startTicker();
+  }
+
+  function isComing(a) { return a.stage === 'planned' || a.stage === 'announced'; }
+  function openAt(a) { return (a.dates && a.dates.bidding_opens_at) || Infinity; }
+  function sortByOpen(a, b) { return openAt(a) - openAt(b); }
+
+  /* Why the live table is empty, in the partner's terms. These four sentences
+     are NOT interchangeable and collapsing them was a regression the QA suite
+     caught once already: it told a partner under review that no cohorts were
+     forming, which is both false and unactionable. ORDER MATTERS, and approval
+     comes FIRST: it is a fact from /provider/me and does not depend on the
+     campaigns table being readable. */
+  function liveNote(S) {
+    if (!S.approved) {
+      return note('Cohorts open to you the day your application clears. Nothing is missing on your side, and anything forming in your coverage before then is listed under Coming cohorts.',
+        goTo('pending', 'See where your application stands', 'tlink'));
+    }
+    if (!S.coverage.length) {
+      return note('Nothing reaches this desk without coverage. Auctions are matched to partners by the regions they have declared.',
+        goTo('coverage', 'Declare your coverage', 'tlink'));
+    }
+    return note('No cohort in your coverage is open for bids right now. When one opens it appears here, and you get an email if that alert is on.',
+      goTo('account', 'Check your alerts', 'tlink'));
+  }
+
+  function note(text, link) {
+    return '<p class="fnote" style="margin:6px 0 2px">' + esc(text) + ' ' + link + '</p>';
+  }
+
+  /* Coming cohorts. Planned and announced only: a cohort here has no bidding
+     window yet, which is exactly what its one column says. */
+  function planned(coming) {
+    var rows = coming.map(function (a) {
+      return '<tr><td><span class="rg" style="font-size:13.5px">' + esc(a.region)
+        + '<small>' + esc(a.sub || '') + '</small></span></td>'
+        + '<td class="num">' + (isFinite(openAt(a)) ? esc(fmtDate(openAt(a))) + ' · expected' : 'Date to come') + '</td>'
+        + '<td style="font-size:12.5px;color:var(--sub)">'
+        + esc(a.stage === 'announced'
+          ? 'Announced' + (a.households ? ' · ' + a.households + ' households' : '')
+          : 'Still forming' + (a.households ? ' · ' + a.households + ' households so far' : ''))
+        + '</td></tr>';
+    }).join('')
+      || '<tr><td colspan="3"><p class="fnote" style="margin:6px 0 2px">'
+        + 'Nothing is forming in your coverage yet. A cohort forms when enough households in one area reach their promo cliff together, and it lands here before it opens for bids.</p></td></tr>';
+
+    return '<section class="card" style="margin-top:16px" aria-label="Planned cohorts">'
+      + '<span class="eyebrow">Planned in your coverage</span><h3>Coming cohorts</h3>'
+      + '<div class="twrap"><table class="tbl">'
+      + '<thead><tr><th>Cohort</th><th class="num">Expected bidding</th><th>Status</th></tr></thead>'
+      + '<tbody>' + rows + '</tbody></table></div>'
+      + '<p class="fnote">Expected dates are estimates; they firm up the day a cohort locks and is announced.</p>'
+      + '</section>';
   }
 
   function closeAt(a) { return (a.dates && a.dates.bidding_closes_at) || a.nextAt || Infinity; }
@@ -3665,7 +3864,7 @@
   var __ns4 = __require("core/toast.js");
   var toast = __ns4.toast;
   var __ns5 = __require("components/emptystate.js");
-  var empty = __ns5.empty, goTo = __ns5.goTo;
+  var empty = __ns5.empty, goTo = __ns5.goTo, CLOCK = __ns5.CLOCK;
   var __ns6 = __require("views/ticket.js");
   var bidLine = __ns6.bidLine;
 
@@ -3678,8 +3877,8 @@
 
     if (!list.length) {
       host.innerHTML = nudge(S) + empty('Your first bid lands here',
-        'Every bid you place sits on this record with everything it turned into: result, confirmed households, completed switches, fees. Bids are append-only, so an improvement adds a version and nothing is ever removed.',
-        goTo('desk', 'Open the bid desk'));
+        'Every bid you place sits on this record with everything it turns into: result, confirmed households, completed switches, fees.',
+        goTo('desk', 'Open the bid desk'), CLOCK);
       return;
     }
 
@@ -4749,11 +4948,11 @@
         r.decided ? esc(r.won + ' of ' + r.decided) : DOT,
         r.decided
           ? 'your record so far'
-          : (r.sealed ? 'your first result writes the first number' : 'sealed bids to wins, beside your bid in every brief'),
+          : (r.sealed ? 'your first result writes the first number' : 'sealed bids to wins · future briefs show it beside your bid'),
         '')
-      + tile('Completion', DOT, 'activated of serviceable, written by your delivery board')
-      + tile('Serviceability', DOT, 'declared coverage proving real at install')
-      + tile('Delivered as bid', DOT, 'records at households’ day-30 bill checks')
+      + tile('Completion', DOT, 'activated of confirmed · written by your delivery board')
+      + tile('Serviceability', DOT, 'declared coverage that proves real at install')
+      + tile('Delivered as bid', DOT, 'day-30 bill checks against your sealed offer')
       + '</div>';
   }
 
@@ -4773,14 +4972,18 @@
 
   function band(S, r) {
     /* Still under review. Nothing on this page can start until an application
-       clears, so the page says that rather than showing four dots and no path. */
+       clears, so the page says that rather than showing four dots and no path.
+       Both branches go to 'pending', the review frame, which is where the one
+       button back into the checklist lives. The unsubmitted branch used to name
+       a view called 'application', which is not in router.VIEWS, so go() dropped
+       it and the button did nothing at all. */
     if (!S.approved) {
       var submitted = S.application && S.application.submittedAt;
-      return card({ text: 'Before the record starts' },
-        submitted ? 'Your record starts at approval' : 'Your record starts at your first sealed number',
-        'None of the four is bought and none is written by marketing: all four are recorded from what you deliver, and future auction briefs carry them beside your bid.'
+      return card({ text: 'Why these four' },
+        'The numbers that will win you auctions',
+        'Nothing here is bought and nothing is written by marketing: all four are recorded from what you deliver, and future auction briefs carry them beside your bid. The record starts at your first sealed number.'
         + (submitted ? ' Approved partners reach the bid desk the same day.' : ''),
-        goTo(submitted ? 'pending' : 'application', submitted ? 'See where the review stands' : 'Finish your application', 'btn forest'));
+        goTo('pending', submitted ? 'See where the review stands' : 'Finish your application', 'btn forest'));
     }
 
     /* Won something. This is the state the screenshot is about: the win is on
@@ -5312,7 +5515,7 @@
   var __ns6 = __require("core/toast.js");
   var toast = __ns6.toast, failed = __ns6.failed;
   var __ns7 = __require("core/session.js");
-  var bounce = __ns7.bounce;
+  var authFailed = __ns7.authFailed;
   var __ns8 = __require("components/emptystate.js");
   var empty = __ns8.empty, goTo = __ns8.goTo;
   var __ns9 = __require("components/gate.js");
@@ -5400,7 +5603,7 @@
     }
 
     return empty('Your first delivery board builds itself',
-      'Win a cohort and every household that accepted your offer lands here with an order number, the install slot they picked, and a state that becomes a statement line only when the line tests clean. Addresses release at acceptance, under each household’s consent, and to nobody else.',
+      'Win a cohort and every confirmed household lands here bill-verified and address-validated, with an install slot and a state that becomes an invoice line only when the line tests clean.',
       goTo('desk', 'Open the bid desk', 'btn'));
   }
 
@@ -5551,20 +5754,6 @@
    * ------------------------------------------------------------------ */
 
 
-  /* A 403 is not a signed-out session, and this page must not treat it as one.
-   *
-   * core/session.js authFailed() bounces on 401 AND 403, which is right for a
-   * read only a signed-in partner can make at all. It is wrong for this one:
-   * these routes sit behind requireApproved, so an org still under review, or an
-   * account with no org membership, answers 403 on every boot, and bouncing on
-   * that signs the partner straight back out of the console they just signed
-   * into. Only a 401 means the session is gone.
-   */
-  function signedOut(err) {
-    if (err && err.status === 401) bounce();
-    return !!(err && err.status === 401);
-  }
-
   /** Fetched on view-open and explicit refresh, never polled: every read of a
       released roster writes an audit row naming the count. */
   function load() {
@@ -5575,7 +5764,7 @@
         live: !!r && r.live !== false
       });
     }, function (err) {
-      signedOut(err);
+      authFailed(err);
       set('delivery', { cohorts: [], live: false });
     });
   }
@@ -5591,7 +5780,7 @@
       api.capacitySave(el.getAttribute('data-id'), n).then(function () {
         toast('Capacity updated. Households see ' + n + ' slots a week when they book.');
         refresh();
-      }, function (err) { failed(err); signedOut(err); });
+      }, function (err) { failed(err); authFailed(err); });
     });
 
     /* The gate. Three checks, and the button sends the two this page collects;
@@ -5621,7 +5810,7 @@
       }, function (err) {
         W.busy(el, false);
         failed(err);
-        signedOut(err);
+        authFailed(err);
         /* A refusal here is almost always the billing row: re-read, so the gate
            redraws against what the server actually holds. */
         refresh();
@@ -5676,7 +5865,7 @@
     }, function (err) {
       W.busy(el, false);
       failed(err);
-      signedOut(err);
+      authFailed(err);
     });
   }
 
@@ -5825,9 +6014,9 @@
   var __ns6 = __require("core/toast.js");
   var toast = __ns6.toast, failed = __ns6.failed;
   var __ns7 = __require("core/session.js");
-  var bounce = __ns7.bounce;
+  var authFailed = __ns7.authFailed;
   var __ns8 = __require("components/emptystate.js");
-  var empty = __ns8.empty, goTo = __ns8.goTo;
+  var goTo = __ns8.goTo;
 
   function render() {
     var host = document.getElementById('billing-body');
@@ -5851,10 +6040,15 @@
     return '<section class="card" aria-label="How billing works">'
       + '<span class="eyebrow">The model</span>'
       + '<h3>Pay per delivered household</h3>'
-      + '<p class="cardnote">Households who accept your offer set the size of the job and cost nothing. '
-      + 'The line on a statement is the completed switch: a live connection with a clean line test. '
-      + 'Statements settle per cohort rather than per month, net-15, and any single line can be '
-      + 'disputed without holding up the rest.</p>'
+      /* The prototype's paragraph, with one clause corrected. It said fees
+         "invoice monthly", and the cycle line directly under it says statements
+         settle per campaign, not per month. Both cannot be true and the second
+         one is: statements are issued per cohort, which is what the server
+         does. */
+      + '<p class="cardnote">Confirmed counts set your volume tiers and sharpen your bids. '
+      + 'The invoice line is the completed switch: a live connection at the cohort rate. '
+      + 'Fees accrue at completion and settle per campaign, net-15, with a 14 day '
+      + 'reconciliation window.</p>'
       + '<div class="receipt" style="margin-top:12px">' + cycle() + '</div>'
       + '</section>';
   }
@@ -5863,9 +6057,9 @@
     return '<section class="card" aria-label="Reconciliation">'
       + '<span class="eyebrow">Reconciliation</span>'
       + '<h3>Dispute a line, keep it simple</h3>'
-      + '<p class="cardnote">Every line names the order it came from and the day it activated. '
-      + 'Flag one and it freezes out of the total until it is resolved. The rest of the statement, '
-      + 'and the household on your delivery board, are untouched.</p>'
+      + '<p class="cardnote">Every invoice line names a completion date and an anonymized '
+      + 'household reference. Flag any line within 14 days and it holds out of the total '
+      + 'until resolved.</p>'
       + '</section>';
   }
 
@@ -5881,8 +6075,15 @@
 
     var c = B.cycle || {};
     if (!c.activated) {
-      return '<b>Current cycle:</b> nothing owed. Your first statement line is your first activation '
-        + 'with a clean line test, at ' + esc(money(c.feeEach)) + ' per household, and statements settle per cohort.';
+      /* The fee is configuration on the agreement record and arrives with the
+         statements payload. When it has not, the sentence drops the figure
+         rather than printing whatever money() makes of undefined: a billing
+         page is the last surface that should show a placeholder where a price
+         goes. */
+      var each = c.feeEach != null ? money(c.feeEach) : '';
+      return '<b>Current cycle:</b> nothing owed. Your first statement generates from your first '
+        + 'activated household' + (each ? ', at ' + esc(each) + ' each' : ' at the fee on your agreement')
+        + ', per campaign.';
     }
     return '<b>Current cycle:</b> <span class="mono">'
       + esc(c.activated + ' activated · ' + money(c.feeEach) + ' each · ' + money(c.accruing) + ' accruing across '
@@ -5899,9 +6100,7 @@
 
     if (B === 'loading' || (B && B.partial)) return '';
     if (!B) {
-      return empty('No statements yet, by design',
-        'Bids are free. Winning is free. Households who accept are free. The first line on the first statement is the first activation with a clean line test, and statements settle per cohort rather than per month.'
-        + (S.approved ? '' : ' Nothing is owed at any point before approval either.'));
+      return none(S.approved ? '' : ' Nothing is owed at any point before approval either.', '');
     }
     if (!B.live) {
       return '<section class="card"><span class="eyebrow">Statements</span>'
@@ -5910,11 +6109,21 @@
         + 'Every line is derived from your delivery board, so it can be checked there in the meantime.</p></section>';
     }
     if (!B.statements.length) {
-      return empty('No statements yet, by design',
-        'Bids are free. Winning is free. Households who accept are free. The first line on the first statement is the first activation with a clean line test, and statements settle per cohort rather than per month.',
-        goTo('delivery', 'Open the delivery board', 'btn ghost'));
+      return none('', goTo('delivery', 'Open the delivery board', 'btn ghost'));
     }
     return B.statements.map(statement).join('');
+  }
+
+  /* Nothing to settle, said as a property of the model rather than as an absence.
+     The eyebrow is what makes the card legible before the sentence is read: this
+     is the statements slot, and it is empty on purpose. */
+  function none(extra, cta) {
+    return '<section class="card"><span class="eyebrow">Statements</span>'
+      + '<div class="empty" style="padding:26px 20px 14px">'
+      + '<h3 style="font-size:16.5px">No statements yet, by design</h3>'
+      + '<p>Bids are free. Winning is free. Confirmed households are free. The first statement line '
+      + 'is the first activation with a clean line test, and statements settle per campaign, not per month.'
+      + extra + '</p>' + cta + '</div></section>';
   }
 
   var STATE_PILL = { accruing: 'pending', issued: 'due', paid: 'paid', disputed: 'lost' };
@@ -5985,36 +6194,22 @@
     var m = (B && B !== 'loading' && B.method) || null;
 
     if (m && m.onFile) {
-      return '<span class="eyebrow">Billing method</span><h3>Statements go out by invoice</h3>'
+      return '<span class="eyebrow">Payment method</span><h3>Statements go out by invoice</h3>'
         + '<p class="cardnote mono">' + esc(m.email) + '</p>'
         + '<p class="cardnote" style="font-size:12px">Addressed to ' + esc(m.contact || 'your billing contact')
         + '. Settlement is net-15 from each cohort statement, and nothing is ever charged before an activation.</p>'
         + '<button class="tlink" type="button" data-action="bill:method">Update the method →</button>';
     }
-    return '<span class="eyebrow">Billing method</span><h3>Nothing on file yet</h3>'
-      + '<p class="cardnote">A method on file is one of the two checks that release a won roster, so it is worth doing '
-      + 'before you win. Nothing is charged when you add it, and nothing is charged until a switch completes.</p>'
-      + '<button class="btn forest" type="button" data-action="bill:method" style="margin-top:12px">Add a billing method</button>';
+    return '<span class="eyebrow">Payment method</span><h3>Nothing on file yet</h3>'
+      + '<p class="cardnote">Add one now so your first activation bills cleanly. Nothing is charged '
+      + 'until then, and a method on file is one of the two checks that release a won roster.</p>'
+      + '<button class="btn forest" type="button" data-action="bill:method" style="margin-top:12px">Add payment method</button>';
   }
 
   /* ------------------------------------------------------------------ *
    * load and actions
    * ------------------------------------------------------------------ */
 
-
-  /* A 403 is not a signed-out session, and this page must not treat it as one.
-   *
-   * core/session.js authFailed() bounces on 401 AND 403, which is right for a
-   * read only a signed-in partner can make at all. It is wrong for this one:
-   * these routes sit behind requireApproved, so an org still under review, or an
-   * account with no org membership, answers 403 on every boot, and bouncing on
-   * that signs the partner straight back out of the console they just signed
-   * into. Only a 401 means the session is gone.
-   */
-  function signedOut(err) {
-    if (err && err.status === 401) bounce();
-    return !!(err && err.status === 401);
-  }
 
   /**
    * The method on file, and nothing else.
@@ -6034,7 +6229,7 @@
       var base = (B && B !== 'loading') ? B : { statements: [], cycle: {}, live: true, partial: true };
       set('billing', Object.assign({}, base, { method: (r && r.method) || null }));
     }, function (err) {
-      signedOut(err);
+      authFailed(err);
     });
   }
 
@@ -6048,7 +6243,7 @@
         live: !!r && r.live !== false
       });
     }, function (err) {
-      signedOut(err);
+      authFailed(err);
       /* 403 before approval is not a failure to report: there is nothing to bill
          and the empty state already says so. */
       set('billing', err && err.status === 403 ? null : { statements: [], cycle: {}, method: null, live: false });
@@ -6087,7 +6282,7 @@
       }, function (err) {
         W.busy(el, false);
         failed(err);
-        signedOut(err);
+        authFailed(err);
       });
     });
 
@@ -6103,14 +6298,14 @@
       }, function (err) {
         W.busy(el, false);
         failed(err);
-        signedOut(err);
+        authFailed(err);
       });
     });
 
     on('click', 'bill:lines', function (el) {
       var id = el.getAttribute('data-id');
       api.statement(id).then(function (r) { openModal(linesModal(r)); },
-        function (err) { failed(err); signedOut(err); });
+        function (err) { failed(err); authFailed(err); });
     });
 
     on('click', 'bill:dispute', function (el) { openModal(disputeModal(el.getAttribute('data-id'))); });
@@ -6131,7 +6326,7 @@
       }, function (err) {
         W.busy(el, false);
         failed(err);
-        signedOut(err);
+        authFailed(err);
       });
     });
   }

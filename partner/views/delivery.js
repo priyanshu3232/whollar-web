@@ -28,7 +28,7 @@ import { fmtDate, fmtTime } from '../core/time.js';
 import { on } from '../core/actions.js';
 import { open as openModal, close as closeModal } from '../core/modal.js';
 import { toast, failed } from '../core/toast.js';
-import { bounce } from '../core/session.js';
+import { authFailed } from '../core/session.js';
 import { empty, goTo } from '../components/emptystate.js';
 import { gateRow } from '../components/gate.js';
 import { ORDER_LABEL, RELEASE_REASON, RELEASE_LABEL, ORDER_EXCEPTION } from '../core/contract.js';
@@ -113,7 +113,7 @@ function waiting(S) {
   }
 
   return empty('Your first delivery board builds itself',
-    'Win a cohort and every household that accepted your offer lands here with an order number, the install slot they picked, and a state that becomes a statement line only when the line tests clean. Addresses release at acceptance, under each household’s consent, and to nobody else.',
+    'Win a cohort and every confirmed household lands here bill-verified and address-validated, with an install slot and a state that becomes an invoice line only when the line tests clean.',
     goTo('desk', 'Open the bid desk', 'btn'));
 }
 
@@ -264,20 +264,6 @@ function next(o) {
  * ------------------------------------------------------------------ */
 
 
-/* A 403 is not a signed-out session, and this page must not treat it as one.
- *
- * core/session.js authFailed() bounces on 401 AND 403, which is right for a
- * read only a signed-in partner can make at all. It is wrong for this one:
- * these routes sit behind requireApproved, so an org still under review, or an
- * account with no org membership, answers 403 on every boot, and bouncing on
- * that signs the partner straight back out of the console they just signed
- * into. Only a 401 means the session is gone.
- */
-function signedOut(err) {
-  if (err && err.status === 401) bounce();
-  return !!(err && err.status === 401);
-}
-
 /** Fetched on view-open and explicit refresh, never polled: every read of a
     released roster writes an audit row naming the count. */
 export function load() {
@@ -288,7 +274,7 @@ export function load() {
       live: !!r && r.live !== false
     });
   }, function (err) {
-    signedOut(err);
+    authFailed(err);
     set('delivery', { cohorts: [], live: false });
   });
 }
@@ -304,7 +290,7 @@ export function mount() {
     api.capacitySave(el.getAttribute('data-id'), n).then(function () {
       toast('Capacity updated. Households see ' + n + ' slots a week when they book.');
       refresh();
-    }, function (err) { failed(err); signedOut(err); });
+    }, function (err) { failed(err); authFailed(err); });
   });
 
   /* The gate. Three checks, and the button sends the two this page collects;
@@ -334,7 +320,7 @@ export function mount() {
     }, function (err) {
       W.busy(el, false);
       failed(err);
-      signedOut(err);
+      authFailed(err);
       /* A refusal here is almost always the billing row: re-read, so the gate
          redraws against what the server actually holds. */
       refresh();
@@ -389,7 +375,7 @@ function act(el, promise, msg) {
   }, function (err) {
     W.busy(el, false);
     failed(err);
-    signedOut(err);
+    authFailed(err);
   });
 }
 
