@@ -54,7 +54,14 @@ const FILES = [
   'partner/demo/fixtures.js',
   'scripts/qa-console.mjs',
   'scripts/test-districts.mjs',
-  'scripts/build-console.mjs'
+  'scripts/build-console.mjs',
+
+  /* Not console files, but written after this gate existed and clean on day
+     one, which is the only condition for being in this list. They are also the
+     first page a new member or partner reads, so the vocabulary in them sets
+     the vocabulary everyone uses back at us. */
+  'welcome-member.html',
+  'welcome-partner.html'
 ];
 
 /* Banned words. Each is paired with what to say instead, because a gate that

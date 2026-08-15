@@ -27,6 +27,7 @@ const PAGES = [
   'waitlist/index.html', 'blog/index.html', 'terms.html', 'privacy.html', 'contact.html',
   'thank-you.html', 'dashboard.html', 'partner/index.html',
   'whollar-login-consumer.html', 'whollar-login-provider.html',
+  'welcome-member.html', 'welcome-partner.html',
   'MobileVersion/consumer-mobile.html', 'MobileVersion/provider-mobile.html',
   'MobileVersion/bill-checkup-mobile.html', 'MobileVersion/become-a-partner-mobile.html',
   'MobileVersion/join-the-first-cohort-mobile.html', 'MobileVersion/resources-mobile.html'

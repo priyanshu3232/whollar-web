@@ -963,7 +963,24 @@ $('#v-form').addEventListener('submit',async e=>{
     /* Let the same six digits be retried after a transport failure. Without
        this the auto-submit guard would swallow the second try. */
     vOtp.clear();vOtp.reset();vOtp.focus();return;}
+
+  /* Verified, which also signs them in. The flow ends on /welcome-partner: the
+     founding-partner card and the "under review" story are told there, once,
+     for both partner signup routes (this page and the signup view inside
+     whollar-login-provider.html).
+
+     adopt() first, and only redirect if it resolves. It re-reads the session
+     from the server, so a null answer means the cookie did not stick, and
+     sending someone to a welcome screen that cannot read a session would land
+     them on a sign-in form seconds after they proved their address. In that
+     case this page's own confirmation card is the honest ending: the account
+     and the application both exist regardless, and the console link on it goes
+     through the same sign-in they will need anyway. */
+  let signedIn=null;
+  try{signedIn=await W.session.adopt('provider');}catch(err){signedIn=null;}
   busy(btn,false);
+  if(signedIn){location.href='/welcome-partner';return;}
+
   $('#d-name').textContent=VER.pending.firstName;
   $('#d-h').textContent='Application received, email confirmed';
   $('#d-sub').innerHTML='Thanks, <b>'+W.escapeHtml(VER.pending.firstName)+'</b>. Your partner account is ready, and we’ll review your application within two business days. Your console will say “under review” until then.';

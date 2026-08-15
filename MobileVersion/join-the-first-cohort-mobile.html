@@ -767,38 +767,12 @@
         <button class="skip" id="s-skip" type="button">I'll do this later</button>
       </div>
 
-      <div class="jdone" id="joindone">
-        <div class="donehead">
-          <span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"></path></svg></span>
-          <div>
-            <h3 id="done-h">You're in.</h3>
-            <p id="done-p">Your spot is held. We'll text the moment bids land in your area.</p>
-          </div>
-        </div>
-        <!-- Stage 2 above asks nothing about the bill any more, so this page
-             produces no reading at all and the checkup is the only place one
-             is taken. It lives on the checkup page and nowhere else, so the
-             confirmation hands the member straight to it. ?from=join points
-             its back link at the dashboard rather than at this page. -->
-        <div class="jnext">
-          <b>One step left: what should you actually be paying?</b>
-          <p>Your spot is held either way. The checkup is nine questions and your real bill, about two minutes, and it is what the bid for your cohort gets built on.</p>
-          <a class="whl-btn whl-btn--go" href="/MobileVersion/bill-checkup-mobile?from=join">Check if I&rsquo;m overpaying</a>
-        </div>
-
-        <div class="share">
-          <b id="sh-h">Move your area up the line</b>
-          <p id="sh-p">Share your link. Every neighbour who joins through you strengthens the bid you'll all get.</p>
-          <div class="srow">
-            <span class="lnk" id="sh-lnk">whollar.ca/join</span>
-            <button class="cp" id="sh-cp" type="button">Copy</button>
-          </div>
-        </div>
-        <!-- The code step left them signed in, so this is the way through.
-             Without it a founding member who has just finished the form is
-             parked on a marketing page with no route to their own dashboard. -->
-        <a class="whl-btn go go--quiet" href="/dashboard">Go to my dashboard</a>
-      </div>
+      <!-- The confirmation card that used to sit here is now /welcome-member,
+           reached by a redirect once stage 2 is saved or skipped. It carried
+           four things and that page carries all four: "you're in", the checkup
+           handoff, the referral share strip, and the way through to the
+           dashboard. The welcome screen is one responsive page, so there is no
+           mobile twin of it to keep in step with this one. -->
 
     </div>
   </div>
@@ -911,21 +885,9 @@
   </div>
 </div>
 
-<div class="ty-ov" id="ty-pop" role="dialog" aria-modal="true" aria-labelledby="ty-h">
-  <div class="ty">
-    <button class="ty__x" id="ty-x" aria-label="Close">&times;</button>
-    <span class="spark s1"></span><span class="spark s2"></span><span class="spark s3"></span><span class="spark s4"></span>
-    <div class="ty__badge">
-      <div class="ring"></div><div class="ring pulse"></div>
-      <div class="core">
-        <svg viewBox="0 0 24 24"><path class="heart" d="M12 21s-7.5-4.6-10-9.3C.8 9 1.6 5.7 4.4 4.6 6.5 3.8 8.8 4.6 10 6.3l2 2 2-2c1.2-1.7 3.5-2.5 5.6-1.7 2.8 1.1 3.6 4.4 2.4 7.1C19.5 16.4 12 21 12 21Z"/></svg>
-      </div>
-    </div>
-    <span class="ty__ey">Welcome aboard</span>
-    <h2 id="ty-h">Thank you for being part of the <em>Whollar family</em></h2>
-    <p id="ty-p">You're one of the households making internet pricing honest. We'll be in touch soon.</p>
-  </div>
-</div>
+<!-- The thank-you popup that sat here is gone with the confirmation card
+     it accompanied. /welcome-member is the celebration now, and a modal that
+     appeared for the half second before a redirect was a modal nobody read. -->
 
 </div>
 <script>
@@ -1169,11 +1131,6 @@ document.addEventListener('DOMContentLoaded',function(){
        so autofill cannot spend the five allowed attempts on one wrong guess. */
     function maybeAuto(){const c=readCode();if(c.length===6&&c!==lastTried)verifyCode();}
 
-    $('#sh-cp').addEventListener('click',()=>{
-      const t='https://'+$('#sh-lnk').textContent;
-      const done=()=>{$('#sh-cp').textContent='Copied';setTimeout(()=>$('#sh-cp').textContent='Copy',1600);};
-      if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(done,done);else done();});
-
     /* welcome modal */
     let SHARE_URL='https://whollar.ca/join';
     const SHARE_TXT='I just joined Whollar so providers bid for our whole street’s internet at once. Join our cohort:';
@@ -1218,14 +1175,6 @@ document.addEventListener('DOMContentLoaded',function(){
     $('#wmodal').addEventListener('click',e=>{if(e.target===$('#wmodal'))closeWelcome();});
     document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#wmodal').classList.contains('on'))closeWelcome();});
 
-    /* thank-you popup */
-    const tyOv=$('#ty-pop');
-    function showThankYou(msg){if(!tyOv)return;if(msg)$('#ty-p').textContent=msg;tyOv.classList.add('on');document.body.style.overflow='hidden';}
-    function closeThankYou(){tyOv.classList.remove('on');document.body.style.overflow='';}
-    $('#ty-x').addEventListener('click',closeThankYou);
-    tyOv.addEventListener('click',e=>{if(e.target===tyOv)closeThankYou();});
-    document.addEventListener('keydown',e=>{if(e.key==='Escape'&&tyOv.classList.contains('on'))closeThankYou();});
-
     /* add-on form (stage 2) */
     $$('#svc .svcrow').forEach(row=>{
       const svct=row.querySelector('.svct'),qb=row.querySelector('.qty b'),
@@ -1258,15 +1207,14 @@ document.addEventListener('DOMContentLoaded',function(){
       if(!W.session||!W.session.prefsSave)return Promise.resolve();
       return W.session.prefsSave({services:list}).catch(()=>{});
     }
-    /* Stage 2 sits lower down the page than the card that replaces it, so on a
-       phone the confirmation lands off-screen and saving looks like nothing
-       happened. Jumped rather than smooth-scrolled: the thank-you popup locks
-       the body immediately after. */
-    function showJoinDone(){
-      $('#stage2').style.display='none';
-      $('#joindone').classList.add('on');
-      $('#joindone').scrollIntoView({block:'center'});
-    }
+    /* The end of the join. /welcome-member is the confirmation now, and it is
+       a page rather than a card lower down this one: stage 2 sits below the
+       fold, so an in-place swap read as nothing having happened.
+
+       The code step already signed them in and adopted the session, so the
+       welcome screen will find one. It reads the account rather than anything
+       this page passes it, which is why nothing is carried in the URL. */
+    function goWelcome(){ location.href='/welcome-member'; }
     $('#s-save').addEventListener('click',async()=>{
       collect();
       const btn=$('#s-save');clearErr(btn);
@@ -1275,11 +1223,13 @@ document.addEventListener('DOMContentLoaded',function(){
         await submitForm('/waitlist-details',{firstName:S.name,lastName:S.last,email:S.email,fsa:S.fsa,postalFull:S.postalFull||'',province:S.province||'',provinceCode:S.provinceCode||'',...S.details});
       }catch(err){busy(btn,false);submitErr(btn,err);return;}
       await saveMemberServices();
-      busy(btn,false);
-      showJoinDone();
-      showThankYou();
+      /* Deliberately no busy(btn,false) and no thank-you popup: the button
+         stays disabled through the navigation, which is what stops a second
+         submit landing while the next page loads, and a popup nobody has time
+         to read is worse than none. */
+      goWelcome();
     });
-    $('#s-skip').addEventListener('click',showJoinDone);
+    $('#s-skip').addEventListener('click',goWelcome);
 
     (function(){
       const g=$('#v1-houses');if(!g)return;

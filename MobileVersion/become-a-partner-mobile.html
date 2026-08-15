@@ -90,11 +90,20 @@ button{font-family:var(--body)}
 
 /* split hero */
 .split{display:grid;grid-template-columns:1.02fr 1fr;min-height:calc(100vh - 59px)}
-.hs-left{background:linear-gradient(160deg,var(--teal-deep),#123B2C 52%,#17553D);color:#fff;position:relative;overflow:hidden;display:flex;align-items:center}
+/* clip-path, not overflow:hidden: overflow makes this a scroll container and a
+   sticky child inside it would never stick. Both clip the decorations the same. */
+.hs-left{background:linear-gradient(160deg,var(--teal-deep),#123B2C 52%,#17553D);color:#fff;position:relative;clip-path:inset(0);display:flex;align-items:flex-start}
 .hs-left::before{content:"";position:absolute;inset:0;background:radial-gradient(640px 320px at 82% -8%,rgba(127,227,176,.16),transparent 62%),radial-gradient(520px 300px at 0% 112%,rgba(30,158,99,.15),transparent 60%);pointer-events:none}
 .hs-left__mark{position:absolute;right:-70px;bottom:-70px;width:340px;height:340px;opacity:.08;pointer-events:none}
 .hs-left__net{position:absolute;inset:0;width:100%;height:100%;opacity:.45;pointer-events:none;z-index:0}
 .hs-left__in{padding:clamp(38px,4.6vw,68px) clamp(26px,4.2vw,60px);position:relative;z-index:2;max-width:640px}
+/* The form is far taller than one screen, so the green column stretches with it.
+   Stick the copy to the viewport and centre it there, so it reads as centred on
+   whatever part of the green is currently on screen. Only where the two-column
+   layout exists, and only where a full screen of copy actually fits. */
+@media (min-width:1021px) and (min-height:660px){
+  .hs-left__in{position:sticky;top:59px;height:calc(100vh - 59px);display:flex;flex-direction:column;justify-content:center;box-sizing:border-box}
+}
 .hs-left .whl-eyebrow{color:var(--teal-soft)}
 .hs-left h1{color:#fff;font-weight:900;font-size:clamp(32px,4.1vw,52px);line-height:1.05;text-wrap:balance}
 .hs-left .sub{margin-top:16px;font-size:clamp(15px,1.45vw,17.5px);line-height:1.65;color:rgba(255,255,255,.72);max-width:520px}
@@ -957,7 +966,24 @@ $('#v-form').addEventListener('submit',async e=>{
     /* Let the same six digits be retried after a transport failure. Without
        this the auto-submit guard would swallow the second try. */
     vOtp.clear();vOtp.reset();vOtp.focus();return;}
+
+  /* Verified, which also signs them in. The flow ends on /welcome-partner: the
+     founding-partner card and the "under review" story are told there, once,
+     for both partner signup routes (this page and the signup view inside
+     whollar-login-provider.html).
+
+     adopt() first, and only redirect if it resolves. It re-reads the session
+     from the server, so a null answer means the cookie did not stick, and
+     sending someone to a welcome screen that cannot read a session would land
+     them on a sign-in form seconds after they proved their address. In that
+     case this page's own confirmation card is the honest ending: the account
+     and the application both exist regardless, and the console link on it goes
+     through the same sign-in they will need anyway. */
+  let signedIn=null;
+  try{signedIn=await W.session.adopt('provider');}catch(err){signedIn=null;}
   busy(btn,false);
+  if(signedIn){location.href='/welcome-partner';return;}
+
   $('#d-name').textContent=VER.pending.firstName;
   $('#d-h').textContent='Application received, email confirmed';
   $('#d-sub').innerHTML='Thanks, <b>'+W.escapeHtml(VER.pending.firstName)+'</b>. Your partner account is ready, and we’ll review your application within two business days. Your console will say “under review” until then.';

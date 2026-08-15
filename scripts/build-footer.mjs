@@ -154,12 +154,15 @@ const PAGES = [
   { file: 'bill-checkup.html', current: null },
   { file: 'waitlist/index.html', current: null },
   { file: 'thank-you.html', current: null },
-  /* NO FOOTER ON A SIGNED-IN SURFACE. dashboard.html and partner/index.html
-     are app chrome, not marketing pages: a member or a partner who has signed
-     in is inside the product, and a marketing footer under the console is a
-     route back out of it. The login pages keep theirs, because nobody is
-     signed in yet. Deliberately absent from this list, and the footer markers
-     are stripped from both files, so `--check` has nothing to call stale. */
+  /* NO FOOTER ON A SIGNED-IN SURFACE. dashboard.html, partner/index.html,
+     welcome-member.html and welcome-partner.html are app chrome, not marketing
+     pages: a member or a partner who has signed in is inside the product, and
+     a marketing footer under the console is a route back out of it. The two
+     welcome screens are the first thing a new account sees and their whole job
+     is the single CTA onward, which twenty footer links compete with. The login
+     pages keep theirs, because nobody is signed in yet. Deliberately absent
+     from this list, and the footer markers are stripped from those files, so
+     `--check` has nothing to call stale. */
   { file: 'whollar-login-consumer.html', current: null },
   { file: 'whollar-login-provider.html', current: null },
   { file: 'blog/index.html', current: 'resources' },

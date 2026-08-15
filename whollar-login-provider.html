@@ -249,13 +249,17 @@ button{font-family:var(--body)}
         <button class="submit" type="submit" id="signin-cta">Sign in</button>
         </form>
 
-        <!-- A link to the waitlist page (/waitlist/), not the in-page signup
-             view below: account creation lives there, with the pitch around
-             it. This link was the signup view's only entry point, so that
-             view and its stepper are now unreachable, kept in the file but
-             dead until someone re-links or removes them. Matches what
-             whollar-login-consumer.html does with its own signup view. -->
-        <p class="foot-switch">New provider? <a class="linkbtn" href="/waitlist/">Create a partner account</a></p>
+        <!-- A link to /become-a-partner, not the in-page signup view below:
+             partner account creation lives there, with the pitch around it and
+             the application filed in the same submit. This link was the signup
+             view's only entry point, so that view and its stepper are now
+             unreachable, kept in the file but dead until someone re-links or
+             removes them. Matches what whollar-login-consumer.html does with
+             its own signup view, but NOT its destination: this page pointed at
+             /waitlist/ for a while, which is the household join form, so a new
+             provider following it created a member account with no org and no
+             application, then could not sign in here at all. -->
+        <p class="foot-switch">New provider? <a class="linkbtn" href="/become-a-partner">Create a partner account</a></p>
       </section>
 
       <!-- SIGN IN, STEP 2: the emailed code.
@@ -477,6 +481,14 @@ function nextTarget(){
   return W.safeNext(new URLSearchParams(location.search).get('next'), '/partner');
 }
 
+/* Where a BRAND NEW partner account goes: the welcome screen, which hands them
+   on to nextTarget() itself. Signup only. A partner signing in again has seen
+   it, and become-a-partner.html sends its own verified applicants to the same
+   page, so both partner signup routes end on one screen. */
+function welcomeTarget(){
+  return '/welcome-partner?next=' + encodeURIComponent(nextTarget());
+}
+
 /* Already signed in? Don't strand a partner on a form they don't need. The
    local record answers instantly; when it is empty that is not proof of being
    signed out (a verify that completed in another tab leaves a cookie with
@@ -624,15 +636,19 @@ function showDevCode(elId,group,dev){
    did not stick, or (reachable only through the shared reset flow) the
    address belongs to a household account, whose session this page must not
    adopt. Both are worth saying plainly instead of redirecting into a
-   dashboard that bounces straight back here. */
-function finishSignIn(errId,btn){
+   dashboard that bounces straight back here.
+
+   `dest` overrides where they land, and only the signup path passes one: a new
+   partner account goes to the welcome screen first. The adopt() above still has
+   to resolve either way, so that screen is never reached without a session. */
+function finishSignIn(errId,btn,dest){
   return W.session.adopt('provider').then(function(rec){
     if(!rec){
       W.busy(btn,false);
       setErr(errId,'You’re signed in, but we couldn’t open the partner console. If this address is a household account, use the member sign-in. Otherwise check that cookies are enabled and try again.');
       return;
     }
-    location.href=nextTarget();
+    location.href=dest||nextTarget();
   });
 }
 
@@ -888,7 +904,9 @@ document.getElementById('code-form').addEventListener('submit',function(e){
   if(W.busy(btn,true,'Verifying…')===false) return;
 
   W.session.providerSignupVerify({email:pending.email,code:code})
-    .then(function(){ return finishSignIn('otp-err',btn); })
+    /* A confirmed signup lands on the welcome screen, which is where the
+       "under review" story is told before the console repeats it. */
+    .then(function(){ return finishSignIn('otp-err',btn,welcomeTarget()); })
     .catch(function(err){
       W.busy(btn,false);
       setErr('otp-err',serverMessage(err));

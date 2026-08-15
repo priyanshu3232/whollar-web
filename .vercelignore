@@ -95,3 +95,10 @@ node_modules
 # Same reason again, for the Home layout pass. Carries the full signed-in
 # dashboard, so it must never publish.
 *.pre-layout-fix.bak
+
+# The welcome-screen design reference (demo data, a Member/Partner preview
+# toggle, no login guard). Split into the two real pages welcome-member.html
+# and welcome-partner.html on 2026-08-15; cleanUrls would otherwise publish
+# this raw file at /welcomewhollar, where the toggle would let anyone read
+# both accounts' onboarding copy against fixture names.
+welcomewhollar.html

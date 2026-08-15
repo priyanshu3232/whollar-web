@@ -511,6 +511,14 @@ function nextTarget(){
   return W.safeNext(new URLSearchParams(location.search).get('next'), '/dashboard');
 }
 
+/* Where a BRAND NEW account goes: the welcome screen, which then hands them on
+   to nextTarget() itself. Only the signup path uses it. A returning member
+   signing in has seen it and goes straight through, or the interstitial turns
+   into a toll on every sign-in. */
+function welcomeTarget(){
+  return '/welcome-member?next=' + encodeURIComponent(nextTarget());
+}
+
 /* Already signed in? Don't strand the visitor on a form they don't need.
    The local record answers instantly when it exists. When it doesn't, that is
    not proof of being signed out: a Google sign-in completes on the server and
@@ -689,15 +697,19 @@ function showDevCode(elId, group, dev) {
    lead table server-side), all of which the dashboard's own boot repeats via
    its adopt('member') gate. Doing it here too meant three or four sequential
    round trips behind a frozen "Verifying…" button; the redirect must wait
-   only for proof the cookie stuck. */
-function finishSignIn(errId, btn) {
+   only for proof the cookie stuck.
+
+   `dest` overrides where they land, and only the signup path passes one: a new
+   account goes to the welcome screen first. The check above still has to pass
+   either way, so the welcome screen is never reached without a session. */
+function finishSignIn(errId, btn, dest) {
   return W.session.read().then(function (s) {
     if (!s.authenticated || !s.user || s.user.userType !== 'member') {
       W.busy(btn, false);
       setErr(errId, 'You’re signed in, but we couldn’t keep you signed in. Check that cookies are enabled and try again.');
       return;
     }
-    location.href = nextTarget();
+    location.href = dest || nextTarget();
   });
 }
 
@@ -883,7 +895,12 @@ document.getElementById('code-form').addEventListener('submit', function (e) {
     : W.session.signupVerify({ email: pending.email, code: code, marketing: pending.marketing });
 
   verify
-    .then(function () { return finishSignIn('otp-err', btn); })
+    /* A confirmed signup lands on the welcome screen; a sign-in goes straight
+       to wherever they were headed. Same session either way, one extra screen
+       for the account that has just come into existence. */
+    .then(function () {
+      return finishSignIn('otp-err', btn, codeMode === 'signup' ? welcomeTarget() : null);
+    })
     .catch(function (err) {
       W.busy(btn, false);
       setErr('otp-err', serverMessage(err));
