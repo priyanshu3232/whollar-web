@@ -296,6 +296,17 @@ tr.exp + tr.dwr{display:table-row}
 .cvresolved b{font-family:var(--mono);font-size:12.5px;color:var(--forest2)}
 .cvrow2{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-top:18px}
 .cvrow2 .msel{min-width:200px}
+/* On the picker card the speed panel FLOATS, exactly like the city and region
+   panels above it. Same geometry, same z-index, same shadow, so the two rows
+   of this one card behave as one control and not as two.
+
+   In flow it grew the row: opening the list pushed the technology chips and
+   Declare down the card, resized the card, and moved the button out from under
+   the cursor that was on its way to it. The reason the shared rule stays in
+   flow (a .twrap scroll box clipping an absolute panel) does not apply here,
+   because this copy of the control is on a card, outside any scroll box. */
+.cvrow2 .mselpanel{position:absolute;z-index:30;top:calc(100% + 6px);left:0;right:0;
+  margin-top:0;border-radius:13px;box-shadow:0 18px 40px -18px rgba(20,35,28,.35)}
 /* The picker's technology group is the same chip group the edit row uses, so
    the one chip handler and chosenSpeeds() still find it by .cechips. Only the
    look differs: in a dropdown panel these are a stacked checkbox list, and out
@@ -359,7 +370,11 @@ tr.exp + tr.dwr{display:table-row}
    Like .dpanel above, the panel sits IN FLOW rather than absolutely positioned,
    and for the same reason: this control lives in a table inside .twrap, which is
    overflow-x:auto, and an absolutely positioned panel is clipped by that scroll
-   box. Open simply grows the row. */
+   box. Open simply grows the row.
+
+   That is the TABLE EDIT ROW's copy of the control. The picker card carries the
+   same control outside any scroll box, and there the panel floats: see
+   `.cvrow2 .mselpanel` below. */
 .msel{position:relative;min-width:0}
 .mseltrig{display:flex;align-items:center;gap:8px;width:100%;background:#fff;border:1.5px solid var(--line);border-radius:9px;padding:8px 11px;font:inherit;font-size:13px;color:#3A453E;text-align:left;cursor:pointer}
 .mseltrig:hover{border-color:var(--forest2)}

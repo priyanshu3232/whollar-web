@@ -1,4 +1,4 @@
-whollar-estimate-bench.js coverage, built 2026-08-14
+whollar-estimate-bench.js coverage, built 2026-07-29
 
 Source: Whollar Pricing Model.xlsx, sheet "Internet Pricing"
   6803 data rows in
