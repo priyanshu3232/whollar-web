@@ -3,6 +3,14 @@
 <html lang="en-CA">
 <head>
 <meta charset="utf-8">
+<!-- ===== v13 head block: demo gate. Not in docs/prototype/provider-console-v12.html. =====
+     This file is the prototype, seed data and all: a fake org, invented cohorts,
+     an HST registration string, and no session behind any of it. It is a design
+     reference and a demo surface, never a partner's console. Without ?demo=1 it
+     hands the visitor to the real one. noindex here and X-Robots-Tag in
+     vercel.json say the same thing to a crawler, which does not run scripts. -->
+<meta name="robots" content="noindex">
+<script>if(new URLSearchParams(location.search).get('demo')!=='1')location.replace('/partner');</script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Whollar · Partner console v12 (prototype)</title>
 <meta name="description" content="Whollar partner console prototype: activation, bid desk, sealed bids, acquisition, completion-based billing. Demo data.">

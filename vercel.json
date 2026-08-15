@@ -70,6 +70,15 @@
           "value": "no-store, max-age=0"
         }
       ]
+    },
+    {
+      "source": "/(provider|provider-dashboard)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
     }
   ],
   "rewrites": [
