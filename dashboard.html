@@ -150,8 +150,95 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 
 
 
-.cliff{position:relative;overflow:hidden;background:linear-gradient(120deg,#F8EDE0,#F2E3D6);border:1px solid #E7CFB9;border-radius:20px;padding:clamp(18px,3vw,26px);display:flex;gap:clamp(16px,3vw,34px);align-items:center;flex-wrap:wrap;box-shadow:0 1px 2px rgba(26,37,32,.05),0 10px 30px rgba(140,70,34,.07)}
+/* The band is a plain block now and holds two mutually exclusive children.
+   .ckreset carries the flex row the band itself used to be, so the reset
+   layout is unchanged; .ckv is the verdict card below. */
+.cliff{position:relative;overflow:hidden;background:linear-gradient(120deg,#F8EDE0,#F2E3D6);border:1px solid #E7CFB9;border-radius:20px;padding:clamp(18px,3vw,26px);box-shadow:0 1px 2px rgba(26,37,32,.05),0 10px 30px rgba(140,70,34,.07)}
+.ckreset{display:flex;gap:clamp(16px,3vw,34px);align-items:center;flex-wrap:wrap}
+.ckreset[hidden]{display:none}
 .cliff .step{position:absolute;right:200px;top:0;bottom:0;width:230px;pointer-events:none;opacity:.4}
+
+/* ---------- the checkup verdict, as the top band ----------
+   Dark, and deliberately the same dark as /bill-checkup's result card: this is
+   that card, on this page, off the same engine. A member who ran the checkup
+   and then landed here should recognise the answer rather than have to
+   reconcile two of them.
+
+   The tone classes come from the engine's own `tone`, so the accent and the
+   hero colour cannot drift from the verdict the copy is making. */
+.cliff.has-verdict{background:linear-gradient(155deg,#0A2018,#123B2C 58%,#17553D);border-color:#0A2018;border-top:4px solid var(--accent);color:#fff}
+.cliff.has-verdict .step{display:none}
+.cliff.has-verdict.tone-high{border-top-color:var(--terra)}
+.cliff.has-verdict.tone-moderate{border-top-color:#C29B3C}
+/* stretch, not center: the right column has to take the row's full height
+   before flex:1 1 0 on the two panels can split it into actual halves. */
+.ckv{display:grid;grid-template-columns:1fr minmax(270px,.8fr);gap:clamp(18px,3vw,34px);align-items:stretch}
+.ckv[hidden]{display:none}
+.ckv__left{min-width:0}
+.ckv__head{font-size:clamp(21px,2.9vw,31px);font-weight:900;line-height:1.13;letter-spacing:-.02em;color:#fff;margin-bottom:0;max-width:20ch}
+/* The argument, as points. One claim per line is the whole reason this card
+   was re-cut: the paragraph it replaced buried the "already cost you" figure
+   in the middle of a sentence. */
+.ckv__points{list-style:none;margin:15px 0 0;padding:0;display:flex;flex-direction:column;gap:9px}
+.ckv__points li{position:relative;padding-left:21px;font-size:14.5px;line-height:1.5;color:rgba(255,255,255,.8)}
+.ckv__points li::before{content:"";position:absolute;left:1px;top:.6em;width:7px;height:7px;border-radius:50%;background:var(--glow);opacity:.8}
+.cliff.tone-high .ckv__points li::before{background:#FFB894}
+.cliff.tone-moderate .ckv__points li::before{background:#F0DBA0}
+.ckv__points li b{color:#fff;font-weight:700}
+.ckv__strip{display:flex;align-items:center;gap:11px;margin-top:16px;background:rgba(0,0,0,.18);border-left:3px solid var(--glow);border-radius:0 13px 13px 0;padding:12px 15px}
+.ckv__strip[hidden]{display:none}
+.cliff.tone-high .ckv__strip{border-left-color:#E8A07A}
+.cliff.tone-moderate .ckv__strip{border-left-color:#E3C97F}
+.ckv__strip svg{width:16px;height:16px;flex:none;stroke:rgba(255,255,255,.55);stroke-width:2;fill:none;stroke-linecap:round}
+.ckv__strip b{font-family:var(--disp);font-weight:700;font-size:14px;color:#fff}
+.ckv__strip>span{min-width:0}
+.ckv__strip>span span{font-size:13.5px;color:rgba(255,255,255,.62)}
+.ckv__eyebrow{display:flex;flex-wrap:wrap;gap:7px;margin-top:15px}
+.ckv__eyebrow[hidden]{display:none}
+/* Read as written, not upper-cased: these are a provider's name, a rate and a
+   speed off the member's own bill, and "500 MBPS" is not how any of them is
+   spelled on it. */
+.ckv__eyebrow b{font-family:var(--mono);font-weight:400;font-size:11px;letter-spacing:.04em;color:rgba(255,255,255,.66);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);border-radius:999px;padding:4px 11px}
+.ckv__note{font-size:12.5px;color:rgba(255,255,255,.5);margin-top:13px;line-height:1.5;max-width:62ch}
+.ckv__note[hidden]{display:none}
+.ckv__note a{color:var(--glow)}
+/* The right half, halved again: what leaves the account every month, and what
+   the same twelve months could hold on to. */
+.ckv__right{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ckv__pill{align-self:flex-end;display:inline-flex;align-items:center;gap:6px;background:rgba(194,100,59,.22);border:1px solid #E8A07A;color:#FFC7A8;border-radius:999px;padding:5px 12px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.ckv__pill[hidden]{display:none}
+.ckv__pill i{width:6px;height:6px;border-radius:50%;background:#FFB894;font-style:normal;animation:ckpulse 1.8s ease-in-out infinite}
+@keyframes ckpulse{0%,100%{opacity:1}50%{opacity:.3}}
+@media (prefers-reduced-motion:reduce){.ckv__pill i{animation:none}}
+/* flex:1 1 0, not flex:1: the two panels are halves of the right segment, so
+   they have to ignore how much copy each happens to carry. */
+.ckstat{position:relative;flex:1 1 0;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.13);border-radius:16px;padding:15px 17px;display:flex;flex-direction:column;justify-content:center;min-width:0}
+.ckstat__ic{position:absolute;top:13px;right:15px;width:33px;height:33px;border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.07)}
+.ckstat__ic svg{width:17px;height:17px;fill:none;stroke:rgba(255,255,255,.62);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.ckstat__k{font-family:var(--mono);font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:rgba(255,255,255,.58);line-height:1.4;padding-right:42px}
+.ckstat__v{font-family:var(--disp);font-weight:900;letter-spacing:-.03em;font-size:clamp(25px,2.9vw,32px);line-height:1.05;margin-top:7px;color:#fff}
+.ckstat__v em{font-style:normal;font-size:.46em;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:0}
+.ckstat__s{font-size:12px;color:rgba(255,255,255,.55);margin-top:7px;line-height:1.45}
+.ckstat--hero .ckstat__v{font-size:clamp(31px,4vw,42px)}
+.ckstat--hero .ckstat__ic{background:rgba(255,184,148,.14)}
+.cliff.tone-high .ckstat--hero .ckstat__v{color:#FFB894}
+.cliff.tone-moderate .ckstat--hero .ckstat__v{color:#F0DBA0}
+.cliff.tone-fair .ckstat--hero .ckstat__v,.cliff.tone-no-benchmark .ckstat--hero .ckstat__v{color:var(--glow)}
+/* One column, and the pill goes back to the top right corner of the card. Left
+   in the flow it would land between the points and the figures, which is the
+   middle of the card and reads as a note about neither. */
+@media (max-width:900px){
+  .ckv{grid-template-columns:1fr;position:relative}
+  .ckv__head{max-width:none}
+  .ckv.has-pill .ckv__head{padding-right:168px}
+  .ckv__pill{position:absolute;top:0;right:0}
+}
+/* Too narrow to sit beside the headline, so it takes a row of its own above it
+   and stays absolute, which is what keeps it in the corner. */
+@media (max-width:520px){
+  .ckv.has-pill .ckv__head{padding-right:0}
+  .ckv.has-pill .ckv__left{padding-top:32px}
+}
 .sigblock{position:relative;flex:1;min-width:260px}
 .cliff h2{font-size:clamp(19px,2.5vw,24px);font-weight:750;margin-bottom:6px}
 .cliff .read{font-size:14.5px;color:#6E4630;max-width:56ch}
@@ -183,7 +270,12 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .bu-chip[hidden]{display:none}
 .bu-msg{font-size:12.5px;margin:8px 0 0}
 .bu-msg.warn{color:#8C4622}
-.bu-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-top:14px}
+/* Tracks, not a fixed pair. The card spans all twelve columns now, so the
+   seven fields lay themselves out against the width they actually have: three
+   across at 1440 and 1280, two on a tablet, one on a phone, with no breakpoint
+   of their own. `1fr 1fr` folded them into two narrow columns at every width,
+   which is what made this the tallest card on the tab. */
+.bu-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px 24px;margin-top:14px}
 .bu-grid label{font-size:12px;font-weight:600;color:#3A453E;display:block}
 .bu-grid label .osel{display:block;margin-top:5px;font-size:13.5px;font-weight:400;color:var(--ink)}
 @media(max-width:700px){.bu-grid{grid-template-columns:1fr}}
@@ -413,42 +505,6 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 @keyframes sigpulse{50%{opacity:.55}}
 @media (prefers-reduced-motion:reduce){.cliff.sig-pulse .cg__arc{animation:none}}
 
-/* ---------- the checkup verdict, inside the band ----------
-   The figure pair and the promo strip are /bill-checkup's result card, ported
-   to the band's warm palette instead of its dark teal one: same two numbers in
-   the same order (what you pay now, then the hero figure), same promo strip
-   under them. The band owns the colour, the engine owns the numbers.
-   The ring to the right is untouched: it answers "when", these answer "how
-   much", and both read off the one bill. */
-.sigfig{display:flex;align-items:stretch;gap:clamp(16px,2.6vw,30px);margin:16px 0 4px;background:rgba(255,255,255,.55);border:1px solid #EBD8C6;border-radius:16px;padding:16px clamp(15px,2.2vw,22px);max-width:56ch}
-.sigfig[hidden]{display:none}
-.sigfig .fig{display:flex;flex-direction:column;justify-content:flex-end;min-width:0}
-.sigfig .figsep{width:1px;background:#EBD8C6;flex:none}
-.sigfig .fig--hero{flex:1}
-.figk{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:#9C8A78;line-height:1.4}
-.figv{font-family:var(--disp);font-weight:900;letter-spacing:-.03em;color:#5A3822;font-size:clamp(22px,2.6vw,28px);line-height:1.05;margin-top:8px}
-.figv em{font-style:normal;font-size:.5em;font-weight:700;color:#9C8A78;letter-spacing:0}
-/* The hero figure reads the ENGINE'S tone, not the band's theme. Those two
-   answer different questions and routinely disagree: a household eight months
-   from its reset is green on the ring and can still be paying a third over the
-   market, and painting that figure green would tell them the opposite of what
-   it says. Ring urgency is time, figure colour is money. */
-.figv--big{font-size:clamp(30px,4vw,42px)}
-.sigfig.tone-fair .figv--big{color:var(--accent-deep)}
-.sigfig.tone-moderate .figv--big{color:var(--terra)}
-.sigfig.tone-high .figv--big,.sigfig.tone-no-benchmark .figv--big{color:#8C4622}
-.figsub{font-size:12px;color:#7B6857;margin-top:8px;line-height:1.45}
-/* The checkup prints a promo strip under these figures, naming the month the
-   rate moves. It is not ported: the ring to the right counts down to that same
-   date, so a strip would be the band saying the same thing twice at the cost
-   of 60px of height. The month itself is kept, on the mono line below. */
-/* Where the figure had to assume something the file does not hold. The checkup
-   shows this behind an (i); the band has room to say it plainly, which matters
-   more here because nobody chose to be on this screen. */
-.signote{font-size:12.5px;color:#7B6857;margin-top:10px;max-width:56ch;line-height:1.55}
-.signote[hidden]{display:none}
-.signote a{color:#8C4622;font-weight:700}
-@media (max-width:620px){.sigfig{flex-wrap:wrap}.sigfig .figsep{display:none}}
 
 
 
@@ -456,16 +512,22 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 
 
 
-/* ---------- dashboard grid (v1) ---------- */
-.grid2{display:grid;grid-template-columns:1.62fr 1fr;gap:20px;align-items:stretch}
+/* ---------- dashboard grid ----------
+   THE SAME TWELVE TRACKS AS .home, not a second split of its own. This rule
+   used to read `1.62fr 1fr` at a 20px gap, which put the main/rail boundary
+   58px left of where Home puts it and the gutter 4px in from Home's. Nothing
+   on the page said so, and nothing was broken enough to notice on one screen:
+   the fault only showed on the way BETWEEN screens, where every card edge
+   stepped sideways as the tab changed. Two track systems on one shell is one
+   too many, so Bills and Profile now declare Home's, and the roles below
+   (.is-main / .is-rail / .is-wide) place their children.
+
+   align-items:start for the same reason Home has it: a short column is short,
+   and the shortfall stays in the grid where the eye reads it as space, rather
+   than being poured into the last card and read as a stretched, half-empty
+   panel. That is what the deleted `.grid2>.card` justify-content rule did. */
+.grid2{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;row-gap:24px;align-items:start}
 .grid2>*{min-width:0}
-/* Bills and Profile only. On Home this rule used to pour the main column's
-   height shortfall into the campaign card, spreading it between the card's own
-   sections. That was the right answer while the row owned the height; with
-   align-items:start on the Home grid the shortfall stays outside the card,
-   where it reads as space rather than as a stretched card, so Home no longer
-   has a .grid2 that directly contains a card at all. */
-.grid2>.card{display:flex;flex-direction:column;justify-content:space-between}
 .camp__head{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:18px}
 .camp__head h3{font-size:clamp(20px,2.7vw,25px);font-weight:800}
 .camp__head .sub{font-size:13px;color:var(--sub);margin-top:2px}
@@ -569,9 +631,9 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 /* ---------- aside (v1) ----------
    On Home this is the rail: one 4 column track holding a stack of short,
    always-optional cards at the same 24px rhythm as the grid rows. The other
-   views still use it as a plain flex column inside .grid2. */
-.aside{display:flex;flex-direction:column;gap:16px;min-width:0}
-.home .aside{gap:24px}
+   views use it the same way, in the same 4 column track: one gap, not a 24px
+   one on Home and a 16px one on Bills and Profile. */
+.aside{display:flex;flex-direction:column;gap:24px;min-width:0}
 .meter .mrow{display:flex;justify-content:space-between;font-size:13px;color:var(--sub);margin:12px 0 7px}
 .meter .mrow b{color:var(--accent-deep)}
 .segs{display:flex;gap:4px}
@@ -638,12 +700,33 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
    and in the rail (a flex column) the same declaration is a CROSS-axis rule
    that would shrink the card to the width of its widest headline. */
 .rcard{padding-block:16px}
+/* ---------- Worth a read, across all twelve tracks ----------
+   The visitor lane's rail is ONE card tall (the referral tile) against a main
+   sequence of one short card, so stacking this second card under it made the
+   rail 720px against a 285px main column: the 435px void, and the loudest
+   thing on that screen. Nothing about the tracks caused it and no track change
+   fixes it, because the fault is the shape of the content: three list rows
+   stacked vertically in a 4 column track is a tall thin card with nothing
+   beside it.
+   Turned on its side the same three rows are one row of three, ~150px tall
+   across the full width, and the rail is a single tile matched to the main
+   card next to it. Same rows, same markup, same link targets: only the axis
+   changes. The member lane keeps the vertical card, where a three-card rail
+   already balances a tall main stack and the wide one would be the odd shape
+   instead. */
+.rcard--wide .rcard__head{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
+.rcard--wide .rcard__head .tlink{margin-top:0;flex:none}
+.rcard--wide .reads{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));column-gap:28px;margin-top:2px}
+/* The rules between rows belong to a stack. Across a row they would be
+   underlines, so the separator becomes the gutter itself. */
+.rcard--wide .reads li:not(:last-child){border-block-end:0}
+.rcard--wide .reads li a{padding-block:14px 4px}
 
 /* ---------- region row (v2, tamed) ---------- */
 .rowhead{display:flex;align-items:baseline;gap:12px;margin:0 0 20px}
 .rowhead h3{font-size:19px;font-weight:750}
 .rowhead .all{margin-left:auto;font-size:13.5px;font-weight:650;color:var(--accent-deep)}
-.crow{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:14px}
+.crow{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:24px}
 .cc{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s,transform .15s;position:relative;text-align:left}
 .cc:hover{box-shadow:0 10px 26px rgba(26,37,32,.1);transform:translateY(-2px)}
 .cc__art{height:104px;flex:none;position:relative;background:var(--mint);overflow:hidden}
@@ -664,7 +747,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .miniprog i{display:block;height:100%;background:var(--accent);border-radius:4px}
 
 /* ---------- other views ---------- */
-.klist{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.klist{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:24px}
 .ktile{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 1px 2px rgba(26,37,32,.04),0 8px 24px rgba(26,37,32,.05);transition:box-shadow .25s,border-color .25s,transform .15s}
 .ktile:hover{box-shadow:0 10px 26px rgba(26,37,32,.1);border-color:var(--accent);transform:translateY(-2px)}
 .ktile-media{display:block;position:relative;overflow:hidden;isolation:isolate;background:var(--mint);aspect-ratio:3/2;flex:none}
@@ -686,7 +769,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .empty svg{width:74px;height:74px;margin-bottom:14px}
 .empty h3{font-size:20px;font-weight:750;margin-bottom:6px}
 .empty p{color:var(--sub);font-size:14.5px;max-width:46ch;margin:0 auto 18px}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:24px;align-items:start}
 .tile h4{font-family:var(--disp);font-size:15.5px;font-weight:750;margin:2px 0 4px}
 .tile .tn{font-size:13px;color:var(--sub)}
 .tile.dark{background:var(--ink);border-color:var(--ink);color:#E7EFE4}
@@ -728,7 +811,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
    768px: the member room reverts to copy over handset, and the container and
    card padding drop to 20px together. */
 @media (max-width:1100px){
-  .is-main,.is-rail,.mcol,.home .aside{grid-column:1/-1}
+  .is-main,.is-rail,.mcol,.aside{grid-column:1/-1}
 }
 @media (max-width:768px){
   .content{padding-inline:20px}
@@ -760,9 +843,10 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
   .app.paneopen .overlay{opacity:1;pointer-events:auto}
   .greet{display:none}
   .cliffgauge{width:100%}
-  /* Bills and Profile. Home collapses at 1100px, above, where its own rail
-     runs out of width. */
-  .grid2{grid-template-columns:1fr}
+  /* Bills and Profile used to collapse here, at 920px, while Home collapsed at
+     1100px: a member dragging a window narrow watched the two-column layout
+     survive on one tab and die on another. They share Home's breakpoint now,
+     in the 1100px block above, because they share Home's rail width. */
     }
 @media (prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important}
@@ -845,6 +929,9 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .vtrio{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
 .arr2{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:center}
 .arrright h3{font-size:21px}
+/* Nudged off the copy's left edge and given room under it: the CTA reads as the
+   step after the paragraph rather than the next line of it. */
+.arrright .btn{margin-top:12px;margin-left:12px}
 .inv-wrap{display:flex;justify-content:center}
 .inv{width:100%;max-width:300px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 26px rgba(26,37,32,.09);padding:15px 16px 13px;font-family:var(--mono);font-size:11.5px;color:var(--ink);position:relative;overflow:hidden}
 .inv::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--accent-deep),var(--terra))}
@@ -918,6 +1005,52 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
         <div class="home">
 
         <section class="cliff is-band" aria-label="Your deal signal">
+
+          <!-- ===== the checkup verdict, when there is a bill to run it against.
+               Same engine and the same numbers as /bill-checkup's result card,
+               so the two surfaces cannot disagree, and now the same weight: the
+               argument on the left as points, the two figures on the right as
+               the infographic. Exactly one of this block and #ckreset below is
+               ever visible, because they are two answers about one bill. ===== -->
+          <div class="ckv" id="ckv" hidden>
+            <div class="ckv__left">
+              <h2 class="ckv__head" id="ckv-head"></h2>
+              <ul class="ckv__points" id="ckv-points"></ul>
+              <!-- The promo month. Its own row rather than a fourth point: it is
+                   a date, not part of the argument. -->
+              <div class="ckv__strip" id="ckv-strip" hidden>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+                <span><b id="ckv-strip-b"></b> <span id="ckv-strip-s"></span></span>
+              </div>
+              <!-- The member's own file, read back to them. Never a sample
+                   household's: every chip here is a field off their bill. -->
+              <p class="ckv__eyebrow" id="ckv-eyebrow" hidden></p>
+              <p class="ckv__note" id="ckv-note" hidden></p>
+            </div>
+            <div class="ckv__right">
+              <span class="ckv__pill" id="ckv-pill" hidden><i></i>Promo cliff ahead</span>
+              <div class="ckstat">
+                <span class="ckstat__ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5A2.5 2.5 0 0 1 5.5 6H19a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5.5A2.5 2.5 0 0 1 3 16.5v-8Z"/><path d="M3 8.5A2.5 2.5 0 0 1 5.5 6H17"/><circle cx="16.5" cy="12.5" r="1.2"/></svg></span>
+                <span class="ckstat__k" id="ckv-nowk">You pay now</span>
+                <span class="ckstat__v" id="ckv-now">&ndash;</span>
+              </div>
+              <div class="ckstat ckstat--hero">
+                <!-- Coins, not an arrow. Three of the four verdicts put savings
+                     in this slot and one puts a twelve month total, and an
+                     arrow would be pointing the wrong way for that one. -->
+                <span class="ckstat__ic"><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6.5" rx="7" ry="3"/><path d="M5 6.5v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/><path d="M5 11.5v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/></svg></span>
+                <span class="ckstat__k" id="ckv-herok">You could save up to</span>
+                <span class="ckstat__v" id="ckv-hero">&ndash;</span>
+                <span class="ckstat__s" id="ckv-sub"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== the reset band, for a file the engine cannot price: no
+               monthly or no speed, which is what a join-page bill can look
+               like. It keeps the ring, because "when" is the only thing we can
+               still tell that member. ===== -->
+          <div class="ckreset" id="ckreset">
           <svg class="step" viewBox="0 0 300 160" aria-hidden="true" fill="none" preserveAspectRatio="xMaxYMid meet">
             <path d="M0 118 H120 V118" stroke="#C2643B" stroke-width="2.5" opacity=".35"/>
             <path d="M120 118 V46 H300" stroke="#C2643B" stroke-width="2.5" stroke-dasharray="5 6" opacity=".45"/>
@@ -929,23 +1062,11 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
             <div class="siglabel" id="sig-eyebrow">Your deal signal</div>
             <div class="sigbars" id="sig-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><span class="arr">&rarr;</span><i></i><i></i><i></i></div>
             <h2 id="cliffh2">We&rsquo;re still pinpointing your reset.</h2>
-            <!-- The checkup's own figure pair. Hidden until the engine has a
-                 bill to work from; the reset copy below stands alone until then. -->
-            <div class="sigfig" id="sig-fig" hidden>
-              <div class="fig">
-                <span class="figk" id="sig-nowk">You pay now</span>
-                <span class="figv" id="sig-now">&ndash;</span>
-              </div>
-              <span class="figsep"></span>
-              <div class="fig fig--hero">
-                <span class="figk" id="sig-herok">You could save up to</span>
-                <span class="figv figv--big" id="sig-hero">&ndash;</span>
-                <span class="figsub" id="sig-sub"></span>
-              </div>
-            </div>
+            <!-- The figure pair that used to sit here belongs to #ckv now. This
+                 block is only ever shown for a file the engine cannot price, so
+                 there are no figures to put in it. -->
             <p class="read" id="sig-read">Add your promo end date (it&rsquo;s on your bill&rsquo;s &ldquo;Savings&rdquo; line) and we&rsquo;ll time your cohort to close bidding before the jump.</p>
             <p class="ctx" id="sig-ctx" hidden></p>
-            <p class="signote" id="sig-note" hidden></p>
           </div>
           <!-- Every value here is written by the cliff module below, from the
                promo end date on the member's bill. Nothing is authored. -->
@@ -959,6 +1080,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               </svg>
               <span class="cg__mid"><b id="cgnum">&ndash;</b><i id="cgcap">months to cliff</i></span>
             </div>
+          </div>
           </div>
         </section>
 
@@ -1215,7 +1337,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
       <section class="view" data-v="bills">
         <div class="vhead"><h2>My bills</h2><p>Every promo cliff in one file. Internet today, the rest of the household next.</p></div>
         <div class="grid2">
-          <div style="min-width:0">
+          <div class="mcol is-main">
             <section class="card" aria-label="Your switch file">
               <span class="eyebrow">Your switch file &middot; Home internet</span>
               <h3>What providers bid against</h3>
@@ -1244,7 +1366,29 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               <p class="fnote bill-src" data-bill-src hidden></p>
               <p class="fnote">We can't place you in a cohort without your renewal month. Everything here stays private: bidding providers never see your provider or your price.</p>
             </section>
-            <section class="card" id="bu-card" style="margin-top:16px" aria-label="Add your latest bill">
+          </div>
+          <aside class="aside is-rail">
+            <section class="card">
+              <span class="eyebrow">Coming to your file</span>
+              <h3>Mobile <span class="soon">Soon</span></h3>
+              <p class="cardnote">Same promo cliff pattern, same pooled fix. Add yours and we'll flag the reset before it lands.</p>
+              <button class="btn ghost" type="button" data-bell="Mobile cohorts" style="margin-top:12px">Put me first in line</button>
+            </section>
+            <section class="card">
+              <span class="eyebrow">Coming to your file</span>
+              <h3>Streaming <span class="soon">Soon</span></h3>
+              <p class="cardnote">Quiet price bumps, flagged the month they happen.</p>
+              <button class="btn ghost" type="button" data-bell="Streaming tracking" style="margin-top:12px">Put me first in line</button>
+            </section>
+          </aside>
+        <!-- The upload form, spanning all twelve tracks. It sat in the 8
+             column main stack under the switch file, which left the two "Coming to
+             your file" cards in the rail 690px short of the main column: the
+             widest void on any tab, and worse than the one on Home. Full width
+             is also where this card wanted to be. Its .bu-grid is seven fields
+             that were folded into two narrow columns at 665px and now run three
+             across, so the form is shorter as well as wider. -->
+        <section class="card is-wide" id="bu-card" aria-label="Add your latest bill">
               <span class="eyebrow">Finish your file</span>
               <h3 id="bu-h3">Add your latest bill</h3>
               <label class="bu-drop" for="bu-file" id="bu-drop">
@@ -1299,21 +1443,6 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               </form>
               <p class="fnote">Bidding providers never see your provider or your price. This stays in your file.</p>
             </section>
-          </div>
-          <aside class="aside">
-            <section class="card">
-              <span class="eyebrow">Coming to your file</span>
-              <h3>Mobile <span class="soon">Soon</span></h3>
-              <p class="cardnote">Same promo cliff pattern, same pooled fix. Add yours and we'll flag the reset before it lands.</p>
-              <button class="btn ghost" type="button" data-bell="Mobile cohorts" style="margin-top:12px">Put me first in line</button>
-            </section>
-            <section class="card">
-              <span class="eyebrow">Coming to your file</span>
-              <h3>Streaming <span class="soon">Soon</span></h3>
-              <p class="cardnote">Quiet price bumps, flagged the month they happen.</p>
-              <button class="btn ghost" type="button" data-bell="Streaming tracking" style="margin-top:12px">Put me first in line</button>
-            </section>
-          </aside>
         </div>
       </section>
 
@@ -1359,7 +1488,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
           <button class="tlink" type="button" id="pf-signout">Sign out</button>
         </div>
         <div class="grid2">
-          <div>
+          <div class="mcol is-main">
             <section class="card" aria-label="Finish your file" id="finish-card">
               <span class="eyebrow">Finish your file</span>
               <h3 id="finish-h3">Next: add your latest bill</h3>
@@ -1368,7 +1497,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               <div class="hr2"></div>
               <div class="cklist" id="cklist"></div>
             </section>
-            <section class="card" style="margin-top:16px" aria-label="Account details">
+            <section class="card" aria-label="Account details">
               <span class="eyebrow">Account details</span>
               <ul class="pi">
                 <li><span>Name</span><b>Priya M.</b><button class="tlink" type="button" data-edit="name">Edit</button></li>
@@ -1378,7 +1507,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               </ul>
             </section>
           </div>
-          <aside class="aside">
+          <aside class="aside is-rail">
             <section class="card" aria-label="Notifications">
               <span class="eyebrow">Notifications</span>
               <h3>How we reach you</h3>
@@ -1929,6 +2058,70 @@ var ASSUME_NOTE={
   'current-only':'We assumed no increase. With no promo end date and no post promo price on file we held your current rate for the whole year. If a jump is coming, the real figure is larger.',
   'dated-no-sticker':'We assumed no increase. Without your post promo price we held your current rate rather than guess at the jump. If a jump is coming, the real figure is larger.'
 };
+/* ---------- repaint only what actually changed ----------
+   Neither paintCliff() nor render() is a first-paint function. Both run again
+   on every campaign poll (120s, or 15s on a short calendar), on every return to
+   a backgrounded tab, and after each late server sync. An innerHTML write is
+   destructive even when the string it writes is identical to the one already
+   there, so every one of those passes was throwing the block away and building
+   it again: the invoice animation restarted from a blank card mid-cycle, the
+   countdown's interval was torn down and re-phased, and anything focused inside
+   lost focus. That is the flicker. Same markup in, DOM untouched.
+
+   The keys are per sink, and each sink has exactly one writer, which is what
+   makes the cache safe: nothing else patches these blocks behind our back, so a
+   matching string really does mean a matching DOM. */
+var PAINTED={};
+function paintOnce(key,el,html){
+  if(!el||PAINTED[key]===html)return false;
+  PAINTED[key]=html;
+  el.innerHTML=html;
+  return true;
+}
+
+/* The promo month, as its own row under the points. Same two sentences
+   /bill-checkup writes, and the same silence where the file cannot fill them:
+   rememberBill() stores no post promo sticker price, so a promo still in the
+   future cannot be told what it goes TO, only when it moves. Where the promo
+   has already ended the rate they pay now IS the rate that stays, which is why
+   that branch can name a number and the other cannot. */
+function verdictCliff(nowAmount){
+  var bill=MEMBER&&MEMBER.bill;
+  var end=parsePromoEnd(bill&&bill.promoEnd);
+  if(!end)return null;
+  var label=MONTHS[end.getMonth()]+' '+end.getFullYear();
+  if(end.getTime()<Date.now())return{
+    b:'Your promotion ended '+label+'.',
+    s:nowAmount?('The rate is '+fmt0(nowAmount)+'/mo and stays there.'):'The higher rate is already on your bill.'
+  };
+  return {b:'Your promotion ends '+label+'.',s:'That is the month the number moves.'};
+}
+/* SIX months, not the shared engine's four. r.cliffSoon is what /bill-checkup
+   shows and it stays at four there: that page is read by someone who went
+   looking. This band is read by someone who did not, so it starts warning a
+   quarter earlier. Measured in average month lengths, like the deal signal's
+   own bands, so the pill and the ring can never disagree about the boundary. */
+function cliffWithin(months){
+  var end=parsePromoEnd(MEMBER&&MEMBER.bill&&MEMBER.bill.promoEnd);
+  if(!end)return false;
+  var m=(end.getTime()-Date.now())/MS_DAY/DAYS_PER_MONTH;
+  return m>0&&m<=months;
+}
+/* The member's own file read back to them, and nothing else: every chip is a
+   field off their bill or the cohort they actually joined. The region is named
+   where we have one because that is the unit the bidding happens in; the FSA
+   is the fallback, not the preference. */
+function verdictChips(){
+  var bill=MEMBER&&MEMBER.bill;
+  var c=(CAMPLIVE&&CAMPS&&CAMPS.length)?joinedCamp():null;
+  var m=bill&&fmtMonthly(bill.monthly);
+  return [
+    bill&&bill.provider,
+    m?(m+'/mo'):null,
+    bill&&fmtSpeed(bill.speed),
+    (c&&(c.region||c.id))||(MEMBER&&MEMBER.fsa)||null
+  ].filter(Boolean);
+}
 function checkupVerdict(){
   var E=window.WhollarSavings,input=checkupInput();
   if(!E||!input)return null;
@@ -1939,55 +2132,88 @@ function checkupVerdict(){
   }
   v.now=r.now.amount?fmt0(r.now.amount)+'<em>/mo</em>':'&ndash;';
   v.nowLabel=r.now.postPromo?'You pay now, post promo':'You pay now';
+  v.cliff=verdictCliff(r.now.amount);
+  v.cliffSoon=cliffWithin(6);
+  v.chips=verdictChips();
+  /* Points are HTML, escaped at the point of construction, because the one
+     thing worth emphasising in them is a figure. Nothing member-entered is
+     interpolated here (the money and the month are both derived), but esc()
+     stays on so that remains true of whatever gets added next. */
   if(!r.ok){
     v.head='Nobody is publishing a price for what you have.';
     v.heroLabel='What the next '+term+' months cost you';
     v.hero=fmt0(r.current.total);v.sub='at the rates you are on now';
-    v.body='At your speed there is no published rate in your province to hold your bill against, which tells you something on its own.';
+    v.points=['At your speed there is no published rate in your province to hold your bill against, which tells you something on its own.'].map(esc);
     return v;
   }
   var over=r.savings,pct=r.overPct,paid=r.overpaid;
   var span='by moving to the best rate at your speed, over the next '+term+' months';
   var start=fmtMonthYear((MEMBER&&MEMBER.bill||{}).contractStart);
   var since=start?(' since '+start):' so far';
+  var cost='It has already cost you around <b>'+esc(fmt0(paid||0))+'</b>'+esc(since)+'.';
   if(pct<0.10){
     v.head='You are ahead today. Terms end, and prices reset.';
     v.heroLabel='What the next '+term+' months cost you';
     v.hero=fmt0(r.current.total);v.sub='at the rates you are on now';
-    v.body='You found a good rate on your own, which most households never manage. The catch is that it holds only as long as your term does, and the reset is never announced.';
+    v.points=[esc('You found a good rate on your own, which most households never manage.'),
+              esc('It holds only as long as your term does, and the reset is never announced.')];
   }else if(pct<0.35){
     v.head='Staying put has a price. Here is yours.';
     v.heroLabel='You could save up to';
     v.hero=fmt0(over);v.sub=span;
-    v.body='You never signed up for this price. Gaps this size are set deliberately, large enough to matter over a year and small enough that checking never feels urgent.'
-      +(paid?(' It has already cost you around '+fmt0(paid)+since+'.'):'');
+    v.points=[esc('You never signed up for this price.'),
+              esc('Gaps this size are set deliberately: large enough to matter over a year, small enough that checking never feels urgent.')];
+    if(paid)v.points.push(cost);
   }else{
     v.head='Your loyalty is costing you a fortune.';
     v.heroLabel='You could save up to';
     v.hero=fmt0(over);v.sub=span;
-    v.body='You never signed up for this price. '
-      +(paid?('It has already cost you around '+fmt0(paid)+since+'. ')
-             :'It arrived when a promotion ended, and every month since has carried it. ')
-      +'Prices do not fall because a household deserves it. They fall when someone has to win the household.';
+    v.points=[esc('You never signed up for this price.'),
+              paid?cost:esc('It arrived when a promotion ended, and every month since has carried it.'),
+              esc('Prices do not fall because a household deserves it. They fall when someone has to win the household.')];
   }
   return v;
 }
-/* One owner for the four verdict nodes, in both directions: a bill that goes
-   away (or a sync that lands one) has to be able to take them back. */
+/* One owner for the whole band, in both directions: a bill that goes away (or
+   a sync that lands one) has to be able to swap the two blocks back. Exactly
+   one of #ckv and #ckreset is visible at any moment, because they are two
+   answers about the same bill and the file decides which one we are entitled
+   to make. */
+var CKTONES='has-verdict tone-high tone-moderate tone-fair tone-no-benchmark'.split(' ');
 function paintVerdict(){
-  var fig=$('#sig-fig'),note=$('#sig-note'),h2=$('#cliffh2'),read=$('#sig-read');
-  if(!fig)return null;
+  var band=$('.cliff'),ckv=$('#ckv'),reset=$('#ckreset');
+  if(!band||!ckv)return null;
   var v=checkupVerdict();
-  if(!v){fig.hidden=true;note.hidden=true;return null}
-  $('#sig-nowk').textContent=v.nowLabel;
-  $('#sig-now').innerHTML=v.now;
-  $('#sig-herok').textContent=v.heroLabel;
-  $('#sig-hero').textContent=v.hero;
-  $('#sig-sub').textContent=v.sub;
-  fig.className='sigfig tone-'+v.tone;
-  fig.hidden=false;
-  if(h2)h2.textContent=v.head;
-  if(read)read.innerHTML=v.body;
+  CKTONES.forEach(function(c){band.classList.remove(c)});
+  if(!v){ckv.hidden=true;if(reset)reset.hidden=false;return null}
+  if(reset)reset.hidden=true;
+  ckv.hidden=false;
+  band.classList.add('has-verdict','tone-'+v.tone);
+
+  $('#ckv-head').textContent=v.head;
+  paintOnce('ckpoints',$('#ckv-points'),v.points.map(function(p){return '<li>'+p+'</li>'}).join(''));
+
+  var strip=$('#ckv-strip');
+  if(v.cliff){
+    $('#ckv-strip-b').textContent=v.cliff.b;
+    $('#ckv-strip-s').textContent=v.cliff.s;
+    strip.hidden=false;
+  }else strip.hidden=true;
+
+  var eb=$('#ckv-eyebrow');
+  paintOnce('ckchips',eb,v.chips.map(function(c){return '<b>'+esc(c)+'</b>'}).join(''));
+  eb.hidden=!v.chips.length;
+
+  $('#ckv-pill').hidden=!v.cliffSoon;
+  ckv.classList.toggle('has-pill',!!v.cliffSoon);
+
+  $('#ckv-nowk').textContent=v.nowLabel;
+  $('#ckv-now').innerHTML=v.now;
+  $('#ckv-herok').textContent=v.heroLabel;
+  $('#ckv-hero').textContent=v.hero;
+  $('#ckv-sub').textContent=v.sub;
+
+  var note=$('#ckv-note');
   if(v.assume){
     note.innerHTML=esc(v.assume)+' <a href="/bill-checkup?from=dashboard">Run the full checkup &rarr;</a>';
     note.hidden=false;
@@ -2963,13 +3189,19 @@ function render(){
   var pill=$('#statepill');
   pill.textContent=PILL[S.state];
   pill.className='statepill'+((S.state==='confirm'||S.state==='closing'||S.state==='passed'||S.state==='short')?' warm':'');
-  cdStop();
-  $('#panel').innerHTML=TPL[S.state]();
-  if(S.state==='bidding')cdStart();
+  /* The countdown is stopped and restarted only when the panel underneath it is
+     genuinely replaced. Stopping on every pass reset the one-second interval's
+     phase, which is the seconds digit stuttering. */
+  var panelHTML=TPL[S.state]();
+  if(PAINTED.panel!==panelHTML){
+    cdStop();
+    paintOnce('panel',$('#panel'),panelHTML);
+    if(S.state==='bidding')cdStart();
+  }
   $$('.tn2').forEach(function(t){t.classList.remove('hot')});
   var hot=$('.tn2[data-t="'+TL[S.state]+'"]');
   if(hot)hot.classList.add('hot');
-  $('#feed').innerHTML=feedItems().map(function(f){return '<li><span class="when">'+esc(f[0])+'</span>'+esc(f[1])+'</li>'}).reverse().join('');
+  paintOnce('feed',$('#feed'),feedItems().map(function(f){return '<li><span class="when">'+esc(f[0])+'</span>'+esc(f[1])+'</li>'}).reverse().join(''));
   renderRegions();
   paintHistory();
   $$('#sts button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-goto')===S.state)});
@@ -3571,6 +3803,11 @@ function applyDerived(){
     S.joined=VIS.indexOf(S.state)<0;
   }
   paintDates(CAMPLIVE?joinedCamp():null);
+  /* Before render(), because routeVisitor() decides whether to show the band at
+     all. And here rather than only at boot, because the region chip on the
+     verdict comes from the cohort list: without this the band would name the
+     member's region only on the passes that happened to follow a bill sync. */
+  paintCliff();
   render();
 }
 
@@ -3613,8 +3850,21 @@ function readsRowsHTML(){
     +'<span class="rtxt"><b class="rttl">'+esc(b[0])+'</b><small>'+b[1]+'</small></span></a></li>';
   }).join('');
 }
-function readsCardHTML(){
+/* One card, two axes. `wide` is the visitor lane's: a span 12 row of three
+   against a rail that is a single tile, instead of a second tall card stacked
+   under the referral tile with nothing beside it. The rows themselves are
+   readsRowsHTML() either way, so a change to a row is a change to both.
+   See .rcard--wide for why the visitor lane needs the other axis. */
+function readsCardHTML(wide){
   var lis=readsRowsHTML();
+  if(wide){
+    /* See all moves up beside the eyebrow: as a footer under a one-row list it
+       is a second full-width rule across the card for one link. */
+    return '<section class="card rcard rcard--wide is-wide" aria-label="Worth a read">'
+    +'<div class="rcard__head"><span class="eyebrow">Worth a read</span>'
+    +'<button class="tlink" type="button" data-nav="knowledge">See all &rarr;</button></div>'
+    +'<ul class="reads">'+lis+'</ul></section>';
+  }
   return '<section class="card rcard" aria-label="Worth a read"><span class="eyebrow">Worth a read</span><ul class="reads">'+lis+'</ul><button class="tlink" type="button" data-nav="knowledge">See all &rarr;</button></section>';
 }
 /* The visitor lane's own member-room card used to be built here. It is gone:
@@ -3670,8 +3920,10 @@ function invCycle(){
 function invKick(){if(invT)clearTimeout(invT);invCycle()}
 
 /* ---------- visitor: arrive (animation + CTA into the real checkup) ---------- */
+/* Returns {main, rail}: the only visitor state with a second card to place.
+   See renderVisitorX, which accepts either shape. */
 function rvArriveX(){
-  return '<section class="card vfirst" aria-label="Check if you are overpaying">'
+  return {main:'<section class="card vfirst" aria-label="Check if you are overpaying">'
   +'<div class="arr2">'
   +'<div class="arrleft">'+invoiceHTML()+'</div>'
   +'<div class="arrright">'
@@ -3686,13 +3938,17 @@ function rvArriveX(){
      signed-in lane: their account email instead of an email box, and a way
      back here when the result lands. */
   +'<a class="btn terra" id="cf-open" href="/bill-checkup?from=dashboard">Check if I’m overpaying</a>'
-  +'<p class="fnote">Your bill stays private. Bidding partners only ever see cohort aggregates, never you.</p>'
   +'</div></div>'
-  +'</section>'
-  +'<section class="card" aria-label="How Whollar works">'
+  +'</section>',
+  /* "How this works" is a rail card, not the second item in the main stack.
+     Stacked under the checkup card it made the main column 533px against a
+     281px rail, which is the same void the reads card used to make one lane
+     over: a short standing explainer is exactly what the 4 column track is
+     for, and beside the checkup card it is what balances it. */
+  rail:'<section class="card" aria-label="How Whollar works">'
   +'<span class="eyebrow">While you’re here</span><h3>How this works, in one breath</h3>'
   +'<p class="cardnote">Households pool by region and renewal timing. Providers bid sealed for the whole cohort. You see the winning offer, and you take it or you don’t. Free either way, because providers pay us only when a switch completes.</p>'
-  +'</section>';
+  +'</section>'};
 }
 /* ---------- visitor: result ---------- */
 /* The diagnosis itself is the band's now, computed by the real savings engine
@@ -3783,19 +4039,39 @@ function rvWaitlist(){
 
 /* ---------- visitor layout: main + aside + shared tiles ---------- */
 function renderVisitorX(){
-  var main=S.state==='arrive'?rvArriveX():(S.state==='result'?rvResult():rvWaitlist());
+  var seq=S.state==='arrive'?rvArriveX():(S.state==='result'?rvResult():rvWaitlist());
+  /* A state hands back either its main sequence alone, or {main, rail} when it
+     has a card that belongs beside the sequence rather than under it. */
+  if(typeof seq==='string')seq={main:seq,rail:''};
+  /* The SAME three roles as the member lane, against the same twelve tracks:
+     a span 8 main stack, a span 4 rail, and the member room span 12 under
+     both. The visitor lane used to build its own row system, which is half of
+     why the two lanes never lined up with each other. */
+  var html='<div class="grid2"><div class="mcol vmain is-main">'+seq.main+'</div>'
+   +'<aside class="aside is-rail">'+referralHTML()+seq.rail+'</aside>'
+   /* Worth a read leaves the rail here and only here. One short main card
+      against a two-card rail is what the 435px void was made of; with the
+      reads card turned on its side as a span 12 row below, the rail is the
+      referral tile alone and matches the main card beside it. */
+   +readsCardHTML(true)+'</div>'
+   +'<div class="trio vtrio"></div>';
+  /* Nothing moved, so nothing is touched. This is the loudest of the flickers
+     the paint cache exists for: rebuilding here restarted the invoice from a
+     blank card and re-ran its 9s cycle from the top, and the two member-room
+     moves below reflowed the lane on their own. See paintOnce.
+
+     The member room is still claimed on the way out, because the markup being
+     unchanged does not mean the card is here: routeVisitor() parks it back in
+     #member-home whenever the member lane paints, so a switch to the member
+     lane and back would otherwise leave .vtrio empty. The call is idempotent,
+     so on a plain poll it is a parent comparison and nothing else. */
+  if(PAINTED.visitor===html){mountMemberRoom(true);return}
   /* Park the member-room card back in #member-home BEFORE the write below.
      Once it has been moved here, it lives inside #visitor-home, and this
      innerHTML would destroy the only copy: the first visitor render would look
      right and every one after it would have no card at all. */
   mountMemberRoom(false);
-  /* The SAME three roles as the member lane, against the same twelve tracks:
-     a span 8 main stack, a span 4 rail, and the member room span 12 under
-     both. The visitor lane used to build its own row system, which is half of
-     why the two lanes never lined up with each other. */
-  $('#visitor-home').innerHTML='<div class="grid2"><div class="mcol vmain is-main">'+main+'</div>'
-   +'<aside class="aside is-rail">'+referralHTML()+readsCardHTML()+'</aside></div>'
-   +'<div class="trio vtrio"></div>';
+  paintOnce('visitor',$('#visitor-home'),html);
   mountMemberRoom(true);
   if(S.state==='arrive')invKick();
 }
@@ -3831,7 +4107,6 @@ function checkupPromptHTML(){
     ?'What we hold came from your join details: a few fields, with no bill behind them. The checkup is nine questions and your actual bill, and it is what turns a held spot into a number providers can bid against.'
     :'Nine questions and your actual bill. It is how we work out what your household should be paying, and what your cohort asks for on your behalf.')+'</p>'
   +'<a class="btn terra" href="/bill-checkup?from=dashboard">Check if I’m overpaying</a>'
-  +'<p class="fnote">Your bill stays private. Bidding partners only ever see cohort aggregates, never you.</p>'
   +'</section>';
 }
 
@@ -3841,9 +4116,13 @@ function routeVisitor(){
   var isVis=VIS.indexOf(S.state)>-1;
   $('#member-home').hidden=isVis;
   $('#visitor-home').hidden=!isVis;
-  /* No bill yet (arrive) or nothing to time against (waitlist): the deal
-     signal card would only repeat the card beside it. */
-  var cliff=$('.cliff');if(cliff)cliff.style.display=(S.state==='arrive'||S.state==='waitlist')?'none':'';
+  /* No bill yet (arrive) or nothing to time against (waitlist): the deal signal
+     card would only repeat the card beside it. A PRICED bill is the exception
+     and outranks the state, because then the band is not a reset notice any
+     more, it is the checkup's own verdict, and a member who has one should see
+     it at the top of this page whatever their cohort is doing. */
+  var cliff=$('.cliff');
+  if(cliff)cliff.style.display=((S.state==='arrive'||S.state==='waitlist')&&!checkupVerdict())?'none':'';
   var pc=$('#prefscard');if(pc)pc.remove();
   if(!isVis&&S.joined&&S.prefs){
     var aside=$('#member-home .aside');
@@ -3955,13 +4234,13 @@ function renderRegions(){
   if(!CAMPS.length){
     /* Live and empty is a real answer: the catalog has no visible cohort. Say
        so rather than leaving a blank row that reads as a failed load. */
-    row.innerHTML='<div class="cc"><span class="cc__art"></span><span class="cc__b">'
+    paintOnce('regions',row,'<div class="cc"><span class="cc__art"></span><span class="cc__b">'
      +'<b>No cohorts open yet</b><span class="m">We open one region at a time.</span>'
-     +'<span class="mono">We’ll text you the day yours does</span></span></div>';
+     +'<span class="mono">We’ll text you the day yours does</span></span></div>');
     return;
   }
   var feat=featuredCamp();
-  row.innerHTML=CAMPS.map(function(c){return ccCard(c,feat)}).join('');
+  paintOnce('regions',row,CAMPS.map(function(c){return ccCard(c,feat)}).join(''));
 }
 
 /* ---------- visitor events ----------
