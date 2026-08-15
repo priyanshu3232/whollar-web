@@ -70,12 +70,25 @@
           "value": "no-store, max-age=0"
         }
       ]
+    },
+    {
+      "source": "/(provider|provider-dashboard)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
     }
   ],
   "rewrites": [
     {
       "source": "/api/auth/:path*",
       "destination": "https://whollar-110003037934.development.catalystserverless.ca/server/auth/:path*"
+    },
+    {
+      "source": "/provider",
+      "destination": "/provider-dashboard"
     }
   ],
   "redirects": [
@@ -135,13 +148,8 @@
       "statusCode": 301
     },
     {
-      "source": "/provider-dashboard",
-      "destination": "/partner",
-      "statusCode": 301
-    },
-    {
       "source": "/provider-dashboard.html",
-      "destination": "/partner",
+      "destination": "/provider-dashboard",
       "statusCode": 301
     }
   ]
