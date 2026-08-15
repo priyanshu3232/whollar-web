@@ -1123,11 +1123,11 @@
      core/session.js
      ================================================================== */
   __defs["core/session.js"] = function (__exports, __require, root) {
-  /* Session revalidation, and the one rule that matters about it.
+  /* Session revalidation, and the two rules that matter about it.
    *
    * The local record proves nothing: it is writable from a browser console and
-   * it can outlive the cookie. A definite 401 or 403 means the session is gone
-   * or now belongs to someone else, and the console must stop painting.
+   * it can outlive the cookie. A definite 401 means the session is gone and the
+   * console must stop painting.
    *
    * A NETWORK FAILURE IS NOT THAT, and must never sign anyone out. The provider
    * session is 12 hours and does not roll, so a partner who loses wifi for
@@ -1135,6 +1135,21 @@
    * and have to start again. scripts/qa-console.mjs asserts both halves: group 4
    * that a definite 401 signs the tab out, group 5 that a network failure does
    * not. Group 5 is the one that matters.
+   *
+   * A 403 IS NOT THAT EITHER, and this is the second rule because getting it
+   * wrong looked exactly like a broken login. Half the console sits behind
+   * requireApproved, so an org still under review answers 403 on the routes it
+   * cannot use yet: declaring coverage, placing a bid, reading statements or the
+   * delivery board. Bouncing on that signed a partner out of the console they
+   * had just signed into, mid-click, with no error they could read. It is a page
+   * state and the view that made the call owns it. Billing and delivery each
+   * carried a private 401-only copy of this helper for that reason; coverage did
+   * not, which is how POST /provider/coverage came to log people out. One rule
+   * here instead of three copies and a gap.
+   *
+   * The single exception is revalidate() below, where the read is /provider/me:
+   * that route refuses a non-partner with 403, and someone who is not a partner
+   * has no console to be left sitting in.
    */
 
   var __ns0 = __require("core/api.js");
@@ -1145,7 +1160,7 @@
   var set = __ns2.set;
 
   function isAuthError(err) {
-    return !!err && (err.status === 401 || err.status === 403 || err.code === 'UNAUTHENTICATED');
+    return !!err && (err.status === 401 || err.code === 'UNAUTHENTICATED');
   }
 
   /** Send them to sign in, carrying where they were so they come back here. */
@@ -1155,7 +1170,10 @@
     location.replace('/whollar-login-provider?next=' + encodeURIComponent(location.pathname + location.hash));
   }
 
-  /** Bounce only on a definite auth failure. Anything else is left to the caller. */
+  /**
+   * Bounce only on a definite auth failure. Anything else, a 403 from an
+   * approval gate included, is left to the caller to render.
+   */
   function authFailed(err) {
     if (isAuthError(err)) bounce();
     return isAuthError(err);
@@ -1179,7 +1197,11 @@
       });
       return r;
     }, function (err) {
-      if (isAuthError(err)) { bounce(); return null; }
+      /* The one place 403 still bounces: /provider/me answers it for a signed-in
+         account that is not a partner at all, and there is no partner console to
+         leave them in. Everywhere else 403 means "not yet approved for this",
+         which is a screen, not a sign-out. */
+      if (isAuthError(err) || (err && err.status === 403)) { bounce(); return null; }
       /* Offline or backend down. The chrome already has the local record, so
          leave it up rather than blanking a console over one failed poll. */
       if (typeof console !== 'undefined' && console.warn) {
@@ -3095,9 +3117,46 @@
    * ------------------------------------------------------------------ */
 
   /**
-   * The ticket panel for one cohort. Four states, in the prototype's order:
-   * result (decided with a bid), closed (offers out), the sealed receipt, and
-   * the form.
+   * Whether this cohort's roster has already released to the org.
+   *
+   * Three-valued on purpose: true, false, and null for "the delivery board has
+   * not been read yet". The board is NOT loaded on boot, because every read of
+   * a released roster writes an audit row (app.js loadAll explains it), so on a
+   * partner who has not opened Delivery this is genuinely unknown and the won
+   * panel must not assert either way.
+   */
+  function rosterReleased(S, campaignId) {
+    var D = S.delivery;
+    if (!D || D === 'loading' || !D.cohorts) return null;
+    var found = null;
+    D.cohorts.forEach(function (c) { if (c.campaignId === campaignId) found = c; });
+    return found ? !!found.orders : null;
+  }
+
+  /**
+   * The ticket panel for one cohort. Six states, the prototype's four plus the
+   * two it did not have:
+   *
+   *   result, won         decided with a winning bid, itself two panels
+   *   result, not selected
+   *   closed              offers out
+   *   over, no bid        decided with no bid of ours   <- NOT in the prototype
+   *   sealed receipt
+   *   the form
+   *
+   * THE FIFTH IS A PORT FIX, NOT AN ADDITION. The prototype selected on
+   * `st>=4 && mine`, then `st===3`, then `mine`, then fell through to the bid
+   * form (v12 line 2578). A partner who did not bid on a cohort that has since
+   * decided therefore met a full seven-column pricing form, consent checkbox and
+   * all, for an auction that ended days ago. The button read "Bidding closed"
+   * and was disabled, so nothing could be written, but the screen was still the
+   * wrong screen and the desk's View control reaches it: bidAction() offers View
+   * on a decided row whether or not there is a bid behind it.
+   *
+   * THE WON PANEL IS TWO PANELS, and the port had collapsed them into one. The
+   * prototype branched on P.gate[a.id]: a roster still gated says complete the
+   * setup, a roster already released says go and schedule it. One copy for both
+   * told a partner who had finished the gate to go and finish the gate.
    */
   function ticketHTML(a, data, mine) {
     var S = get();
@@ -3119,20 +3178,53 @@
           + (fee ? ' and, at your fee, up to ' + money(String(conf * Number(fee))) + ' in success fees, billed per completed switch only' : '')
           + '.'
         : 'Household confirmations route to your delivery board.';
+
+      /* The next step, from what is actually known. A released roster is past
+         the gate; a card on file means only capacity is left, and that half is
+         known on every boot because loadMethod() runs there. Unknown release
+         state falls to the capacity wording, which is true in both remaining
+         cases and never tells a partner to add a card they already added. */
+      var released = rosterReleased(S, a.id);
+      var onFile = !!(S.billing && S.billing !== 'loading' && S.billing.method && S.billing.method.onFile);
+      var next = released === true
+        ? ' Roster released: schedule and activate it from the delivery board, and activations bill themselves.'
+        : (onFile
+          ? ' Confirm your install capacity and the roster releases to you.'
+          : ' Complete billing setup and confirm capacity, and the roster releases to you.');
+
       return '<div class="tkt"><div class="dh">Result</div><div class="receipt">'
-        + '<b>Won.</b> ' + wonLine
-        + ' Complete billing setup and confirm capacity, and the roster releases to you.</div>'
+        + '<b>Won.</b> ' + wonLine + next + '</div>'
         + '<button class="btn" type="button" data-action="nav" data-view="delivery" style="margin-top:12px">Open the delivery board</button></div>';
     }
 
-    /* Bids closed, offers with households. */
+    /* Bids closed, offers with households.
+     *
+     * The confirmed clause is gated on `mine` and not only on the field being
+     * present. Nothing populates a.confirmed today, so this reads the same
+     * either way, but a confirmation count on a cohort another partner won is
+     * that partner's count, and CLAUDE.md's rule has no exception for a figure
+     * that arrived by accident. The guard belongs here, before the field does. */
     if (a.stage === 'offers_out') {
       return '<div class="tkt"><div class="dh">Bids closed</div><div class="receipt">'
-        + (mine ? '<b>Your bid is in:</b> ' + bidLine(mine) + (mine.reference ? ' · Receipt ' + esc(mine.reference) : '') + '. ' : '')
+        + (mine
+          ? '<b>Your bid is in:</b> ' + bidLine(mine) + (mine.reference ? ' · Receipt ' + esc(mine.reference) : '') + '. '
+          : '<b>You did not bid on this cohort.</b> ')
         + 'Offers are out to every household, individually. '
-        + (a.confirmed != null ? 'Confirmed so far: <b>' + a.confirmed + ' of ' + esc(String(a.households)) + '</b>. ' : '')
+        + (mine && a.confirmed != null ? 'Confirmed so far: <b>' + a.confirmed + ' of ' + esc(String(a.households)) + '</b>. ' : '')
         + (d.decision_at ? 'Decisions lock ' + fmtDate(d.decision_at) + '; there' : 'There')
         + ' is nothing for you to do, and no way to see other bids.</div></div>';
+    }
+
+    /* Decided, and none of it was ours. The state the prototype dropped into a
+       bid form. Says the one true thing and offers the one useful thing, which
+       is the alert that stops it happening again. */
+    if (a.stage === 'decided') {
+      return '<div class="tkt"><div class="dh">Closed</div><div class="receipt">'
+        + '<b>You did not bid on this cohort.</b> Bidding closed'
+        + (d.bidding_closes_at ? ' ' + fmtDate(d.bidding_closes_at) : '')
+        + ' and the cohort is decided. Nothing is owed and nothing is pending on your side. '
+        + 'Cohorts keep forming in the regions you have declared, and you can be emailed the day one opens.</div>'
+        + '<button class="btn ghost" type="button" data-action="nav" data-view="account" style="margin-top:12px">Check your alerts</button></div>';
     }
 
     /* The sealed receipt, unless the improve form is open. */
@@ -5423,7 +5515,7 @@
   var __ns6 = __require("core/toast.js");
   var toast = __ns6.toast, failed = __ns6.failed;
   var __ns7 = __require("core/session.js");
-  var bounce = __ns7.bounce;
+  var authFailed = __ns7.authFailed;
   var __ns8 = __require("components/emptystate.js");
   var empty = __ns8.empty, goTo = __ns8.goTo;
   var __ns9 = __require("components/gate.js");
@@ -5662,20 +5754,6 @@
    * ------------------------------------------------------------------ */
 
 
-  /* A 403 is not a signed-out session, and this page must not treat it as one.
-   *
-   * core/session.js authFailed() bounces on 401 AND 403, which is right for a
-   * read only a signed-in partner can make at all. It is wrong for this one:
-   * these routes sit behind requireApproved, so an org still under review, or an
-   * account with no org membership, answers 403 on every boot, and bouncing on
-   * that signs the partner straight back out of the console they just signed
-   * into. Only a 401 means the session is gone.
-   */
-  function signedOut(err) {
-    if (err && err.status === 401) bounce();
-    return !!(err && err.status === 401);
-  }
-
   /** Fetched on view-open and explicit refresh, never polled: every read of a
       released roster writes an audit row naming the count. */
   function load() {
@@ -5686,7 +5764,7 @@
         live: !!r && r.live !== false
       });
     }, function (err) {
-      signedOut(err);
+      authFailed(err);
       set('delivery', { cohorts: [], live: false });
     });
   }
@@ -5702,7 +5780,7 @@
       api.capacitySave(el.getAttribute('data-id'), n).then(function () {
         toast('Capacity updated. Households see ' + n + ' slots a week when they book.');
         refresh();
-      }, function (err) { failed(err); signedOut(err); });
+      }, function (err) { failed(err); authFailed(err); });
     });
 
     /* The gate. Three checks, and the button sends the two this page collects;
@@ -5732,7 +5810,7 @@
       }, function (err) {
         W.busy(el, false);
         failed(err);
-        signedOut(err);
+        authFailed(err);
         /* A refusal here is almost always the billing row: re-read, so the gate
            redraws against what the server actually holds. */
         refresh();
@@ -5787,7 +5865,7 @@
     }, function (err) {
       W.busy(el, false);
       failed(err);
-      signedOut(err);
+      authFailed(err);
     });
   }
 
@@ -5936,7 +6014,7 @@
   var __ns6 = __require("core/toast.js");
   var toast = __ns6.toast, failed = __ns6.failed;
   var __ns7 = __require("core/session.js");
-  var bounce = __ns7.bounce;
+  var authFailed = __ns7.authFailed;
   var __ns8 = __require("components/emptystate.js");
   var goTo = __ns8.goTo;
 
@@ -6133,20 +6211,6 @@
    * ------------------------------------------------------------------ */
 
 
-  /* A 403 is not a signed-out session, and this page must not treat it as one.
-   *
-   * core/session.js authFailed() bounces on 401 AND 403, which is right for a
-   * read only a signed-in partner can make at all. It is wrong for this one:
-   * these routes sit behind requireApproved, so an org still under review, or an
-   * account with no org membership, answers 403 on every boot, and bouncing on
-   * that signs the partner straight back out of the console they just signed
-   * into. Only a 401 means the session is gone.
-   */
-  function signedOut(err) {
-    if (err && err.status === 401) bounce();
-    return !!(err && err.status === 401);
-  }
-
   /**
    * The method on file, and nothing else.
    *
@@ -6165,7 +6229,7 @@
       var base = (B && B !== 'loading') ? B : { statements: [], cycle: {}, live: true, partial: true };
       set('billing', Object.assign({}, base, { method: (r && r.method) || null }));
     }, function (err) {
-      signedOut(err);
+      authFailed(err);
     });
   }
 
@@ -6179,7 +6243,7 @@
         live: !!r && r.live !== false
       });
     }, function (err) {
-      signedOut(err);
+      authFailed(err);
       /* 403 before approval is not a failure to report: there is nothing to bill
          and the empty state already says so. */
       set('billing', err && err.status === 403 ? null : { statements: [], cycle: {}, method: null, live: false });
@@ -6218,7 +6282,7 @@
       }, function (err) {
         W.busy(el, false);
         failed(err);
-        signedOut(err);
+        authFailed(err);
       });
     });
 
@@ -6234,14 +6298,14 @@
       }, function (err) {
         W.busy(el, false);
         failed(err);
-        signedOut(err);
+        authFailed(err);
       });
     });
 
     on('click', 'bill:lines', function (el) {
       var id = el.getAttribute('data-id');
       api.statement(id).then(function (r) { openModal(linesModal(r)); },
-        function (err) { failed(err); signedOut(err); });
+        function (err) { failed(err); authFailed(err); });
     });
 
     on('click', 'bill:dispute', function (el) { openModal(disputeModal(el.getAttribute('data-id'))); });
@@ -6262,7 +6326,7 @@
       }, function (err) {
         W.busy(el, false);
         failed(err);
-        signedOut(err);
+        authFailed(err);
       });
     });
   }

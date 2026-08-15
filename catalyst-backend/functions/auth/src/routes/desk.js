@@ -654,10 +654,23 @@ function mount(router) {
    * Update a region's services, or declare a new region. A declaration lands
    * as 'verifying': serviceability is confirmed by an operator, not asserted
    * by the party it advantages. Editing an existing region keeps its status.
+   *
+   * requirePartner and NOT requireApproved, for the same reason billing takes
+   * a card and contracts takes the standard terms before approval: declaring
+   * coverage is the FIRST step of the application, not a privilege of having
+   * finished it. The console's own checklist counts it as step one and the
+   * review card tells an applicant serviceability starts the moment their
+   * coverage lands, so gating the write here refused the one act the screen
+   * was asking for, with a 403 the browser reported as a failed load.
+   *
+   * Nothing leaks by allowing it. A declaration lands 'verifying' whoever
+   * makes it, only an operator moves a region to 'active', and a cohort
+   * reaches a desk only through an active region on an approved org. An
+   * unapproved partner is declaring where they would serve, which is exactly
+   * what the reviewer needs in order to decide.
    */
   router.post('/provider/coverage', wrap(async (req, res) => {
     const { user, context } = await requirePartner(req);
-    requireApproved(context);
 
     const body = req.body || {};
     const region = str(body.region, 100);

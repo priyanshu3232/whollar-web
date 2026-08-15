@@ -494,6 +494,23 @@
     brief: brief(campaign('kw', 'Scarborough East', 'decided', { bidding_open: false, decision_at: at(-1) }), bidIn('not_selected'))
   };
 
+  /* Decided, and we never bid on it. The state the v12 prototype had no panel
+     for: its ticketHTML selected on `st>=4 && mine`, then `st===3`, then
+     `mine`, and fell through to the bid form, so this cohort used to open a
+     seven-column pricing table for an auction that ended yesterday. There is
+     no `bids` key here on purpose, and that absence IS the fixture. */
+  S.nobid = {
+    label: 'Decided, and we did not bid',
+    view: 'desk',
+    me: APPROVED_ME, application: APPROVED_APP,
+    coverage: coverage(COV_ACTIVE),
+    campaigns: {
+      ok: true, serverTime: NOW, live: true,
+      campaigns: [campaign('kw', 'Scarborough East', 'decided', { bidding_closes_at: at(-3), bidding_open: false, decision_at: at(-1) })]
+    },
+    brief: brief(campaign('kw', 'Scarborough East', 'decided', { bidding_closes_at: at(-3), bidding_open: false, decision_at: at(-1) }), null)
+  };
+
   var DELIVERY_ROWS = roster(41, { act: 9, rel: 1, bkd: 14, noshow: 1, access: 1, linefail: 1 });
   S.delivery = {
     label: 'Delivery window, exceptions live',
@@ -604,7 +621,17 @@
     campaignBrief: 'brief',
     bids: 'bids', bid: 'bids',
     bidPlace: 'bidResult', bidImprove: 'bidResult', bidVersions: 'bidVersions',
-    roster: 'roster', orders: 'roster',
+    /* Two shapes, two keys, and they are NOT interchangeable. GET
+       /provider/campaigns/:id/roster answers one cohort, `{ gate, counts,
+       orders }`; GET /provider/orders answers every cohort the org holds,
+       wrapped as `{ cohorts: [...] }`. Both pointed at 'roster' here, so
+       api.orders() handed the delivery board a payload with no `cohorts` key,
+       load() read `r.cohorts || []`, and ?fixture=delivery rendered the empty
+       "your first delivery board builds itself" state. The sweep in group 11
+       only asserts a fixture paints something, so it stayed green for a
+       fixture labelled "Delivery window, exceptions live" that showed no
+       delivery window at all. ordersList is derived in install(). */
+    roster: 'roster', orders: 'ordersList',
     statement: 'statement', statements: 'statement', billingCycle: 'statement',
     performance: 'performance', ratings: 'performance',
     billingStatus: 'billingStatus',
@@ -626,6 +653,38 @@
     if (!f.contracts) f.contracts = contracts(f);
     if (!f.termsAccepted) {
       f.termsAccepted = { ok: true, serverTime: NOW, terms: contracts(f).terms };
+    }
+    /* The board's envelope, derived from the single-cohort roster a fixture
+       already declares, so a state describes its roster once. `orders` is
+       carried only when the gate passed, ABSENT and not empty otherwise:
+       that absence is what the picker and the ticket both read as "still
+       gated", and an empty array would read as a released roster of nobody. */
+    if (f.roster && !f.ordersList) {
+      var rc = (f.campaigns && f.campaigns.campaigns && f.campaigns.campaigns[0]) || null;
+      var rg = f.roster.gate || {};
+      /* The two routes name the same three checks differently: the per-cohort
+         roster route sends `checks.billingReady`, awards.publicAward sends
+         `gate.billing`. The board reads the second, so translate rather than
+         pass through, or every gate row renders unmet. */
+      var chk = rg.checks || {};
+      var passed = !!rg.passed;
+      var capOk = passed || !!chk.capacity;
+      var cohort = {
+        campaignId: rc ? rc.id : 'kw',
+        counts: f.roster.counts,
+        award: {
+          campaignId: rc ? rc.id : 'kw',
+          capacityWeekly: capOk ? 12 : 0,
+          gate: {
+            billing: passed || !!chk.billingReady,
+            capacity: capOk,
+            consent: passed || !!chk.consent,
+            releasedAt: passed ? NOW - 2 * H : null
+          }
+        }
+      };
+      if (passed) cohort.orders = f.roster.orders;
+      f.ordersList = { ok: true, serverTime: NOW, live: true, cohorts: [cohort] };
     }
     var live = {
       prefs: { ok: true, prefs: { notify: {} } },

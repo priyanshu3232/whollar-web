@@ -136,9 +136,46 @@ function draftFromBid(a, m) {
  * ------------------------------------------------------------------ */
 
 /**
- * The ticket panel for one cohort. Four states, in the prototype's order:
- * result (decided with a bid), closed (offers out), the sealed receipt, and
- * the form.
+ * Whether this cohort's roster has already released to the org.
+ *
+ * Three-valued on purpose: true, false, and null for "the delivery board has
+ * not been read yet". The board is NOT loaded on boot, because every read of
+ * a released roster writes an audit row (app.js loadAll explains it), so on a
+ * partner who has not opened Delivery this is genuinely unknown and the won
+ * panel must not assert either way.
+ */
+function rosterReleased(S, campaignId) {
+  var D = S.delivery;
+  if (!D || D === 'loading' || !D.cohorts) return null;
+  var found = null;
+  D.cohorts.forEach(function (c) { if (c.campaignId === campaignId) found = c; });
+  return found ? !!found.orders : null;
+}
+
+/**
+ * The ticket panel for one cohort. Six states, the prototype's four plus the
+ * two it did not have:
+ *
+ *   result, won         decided with a winning bid, itself two panels
+ *   result, not selected
+ *   closed              offers out
+ *   over, no bid        decided with no bid of ours   <- NOT in the prototype
+ *   sealed receipt
+ *   the form
+ *
+ * THE FIFTH IS A PORT FIX, NOT AN ADDITION. The prototype selected on
+ * `st>=4 && mine`, then `st===3`, then `mine`, then fell through to the bid
+ * form (v12 line 2578). A partner who did not bid on a cohort that has since
+ * decided therefore met a full seven-column pricing form, consent checkbox and
+ * all, for an auction that ended days ago. The button read "Bidding closed"
+ * and was disabled, so nothing could be written, but the screen was still the
+ * wrong screen and the desk's View control reaches it: bidAction() offers View
+ * on a decided row whether or not there is a bid behind it.
+ *
+ * THE WON PANEL IS TWO PANELS, and the port had collapsed them into one. The
+ * prototype branched on P.gate[a.id]: a roster still gated says complete the
+ * setup, a roster already released says go and schedule it. One copy for both
+ * told a partner who had finished the gate to go and finish the gate.
  */
 export function ticketHTML(a, data, mine) {
   var S = get();
@@ -160,20 +197,53 @@ export function ticketHTML(a, data, mine) {
         + (fee ? ' and, at your fee, up to ' + money(String(conf * Number(fee))) + ' in success fees, billed per completed switch only' : '')
         + '.'
       : 'Household confirmations route to your delivery board.';
+
+    /* The next step, from what is actually known. A released roster is past
+       the gate; a card on file means only capacity is left, and that half is
+       known on every boot because loadMethod() runs there. Unknown release
+       state falls to the capacity wording, which is true in both remaining
+       cases and never tells a partner to add a card they already added. */
+    var released = rosterReleased(S, a.id);
+    var onFile = !!(S.billing && S.billing !== 'loading' && S.billing.method && S.billing.method.onFile);
+    var next = released === true
+      ? ' Roster released: schedule and activate it from the delivery board, and activations bill themselves.'
+      : (onFile
+        ? ' Confirm your install capacity and the roster releases to you.'
+        : ' Complete billing setup and confirm capacity, and the roster releases to you.');
+
     return '<div class="tkt"><div class="dh">Result</div><div class="receipt">'
-      + '<b>Won.</b> ' + wonLine
-      + ' Complete billing setup and confirm capacity, and the roster releases to you.</div>'
+      + '<b>Won.</b> ' + wonLine + next + '</div>'
       + '<button class="btn" type="button" data-action="nav" data-view="delivery" style="margin-top:12px">Open the delivery board</button></div>';
   }
 
-  /* Bids closed, offers with households. */
+  /* Bids closed, offers with households.
+   *
+   * The confirmed clause is gated on `mine` and not only on the field being
+   * present. Nothing populates a.confirmed today, so this reads the same
+   * either way, but a confirmation count on a cohort another partner won is
+   * that partner's count, and CLAUDE.md's rule has no exception for a figure
+   * that arrived by accident. The guard belongs here, before the field does. */
   if (a.stage === 'offers_out') {
     return '<div class="tkt"><div class="dh">Bids closed</div><div class="receipt">'
-      + (mine ? '<b>Your bid is in:</b> ' + bidLine(mine) + (mine.reference ? ' · Receipt ' + esc(mine.reference) : '') + '. ' : '')
+      + (mine
+        ? '<b>Your bid is in:</b> ' + bidLine(mine) + (mine.reference ? ' · Receipt ' + esc(mine.reference) : '') + '. '
+        : '<b>You did not bid on this cohort.</b> ')
       + 'Offers are out to every household, individually. '
-      + (a.confirmed != null ? 'Confirmed so far: <b>' + a.confirmed + ' of ' + esc(String(a.households)) + '</b>. ' : '')
+      + (mine && a.confirmed != null ? 'Confirmed so far: <b>' + a.confirmed + ' of ' + esc(String(a.households)) + '</b>. ' : '')
       + (d.decision_at ? 'Decisions lock ' + fmtDate(d.decision_at) + '; there' : 'There')
       + ' is nothing for you to do, and no way to see other bids.</div></div>';
+  }
+
+  /* Decided, and none of it was ours. The state the prototype dropped into a
+     bid form. Says the one true thing and offers the one useful thing, which
+     is the alert that stops it happening again. */
+  if (a.stage === 'decided') {
+    return '<div class="tkt"><div class="dh">Closed</div><div class="receipt">'
+      + '<b>You did not bid on this cohort.</b> Bidding closed'
+      + (d.bidding_closes_at ? ' ' + fmtDate(d.bidding_closes_at) : '')
+      + ' and the cohort is decided. Nothing is owed and nothing is pending on your side. '
+      + 'Cohorts keep forming in the regions you have declared, and you can be emailed the day one opens.</div>'
+      + '<button class="btn ghost" type="button" data-action="nav" data-view="account" style="margin-top:12px">Check your alerts</button></div>';
   }
 
   /* The sealed receipt, unless the improve form is open. */
