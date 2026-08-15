@@ -10,7 +10,7 @@
  * 556 with no provider, 555 Satellite rows in cities that also have
  * terrestrial service. 493 cities and 13 provinces emitted.
  * 1119 of 1652 FSAs (67.7%) resolve to a city; the rest use the province
- * number. Built 2026-07-29.
+ * number. Source "Whollar Pricing Model.xlsx" sha256:131a26e58685.
  *
  * These are ADVERTISED reseller prices, not offers Whollar can make. The card
  * that renders them says so.
@@ -30,5 +30,5 @@
   /* Province fallback, same shape, same rules. */
   Q.ESTIMATE_BY_PROVINCE = {"AB":{"p":57,"eff":57,"mb":100,"who":"oxio"},"BC":{"p":57,"eff":57,"mb":100,"who":"oxio"},"MB":{"p":57,"eff":57,"mb":100,"who":"oxio"},"NB":{"p":75,"eff":75,"mb":150,"who":"Bell"},"NL":{"p":75,"eff":75,"mb":150,"who":"Bell"},"NS":{"p":51,"eff":51,"mb":100,"who":"Internet Atlantic"},"NT":{"p":85,"eff":85.79,"mb":100,"who":"Starlink"},"NU":{"p":85,"eff":85.79,"mb":100,"who":"Starlink"},"ON":{"p":40,"eff":40,"mb":100,"who":"oxio"},"PE":{"p":85,"eff":85,"mb":500,"who":"Bell"},"QC":{"p":35,"eff":35,"mb":100,"who":"oxio"},"SK":{"p":57,"eff":57,"mb":100,"who":"oxio"},"YT":{"p":85,"eff":85.79,"mb":100,"who":"Starlink"}};
 
-  Q.ESTIMATE_BENCH_META = {"built":"2026-07-29","source":"Whollar Pricing Model.xlsx / Internet Pricing","minMbps":100,"upfrontMonths":24,"rowsIn":6803,"droppedPrepaid":144,"droppedNoProvider":556,"droppedSatellite":555,"rowsScored":5548,"cities":493,"provinces":13,"fsaTotal":1652,"fsaResolved":1119};
+  Q.ESTIMATE_BENCH_META = {"sourceHash":"131a26e58685","source":"Whollar Pricing Model.xlsx / Internet Pricing","minMbps":100,"upfrontMonths":24,"rowsIn":6803,"droppedPrepaid":144,"droppedNoProvider":556,"droppedSatellite":555,"rowsScored":5548,"cities":493,"provinces":13,"fsaTotal":1652,"fsaResolved":1119};
 })(typeof window !== 'undefined' ? window : globalThis);
