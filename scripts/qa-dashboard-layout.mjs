@@ -44,18 +44,28 @@ const ok = (c, label) => { c ? (pass++, console.log(`  ok    ${label}`)) : (fail
    ever shrinks below its threshold, delete its entry. */
 const note = (label) => { notes.push(label); console.log(`  note  ${label}`); };
 
-/* THE TWO STATED EXCEPTIONS.
+/* THE ONE STATED EXCEPTION.
    "Your campaign" is a composite: the seven-stop journey rail, the stage
    panel, five date tiles and the activity feed, in one card. It runs 780 to
    1180px depending on stage. Nothing about the grid changes that, and the
    only thing that would is deleting content, which this pass is fenced off
    from. It is the main column's whole first screen by design.
-   The visitor lane's main sequence is one or two cards against a two-card
-   rail, so an 8/4 split leaves the rail hanging below the main column. That
-   is a shape problem in the visitor lane's content, not a track problem: the
-   tracks, gutters and edges all hold in those states. */
+
+   The visitor lane USED to be the second exception, on the grounds that one
+   short main card against a two-card rail is a content shape rather than a
+   track fault. That was true and it was still the biggest hole on the page:
+   435px on `result`, 468px on `waitlist`. It was fixed by changing the shape,
+   not the tracks: Worth a read turned on its side as a span 12 row, and
+   arrive's "How this works" moved to the rail. Both visitor states now sit
+   under 30px. The exception is gone with the fault.
+
+   VOID_CAP is 260 rather than 500 because the member lane is what is left:
+   a rail fixed at ~1405px against a main stack that runs 1182 (locked) to
+   1612 (confirm), so it over- and under-shoots by ~220px at the two ends and
+   no static ordering fixes both. 260 is just above that spread, which makes
+   this a regression guard rather than the loose ceiling it was. */
 const TALL_OK = /Your campaign/i;
-const VOID_CAP = 500;
+const VOID_CAP = 260;
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
 
 const ours = (m) => { const u = (m.location && m.location().url) || ''; return !u || u.startsWith(BASE); };
@@ -315,19 +325,45 @@ console.log('\n=== the shell change, checked against the other views ===');
   await p.waitForTimeout(800);
   /* Profile has no rail button: it is reached from the avatar, like a member
      reaches it. Knowledge lays out .ktile rather than .card. */
+  const tracks = [];
+  /* Home's own tracks, read first, as the number every other tab is held to. */
+  await goState(p, 'forming');
+  {
+    const m = await measure(p);
+    tracks.push({ v: 'dashboard', main: m.mcol, rail: m.rail });
+  }
   for (const v of ['bills', 'knowledge', 'history', 'profile', 'contact']) {
     await p.evaluate(view => {
       const b = document.querySelector(`#pnav button[data-view="${view}"]`) || document.querySelector('.ava');
       b.click();
     }, v);
     await p.waitForTimeout(240);
-    const m = await p.evaluate(() => ({
-      sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth,
-      view: (document.querySelector('.view.on') || {}).dataset?.v,
-      blocks: document.querySelectorAll('.view.on .card, .view.on .ktile').length,
-    }));
+    const m = await p.evaluate(() => {
+      const R = el => { if (!el) return null; const b = el.getBoundingClientRect(); return { x: Math.round(b.left), r: Math.round(b.right) }; };
+      const view = document.querySelector('.view.on');
+      return {
+        sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth,
+        view: view.dataset.v,
+        blocks: view.querySelectorAll('.card, .ktile').length,
+        main: R(view.querySelector('.is-main')), rail: R(view.querySelector('.is-rail')),
+      };
+    });
     ok(m.view === v && m.sw <= m.cw && m.blocks > 0, `${v}: renders (${m.blocks} blocks), no horizontal scroll`);
+    if (m.main && m.rail) tracks.push({ v, main: m.main, rail: m.rail });
   }
+  /* 11: ONE SET OF TRACKS ACROSS THE WHOLE SHELL.
+     Bills and Profile used to declare `1.62fr 1fr` at a 20px gap against
+     Home's twelve tracks at 24, which put the main/rail boundary 58px apart
+     between tabs. Nothing looked broken on any single tab; it only showed on
+     the way between them, as every card edge stepping sideways under a nav
+     click. This asserts the thing a screenshot of one tab cannot: that the
+     four edges are the SAME four numbers whichever tab is open. */
+  const base = tracks[0];
+  const drift = tracks.slice(1).filter(t =>
+    !near(t.main.x, base.main.x, 1) || !near(t.main.r, base.main.r, 1) ||
+    !near(t.rail.x, base.rail.x, 1) || !near(t.rail.r, base.rail.r, 1));
+  ok(drift.length === 0, `every tab shares Home's tracks (${base.main.x}..${base.main.r} | ${base.rail.x}..${base.rail.r})`
+    + (drift.length ? ' :: ' + drift.map(t => `${t.v} ${t.main.x}..${t.main.r} | ${t.rail.x}..${t.rail.r}`).join(' | ') : ''));
   await c.close();
 }
 
