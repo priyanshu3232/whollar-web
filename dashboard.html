@@ -175,7 +175,10 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .ckv{display:grid;grid-template-columns:1fr minmax(270px,.8fr);gap:clamp(18px,3vw,34px);align-items:stretch}
 .ckv[hidden]{display:none}
 .ckv__left{min-width:0}
-.ckv__head{font-size:clamp(21px,2.9vw,31px);font-weight:900;line-height:1.13;letter-spacing:-.02em;color:#fff;margin-bottom:0;max-width:20ch}
+/* No max-width: the headline is a single line at the widths this band is read
+   at, and wrapping "a fortune." onto its own line broke the sentence in the
+   middle of its point. It still wraps below 900px, where one line cannot fit. */
+.ckv__head{font-size:clamp(20px,2.6vw,30px);font-weight:900;line-height:1.13;letter-spacing:-.02em;color:#fff;margin-bottom:0}
 /* The argument, as points. One claim per line is the whole reason this card
    was re-cut: the paragraph it replaced buried the "already cost you" figure
    in the middle of a sentence. */
@@ -198,29 +201,28 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 /* Read as written, not upper-cased: these are a provider's name, a rate and a
    speed off the member's own bill, and "500 MBPS" is not how any of them is
    spelled on it. */
-.ckv__eyebrow b{font-family:var(--mono);font-weight:400;font-size:11px;letter-spacing:.04em;color:rgba(255,255,255,.66);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);border-radius:999px;padding:4px 11px}
-.ckv__note{font-size:12.5px;color:rgba(255,255,255,.5);margin-top:13px;line-height:1.5;max-width:62ch}
-.ckv__note[hidden]{display:none}
-.ckv__note a{color:var(--glow)}
-/* The right half, halved again: what leaves the account every month, and what
-   the same twelve months could hold on to. */
+/* Read as written, and lit rather than muted: the rate chip is now the ONLY
+   place the current price appears, so this row carries a figure instead of
+   just labelling the file. */
+.ckv__eyebrow b{font-family:var(--mono);font-weight:400;font-size:11.5px;letter-spacing:.04em;color:#fff;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.26);border-radius:999px;padding:5px 12px}
+/* One tile, so the right column is a single panel that takes the row's height
+   rather than a pair splitting it. */
 .ckv__right{display:flex;flex-direction:column;gap:12px;min-width:0}
 .ckv__pill{align-self:flex-end;display:inline-flex;align-items:center;gap:6px;background:rgba(194,100,59,.22);border:1px solid #E8A07A;color:#FFC7A8;border-radius:999px;padding:5px 12px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
 .ckv__pill[hidden]{display:none}
 .ckv__pill i{width:6px;height:6px;border-radius:50%;background:#FFB894;font-style:normal;animation:ckpulse 1.8s ease-in-out infinite}
 @keyframes ckpulse{0%,100%{opacity:1}50%{opacity:.3}}
 @media (prefers-reduced-motion:reduce){.ckv__pill i{animation:none}}
-/* flex:1 1 0, not flex:1: the two panels are halves of the right segment, so
-   they have to ignore how much copy each happens to carry. */
-.ckstat{position:relative;flex:1 1 0;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.13);border-radius:16px;padding:15px 17px;display:flex;flex-direction:column;justify-content:center;min-width:0}
-.ckstat__ic{position:absolute;top:13px;right:15px;width:33px;height:33px;border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.07)}
-.ckstat__ic svg{width:17px;height:17px;fill:none;stroke:rgba(255,255,255,.62);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-.ckstat__k{font-family:var(--mono);font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:rgba(255,255,255,.58);line-height:1.4;padding-right:42px}
-.ckstat__v{font-family:var(--disp);font-weight:900;letter-spacing:-.03em;font-size:clamp(25px,2.9vw,32px);line-height:1.05;margin-top:7px;color:#fff}
+/* Icon leading on the left, at a size that can carry the panel on its own now
+   that it is not one of a pair. */
+.ckstat{position:relative;flex:1 1 auto;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.13);border-radius:16px;padding:clamp(18px,2.2vw,26px);display:flex;flex-direction:row;align-items:center;gap:clamp(16px,1.8vw,22px);min-width:0}
+.ckstat__ic{flex:none;width:clamp(56px,6vw,72px);height:clamp(56px,6vw,72px);border-radius:18px;display:grid;place-items:center;background:rgba(255,184,148,.14)}
+.ckstat__ic svg{width:52%;height:52%;fill:none;stroke:rgba(255,255,255,.72);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.ckstat__body{min-width:0;display:flex;flex-direction:column}
+.ckstat__k{font-family:var(--mono);font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:rgba(255,255,255,.58);line-height:1.4}
+.ckstat__v{font-family:var(--disp);font-weight:900;letter-spacing:-.03em;font-size:clamp(34px,4.4vw,48px);line-height:1.05;margin-top:7px;color:#fff}
 .ckstat__v em{font-style:normal;font-size:.46em;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:0}
-.ckstat__s{font-size:12px;color:rgba(255,255,255,.55);margin-top:7px;line-height:1.45}
-.ckstat--hero .ckstat__v{font-size:clamp(31px,4vw,42px)}
-.ckstat--hero .ckstat__ic{background:rgba(255,184,148,.14)}
+.ckstat__s{font-size:12.5px;color:rgba(255,255,255,.55);margin-top:8px;line-height:1.45}
 .cliff.tone-high .ckstat--hero .ckstat__v{color:#FFB894}
 .cliff.tone-moderate .ckstat--hero .ckstat__v{color:#F0DBA0}
 .cliff.tone-fair .ckstat--hero .ckstat__v,.cliff.tone-no-benchmark .ckstat--hero .ckstat__v{color:var(--glow)}
@@ -1025,23 +1027,24 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               <!-- The member's own file, read back to them. Never a sample
                    household's: every chip here is a field off their bill. -->
               <p class="ckv__eyebrow" id="ckv-eyebrow" hidden></p>
-              <p class="ckv__note" id="ckv-note" hidden></p>
             </div>
             <div class="ckv__right">
               <span class="ckv__pill" id="ckv-pill" hidden><i></i>Promo cliff ahead</span>
-              <div class="ckstat">
-                <span class="ckstat__ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5A2.5 2.5 0 0 1 5.5 6H19a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5.5A2.5 2.5 0 0 1 3 16.5v-8Z"/><path d="M3 8.5A2.5 2.5 0 0 1 5.5 6H17"/><circle cx="16.5" cy="12.5" r="1.2"/></svg></span>
-                <span class="ckstat__k" id="ckv-nowk">You pay now</span>
-                <span class="ckstat__v" id="ckv-now">&ndash;</span>
-              </div>
+              <!-- ONE tile, not two. What they pay now is already the second
+                   chip in the eyebrow row, and on this page the two can never
+                   disagree: the bill record holds no post promo sticker price,
+                   so the engine's `now` is the monthly off the same field the
+                   chip reads. A second tile was the card saying it twice. -->
               <div class="ckstat ckstat--hero">
                 <!-- Coins, not an arrow. Three of the four verdicts put savings
                      in this slot and one puts a twelve month total, and an
                      arrow would be pointing the wrong way for that one. -->
                 <span class="ckstat__ic"><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6.5" rx="7" ry="3"/><path d="M5 6.5v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/><path d="M5 11.5v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/></svg></span>
-                <span class="ckstat__k" id="ckv-herok">You could save up to</span>
-                <span class="ckstat__v" id="ckv-hero">&ndash;</span>
-                <span class="ckstat__s" id="ckv-sub"></span>
+                <span class="ckstat__body">
+                  <span class="ckstat__k" id="ckv-herok">You could save up to</span>
+                  <span class="ckstat__v" id="ckv-hero">&ndash;</span>
+                  <span class="ckstat__s" id="ckv-sub"></span>
+                </span>
               </div>
             </div>
           </div>
@@ -2050,14 +2053,11 @@ function checkupInput(){
     startDate:isoDay(b.contractStart,true),promoEnd:isoDay(b.promoEnd,false)};
 }
 function fmt0(n){return '$'+Math.round(Math.abs(n)).toLocaleString('en-CA')}
-/* Word for word the note /bill-checkup shows behind its (i). The band has the
-   room to say it in the open, which matters more here: nobody chose to be on
-   this screen, so an unexplained figure would be read as a promise. */
-var ASSUME_NOTE={
-  'midpoint-estimate':'We estimated the timing. With no promo end date on file we assumed the increase lands halfway through the year. Add the date and this number sharpens.',
-  'current-only':'We assumed no increase. With no promo end date and no post promo price on file we held your current rate for the whole year. If a jump is coming, the real figure is larger.',
-  'dated-no-sticker':'We assumed no increase. Without your post promo price we held your current rate rather than guess at the jump. If a jump is coming, the real figure is larger.'
-};
+/* The assumption note that used to sit under the figures is gone by request.
+   /bill-checkup still carries the same three notes behind its (i), so the
+   disclosure has a home; it is no longer made on this band. Worth knowing
+   what that costs: this page holds no post promo sticker price, so the
+   savings figure is a floor and nothing on the card now says so. */
 /* ---------- repaint only what actually changed ----------
    Neither paintCliff() nor render() is a first-paint function. Both run again
    on every campaign poll (120s, or 15s on a short calendar), on every return to
@@ -2126,12 +2126,7 @@ function checkupVerdict(){
   var E=window.WhollarSavings,input=checkupInput();
   if(!E||!input)return null;
   var r=E.computeCheckup(input);
-  var term=r.months,v={assume:null,tone:r.tone};
-  for(var i=0;i<r.assumptions.length;i++){
-    if(ASSUME_NOTE[r.assumptions[i]]){v.assume=ASSUME_NOTE[r.assumptions[i]];break}
-  }
-  v.now=r.now.amount?fmt0(r.now.amount)+'<em>/mo</em>':'&ndash;';
-  v.nowLabel=r.now.postPromo?'You pay now, post promo':'You pay now';
+  var term=r.months,v={tone:r.tone};
   v.cliff=verdictCliff(r.now.amount);
   v.cliffSoon=cliffWithin(6);
   v.chips=verdictChips();
@@ -2169,8 +2164,7 @@ function checkupVerdict(){
     v.heroLabel='You could save up to';
     v.hero=fmt0(over);v.sub=span;
     v.points=[esc('You never signed up for this price.'),
-              paid?cost:esc('It arrived when a promotion ended, and every month since has carried it.'),
-              esc('Prices do not fall because a household deserves it. They fall when someone has to win the household.')];
+              paid?cost:esc('It arrived when a promotion ended, and every month since has carried it.')];
   }
   return v;
 }
@@ -2207,17 +2201,9 @@ function paintVerdict(){
   $('#ckv-pill').hidden=!v.cliffSoon;
   ckv.classList.toggle('has-pill',!!v.cliffSoon);
 
-  $('#ckv-nowk').textContent=v.nowLabel;
-  $('#ckv-now').innerHTML=v.now;
   $('#ckv-herok').textContent=v.heroLabel;
   $('#ckv-hero').textContent=v.hero;
   $('#ckv-sub').textContent=v.sub;
-
-  var note=$('#ckv-note');
-  if(v.assume){
-    note.innerHTML=esc(v.assume)+' <a href="/bill-checkup?from=dashboard">Run the full checkup &rarr;</a>';
-    note.hidden=false;
-  }else{note.innerHTML='';note.hidden=true}
   return v;
 }
 
