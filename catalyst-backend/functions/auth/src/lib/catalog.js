@@ -60,14 +60,27 @@ const TRANSITIONS = Object.freeze({
   archived: ['closed'],
 });
 
-/** The pre-table catalog, verbatim from routes/campaigns.js. The fallback. */
+/**
+ * The pre-table catalog. The fallback, and what `import-defaults` seeds.
+ *
+ * EVERY REGION HERE IS A DECLARABLE ONE. It was six southwestern Ontario names
+ * (London East, Windsor, Kingston West) written before the launch footprint
+ * was the GTA six, and four of them were not in lib/places.js at all. That is
+ * not a cosmetic mismatch: requireActiveCoverage() matches a bid to coverage on
+ * the region slug exactly, so a cohort named for a place no partner can pick is
+ * a cohort no partner can bid on. Seeding those through import-defaults would
+ * have created six of them in one click.
+ *
+ * scripts/test-places.mjs holds this list to the vocabulary now, so the next
+ * name that drifts out of it turns CI red rather than turning a market quiet.
+ */
 const CODE_CATALOG = Object.freeze([
-  { id: 'kingston-west',     region: 'Kingston West',     sub: 'Autumn cohort', kind: 'auction',  target: null, seedMembers: 64, seedHouseholds: 64,  biddingOpen: true,  sortOrder: 1 },
-  { id: 'london-east',       region: 'London East',       sub: 'Autumn cohort', kind: 'forming',  target: 100,  seedMembers: 61, seedHouseholds: 112, biddingOpen: false, sortOrder: 2 },
-  { id: 'london-north',      region: 'London North',      sub: 'Winter cohort', kind: 'planned',  target: 100,  seedMembers: 61, seedHouseholds: 100, biddingOpen: false, sortOrder: 3 },
-  { id: 'chatham-kent',      region: 'Chatham-Kent',      sub: 'First cohort',  kind: 'waitlist', target: 100,  seedMembers: 37, seedHouseholds: 100, biddingOpen: false, sortOrder: 4 },
-  { id: 'windsor-core',      region: 'Windsor',           sub: 'Winter cohort', kind: 'waitlist', target: 100,  seedMembers: 52, seedHouseholds: 87,  biddingOpen: false, sortOrder: 5 },
-  { id: 'hamilton-mountain', region: 'Hamilton Mountain', sub: 'Winter cohort', kind: 'auction',  target: null, seedMembers: 58, seedHouseholds: 58,  biddingOpen: true,  sortOrder: 6 },
+  { id: 'scarborough-southwest',    region: 'Scarborough Southwest',    sub: 'Autumn cohort', kind: 'auction',  target: null, seedMembers: 64, seedHouseholds: 64,  biddingOpen: true,  sortOrder: 1 },
+  { id: 'north-york-central',       region: 'North York Central',       sub: 'Autumn cohort', kind: 'forming',  target: 100,  seedMembers: 61, seedHouseholds: 112, biddingOpen: false, sortOrder: 2 },
+  { id: 'etobicoke-centre',         region: 'Etobicoke Centre',         sub: 'Winter cohort', kind: 'planned',  target: 100,  seedMembers: 61, seedHouseholds: 100, biddingOpen: false, sortOrder: 3 },
+  { id: 'mississauga-city-centre',  region: 'Mississauga City Centre',  sub: 'First cohort',  kind: 'waitlist', target: 100,  seedMembers: 37, seedHouseholds: 100, biddingOpen: false, sortOrder: 4 },
+  { id: 'brampton-east',            region: 'Brampton East',            sub: 'Winter cohort', kind: 'waitlist', target: 100,  seedMembers: 52, seedHouseholds: 87,  biddingOpen: false, sortOrder: 5 },
+  { id: 'vaughan-woodbridge',       region: 'Vaughan Woodbridge',       sub: 'Winter cohort', kind: 'auction',  target: null, seedMembers: 58, seedHouseholds: 58,  biddingOpen: true,  sortOrder: 6 },
 ]);
 
 /** Catalyst booleans come back in several spellings; read them all. */

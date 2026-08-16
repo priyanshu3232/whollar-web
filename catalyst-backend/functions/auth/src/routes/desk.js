@@ -42,6 +42,7 @@ const envelope = require('../lib/envelope');
 const bids = require('../lib/bids');
 const awards = require('../lib/awards');
 const terms = require('../lib/terms');
+const places = require('../lib/places');
 const { requireBiddingOpen, allRows, tally, publicPartnerCampaign } = require('./campaigns');
 const { requirePartner: guardPartner, requireApproved } = require('../lib/guards');
 const { wrap, badRequest, forbidden, AppError } = require('../lib/errors');
@@ -673,8 +674,31 @@ function mount(router) {
     const { user, context } = await requirePartner(req);
 
     const body = req.body || {};
-    const region = str(body.region, 100);
-    if (!region) throw badRequest('Name the region.');
+    const raw = str(body.region, 100);
+    if (!raw) throw badRequest('Name the region.');
+    /**
+     * The picker constrains this in the browser; the server has to constrain it
+     * too, because the browser is not the only caller and free text here is the
+     * bug the picker was built to end. A region nobody else spells the same way
+     * is a region no cohort ever matches: requireActiveCoverage() above compares
+     * slug(row.region) to slug(campaign.region) exactly.
+     *
+     * KNOWN, not launched. A partner may declare into a queued city; an
+     * operator leaves that row 'soon' rather than verifying it. What must not
+     * happen is a row naming a place that is in no list at all.
+     */
+    if (!places.isRegion(raw)) {
+      const near = places.suggest(raw);
+      throw badRequest(
+        `We do not have a region called "${raw}", so no cohort could ever match it.`
+        + (near.length ? ` Did you mean ${near.join(', ')}?` : '')
+        + ' Pick the region from the list rather than typing it.',
+        { logDetail: `coverage region outside vocabulary: ${raw}` }
+      );
+    }
+    /* Stored canonically, so two seats declaring the same place in different
+       casing are one coverage row and not two. */
+    const region = places.canonical(raw);
     const regionSlug = slug(region);
     if (!regionSlug) throw badRequest('Name the region.');
 

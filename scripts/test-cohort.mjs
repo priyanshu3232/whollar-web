@@ -34,7 +34,7 @@ function run(...args) {
 }
 
 test('new emits an INSERT carrying every column catalog.js reads', () => {
-  const { out, code } = run('new', 'kitchener-central', '--region', 'Kitchener', '--sub', 'Autumn cohort');
+  const { out, code } = run('new', 'north-york-central', '--region', 'North York Central', '--sub', 'Autumn cohort');
   assert.equal(code, 0);
   assert.match(out, /INSERT INTO campaigns/);
   /* Not a hand-kept list: every non-date column the catalog selects has to be
@@ -44,22 +44,22 @@ test('new emits an INSERT carrying every column catalog.js reads', () => {
     if (skip.has(col)) continue;
     assert.ok(out.includes(col), `INSERT is missing ${col}`);
   }
-  assert.match(out, /'kitchener-central', 'Kitchener', 'Autumn cohort', 'forming'/);
+  assert.match(out, /'north-york-central', 'North York Central', 'Autumn cohort', 'forming'/);
 });
 
 test('seeds default to zero, because they are added to real joins on both surfaces', () => {
-  const { out } = run('new', 'kitchener-central', '--region', 'Kitchener');
+  const { out } = run('new', 'north-york-central', '--region', 'North York Central');
   assert.match(out, /'forming', 100, 0, 0, false/);
 });
 
 test('an auction is created with a null target, as the code catalog does', () => {
-  const { out } = run('new', 'scarborough-east', '--region', 'Scarborough', '--kind', 'auction');
+  const { out } = run('new', 'scarborough-east', '--region', 'Scarborough East', '--kind', 'auction');
   assert.match(out, /'auction', NULL/);
 });
 
 test('a slug that ID_RE would reject is refused, not emitted', () => {
   for (const bad of ['Bad ID', 'no', 'UPPER', 'has_underscore', 'x'.repeat(65)]) {
-    const { out, code } = run('new', bad, '--region', 'Kitchener');
+    const { out, code } = run('new', bad, '--region', 'North York Central');
     assert.equal(code, 1, `${bad} was accepted`);
     assert.doesNotMatch(out, /INSERT INTO/);
   }
@@ -67,17 +67,20 @@ test('a slug that ID_RE would reject is refused, not emitted', () => {
 
 test('every kind catalog declares is accepted, and nothing else is', () => {
   for (const k of catalog.KINDS) {
-    assert.equal(run('new', 'test-cohort', '--region', 'K', '--kind', k).code, 0, `${k} was refused`);
+    assert.equal(run('new', 'test-cohort', '--region', 'York', '--kind', k).code, 0, `${k} was refused`);
   }
   for (const k of ['Forming', 'open', 'live', '']) {
-    assert.equal(run('new', 'test-cohort', '--region', 'K', '--kind', k).code, 1, `${k} was accepted`);
+    assert.equal(run('new', 'test-cohort', '--region', 'York', '--kind', k).code, 1, `${k} was accepted`);
   }
 });
 
 test('a quote in a value is refused rather than escaped', () => {
   /* ZCQL has no parameter binding. Escaping here would be a habit; refusing is
-     a typo the operator fixes before pasting into a console with write access. */
-  const { out, code } = run('new', 'ok-id', '--region', "O'Brien");
+     a typo the operator fixes before pasting into a console with write access.
+     Carried on --sub rather than --region: the region is a closed vocabulary
+     now and no name in it contains a quote, so the only way to reach lit() with
+     one is a free-text field. */
+  const { out, code } = run('new', 'ok-id', '--region', 'York', '--sub', "O'Brien");
   assert.equal(code, 1);
   assert.doesNotMatch(out, /INSERT INTO/);
 });
@@ -175,8 +178,14 @@ test('every surface the tool names is named in both predictions', () => {
  * seeded and then cannot see.
  * ------------------------------------------------------------------ */
 
-const IDS = ['scarborough-east', 'mississauga-core', 'north-york-central',
-  'etobicoke-south', 'vaughan-west'];
+/* Five ids that title-case back into REAL regions. The set here used to be
+   scarborough-east, mississauga-core, north-york-central, etobicoke-south,
+   vaughan-west, and three of those five are not names any partner can declare
+   coverage under. Seeding them produced cohorts that rendered on both
+   dashboards and could never take a bid, which is exactly what happened in the
+   live campaigns table. */
+const IDS = ['scarborough-east', 'mississauga-city-centre', 'north-york-central',
+  'etobicoke-centre', 'vaughan-woodbridge'];
 
 /** Parse the printed INSERTs back into the shape catalog.js consumes. */
 function seededRows(out) {
@@ -244,7 +253,7 @@ test('seed says the console takes one statement at a time', () => {
   const { out } = run('seed', ...IDS);
   assert.match(out, /ONE statement per submission/);
   assert.match(out, /1 of 5: scarborough-east/);
-  assert.match(out, /5 of 5: vaughan-west/);
+  assert.match(out, /5 of 5: vaughan-woodbridge/);
 });
 
 test('every seeded cohort lands on the calendar, with its event still ahead', () => {

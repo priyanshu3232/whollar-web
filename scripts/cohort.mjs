@@ -2,13 +2,14 @@
 /* Drive a cohort from ZCQL, and know what both dashboards will do with it
  * before you paste anything.
  *
- *   node scripts/cohort.mjs new kitchener-central --region Kitchener --sub "Autumn cohort"
- *   node scripts/cohort.mjs move kitchener-central --from forming --to auction
- *   node scripts/cohort.mjs bidding kitchener-central --on
- *   node scripts/cohort.mjs calendar kitchener-central --minutes 3
- *   node scripts/cohort.mjs seed scarborough-east mississauga-core north-york-central
- *   node scripts/cohort.mjs coverage org_7f2a --region Kitchener
- *   node scripts/cohort.mjs verify kitchener-central
+ *   node scripts/cohort.mjs new scarborough-east --region "Scarborough East" --sub "Autumn cohort"
+ *   node scripts/cohort.mjs move scarborough-east --from forming --to auction
+ *   node scripts/cohort.mjs bidding scarborough-east --on
+ *   node scripts/cohort.mjs calendar scarborough-east --minutes 3
+ *   node scripts/cohort.mjs seed scarborough-east etobicoke-centre north-york-central
+ *   node scripts/cohort.mjs coverage org_7f2a --region "Scarborough East"
+ *   node scripts/cohort.mjs regions
+ *   node scripts/cohort.mjs verify scarborough-east
  *   node scripts/cohort.mjs preview --kind auction --bidding-open
  *
  * WHY THIS EXISTS. The `campaigns` table already is the control surface: the
@@ -37,6 +38,7 @@
 import { backend } from './backend-module.mjs';
 
 const catalog = backend('lib/catalog.js');
+const places = backend('lib/places.js');
 const { KINDS, JOIN_STATUS, ID_RE, TRANSITIONS, DATE_COLUMNS } = catalog;
 
 /* ------------------------------------------------------------------ *
@@ -182,14 +184,57 @@ function emit(title, statements, campaign, notes = []) {
   console.log('  catalog.load() memoizes for 60 seconds, so allow a minute before judging a dashboard.\n');
 }
 
+/**
+ * A region name the vocabulary actually has, canonically spelled.
+ *
+ * THIS IS THE CHECK ZCQL CANNOT DO FOR YOU. The region is the entire join
+ * between a cohort and a partner: requireActiveCoverage() compares
+ * slug(coverage.region) to slug(campaign.region) exactly, server side. Paste an
+ * INSERT naming "Vaughan West" and every dashboard renders it, households join
+ * it, the clock runs down, and not one partner can bid because not one of them
+ * can declare coverage under that name. Nothing errors. It reads as a market
+ * that did not bite.
+ *
+ * `launch` is the stricter half: the coverage picker offers only launch-city
+ * regions as selectable, so a cohort in a queued city is unreachable too.
+ * Declaring coverage does not need it, because a partner may register interest
+ * in a queued city and an operator leaves that row 'soon'.
+ */
+function region(raw, { what = '--region', launch = true } = {}) {
+  if (!raw || raw === true) die(`${what} is required, and it is what provider_coverage matches on`);
+  const name = String(raw).trim();
+  const known = launch ? places.isLaunchRegion(name) : places.isRegion(name);
+  if (!known) {
+    const near = places.suggest(name);
+    const why = places.isRegion(name)
+      ? `"${name}" is a real region, but its city has not launched, so no partner can declare it`
+      : `"${name}" is not a region any partner can declare`;
+    die(`${why}.\n\n  ${near.length ? 'Did you mean: ' + near.join(', ') : 'Nothing close matched'}\n`
+      + `  Full list:   node scripts/cohort.mjs regions`);
+  }
+  return places.canonical(name);
+}
+
 /* ------------------------------------------------------------------ *
  * Commands
  * ------------------------------------------------------------------ */
 
+/** Every declarable region, so nobody has to open places.js to spell one. */
+function cmdRegions() {
+  const names = places.launchRegions();
+  console.log(`\n${names.length} regions a partner can declare today:\n`);
+  const byCity = new Map();
+  places.PLACES.filter((p) => p.launch).forEach((p) => byCity.set(p.city, p.regions));
+  for (const [city, regions] of byCity) {
+    console.log(`  ${city}`);
+    regions.forEach((r) => console.log(`    ${r}`));
+  }
+  console.log('\n  A cohort outside this list can never be bid on. See lib/places.js.\n');
+}
+
 function cmdNew() {
   const id = cohortId(POSITIONAL[0]);
-  const region = flag('region');
-  if (!region || region === true) die('--region is required, and it is what provider_coverage matches on');
+  const region_ = region(flag('region'));
   const sub = flag('sub', '') === true ? '' : flag('sub', '');
   const k = kind(flag('kind', 'forming'));
   const target = num(flag('target', '100'), 'target');
@@ -202,7 +247,7 @@ function cmdNew() {
     'seed_households', 'bidding_open', 'sort_order', 'updated_by', 'updated_at'];
   const vals = [
     lit(id, { max: 64, what: 'campaign_id' }),
-    lit(region, { max: 100, what: '--region' }),
+    lit(region_, { max: 100, what: '--region' }),
     lit(sub, { max: 100, what: '--sub' }),
     lit(k),
     k === 'auction' ? 'NULL' : lit(target),
@@ -215,7 +260,7 @@ function cmdNew() {
   emit(`INSERT: a new cohort, ${id}`, [
     `INSERT INTO campaigns (${cols.join(', ')})`,
     `VALUES (${vals.join(', ')});`,
-  ], campaignFrom({ id, region, kind: k }), [
+  ], campaignFrom({ id, region: region_, kind: k }), [
     'The slug is permanent: it is the id both dashboards key on and every bid_key is built from.',
     'No calendar is set. That is the normal state of a new cohort, and stage falls back to kind alone.',
     `Set one with:  node scripts/cohort.mjs calendar ${id}`,
@@ -339,7 +384,14 @@ const SEED_OFFSETS = Object.freeze({
 const SEED_MORNING = 13;
 
 /** Title case a slug, so `scarborough-east` gives `Scarborough East`. The
-    region has to slug back to the same string for coverage to match it. */
+    region has to slug back to the same string for coverage to match it.
+
+    A GUESS, and checked as one. `mississauga-core` title-cases into
+    "Mississauga Core", which is not a region anybody can declare, and
+    `maple-and-vmc` into "Maple And Vmc" rather than "Maple and VMC". Every
+    result goes through region() before it reaches a statement; pass --regions
+    when the guess is wrong. This is how three unbiddable cohorts reached the
+    live campaigns table. */
 function regionFromId(id) {
   return id.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
@@ -369,12 +421,17 @@ function cmdSeed() {
   if (ids.length > 12) die('12 cohorts is already more than the calendar can show; it takes the first five');
 
   const regionsFlag = flag('regions');
-  const regions = regionsFlag && regionsFlag !== true
+  const given = regionsFlag && regionsFlag !== true
     ? String(regionsFlag).split(',').map((r) => r.trim())
     : ids.map(regionFromId);
-  if (regions.length !== ids.length) {
-    die(`--regions has ${regions.length} entries for ${ids.length} cohorts`);
+  if (given.length !== ids.length) {
+    die(`--regions has ${given.length} entries for ${ids.length} cohorts`);
   }
+  /* Checked here and not only in `new`, because seeding is the command that
+     creates cohorts in bulk, and one unreachable name among six is the
+     one nobody notices. Title-casing an id is a guess, and 'mississauga-core'
+     guesses 'Mississauga Core', which is not a region anyone can declare. */
+  const regions = given.map((r) => region(r, { what: '--regions' }));
 
   const first = num(flag('first', '1'), 'first');
   const every = num(flag('every', '7'), 'every');
@@ -517,18 +574,22 @@ function calendarEvent(row, stage) {
 function cmdCoverage() {
   const org = POSITIONAL[0];
   if (!org) die('an org_id is required. It is the partner org the cohort should reach.');
-  const region = flag('region');
-  if (!region || region === true) die('--region is required, and must equal the cohort\'s region');
-  const techs = flag('techs', 'cable,fibre');
   const status = flag('status', 'active');
   if (!['verifying', 'active', 'soon', 'rejected'].includes(status)) {
     die('--status must be one of: verifying | active | soon | rejected');
   }
-  const slug = String(region).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  /* Known is enough here, not launched, which is exactly what POST
+     /provider/coverage enforces. A partner may declare into a queued city and
+     an operator leaves that row 'soon'. What is never legitimate is a name in
+     no list at all, because no cohort can ever match it. This tool and the
+     running site have to agree on that or one of them is wrong. */
+  const region_ = region(flag('region'), { launch: false });
+  const techs = flag('techs', 'cable,fibre');
+  const slug = String(region_).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   const key = `${org}:${slug}`.slice(0, 200);
-  console.log(`\nCOVERAGE: ${org} serves ${region}\n`);
+  console.log(`\nCOVERAGE: ${org} serves ${region_}\n`);
   console.log(`  INSERT INTO provider_coverage (coverage_key, org_id, region, techs, status, updated_at)`);
-  console.log(`  VALUES (${lit(key, { max: 200 })}, ${lit(org, { max: 64 })}, ${lit(region, { max: 100 })}, ${lit(techs, { max: 64 })}, ${lit(status)}, ${lit(utc(new Date()))});`);
+  console.log(`  VALUES (${lit(key, { max: 200 })}, ${lit(org, { max: 64 })}, ${lit(region_, { max: 100 })}, ${lit(techs, { max: 64 })}, ${lit(status)}, ${lit(utc(new Date()))});`);
   console.log('\n  If the row already exists, set its status instead:\n');
   console.log(`  UPDATE provider_coverage SET status = ${lit(status)}, updated_at = ${lit(utc(new Date()))} WHERE coverage_key = ${lit(key, { max: 200 })};`);
   console.log('\n  Why this is needed:\n');
@@ -567,7 +628,7 @@ function cmdVerify() {
 function cmdPreview() {
   const k = kind(flag('kind', 'forming'));
   const c = campaignFrom({
-    id: flag('id', 'preview'), region: flag('region', 'Kitchener'),
+    id: flag('id', 'preview'), region: flag('region', 'Scarborough Centre'),
     kind: k, biddingOpen: has('bidding-open'),
   });
   console.log(`\nPREVIEW: kind=${k}, bidding_open=${has('bidding-open')}, no calendar\n`);
@@ -586,6 +647,7 @@ function usage() {
     seed <id> [<id>...] [--regions "A,B"] [--first N] [--every N] [--hour UTC] [--seed N] [--update]
     coverage <org_id> --region R [--techs cable,fibre] [--status active]
     verify [<id>]
+    regions
     preview [--kind K] [--bidding-open] [--region R]
 
   kinds: ${KINDS.join(' | ')}
@@ -599,6 +661,7 @@ function usage() {
 const COMMANDS = {
   new: cmdNew, move: cmdMove, bidding: cmdBidding, calendar: cmdCalendar,
   seed: cmdSeed, coverage: cmdCoverage, verify: cmdVerify, preview: cmdPreview,
+  regions: cmdRegions,
 };
 
 const run = COMMANDS[CMD];

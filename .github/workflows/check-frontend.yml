@@ -202,6 +202,13 @@ jobs:
       - name: Partner console fixtures parse
         run: node --check partner/demo/fixtures.js
 
+      # The server's copy of that vocabulary. The picker constrains coverage in
+      # the browser; the write path is what constrains a CAMPAIGN, and it lives
+      # in a CommonJS Catalyst function that cannot import the ES module the
+      # picker is built from. Generated, therefore checkable, therefore checked.
+      - name: The backend copy of the coverage vocabulary is current
+        run: node scripts/build-places.mjs --check
+
       # The declarable vocabulary. Coverage is a controlled list now, and this
       # is the half of that the browser cannot enforce: a fixture, a seed or a
       # campaign naming a region the vocabulary does not have renders perfectly

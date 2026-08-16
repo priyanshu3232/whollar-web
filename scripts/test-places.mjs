@@ -33,6 +33,11 @@ import vm from 'node:vm';
 import {
   PLACES, findCity, isWholeCity, placeOf, readsAs, isLaunchRegion, searchCities
 } from '../partner/core/places.js';
+import { backend } from './backend-module.mjs';
+
+/* The generated server copy, and the catalog that has to obey it. */
+const server = backend('lib/places.js');
+const catalog = backend('lib/catalog.js');
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -233,4 +238,72 @@ test('every fixture campaign forms in a real region, and its coverage key matche
     });
   });
   assert.ok(seen > 5, `campaigns checked: ${seen}`);
+});
+
+/* ------------------------------------------------------------------ *
+ * the server's copy
+ *
+ * The vocabulary only does its job if the WRITE path enforces it, and the write
+ * path is CommonJS inside a Catalyst function that cannot import an ES module.
+ * scripts/build-places.mjs generates lib/places.js from this same list; these
+ * tests are what stop the generated copy drifting into a second opinion.
+ * ------------------------------------------------------------------ */
+
+test('the backend copy holds the same cities, regions and launch flags', () => {
+  assert.deepEqual(
+    server.PLACES.map((p) => ({ city: p.city, province: p.province, launch: p.launch, regions: p.regions })),
+    PLACES.map((p) => ({ city: p.city, province: p.province, launch: p.launch, regions: p.regions })),
+    'run: node scripts/build-places.mjs, then commit the result'
+  );
+});
+
+test('the backend answers the same questions the picker does, for every region', () => {
+  everyRegion().forEach(({ region, place }) => {
+    assert.equal(server.isRegion(region), true, `${region}: unknown to the server`);
+    assert.equal(server.isLaunchRegion(region), isLaunchRegion(region), `${region}: launch flags disagree`);
+    /* placeOf resolves through the same launch-wins rule on the one collision,
+       so the two must name the same city or a coverage row and a cohort could
+       be attributed to different places. */
+    assert.equal(server.placeOf(region).city, placeOf(region).city, `${region}: city disagrees`);
+    assert.equal(server.canonical(region), region, `${region}: canonical spelling drifted`);
+    assert.ok(place);
+  });
+});
+
+test('the backend refuses the names that were actually created by hand', () => {
+  /* Not hypothetical. Every one of these was a live campaigns row, and every
+     one of them was unbiddable: no partner could declare coverage under a name
+     the picker does not offer, so the cohort would have closed with no bids and
+     nothing anywhere would have said why. */
+  ['Vaughan West', 'Mississauga Core', 'Etobicoke South', 'Scarborough', 'North York', 'London South']
+    .forEach((bad) => {
+      assert.equal(server.isRegion(bad), false, `${bad}: still accepted`);
+      assert.ok(server.suggest(bad).length, `${bad}: refused with no suggestion, which is a dead end`);
+    });
+});
+
+test('canonical spelling is what gets stored, so casing cannot fork a cohort', () => {
+  assert.equal(server.canonical('scarborough  centre'), 'Scarborough Centre');
+  assert.equal(server.canonical('NORTH YORK CENTRAL'), 'North York Central');
+  assert.equal(server.canonical('Scarberia'), null);
+});
+
+/* ------------------------------------------------------------------ *
+ * the fallback catalog
+ * ------------------------------------------------------------------ */
+
+test('every cohort in the code catalog names a region a partner can declare', () => {
+  /* CODE_CATALOG is both the fallback when the campaigns table is unreadable
+     and what POST /admin/campaigns/import-defaults seeds. It carried six
+     southwestern Ontario names from before the launch footprint was the GTA,
+     four of which were in no list at all: importing the defaults would have
+     created six cohorts nobody could bid on, in one click. */
+  const list = catalog.CODE_CATALOG || [];
+  assert.ok(list.length, 'the code catalog is empty');
+  list.forEach((c) => {
+    assert.equal(isLaunchRegion(c.region), true,
+      `${c.id}: "${c.region}" is not declarable, so no partner could bid on it`);
+    assert.equal(slug(c.region), c.id,
+      `${c.id}: the id must slug from the region, or coverage and the cohort key disagree`);
+  });
 });

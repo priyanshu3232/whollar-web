@@ -46,6 +46,7 @@ const audit = require('../lib/audit');
 const ratelimit = require('../lib/ratelimit');
 const siteconfig = require('../lib/siteconfig');
 const catalog = require('../lib/catalog');
+const places = require('../lib/places');
 const campaigns = require('./campaigns');
 const desk = require('./desk');
 const { wrap, badRequest, unauthorized, forbidden, AppError } = require('../lib/errors');
@@ -498,7 +499,35 @@ function mount(router, cfg) {
     if (has('region') || !partial) {
       const r = String(body.region || '').trim();
       if (!r || r.length > 100) throw badRequest('region is required (up to 100 characters).');
-      out.region = r;
+      /**
+       * THE REGION IS THE JOIN, so it is a vocabulary and not a text box.
+       *
+       * requireActiveCoverage() in routes/desk.js matches a bid to coverage
+       * with slug(coverage.region) === slug(campaign.region), exactly. A cohort
+       * named anything a partner cannot pick from the coverage picker is a
+       * cohort nobody can ever bid on, and nothing about it looks wrong: it
+       * renders on both dashboards, counts households, runs its clock down and
+       * closes with no bids. That failure is indistinguishable from a quiet
+       * market, which is why it has to be refused at the write rather than
+       * found in a fortnight.
+       *
+       * Launch, not merely known: the picker offers only launch-city regions as
+       * selectable, so a cohort in a queued city is unreachable for the same
+       * reason by a different route.
+       *
+       * The canonical spelling is what gets stored, so 'scarborough centre'
+       * and 'Scarborough Centre' cannot become two cohorts nobody can join.
+       */
+      if (!places.isLaunchRegion(r)) {
+        const near = places.suggest(r);
+        throw badRequest(
+          `"${r}" is not a region a partner can declare coverage in, so no one could bid on this cohort.`
+          + (near.length ? ` Did you mean ${near.join(', ')}?` : '')
+          + ' The declarable list is partner/core/places.js.',
+          { logDetail: `campaign region outside vocabulary: ${r}` }
+        );
+      }
+      out.region = places.canonical(r);
     }
     if (has('sub')) out.sub = String(body.sub || '').trim().slice(0, 100);
     if (has('target')) out.target = body.target === null ? null : int('target', body.target, 1, 1000000);
