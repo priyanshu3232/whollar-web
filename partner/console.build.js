@@ -47,6 +47,12 @@
 
     /* application */
     application: null,    /* GET /provider/application, null until it answers */
+    /* Whether that read has SETTLED, which is not the same question. Null means
+       both "still in flight" and "the route answered with nothing", and the
+       gated frame needs to tell those apart: gating on the record alone left the
+       full console, pane and search and all, painted around a loading card for
+       as long as the round trip took. */
+    applicationLoaded: false,
     documents: null,
 
     /* what they can bid on */
@@ -1221,6 +1227,15 @@
         approved: r.approved === true,
         role: (r.org && r.org.role) || null
       });
+      /* Remember approval on the LOCAL record, for one purpose only: which view
+         the next boot lands on before this call has answered. It is a hint, not
+         a permission. Anyone can write this key, state.approved still starts
+         false, and every number on the console still comes from a session-gated
+         route. Without it an approved partner's console lands on the review
+         screen for a round trip, because approval is not known yet, and boot
+         then swaps the whole frame out from under them. */
+      var W = window.WHOLLAR;
+      if (W && W.partner) W.partner.patch({ approvedHint: r.approved === true });
       return r;
     }, function (err) {
       /* The one place 403 still bounces: /provider/me answers it for a signed-in
@@ -2150,10 +2165,16 @@
       server rather than from an optimistic guess made here. */
   function reload() {
     return api.application().then(function (r) {
-      set('application', r);
+      set({ application: r, applicationLoaded: true });
       maybeSubmit();
       return r;
-    }, function (err) { authFailed(err); return null; });
+    }, function (err) {
+      authFailed(err);
+      /* Settled, with nothing. The frame reads this to stop gating, which is
+         what hands a partner the console when the route is not deployed yet. */
+      set('applicationLoaded', true);
+      return null;
+    });
   }
 
   /* The single most important transition in the pending experience: the moment
@@ -6965,10 +6986,18 @@
        approves the org, and that includes the days before the fifth task lands:
        an application in progress and an application under review are the same
        screen with a different row lit, which is what the card already renders.
-       A null application is the one exception, because "reading your
-       application" is not a screen to lock anyone into. */
+
+       An application that ANSWERED with nothing is the one exception, because
+       "reading your application" is not a screen to lock anyone into: the route
+       can 501 while it is being deployed, and boot hands those partners the
+       console instead. Note applicationLoaded rather than the record itself. A
+       read still in flight is not an answer, and treating it as one painted the
+       whole ungated console, nav pane and search included, around the loading
+       card for the length of the round trip, then collapsed it to one centred
+       card in front of the partner. Gated while unknown; ungated only once the
+       server has actually said there is nothing. */
     var S = get();
-    setGated(!S.approved && !!S.application && current() === 'pending');
+    setGated(!S.approved && current() === 'pending' && (!!S.application || !S.applicationLoaded));
   }
 
   /* ------------------------------------------------------------------ *
@@ -6980,8 +7009,13 @@
      already-caught promises cannot reject. The `live` flag these routes carry
      means "the table was readable" rather than "there is data", and a false
      there is worth saying out loud rather than rendering as an empty desk. */
-  function loadAll() {
+  function loadAll(appRead) {
     var jobs = [
+      /* The application read, already in flight since boot: see start(). Passed
+         in rather than started here so the gated frame does not wait on
+         GET /provider/me first. */
+      appRead || loadApplication(),
+
       api.coverage().then(function (r) {
         set({ coverage: (r && r.coverage) || [], coverageLive: !!r && r.live !== false });
       }, function (err) { authFailed(err); set('coverageLive', false); }),
@@ -7013,10 +7047,6 @@
       }, function () { set('bids', {}); }),
 
       api.prefs().then(function (p) { set('prefs', p || {}); }, function () { set('prefs', {}); }),
-
-      /* The application. A 501 here is not an error to show anyone: it means the
-         route is not deployed yet, and the view already renders that honestly. */
-      loadApplication(),
 
       /* The contracts registry. It also carries the terms acceptance, which is
          what the bid ticket reads to know whether to send a partner to Contracts
@@ -7141,16 +7171,34 @@
 
        A hash always wins. Someone following a link to #coverage gets #coverage,
        and approval is not known yet anyway: it arrives with GET /provider/me
-       one round trip later, and is corrected below. */
+       one round trip later, and is corrected below.
+
+       approvedHint is the local record's memory of the last answer, written by
+       revalidate(). It picks the landing view and nothing else: state.approved
+       still starts false, so a forged hint buys a forged nav pane over eleven
+       empty views and no data, and the correction below runs either way. */
     var chose = !!location.hash;
-    go(fixtureView() || (chose ? current() : (get().approved ? 'overview' : 'pending')));
+    var hint = !!((partner || {}).approvedHint);
+    go(fixtureView() || (chose ? current() : (hint ? 'overview' : 'pending')));
     onChange(function () { chose = true; });
 
+    /* The application read starts HERE, beside GET /provider/me rather than
+       behind it. It decides what the landing screen is, so running it second
+       made a new partner wait two round trips to see their own state, and the
+       session cookie it needs is already established by the boot guard. */
+    var appRead = loadApplication();
+
     revalidate().then(function (r) {
-      /* Approved after all: hand back the console, unless they navigated during
-         the round trip, in which case leave them where they went. */
-      if (r && r.approved === true && !chose && current() === 'pending') go('overview');
-      return loadAll();
+      /* The server's answer, both ways, unless they navigated during the round
+         trip, in which case leave them where they went. Both directions matter
+         now that a hint chose the landing view: a stale hint that says approved
+         must not leave an unapproved partner sitting in a console that has
+         nothing in it for them. A failed call (null) is not a demotion. */
+      if (!chose && r) {
+        if (r.approved === true && current() === 'pending') go('overview');
+        else if (r.approved !== true && current() === 'overview') go('pending');
+      }
+      return loadAll(appRead);
     }).then(function () {
       /* The application route can 501 while it is still being deployed. If it
          did, the frame has nothing to show, so hand back the console rather than

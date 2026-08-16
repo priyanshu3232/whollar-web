@@ -22,6 +22,12 @@ var state = {
 
   /* application */
   application: null,    /* GET /provider/application, null until it answers */
+  /* Whether that read has SETTLED, which is not the same question. Null means
+     both "still in flight" and "the route answered with nothing", and the
+     gated frame needs to tell those apart: gating on the record alone left the
+     full console, pane and search and all, painted around a loading card for
+     as long as the round trip took. */
+  applicationLoaded: false,
   documents: null,
 
   /* what they can bid on */

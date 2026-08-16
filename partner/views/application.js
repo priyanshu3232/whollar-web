@@ -276,10 +276,16 @@ var MODALS = {
     server rather than from an optimistic guess made here. */
 function reload() {
   return api.application().then(function (r) {
-    set('application', r);
+    set({ application: r, applicationLoaded: true });
     maybeSubmit();
     return r;
-  }, function (err) { authFailed(err); return null; });
+  }, function (err) {
+    authFailed(err);
+    /* Settled, with nothing. The frame reads this to stop gating, which is
+       what hands a partner the console when the route is not deployed yet. */
+    set('applicationLoaded', true);
+    return null;
+  });
 }
 
 /* The single most important transition in the pending experience: the moment

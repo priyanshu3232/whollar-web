@@ -72,6 +72,15 @@ export function revalidate() {
       approved: r.approved === true,
       role: (r.org && r.org.role) || null
     });
+    /* Remember approval on the LOCAL record, for one purpose only: which view
+       the next boot lands on before this call has answered. It is a hint, not
+       a permission. Anyone can write this key, state.approved still starts
+       false, and every number on the console still comes from a session-gated
+       route. Without it an approved partner's console lands on the review
+       screen for a round trip, because approval is not known yet, and boot
+       then swaps the whole frame out from under them. */
+    var W = window.WHOLLAR;
+    if (W && W.partner) W.partner.patch({ approvedHint: r.approved === true });
     return r;
   }, function (err) {
     /* The one place 403 still bounces: /provider/me answers it for a signed-in
