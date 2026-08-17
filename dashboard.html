@@ -125,11 +125,17 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
    lanes are mutually exclusive by that attribute. Without this line every
    member sees both homes at once. */
 #member-home[hidden],#visitor-home[hidden]{display:none}
-/* The two row wrappers dissolve. They are grouping elements for the DOM and
-   for mountMemberRoom's stable parent, not layout: their children are the
-   grid items. This is the line that stops a nested row from inventing a
-   fourth set of tracks. */
-.home .grid2,.home .trio{display:contents}
+/* The lane's row wrapper dissolves. It is a grouping element for the DOM, not
+   layout: its children are the grid items. This is the line that stops a
+   nested row from inventing a fourth set of tracks.
+
+   .trio is gone with it. It existed to hold the member-room card inside a lane,
+   which meant ONE card had to be moved between the two lanes on every render
+   (mountMemberRoom) to avoid duplicating its ids. The member room and Worth a
+   read are lane-independent content: they say the same thing to a visitor and to
+   a joined member. They now sit in .splitband, a child of .home BELOW both
+   lanes, so there is one copy of each, no move, and no second renderer. */
+.home .grid2{display:contents}
 /* Roles, not positions. A card says what kind of card it is and the grid
    decides where that lands, which is what lets the card set change by state
    without the layout being retuned for each one. */
@@ -139,7 +145,11 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 /* The main column is a stack, not a row: three cards one under the other, all
    sharing the 8-track's left edge. */
 .mcol{display:flex;flex-direction:column;gap:24px;min-width:0}
-.crowband{margin-top:16px}
+/* No top margin. The band is a grid item of .home like every other, so the
+   24px row gap is the only thing between it and the two-up above. min-width:0
+   because below 768px .crow becomes a scroll container, and a grid item that
+   sizes to max-content would push the page wide instead of scrolling. */
+.crowband{min-width:0}
 .hello h1{font-size:clamp(23px,3.2vw,30px);font-weight:800}
 .hello p{color:var(--sub);font-size:14.5px;margin-top:2px}
 
@@ -285,12 +295,20 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .osel.err{border-color:var(--terra)}
 .btn[hidden]{display:none}
 .bu-alert{background:var(--terra-soft);border:1px solid #E7CFB9;border-radius:10px;padding:11px 13px;margin-top:14px;font-size:13px;font-weight:600;color:#8C4622;line-height:1.5}
-/* .trio was a row of its own: auto-fit columns at a 16px gap, its own top
-   margin, and children stretched to the tallest card in it with the last
-   block pushed to the bottom of whatever height that forced. That stretch is
-   what made "Worth a read" 805px tall next to the member room. It is gone.
-   The class survives as a grouping element only, dissolved by .home .trio
-   above; nothing outside the Home view uses it. */
+/* ---------- the split band: Worth a read beside the member room ----------
+   Two cards, one row, the full twelve tracks. The reading card is fluid and the
+   member room is a FIXED 400px rail, because the thing in the rail is a handset
+   drawn at a real scale: let that column take a share of the width and the mock
+   inflates on a wide monitor, which is the one element on the page whose size is
+   a claim about a real screen.
+
+   align-items:stretch (the default, and load-bearing here) is what makes the two
+   columns finish on one line: the band's own height is its taller child's, and
+   the shorter one is pulled to it. The reading card then spends that height on
+   its hero image, which is the only flexible element in either column. See
+   .rhero. Nothing measures anything; the browser does the reconciliation. */
+.splitband{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:24px}
+.splitband>.card{min-width:0}
 .pane__prof{display:flex;align-items:center;gap:10px;margin:8px 12px 14px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--card);text-align:left;transition:background .15s}
 .pane__prof:hover{background:#EDE8DB}
 .pane__prof.on{background:var(--mint);border-color:#CBDCC9}
@@ -329,11 +347,15 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 /* A Worth a read row: fixed thumbnail column, fluid text column, thumbnail
    centred against the text so a one line and a two line title both sit right.
    The whole anchor is the row, so the whole row is the click target and the
-   one tab stop, and :focus-visible at the top of this sheet rings all of it. */
-.reads li a{display:grid;grid-template-columns:72px 1fr;gap:14px;align-items:center;width:100%;padding:16px 0;border-radius:10px;transition:background 120ms ease}
+   one tab stop, and :focus-visible at the top of this sheet rings all of it.
+   :not(.rlead) because the hero article is the same list and not the same shape:
+   full-width media over its text, not a thumbnail beside it. Without the
+   exclusion this rule's specificity beats .rlead>a and the hero lays itself out
+   as a very tall row. */
+.reads li:not(.rlead) a{display:grid;grid-template-columns:64px 1fr;gap:14px;align-items:center;width:100%;padding:6px 0;border-radius:10px;transition:background 120ms ease}
 .reads li a:hover{background:rgba(30,158,99,.035)}
 .reads li a:hover .rttl{color:var(--accent-deep)}
-.rthumb{width:72px;height:72px;border-radius:10px;overflow:hidden;background:var(--mint);box-shadow:inset 0 0 0 1px rgba(43,58,51,.06)}
+.rthumb{width:64px;height:64px;border-radius:10px;overflow:hidden;background:var(--mint);box-shadow:inset 0 0 0 1px rgba(43,58,51,.06)}
 .rthumb img{display:block;width:100%;height:100%;object-fit:cover}
 /* The tint above is also the placeholder: .rthumb is sized, the img is not, so
    the column holds its width before the image arrives and there is no reflow
@@ -354,38 +376,43 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
    which is why .mrview carries the fixed dimensions and .mrdev the scale.
    Each mock keeps its own platform's chrome and typography on purpose: a
    member should recognise the room before reading a word of it. */
-/* HORIZONTAL. As a span 4 card with the handset stacked under the copy this
-   was ~950px tall, three times its neighbour, and it pulled every bit of the
-   page's weight to the bottom right. It is a full width card now: copy, the
-   network tabs and the CTA in the left five columns, the handset in the right
-   seven, showing the whole screen rather than a clipped glimpse of it. */
-/* THREE ROWS, and everything hangs from the TOP. The handset spans all three
-   and is the taller column, so the surplus lands in row three, which is where
-   the artwork goes: the copy and its CTA read as one block against the top
-   edge instead of floating in the middle of a 520px card, and the space they
-   leave behind is filled rather than empty. minmax(0,1fr) rather than 1fr so
-   a tall left column can take that row to zero instead of overflowing. */
-.mroom{display:grid;grid-template-columns:5fr 7fr;column-gap:24px;row-gap:16px;grid-template-rows:max-content max-content minmax(0,1fr);align-content:start}
-.mrcopy{grid-column:1;grid-row:1;align-self:start;display:flex;flex-direction:column;min-width:0}
-.mroom .mrstage{grid-column:2;grid-row:1/span 3;align-self:start}
-.mroom .mrcta{grid-column:1;grid-row:2;align-self:start}
-/* Decorative, and alt="" on purpose: the three tabs above it already name the
-   networks, so a description here would be the card saying it twice to a
-   screen reader. object-fit:contain means the row can be any height without
-   the cubes distorting. */
-.mrart{grid-column:1;grid-row:3;min-height:0;width:100%;height:100%;object-fit:contain;object-position:center;margin-top:4px;pointer-events:none}
+/* VERTICAL, in a 400px rail. The card was a full-width band with the handset
+   beside the copy and a stock illustration filling the surplus row underneath.
+   The illustration is deleted, not hidden: it was a generic social-media cube
+   render, it carried no information, and it was the largest single thing on the
+   page. The handset is the artifact that earns the space, because it shows the
+   actual room.
+
+   One column, and the CTA is pinned to the card's bottom padding by margin-top
+   on the stage rather than by a row of its own: the action a member takes is the
+   last thing in the card whatever height the band settles at. */
+.mroom{display:flex;flex-direction:column;min-width:0}
+.mrcopy{display:flex;flex-direction:column;min-width:0}
+.mroom .mrstage{margin-top:18px}
+.mroom .mrcta{margin-top:auto;padding-top:18px}
 .mrtabs{display:flex;gap:3px;background:#EDE8DB;border-radius:999px;padding:4px;margin-top:13px}
-.mrtab{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:transparent;border-radius:999px;padding:9px 6px;font-family:var(--disp);font-size:13px;font-weight:750;color:var(--sub);transition:background .15s,color .15s,box-shadow .15s}
+/* min-height on the SEGMENT, not on the group: three segments across a 400px
+   rail are ~128px wide and were 38px tall, under a thumb on the phone layout
+   where this card is full width. 44px is the floor, and the group's own 4px
+   padding puts the pill at 52px. */
+.mrtab{flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;gap:7px;background:transparent;border-radius:999px;padding:9px 6px;font-family:var(--disp);font-size:13px;font-weight:750;color:var(--sub);transition:background .15s,color .15s,box-shadow .15s}
 .mrtab svg{width:16px;height:16px;flex:none}
 .mrtab.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(26,37,32,.06),0 4px 12px rgba(26,37,32,.11)}
-.mrstage{display:flex;justify-content:center;align-items:center;margin:0}
-/* The WHOLE handset, not 420px of it. 414 x 822 (an 800px screen inside 11px
-   of bezel) at scale .635 is 263 x 522, so the box is sized to exactly what
-   the transform draws and there is nothing left to clip or dissolve. The
-   device scale is untouched, so every type size inside the mock keeps the
-   proportion it was drawn at. */
-.mrview{position:relative;width:263px;height:522px;flex:none}
-.mrdev{position:absolute;top:0;left:0;width:414px;padding:11px;transform-origin:0 0;transform:scale(.635);background:linear-gradient(150deg,#3A3A3C,#1C1C1E 42%,#2C2C2E);border-radius:58px;box-shadow:0 22px 54px rgba(26,37,32,.22),inset 0 0 0 1px rgba(255,255,255,.1)}
+.mrstage{display:flex;justify-content:center;align-items:flex-start;margin:0}
+/* A FIXED WINDOW, and the one thing on this band that never resizes to make a
+   layout work. 414 x 822 (an 800px screen inside 11px of bezel) at scale .7246
+   is 300px wide, and the window is 420px of that: the screen runs on past the
+   bottom edge and is clipped, which is true of a real feed and is the point.
+   The reading card opposite absorbs the height difference instead. See .rhero.
+
+   The drop shadow moved from .mrdev to .mrview, because overflow:hidden clips a
+   CHILD's shadow and not the clipper's own. */
+.mrview{position:relative;width:300px;height:420px;flex:none;overflow:hidden;border-radius:58px 58px 4px 4px;box-shadow:0 18px 44px -20px rgba(26,37,32,.34)}
+/* The clip has to read as "there is more", not as a broken crop, so the last
+   40px dissolves into the card it sits on. Decorative and inert: pointer-events
+   off so it cannot eat a click meant for the mock underneath. */
+.mrview::after{content:"";position:absolute;left:0;right:0;bottom:0;height:40px;z-index:6;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,0),var(--card))}
+.mrdev{position:absolute;top:0;left:0;width:414px;padding:11px;transform-origin:0 0;transform:scale(.7246);background:linear-gradient(150deg,#3A3A3C,#1C1C1E 42%,#2C2C2E);border-radius:58px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
 .mrscr{position:relative;height:800px;border-radius:47px;overflow:hidden;background:#000}
 .mrscr::before{content:"";position:absolute;top:12px;left:50%;transform:translateX(-50%);width:112px;height:33px;border-radius:999px;background:#000;z-index:5}
 .mrscr::after{content:"";position:absolute;left:50%;bottom:9px;transform:translateX(-50%);width:132px;height:5px;border-radius:999px;background:rgba(255,255,255,.42);z-index:5}
@@ -475,8 +502,8 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .lipost p.tags{color:#0A66C2}
 .lipost > img{display:block;width:100%;height:150px;object-fit:cover;margin-top:12px}
 .liacts{display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid #00000014;font-size:13.5px;font-weight:600;color:#00000099}
-/* The .rlead rules that sat here are gone with the lead article. Worth a read
-   is three identical rows in both lanes; see readsRowsHTML(). */
+/* The lead article is back, and .rlead is with the rest of the reading card up
+   under "Worth a read: one hero, three rows". */
 .phero{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:20px}
 .ring--av{width:84px;height:84px}
 .avtxt{font-family:var(--disp);font-size:19px;font-weight:800;fill:var(--ink);text-anchor:middle}
@@ -677,64 +704,70 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .dots button{width:20px;height:20px;border-radius:50%;background:#E7E2D3;transition:transform .15s}
 .dots button:hover{transform:scale(1.12)}
 .dots button.on{background:var(--accent)}
-/* Grows to eat whatever height the tallest card in the trio forces on us, so the
-   rows spread instead of leaving dead space above "See all". */
-/* WHY THE ROWS WERE THREE TIMES THEIR CONTENT. Not a stray margin, an hr, or
-   an unreset heading: the list and every row carried flex:1, and this card is
-   a grid item in .trio, which stretches. So the card was pulled to the height
-   of the member room card beside it (805px, most of it a phone mock) and the
-   rows divided the surplus between them: 230px of row around 90px of content.
-   The min-height:74px never bound; it was not the cause and removing it alone
-   would have changed nothing.
-   Two halves to the fix, and both are needed. flex:1 is gone here, so rows are
-   their content's height, and .rcard below stops the stretch at its source. */
-.reads{list-style:none;margin-top:4px;display:flex;flex-direction:column}
+/* ---------- Worth a read: one hero, three rows ----------
+   THREE EQUAL ROWS CARRY NO HIERARCHY. Three articles at "5 min" each, side by
+   side at the same size, is a list of things nobody was invited to read. One
+   article at reading size with three under it says: this one now, these three
+   exist. Same link targets, same content, one axis of emphasis added.
+
+   The card is a flex column and .reads is its flexible child, so everything
+   below chains off the band's height. See .rhero for the element that spends it. */
+.rcard{display:flex;flex-direction:column;min-width:0}
+.rcard__head{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
+.rcard__head .tlink{margin-top:0;flex:none}
+.reads{list-style:none;margin-top:12px;display:flex;flex-direction:column;flex:1;min-height:0}
 .reads li{display:block}
 .reads li:not(:last-child){border-block-end:1px solid var(--line)}
 .reads a{font-size:15px;font-weight:600;color:var(--ink);line-height:1.35}
 .reads small{font-family:var(--mono);font-size:12px;color:var(--sub)}
-/* Sizes to its content instead of to the tallest card in the row. Without this
-   the rows are tight but the card is still 805px, with the slack moved to the
-   bottom rather than removed.
-   The block padding is this card's alone, 16px against the shared 24px. Three
-   rows at the specified 72px thumbnail and 16px row padding are 314px of list
-   before any chrome, and the eyebrow and the See all footer take another 60px,
-   so the shared 24px top and bottom would land at 431px and miss the 420px
-   ceiling. The inline padding is untouched, so the card still lines up with
-   the rail's other cards. */
-/* align-self:start is gone. It stopped a grid stretch that no longer exists,
-   and in the rail (a flex column) the same declaration is a CROSS-axis rule
-   that would shrink the card to the width of its widest headline. */
-.rcard{padding-block:16px}
-/* ---------- Worth a read, across all twelve tracks ----------
-   The visitor lane's rail is ONE card tall (the referral tile) against a main
-   sequence of one short card, so stacking this second card under it made the
-   rail 720px against a 285px main column: the 435px void, and the loudest
-   thing on that screen. Nothing about the tracks caused it and no track change
-   fixes it, because the fault is the shape of the content: three list rows
-   stacked vertically in a 4 column track is a tall thin card with nothing
-   beside it.
-   Turned on its side the same three rows are one row of three, ~150px tall
-   across the full width, and the rail is a single tile matched to the main
-   card next to it. Same rows, same markup, same link targets: only the axis
-   changes. The member lane keeps the vertical card, where a three-card rail
-   already balances a tall main stack and the wide one would be the odd shape
-   instead. */
-.rcard--wide .rcard__head{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
-.rcard--wide .rcard__head .tlink{margin-top:0;flex:none}
-.rcard--wide .reads{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));column-gap:28px;margin-top:2px}
-/* The rules between rows belong to a stack. Across a row they would be
-   underlines, so the separator becomes the gutter itself. */
-.rcard--wide .reads li:not(:last-child){border-block-end:0}
-.rcard--wide .reads li a{padding-block:14px 4px}
+/* THE HERO IS THE ONLY FLEXIBLE ELEMENT IN EITHER COLUMN, and the flex chain
+   from the card down to it exists for one reason: to let the band reconcile its
+   two columns without measuring either. Everything else in both columns is
+   fixed, so whatever the member room's height comes to, the surplus arrives
+   here and lands on a photograph, which is the one element that can take it
+   without changing what it says.
+   The 200px floor and 280px ceiling are the bounds inside which a 3:2 crop still
+   reads as a photograph rather than a letterbox or a poster. Past them the card
+   leaves slack at its foot rather than distorting the image. */
+.rlead{flex:1 1 auto;min-height:0;display:flex}
+.rlead>a{flex:1;display:flex;flex-direction:column;gap:11px;min-height:0;padding-bottom:16px;border-radius:10px;transition:background 120ms ease}
+.rhero{flex:1 1 auto;min-height:200px;max-height:280px;border-radius:14px;overflow:hidden;background:var(--mint);box-shadow:inset 0 0 0 1px rgba(43,58,51,.06)}
+.rhero img{display:block;width:100%;height:100%;object-fit:cover}
+.rhero img.gone{display:none}
+.rlead .rttl{font-family:var(--disp);font-size:20.5px;font-weight:750;letter-spacing:-.015em;line-height:1.22}
+.rdek{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;font-size:13.5px;font-weight:400;color:var(--sub);line-height:1.5}
 
-/* ---------- region row (v2, tamed) ---------- */
+/* ---------- the cohort row, promoted ----------
+   FOUR CARDS, ONE ROW, directly under the two-up. This was an auto-fill grid at
+   the very bottom of the page holding every cohort the server sent: seven or more
+   cards in a deep block two full bands below the fold, so a member who had just
+   been offered one cohort could not see what else existed without scrolling past
+   the reading strip and the member room. Promoting it answers the question the
+   CTA above provokes ("what else is there") in the place it is asked.
+
+   Exactly four, ranked (see ccRank): the member's own, then open to join, then
+   sealed bidding, then opens after this round. Everything past the fourth is
+   behind View all, which is the campaigns view and keeps the deep grid (.cgrid),
+   so nothing is lost, it is only no longer the default. */
 .rowhead{display:flex;align-items:baseline;gap:12px;margin:0 0 20px}
 .rowhead h3{font-size:19px;font-weight:750}
 .rowhead .all{margin-left:auto;font-size:13.5px;font-weight:650;color:var(--accent-deep)}
-.crow{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:24px}
-.cc{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s,transform .15s;position:relative;text-align:left}
+/* Four explicit tracks, not auto-fill: the row's whole visual argument is that
+   the four progress bars sit on one line and the four counts on another, and
+   auto-fill would drop to three-plus-one the moment the container narrowed. */
+.crow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px;min-width:0}
+/* The deep grid, kept for the campaigns view behind View all. This is the
+   treatment the Home row used to carry, unchanged. */
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:24px}
+.cc{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s,transform .15s;position:relative;text-align:left;min-width:0}
 .cc:hover{box-shadow:0 10px 26px rgba(26,37,32,.1);transform:translateY(-2px)}
+/* The whole card is the target where the card carries an action, so the ring
+   has to follow the card's own 18px radius rather than the 8px the sheet's
+   global :focus-visible sets for text-sized targets. */
+.cc:focus-visible{border-radius:18px}
+/* A lift is a promise that something happens on click. Reduced motion kills the
+   transition above but not the transform, so it is turned off by name. */
+@media (prefers-reduced-motion:reduce){.cc:hover{transform:none}}
 .cc__art{height:104px;flex:none;position:relative;background:var(--mint);overflow:hidden}
 .cc__art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .cc__art::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(26,37,32,.34) 0,rgba(26,37,32,.08) 46%,rgba(26,37,32,0) 72%);pointer-events:none}
@@ -746,11 +779,26 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .bell svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .bell.on{background:var(--accent);color:#fff}
 .cc__b{padding:13px 15px 15px}
-.cc__b b{font-family:var(--disp);font-size:15.5px;font-weight:750;display:block}
-.cc__b .m{font-size:12.5px;color:var(--sub);margin-top:3px}
-.cc__b .mono{font-size:11.5px;color:var(--accent-deep);margin-top:7px;display:block}
+/* EVERY LINE IN THIS BODY IS A FIXED HEIGHT, deliberately, which is the whole
+   reason the four cards line up internally and not just at their outer edges.
+   The region name truncates rather than wraps, and the cohort label reserves its
+   line whether or not there is one to print, so a card without a label does not
+   pull its own bar and count 17px up out of the row. */
+.cc__b b{font-family:var(--disp);font-size:15.5px;font-weight:750;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* display:block is load-bearing, not tidying. min-height does not apply to a
+   non-replaced INLINE element, so as a bare span an empty label reserved nothing
+   and its card's bar and count rode 20px up out of the row. */
+.cc__b .m{display:block;font-size:12.5px;line-height:1.35;min-height:1.35em;color:var(--sub);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* The hairline that separates what the cohort IS from where it stands. */
+.cc__b .cchr{display:block;height:1px;background:var(--line);margin-top:11px}
+.cc__b .mono{font-size:11.5px;color:var(--accent-deep);margin-top:7px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .miniprog{display:block;height:6px;background:#E7E2D3;border-radius:4px;margin-top:9px;overflow:hidden}
 .miniprog i{display:block;height:100%;background:var(--accent);border-radius:4px}
+/* A cohort at auction has no target to fill toward, so it gets no bar: its count
+   is final, and an empty grey track would read as nought per cent. It still has
+   to RESERVE the bar's line, or the counts either side of it sit on two different
+   baselines. Invisible, not empty. */
+.miniprog--none{background:transparent}
 
 /* ---------- other views ---------- */
 .klist{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:24px}
@@ -783,13 +831,11 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .tile.dark .tn{color:#B5CDB9}
 .tile.dark b{color:var(--glow)}
 .tlink{font-size:13.5px;font-weight:650;color:var(--accent-deep);margin-top:10px;display:inline-block}
-.reads + .tlink{margin-top:4px;padding-top:12px;border-top:1px solid var(--line)}
-/* 390px: a narrower thumbnail and gap, and the card's own inline padding
-   opened to 20px. The row is 64 + 32 = 96px, well past the 56px touch floor. */
+/* 390px: a narrower gap, and the card's own inline padding opened to 20px. The
+   row is 64 + 12 = 76px, well past the 56px touch floor. */
 @media (max-width:430px){
   .rcard{padding-inline:20px}
-  .reads li a{grid-template-columns:64px 1fr;gap:12px}
-  .rthumb{width:64px;height:64px}
+  .reads li:not(.rlead) a{gap:12px}
 }
 
 /* ---------- toast & controls ---------- */
@@ -814,20 +860,53 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
    role collapses to the full 12 and the page becomes one column. Order is DOM
    order, which is also the order a screen reader and the tab key already
    follow, so nothing is re-sequenced on the way down.
-   768px: the member room reverts to copy over handset, and the container and
-   card padding drop to 20px together. */
+   768px: the container and card padding drop to 20px together, and the cohort
+   row becomes a snap scroller. */
+/* 1279px: the split band's rail tightens by 40px and the handset scales with it.
+   The handset's WIDTH follows the rail; its 420px window does not, because the
+   window is the fixed reference the reading card reconciles against and a band
+   that shrinks it to make the columns meet has resized the one thing that was
+   making an honest claim. The hero's floor drops instead. */
+@media (max-width:1279px){
+  .splitband{grid-template-columns:minmax(0,1fr) 360px}
+  .mrview{width:280px}
+  .mrdev{transform:scale(.6763)}
+  .rhero{min-height:180px}
+  .cc__art{height:88px}
+}
 @media (max-width:1100px){
   .is-main,.is-rail,.mcol,.aside{grid-column:1/-1}
+}
+/* 1099 and not 1100, which is the seam the brief draws: at exactly 1100 the band
+   is still two columns at the 360px rail and the row is still four across. The
+   two-up above collapses a pixel earlier, at its own long-standing breakpoint,
+   because that boundary is the rail's 4-column track running out and has nothing
+   to do with this band.
+   One column, reading card first, member room second: DOM order, which is also
+   tab and screen-reader order. Height matching stops applying with nothing to
+   match against, so the hero goes back to a plain 3:2 crop and the handset is
+   centred at its full 300px. */
+@media (max-width:1099px){
+  .splitband{grid-template-columns:minmax(0,1fr)}
+  .mrview{width:300px}
+  .mrdev{transform:scale(.7246)}
+  .rhero{max-height:none;aspect-ratio:3/2;min-height:0;flex:none}
+  .rlead{flex:none}
+  .crow{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+/* Four cards is four cards on a phone too, so the row scrolls rather than
+   dropping cards or stacking into a column nobody reaches the end of. One and a
+   fraction cards visible is what makes the scroll discoverable without a hint.
+   The trailing padding is what stops the fourth card sitting flush against the
+   container edge at the end of the scroll. */
+@media (max-width:767px){
+  .crow{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;gap:14px;padding-bottom:4px}
+  .crow>*{flex:0 0 76%;scroll-snap-align:start}
+  .crow>*:last-child{margin-right:2px}
 }
 @media (max-width:768px){
   .content{padding-inline:20px}
   .card{padding:20px}
-  .mroom{grid-template-columns:1fr;grid-template-rows:none;row-gap:16px}
-  .mrcopy,.mroom .mrstage,.mroom .mrcta,.mrart{grid-column:1;grid-row:auto;align-self:auto}
-  /* One column has no surplus row to fill, so the artwork stops being the
-     thing that fills it and becomes a band of its own. */
-  .mrart{height:auto;max-height:150px;order:0}
-  .crowband{margin-top:8px}
   /* Touch targets. A 20px rating dot and a 21px text link are fine under a
      cursor and are not fine under a thumb. The dots keep their drawn size and
      grow an invisible 44px target around themselves; the text links and the
@@ -836,7 +915,6 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
   .dots button::before{content:"";position:absolute;top:50%;left:50%;width:44px;height:44px;transform:translate(-50%,-50%)}
   .dots{gap:14px}
   .tlink{padding-block:12px}
-  .reads + .tlink{padding-top:14px;padding-bottom:8px}
   .mrtab{padding-block:13px}
   .rowhead .all{padding-block:12px}
 }
@@ -861,11 +939,9 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
   *{animation:none!important;transition:none!important}
 }
 /* ================= campaign cards: actions ================= */
-.ccact{display:flex;align-items:center;gap:10px;margin-top:10px;min-height:0}
-.ccact:empty{display:none}
-.ccbtn{font-size:12.5px;font-weight:700;background:var(--accent);color:#fff;border-radius:999px;padding:7px 14px;transition:background .15s,transform .12s}
-.ccbtn:hover{background:var(--accent-deep);transform:translateY(-1px)}
-.ccbtn[disabled]{opacity:.55;cursor:default;transform:none}
+/* .ccact / .ccbtn are gone with the in-card "Choose this cohort" button. The
+   whole card is the target now, so a cohort card has no button inside it and no
+   action row to hold one. */
 .ccleave{font-size:12px;color:var(--sub);text-decoration:underline;text-underline-offset:2px}
 .ccleave:hover{color:var(--ink)}
 
@@ -935,7 +1011,6 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .saverows{list-style:none;margin:0;padding:0;text-align:left;display:flex;flex-direction:column;gap:7px}
 .saverows li{font-size:13px;color:#2E3A33;background:#F7F3E8;border-radius:10px;padding:9px 13px}
 .fbtext{width:100%;font:inherit;font-size:13px;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;resize:vertical;margin-top:8px}
-.vtrio{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
 .arr2{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:center}
 .arrright h3{font-size:21px}
 /* Nudged off the copy's left edge and given room under it: the CTA reads as the
@@ -1190,21 +1265,48 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               <p class="fnote">Never shown to bidding providers.</p>
             </section>
 
-            <section class="card rcard" aria-label="Worth a read">
-              <span class="eyebrow">Worth a read</span>
-              <ul class="reads" id="reads"></ul>
-              <button class="tlink" type="button" data-nav="knowledge">See all &rarr;</button>
-            </section>
-
           </aside>
         </div>
+        </div><!-- /#member-home -->
 
-        <div class="trio">
-<section class="card mroom is-wide" aria-label="The member room">
+        <!-- cohort row: every card is rendered by renderRegions() from CAMPS,
+             which is GET /campaigns once a live answer lands. Not one region is
+             written into this markup any more. Four of them used to be, and a
+             cohort created in the Data Store could not appear here without
+             someone editing this file, which put the deploy straight back into
+             a catalog that was promoted out of code to avoid one.
+
+             It sits HERE, directly under the two-up, rather than at the foot of
+             the page: the card above ends on "Choose this cohort", and this row
+             is the answer to the question that provokes. Four cards, ranked, and
+             the rest behind View all. -->
+        <section class="crowband is-wide" aria-labelledby="crow-h">
+          <div class="rowhead"><h3 id="crow-h">Campaigns near you</h3><button class="all" type="button" id="viewall" data-nav="campaigns">View all &rarr;</button></div>
+          <div class="crow" id="crow"></div>
+        </section>
+
+        <!-- The split band. Two cards that say the same thing to a visitor and to
+             a joined member, which is why they sit outside both lanes: one copy of
+             each, one renderer, and no card being moved between two parents on
+             every paint. Reading on the left, the room on the right in a fixed
+             400px rail. See .splitband. -->
+        <div class="splitband is-wide">
+
+          <section class="card rcard" aria-label="Worth a read">
+            <div class="rcard__head"><span class="eyebrow">Worth a read</span>
+            <button class="tlink" type="button" data-nav="knowledge">See all &rarr;</button></div>
+            <ul class="reads" id="reads"></ul>
+          </section>
+
+          <section class="card mroom" aria-label="The member room">
               <div class="mrcopy">
               <span class="eyebrow">The member room</span>
               <h3>Talk to other members</h3>
-              <p class="cardnote">Hosted where you already scroll, while we're small. Your cohort gets its own thread the day bidding starts.</p>
+              <!-- One line at 400px. The second sentence ("Your cohort gets its
+                   own thread the day bidding starts") is cut rather than wrapped
+                   to three lines in a rail: the handset below is showing that
+                   sentence, pinned, in the room's own words. -->
+              <p class="cardnote">Hosted where you already scroll, while we're small.</p>
 
               <div class="mrtabs" role="tablist" aria-label="Choose a network">
                 <button class="mrtab on" type="button" role="tab" id="mrt-reddit" aria-selected="true" aria-controls="mrp-reddit" data-net="reddit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><circle cx="18.5" cy="4.5" r="1.6"/><path d="M12 6 13.2 3l3.9.9"/><path d="M9.3 16.4c1.6 1.1 3.8 1.1 5.4 0"/></svg>Reddit</button>
@@ -1325,24 +1427,27 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               </div>
 
               <button class="btn mrcta" type="button" id="mrcta">Join r/whollar</button>
+          </section>
 
-              <img class="mrart" src="/images/social/member-room-networks.webp" alt="" width="603" height="408" loading="lazy" decoding="async">
-            </section>
-        </div>
-        </div>
-
-        <!-- region row: every card is rendered by renderRegions() from CAMPS,
-             which is GET /campaigns once a live answer lands. Not one region is
-             written into this markup any more. Four of them used to be, and a
-             cohort created in the Data Store could not appear here without
-             someone editing this file, which put the deploy straight back into
-             a catalog that was promoted out of code to avoid one. -->
-        <section class="crowband is-wide" aria-label="Campaigns near you">
-          <div class="rowhead"><h3>Campaigns near you</h3><button class="all" type="button" id="viewall">How regions open &rarr;</button></div>
-          <div class="crow" id="crow"></div>
-        </section>
+        </div><!-- /.splitband -->
 
         </div><!-- /.home -->
+      </section>
+
+      <!-- ======== every cohort: what "View all" on the Home row opens ========
+           Home shows four, ranked. This is the rest, in the deep multi-row grid
+           the Home row used to carry, painted by the same renderRegions() from the
+           same CAMPS: so a join or a leave here and a join or a leave there are
+           the same repaint. Not in the sidebar on purpose: it is Home's overflow,
+           reached from Home, and a nav entry would make it a sixth destination
+           competing with Campaign history. -->
+      <section class="view" data-v="campaigns">
+        <div class="vhead">
+          <h2>Campaigns near you</h2>
+          <p>We open one region at a time.</p>
+          <button class="tlink" type="button" data-nav="dashboard">&larr; Back to home</button>
+        </div>
+        <div class="cgrid" id="cgrid"></div>
       </section>
 
       <!-- ======== my bills ======== -->
@@ -3368,30 +3473,14 @@ $('#mrcta').addEventListener('click',function(){
   if(r.url){window.open(r.url,'_blank','noopener');return;}
   toast(r.msg);
 });
-/* ONE member-room card, MOVED between the two homes rather than copied into
-   both. The toggle carries ids (aria-controls, aria-labelledby, and the ones
-   pickRoom looks tabs and panes up by), and its tab and CTA listeners were
-   bound once against the markup in #member-home. A second copy would therefore
-   duplicate every one of those ids and still arrive with nothing wired to it.
-   The two homes are mutually exclusive, whichever is not in use is `hidden`,
-   so one card is enough, and moving a node carries its listeners with it.
-
-   Before this the visitor lane built its own card from a string: no network
-   toggle, no mock, its own wording, and a button whose only answer was a toast.
-   That is the card every visitor saw, which is everyone who has not joined,
-   while the toggle this replaces it with shipped to members only. */
-var MRHOME=null;
-function mountMemberRoom(toVisitor){
-  var card=$('.mroom');
-  if(!card)return;
-  if(!MRHOME)MRHOME=card.parentNode;
-  /* .trio is display:contents on Home, so the card it holds is a grid item of
-     the lane itself and carries its own `is-wide` span. Never wrap it in a
-     slot element: a wrapper would become the grid item and the card would
-     lose its role. */
-  var host=toVisitor?$('#visitor-home .vtrio'):MRHOME;
-  if(host&&card.parentNode!==host)host.appendChild(card);
-}
+/* mountMemberRoom() is gone. It existed because the card lived INSIDE a lane, so
+   the single copy (single, because the toggle owns a set of ids that a second copy
+   would duplicate) had to be moved between #member-home and #visitor-home on every
+   paint, in a specific order around an innerHTML write that would otherwise destroy
+   it. The card now sits in .splitband, below both lanes, where it belongs: what the
+   member room says does not depend on whether the reader has joined. Nothing moves,
+   nothing is ordered, and the listeners above are bound once to markup that never
+   changes parent. */
 /* ---------- campaigns: cards, sheet, joins ---------- */
 function campById(id){for(var i=0;i<CAMPS.length;i++)if(CAMPS[i].id===id)return CAMPS[i];return null}
 /* THE SERVER'S LIST IS THE WHOLE ANSWER ABOUT MEMBERSHIP, including its
@@ -3636,16 +3725,10 @@ var KMETA=[
   ['collective-switching','How it works','Collective switching is not a theory. It moved energy markets for years. Now, internet.','~5 min read','An electricity pylon with power lines fanning out overhead'],
   ['three-companies','The market','The prices make more sense once you see who owns the pipes.','~6 min read','A telecommunications mast with dish antennas against a clear sky']
 ];
-/* THREE reads, all of them thumbnail rows, and the same three rows the
-   visitor lane renders. This card used to run the newest article as a lead:
-   a 460px photograph, a category, a deck and a read time, then three rows
-   under it. The reason given was that the member room opposite was a tall
-   card and four equal rows would only spread the dead space around. The
-   member room is not opposite any more, it is a full-width band below, so
-   the tall neighbour this was balancing against is gone, and the lead was
-   the whole of the difference between a 796px card and a 400px one.
-   One renderer for both lanes now, so the two cannot drift apart again. */
-$('#reads').innerHTML=readsRowsHTML();
+/* FOUR reads, once, for both lanes: a hero and three rows. Written at boot
+   because BLOGS and KMETA are constants and nothing about this list depends on
+   state, which is why it is not in render(). */
+$('#reads').innerHTML=readsItemsHTML();
 /* A thumbnail that 404s leaves the mint placeholder rather than a broken icon
    in a collapsed column. `error` does not bubble, hence the capture phase, and
    it is bound to document rather than to the list because the visitor lane
@@ -3837,44 +3920,43 @@ function referralHTML(){
   +'<div style="margin-top:10px"><button class="btn ghost sharerefc" type="button">Share your link</button></div>'
   +'</section>';
 }
-/* The three rows, once. The member card in the markup and the visitor card
-   built from a string both call this, which is what keeps them one card. The
-   title is its own element so it clamps at two lines on its own: as a bare
-   text node beside the <small> the clamp cut the read time off with the
-   title. The thumbnail is sized by .rthumb and not by the image, so the
-   column holds its width before the file arrives and nothing reflows when
-   it does. */
-function readsRowsHTML(){
-  return BLOGS.slice(0,3).map(function(b,i){
-    var m=KMETA[i], img='/images/resources/'+m[0];
-    return '<li><a href="/blog/'+b[2]+'">'
-    +'<span class="rthumb"><img src="'+img+'.webp" srcset="'+img+'.webp 800w, '+img+'@2x.webp 1600w" sizes="72px" alt="'+esc(m[4])+'" loading="lazy" decoding="async" width="800" height="533"></span>'
-    +'<span class="rtxt"><b class="rttl">'+esc(b[0])+'</b><small>'+b[1]+'</small></span></a></li>';
-  }).join('');
+/* ONE HERO AND THREE ROWS, from the same list, in one <ul> so the four articles
+   are one list to a screen reader and each item is ONE link: a link on the title
+   plus a second on the thumbnail would double the tab stops for one destination.
+   The title is its own element so it clamps on its own: as a bare text node
+   beside the <small> the clamp cut the read time off with the title.
+
+   Three equal rows carried no hierarchy. The first article now runs at reading
+   size over its own 3:2 photograph, with a one-line dek, and the other three are
+   64px rows: one thing worth reading now, three worth knowing exist. It also
+   gives the band the flexible element it needs to meet the member room's height,
+   which three fixed rows could not. See .rhero.
+
+   Media is sized by its container (.rhero, .rthumb) and not by the image, so both
+   columns hold their geometry before a file arrives and nothing reflows when one
+   does. */
+function readsRowHTML(b,m,hero){
+  var img='/images/resources/'+m[0];
+  var pic=hero
+    ? '<span class="rhero"><img src="'+img+'.webp" srcset="'+img+'.webp 800w, '+img+'@2x.webp 1600w"'
+      +' sizes="(max-width:1100px) 100vw, 780px" alt="'+esc(m[4])+'" loading="lazy" decoding="async" width="800" height="533"></span>'
+    : '<span class="rthumb"><img src="'+img+'.webp" srcset="'+img+'.webp 800w, '+img+'@2x.webp 1600w"'
+      +' sizes="64px" alt="'+esc(m[4])+'" loading="lazy" decoding="async" width="800" height="533"></span>';
+  return '<li'+(hero?' class="rlead"':'')+'><a href="/blog/'+b[2]+'">'+pic
+  +'<span class="rtxt"><b class="rttl">'+esc(b[0])+'</b>'
+  +(hero?'<span class="rdek">'+esc(m[2])+'</span>':'')
+  +'<small>'+b[1]+'</small></span></a></li>';
 }
-/* One card, two axes. `wide` is the visitor lane's: a span 12 row of three
-   against a rail that is a single tile, instead of a second tall card stacked
-   under the referral tile with nothing beside it. The rows themselves are
-   readsRowsHTML() either way, so a change to a row is a change to both.
-   See .rcard--wide for why the visitor lane needs the other axis. */
-function readsCardHTML(wide){
-  var lis=readsRowsHTML();
-  if(wide){
-    /* See all moves up beside the eyebrow: as a footer under a one-row list it
-       is a second full-width rule across the card for one link. */
-    return '<section class="card rcard rcard--wide is-wide" aria-label="Worth a read">'
-    +'<div class="rcard__head"><span class="eyebrow">Worth a read</span>'
-    +'<button class="tlink" type="button" data-nav="knowledge">See all &rarr;</button></div>'
-    +'<ul class="reads">'+lis+'</ul></section>';
-  }
-  return '<section class="card rcard" aria-label="Worth a read"><span class="eyebrow">Worth a read</span><ul class="reads">'+lis+'</ul><button class="tlink" type="button" data-nav="knowledge">See all &rarr;</button></section>';
+function readsItemsHTML(){
+  return BLOGS.slice(0,4).map(function(b,i){return readsRowHTML(b,KMETA[i],i===0)}).join('');
 }
-/* The visitor lane's own member-room card used to be built here. It is gone:
-   mountMemberRoom() moves the real one into this row instead, so the toggle,
-   the three mocks and the per-network CTA are the same on both sides of the
-   join. Its `.redditgo` handler went with it; MROOM.reddit.msg, the answer it
-   gave, is still what the card's own CTA says while the subreddit has no
-   address yet. */
+/* The visitor lane used to build its own member-room card and its own Worth a
+   read card here, and the member lane carried a third copy of the reads card in
+   its rail. All three are gone: both cards are markup in .splitband now, below
+   the lanes, so a visitor and a joined member read the same two cards and there
+   is no second renderer to drift. `.redditgo` went with the visitor card;
+   MROOM.reddit.msg, the answer it gave, is still what the real CTA says while the
+   subreddit has no address yet. */
 document.addEventListener('click',function(e){
   if(e.target.closest('.copyrefc')){copyRef();return}
   if(e.target.closest('.sharerefc')){shareRef();return}
@@ -4045,37 +4127,19 @@ function renderVisitorX(){
   /* A state hands back either its main sequence alone, or {main, rail} when it
      has a card that belongs beside the sequence rather than under it. */
   if(typeof seq==='string')seq={main:seq,rail:''};
-  /* The SAME three roles as the member lane, against the same twelve tracks:
-     a span 8 main stack, a span 4 rail, and the member room span 12 under
-     both. The visitor lane used to build its own row system, which is half of
-     why the two lanes never lined up with each other. */
+  /* The SAME two roles as the member lane, against the same twelve tracks: a
+     span 8 main stack and a span 4 rail. The visitor lane used to build its own
+     row system, which is half of why the two lanes never lined up with each
+     other. The cohort row and the split band are NOT in here: they are children
+     of .home below both lanes, so a visitor and a member get the same two bands
+     from the same markup. */
   var html='<div class="grid2"><div class="mcol vmain is-main">'+seq.main+'</div>'
-   +'<aside class="aside is-rail">'+referralHTML()+seq.rail+'</aside>'
-   /* Worth a read leaves the rail here and only here. One short main card
-      against a two-card rail is what the 435px void was made of; with the
-      reads card turned on its side as a span 12 row below, the rail is the
-      referral tile alone and matches the main card beside it. */
-   +readsCardHTML(true)+'</div>'
-   +'<div class="trio vtrio"></div>';
-  /* Nothing moved, so nothing is touched. This is the loudest of the flickers
+   +'<aside class="aside is-rail">'+referralHTML()+seq.rail+'</aside></div>';
+  /* Nothing changed, so nothing is written. This is the loudest of the flickers
      the paint cache exists for: rebuilding here restarted the invoice from a
-     blank card and re-ran its 9s cycle from the top, and the two member-room
-     moves below reflowed the lane on their own. See paintOnce.
-
-     The member room is still claimed on the way out, because the markup being
-     unchanged does not mean the card is here: routeVisitor() parks it back in
-     #member-home whenever the member lane paints, so a switch to the member
-     lane and back would otherwise leave .vtrio empty. The call is idempotent,
-     so on a plain poll it is a parent comparison and nothing else. */
-  if(PAINTED.visitor===html){mountMemberRoom(true);return}
-  /* Park the member-room card back in #member-home BEFORE the write below.
-     Once it has been moved here, it lives inside #visitor-home, and this
-     innerHTML would destroy the only copy: the first visitor render would look
-     right and every one after it would have no card at all. */
-  mountMemberRoom(false);
-  paintOnce('visitor',$('#visitor-home'),html);
-  mountMemberRoom(true);
-  if(S.state==='arrive')invKick();
+     blank card and re-ran its 9s cycle from the top. paintOnce answers whether
+     it wrote, so the invoice is only re-kicked on a real rebuild. See paintOnce. */
+  if(paintOnce('visitor',$('#visitor-home'),html)&&S.state==='arrive')invKick();
 }
 
 /* ---------- member: the checkup they were never offered ----------
@@ -4144,10 +4208,6 @@ function routeVisitor(){
   }
   renderRegions();
   $$('#sts button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-goto')===S.state)});
-  /* Both directions, because the demo switcher moves between the two homes in
-     one session: a member lane that ran after a visitor lane would otherwise
-     find its trio still missing the card. */
-  if(!isVis)mountMemberRoom(false);
   if(isVis){renderVisitorX();return true}
   return false;
 }
@@ -4189,7 +4249,31 @@ function ccSub(c){
    path a real member can reach by accident. It relaxes the state gate too,
    because a cohort you cannot see a button on is not testable either way. */
 var PICKANY=new URLSearchParams(location.search).get('cohorts')==='all';
-function ccCard(c,feat){
+/* THE ROW'S ORDER IS AN ARGUMENT, not the catalog's sort. Four cards is a choice
+   about which four, so the ranking has to be the one a household reads down:
+   mine, then what I can join, then what is being bid on, then what comes after.
+   Keyed off the same `kind` the status chip is, so the chips run in the order the
+   ranking claims and the two can never disagree.
+   The index tiebreak keeps the server's sort_order inside a rank rather than
+   leaning on Array#sort being stable. */
+function ccRank(c){
+  if(c.you==='joined'||c.you==='waitlist')return 0;
+  if(c.kind==='forming')return 1;
+  if(c.kind==='auction')return 2;
+  if(c.kind==='planned')return 3;
+  if(c.kind==='waitlist')return 4;
+  return 5;
+}
+function campsRanked(){
+  return CAMPS.map(function(c,i){return [c,i,ccRank(c)]})
+    .sort(function(a,b){return a[2]-b[2]||a[1]-b[1]})
+    .map(function(x){return x[0]});
+}
+/* `ids` because #cc-first and #regmono must stay unique: the same cards are
+   painted into the Home row AND into the campaigns view behind View all, and a
+   second card carrying either id would make the qa handles ambiguous. The Home
+   row owns them. */
+function ccCard(c,feat,ids){
   var mine=c.you==='joined'||c.you==='waitlist';
   var b=CCBADGE[c.kind]||CCBADGE.planned;
   var badge=mine
@@ -4203,11 +4287,15 @@ function ccCard(c,feat){
       +'<path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>'
     : '';
   /* A bar needs something to fill toward. An auction cohort has no target by
-     design (it is closed, its number is final), so it gets a count and no bar. */
+     design (it is closed, its number is final), so it gets a count and no bar.
+     It still gets the bar's SPACE, invisibly: without the reserved line its count
+     rides 15px up and the row's four counts sit on two baselines, which is the
+     whole thing the row is arranged to show. Drawing an empty grey track instead
+     would have said nought per cent, which is false. */
   var need=c.target||0;
   var bar=(need&&c.kind!=='auction'&&c.kind!=='closed')
     ? '<span class="miniprog"><i style="width:'+Math.min(100,Math.round(c.members/need*100))+'%"></i></span>'
-    : '';
+    : '<span class="miniprog miniprog--none" aria-hidden="true"></span>';
   var mono;
   if(mine&&S.state!=='forming'&&S.state!=='closing'){
     mono=c.households+' households, '+String(PILL[S.state]||'').toLowerCase();
@@ -4216,33 +4304,61 @@ function ccCard(c,feat){
   }else{
     mono=c.households+' households, sealed';
   }
-  /* The join CTA lives on the featured cohort only, and only in the lane where
-     this row IS the call to action. `data-choose` carries the real id: it used
-     to be the string 'le', which is why joining could only ever mean one
-     cohort no matter which card was on screen. */
-  var cta=(!mine&&c.joinable&&(PICKANY||(c===feat&&S.state==='result')))
-    ? '<button class="btn terra ccbtn" type="button" data-choose="'+esc(c.id)+'">Choose this cohort</button>'
-    : '';
-  /* #cc-first and #regmono stay on the featured card. They are the handles
-     qa-dashboard.mjs reads to assert that this row shows the server's count and
-     not a number from the markup, which is the whole point of the rewrite, and
-     they are unique because only one card is ever the featured one. */
-  return '<div class="cc"'+(c===feat?' id="cc-first"':'')+'>'+badge+bell+ccArt(c)
+  /* ONE CTA PER DECISION. This used to be a terracotta "Choose this cohort"
+     button INSIDE the card, fifty pixels below the identical terracotta button in
+     the card above: the same decision offered twice, and the button made its card
+     taller than its three siblings, which broke the one alignment the row exists
+     for. The whole card is the target instead. Same action, same `data-choose`,
+     same gate, one less button.
+
+     The gate is unchanged deliberately. Widening it so that every joinable cohort
+     could be joined by a click would be new behaviour, not a layout change, and
+     the consequence is a household joining the wrong region by pressing the wrong
+     card. `data-choose` carries the real id: it used to be the string 'le', which
+     is why joining could only ever mean one cohort no matter which card was
+     pressed.
+
+     A card without an action stays a div, because a focus ring and a pointer on
+     something that does nothing is a worse lie than no ring at all. The bell and
+     the whole-card target are mutually exclusive by `joinable`, which is what
+     keeps a button out of a button. */
+  var choose=(!mine&&c.joinable&&(PICKANY||(c===feat&&S.state==='result')));
+  /* #cc-first and #regmono stay on the featured card in the Home row. They are the
+     handles qa-dashboard.mjs reads to assert that this row shows the server's count
+     and not a number from the markup, which is the whole point of the rewrite. */
+  var mark=(ids&&c===feat);
+  var open=choose
+    ? '<button class="cc" type="button" data-choose="'+esc(c.id)+'"'+(mark?' id="cc-first"':'')+'>'
+    : '<div class="cc"'+(mark?' id="cc-first"':'')+'>';
+  return open+badge+bell+ccArt(c)
    +'<span class="cc__b"><b>'+esc(c.region||c.id)+'</b><span class="m">'+esc(ccSub(c))+'</span>'
-   +bar+'<span class="mono"'+(c===feat?' id="regmono"':'')+'>'+esc(mono)+'</span>'+cta+'</span></div>';
+   +'<span class="cchr"></span>'
+   +bar+'<span class="mono"'+(mark?' id="regmono"':'')+'>'+esc(mono)+'</span></span>'
+   +(choose?'</button>':'</div>');
 }
 function renderRegions(){
-  var row=$('#crow');if(!row)return;
+  var row=$('#crow'),all=$('#cgrid');if(!row)return;
+  /* The View all link is only an offer when there is something behind it. Four
+     cohorts or fewer and the row already IS the whole list. */
+  var va=$('#viewall');
+  if(va)va.hidden=CAMPS.length<=4;
   if(!CAMPS.length){
     /* Live and empty is a real answer: the catalog has no visible cohort. Say
        so rather than leaving a blank row that reads as a failed load. */
-    paintOnce('regions',row,'<div class="cc"><span class="cc__art"></span><span class="cc__b">'
+    var none='<div class="cc"><span class="cc__art"></span><span class="cc__b">'
      +'<b>No cohorts open yet</b><span class="m">We open one region at a time.</span>'
-     +'<span class="mono">We’ll text you the day yours does</span></span></div>');
+     +'<span class="cchr"></span><span class="miniprog miniprog--none" aria-hidden="true"></span>'
+     +'<span class="mono">We’ll text you the day yours does</span></span></div>';
+    paintOnce('regions',row,none);
+    paintOnce('regions-all',all,none);
     return;
   }
-  var feat=featuredCamp();
-  paintOnce('regions',row,CAMPS.map(function(c){return ccCard(c,feat)}).join(''));
+  var feat=featuredCamp(),ranked=campsRanked();
+  /* FOUR on Home, ranked; every one of them in the campaigns view behind View
+     all, in the same order, off the same list. Two sinks, one renderer: a card
+     cannot say one thing on Home and another there. */
+  paintOnce('regions',row,ranked.slice(0,4).map(function(c){return ccCard(c,feat,true)}).join(''));
+  paintOnce('regions-all',all,ranked.map(function(c){return ccCard(c,feat,false)}).join(''));
 }
 
 /* ---------- visitor events ----------
@@ -4438,7 +4554,10 @@ $('#panel').addEventListener('click',function(e){
   if(act==='whopart'){toast('Partner profile: an independent serving SW Ontario since 2011. Full profiles land with the real build.');return}
   if(act==='editprefs2'){openPrefs(true);return}
 });
-$('#viewall').addEventListener('click',function(){toast('One launch per region: a city opens when enough neighbours are in.')});
+/* #viewall answered with a toast, which is what "How regions open" could offer
+   while this row held every cohort already. The row holds four now, so the link
+   has somewhere real to go: it carries data-nav="campaigns" and the document-level
+   [data-nav] handler routes it, same as every other in-page destination. */
 
 /* ---------- server sync: preferences already on the account ---------- */
 if(W&&W.session&&W.session.prefsGet){

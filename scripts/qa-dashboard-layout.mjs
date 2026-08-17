@@ -21,8 +21,13 @@
  *   4. no Home card carries a min-height or a height:100%
  *   5. card heights against the brief's ceilings
  *   6. per-row void: the gap between a row's tallest and shortest track
- *   9. no horizontal scroll, at ten widths
+ *   9. no horizontal scroll, at eleven widths
  *  10. tab order runs in DOM order, which here is visual reading order
+ *  11. one set of tracks across every tab
+ *  12. THE COHORT ROW: exactly four cards, equal heights, their progress bars on
+ *      one line, no button inside a card, and the row above all reading content
+ *  13. THE SPLIT BAND: two columns finishing on the same line, four articles with
+ *      the first visibly larger, and the stock illustration gone from the document
  *
  * It walks EVERY state in the prototype controls, because the Home card set
  * changes by state and a layout tuned to one state is the fault this pass
@@ -59,13 +64,23 @@ const note = (label) => { notes.push(label); console.log(`  note  ${label}`); };
    arrive's "How this works" moved to the rail. Both visitor states now sit
    under 30px. The exception is gone with the fault.
 
-   VOID_CAP is 260 rather than 500 because the member lane is what is left:
-   a rail fixed at ~1405px against a main stack that runs 1182 (locked) to
-   1612 (confirm), so it over- and under-shoots by ~220px at the two ends and
-   no static ordering fixes both. 260 is just above that spread, which makes
-   this a regression guard rather than the loose ceiling it was. */
+   VOID_CAP was 260 against a member rail of three cards (~1405px) facing a main
+   stack of 1182 (locked) to 1612 (confirm).
+
+   THE HOME RESTRUCTURE TOOK THE THIRD RAIL CARD. "Worth a read" left the rail for
+   the split band, where it is one of two peers rather than a tall thin card in a
+   4-column track, and the member room left the lane with it. That is the point of
+   the pass and it is not reversible without printing Worth a read twice on the
+   member lane. What it costs is measured here: the rail is now referral + rating
+   (~960px) against the same 1182..1612 main stack, so the spread runs ~220 to
+   ~650px and no static ordering closes it.
+
+   660 keeps this a guard against the NEXT accidental growth. Closing the gap for
+   real means giving the member rail a third card or moving one out of the main
+   stack, which is a content decision this pass is fenced off from. Recorded here
+   rather than deleted so it stays visible. */
 const TALL_OK = /Your campaign/i;
-const VOID_CAP = 260;
+const VOID_CAP = 660;
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
 
 const ours = (m) => { const u = (m.location && m.location().url) || ''; return !u || u.startsWith(BASE); };
@@ -89,10 +104,19 @@ function camp(id, region, sub, { you = null, kind = 'forming', stage = 'forming'
     },
   };
 }
+/* SIX, not three, and one of every `kind` the row ranks. The Home row shows four
+   of them, so a three-cohort fixture could not render a full row, could not show
+   the ranking putting the member's own cohort first, and would hide the View all
+   link (it only appears when there is a fifth cohort behind it). One at auction is
+   load-bearing too: that is the card with no progress bar, and reserving the bar's
+   line is what keeps the four counts on one baseline. */
 const CAMPS = [
-  camp('london-east', 'London East', 'Autumn cohort', { you: 'joined', members: 61 }),
-  camp('riverdale', 'Riverdale', 'M4K', { kind: 'planned', stage: 'waitlist', members: 22 }),
   camp('the-annex', 'The Annex', 'M5R', { members: 38 }),
+  camp('kingston-west', 'Kingston West', '', { kind: 'auction', stage: 'bidding', members: 64 }),
+  camp('riverdale', 'Riverdale', 'M4K', { kind: 'planned', stage: 'waitlist', members: 22 }),
+  camp('london-east', 'London East', 'Autumn cohort', { you: 'joined', members: 61 }),
+  camp('windsor-core', 'Windsor', 'Winter cohort', { kind: 'planned', stage: 'waitlist', members: 52 }),
+  camp('chatham-kent', 'Chatham-Kent', 'First cohort', { members: 37 }),
 ];
 const BILL = { provider: 'Rogers', monthly: 92, promoEnd: '2026-11-01', source: 'bill-checkup', speed: '500 Mbps' };
 
@@ -139,7 +163,10 @@ const measure = (p) => p.evaluate(() => {
   const laneEl = document.querySelector(lane);
 
   const label = el => el.getAttribute('aria-label') || el.id || el.className;
-  const cards = [...document.querySelectorAll('.home > .cliff, .home > .crowband')]
+  /* The split band's two cards are children of .home, not of a lane: they are the
+     same two cards whichever lane is showing, which is why they moved out. They
+     still have to be measured, so they are collected explicitly. */
+  const cards = [...document.querySelectorAll('.home > .cliff, .home > .crowband, .home > .splitband > .card')]
     .concat([...laneEl.querySelectorAll('.card')]).filter(vis);
 
   const role = el => el.classList.contains('is-band') ? 'band'
@@ -169,7 +196,8 @@ const measure = (p) => p.evaluate(() => {
     }),
     /* Every focusable, in DOM order, with its position, so tab order can be
        checked against the order a reader's eye takes. */
-    focusables: [document.querySelector('.home > .cliff'), laneEl, document.querySelector('.home > .crowband')]
+    focusables: [document.querySelector('.home > .cliff'), laneEl,
+      document.querySelector('.home > .crowband'), document.querySelector('.home > .splitband')]
       .filter(Boolean)
       .flatMap(root => [...root.querySelectorAll('a[href], button:not([disabled]), input, select')])
       .filter(vis).map(el => ({ t: (el.textContent || '').trim().slice(0, 28), ...r(el) })),
@@ -220,13 +248,15 @@ for (const vw of [1440, 1280]) {
       if (!near(g, 24, 1)) badGutter.push(`${st}: ${g}px`);
     }
     /* 5: height ceilings.
-       The member room's cap was 520 while its handset was 420px of an 800px
-       screen, clipped, with the bottom dissolved into the card. It shows the
-       WHOLE screen now (263 x 522 at scale .635), which with the card's own
-       padding is 572. 580 keeps this a regression guard on the next accidental
-       growth rather than a ceiling loose enough to stop catching one. */
+       The split band's two cards share ONE cap, because they are one band and the
+       brief's whole requirement for them is that they finish on the same line. The
+       member room drives it: eyebrow, headline and a one-line dek, a 52px toggle,
+       a fixed 420px handset window and a pinned action, inside 24px of card
+       padding, is ~690px. 720 keeps this a guard on the next accidental growth
+       rather than a ceiling loose enough to stop catching one. The equal-height
+       assertion is the one that matters, and it is in section 7. */
     for (const card of m.cards) {
-      const cap = /member room/i.test(card.name) ? 580 : /Worth a read/i.test(card.name) ? 420 : 560;
+      const cap = /member room|Worth a read/i.test(card.name) ? 720 : 560;
       if (card.h <= cap) continue;
       (TALL_OK.test(card.name) ? tallNoted : badTall).push(`${st}/${card.name} ${card.h}px > ${cap}`);
     }
@@ -294,7 +324,7 @@ console.log('\n=== keyboard order ===');
 
 /* ---------- 4: the width sweep ---------- */
 console.log('\n=== width sweep: no horizontal scroll ===');
-for (const w of [1600, 1440, 1280, 1100, 1024, 834, 768, 430, 390, 360]) {
+for (const w of [1600, 1440, 1280, 1100, 1024, 940, 834, 768, 430, 390, 360]) {
   const c = await ctx(browser, { width: w, height: 900 });
   const p = await c.newPage();
   p.on('pageerror', e => errors.push(String(e)));
@@ -381,16 +411,150 @@ console.log('\n=== images land without moving anything ===');
   await goState(p, 'forming');
   const before = await p.evaluate(() => {
     const y = el => el ? Math.round(el.getBoundingClientRect().top + window.scrollY) : null;
-    return { room: y(document.querySelector('.mroom')), band: y(document.querySelector('.crowband')), reads: y(document.querySelector('#member-home .rcard')) };
+    return { room: y(document.querySelector('.mroom')), band: y(document.querySelector('.crowband')), reads: y(document.querySelector('.splitband .rcard')) };
   });
   await p.waitForLoadState('networkidle');
   await p.waitForTimeout(600);
   const after = await p.evaluate(() => {
     const y = el => el ? Math.round(el.getBoundingClientRect().top + window.scrollY) : null;
-    return { room: y(document.querySelector('.mroom')), band: y(document.querySelector('.crowband')), reads: y(document.querySelector('#member-home .rcard')) };
+    return { room: y(document.querySelector('.mroom')), band: y(document.querySelector('.crowband')), reads: y(document.querySelector('.splitband .rcard')) };
   });
   const moved = Object.keys(before).filter(k => Math.abs(before[k] - after[k]) > 1);
   ok(moved.length === 0, `nothing shifts when the thumbnails, region art and mockup land${moved.length ? ' :: ' + moved.map(k => `${k} ${before[k]}->${after[k]}`).join(', ') : ''}`);
+  await c.close();
+}
+
+/* ---------- 7: the cohort row and the split band, against the Home brief ----------
+   Everything here is a claim the restructure makes about geometry, so all of it is
+   read off getBoundingClientRect rather than looked at. The row's argument is
+   internal alignment across four cards, and the band's is that its two columns end
+   on one line, and neither is visible in a screenshot of one card. */
+console.log('\n=== the cohort row and the split band ===');
+for (const vw of [1280, 1100]) {
+  const c = await ctx(browser, { width: vw, height: 900 });
+  const p = await c.newPage();
+  p.on('pageerror', e => errors.push(String(e)));
+  await p.goto(`${BASE}/dashboard?demo=1`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(800);
+  await goState(p, 'forming');
+
+  const m = await p.evaluate(() => {
+    const r = el => { const b = el.getBoundingClientRect(); return { y: Math.round(b.top), h: Math.round(b.height), w: Math.round(b.width) }; };
+    const ccs = [...document.querySelectorAll('#crow > *')];
+    const reads = document.querySelector('.splitband .rcard');
+    const room = document.querySelector('.splitband .mroom');
+    const items = [...reads.querySelectorAll('.reads > li')];
+    const ttl = el => { const t = el.querySelector('.rttl'); return t ? Math.round(parseFloat(getComputedStyle(t).fontSize)) : 0; };
+    return {
+      count: ccs.length,
+      ccH: ccs.map(r).map(x => x.h),
+      /* The bars, in page coordinates. The row's whole visual argument. */
+      barY: ccs.map(el => { const b = el.querySelector('.miniprog'); return b ? Math.round(b.getBoundingClientRect().top) : null; }),
+      countY: ccs.map(el => { const b = el.querySelector('.mono'); return b ? Math.round(b.getBoundingClientRect().top) : null; }),
+      /* A terracotta button inside a cohort card is the duplicated decision. */
+      ccBtns: ccs.reduce((n, el) => n + el.querySelectorAll('button, .btn').length, 0),
+      readsBox: r(reads), roomBox: r(room),
+      articles: items.length,
+      heroFont: ttl(items[0]), rowFont: items[1] ? ttl(items[1]) : 0,
+      heroMedia: items[0].querySelector('.rhero') ? r(items[0].querySelector('.rhero')).h : 0,
+      /* The handset window is the fixed reference: it must not have been resized
+         to make the two columns meet. */
+      phone: r(document.querySelector('.mrview')),
+      /* Acceptance 1: cohort cards before any reading content, from the top. */
+      rowY: Math.round(document.querySelector('.crowband').getBoundingClientRect().top),
+      bandY: Math.round(document.querySelector('.splitband').getBoundingClientRect().top),
+      /* Acceptance 7: gone from the document, not hidden. */
+      art: document.querySelectorAll('.mrart, img[src*="member-room-networks"]').length,
+    };
+  });
+
+  console.log(`\n--- ${vw}px ---`);
+  ok(m.count === 4, `exactly four cohort cards render (${m.count})`);
+  ok(new Set(m.ccH).size === 1, `the four cards report equal heights (${m.ccH.join(', ')})`);
+  ok(Math.max(...m.barY) - Math.min(...m.barY) <= 2, `their progress bars share one vertical position within 2px (${m.barY.join(', ')})`);
+  ok(Math.max(...m.countY) - Math.min(...m.countY) <= 2, `and their counts share another (${m.countY.join(', ')})`);
+  ok(m.ccBtns === 0, `no button of any kind sits inside a cohort card (${m.ccBtns})`);
+  ok(m.rowY < m.bandY, `the cohort row is above the reading content (${m.rowY} < ${m.bandY})`);
+  ok(Math.abs(m.readsBox.h - m.roomBox.h) <= 24, `the two split-band columns finish within 24px (reads ${m.readsBox.h}, room ${m.roomBox.h})`);
+  ok(m.articles === 4, `four articles in the reading card (${m.articles})`);
+  ok(m.heroFont > m.rowFont, `the first is visibly larger than the rest (${m.heroFont}px vs ${m.rowFont}px)`);
+  ok(m.heroMedia >= (vw >= 1280 ? 200 : 180) && m.heroMedia <= 280,
+    `the hero media absorbed the difference inside its bounds (${m.heroMedia}px)`);
+  ok(m.phone.h === 420, `the handset window is still 420px, not resized to force a match (${m.phone.h})`);
+  ok(m.phone.w === (vw >= 1280 ? 300 : 280), `the handset is ${vw >= 1280 ? 300 : 280}px wide at ${vw} (${m.phone.w})`);
+  ok(m.art === 0, `the stock illustration is out of the document (${m.art} found)`);
+
+  /* Acceptance 8: the toggle drives both the mock and the action label. */
+  const seen = [];
+  for (const net of ['reddit', 'x', 'linkedin']) {
+    await p.click(`.mrtab[data-net="${net}"]`);
+    await p.waitForTimeout(120);
+    seen.push(await p.evaluate(() => ({
+      pane: (document.querySelector('.mrpane:not([hidden])') || {}).id,
+      cta: document.querySelector('#mrcta').textContent.trim(),
+      sel: document.querySelectorAll('.mrtab[aria-selected="true"]').length,
+    })));
+  }
+  ok(new Set(seen.map(s => s.pane)).size === 3 && new Set(seen.map(s => s.cta)).size === 3,
+    `each network shows its own mock and names its own action (${seen.map(s => s.cta).join(' / ')})`);
+  ok(seen.every(s => s.sel === 1), 'exactly one segment is announced as selected at a time');
+
+  /* View all reaches the full grid, and the full grid is every cohort. */
+  await p.click('#viewall');
+  await p.waitForTimeout(240);
+  const all = await p.evaluate(() => ({
+    view: (document.querySelector('.view.on') || {}).dataset?.v,
+    cards: document.querySelectorAll('#cgrid > *').length,
+    dupIds: ['cc-first', 'regmono'].map(id => document.querySelectorAll('#' + id).length),
+    sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth,
+  }));
+  ok(all.view === 'campaigns' && all.cards >= 4, `View all opens the full campaign grid (${all.view}, ${all.cards} cards)`);
+  ok(all.dupIds.every(n => n <= 1), `painting the row twice did not duplicate #cc-first or #regmono (${all.dupIds.join(', ')})`);
+  ok(all.sw <= all.cw, `${vw}px: the campaigns view does not scroll sideways (${all.sw} <= ${all.cw})`);
+  await c.close();
+}
+
+/* ---------- 8: the row's own breakpoints ----------
+   Four cards is four cards at every width: two by two on a tablet, and a snap
+   scroller on a phone showing one and a fraction so the scroll is discoverable.
+   What is checked is that no card is DROPPED and nothing overflows, because the
+   two ways a four-card row usually fails are silently rendering three and pushing
+   the document sideways. */
+console.log('\n=== the cohort row across its breakpoints ===');
+for (const [vw, want] of [[940, 2], [768, 2], [390, 'scroll']]) {
+  const c = await ctx(browser, { width: vw, height: 900 });
+  const p = await c.newPage();
+  p.on('pageerror', e => errors.push(String(e)));
+  await p.goto(`${BASE}/dashboard?demo=1`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(800);
+  await goState(p, 'forming');
+  const m = await p.evaluate(() => {
+    const row = document.querySelector('#crow');
+    const ccs = [...row.children];
+    const tops = new Set(ccs.map(el => Math.round(el.getBoundingClientRect().top)));
+    return {
+      n: ccs.length, rows: tops.size,
+      perRow: ccs.length / tops.size,
+      scrolls: row.scrollWidth > row.clientWidth + 1,
+      firstW: Math.round(ccs[0].getBoundingClientRect().width),
+      rowW: Math.round(row.clientWidth),
+      sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth,
+      /* Every chip must be whole: a clipped "Opens after this round" is the
+         failure a narrow card produces first. */
+      clipped: ccs.filter(el => { const b = el.querySelector('.badge'); return b && b.scrollWidth > b.clientWidth + 1; }).length,
+    };
+  });
+  console.log(`\n--- ${vw}px ---`);
+  ok(m.n === 4, `all four cards still render (${m.n})`);
+  ok(m.sw <= m.cw, `no horizontal document scroll (${m.sw} <= ${m.cw})`);
+  ok(m.clipped === 0, `no clipped status chip (${m.clipped})`);
+  if (want === 'scroll') {
+    ok(m.scrolls, 'the row is a scroller, not a stack');
+    const frac = m.firstW / m.rowW;
+    ok(frac > 0.6 && frac < 0.9, `one and a fraction cards visible (first card is ${Math.round(frac * 100)}% of the row)`);
+  } else {
+    ok(m.perRow === want, `${want} cards per row (${m.perRow})`);
+  }
   await c.close();
 }
 
