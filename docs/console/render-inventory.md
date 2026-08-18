@@ -1,8 +1,18 @@
 # v12 prototype: which function is actually live
 
-Source: `docs/prototype/provider-console-v12.html` (3,071 lines).
+Source: `docs/prototype/provider-console-v12.html` (3,306 lines).
 Produced mechanically by brace-balance parsing, not by reading, because reading
 is what produced the wrong rule below.
+
+**Renumbered for the v13 patch.** The prototype was edited after this file was
+generated: the custom reduction stopped being one free-text label and became a
+schedule of discounts, and the equipment boxes were squared up. Every line
+number below has been shifted to match. The patch adds a `v13` block near the
+end of the script and touches only the LIVE `ticketHTML` and `readTicket`; the
+dead earlier declarations still carry the free-text `.bmechtxt` box and are
+still not to be ported. New and live: `mixHTML`, `mixRowHTML`, `mixSumHTML`,
+`mixWindowFor`, `readMix`, `mixCalc`, `mixLabel`, `mixGate`, `mixCash`, each
+declared once.
 
 ## Why this file exists
 
@@ -33,31 +43,33 @@ textually earlier.
 
 | Function | Live span | Dead declarations |
 | --- | --- | --- |
-| `ticketHTML` | **2578-2619** | 1102, 1728, 2022, 2187 |
-| `readTicket` | **2621-2660** | 1774, 2067, 2226 |
-| `briefHTML` | **2157-2184** | 1087, 1706, 1991 |
-| `scnCalc` | **2258-2269** | 1173, 1793, 2089 |
-| `renderDelivery` | **2884-2984** | 1471, 1853, 2351 |
-| `renderPending` | **3009-3029** | 1635, 2284, 2689 |
-| `tierRowHTML` | **2566-2576** | 2014, 2145 |
-| `renderPerf` | **2805-2877** | 1566 |
-| `renderOvLive` | **2753-2802** | 2704 |
-| `renderTasks` | **2445-2459** | 910 |
-| `renderContracts` | **1966-1985** | 1588 |
-| `renderBilling` | **1949-1963** | 1315 (then wrapped, see B) |
-| `seedRoster` | **1818-1836** | 1455 |
-| `rosterStats` | **1837-1842** | 1464 |
-| `deliveryCampaign` | **2429-2432** | 1526 |
-| `bidLine` | **2060-2066** | 1768 |
+| `ticketHTML` | **2608-2650** | 1102, 1728, 2022, 2217 |
+| `readTicket` | **2652-2694** | 1774, 2067, 2256 |
+| `briefHTML` | **2187-2214** | 1087, 1706, 2018 |
+| `scnCalc` | **2288-2299** | 1173, 1793, 2116 |
+| `renderDelivery` | **2919-3019** | 1471, 1853, 2381 |
+| `renderPending` | **3044-3064** | 1635, 2284, 2724 |
+| `tierRowHTML` | **2596-2606** | 2014, 2175 |
+| `renderPerf` | **2840-2912** | 1593 |
+| `renderOvLive` | **2788-2837** | 2739 |
+| `renderTasks` | **2475-2489** | 937 |
+| `renderContracts` | **1993-2012** | 1615 |
+| `renderBilling` | **1976-1990** | 1342 (then wrapped, see B) |
+| `seedRoster` | **1845-1863** | 1482 |
+| `rosterStats` | **1864-1869** | 1491 |
+| `deliveryCampaign` | **2459-2462** | 1553 |
+| `bidLine` | **2087-2093** | 1795 |
 
 Confirmations worth carrying into the port:
 
-- **`ticketHTML` @2578 is the right one** if it has a seven-column tier table
+- **`ticketHTML` @2608 is the right one** if it has a seven-column tier table
   (Tier, Upload, Technology, Sticker, Effective, After, remove), a reduction
-  presentation select with five options including `custom`, and no law-line
-  boxes. A four-column table means an earlier definition.
-- **`seedRoster` @1818 and `rosterStats` @1837** use the canonical order
-  vocabulary. The dead pair at 1455/1464 uses `ins|sch|to|rel`, which is the v4
+  presentation select with five options ending in `Custom, choose your mix`,
+  and no law-line boxes. A four-column table means an earlier definition, and
+  so does a `custom` option reading `Custom, your wording`: that one opens a
+  single text box instead of the schedule.
+- **`seedRoster` @1845 and `rosterStats` @1864** use the canonical order
+  vocabulary. The dead pair at 1482/1491 uses `ins|sch|to|rel`, which is the v4
   set. It must not be ported and must not reappear as a database enum.
 
 ---
@@ -69,40 +81,40 @@ mechanically: every one of the 7 contains a call to its captured alias.
 
 | Function | Layers | Chain |
 | --- | --- | --- |
-| `renderOverviewBits` | **5** | decl @934 → `_rob` @2122 → `_rob9` @2542 → `_rob10` @2736 → `_rob11` @3041 |
-| `renderAll` | 2 | decl @1407 → `_renderAll` @1697 |
-| `renderBids` | 2 | decl @1243 → `_rbids11` @2988 |
-| `renderBilling` | 2 | decl **@1949** (last of 2) → `_rbill11` @2998 |
+| `renderOverviewBits` | **5** | decl @961 → `_rob` @2152 → `_rob9` @2572 → `_rob10` @2771 → `_rob11` @3076 |
+| `renderAll` | 2 | decl @1434 → `_renderAll` @1724 |
+| `renderBids` | 2 | decl @1270 → `_rbids11` @3023 |
+| `renderBilling` | 2 | decl **@1976** (last of 2) → `_rbill11` @3033 |
 
 ### What each layer adds
 
-**`renderAll` @1697** appends a second render pass: `renderDelivery`,
+**`renderAll` @1724** appends a second render pass: `renderDelivery`,
 `renderPerf`, `renderContracts`, `renderBanner`, `renderPending`, `syncGate`.
 The base only refreshed the overview, agenda, desk, planned, bids, coverage and
 plan. Flattening to the last definition alone would leave six views stale after
 every clock tick and every scenario change.
 
-**`renderBids` @2988** appends the empty-state nudge: when the partner has
+**`renderBids` @3023** appends the empty-state nudge: when the partner has
 sealed nothing and a cohort in coverage is open, it injects a `#bidnudge` card
 before `#bidscard`. It removes any previous `#bidnudge` first, so it is
 re-entrant.
 
-**`renderBilling` @2998** appends one sentence to `#b-cycle` when a bid is at
+**`renderBilling` @3033** appends one sentence to `#b-cycle` when a bid is at
 stage 3 and no roster exists yet, saying confirmations cost nothing.
 
 ### `renderOverviewBits`, layer by layer
 
 Order matters, and two layers write the same four DOM nodes.
 
-1. **base @934** writes `#ov-sub`, `#cs-eb`, `#cs-title`, `#cs-line` from the
+1. **base @961** writes `#ov-sub`, `#cs-eb`, `#cs-title`, `#cs-line` from the
    open-auction count and the next close.
-2. **`_rob` @2122** overwrites all four *when `COVER` is empty*: "Declare your
+2. **`_rob` @2152** overwrites all four *when `COVER` is empty*: "Declare your
    coverage first".
-3. **`_rob9` @2542** returns immediately unless `P.stage === 'pending'`; when it
+3. **`_rob9` @2572** returns immediately unless `P.stage === 'pending'`; when it
    is pending it overwrites all four again with application-progress copy.
-4. **`_rob10` @2736** calls `renderOvLive()`, then auto-submits the application
+4. **`_rob10` @2771** calls `renderOvLive()`, then auto-submits the application
    when all five tasks are clear and `!P.appDone`.
-5. **`_rob11` @3041** returns unless pending; in the tasks view it appends a
+5. **`_rob11` @3076** returns unless pending; in the tasks view it appends a
    "See the review timeline" link to `#cs-line`, and stamps `P.appDoneAt` and
    returns to the frame when `appAll()` first becomes true.
 
@@ -150,12 +162,12 @@ Two things to carry over unchanged, because they look accidental and are not:
 
 ## D. Not ported
 
-`seedRoster` @1455 and `rosterStats` @1464 (dead v4 vocabulary). `sig()`,
+`seedRoster` @1482 and `rosterStats` @1491 (dead v4 vocabulary). `sig()`,
 `tick()`, `now()`, `snap()`, `NOW0`, `NOWOFF` (the virtual clock). `base()`
-@1653 and the `SCEN` array @1656-1671 (the scenario switcher; its 14 states are
+@1680 and the `SCEN` array @1683-1698 (the scenario switcher; its 14 states are
 reconstructed as fixtures instead, see `docs/console/fixtures.md`). `CAMPAIGNS`,
 `COVER`, `HBIDS`, `MONTHS`, `STREETS`, `TECHS` (demo constants).
-`window.__whollar` @2559 (debug handle).
+`window.__whollar` @2589 (debug handle).
 
 ## E. States the prototype had no panel for
 

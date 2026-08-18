@@ -421,7 +421,6 @@ tr.exp + tr.dwr{display:table-row}
 .consent{display:flex;gap:11px;align-items:flex-start;width:100%;max-width:none;margin-top:14px}
 .consent input{flex:none;width:16px;height:16px;margin:2px 0 0}
 .consent span{flex:1;min-width:0;font-size:12.5px;font-weight:500;line-height:1.6;color:var(--ink)}
-.mechtxtw input{width:100%;min-width:0;font:inherit;font-size:13px;border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;background:#fff}
 
 /* ===== v11 additions ===== */
 .pendcta{margin:10px 0 4px;padding:0 2px}
@@ -472,8 +471,7 @@ tr.exp + tr.dwr{display:table-row}
 .tiert th:nth-child(4){width:14%}
 .tiert input,.tiert select{padding:7px 7px;font-size:12.5px}
 .tiert .tname{min-width:92px}
-.eqgrid{grid-template-columns:1.35fr .75fr .95fr}
-.eqgrid label,.podcell label{white-space:nowrap}
+.eqgrid label{white-space:nowrap}
 .opt2{font-weight:600;color:var(--sub);font-size:10px;text-transform:none;letter-spacing:0}
 .apcadd{display:grid;grid-template-columns:1.1fr 1.6fr .9fr auto;gap:10px;align-items:center;margin-top:6px}
 .apcadd input,.apcadd select{width:100%;min-width:0;font:inherit;font-size:13px;border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;background:#fff}
@@ -496,7 +494,10 @@ tr.exp + tr.dwr{display:table-row}
 .bidform .two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
 .bidform .two>div{min-width:0}
 .bidform select,.bidform input[type="number"],.bidform input[type="text"]{width:100%;min-width:0;font:inherit;font-size:13px;border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;background:#fff}
-.eqgrid{display:grid;grid-template-columns:1.25fr .75fr 1fr;gap:12px}
+/* Equal thirds: the equipment boxes are answers to comparable questions and
+   sized alike, whether or not the rental cell is showing. Bottom-aligned, so a
+   label that wraps does not drop its own input below the others. */
+.eqgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end}
 .eqgrid>div{min-width:0}
 .hint{display:block;font-size:10.5px;color:var(--sub);font-weight:600;margin-top:4px}
 .tiert th{white-space:nowrap}
@@ -725,3 +726,24 @@ tr.exp + tr.dwr{display:table-row}
   .docup{flex-wrap:wrap}
   .docup .dact{width:100%;justify-content:flex-end}
 }
+
+/* ===== the custom mix ===== */
+/* The schedule and its arithmetic, half the width each. */
+.mixw{margin-top:14px}
+.mixgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+.mixgrid>div{min-width:0}
+.mixt{margin-bottom:8px}
+.mixt th:nth-child(1){width:42%}
+.mixt th:nth-child(2){width:23%}
+.mixt th:nth-child(3){width:29%}
+.mixt .mown{margin-top:5px}
+.mixcalc{border:1px solid var(--line);border-radius:12px;padding:12px 13px;background:var(--tint)}
+.mixcalc h4{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--sub);margin:0 0 6px}
+.mixrow{display:flex;gap:8px;align-items:baseline;font-size:12.5px;padding:6px 0;border-top:1px dashed var(--line)}
+.mixrow span{color:var(--sub)}
+.mixrow em{font-style:normal;font-family:var(--mono);font-size:10.5px;color:var(--sub)}
+.mixrow b{margin-left:auto;font-family:var(--disp);font-size:13.5px;white-space:nowrap}
+.mixwarn{margin:8px 0 0;font-size:11.5px;line-height:1.5;color:#8C3B1B;font-weight:600}
+.mixcalc .consent{margin-top:12px;padding-top:11px;border-top:1px dashed var(--line)}
+.mixcalc .consent span{font-size:12px}
+@media (max-width:940px){.mixgrid{grid-template-columns:1fr}}

@@ -515,6 +515,33 @@ tr.exp + tr.dwr{display:table-row}
   .funnel{grid-template-columns:repeat(2,1fr)}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ===== v13: equal equipment boxes, and the custom mix ===== */
+/* Equal thirds: the equipment boxes are answers to comparable questions and
+   sized alike, whether or not the rental cell is showing. Bottom-aligned, so a
+   label that wraps does not drop its own input below the others. */
+.eqgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end}
+.eqgrid label{white-space:nowrap}
+.podcell label{white-space:normal}
+/* The schedule and its arithmetic, half the width each. */
+.mixw{margin-top:14px}
+.mixgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+.mixgrid>div{min-width:0}
+.mixt{margin-bottom:8px}
+.mixt th:nth-child(1){width:42%}
+.mixt th:nth-child(2){width:23%}
+.mixt th:nth-child(3){width:29%}
+.mixt .mown{margin-top:5px}
+.mixcalc{border:1px solid var(--line);border-radius:12px;padding:12px 13px;background:var(--tint)}
+.mixcalc h4{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--sub);margin:0 0 6px}
+.mixrow{display:flex;gap:8px;align-items:baseline;font-size:12.5px;padding:6px 0;border-top:1px dashed var(--line)}
+.mixrow span{color:var(--sub)}
+.mixrow em{font-style:normal;font-family:var(--mono);font-size:10.5px;color:var(--sub)}
+.mixrow b{margin-left:auto;font-family:var(--disp);font-size:13.5px;white-space:nowrap}
+.mixwarn{margin:8px 0 0;font-size:11.5px;line-height:1.5;color:#8C3B1B;font-weight:600}
+.mixcalc .consent{margin-top:12px;padding-top:11px;border-top:1px dashed var(--line)}
+.mixcalc .consent span{font-size:12px}
+@media (max-width:940px){.mixgrid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -2096,6 +2123,9 @@ function scnCalc(form,a){
 document.addEventListener('click',function(e){
   var form=e.target.closest('.bidform');
   if(form){
+    /* v13: the mix table has its own rows and its own remove control, and the
+       .trow branch below would dereference a null row on one of them. */
+    if(e.target.closest('.mrow')||e.target.closest('.mixadd'))return;
     var a=CAMPAIGNS.filter(function(x){return x.id===form.getAttribute('data-bid')})[0];
     if(e.target.closest('.taddrow')){
       var body=$('.tierbody',form);
@@ -2603,15 +2633,16 @@ function ticketHTML(a){
    +tierRowHTML('500 Mbps',86,56,'50',false,'Cable')
    +'</tbody></table>'
    +'<button type="button" class="taddrow">+ Add another service</button>'
-   +'<div class="two"><div><label>How the reduction reads to households</label><select class="bmech"><option value="member">A Whollar member discount</option><option value="promo">A promotional credit, expiry stated</option><option value="cash">Monthly cashback</option><option value="none">Effective price only, no breakdown</option><option value="custom">Custom, your wording</option></select><div class="mechtxtw" hidden style="margin-top:8px"><input type="text" class="bmechtxt" placeholder="e.g. Neighbourhood build rate" maxlength="40"></div></div>'
+   +'<div class="two"><div><label>How the reduction reads to households</label><select class="bmech"><option value="member">A Whollar member discount</option><option value="promo">A promotional credit, expiry stated</option><option value="cash">Monthly cashback</option><option value="none">Effective price only, no breakdown</option><option value="custom">Custom, choose your mix</option></select></div>'
    +'<div class="mechnote"><small class="hint">Your rate card stays intact either way. Households always see the effective price and the after-rate; this only sets whether the math between sticker and effective is shown, and under what name.</small></div></div>'
+   +mixHTML(86,56,24)
    +'<div class="two"><div><label>Price guaranteed for</label><select class="bguar"><option value="24">24 months</option><option value="12">12 months</option><option value="36">36 months</option></select></div>'
    +'<div><label>After the guarantee</label><select class="bafter"><option value="none">No scheduled change</option><option value="new">New price, stated per tier</option></select></div></div>'
    +'<div class="afterw" hidden></div>'
    +'<label class="blk" style="margin-top:14px">Equipment <small class="lsub">every dollar of it on the face of the bid</small></label>'
    +'<div class="eqgrid"><div><label>Modem and in-home WiFi</label><select class="bequip"><option value="inc">Included in the price</option><option value="rent">Monthly rental, stated now</option><option value="byod">BYOD allowed, no charge</option></select></div>'
    +'<div class="rentw" hidden><label>Rental ($ /mo)</label><input type="number" class="brent" value="7" min="0" step="0.5"></div>'
-   +'<div class="podcell"><label>Extra pod, $ /mo</label><input type="number" class="bpods" value="0" min="0" step="0.5"><small class="hint">0 means included</small></div></div>'
+   +'<div class="podcell"><label>Extra pod, $ /mo <small class="lsub">0 means included</small></label><input type="number" class="bpods" value="0" min="0" step="0.5"></div></div>'
    +'<div class="two" style="margin-top:14px"><div><label>Service commitment</label><input type="number" class="bcommit" value="'+a.hh+'" min="10" max="'+a.hh+'" step="1"><small class="hint">households you can serve at these prices</small></div><div></div></div>'
    +'<label class="consent"><input type="checkbox" class="bconsent"><span>I understand this bid is sealed and binding until the offer deadline, on the standard cohort terms, for up to my committed household count, with the effective prices above shown to households exactly as entered. I can improve it before close; I cannot withdraw it.</span></label>'
    +payBtn
@@ -2634,7 +2665,10 @@ function readTicket(form,a){
   var equipLine=(eq==='inc'?'included':(eq==='byod'?'BYOD, no charge':('rental $'+($('.brent',form).value||0)+'/mo, stated')))
     +(pods>0?' \u00b7 extra pod $'+pods+'/mo':' \u00b7 pods included');
   var mech=$('.bmech',form)?$('.bmech',form).value:'member';
-  var mtxt=$('.bmechtxt',form)?($('.bmechtxt',form).value||'').trim():'';
+  /* v13: 'custom' is a schedule now, and the label the seal carries is derived
+     from it. The mix itself is in the returned draft. */
+  var mix=$('.mixbody',form)?readMix(form):[];
+  var mtxt=mech==='custom'?mixLabel(mix):'';
   var commit=Math.min(a.hh,Math.max(1,parseInt($('.bcommit',form).value,10)||a.hh));
   function effOf(name){for(var i=0;i<tiers.length;i++)if(tiers[i].name===name)return tiers[i].eff;return null}
   function subGig(){
@@ -2655,13 +2689,14 @@ function readTicket(form,a){
   var stickerLine=tiers.map(function(t){return '$'+t.sticker+' / '+t.name}).join(' \u00b7 ');
   return {tiers:tiers.map(function(t){return {name:t.name,up:t.up,tech:t.tech,sticker:t.sticker,price:t.eff,after:t.after}}),
     guar:guar,afterMode:am,afterLine:afterLine,equip:eq,pods:pods,equipLine:equipLine,
-    mech:mech,mechLabel:mech==='custom'?(mtxt||'a custom reduction'):MECHLBL[mech],stickerLine:stickerLine,
+    mech:mech,mechLabel:mech==='custom'?(mtxt||'a custom reduction'):MECHLBL[mech],mix:mix,stickerLine:stickerLine,
     commit:commit,blend:blend,price:tiers.length?tiers[0].eff:0,bad:bad};
 }
 
 /* capture-phase handlers so legacy tier listeners never fire */
 document.addEventListener('click',function(e){
   var add=e.target.closest('.taddrow');if(!add)return;
+  if(add.classList.contains('mixadd'))return;  /* v13: the mix has its own */
   var form=add.closest('.bidform');if(!form)return;
   e.stopPropagation();
   var a=CAMPAIGNS.filter(function(x){return x.id===form.getAttribute('data-bid')})[0];
@@ -3061,6 +3096,206 @@ document.addEventListener('change',function(e){
   var form=e.target.closest('.bidform');if(!form)return;
   var w=$('.mechtxtw',form);if(w)w.hidden=e.target.value!=='custom';
 });
+
+/* ================= v13: the custom mix ================= */
+/* 'Custom' was one free-text label. It is now a schedule: a discount type, an
+   amount, and the window it runs for, one row per step, so a partner whose
+   reduction changes at month 6 or month 12 can say so on the face of the bid
+   instead of averaging it into a single effective price. Beside it, what the
+   schedule comes to over the whole guarantee, and a confirmation of the
+   effective monthly price it implies.
+
+   The types are the reduction reads offered above minus 'none', which is the
+   absence of a breakdown and cannot be a line in one, plus a row the partner
+   words themselves. */
+var MIXTYPES=['member','promo','cash','own'];
+/* Shorter than the reduction select above on purpose: the period column
+   already states the expiry, so 'expiry stated' would be the table repeating
+   the column beside it. */
+var MIXLBL={member:'Whollar member discount',promo:'Promotional credit',cash:'Monthly cashback',own:'Other, your wording'};
+/* Windows, in months from the start of service. Only those closing inside the
+   guarantee are offered: a discount running past the guaranteed price is a
+   promise about a price this bid does not make. */
+var MIXPERIODS=[[0,6],[0,12],[0,24],[0,36],[6,12],[12,24],[24,36]];
+/* The window a row renders on, given the windows a guarantee leaves standing.
+   Shortening the guarantee retires the windows that ran past it, and a select
+   with nothing selected shows its first option, which would silently move
+   every row to the shortest window in the list. So fall back to the widest
+   window that still starts where this row started. */
+function mixWindowFor(r,fits,guar){
+  var pick=null;
+  fits.forEach(function(pp){if(Number(r.from)===pp[0]&&Number(r.to)===pp[1])pick=pp});
+  if(!pick)fits.forEach(function(pp){if(Number(r.from)===pp[0])pick=pp});
+  return pick||fits[fits.length-1]||[0,guar];
+}
+function mixCash(n){n=Math.round((Number(n)||0)*100)/100;return '$'+n.toLocaleString('en-CA',{minimumFractionDigits:n%1?2:0,maximumFractionDigits:2})}
+
+function mixRowHTML(r,i,guar){
+  var topts=MIXTYPES.map(function(k){return '<option value="'+k+'"'+(k===r.type?' selected':'')+'>'+MIXLBL[k]+'</option>'}).join('');
+  var fits=MIXPERIODS.filter(function(pp){return pp[1]<=guar});
+  var pick=mixWindowFor(r,fits,guar);
+  var popts=fits.map(function(pp){
+    var on=pick[0]===pp[0]&&pick[1]===pp[1];
+    return '<option value="'+pp[0]+'-'+pp[1]+'"'+(on?' selected':'')+'>'+pp[0]+' to '+pp[1]+' months</option>';
+  }).join('');
+  return '<tr class="mrow" data-i="'+i+'">'
+   +'<td><select class="mtype">'+topts+'</select>'
+   +'<input type="text" class="mown" placeholder="e.g. Neighbourhood build rate" maxlength="40" value="'+esc(r.label||'')+'"'+(r.type==='own'?'':' hidden')+'></td>'
+   +'<td><input type="number" class="mamt" value="'+esc(r.amount||'')+'" min="0" step="0.5"></td>'
+   +'<td><select class="mper">'+popts+'</select></td>'
+   +'<td>'+(i>0?'<button type="button" class="trm mrm" aria-label="Remove discount">×</button>':'')+'</td></tr>';
+}
+
+/* What the mix comes to over the whole guarantee, and what that makes the
+   average effective price per tier. The tier table already carries an
+   effective price, so the two can disagree: a partner can schedule $40 off for
+   six months and still type $56 effective. Neither is wrong on its own, so
+   this states both and names the tiers where they part company. Households are
+   shown the effective price either way, which is what the confirmation below
+   asks about. */
+function mixSumHTML(tiers,mix,guar){
+  var months=guar||24,total=0;
+  mix.forEach(function(r){
+    var from=Math.min(Number(r.from)||0,months),to=Math.min(Number(r.to)||0,months);
+    if(to>from)total+=(Number(r.amount)||0)*(to-from);
+  });
+  var avg=months?total/months:0,off=[];
+  var rows=tiers.map(function(t){
+    var stk=Number(t.sticker)||0,eff=Number(t.eff)||0,ae=Math.max(0,stk-avg);
+    if(stk&&Math.abs(ae-eff)>0.5)off.push(t.name);
+    return '<div class="mixrow"><span>'+esc(t.name||'Tier')+'</span><em>sticker '+mixCash(stk)+'</em><b>'+mixCash(ae)+' /mo</b></div>';
+  }).join('');
+  return '<h4>Across the '+months+'-month guarantee</h4>'
+   +'<div class="mixrow"><span>Total reduction</span><b>'+mixCash(total)+'</b></div>'
+   +'<div class="mixrow"><span>Average reduction</span><b>'+mixCash(avg)+' /mo</b></div>'
+   +rows
+   +(off.length?'<p class="mixwarn">The mix averages to a different figure than the effective price entered on '+esc(off.join(', '))+'. Households are shown the effective price.</p>':'');
+}
+
+/* Rendered always and hidden unless 'custom' is chosen, the same hidden
+   attribute reveal the rental cell and the after column already use. It opens
+   on one row at the gap the tier row beside it already states, so the mix and
+   the prices agree before anything is typed. */
+function mixHTML(sticker,eff,guar){
+  var mix=[{type:'member',label:'',amount:String(Math.max(0,sticker-eff)),from:0,to:guar}];
+  return '<div class="mixw" hidden>'
+   +'<label class="blk">Your mix <small class="lsub">one row per step, so a reduction that changes partway through says so</small></label>'
+   +'<div class="mixgrid"><div>'
+   +'<table class="tiert mixt"><thead><tr><th>Discount type</th><th>Discount, $ /mo</th><th>Valid time period</th><th></th></tr></thead><tbody class="mixbody">'
+   +mix.map(function(r,i){return mixRowHTML(r,i,guar)}).join('')
+   +'</tbody></table>'
+   +'<button type="button" class="taddrow mixadd">+ Add another discount</button></div>'
+   +'<div class="mixcalc"><div class="mixsum">'+mixSumHTML([{name:'500 Mbps',sticker:sticker,eff:eff}],mix,guar)+'</div>'
+   +'<label class="consent"><input type="checkbox" class="bmixok"><span>I confirm the effective monthly price each tier reaches under this mix, for the whole guarantee.</span></label>'
+   +'</div></div></div>';
+}
+
+function readMix(form){
+  return $$('.mrow',form).map(function(tr){
+    var per=String($('.mper',tr).value||'0-0').split('-');
+    return {type:$('.mtype',tr).value,label:(($('.mown',tr)||{}).value||'').trim(),
+      amount:$('.mamt',tr).value,from:parseInt(per[0],10)||0,to:parseInt(per[1],10)||0};
+  });
+}
+
+/* Only the summary is rewritten, never the schedule table and never the
+   confirmation: a keystroke in an amount must not repaint the input it was
+   typed into, or quietly clear a box the partner ticked. */
+function mixCalc(form){
+  var sum=$('.mixsum',form);if(!sum)return;
+  var guar=parseInt($('.bguar',form).value,10)||24;
+  var tiers=$$('.trow',form).map(function(tr){
+    return {name:$('.tname',tr).value,sticker:parseFloat($('.tsticker',tr).value)||0,eff:parseFloat($('.teff',tr).value)||0};
+  }).filter(function(t){return t.eff>0});
+  sum.innerHTML=mixSumHTML(tiers,readMix(form),guar);
+}
+
+/* The label a sealed custom bid still carries. The backend takes one
+   mechanismLabel of 3 to 40 plain characters and knows nothing about a
+   schedule, so the distinct type names of the live rows are joined and cut
+   back to the first if that runs long. */
+function mixLabel(mix){
+  var short={member:'Member discount',promo:'Promotional credit',cash:'Monthly cashback'};
+  var parts=[];
+  mix.forEach(function(r){
+    if(!(Number(r.amount)>0&&r.to>r.from))return;
+    var n=String(r.type==='own'?r.label:(short[r.type]||'')).replace(/[^A-Za-z0-9 ,.'&-]/g,'').trim();
+    if(n&&parts.indexOf(n)<0)parts.push(n);
+  });
+  var j=parts.join(', ');
+  if(j.length>40)j=parts[0]||'';
+  return j.slice(0,40).trim();
+}
+
+/* The mix reveal, replacing v12's .mechtxtw toggle. */
+document.addEventListener('change',function(e){
+  var form=e.target.closest('.bidform');if(!form)return;
+  if(e.target.classList.contains('bmech')){
+    var w=$('.mixw',form);
+    if(w){w.hidden=e.target.value!=='custom';if(!w.hidden)mixCalc(form)}
+    mixGate(form);
+  }
+  if(e.target.classList.contains('mtype')){
+    var own=$('.mown',e.target.closest('.mrow'));
+    if(own)own.hidden=e.target.value!=='own';
+  }
+  /* A shortened guarantee retires the windows that ran past it. */
+  if(e.target.classList.contains('bguar')){
+    var g=parseInt(e.target.value,10)||24,body=$('.mixbody',form);
+    if(body){
+      var mix=readMix(form).map(function(r){return {type:r.type,label:r.label,amount:r.amount,from:Math.min(r.from,g),to:Math.min(r.to,g)}});
+      body.innerHTML=mix.map(function(r,i){return mixRowHTML(r,i,g)}).join('');
+    }
+  }
+  if(form)mixCalc(form);
+});
+
+/* A custom mix has its own confirmation, because the number it asks about (the
+   effective price each tier averages to) is not on the consent line. */
+function mixGate(form){
+  var b=$('[data-place]',form);if(!b||b.textContent.indexOf('Sealing')>=0)return;
+  var custom=$('.bmech',form)&&$('.bmech',form).value==='custom';
+  var consent=$('.bconsent',form)&&$('.bconsent',form).checked;
+  var okd=$('.bmixok',form)&&$('.bmixok',form).checked;
+  b.disabled=!(consent&&(!custom||okd));
+}
+document.addEventListener('change',function(e){
+  var form=e.target.closest('.bidform');if(!form)return;
+  if(e.target.classList.contains('bconsent')||e.target.classList.contains('bmixok'))mixGate(form);
+});
+
+document.addEventListener('click',function(e){
+  var form=e.target.closest('.bidform');if(!form)return;
+  var add=e.target.closest('.mixadd');
+  if(add){
+    e.stopPropagation();
+    var g=parseInt($('.bguar',form).value,10)||24;
+    var mix=readMix(form);
+    /* The new window starts where the last one ended, so a schedule reads as
+       steps. When the last row already runs the whole guarantee the new row
+       lands on the same window, which is fine: two reductions running together
+       is a legitimate mix too. */
+    var last=mix[mix.length-1];
+    var from=last&&last.to<g?last.to:0;
+    var fits=MIXPERIODS.filter(function(pp){return pp[0]===from&&pp[1]<=g});
+    var win=fits.length?fits[fits.length-1]:[0,g];
+    $('.mixbody',form).insertAdjacentHTML('beforeend',
+      mixRowHTML({type:'promo',label:'',amount:'',from:win[0],to:win[1]},mix.length,g));
+    mixCalc(form);
+    return;
+  }
+  var rm=e.target.closest('.mrm');
+  if(rm){
+    e.stopPropagation();
+    if($$('.mrow',form).length>1)rm.closest('.mrow').remove();
+    mixCalc(form);
+  }
+},true);
+
+document.addEventListener('input',function(e){
+  var form=e.target.closest('.bidform');if(form)mixCalc(form);
+});
+/* ================= end v13 ================= */
 
 /* ---------- boot ---------- */
 renderTasks();lastSig=sig();renderAll();renderBilling();renderAcq();
