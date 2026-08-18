@@ -683,7 +683,20 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .flds li{display:flex;align-items:center;gap:10px;font-size:14px}
 .flds .tick{width:20px;height:20px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700}
 .flds .ok{background:var(--mint);color:var(--accent-deep)}
-.flds .no{background:#EDE8DB;color:#949E95}
+/* An unfilled field is a red cross, not the grey dot it used to be. This list
+   IS the file providers bid against, and a blank renewal month is the one gap
+   that stops a cohort placement outright, so the row has to read as owed rather
+   than as merely quiet. Shape carries the state as well as colour (the glyph
+   changes tick to cross), which is what keeps it legible to anyone who cannot
+   separate the two, and #B3261E on this tint clears AA at 11px. It is the first
+   true red on the page: every other warm accent here is terracotta, which is
+   already spoken for by the Soon pill and the terra buttons and would read as
+   another badge rather than as a gap. */
+.flds .no{background:#FBEAE5;color:#B3261E}
+/* NOT the same thing as unfilled, and deliberately not red. A row for a feature
+   with no backing table yet ("Mobile bill") has nothing a member could add, so
+   a cross there marks their omission for our missing plumbing. Keeps the dot. */
+.flds .na{background:#EDE8DB;color:#949E95}
 .flds .val{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--sub)}
 .flds .val.editable{cursor:pointer;border-bottom:1px dashed transparent;padding-bottom:1px;transition:color .15s,border-color .15s}
 .flds .val.editable:hover{color:var(--ink);border-bottom-color:var(--sub)}
@@ -1247,11 +1260,11 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
                 <div class="segs" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               </div>
               <ul class="flds">
-                <li><span class="tick no">&middot;</span>Current provider<span class="val editable" data-fld="provider">Add</span></li>
-                <li><span class="tick no">&middot;</span>Monthly charge<span class="val editable" data-fld="monthly">Add</span></li>
-                <li><span class="tick no">&middot;</span>Promo end date<span class="val editable" data-fld="promoEnd">Add</span></li>
-                <li><span class="tick no">&middot;</span>Latest bill upload<span class="val">Add</span></li>
-                <li><span class="tick no">&middot;</span>Mobile bill<span class="soon">Soon</span><span class="val">Track its cliff too</span></li>
+                <li><span class="tick no">&#10007;</span>Current provider<span class="val editable" data-fld="provider">Add</span></li>
+                <li><span class="tick no">&#10007;</span>Monthly charge<span class="val editable" data-fld="monthly">Add</span></li>
+                <li><span class="tick no">&#10007;</span>Promo end date<span class="val editable" data-fld="promoEnd">Add</span></li>
+                <li><span class="tick no">&#10007;</span>Latest bill upload<span class="val">Add</span></li>
+                <li><span class="tick na">&middot;</span>Mobile bill<span class="soon">Soon</span><span class="val">Track its cliff too</span></li>
               </ul>
               <p class="fnote bill-src" data-bill-src hidden></p>
               <p class="fnote">Private, always: bidding providers never see your provider or your price. <button class="tlink" type="button" data-nav="bills" style="margin-top:0">Open my bills &rarr;</button></p>
@@ -1490,15 +1503,15 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
                    to the account (users.postal_code), and the account card
                    below owns it. -->
               <ul class="flds">
-                <li><span class="tick no">&middot;</span>Current provider<span class="val editable" data-fld="provider">Add</span></li>
-                <li><span class="tick no">&middot;</span>Monthly charge<span class="val editable" data-fld="monthly">Add</span></li>
-                <li><span class="tick no">&middot;</span>Download speed<span class="val editable" data-fld="speed">Add</span></li>
-                <li><span class="tick no">&middot;</span>How it reaches you<span class="val editable" data-fld="tech">Add</span></li>
-                <li><span class="tick no">&middot;</span>Promo end date<span class="val editable" data-fld="promoEnd">Add</span></li>
-                <li><span class="tick no">&middot;</span>Contract start<span class="val editable" data-fld="contractStart">Add</span></li>
-                <li><span class="tick no">&middot;</span>Contract length<span class="val editable" data-fld="contractLength">Add</span></li>
-                <li><span class="tick no">&middot;</span>Switch threshold<span class="val editable" data-fld="threshold">Add</span></li>
-                <li id="bu-row"><span class="tick no">&middot;</span>Latest bill upload<span class="val" data-fld="billUpload">Add</span></li>
+                <li><span class="tick no">&#10007;</span>Current provider<span class="val editable" data-fld="provider">Add</span></li>
+                <li><span class="tick no">&#10007;</span>Monthly charge<span class="val editable" data-fld="monthly">Add</span></li>
+                <li><span class="tick no">&#10007;</span>Download speed<span class="val editable" data-fld="speed">Add</span></li>
+                <li><span class="tick no">&#10007;</span>How it reaches you<span class="val editable" data-fld="tech">Add</span></li>
+                <li><span class="tick no">&#10007;</span>Promo end date<span class="val editable" data-fld="promoEnd">Add</span></li>
+                <li><span class="tick no">&#10007;</span>Contract start<span class="val editable" data-fld="contractStart">Add</span></li>
+                <li><span class="tick no">&#10007;</span>Contract length<span class="val editable" data-fld="contractLength">Add</span></li>
+                <li><span class="tick no">&#10007;</span>Switch threshold<span class="val editable" data-fld="threshold">Add</span></li>
+                <li id="bu-row"><span class="tick no">&#10007;</span>Latest bill upload<span class="val" data-fld="billUpload">Add</span></li>
               </ul>
               <p class="fnote bill-src" data-bill-src hidden></p>
               <p class="fnote">We can't place you in a cohort without your renewal month. Everything here stays private: bidding providers never see your provider or your price.</p>
@@ -1958,17 +1971,48 @@ var CAMPLIVE=false;
    prevent: a laptop a few minutes fast must not disagree with the server about
    whether a sealed window is still open. */
 var SKEW=0;
-/* Region photography, keyed by campaign id. Art is a repo asset, so a cohort
-   created today has none, and this is a lookup with a deliberate miss rather
-   than a required field: .cc__art keeps its mint block and the card is whole
-   without a photo. A missing image must never be the reason a real cohort
-   fails to render. */
+/* Region photography, KEYED BY REGION SLUG, not by campaign id.
+   It was keyed by id, which made the art a property of one row in the catalog:
+   'windsor-core' and 'windsor-2026' are the same place and only the first found
+   its photograph. The region name is what everything else in this system joins
+   on (routes/desk.js matches coverage to a campaign with slug(region) on both
+   sides, an exact server-side match), and it is what partner/core/places.js
+   controls the spelling of, so it is the only key an operator creating a
+   campaigns row cannot get wrong by accident.
+
+   Art is a repo asset, so a cohort in a region we have no photograph of has
+   none, and this stays a lookup with a deliberate miss rather than a required
+   field: .cc__art keeps its mint block and the card is whole without a photo.
+   A missing image must never be the reason a real cohort fails to render.
+
+   Every name below is spelled as places.js spells it. A region photographed but
+   named differently in the catalog silently loses its art, which is why the
+   names must not be edited here alone. */
 var REGION_ART={
+ 'brampton-central':['region-brampton-central','A glass condominium tower above low-rise streets and trees'],
+ 'brampton-east':['region-brampton-east','A long glass-fronted civic building along a landscaped walk'],
+ 'markham-centre':['region-markham-centre','Low office buildings from the air, farmland at the city edge'],
+ 'markham-north':['region-markham-north','A row of Victorian brick storefronts along a main street'],
+ 'markham-south':['region-markham-south','Two condominium towers behind a landscaped forecourt'],
+ 'mississauga-city-centre':['region-mississauga-city-centre','Curved twin condominium towers above the civic centre'],
+ 'mississauga-east':['region-mississauga-east','Detached brick houses with double garages under autumn trees'],
+ 'mississauga-lakeshore':['region-mississauga-lakeshore','Waterfront townhouses and towers along the lake'],
+ 'mississauga-north':['region-mississauga-north','A new glass mid-rise on the corner of a wide intersection'],
+ 'mississauga-west':['region-mississauga-west','A dense cluster of lit high-rise towers at dusk'],
+ 'richmond-hill-north':['region-richmond-hill-north','A Victorian house with a wraparound porch behind a hedge'],
+ 'south-london':['region-south-london','Downtown towers catching low golden light above a river'],
+ /* The four the demo seed above still names. 'Windsor' slugs to 'windsor', which
+    is why the file was never renamed. */
  'london-east':['region-london-east','Red-brick terraced homes on a tree-lined residential street'],
  'london-north':['region-london-north','Quiet suburban street of detached houses under an open sky'],
  'chatham-kent':['region-chatham-kent','Brick bungalow with a covered porch behind a blossoming tree'],
- 'windsor-core':['region-windsor','Cars parked along a shaded street of single-storey homes']
+ 'windsor':['region-windsor','Cars parked along a shaded street of single-storey homes']
 };
+/* Same transform as routes/desk.js slug(), character for character: this lookup
+   and the server's coverage match have to agree on what one region name is. */
+function regionSlug(name){
+  return String(name||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+}
 /* Badge per lifecycle kind, for a cohort that is not the member's own. The
    member's own card names their stage instead. */
 var CCBADGE={forming:['live','Open to join'],planned:['soon','Opens after this round'],
@@ -2444,7 +2488,7 @@ function setFld(k,text){
     var li=el.closest('li'),t=li&&li.querySelector('.tick');
     el.classList.remove('editing');
     el.textContent=text==null?'Add':text;
-    if(t){t.className=text==null?'tick no':'tick ok';t.innerHTML=text==null?'&middot;':'&#10003;';}
+    if(t){t.className=text==null?'tick no':'tick ok';t.innerHTML=text==null?'&#10007;':'&#10003;';}
   });
 }
 function fmtPromoEnd(bill){
@@ -2638,7 +2682,7 @@ window.addEventListener('focus',refreshCliff);
       if(row){row.querySelector('.tick').className='tick ok';row.querySelector('.tick').innerHTML='&#10003;';row.querySelector('.val').textContent='Added';}
       if(h3)h3.textContent='Your bill is in your file';
     }else{
-      if(row){row.querySelector('.tick').className='tick no';row.querySelector('.tick').innerHTML='&middot;';row.querySelector('.val').textContent='Add';}
+      if(row){row.querySelector('.tick').className='tick no';row.querySelector('.tick').innerHTML='&#10007;';row.querySelector('.val').textContent='Add';}
       if(h3)h3.textContent='Add your latest bill';
     }
   }
@@ -4267,7 +4311,7 @@ function routeVisitor(){
    from the campaign record, so creating a cohort in the Data Store is the whole
    act of putting it on this row. */
 function ccArt(c){
-  var a=REGION_ART[c.id];
+  var a=REGION_ART[regionSlug(c.region)];
   if(!a)return '<span class="cc__art"></span>';
   return '<span class="cc__art"><img src="/images/regions/'+a[0]+'.webp" srcset="/images/regions/'+a[0]
    +'.webp 1x, /images/regions/'+a[0]+'@2x.webp 2x" alt="'+esc(a[1])
