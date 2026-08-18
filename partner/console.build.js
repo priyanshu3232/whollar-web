@@ -3619,18 +3619,20 @@
 
     /* Bids closed, offers with households.
      *
-     * The confirmed clause is gated on `mine` and not only on the field being
-     * present. Nothing populates a.confirmed today, so this reads the same
-     * either way, but a confirmation count on a cohort another partner won is
-     * that partner's count, and CLAUDE.md's rule has no exception for a figure
-     * that arrived by accident. The guard belongs here, before the field does. */
+     * The confirmed clause used to read "Confirmed so far: N of M", and no
+     * surface quotes a household count against a cohort's size any more: a
+     * partner watching confirmations trickle in against the full cohort reads a
+     * shortfall, not progress, and there is nothing they can do about it in this
+     * window anyway. When a confirmed count returns it returns as a count, not as
+     * a fraction, and it stays gated on `mine`: a confirmation count on a cohort
+     * another partner won is that partner's count. */
     if (a.stage === 'offers_out') {
       return '<div class="tkt"><div class="dh">Bids closed</div><div class="receipt">'
         + (mine
           ? '<b>Your bid is in:</b> ' + bidLine(mine) + (mine.reference ? ' · Receipt ' + esc(mine.reference) : '') + '. '
           : '<b>You did not bid on this cohort.</b> ')
         + 'Offers are out to every household, individually. '
-        + (mine && a.confirmed != null ? 'Confirmed so far: <b>' + a.confirmed + ' of ' + esc(String(a.households)) + '</b>. ' : '')
+        + (mine && a.confirmed != null ? 'Confirmed so far: <b>' + a.confirmed + '</b>. ' : '')
         + (d.decision_at ? 'Decisions lock ' + fmtDate(d.decision_at) + '; there' : 'There')
         + ' is nothing for you to do, and no way to see other bids.</div></div>';
     }

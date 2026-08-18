@@ -177,8 +177,11 @@ console.log('\n4. the cohort on screen is the one they actually joined');
   ok(s.lane === 'member', 'a joined member is on the member lane');
   ok(s.campname === 'Windsor · Winter cohort', `the panel names their cohort (${s.campname})`);
   ok(/Windsor/.test(s.hist), 'campaign history names it too');
-  ok(/44 of 100/.test(s.panel) && /44 of 100/.test(s.hist),
-    'and the panel and the history agree on the count');
+  /* No surface quotes a cohort's fill against its target any more: the tiles,
+     the forming panel and this history row all used to, and a count of nought
+     against a hundred is what four newly opened cohorts all read. */
+  ok(!/of 100/.test(s.panel) && !/of 100/.test(s.hist),
+    'and neither the panel nor the history quotes the fill against the target');
   ok(!/undefined/.test(s.hist), 'no undefined standing in the history row');
   await c.close();
 }
@@ -192,7 +195,8 @@ console.log('\n5. the join card counts what the server says, on the visitor lane
   await p.waitForTimeout(900);
   const s = await snapshot(p);
   ok(s.lane === 'visitor', 'still a visitor: reported, but not joined');
-  ok(/44 of 100/.test(s.regmono || ''), `the region row shows the live count (${s.regmono})`);
+  ok(/London East/.test(s.regmono || ''), `the region row shows the server's cohort (${s.regmono})`);
+  ok(!/of 100/.test(s.regmono || ''), 'and no fill count with it');
   await c.close();
 }
 
@@ -230,7 +234,7 @@ console.log('\n6b. a cohort the page has never heard of renders anyway');
   const s = await snapshot(p);
   ok(/Kitchener/.test(row), 'an unseeded cohort is on the region row');
   ok(/Scarborough/.test(row), 'and so is the second one');
-  ok(/7 of 100/.test(s.regmono || ''), `with the server's count, not a seeded one (${s.regmono})`);
+  ok(/Kitchener/.test(s.regmono || ''), `and the featured tile is the server's, not a seeded one (${s.regmono})`);
   /* The seeds are demo scaffolding. Once a live answer names two cohorts, four
      invented regions must not still be sitting on the row beside them. */
   ok(!/London East|Chatham-Kent|Windsor/.test(row), 'and no seeded region survives a live answer');
