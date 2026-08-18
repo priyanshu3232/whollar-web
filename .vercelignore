@@ -74,6 +74,10 @@ Resourcesimages
 Next (1).mp4
 flyer.jpg
 megan_rexazin_conde-store-4156934_1920.png
+# The flat artwork the dashboard's savings tile was traced from. Kept so
+# the icon's comment can be checked against its source, but nothing loads
+# it: the tile ships a monoline SVG, not this file.
+saving-2.png
 
 node_modules
 
