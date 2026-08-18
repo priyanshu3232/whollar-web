@@ -74,6 +74,10 @@ Resourcesimages
 Next (1).mp4
 flyer.jpg
 megan_rexazin_conde-store-4156934_1920.png
+# The flat artwork the dashboard's savings tile was traced from. Kept so
+# the icon's comment can be checked against its source, but nothing loads
+# it: the tile ships a monoline SVG, not this file.
+saving-2.png
 
 node_modules
 
@@ -102,3 +106,22 @@ node_modules
 # this raw file at /welcomewhollar, where the toggle would let anyone read
 # both accounts' onboarding copy against fixture names.
 welcomewhollar.html
+
+# The v2 welcome-screen design reference. Same reason as welcomewhollar.html
+# above: a Member/Partner preview toggle, fixture names ("Northline
+# Internet"), no login guard and no noindex. Its layout was ported into
+# welcome-member.html on 2026-08-17; cleanUrls would otherwise publish this
+# raw file at /whollar-welcome-v2, where the toggle would let anyone read both
+# accounts' onboarding copy.
+whollar-welcome-v2.html
+
+# Photograph originals for the cohort tiles. Build inputs, not site assets: the
+# site ships the 300x130 and 600x260 crops under images/regions/, and these are
+# full-resolution JPEGs (one is 2.9 MB) that no page references. Kept in the
+# repo so a tile can be re-cropped from its source rather than re-sourced.
+#
+# Spelled with the capital C the directory actually has: this file is matched on
+# the Linux builder, where campaignphotos and Campaignphotos are two different
+# paths, so the lowercase spelling matched nothing and shipped every original,
+# the 2.9 MB one included. macOS cannot show you that mistake.
+Campaignphotos/

@@ -448,9 +448,13 @@ for (const vw of [1280, 1100]) {
     return {
       count: ccs.length,
       ccH: ccs.map(r).map(x => x.h),
-      /* The bars, in page coordinates. The row's whole visual argument. */
-      barY: ccs.map(el => { const b = el.querySelector('.miniprog'); return b ? Math.round(b.getBoundingClientRect().top) : null; }),
-      countY: ccs.map(el => { const b = el.querySelector('.mono'); return b ? Math.round(b.getBoundingClientRect().top) : null; }),
+      /* The cohort label, in page coordinates: the last line of the card body,
+         so it is the row's alignment argument now that the bar and the count
+         are gone. Their absence is asserted rather than measured: a bar nobody
+         renders would make a spread of zero and pass by vacuum. */
+      labelY: ccs.map(el => { const b = el.querySelector('.cc__b .m'); return b ? Math.round(b.getBoundingClientRect().top) : null; }),
+      bars: ccs.reduce((n, el) => n + el.querySelectorAll('.miniprog').length, 0),
+      counts: ccs.reduce((n, el) => n + el.querySelectorAll('.mono').length, 0),
       /* A terracotta button inside a cohort card is the duplicated decision. */
       ccBtns: ccs.reduce((n, el) => n + el.querySelectorAll('button, .btn').length, 0),
       readsBox: r(reads), roomBox: r(room),
@@ -471,8 +475,9 @@ for (const vw of [1280, 1100]) {
   console.log(`\n--- ${vw}px ---`);
   ok(m.count === 4, `exactly four cohort cards render (${m.count})`);
   ok(new Set(m.ccH).size === 1, `the four cards report equal heights (${m.ccH.join(', ')})`);
-  ok(Math.max(...m.barY) - Math.min(...m.barY) <= 2, `their progress bars share one vertical position within 2px (${m.barY.join(', ')})`);
-  ok(Math.max(...m.countY) - Math.min(...m.countY) <= 2, `and their counts share another (${m.countY.join(', ')})`);
+  ok(m.labelY.every(y => y !== null) && Math.max(...m.labelY) - Math.min(...m.labelY) <= 2,
+    `their cohort labels share one vertical position within 2px (${m.labelY.join(', ')})`);
+  ok(m.bars === 0 && m.counts === 0, `no fill bar and no count on any tile (${m.bars} bars, ${m.counts} counts)`);
   ok(m.ccBtns === 0, `no button of any kind sits inside a cohort card (${m.ccBtns})`);
   ok(m.rowY < m.bandY, `the cohort row is above the reading content (${m.rowY} < ${m.bandY})`);
   ok(Math.abs(m.readsBox.h - m.roomBox.h) <= 24, `the two split-band columns finish within 24px (reads ${m.readsBox.h}, room ${m.roomBox.h})`);

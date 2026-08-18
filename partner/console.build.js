@@ -880,15 +880,71 @@
   };
   /* 7. LIVE. */
   api.applicationRegistration = function (body) { return request('PATCH', '/provider/application/registration', body); };
-  /* 8. Documents are PII and go to the file store, never through this JSON
-        route. Presign is the shape that keeps them out of the function's memory
-        and out of any log. */
+  /* 8. Folded into 9, and it is the SDK that decides that: zcatalyst-sdk-node's
+        file store exposes createFolder / uploadFile / downloadFile and nothing
+        that mints a signed URL, so there is no presign to issue. The property
+        presign was there to buy, keeping document bytes out of the auth
+        function, is bought instead by the raw body parser on 9, which is scoped
+        to that one route and never touches the 64kb JSON limit the other
+        sixty-six calls run under. If Catalyst Stratus is adopted later this
+        becomes real and 9 becomes the confirm it is named for. */
   api.documentPresign = todo('POST /provider/application/documents/presign');
-  /* 9 */ api.documentConfirm = todo('POST /provider/application/documents');
-  /* 10. LIVE, read only: which of the two documents are on file. The upload path
-         is still 8 and 9. */
+
+  /* 9. LIVE. The file itself, as its own bytes, with kind and filename in the
+        query string: multipart would need a parser dependency in a function
+        whose whole body-parsing surface today is express.json.
+        XMLHttpRequest rather than fetch, and for one reason only: fetch cannot
+        report upload progress, and a 10 MB PDF over a phone tether with no bar
+        is indistinguishable from a hang. */
+  api.documentUpload = function (kind, file, onProgress) {
+    var W = core();
+    var url = (W.AUTH_API || '/api/auth') + '/provider/application/documents'
+      + '?kind=' + encodeURIComponent(kind)
+      + '&filename=' + encodeURIComponent(file.name || 'document');
+    return new Promise(function (resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', url, true);
+      xhr.withCredentials = true;
+      xhr.setRequestHeader('Accept', 'application/json');
+      /* The real type, so the server validates what it was actually sent rather
+         than what a form field claimed. Anything but application/json, or the
+         app-level express.json would swallow the body. */
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+      if (xhr.upload && onProgress) {
+        xhr.upload.onprogress = function (e) {
+          if (e.lengthComputable) onProgress(e.loaded / e.total);
+        };
+      }
+      xhr.onload = function () {
+        var b = null;
+        try { b = JSON.parse(xhr.responseText); } catch (_) { b = null; }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          if (b && typeof b.serverTime === 'number') sync(b.serverTime);
+          resolve(b || {});
+          return;
+        }
+        var e = new Error((b && b.error && b.error.message) || 'That upload did not go through. Please try again.');
+        e.code = (b && b.error && b.error.code) || 'SERVER_ERROR';
+        e.status = xhr.status;
+        reject(e);
+      };
+      xhr.onerror = function () {
+        var e = new Error('We could not reach Whollar. Check your connection and try again.');
+        e.code = 'NETWORK';
+        reject(e);
+      };
+      xhr.send(file);
+    });
+  };
+  /* 10. LIVE, read only: which of the two documents are on file. */
   api.documents = function () { return request('GET', '/provider/application/documents'); };
-  /* 11 */ api.documentDelete = todo('DELETE /provider/application/documents/:type');
+  /* 11. LIVE. Removes the partner's own copy and the file store object with it.
+         Nothing here is append-only: a document is evidence a reviewer reads,
+         not a bid, and a partner who attached the wrong PDF must be able to say
+         so. The audit row of the deletion is what survives. */
+  api.documentDelete = function (kind) {
+    return request('DELETE', '/provider/application/documents/' + encodeURIComponent(kind));
+  };
   /* 12. LIVE. Records the consent text hash, so what was agreed to is provable
          later rather than inferred from a version number. */
   api.applicationAgreement = function (body) { return request('POST', '/provider/application/agreement', body); };
@@ -2088,10 +2144,34 @@
    * kind of thing a partner does not come back from.
    * ------------------------------------------------------------------ */
 
-  function field(id, label, value, extra) {
-    return '<div><label for="' + id + '">' + label + '</label>'
-      + '<input type="text" id="' + id + '" value="' + esc(value || '') + '"'
-      + ' data-action="app:blur" data-kind="' + (extra || '') + '">'
+  /**
+   * One field.
+   *
+   * The label is a block above its input and the input fills its column, which
+   * sounds like a truism and was not the case: nothing in app.css matched a bare
+   * `label` or a bare `input`, so both took browser defaults and the modal
+   * rendered as an inline label jammed against a 20-character box. The classes
+   * here (.mfield, .fhint, .req) are new and carry those rules.
+   *
+   * @param {string} id
+   * @param {string} label
+   * @param {string} value
+   * @param {{hint?:string, required?:boolean, mono?:boolean, wide?:boolean,
+   *          placeholder?:string, autocomplete?:string}} [o]
+   */
+  function field(id, label, value, o) {
+    o = o || {};
+    return '<div class="mfield' + (o.wide ? ' wide' : '') + '">'
+      + '<label for="' + id + '">' + esc(label)
+      + (o.required ? '<span class="req">required</span>' : '<span class="opt2">optional now</span>')
+      + '</label>'
+      + '<input type="text" id="' + id + '"' + (o.mono ? ' class="mono"' : '')
+      + ' value="' + esc(value || '') + '"'
+      + ' placeholder="' + esc(o.placeholder || '') + '"'
+      + ' autocomplete="' + esc(o.autocomplete || 'off') + '" spellcheck="false"'
+      + (o.required ? ' aria-required="true"' : '')
+      + ' data-action="app:blur">'
+      + (o.hint ? '<small class="fhint">' + esc(o.hint) + '</small>' : '')
       + '</div>';
   }
 
@@ -2100,27 +2180,129 @@
     return '<div class="mhead"><h3>Registration details</h3>'
       + '<button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
       + '<p class="msub">Checked once, quietly, against the CRTC register. Nothing here is shown to households or to other partners.</p>'
-      + '<div class="two">' + field('ap-legal', 'Legal entity', app.legalName)
-      + field('ap-oper', 'Operating name', app.operatingName) + '</div>'
-      + '<div class="two">' + field('ap-crtc', 'CRTC registration number', app.crtcRegistration)
-      + field('ap-bn', 'Business number <span class="opt2">optional now</span>', app.businessNumber) + '</div>'
+      + '<div class="mform">'
+      + field('ap-legal', 'Legal entity', app.legalName, {
+        required: true, autocomplete: 'organization',
+        placeholder: 'Northline Communications Inc.',
+        hint: 'Exactly as it appears on the register, including Inc. or Ltd.'
+      })
+      + field('ap-oper', 'Operating name', app.operatingName, {
+        autocomplete: 'organization', placeholder: 'Northline Internet',
+        hint: 'Only if households would know you by a different name.'
+      })
+      + field('ap-crtc', 'CRTC registration number', app.crtcRegistration, {
+        required: true, mono: true, placeholder: '1234567890',
+        hint: 'From your registration confirmation. We check it, you do not have to be certain.'
+      })
+      + field('ap-bn', 'Business number', app.businessNumber, {
+        mono: true, placeholder: '123456789RC0001',
+        hint: 'Needed before your first statement, not before your first bid.'
+      })
+      + '</div>'
+      + '<div class="mfoot">'
       + '<p class="savedot" id="ap-saved" hidden>Saved</p>'
-      + '<button class="btn" type="button" data-action="app:reg-save" style="width:100%;justify-content:center;margin-top:14px">Save details</button>';
+      + '<span class="mfnote" id="ap-foot">Saved as you go. Closing this will not lose it.</span>'
+      + '<button class="btn" type="button" data-action="app:reg-save">Save details</button>'
+      + '</div>';
+  }
+
+  /* ---- documents ---- */
+
+  /** The two required documents, in the order a reviewer reads them. */
+  var DOC_KINDS = [
+    ['crtc_registration', 'CRTC registration confirmation',
+      'The confirmation letter or email carrying your registration number.'],
+    ['business_registration', 'Proof of business registration',
+      'Articles of incorporation, a master business licence, or the provincial equivalent.']
+  ];
+
+  var DOC_MAX_BYTES = 10 * 1024 * 1024;
+  var DOC_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/heic', 'image/heif', 'image/webp'];
+  var DOC_ACCEPT = DOC_TYPES.join(',');
+
+  /** Transient per-row state: uploading fraction, or an error message. Not in
+      the store, because it is neither the server's answer nor worth surviving a
+      re-render of anything but this modal. */
+  var docWork = {};
+
+  var ICO_DOC = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>';
+  var ICO_TICK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>';
+  var ICO_WARN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>';
+
+  function bytes(n) {
+    if (!n && n !== 0) return '';
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return Math.round(n / 1024) + ' KB';
+    return (n / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  var REVIEW_WORD = {
+    pending: 'With a reviewer',
+    accepted: 'Accepted',
+    rejected: 'Not accepted, please replace'
+  };
+
+  /** One document row, in whichever of its four states it is in. */
+  function docRow(kind, title, hint) {
+    var docs = get().documents || {};
+    var d = docs[kind];
+    var work = docWork[kind] || {};
+    var cls = 'docup', ico = ICO_DOC, body, actions;
+
+    if (work.uploading) {
+      body = '<small>Uploading ' + Math.round((work.progress || 0) * 100) + '%</small>'
+        + '<div class="dbar"><i style="width:' + Math.round((work.progress || 0) * 100) + '%"></i></div>';
+      actions = '';
+    } else if (work.error) {
+      cls += ' bad';
+      ico = ICO_WARN;
+      body = '<small>' + esc(work.error) + '</small>';
+      actions = '<button class="tlink" type="button" data-action="app:doc-pick" data-kind="' + kind + '">Try again</button>';
+    } else if (d) {
+      cls += ' on';
+      ico = ICO_TICK;
+      body = '<small>' + esc(d.filename || 'On file')
+        + (d.bytes ? ' · ' + bytes(d.bytes) : '')
+        + ' · ' + esc(REVIEW_WORD[d.reviewState] || 'On file') + '</small>';
+      actions = '<button class="tlink" type="button" data-action="app:doc-pick" data-kind="' + kind + '">Replace</button>'
+        + '<button class="tlink warn" type="button" data-action="app:doc-remove" data-kind="' + kind + '">Remove</button>';
+    } else {
+      body = '<small>' + esc(hint) + '</small>';
+      actions = '<button class="tlink" type="button" data-action="app:doc-pick" data-kind="' + kind + '">Choose file</button>';
+    }
+
+    /* The row is the drop target. A separate dropzone above a list of two named
+       documents makes the partner decide which document a drop belongs to after
+       they have already dropped it. */
+    return '<div class="' + cls + '" data-doc="' + kind + '">'
+      + '<span class="dico">' + ico + '</span>'
+      + '<span class="dtxt"><b>' + esc(title) + '</b>' + body + '</span>'
+      + (actions ? '<span class="dact">' + actions + '</span>' : '')
+      + '</div>';
+  }
+
+  function docListHTML() {
+    return DOC_KINDS.map(function (k) { return docRow(k[0], k[1], k[2]); }).join('');
   }
 
   function documentsModal() {
-    var docs = get().documents || {};
-    function row(kind, label) {
-      var d = docs[kind];
-      return gateRow(d ? 'dn' : '', '·', label,
-        d ? 'On file · ' + esc(d.filename || 'attached') : 'PDF or image, up to 10 MB',
-        d ? '' : '<button class="tlink" type="button" data-action="app:doc" data-kind="' + kind + '">Attach</button>');
-    }
     return '<div class="mhead"><h3>Documents</h3>'
       + '<button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
       + '<p class="msub">Two documents, read by a person, kept under the same confidentiality as everything else in your file and deleted on our retention schedule.</p>'
-      + row('crtc_registration', 'CRTC registration confirmation')
-      + row('business_registration', 'Proof of business registration');
+      + '<div class="docls" id="ap-docls">' + docListHTML() + '</div>'
+      /* One input, reused by both rows, because two inputs is two places for a
+         stale data-kind to hide. */
+      + '<input type="file" id="ap-docfile" accept="' + DOC_ACCEPT + '" hidden'
+      + ' data-action="app:doc-file">'
+      + '<p class="docnote">PDF or image, up to 10 MB each. Drag a file onto a row, or choose one. '
+      + 'Nothing is sent to a household or to another partner, ever.</p>';
+  }
+
+  /** Repaint the list in place. Re-opening the modal would work and would also
+      throw focus back to the close button on every progress tick. */
+  function paintDocs() {
+    var host = document.getElementById('ap-docls');
+    if (host) host.innerHTML = docListHTML();
   }
 
   function agreementModal() {
@@ -2150,9 +2332,11 @@
       + '<button class="btn" type="button" data-action="app:ref-save" style="width:100%;justify-content:center;margin-top:14px">Save reference</button>';
   }
 
+  /* Documents is deliberately absent: it needs its drop listeners wired and its
+     state fetched on open, so it goes through openDocuments() below rather than
+     through this map. */
   var MODALS = {
     registration: registrationModal,
-    documents: documentsModal,
     agreement: agreementModal,
     reference: referenceModal
   };
@@ -2196,9 +2380,117 @@
     });
   }
 
+  /* ---- documents: load, upload, remove ---- *
+   *
+   * The bar is driven by XMLHttpRequest upload progress (core/api.js endpoint 9
+   * says why), and progress repaints ONE bar rather than re-rendering the list:
+   * innerHTML on every tick of a 10 MB upload is a lot of DOM for a number.
+   */
+
+  function loadDocuments() {
+    return api.documents().then(function (r) {
+      set('documents', (r && r.documents) || {});
+      paintDocs();
+    }, function (err) {
+      /* Not a failure worth a red row: the rows already say "choose file", which
+         is the right thing to do next whether or not the read answered. */
+      authFailed(err);
+    });
+  }
+
+  function openDocuments() {
+    docWork = {};
+    openModal(documentsModal());
+    wireDrop();
+    loadDocuments();
+  }
+
+  /** Scoped to the list, which is rebuilt on every open, so nothing accumulates.
+      Drag events fire on every mouse move; delegating them from the document,
+      the way every other action here is delegated, would put that traffic
+      through the shared dispatcher for one modal. */
+  function wireDrop() {
+    var host = document.getElementById('ap-docls');
+    if (!host) return;
+    function rowOf(e) { return e.target.closest ? e.target.closest('[data-doc]') : null; }
+
+    host.addEventListener('dragover', function (e) {
+      var row = rowOf(e);
+      if (!row) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      row.classList.add('over');
+    });
+    host.addEventListener('dragleave', function (e) {
+      var row = rowOf(e);
+      if (row) row.classList.remove('over');
+    });
+    host.addEventListener('drop', function (e) {
+      var row = rowOf(e);
+      if (!row) return;
+      e.preventDefault();
+      row.classList.remove('over');
+      var files = e.dataTransfer && e.dataTransfer.files;
+      if (files && files.length) uploadDoc(row.getAttribute('data-doc'), files[0]);
+    });
+  }
+
+  /** Refused here as well as on the server, because a 10 MB round trip that ends
+      in "too big" is ten megabytes of someone's tether. */
+  function refuse(file) {
+    if (!file) return 'No file was picked.';
+    if (file.size > DOC_MAX_BYTES) {
+      return 'That file is ' + bytes(file.size) + '. The limit is 10 MB.';
+    }
+    if (!file.size) return 'That file is empty.';
+    /* An exact match against the list, not indexOf on the joined string: a file
+       the OS could not type arrives with type '', and ''.indexOf on any string
+       is 0, which would wave through every unknown file there is. */
+    if (DOC_TYPES.indexOf(file.type) < 0) {
+      return 'PDF or image only. That one is ' + (file.type || 'a type your browser could not name') + '.';
+    }
+    return null;
+  }
+
+  function paintProgress(kind, p) {
+    var row = document.querySelector('[data-doc="' + kind + '"]');
+    if (!row) return;
+    var pct = Math.round(p * 100);
+    var bar = row.querySelector('.dbar i');
+    var label = row.querySelector('.dtxt small');
+    if (bar) bar.style.width = pct + '%';
+    if (label) label.textContent = 'Uploading ' + pct + '%';
+  }
+
+  function uploadDoc(kind, file) {
+    var bad = refuse(file);
+    if (bad) { docWork[kind] = { error: bad }; paintDocs(); return; }
+
+    docWork[kind] = { uploading: true, progress: 0 };
+    paintDocs();
+
+    api.documentUpload(kind, file, function (p) {
+      var w = docWork[kind];
+      if (w && w.uploading) { w.progress = p; paintProgress(kind, p); }
+    }).then(function (r) {
+      delete docWork[kind];
+      if (r && r.documents) set('documents', r.documents);
+      paintDocs();
+      toast('Attached. Read by a person, and shown to nobody else.');
+      reload();
+    }, function (err) {
+      docWork[kind] = { error: err && err.code === 'NOT_IMPLEMENTED'
+        ? 'Uploads are not switched on in this environment yet. Email partners@whollar.ca.'
+        : ((err && err.message) || 'That upload did not go through. Please try again.') };
+      paintDocs();
+      authFailed(err);
+    });
+  }
+
   function mount() {
     on('click', 'app:modal', function (el) {
       var kind = el.getAttribute('data-kind');
+      if (kind === 'documents') { openDocuments(); return; }
       var build = MODALS[kind];
       if (build) openModal(build());
     });
@@ -2251,10 +2543,38 @@
         }, function (err) { W.busy(el, false); failed(err); authFailed(err); });
     });
 
-    /* Uploads go through a presign (endpoints 8 and 9), which is still stubbed.
-       Saying so beats a button that appears to work. */
-    on('click', 'app:doc', function () {
-      toast('Document upload lands with the file store. Email partners@whollar.ca and we will take them by reply.');
+    /* One input, reused. The kind rides on the input rather than on a closure,
+       so a cancelled pick followed by a second pick on the other row cannot send
+       a file to the row it was not dropped on. */
+    on('click', 'app:doc-pick', function (el) {
+      var input = document.getElementById('ap-docfile');
+      if (!input) return;
+      input.setAttribute('data-kind', el.getAttribute('data-kind'));
+      input.value = '';        /* or picking the same file twice fires no change */
+      input.click();
+    });
+
+    on('change', 'app:doc-file', function (el) {
+      var kind = el.getAttribute('data-kind');
+      var file = el.files && el.files[0];
+      if (kind && file) uploadDoc(kind, file);
+    });
+
+    on('click', 'app:doc-remove', function (el) {
+      var kind = el.getAttribute('data-kind');
+      docWork[kind] = { uploading: true, progress: 1 };
+      paintDocs();
+      api.documentDelete(kind).then(function (r) {
+        delete docWork[kind];
+        if (r && r.documents) set('documents', r.documents);
+        paintDocs();
+        toast('Removed, and the file with it.');
+        reload();
+      }, function (err) {
+        docWork[kind] = { error: (err && err.message) || 'That did not remove. Please try again.' };
+        paintDocs();
+        authFailed(err);
+      });
     });
   }
 
@@ -2263,8 +2583,31 @@
     return el ? el.value.trim() : '';
   }
 
+  /** Mark or clear one field. The message goes under the input it belongs to,
+      which a toast cannot do: a toast that says "one field is missing" makes the
+      partner hunt for which. */
+  function markField(id, message) {
+    var input = document.getElementById(id);
+    var wrap = input && input.closest ? input.closest('.mfield') : null;
+    if (!wrap) return;
+    wrap.classList.toggle('bad', !!message);
+    input.setAttribute('aria-invalid', message ? 'true' : 'false');
+    var hint = wrap.querySelector('.fhint');
+    if (!hint) return;
+    if (message) {
+      if (!hint.hasAttribute('data-hint')) hint.setAttribute('data-hint', hint.textContent);
+      hint.textContent = message;
+    } else if (hint.hasAttribute('data-hint')) {
+      hint.textContent = hint.getAttribute('data-hint');
+    }
+  }
+
   function saveRegistration(btn, quiet) {
     var legal = valueOf('ap-legal'), crtc = valueOf('ap-crtc');
+    if (!quiet) {
+      markField('ap-legal', legal ? null : 'We need the legal entity as registered.');
+      markField('ap-crtc', crtc ? null : 'We need the registration number to run the check.');
+    }
     if (!legal || !crtc) {
       if (!quiet) toast('Legal entity and CRTC registration are the two we need.');
       return;
@@ -2280,10 +2623,18 @@
     }).then(function () {
       if (btn) { W.busy(btn, false); closeModal(); toast('Registration details saved. The register check starts now.'); }
       else {
+        /* The indicator takes the footer note's place rather than sitting beside
+           it: two lines of small print, one of which is only sometimes there,
+           reads as a layout that moved. */
         var dot = document.getElementById('ap-saved');
+        var note = document.getElementById('ap-foot');
         if (dot) {
           dot.hidden = false;
-          setTimeout(function () { dot.hidden = true; }, 2000);
+          if (note) note.hidden = true;
+          setTimeout(function () {
+            dot.hidden = true;
+            if (note) note.hidden = false;
+          }, 2000);
         }
       }
       reload();
@@ -3268,18 +3619,20 @@
 
     /* Bids closed, offers with households.
      *
-     * The confirmed clause is gated on `mine` and not only on the field being
-     * present. Nothing populates a.confirmed today, so this reads the same
-     * either way, but a confirmation count on a cohort another partner won is
-     * that partner's count, and CLAUDE.md's rule has no exception for a figure
-     * that arrived by accident. The guard belongs here, before the field does. */
+     * The confirmed clause used to read "Confirmed so far: N of M", and no
+     * surface quotes a household count against a cohort's size any more: a
+     * partner watching confirmations trickle in against the full cohort reads a
+     * shortfall, not progress, and there is nothing they can do about it in this
+     * window anyway. When a confirmed count returns it returns as a count, not as
+     * a fraction, and it stays gated on `mine`: a confirmation count on a cohort
+     * another partner won is that partner's count. */
     if (a.stage === 'offers_out') {
       return '<div class="tkt"><div class="dh">Bids closed</div><div class="receipt">'
         + (mine
           ? '<b>Your bid is in:</b> ' + bidLine(mine) + (mine.reference ? ' · Receipt ' + esc(mine.reference) : '') + '. '
           : '<b>You did not bid on this cohort.</b> ')
         + 'Offers are out to every household, individually. '
-        + (mine && a.confirmed != null ? 'Confirmed so far: <b>' + a.confirmed + ' of ' + esc(String(a.households)) + '</b>. ' : '')
+        + (mine && a.confirmed != null ? 'Confirmed so far: <b>' + a.confirmed + '</b>. ' : '')
         + (d.decision_at ? 'Decisions lock ' + fmtDate(d.decision_at) + '; there' : 'There')
         + ' is nothing for you to do, and no way to see other bids.</div></div>';
     }

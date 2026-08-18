@@ -655,3 +655,73 @@ tr.exp + tr.dwr{display:table-row}
 .gated .content{width:100%;max-width:none}
 
 .opt2{font-weight:600;color:var(--sub);font-size:10px;text-transform:none;letter-spacing:0}
+
+
+/* ===== modal forms and document upload =====
+ *
+ * The registration modal shipped with bare <label> and bare <input> and no
+ * rule anywhere matching either, so both fell back to browser defaults: an
+ * inline label sitting against a 20-character text box, inside a 560px card.
+ * These rules are NEW class names, scoped to .mform and .docls, so nothing
+ * ported from the prototype is restyled by adding them.
+ */
+
+.mform{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px;margin-top:4px}
+.mform .wide{grid-column:1 / -1}
+.mfield{display:flex;flex-direction:column;min-width:0}
+.mfield label{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--sub);margin:0 0 6px}
+/* The required marker is a word, not an asterisk a screen reader reads as
+   "star". `optional` carries the same weight on the fields that are. */
+.mfield label .req,.mfield label .opt2{margin-left:6px;font-size:10px;font-weight:700;letter-spacing:.02em;text-transform:none}
+.mfield label .req{color:var(--gold-deep)}
+.mfield input{width:100%;min-width:0;font:inherit;font-size:14px;color:var(--ink);background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;transition:border-color .15s,box-shadow .15s}
+.mfield input::placeholder{color:#A7AFA8}
+.mfield input:hover{border-color:#CFC7B2}
+.mfield input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(194,155,60,.18)}
+.mfield input.mono{font-family:var(--mono);font-size:13px;letter-spacing:.02em}
+.mfield .fhint{font-size:11.5px;color:var(--sub);margin-top:5px;line-height:1.45}
+.mfield.bad input{border-color:var(--lose)}
+.mfield.bad .fhint{color:var(--lose)}
+
+/* The footer rule separates the form from its commit, which is the one thing
+   a 560px card of inputs otherwise lacks. */
+.mfoot{display:flex;align-items:center;gap:12px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
+.mfoot .savedot{margin:0;flex:1;min-width:0}
+.mfoot .btn{flex:none;min-width:190px;justify-content:center}
+.mfoot .mfnote{flex:1;min-width:0;font-size:11.5px;color:var(--sub);line-height:1.45}
+
+/* Documents. One row per required document, and the row IS the drop target:
+   a separate dropzone above a list of two names is two places to look. */
+.docls{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.docup{display:flex;gap:13px;align-items:center;border:1.5px solid var(--line);border-radius:14px;padding:13px 14px;background:#fff;transition:border-color .15s,background .15s}
+.docup.over{border-color:var(--gold);background:var(--gold-soft)}
+.docup.on{border-color:var(--tintb);background:#FAFCFA}
+.docup.bad{border-color:var(--lose);background:#FDF7F3}
+.docup .dico{flex:none;width:40px;height:40px;border-radius:11px;background:#EFEAD9;color:var(--sub);display:grid;place-items:center}
+.docup .dico svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.docup.on .dico{background:var(--forest2);color:#fff}
+.docup.bad .dico{background:var(--lose-soft);color:var(--lose)}
+.docup .dtxt{flex:1;min-width:0}
+.docup .dtxt b{display:block;font-family:var(--disp);font-size:13.5px}
+/* Wraps rather than truncates. A filename cut to "crtc-confirmation-2..." is
+   the one part of the row a partner is checking, and the hint under an empty
+   row is a sentence, not a label. `anywhere` so a long filename with no spaces
+   still breaks instead of widening the card. */
+.docup .dtxt small{display:block;font-size:12px;color:var(--sub);margin-top:2px;line-height:1.45;overflow-wrap:anywhere}
+.docup.bad .dtxt small{color:var(--lose)}
+.docup .dact{flex:none;display:flex;align-items:center;gap:10px;white-space:nowrap}
+/* The upload bar replaces the row's own text rather than sitting under the
+   list, so the file that is moving is the one wearing the bar. */
+.dbar{height:5px;background:#EFEAD9;border-radius:99px;overflow:hidden;margin-top:7px}
+.dbar i{display:block;height:100%;width:0;background:var(--gold);border-radius:99px;transition:width .18s ease}
+.docup.on .dbar i{background:var(--forest2)}
+.docnote{font-size:11.5px;color:var(--sub);margin-top:14px;padding-top:12px;border-top:1px solid var(--line);line-height:1.5}
+.tlink.warn{color:var(--lose)}
+
+@media (max-width:560px){
+  .mform{grid-template-columns:1fr}
+  .mfoot{flex-direction:column;align-items:stretch}
+  .mfoot .btn{width:100%;min-width:0}
+  .docup{flex-wrap:wrap}
+  .docup .dact{width:100%;justify-content:flex-end}
+}

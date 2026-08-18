@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="/js/whollar-core.js?v=20260814b"></script>
+<script src="/js/whollar-select.js?v=20260818"></script>
 <title>Welcome to Whollar</title>
 <!-- Signed-in surface: noindex, no canonical, no Clarity, out of sitemap.xml.
      This page is only ever reached by a redirect from a completed signup, and
@@ -20,7 +21,7 @@
   --accent:#1E9E63; --accent-hover:#178A5A;
   --cream:#FAF8F3; --paper:#ffffff; --mist:#F6F4EE;
   --ink:#2B3A33; --ink-2:#54625B; --ink-3:#8A968F; --line:#e7ebe6;
-  --warn:#C2643B; --amber:#C29B3C; --green-tint:#E4F4EC;
+  --warn:#C2643B; --amber:#C29B3C; --amber-ink:#8A6A1E; --green-tint:#E4F4EC;
   --label:'General Sans','Satoshi',system-ui,sans-serif;
   --disp:'Satoshi',system-ui,sans-serif;
   --body:'Inter',system-ui,sans-serif;
@@ -42,6 +43,7 @@ button{font-family:var(--body)}
 @keyframes cardland{from{opacity:0;transform:translateY(26px) scale(.965)}to{opacity:1;transform:none}}
 @keyframes sheen{from{transform:translateX(-130%) skewX(-18deg)}to{transform:translateX(420%) skewX(-18deg)}}
 @keyframes pulse{0%{transform:scale(1);opacity:.5}100%{transform:scale(2.2);opacity:0}}
+@keyframes slidein{from{opacity:0;transform:translate(20px,10px)}to{opacity:1;transform:none}}
 
 /* ---------- nav (dark variant) ---------- */
 .whl-nav{position:sticky;top:0;z-index:60;background:rgba(10,32,24,.7);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.08)}
@@ -53,14 +55,14 @@ button{font-family:var(--body)}
 .whl-nav__who{margin-left:auto;font-family:var(--mono);font-size:12px;color:rgba(255,255,255,.45);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42vw}
 
 /* ---------- stage ---------- */
-.stage{position:relative;overflow:hidden;min-height:calc(100vh - 59px);display:flex;flex-direction:column;align-items:center;padding:clamp(40px,6vh,72px) 24px clamp(56px,8vh,96px);background:linear-gradient(168deg,var(--teal-deep),#123B2C 55%,#17553D)}
+.stage{position:relative;overflow:hidden;min-height:calc(100vh - 59px);display:flex;flex-direction:column;align-items:center;padding:clamp(28px,4vh,56px) 24px clamp(28px,4vh,56px);background:linear-gradient(168deg,var(--teal-deep),#123B2C 55%,#17553D)}
 .stage::before{content:"";position:absolute;inset:0;background:radial-gradient(760px 380px at 78% -10%,rgba(127,227,176,.14),transparent 62%),radial-gradient(620px 360px at -6% 108%,rgba(30,158,99,.14),transparent 60%);pointer-events:none}
 .constellation{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:.5}
-.stage__in{position:relative;width:min(880px,100%);display:flex;flex-direction:column;align-items:center;text-align:center}
+.stage__in{position:relative;width:min(940px,100%);display:flex;flex-direction:column;align-items:center;text-align:center}
 
 /* verification chips */
-.vchips{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:26px}
-.vchip{display:inline-flex;align-items:center;gap:8px;font-family:var(--label);font-weight:600;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:7px 14px 7px 9px;transition:color .35s,border-color .35s,background .35s}
+.vchips{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:14px}
+.vchip{display:inline-flex;align-items:center;gap:8px;font-family:var(--label);font-weight:600;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:6px 14px 6px 9px;transition:color .35s,border-color .35s,background .35s}
 .vchip .cdot{width:17px;height:17px;border-radius:50%;border:1.6px solid rgba(255,255,255,.3);display:inline-flex;align-items:center;justify-content:center;flex:none;transition:background .3s,border-color .3s}
 .vchip .cdot svg{width:9px;height:9px;stroke:#0A2018;stroke-width:3.2;fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:0;transform:scale(.4);transition:opacity .25s,transform .25s var(--ease)}
 .vchip.on{color:var(--teal-soft);border-color:rgba(127,227,176,.45);background:rgba(127,227,176,.07)}
@@ -70,13 +72,19 @@ button{font-family:var(--body)}
 /* headline */
 .hd{opacity:0}
 .hd.play{animation:rise .55s var(--ease) forwards}
-.whl-eyebrow{display:inline-block;font-family:var(--label);font-weight:600;font-size:12.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--teal-soft);margin:0 0 14px}
+.whl-eyebrow{display:inline-block;font-family:var(--label);font-weight:600;font-size:12.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--teal-soft);margin:0 0 10px}
 .hd h1{color:#fff;font-weight:900;font-size:clamp(32px,4.6vw,52px);line-height:1.05;text-wrap:balance}
-.hd .sub{margin:16px auto 0;font-size:clamp(15px,1.5vw,17.5px);line-height:1.65;color:rgba(255,255,255,.72);max-width:560px}
+.hd .sub{margin:12px auto 0;font-size:clamp(15px,1.5vw,17.5px);line-height:1.65;color:rgba(255,255,255,.72);max-width:660px}
 .hd .sub b{color:#fff;font-weight:600}
 
+/* ---------- the row: founding card beside the one ask ----------
+   Side by side rather than stacked because this screen has to stay one
+   screen. The card and the panel are the two tallest things on it, and in a
+   row they cost the height of the taller one instead of the sum. */
+.row{margin-top:18px;display:flex;gap:20px;align-items:flex-start;justify-content:center;flex-wrap:wrap;width:100%}
+
 /* ---------- founding card ---------- */
-.cardwrap{margin-top:34px;perspective:1100px;opacity:0}
+.cardwrap{perspective:1100px;opacity:0}
 .cardwrap.play{animation:cardland .7s .1s var(--ease) forwards}
 .fcard{position:relative;width:min(540px,calc(100vw - 48px));background:linear-gradient(176deg,#FFFDF8,var(--cream) 60%,#F3EFE6);color:var(--ink);border-radius:var(--rf);box-shadow:var(--sh-3);text-align:left;overflow:hidden;transition:transform .35s var(--ease)}
 .fcard::after{content:"";position:absolute;top:0;bottom:0;left:0;width:34%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent);transform:translateX(-130%) skewX(-18deg);pointer-events:none}
@@ -98,44 +106,78 @@ button{font-family:var(--body)}
 .fcard__foot{display:flex;align-items:center;gap:9px;background:var(--teal);color:rgba(255,255,255,.85);font-size:12.5px;line-height:1.5;padding:12px 22px}
 .fcard__foot svg{width:14px;height:14px;flex:none;stroke:var(--teal-soft);stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
 
-/* ---------- steps ---------- */
-.steps{margin-top:42px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;text-align:left}
-.step{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);border-radius:var(--r);padding:20px 20px 22px;opacity:0}
-.step.play{animation:rise .55s var(--ease) forwards}
-.step .k{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--teal-soft)}
-.step h3{margin-top:9px;font-size:16.5px;font-weight:700;color:#fff}
-.step p{margin-top:7px;font-size:13.5px;line-height:1.6;color:rgba(255,255,255,.66)}
-.step p b{color:rgba(255,255,255,.92);font-weight:600}
-.steplink{display:inline-flex;align-items:center;gap:6px;margin-top:12px;background:none;border:none;padding:0;cursor:pointer;font-family:var(--body);font-weight:600;font-size:13px;color:var(--teal-soft);text-decoration:underline;text-underline-offset:3px}
-.steplink:hover{color:#fff}
-.steplink svg{width:13px;height:13px;stroke:currentColor;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+/* ---------- the panel: one slot, two states ----------
+   Rating first, then the referral code. Same cream as the card so the pair
+   reads as one object on the green. */
+.panel{position:relative;width:min(340px,calc(100vw - 48px));background:linear-gradient(176deg,#FFFDF8,var(--cream) 62%,#F3EFE6);color:var(--ink);border-radius:var(--rf);box-shadow:var(--sh-3);text-align:left;padding:18px 22px 16px;opacity:0}
+.panel.play{animation:cardland .6s var(--ease) forwards}
+.peyebrow{display:block;font-family:var(--label);font-weight:600;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal-bright)}
+.panel h3{margin-top:7px;font-size:19px;font-weight:900;color:var(--teal);line-height:1.2}
+.pnote{margin-top:8px;font-size:12.5px;line-height:1.55;color:var(--ink-2)}
+.provrow{margin-top:13px}
+.provrow label{display:block;font-family:var(--label);font-weight:600;font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);margin-bottom:5px}
+.provrow select{width:100%;font:inherit;font-size:13.5px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:9px 11px}
+.aspects{display:flex;flex-direction:column;gap:8px;margin:11px 0}
+.aspect{display:flex;align-items:center;gap:10px;font-size:13px}
+.aspect>span{width:66px;flex:none;font-weight:600;color:#3A453E}
+.dots{display:flex;gap:6px}
+.dots button{width:18px;height:18px;border-radius:50%;border:none;padding:0;cursor:pointer;background:#E7E2D3;transition:transform .15s,background .15s}
+.dots button:hover{transform:scale(1.12)}
+.dots button.on{background:var(--accent)}
+.pbtn{width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:pointer;font-family:var(--body);font-weight:600;font-size:14px;color:#fff;background:var(--teal);border-radius:12px;padding:12px 18px;transition:background .18s}
+.pbtn:hover{background:#17402E}
+.pbtn[disabled]{opacity:.55;cursor:default}
+.pbtn--ghost{background:transparent;color:var(--teal);border:1.5px solid #D6D0BF}
+.pbtn--ghost:hover{background:var(--paper);border-color:var(--teal-bright)}
+.codebox{display:flex;gap:8px;margin:13px 0 10px}
+.codebox code{flex:1;min-width:0;font-family:var(--mono);font-size:14px;letter-spacing:1px;color:var(--teal);background:var(--paper);border:1.5px dashed #C9C3B2;border-radius:10px;padding:10px 12px;text-align:center;overflow:hidden;text-overflow:ellipsis}
+.copybtn{flex:none;border:none;cursor:pointer;font-family:var(--body);background:var(--teal);color:#fff;border-radius:10px;padding:0 16px;font-weight:600;font-size:13px}
+.copybtn:hover{background:#17402E}
+.copybtn[disabled]{opacity:.5;cursor:default}
+.pmsg{margin-top:10px;font-size:12.5px;line-height:1.5;color:var(--warn)}
+.pskip{background:none;border:none;padding:0;cursor:pointer;font-family:var(--body);font-size:12.5px;color:var(--ink-3);text-decoration:underline;text-underline-offset:3px}
+.pskip:hover{color:var(--ink-2)}
+
+/* The feedback line is the one warm colour on the screen, so it reads as an
+   aside rather than as a second call to action. */
+.fbline{margin-top:14px;border-top:1px solid var(--line);padding-top:11px}
+.fblink{background:none;border:none;padding:0;cursor:pointer;font-family:var(--body);font-weight:600;font-size:12.5px;color:var(--amber-ink);text-decoration:underline;text-underline-offset:3px}
+.fblink:hover{color:var(--warn)}
+
+/* ---------- feedback popup ----------
+   A small panel in the bottom right rather than a centred modal: the feedback
+   link is an aside, and an aside should not black out the screen someone just
+   arrived on. Bottom right and not beside the link, because anchored at the
+   link it would sit on top of the referral code it was opened from. The dim is
+   faint, enough to say the panel is on top and nothing more. */
+.modal{position:fixed;inset:0;z-index:90}
+.modal__bd{position:absolute;inset:0;background:rgba(4,14,10,.34)}
+.modal__card{position:absolute;right:24px;bottom:24px;width:min(330px,calc(100vw - 32px));background:linear-gradient(176deg,#FFFDF8,var(--cream) 62%,#F3EFE6);color:var(--ink);border-radius:var(--rf);box-shadow:var(--sh-3);text-align:left;padding:20px 22px 18px;animation:slidein .28s var(--ease) both}
+.modal__card::after{content:"";position:absolute;inset:0;border-radius:var(--rf);border:1px solid rgba(127,227,176,.5);pointer-events:none}
+.modal__card h3{font-size:18px}
+.modal__x{position:absolute;top:11px;right:11px;width:28px;height:28px;border:none;border-radius:50%;cursor:pointer;background:rgba(14,42,32,.07);color:var(--ink-2);font-size:16px;line-height:1}
+.modal__x:hover{background:rgba(14,42,32,.14)}
+.fbtext{display:block;width:100%;font:inherit;font-size:13.5px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;resize:vertical;margin:11px 0 10px}
 
 /* ---------- ctas ---------- */
-.ctas{margin-top:30px;display:flex;flex-direction:column;align-items:center;gap:14px;opacity:0;width:100%}
+.ctas{margin-top:18px;display:flex;flex-direction:column;align-items:center;gap:10px;opacity:0;width:100%}
 .ctas.play{animation:rise .55s var(--ease) forwards}
 .whl-btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;border:none;cursor:pointer;font-weight:600;font-size:16px;color:#fff;background:var(--accent);border-radius:14px;padding:16px 34px;text-decoration:none;transition:background .18s,transform .18s;white-space:nowrap}
 .whl-btn:hover{background:var(--accent-hover);transform:translateY(-1px)}
 .whl-btn svg{width:16px;height:16px;stroke:#fff;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .ctarow{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
-
-/* share strip */
-.share{margin-top:40px;width:min(540px,100%);text-align:left;border-top:1px solid rgba(255,255,255,.12);padding-top:18px;opacity:0}
-.share.play{animation:rise .55s var(--ease) forwards}
-.share b{display:block;font-family:var(--disp);font-weight:700;font-size:14.5px;color:#fff}
-.share p{margin-top:4px;font-size:12.5px;line-height:1.55;color:rgba(255,255,255,.55)}
-.share .srow{display:flex;gap:8px;margin-top:12px}
-.share .lnk{flex:1;min-width:0;font-family:var(--mono);font-size:12px;color:var(--teal-soft);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:10px 13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
-.share .cp{flex:none;background:var(--cream);border:none;color:var(--teal);border-radius:11px;font-size:12.5px;font-weight:700;padding:0 16px;cursor:pointer;transition:background .15s}
-.share .cp:hover{background:#fff}
-.share .cp[disabled]{opacity:.5;cursor:default}
+.ctanote{font-size:13px}
+.ctanote a{color:rgba(255,255,255,.6);text-decoration:underline;text-underline-offset:3px}
+.ctanote a:hover{color:#fff}
 
 @media (max-width:940px){
-  .steps{grid-template-columns:1fr 1fr}
-  .step:last-child{grid-column:1/-1}
+  .row{flex-direction:column;align-items:center}
+  .panel{width:min(540px,calc(100vw - 48px))}
 }
-@media (max-width:768px){
-  .steps{grid-template-columns:1fr;margin-top:34px}
-  .step:last-child{grid-column:auto}
+@media (max-width:640px){
+  /* No right edge worth anchoring to on a phone: it comes up from the bottom
+     where the thumb already is. */
+  .modal__card{bottom:12px;right:12px;left:12px;width:auto}
 }
 @media (max-width:480px){
   .whl-nav__tag{display:none}
@@ -143,10 +185,15 @@ button{font-family:var(--body)}
   .vchip{font-size:10.5px;padding:6px 11px 6px 7px}
   .ctarow{width:100%;flex-direction:column}
   .whl-btn{width:100%}
+  /* A 20px rating dot is under the 44px touch target on its own, so it grows
+     an invisible one. */
+  .dots{gap:12px}
+  .dots button{position:relative}
+  .dots button::before{content:"";position:absolute;top:50%;left:50%;width:44px;height:44px;transform:translate(-50%,-50%)}
 }
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.01ms!important;transition-duration:.01ms!important}
-  .hd,.cardwrap,.step,.ctas,.share{opacity:1;transform:none}
+  .hd,.cardwrap,.ctas,.panel{opacity:1;transform:none}
   .fcard::after{display:none}
 }
 </style>
@@ -199,64 +246,106 @@ button{font-family:var(--body)}
       <p class="sub" id="hd-sub-plain">Your spot is held. Here is what your membership sets in motion.</p>
     </div>
 
-    <div class="cardwrap" id="cardwrap">
-      <div class="fcard" id="fcard">
-        <div class="fcard__top">
-          <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="wm2" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm2)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
-          <span class="fcard__role">Founding member</span>
-          <span class="fcard__status"><span class="sdot"></span><span>Spot held</span></span>
-        </div>
-        <div class="fcard__name">
-          <h2 id="card-name">Your household</h2>
-          <span id="card-namesub">Founding member</span>
-        </div>
-        <div class="fcard__grid">
-          <div class="fmeta" id="mcell-area" hidden><i>Area</i><b id="m-area"></b></div>
-          <div class="fmeta"><i>Account</i><b id="m-email"></b></div>
-        </div>
-        <div class="fcard__foot">
-          <svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2.5"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
-          <span>Bids are sealed. You see your own before and after, and nobody else does.</span>
+    <div class="row">
+
+      <div class="cardwrap" id="cardwrap">
+        <div class="fcard" id="fcard">
+          <div class="fcard__top">
+            <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="wm2" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm2)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
+            <span class="fcard__role">Founding member</span>
+            <span class="fcard__status"><span class="sdot"></span><span>Spot held</span></span>
+          </div>
+          <div class="fcard__name">
+            <h2 id="card-name">Your household</h2>
+            <span id="card-namesub">Founding member</span>
+          </div>
+          <div class="fcard__grid">
+            <div class="fmeta" id="mcell-area" hidden><i>Area</i><b id="m-area"></b></div>
+            <div class="fmeta"><i>Account</i><b id="m-email"></b></div>
+          </div>
+          <div class="fcard__foot">
+            <svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2.5"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+            <span>Bids are sealed. You see your own before and after, and nobody else does.</span>
+          </div>
         </div>
       </div>
+
+      <!-- One slot, two states, in the order they are worth asking in. The
+           rating is the only thing here we can only be given once and it is
+           over in four taps. The code is permanent and reads the same on the
+           dashboard tomorrow, so it waits its turn: Skip goes straight to it,
+           and a member who already rated never sees the form again. -->
+      <div class="panel" id="panel">
+
+        <div id="pane-rate">
+          <span class="peyebrow">One minute, once</span>
+          <h3 id="rate-h">Rate your provider, privately</h3>
+          <!-- Only when the account has no bill on it yet. /me/rating will not
+               take a rating without a provider name, and a fresh signup often
+               has given us an address and nothing else. -->
+          <div class="provrow" id="provrow" hidden>
+            <label for="rate-prov">Who are you with today?</label>
+            <select id="rate-prov">
+              <option value="">Choose&hellip;</option><option>Rogers</option><option>Bell</option><option>Telus</option><option>Shaw</option><option>Videotron</option><option>Cogeco</option><option>Eastlink</option><option>SaskTel</option><option>TekSavvy</option><option>Start.ca</option><option>VMedia</option><option>Carrytel</option><option>Oxio</option><option>Fizz</option><option>Beanfield</option><option>Another independent</option><option>Other</option>
+            </select>
+          </div>
+          <div class="aspects">
+            <div class="aspect"><span>Price</span><div class="dots" data-a="price"></div></div>
+            <div class="aspect"><span>Reliability</span><div class="dots" data-a="rel"></div></div>
+            <div class="aspect"><span>Support</span><div class="dots" data-a="sup"></div></div>
+            <div class="aspect"><span>Speed</span><div class="dots" data-a="spd"></div></div>
+          </div>
+          <button class="pbtn" id="rate-go" type="button">Send rating</button>
+          <p class="pnote">Never shown to bidding providers. <button class="pskip" id="rate-skip" type="button">Skip for now</button></p>
+        </div>
+
+        <div id="pane-ref" hidden>
+          <span class="peyebrow">Refer anyone, anywhere</span>
+          <h3>Every referral moves a cohort</h3>
+          <p class="pnote">Neighbours strengthen the cohort here. Friends anywhere else speed up their own region's launch. Either way, someone's bill gets better.</p>
+          <div class="codebox"><code id="refcode">WHL-&hellip;</code><button class="copybtn" id="copyref" type="button" disabled>Copy</button></div>
+          <button class="pbtn pbtn--ghost" id="sharelink" type="button" disabled>Share your link</button>
+          <p class="fbline"><button class="fblink" id="fbopen" type="button">Anything we should fix or build?</button></p>
+        </div>
+
+        <p class="pmsg" id="panel-msg" hidden></p>
+      </div>
+
     </div>
 
     <div class="ctas" id="ctas">
       <div class="ctarow">
         <a class="whl-btn" id="cta-primary" href="/dashboard">Go to my dashboard <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
       </div>
-    </div>
-
-    <div class="steps">
-      <div class="step" id="step1">
-        <span class="k">STEP 1</span>
-        <h3>Build the bid on your real bill</h3>
-        <p>The two minute checkup is what the bid for your cohort gets built on. Nine questions and your actual bill.</p>
-        <a class="steplink" href="/bill-checkup?from=welcome">Run the checkup <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-      </div>
-      <div class="step" id="step2">
-        <span class="k">STEP 2</span>
-        <h3>Your cohort forms</h3>
-        <p>Households near you, timed to renewal windows like yours, are pooled into one cohort with real weight.</p>
-      </div>
-      <div class="step" id="step3">
-        <span class="k">STEP 3</span>
-        <h3>Bids land sealed</h3>
-        <p>Verified providers bid for the whole cohort. <b>We text you the moment one lands in your area.</b></p>
-      </div>
-    </div>
-
-    <div class="share" id="share">
-      <b>Move your area up the line</b>
-      <p>Every neighbour who joins through your link strengthens the bid you will all get.</p>
-      <div class="srow">
-        <span class="lnk" id="share-lnk">Loading your link…</span>
-        <button class="cp" id="share-cp" type="button" disabled>Copy</button>
-      </div>
+      <!-- The checkup was the one step worth keeping a route to when the three
+           step strip came off this screen: it is what the bid gets built on. -->
+      <p class="ctanote"><a href="/bill-checkup?from=welcome">Run the two minute checkup first</a></p>
     </div>
 
   </div>
 </main>
+
+<!-- The feedback popup. Open only from the referral state, so it never
+     competes with the one ask on screen. -->
+<div class="modal" id="fbmodal" hidden>
+  <div class="modal__bd" data-fbclose></div>
+  <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="fbtitle">
+    <button class="modal__x" type="button" data-fbclose aria-label="Close">&times;</button>
+    <div id="fb-form">
+      <span class="peyebrow">Straight to the team</span>
+      <h3 id="fbtitle">Anything we should fix or build?</h3>
+      <p class="pnote">Two lines is plenty. This goes to a person, not to a form nobody reads.</p>
+      <textarea class="fbtext" id="fbtext" rows="4" placeholder="What is working, what is missing, what is confusing&hellip;" aria-label="Feedback"></textarea>
+      <button class="pbtn" id="fbgo" type="button">Send it</button>
+      <p class="pmsg" id="fbmsg" hidden></p>
+    </div>
+    <div id="fb-done" hidden>
+      <span class="peyebrow">Heard</span>
+      <h3>Thank you</h3>
+      <p class="pnote">It lands with a person, not a void. If it needs a reply, you will get one.</p>
+    </div>
+  </div>
+</div>
 
 <script>
 /* ------------------------------------------------------------------ *
@@ -335,30 +424,200 @@ button{font-family:var(--body)}
       $('hd-sub-area').hidden = false;
       $('hd-sub-plain').hidden = true;
     }
+
+    /* The provider, when a bill is already on the account: the rating card
+       then names it instead of asking who they are with. Repainted on every
+       pass, not only on the pass that finds one, or the ask stays hidden for
+       the account that has no bill yet, which is most of them here. */
+    var provider = rec.bill && rec.bill.provider;
+    if (provider) PROVIDER = String(provider);
+    paintRateHeading();
   }
 
-  /* ---------- referral link ---------- */
+  /* ---------- the panel: rate, then refer ----------
+     The two states are the same slot. showReferral() is the only way into the
+     second one, and it is reached three ways: a rating that saved, a rating
+     that was already on the account, and Skip. A rating is an ask, never a
+     toll gate on a code the member already owns. */
 
-  function loadReferral(){
-    if (!W.session || !W.session.referral) return;
-    W.session.referral().then(function(r){
-      if (!r || !r.code) return;
-      var url = W.referral.link(r.code);
-      $('share-lnk').textContent = url;
-      $('share-cp').disabled = false;
-    });
+  var ASPECTS = { price:'Price', rel:'Reliability', sup:'Support', spd:'Speed' };
+  /* data-a is the short UI key; the server spells the field names out
+     (routes/rating.js ASPECTS). */
+  var FIELDS = { price:'price', rel:'reliability', sup:'support', spd:'speed' };
+
+  var PROVIDER = null;   /* the name on the account's bill, when there is one */
+  var REF = null;        /* the referral code, once the server answers */
+
+  function msg(text){
+    var el = $('panel-msg');
+    el.textContent = text || '';
+    el.hidden = !text;
   }
 
-  $('share-cp').addEventListener('click', function(){
-    var btn = this;
-    var text = $('share-lnk').textContent;
-    function done(){
-      btn.textContent = 'Copied';
-      setTimeout(function(){ btn.textContent = 'Copy'; }, 1600);
+  function dotRows(){
+    return document.querySelectorAll('#pane-rate .dots');
+  }
+
+  Array.prototype.forEach.call(dotRows(), function(row){
+    var key = row.getAttribute('data-a');
+    for (var i = 1; i <= 5; i++){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('data-v', i);
+      b.setAttribute('aria-label', ASPECTS[key] + ' ' + i + ' of 5');
+      row.appendChild(b);
     }
+    row.addEventListener('click', function(e){
+      var hit = e.target.closest('button');
+      if (!hit) return;
+      var v = Number(hit.getAttribute('data-v'));
+      Array.prototype.forEach.call(row.querySelectorAll('button'), function(b, i){
+        b.classList.toggle('on', i < v);
+      });
+    });
+  });
+
+  /* Every aspect or nothing: a partial rating is worse than none, since the
+     row is written once and never replaced. */
+  function ratingValues(){
+    var out = {}, complete = true;
+    Array.prototype.forEach.call(dotRows(), function(row){
+      var field = FIELDS[row.getAttribute('data-a')];
+      var v = row.querySelectorAll('button.on').length;
+      if (!v) complete = false;
+      if (field) out[field] = v;
+    });
+    return complete ? out : null;
+  }
+
+  function paintRateHeading(){
+    $('rate-h').textContent = PROVIDER
+      ? ('Rate ' + PROVIDER + ', privately')
+      : 'Rate your provider, privately';
+    $('provrow').hidden = !!PROVIDER;
+  }
+
+  function showReferral(){
+    msg('');
+    $('pane-rate').hidden = true;
+    $('pane-ref').hidden = false;
+    loadReferral();
+  }
+
+  $('rate-skip').addEventListener('click', showReferral);
+
+  $('rate-go').addEventListener('click', function(){
+    var btn = this;
+    var provider = PROVIDER || String($('rate-prov').value || '').trim();
+    if (!provider){ msg('Choose who you are with first.'); return; }
+    var vals = ratingValues();
+    if (!vals){ msg('Rate every category from 1 to 5.'); return; }
+    if (!W.session || !W.session.ratingSave){ showReferral(); return; }
+
+    msg('');
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    vals.provider = provider;
+    W.session.ratingSave(vals).then(showReferral, function(err){
+      /* CONFLICT is a rating already on the account, which is the state the
+         referral half is for, not an error to show. */
+      if (err && err.code === 'CONFLICT'){ showReferral(); return; }
+      btn.disabled = false;
+      btn.textContent = 'Send rating';
+      msg((err && err.message) || 'That did not save. Please try again.');
+    });
+  });
+
+  /* ---------- referral code ---------- */
+
+  var REF_ASKED = false;
+  function loadReferral(){
+    if (REF_ASKED || !W.session || !W.session.referral) return;
+    REF_ASKED = true;
+    function missing(){ msg('Your code will appear on your dashboard shortly.'); }
+    W.session.referral().then(function(r){
+      if (!r || !r.code){ missing(); return; }
+      REF = r.code;
+      $('refcode').textContent = r.code;
+      $('copyref').disabled = false;
+      $('sharelink').disabled = false;
+    }, missing);
+  }
+
+  function flash(btn, label){
+    var was = btn.textContent;
+    btn.textContent = label;
+    setTimeout(function(){ btn.textContent = was; }, 1600);
+  }
+
+  function copyText(text){
     if (navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(text).then(done, done);
-    } else { done(); }
+      return navigator.clipboard.writeText(text).then(null, function(){});
+    }
+    return null;
+  }
+
+  /* The code is what gets copied and the link is what gets shared, the same
+     split the dashboard's card uses: a link survives being pasted into a text
+     message and carries the code into the browser that opens it. */
+  $('copyref').addEventListener('click', function(){
+    if (!REF) return;
+    copyText(REF);
+    flash(this, 'Copied');
+  });
+
+  $('sharelink').addEventListener('click', function(){
+    if (!REF) return;
+    var url = W.referral.link(REF);
+    var text = 'Whollar pools households by renewal timing so providers bid for the whole cohort. ' +
+      'Join with my link and it strengthens both our spots.';
+    if (navigator.share){
+      navigator.share({ title:'Whollar', text:text, url:url }).then(null, function(){});
+      return;
+    }
+    copyText(url);
+    flash(this, 'Link copied');
+  });
+
+  /* ---------- feedback popup ---------- */
+
+  var FB_FROM = null;   /* what to hand focus back to on close */
+
+  function fbKey(e){ if (e.key === 'Escape') fbClose(); }
+
+  function fbOpen(){
+    FB_FROM = document.activeElement;
+    $('fbmodal').hidden = false;
+    document.addEventListener('keydown', fbKey);
+    $('fbtext').focus();
+  }
+
+  function fbClose(){
+    $('fbmodal').hidden = true;
+    document.removeEventListener('keydown', fbKey);
+    if (FB_FROM && FB_FROM.focus) FB_FROM.focus();
+  }
+
+  $('fbopen').addEventListener('click', fbOpen);
+  document.addEventListener('click', function(e){
+    if (e.target.closest('[data-fbclose]')) fbClose();
+  });
+
+  $('fbgo').addEventListener('click', function(){
+    var note = String($('fbtext').value || '').trim();
+    var err = $('fbmsg');
+    if (!note){
+      err.textContent = 'Two lines is plenty, but it needs at least one.';
+      err.hidden = false;
+      return;
+    }
+    err.hidden = true;
+    /* Same pipe as the dashboard's feedback box: user_events, kind 'rating'.
+       Fire and forget, because the thank you is for having written it. */
+    if (W.session && W.session.event) W.session.event('rating', { note: note.slice(0, 2000) }).then(null, function(){});
+    $('fb-form').hidden = true;
+    $('fb-done').hidden = false;
+    setTimeout(fbClose, 2200);
   });
 
   /* ---------- animation ---------- */
@@ -370,11 +629,8 @@ button{font-family:var(--body)}
       [990,  function(){ $('chip3').classList.add('on'); }],
       [1150, function(){ $('hd').classList.add('play'); }],
       [1350, function(){ $('cardwrap').classList.add('play'); $('fcard').classList.add('sheen'); }],
-      [1750, function(){ $('ctas').classList.add('play'); }],
-      [1950, function(){ $('step1').classList.add('play'); }],
-      [2080, function(){ $('step2').classList.add('play'); }],
-      [2210, function(){ $('step3').classList.add('play'); }],
-      [2400, function(){ $('share').classList.add('play'); }]
+      [1600, function(){ $('panel').classList.add('play'); }],
+      [1850, function(){ $('ctas').classList.add('play'); }]
     ];
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches){
       steps.forEach(function(s){ s[1](); });
@@ -397,6 +653,7 @@ button{font-family:var(--body)}
      email back to a sign-in form. */
   var local = W.member.read();
   paint(local);
+  paintRateHeading();   /* paint() returns early when there is no record */
   playAnim();
 
   $('cta-primary').setAttribute('href', nextTarget());
@@ -404,7 +661,10 @@ button{font-family:var(--body)}
   W.session.read().then(function(s){
     if (s.authenticated && s.user && s.user.userType === 'member'){
       paint(s.user);
-      loadReferral();
+      /* A rating is a one-time row on the server, so a member who already gave
+         one gets the referral half straight away rather than a form that would
+         only answer CONFLICT. Never rejects, and a null means show the form. */
+      if (W.session.ratingGet) W.session.ratingGet().then(function(r){ if (r) showReferral(); });
       /* Write the local record and reconcile the bill now rather than on the
          dashboard's boot. This screen is a deliberate pause with a two second
          animation in front of it, which is the one place in the flow where

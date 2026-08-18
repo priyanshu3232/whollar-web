@@ -26,6 +26,12 @@
  * who could complete their own application into 'approved' could bid.
  */
 
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const crypto = require('crypto');
+const express = require('express');
+
 const datastore = require('../lib/datastore');
 const audit = require('../lib/audit');
 /* requirePartner, not requireProvider: every handler here destructures
@@ -55,6 +61,134 @@ const str = (v, max) => {
 };
 
 const DAY_MS = 86400000;
+
+/* ------------------------------------------------------------------ *
+ * documents
+ *
+ * WHY THE BYTES COME THROUGH THIS FUNCTION AFTER ALL. create-tables.md said
+ * uploads would go to the file store "through a presigned URL", which is the
+ * right shape and is not available: zcatalyst-sdk-node 2.5 exposes
+ * createFolder / uploadFile / downloadFile and nothing that mints a signed
+ * URL, so there is nothing to presign. What presign was buying, the file never
+ * touching this function, cannot be bought here; what it was protecting
+ * against, a 10 MB body landing in the same parser as every 200-byte JSON
+ * call, is bought instead by express.raw scoped to this one route. The other
+ * sixty-six calls keep the 64kb limit in app.js.
+ *
+ * NOTHING ABOUT THE FILE IS LOGGED. Not the filename, not the size, not the
+ * mime. app.js logs method, path and status only, and the query string that
+ * carries the filename is not part of req.path. Keep it that way.
+ */
+
+const DOC_KINDS = new Set(['crtc_registration', 'business_registration', 'insurance', 'other']);
+
+/** The two the application actually requires. `insurance` and `other` are
+    accepted by the column and are not part of the five-task checklist. */
+const REQUIRED_DOC_KINDS = ['crtc_registration', 'business_registration'];
+
+const MAX_DOC_BYTES = 10 * 1024 * 1024;
+
+/** Extension by mime, so the stored name never carries the partner's own
+    string. A filename is user input and it is about to become a path. */
+const DOC_MIME = {
+  'application/pdf': 'pdf',
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/heic': 'heic',
+  'image/heif': 'heif',
+  'image/webp': 'webp',
+};
+
+/** Kept for display only, and stripped to a leaf with no path separators. */
+function safeName(raw) {
+  const s = String(raw == null ? '' : raw).replace(/[\\/]+/g, ' ').trim().slice(0, 255);
+  return s || 'document';
+}
+
+function docsFolder(req) {
+  const cfg = req.app.get('cfg');
+  if (!cfg.FEATURES.docstore) {
+    /* Fails closed and says which name is missing, rather than accepting 10 MB
+       and dropping it. A partner told "attached" about a file nobody has is
+       the worst outcome available here. */
+    throw new AppError('NOT_IMPLEMENTED',
+      'Document upload is not switched on in this environment yet. Email partners@whollar.ca and we will take them by reply.', {
+        logDetail: 'FILESTORE_DOCS_FOLDER_ID is unset, so the docstore feature is off',
+      });
+  }
+  return req.catalyst.filestore().folder(cfg.FILESTORE_DOCS_FOLDER_ID);
+}
+
+/**
+ * Buffer -> file store, via a temp file.
+ *
+ * uploadFile() takes a ReadStream and nothing else, so the buffer goes to
+ * os.tmpdir() first. The unlink is in a finally: a function container is
+ * reused between invocations, and a leaked 10 MB temp file is a leaked 10 MB
+ * temp file on every one of them.
+ */
+async function putFile(req, storedName, buffer) {
+  const folder = docsFolder(req);
+  const tmp = path.join(os.tmpdir(), `${crypto.randomUUID()}-${storedName}`);
+  await fs.promises.writeFile(tmp, buffer);
+  try {
+    const uploaded = await folder.uploadFile({ code: fs.createReadStream(tmp), name: storedName });
+    return String(uploaded.id);
+  } finally {
+    await fs.promises.unlink(tmp).catch(() => {});
+  }
+}
+
+/** Best effort. A file store object we failed to delete is a retention problem
+    for the sweeper, not a reason to refuse the partner's replacement. */
+async function dropFile(req, ref) {
+  if (!ref) return;
+  try {
+    await docsFolder(req).deleteFile(ref);
+  } catch (err) {
+    console.warn(JSON.stringify({
+      level: 'warn', message: 'file store delete failed', ref,
+      detail: String((err && err.message) || err).slice(0, 200),
+    }));
+  }
+}
+
+async function documentRows(catalystApp, orgId) {
+  try {
+    return await datastore.queryAll(
+      catalystApp, DOCUMENTS,
+      ['ROWID', 'document_key', 'document_id', 'org_id', 'kind', 'file_store_ref',
+        'filename', 'bytes', 'mime', 'review_state', 'uploaded_at'],
+      `org_id = ${datastore.lit(orgId)}`
+    );
+  } catch {
+    return [];
+  }
+}
+
+/** The wire shape. `file_store_ref` never crosses it: it is the one field that
+    would let a partner ask the file store for someone else's object. */
+function publicDocuments(rows) {
+  const out = {};
+  (rows || []).forEach((r) => {
+    out[r.kind] = {
+      filename: r.filename || null,
+      bytes: r.bytes == null ? null : Number(r.bytes),
+      mime: r.mime || null,
+      reviewState: r.review_state || 'pending',
+      uploadedAt: epoch(r.uploaded_at),
+    };
+  });
+  return out;
+}
+
+/** The documents task is done when BOTH required documents are on file, and
+    not before: one of two attached is not a piece a reviewer can read. */
+async function syncDocumentsTask(req, orgId, rows) {
+  const have = new Set((rows || []).map((r) => r.kind));
+  const complete = REQUIRED_DOC_KINDS.every((k) => have.has(k));
+  await setTask(req.catalyst, orgId, 'documents', complete ? 'submitted' : 'empty');
+}
 
 /**
  * A stored timestamp as epoch milliseconds, for the wire.
@@ -279,23 +413,180 @@ function mount(router) {
     res.status(200).json(await reread(req, context.orgId));
   }));
 
-  /** Endpoint 10. Which documents are on file. The upload path is 8 and 9,
-      through a presigned file-store URL: document bytes are PII and never go
-      through this function's memory or into any log. */
+  /** Endpoint 10. Which documents are on file. Metadata only: the file store
+      reference is deliberately not on the wire, because it is the one field
+      that would let a partner ask the store for an object that is not theirs. */
   router.get('/provider/application/documents', wrap(async (req, res) => {
     const { context } = await requirePartner(req);
-    let rows = [];
-    try {
-      rows = await datastore.queryAll(
-        req.catalyst, DOCUMENTS, ['document_id', 'org_id', 'kind', 'filename', 'review_state', 'uploaded_at'],
-        `org_id = ${datastore.lit(context.orgId)}`
-      );
-    } catch {
-      rows = [];
+    const rows = await documentRows(req.catalyst, context.orgId);
+    res.status(200).json({
+      ok: true,
+      serverTime: Date.now(),
+      documents: publicDocuments(rows),
+      maxBytes: MAX_DOC_BYTES,
+      accept: Object.keys(DOC_MIME),
+    });
+  }));
+
+  /**
+   * Endpoint 9. The document itself.
+   *
+   * Raw bytes with kind and filename in the query string, rather than
+   * multipart: parsing multipart needs a dependency in a function whose entire
+   * body-parsing surface is express.json, and the browser has the File object
+   * already. The Content-Type is the file's own, which is what makes the mime
+   * allowlist below a check on what was actually sent rather than on what a
+   * form field claimed.
+   *
+   * Replacing is the same call: the old file store object is deleted after the
+   * new one lands, so a failed upload never leaves the partner with nothing.
+   */
+  const rawBody = express.raw({ type: () => true, limit: MAX_DOC_BYTES });
+  const rawDoc = (req, res, next) => rawBody(req, res, (err) => {
+    if (!err) return next();
+    /* The parser's own 413 would reach the client as a bare SERVER_ERROR with
+       a request id, which tells a partner nothing they can act on. */
+    if (err.type === 'entity.too.large') {
+      return next(badRequest('That file is over the 10 MB limit. Please send a smaller scan.'));
     }
-    const out = {};
-    rows.forEach((r) => { out[r.kind] = { filename: r.filename, reviewState: r.review_state }; });
-    res.status(200).json({ ok: true, serverTime: Date.now(), documents: out });
+    return next(badRequest('That upload did not arrive in one piece. Please try again.'));
+  });
+
+  router.post('/provider/application/documents', rawDoc, wrap(async (req, res) => {
+    const { user, context } = await requirePartner(req);
+
+    const kind = str(req.query.kind, 32);
+    if (!kind || !DOC_KINDS.has(kind)) throw badRequest('That is not a document we ask for.');
+
+    const mime = String(req.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    const ext = DOC_MIME[mime];
+    if (!ext) throw badRequest('PDF or image only. That file type is not one we can read.');
+
+    const buffer = Buffer.isBuffer(req.body) ? req.body : null;
+    if (!buffer || !buffer.length) throw badRequest('That file arrived empty.');
+    if (buffer.length > MAX_DOC_BYTES) throw badRequest('That file is over the 10 MB limit.');
+
+    const filename = safeName(req.query.filename);
+    await ensureApplication(req.catalyst, context.orgId);
+
+    /* Named from the org and the kind, never from the partner's filename: the
+       name becomes a path in the file store, and two partners who both upload
+       "registration.pdf" must not collide. */
+    const storedName = `${context.orgId}-${kind}-${crypto.randomUUID()}.${ext}`;
+    const ref = await putFile(req, storedName, buffer);
+
+    const key = `${context.orgId}:${kind}`.slice(0, 200);
+    const cfg = req.app.get('cfg');
+    const fields = {
+      kind,
+      file_store_ref: ref,
+      filename,
+      bytes: buffer.length,
+      mime,
+      uploaded_by: user.user_id,
+      uploaded_at: datastore.nowDb(),
+      /* 'pending', always. A partner cannot accept their own document any more
+         than they can clear their own registration check. */
+      review_state: 'pending',
+      retention_delete_after: datastore.inMsDb(cfg.DOC_RETENTION_DAYS * DAY_MS),
+      updated_at: datastore.nowDb(),
+    };
+
+    let previousRef = null;
+    try {
+      const existing = await datastore.findBy(req.catalyst, DOCUMENTS, 'document_key', key,
+        ['ROWID', 'file_store_ref']);
+      if (existing) {
+        previousRef = existing.file_store_ref || null;
+        await datastore.updateRow(req.catalyst, DOCUMENTS, { ROWID: existing.ROWID, ...fields });
+      } else {
+        await datastore.insertRow(req.catalyst, DOCUMENTS, {
+          document_key: key,
+          document_id: `doc-${crypto.randomUUID()}`.slice(0, 64),
+          org_id: context.orgId,
+          ...fields,
+        });
+      }
+    } catch (err) {
+      /* The row is the record. A file in the store that no row points at is
+         unreachable and would sit there until retention, so drop it now. */
+      await dropFile(req, ref);
+      throw new AppError('SERVER_ERROR', 'That did not save. Please try again shortly.', {
+        logDetail: `provider_documents write failed: ${String((err && err.message) || err).slice(0, 200)}`,
+      });
+    }
+
+    /* After the row, never before: a replacement whose row write fails must
+       still have the old file to fall back on. */
+    if (previousRef && previousRef !== ref) await dropFile(req, previousRef);
+
+    const rows = await documentRows(req.catalyst, context.orgId);
+    await syncDocumentsTask(req, context.orgId, rows);
+
+    audit.recordAsync(req.catalyst, req, {
+      type: 'provider.application.document.upload', outcome: 'success',
+      userId: user.user_id, email: user.email_normalized,
+      /* kind and size only. The filename is the partner's own text and has no
+         business in an audit row. */
+      detail: { org_id: context.orgId, kind, bytes: buffer.length, replaced: !!previousRef },
+    });
+
+    res.status(200).json({
+      ok: true,
+      serverTime: Date.now(),
+      documents: publicDocuments(rows),
+      application: await reread(req, context.orgId),
+    });
+  }));
+
+  /**
+   * Endpoint 11. Remove one document.
+   *
+   * Refused once the application is submitted: removing a document a reviewer
+   * is reading would drop the task back to empty and un-complete an
+   * application whose 48 hour clock is already running. Replacing is always
+   * allowed, and is what a partner who attached the wrong file actually wants.
+   */
+  router.delete('/provider/application/documents/:kind', wrap(async (req, res) => {
+    const { user, context } = await requirePartner(req);
+    const kind = str(req.params.kind, 32);
+    if (!kind || !DOC_KINDS.has(kind)) throw badRequest('That is not a document we ask for.');
+
+    const app = await findApplication(req.catalyst, context.orgId);
+    if (app && app.submitted_at && !app.decided_at) {
+      throw new AppError('CONFLICT',
+        'Your application is with a reviewer. You can replace this document, but not remove it.');
+    }
+
+    const key = `${context.orgId}:${kind}`.slice(0, 200);
+    const existing = await datastore.findBy(req.catalyst, DOCUMENTS, 'document_key', key,
+      ['ROWID', 'file_store_ref']);
+    if (!existing) throw new AppError('NOT_FOUND', 'There is no such document on your file.');
+
+    try {
+      await datastore.deleteRow(req.catalyst, DOCUMENTS, existing.ROWID);
+    } catch (err) {
+      throw new AppError('SERVER_ERROR', 'That did not remove. Please try again shortly.', {
+        logDetail: `provider_documents delete failed: ${String((err && err.message) || err).slice(0, 200)}`,
+      });
+    }
+    await dropFile(req, existing.file_store_ref);
+
+    const rows = await documentRows(req.catalyst, context.orgId);
+    await syncDocumentsTask(req, context.orgId, rows);
+
+    audit.recordAsync(req.catalyst, req, {
+      type: 'provider.application.document.delete', outcome: 'success',
+      userId: user.user_id, email: user.email_normalized,
+      detail: { org_id: context.orgId, kind },
+    });
+
+    res.status(200).json({
+      ok: true,
+      serverTime: Date.now(),
+      documents: publicDocuments(rows),
+      application: await reread(req, context.orgId),
+    });
   }));
 
   /** Endpoint 12. The application-stage agreement, with the consent text hash
