@@ -2000,20 +2000,23 @@ var REGION_ART={
  'mississauga-north':['region-mississauga-north','A new glass mid-rise on the corner of a wide intersection'],
  'mississauga-west':['region-mississauga-west','A dense cluster of lit high-rise towers at dusk'],
  'north-york-central':['region-north-york-central','Condominium towers and construction cranes above the Yonge Street valley'],
- /* NOT HERE, and not by oversight: 'scarborough-southwest' and
-    'etobicoke-centre' have no entry because they have no photograph we may
-    publish. Every source on hand fails, and the ways they fail are worth
-    recording so the next pass does not re-adopt one:
-      - four Scarborough files are Scarborough, NORTH YORKSHIRE: the castle
-        headland over South Bay, a search result for the name rather than the
-        place,
-      - one Etobicoke file carries a burned-in "Copyright 2009 Maple Tree
-        Publishing" notice, and the other is storm damage under a stock
-        watermark, a felled tree across a driveway, which is not a picture to
-        invite a household to join anything under.
-    Openverse has no cc0/pdm residential photograph of either region. The miss
-    is the designed behaviour: .cc__art keeps its mint block and the card is
-    whole, which is a better tile than a wrong city or someone else's copyright. */
+ /* THE ART IS DECORATION AND IS NOT CLAIMED TO BE THE REGION. Owner's call,
+    2026-08-18: a tile may carry any photograph we hold, because waiting for a
+    photographer in each region leaves a mint block on a live cohort. So the two
+    below are the frame that fits, not the place:
+      - scarborough-southwest is a coastal town above a curved sand bay. It is
+        Scarborough in NORTH YORKSHIRE, from a search on the name,
+      - etobicoke-centre is a stone house in Brampton.
+    The alt text therefore describes the picture and never names the region,
+    which is what keeps it honest to a screen reader. Two sources were refused
+    outright and must stay refused: bramptonwest.jpg is covered in Alamy
+    watermarks, and the Etobicoke pair are a burned-in "Copyright 2009 Maple
+    Tree Publishing" notice and a stock-watermarked photograph of storm damage.
+    A visible watermark is not a matching problem, it is publishing someone
+    else's marked work. mississaugaeast.webp carries a REALTOR logo and is not
+    the file mississauga-east ships. */
+ 'scarborough-southwest':['region-scarborough-southwest','A seaside town above a curved sand bay and a harbour'],
+ 'etobicoke-centre':['region-etobicoke-centre','A stone house with a pillared entrance behind flowering trees'],
  'richmond-hill-north':['region-richmond-hill-north','A Victorian house with a wraparound porch behind a hedge'],
  'south-london':['region-south-london','Downtown towers catching low golden light above a river'],
  /* The four the demo seed above still names. 'Windsor' slugs to 'windsor', which
@@ -2027,6 +2030,37 @@ var REGION_ART={
    and the server's coverage match have to agree on what one region name is. */
 function regionSlug(name){
   return String(name||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+}
+/**
+ * Which art a region name gets. Exact slug first, then ONE tolerant step: a key
+ * whose words contain all of the name's words, in any order.
+ *
+ * That step is here because the live catalog does not spell regions the way
+ * places.js does. It carries 'Scarborough', 'North York', 'Etobicoke' and
+ * 'London South', while the vocabulary is 'Scarborough Southwest', 'North York
+ * Central', 'Etobicoke Centre' and 'South London', so an exact lookup misses
+ * every one of them and four live cohorts render a blank mint block. Word
+ * containment catches all four, the reversed pair included.
+ *
+ * IT FIXES THE PICTURE AND NOTHING ELSE, which is the part worth being loud
+ * about. desk.js matches a partner's coverage to a campaign on slug(region)
+ * exactly, on the server, so a row named 'Scarborough' still matches no
+ * coverage and still cannot be bid on. A photograph appearing on that tile is
+ * decoration arriving early, NOT evidence the row is healthy, and the row still
+ * needs renaming to the places.js spelling before the auction can reach it.
+ */
+var REGION_ART_KEYS=Object.keys(REGION_ART);
+function regionArtKey(name){
+  var s=regionSlug(name);
+  if(!s)return null;
+  if(REGION_ART[s])return s;
+  var want=s.split('-');
+  for(var i=0;i<REGION_ART_KEYS.length;i++){
+    var have=REGION_ART_KEYS[i].split('-'),ok=true;
+    for(var j=0;j<want.length;j++){if(have.indexOf(want[j])<0){ok=false;break;}}
+    if(ok)return REGION_ART_KEYS[i];
+  }
+  return null;
 }
 /* Badge per lifecycle kind, for a cohort that is not the member's own. The
    member's own card names their stage instead. */
@@ -4326,7 +4360,7 @@ function routeVisitor(){
    from the campaign record, so creating a cohort in the Data Store is the whole
    act of putting it on this row. */
 function ccArt(c){
-  var a=REGION_ART[regionSlug(c.region)];
+  var a=REGION_ART[regionArtKey(c.region)];
   if(!a)return '<span class="cc__art"></span>';
   return '<span class="cc__art"><img src="/images/regions/'+a[0]+'.webp" srcset="/images/regions/'+a[0]
    +'.webp 1x, /images/regions/'+a[0]+'@2x.webp 2x" alt="'+esc(a[1])
