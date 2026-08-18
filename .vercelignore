@@ -102,3 +102,11 @@ node_modules
 # this raw file at /welcomewhollar, where the toggle would let anyone read
 # both accounts' onboarding copy against fixture names.
 welcomewhollar.html
+
+# The v2 welcome-screen design reference. Same reason as welcomewhollar.html
+# above: a Member/Partner preview toggle, fixture names ("Northline
+# Internet"), no login guard and no noindex. Its layout was ported into
+# welcome-member.html on 2026-08-17; cleanUrls would otherwise publish this
+# raw file at /whollar-welcome-v2, where the toggle would let anyone read both
+# accounts' onboarding copy.
+whollar-welcome-v2.html
