@@ -2017,6 +2017,7 @@ var REGION_ART={
     the file mississauga-east ships. */
  'scarborough-southwest':['region-scarborough-southwest','A seaside town above a curved sand bay and a harbour'],
  'etobicoke-centre':['region-etobicoke-centre','A stone house with a pillared entrance behind flowering trees'],
+ 'vaughan-woodbridge':['region-vaughan-woodbridge','A dark glass civic building above a reflecting pool and a flag'],
  'richmond-hill-north':['region-richmond-hill-north','A Victorian house with a wraparound porch behind a hedge'],
  'south-london':['region-south-london','Downtown towers catching low golden light above a river'],
  /* The four the demo seed above still names. 'Windsor' slugs to 'windsor', which
@@ -2032,35 +2033,78 @@ function regionSlug(name){
   return String(name||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 }
 /**
- * Which art a region name gets. Exact slug first, then ONE tolerant step: a key
- * whose words contain all of the name's words, in any order.
+ * Which art a region name gets. NO TILE GOES WITHOUT A PHOTOGRAPH, which is the
+ * owner's rule for this row: a mint block on a cohort at sealed bidding reads as
+ * a broken card, and waiting for a photographer per region leaves it broken for
+ * months. So this widens in four steps and only the first is a real match.
  *
- * That step is here because the live catalog does not spell regions the way
- * places.js does. It carries 'Scarborough', 'North York', 'Etobicoke' and
- * 'London South', while the vocabulary is 'Scarborough Southwest', 'North York
- * Central', 'Etobicoke Centre' and 'South London', so an exact lookup misses
- * every one of them and four live cohorts render a blank mint block. Word
- * containment catches all four, the reversed pair included.
+ *   1. the exact slug,
+ *   2. a key whose words contain ALL of the name's words, in any order,
+ *   3. the same test with trailing words dropped one at a time, which is the
+ *      city step: 'Mississauga Core' keeps 'mississauga' and finds a Mississauga
+ *      photograph, 'North York East' keeps 'north york',
+ *   4. any single word of the name, wherever it sits. Step 3 only ever tests the
+ *      leading words, so it finds the city in 'Vaughan West' and misses it in
+ *      'Thornhill Vaughan', which is a real places.js region that named its city
+ *      last and was landing on a Mississauga photograph,
+ *   5. failing everything, any photograph at all.
  *
- * IT FIXES THE PICTURE AND NOTHING ELSE, which is the part worth being loud
- * about. desk.js matches a partner's coverage to a campaign on slug(region)
- * exactly, on the server, so a row named 'Scarborough' still matches no
- * coverage and still cannot be bid on. A photograph appearing on that tile is
- * decoration arriving early, NOT evidence the row is healthy, and the row still
- * needs renaming to the places.js spelling before the auction can reach it.
+ * Step 2 exists because the catalog does not spell regions the way places.js
+ * does: it carries 'Scarborough', 'North York', 'Etobicoke' and 'London South'
+ * against a vocabulary of 'Scarborough Southwest', 'North York Central',
+ * 'Etobicoke Centre' and 'South London'. Step 3 is what covers the names that
+ * are not regions at all, 'Mississauga Core', 'Etobicoke South', 'Vaughan West'.
+ * Step 4 is the honest cost of the rule: a cohort in a city we have never
+ * photographed shows another city's street, and the alt text describes that
+ * picture rather than claiming the region, which is what keeps a screen reader
+ * from being told a lie.
+ *
+ * Where a step finds several candidates the choice is a hash of the region, not
+ * the first hit, so a city's unphotographed regions SPREAD across its photos
+ * instead of stacking on one. It is a hash and not a counter or a random pick
+ * because the same region has to draw the same photograph on every render, in
+ * every session, or a tile changes picture as you scroll back to it.
+ *
+ * IT FIXES THE PICTURE AND NOTHING ELSE. desk.js matches a partner's coverage
+ * to a campaign on slug(region) exactly, on the server, so a row named
+ * 'Scarborough' or 'Mississauga Core' still matches no coverage and still
+ * cannot be bid on. A photograph on that tile is decoration arriving early, NOT
+ * evidence the row is healthy. 'North York East' is the opposite case and worth
+ * knowing apart: it IS a places.js region, so it is biddable and was only ever
+ * missing art.
  */
 var REGION_ART_KEYS=Object.keys(REGION_ART);
+/** Stable per region: same name in, same index out, for the life of the list. */
+function artHash(s){
+  var h=0;
+  for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;
+  return h;
+}
 function regionArtKey(name){
   var s=regionSlug(name);
   if(!s)return null;
   if(REGION_ART[s])return s;
-  var want=s.split('-');
-  for(var i=0;i<REGION_ART_KEYS.length;i++){
-    var have=REGION_ART_KEYS[i].split('-'),ok=true;
-    for(var j=0;j<want.length;j++){if(have.indexOf(want[j])<0){ok=false;break;}}
-    if(ok)return REGION_ART_KEYS[i];
+  var w=s.split('-');
+  /** Keys whose words contain every word in `words`. */
+  function matching(words){
+    var hits=[];
+    for(var i=0;i<REGION_ART_KEYS.length;i++){
+      var have=REGION_ART_KEYS[i].split('-'),ok=true;
+      for(var j=0;j<words.length;j++){if(have.indexOf(words[j])<0){ok=false;break;}}
+      if(ok)hits.push(REGION_ART_KEYS[i]);
+    }
+    return hits;
   }
-  return null;
+  var hits,n,k;
+  for(n=w.length;n>0;n--){
+    hits=matching(w.slice(0,n));
+    if(hits.length)return hits[artHash(s)%hits.length];
+  }
+  for(k=0;k<w.length;k++){
+    hits=matching([w[k]]);
+    if(hits.length)return hits[artHash(s)%hits.length];
+  }
+  return REGION_ART_KEYS.length?REGION_ART_KEYS[artHash(s)%REGION_ART_KEYS.length]:null;
 }
 /* Badge per lifecycle kind, for a cohort that is not the member's own. The
    member's own card names their stage instead. */
