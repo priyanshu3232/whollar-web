@@ -66,6 +66,11 @@ jobs:
       - name: Shared core parses
         run: node --check js/whollar-core.js
 
+      # The site-wide dropdown. It rewrites every <select> on the pages that
+      # load it, so a parse error takes out four forms at once rather than one.
+      - name: Shared select parses
+        run: node --check js/whollar-select.js
+
       # Fails when js/whollar-benchmarks.js no longer matches what the
       # spreadsheet would produce, i.e. the pricing model was updated but the
       # generated table wasn't, so the site is scoring against stale prices.
@@ -175,6 +180,16 @@ jobs:
         run: |
           npm ci --ignore-scripts
           node --test scripts/test-checkup-dom.mjs
+
+      # The site-wide dropdown, driven on a real page in the same browser. It
+      # hides every <select> behind a button, and page code all over this site
+      # still reads select.value and listens for 'change' on it, so what this
+      # guards is not the look: it is that the native control is still the
+      # answer. A regression here reads as a form submitting the wrong option.
+      - name: Site dropdown DOM acceptance tests
+        run: |
+          npm ci --ignore-scripts
+          node --test scripts/test-select-dom.mjs
 
       - name: Device router parses
         run: node --check js/device-router.js
