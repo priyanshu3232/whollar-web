@@ -146,15 +146,71 @@ api.application = function () {
 };
 /* 7. LIVE. */
 api.applicationRegistration = function (body) { return request('PATCH', '/provider/application/registration', body); };
-/* 8. Documents are PII and go to the file store, never through this JSON
-      route. Presign is the shape that keeps them out of the function's memory
-      and out of any log. */
+/* 8. Folded into 9, and it is the SDK that decides that: zcatalyst-sdk-node's
+      file store exposes createFolder / uploadFile / downloadFile and nothing
+      that mints a signed URL, so there is no presign to issue. The property
+      presign was there to buy, keeping document bytes out of the auth
+      function, is bought instead by the raw body parser on 9, which is scoped
+      to that one route and never touches the 64kb JSON limit the other
+      sixty-six calls run under. If Catalyst Stratus is adopted later this
+      becomes real and 9 becomes the confirm it is named for. */
 api.documentPresign = todo('POST /provider/application/documents/presign');
-/* 9 */ api.documentConfirm = todo('POST /provider/application/documents');
-/* 10. LIVE, read only: which of the two documents are on file. The upload path
-       is still 8 and 9. */
+
+/* 9. LIVE. The file itself, as its own bytes, with kind and filename in the
+      query string: multipart would need a parser dependency in a function
+      whose whole body-parsing surface today is express.json.
+      XMLHttpRequest rather than fetch, and for one reason only: fetch cannot
+      report upload progress, and a 10 MB PDF over a phone tether with no bar
+      is indistinguishable from a hang. */
+api.documentUpload = function (kind, file, onProgress) {
+  var W = core();
+  var url = (W.AUTH_API || '/api/auth') + '/provider/application/documents'
+    + '?kind=' + encodeURIComponent(kind)
+    + '&filename=' + encodeURIComponent(file.name || 'document');
+  return new Promise(function (resolve, reject) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', url, true);
+    xhr.withCredentials = true;
+    xhr.setRequestHeader('Accept', 'application/json');
+    /* The real type, so the server validates what it was actually sent rather
+       than what a form field claimed. Anything but application/json, or the
+       app-level express.json would swallow the body. */
+    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+    if (xhr.upload && onProgress) {
+      xhr.upload.onprogress = function (e) {
+        if (e.lengthComputable) onProgress(e.loaded / e.total);
+      };
+    }
+    xhr.onload = function () {
+      var b = null;
+      try { b = JSON.parse(xhr.responseText); } catch (_) { b = null; }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        if (b && typeof b.serverTime === 'number') sync(b.serverTime);
+        resolve(b || {});
+        return;
+      }
+      var e = new Error((b && b.error && b.error.message) || 'That upload did not go through. Please try again.');
+      e.code = (b && b.error && b.error.code) || 'SERVER_ERROR';
+      e.status = xhr.status;
+      reject(e);
+    };
+    xhr.onerror = function () {
+      var e = new Error('We could not reach Whollar. Check your connection and try again.');
+      e.code = 'NETWORK';
+      reject(e);
+    };
+    xhr.send(file);
+  });
+};
+/* 10. LIVE, read only: which of the two documents are on file. */
 api.documents = function () { return request('GET', '/provider/application/documents'); };
-/* 11 */ api.documentDelete = todo('DELETE /provider/application/documents/:type');
+/* 11. LIVE. Removes the partner's own copy and the file store object with it.
+       Nothing here is append-only: a document is evidence a reviewer reads,
+       not a bid, and a partner who attached the wrong PDF must be able to say
+       so. The audit row of the deletion is what survives. */
+api.documentDelete = function (kind) {
+  return request('DELETE', '/provider/application/documents/' + encodeURIComponent(kind));
+};
 /* 12. LIVE. Records the consent text hash, so what was agreed to is provable
        later rather than inferred from a version number. */
 api.applicationAgreement = function (body) { return request('POST', '/provider/application/agreement', body); };

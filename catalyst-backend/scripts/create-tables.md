@@ -604,24 +604,38 @@ column, so the pair is flattened into `task_key_org`.
 
 ### `provider_documents`
 
-**PII.** The bytes never pass through the auth function: uploads go to the file
-store through a presigned URL and only the reference is stored here. Never a
-public bucket, never a guessable URL, and `retention_delete_after` is what
-makes the deletion promise on the application screen real.
+**PII.** Only the file store reference is stored here; the file itself lives in
+a **private** Catalyst File Store folder. Never a public folder, never a
+guessable name (the stored name is `${org_id}-${kind}-${uuid}.${ext}`, never
+the partner's own filename), and `retention_delete_after` is what makes the
+deletion promise on the application screen real.
+
+> **This section said "through a presigned URL" and that was wrong.**
+> `zcatalyst-sdk-node` 2.5 exposes `createFolder` / `uploadFile` /
+> `downloadFile` and nothing that mints a signed URL, so there is nothing to
+> presign and endpoint 8 cannot exist as written. The bytes therefore do reach
+> the auth function, through an `express.raw` parser **scoped to that one
+> route**; the app-level `express.json({ limit: '64kb' })` that every other
+> call runs under is untouched. Nothing about the file is logged: `app.js`
+> logs method, path and status, and the filename rides in the query string,
+> which is not part of `req.path`. If Catalyst Stratus is adopted later,
+> endpoint 8 becomes real and this note is what to delete.
 
 | Column | Type | Length | Unique | Mandatory | Notes |
 |---|---|---|:--:|:--:|---|
-| `document_id` | Var Char | 64 | ✅ | ✅ | |
+| `document_key` | Var Char | 200 | ✅ | ✅ | **new.** `${org_id}:${kind}`. The flattened composite, same pattern as `application_tasks.task_key_org`: Catalyst's unique constraint is per column, so an (org, kind) pair has to be one column. Without it, replacing a document inserts a second row instead of updating the first |
+| `document_id` | Var Char | 64 | ✅ | ✅ | `doc-${uuid}`. Opaque, and never on the wire |
 | `org_id` | Var Char | 64 | | ✅ | |
 | `kind` | Var Char | 32 | | ✅ | `crtc_registration` \| `business_registration` \| `insurance` \| `other` |
-| `file_store_ref` | Var Char | 255 | | ✅ | |
-| `filename` | Var Char | 255 | | | as uploaded |
+| `file_store_ref` | Var Char | 255 | | ✅ | the File Store file id. **Never on the wire**: it is the one field that would let a partner ask the store for an object that is not theirs |
+| `filename` | Var Char | 255 | | | as uploaded, display only, path separators stripped |
 | `bytes` | Int | - | | | |
-| `mime` | Var Char | 64 | | | |
+| `mime` | Var Char | 64 | | | one of `application/pdf`, `image/png`, `image/jpeg`, `image/heic`, `image/heif`, `image/webp`. Read from the request's own `Content-Type`, so it is a check on what was sent, not on what a form field claimed |
 | `uploaded_by` | Var Char | 64 | | | `user_id` |
 | `uploaded_at` | DateTime | - | | | |
-| `review_state` | Var Char | 16 | | ✅ | `pending` \| `accepted` \| `rejected` |
-| `retention_delete_after` | DateTime | - | | | |
+| `review_state` | Var Char | 16 | | ✅ | `pending` \| `accepted` \| `rejected`. A partner's upload is always `pending`; they can no more accept their own document than clear their own CRTC check |
+| `retention_delete_after` | DateTime | - | | | stamped at upload from `DOC_RETENTION_DAYS` |
+| `updated_at` | DateTime | - | | | **new** |
 
 ### `provider_references`
 
@@ -996,6 +1010,84 @@ terms settle, which is exactly why it is a row and never a constant in code.
 
 ---
 
+## 22. Partner application document upload
+
+Three things, in this order. Until all three are done the route answers **501**
+and the console says so on the row rather than pretending a file landed.
+
+### 22a. Two columns to add to `provider_documents`
+
+If the table does not exist yet, create it from §17 above, which already has
+both. If it does exist, add them:
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `document_key` | Var Char | 200 | ✅ | ✅ | `${org_id}:${kind}` |
+| `updated_at` | DateTime | - | | | |
+
+> `document_key` **must** carry the unique constraint. It is what makes a
+> replacement an update instead of a second row, and with two rows for one kind
+> the console shows whichever the query returns first, which is neither
+> predictable nor the one just uploaded.
+>
+> Adding a mandatory unique column to a table that already holds rows is
+> refused by the console. If `provider_documents` has rows, add
+> `document_key` as **optional first**, backfill it (`${org_id}:${kind}` for
+> each row), then set mandatory and unique.
+
+### 22b. One private File Store folder
+
+**Catalyst console → File Store → Create Folder.**
+
+| Field | Value |
+|---|---|
+| Folder name | `partner-documents` |
+| Public access | **off**. These are CRTC registration letters and incorporation documents |
+
+Copy the folder **id** from the folder's detail page. It is a number.
+
+### 22c. Two environment variables, in **both** environments
+
+**Catalyst console → Settings → Environment Variables**, for Development and
+for Production, then redeploy the `auth` function so it reads them.
+
+| Name | Value | Notes |
+|---|---|---|
+| `FILESTORE_DOCS_FOLDER_ID` | the id from 22b | different id per environment; a Development upload must never land in the Production folder |
+| `DOC_RETENTION_DAYS` | `400` | optional, defaults to 400 |
+
+`FILESTORE_DOCS_FOLDER_ID` is what switches `FEATURES.docstore` on. Confirm it
+after deploying:
+
+```
+curl -s https://<your-catalyst-host>/server/auth/health | python3 -m json.tool
+```
+
+`features.docstore` must read `true`. If it reads `false` the variable is unset
+or empty in that environment, and uploads will keep answering 501.
+
+### Verifying the round trip
+
+Sign in as a partner, open the console, **Documents → Choose file**, attach a
+small PDF. Then:
+
+```sql
+SELECT document_key, kind, filename, bytes, mime, review_state, uploaded_at
+FROM provider_documents LIMIT 5;
+
+-- both documents attached puts the task at 'submitted', one of two leaves it 'empty'
+SELECT task_key, state, completed_at FROM application_tasks
+WHERE task_key = 'documents' LIMIT 5;
+
+SELECT event_type, outcome, CREATEDTIME FROM auth_events
+WHERE event_type = 'provider.application.document.upload' LIMIT 5;
+```
+
+The file itself appears in the `partner-documents` folder under
+`${org_id}-${kind}-${uuid}.${ext}`, never under the partner's own filename.
+
+---
+
 ## Verify
 
 In the console: **Data Store → ZCQL** (or **Explore**), and run each of these.
@@ -1011,7 +1103,7 @@ SELECT ROWID FROM auth_challenges LIMIT 1;
 SELECT ROWID FROM oauth_state LIMIT 1;
 SELECT ROWID FROM provider_applications LIMIT 1;
 SELECT ROWID FROM application_tasks LIMIT 1;
-SELECT ROWID FROM provider_documents LIMIT 1;
+SELECT document_key, updated_at FROM provider_documents LIMIT 1;
 SELECT ROWID FROM provider_references LIMIT 1;
 SELECT ROWID FROM coverage_verifications LIMIT 1;
 SELECT rejection_reason, verified_at FROM provider_coverage LIMIT 1;

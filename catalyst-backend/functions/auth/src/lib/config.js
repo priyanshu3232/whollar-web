@@ -241,6 +241,27 @@ const GROUPS = {
     SESSION_TTL_ADMIN_HOURS: { check: v.int(1, 48), fallback: '12' },
   },
 
+  /**
+   * Partner application documents.
+   *
+   * Unset -> FEATURES.docstore is false and POST /provider/application
+   * /documents answers 501 with the copy the console already renders. That is
+   * deliberate and it is the whole reason this is a group: the alternative to
+   * failing closed is accepting a 10 MB PDF, having nowhere to put it, and
+   * telling a partner it is attached.
+   *
+   * The folder is created by hand in the Catalyst console, the same way every
+   * table here is, and its id is the value. It must NOT be a public folder:
+   * these are CRTC registration letters and incorporation documents.
+   */
+  docstore: {
+    FILESTORE_DOCS_FOLDER_ID: { check: v.nonEmpty },
+    // What makes the deletion promise on the application screen real. Written
+    // onto every row at upload as retention_delete_after, for the sweeper to
+    // read. 400 days: a year plus the slack to survive one annual review.
+    DOC_RETENTION_DAYS: { check: v.int(1, 3650), fallback: '400' },
+  },
+
   // Phase 6. Canadian DC hosts are defaulted, not guessed at call time.
   crm: {
     ZOHO_CRM_CLIENT_ID:     { check: v.nonEmpty },
