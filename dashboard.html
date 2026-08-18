@@ -216,6 +216,16 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
    place the current price appears, so this row carries a figure instead of
    just labelling the file. */
 .ckv__eyebrow b{font-family:var(--mono);font-weight:400;font-size:11.5px;letter-spacing:.04em;color:#fff;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.26);border-radius:999px;padding:5px 12px}
+/* The three chips beside it state what is on file, so the way to change it
+   belongs in the same row. Same pill, so it reads as part of the row, but the
+   chips are data and must not look pressable: the difference is carried by a
+   brighter border and an arrow rather than by colour, because the hero figure
+   above changes colour with the verdict's tone and an accent here would fight
+   it on three of the four tones. */
+.ckv__editbill{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;color:#fff;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.45);border-radius:999px;padding:5px 12px;text-decoration:none;white-space:nowrap}
+.ckv__editbill:hover{background:rgba(255,255,255,.16);border-color:#fff}
+.ckv__editbill:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.ckv__editbill svg{width:11px;height:11px;flex:none;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
 /* One tile, so the right column is a single panel that takes the row's height
    rather than a pair splitting it. */
 .ckv__right{display:flex;flex-direction:column;gap:12px;min-width:0}
@@ -694,6 +704,10 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .codebox code{flex:1;font-family:var(--mono);font-size:14.5px;letter-spacing:1px;background:var(--paper);border:1.5px dashed #C9C3B2;border-radius:10px;padding:10px 14px;text-align:center}
 .copybtn{background:var(--accent-deep);color:#fff;border-radius:10px;padding:0 16px;font-weight:650;font-size:13.5px}
 .copybtn:hover{background:#17402E}
+/* Two ghost buttons under the code, wrapping rather than shrinking: at the
+   rail's narrowest "Share your link" keeps its label and Feedback drops to a
+   second line. */
+.refacts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .aspects{display:flex;flex-direction:column;gap:9px;margin:12px 0}
 .aspect{display:flex;align-items:center;gap:10px;font-size:13.5px}
 .aspect span{width:74px;flex:none;color:#3A453E;font-weight:600}
@@ -965,6 +979,9 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .modal{position:fixed;inset:0;background:rgba(26,37,32,.45);backdrop-filter:blur(3px);display:grid;place-items:center;padding:18px;z-index:90}
 .modal[hidden]{display:none}
 .mbox{background:var(--paper);border:1px solid var(--line);border-radius:20px;max-width:560px;width:100%;max-height:88vh;overflow:auto;padding:22px 24px;box-shadow:0 30px 70px rgba(26,37,32,.3)}
+/* One question and one field does not want 560px. openModal(html,true) asks for
+   this: a narrow upright box, wide enough for the textarea and nothing else. */
+.mbox.is-slim{max-width:340px;padding:20px 22px}
 .mhead{display:flex;align-items:center;gap:12px}
 .mhead h3{font-size:20px}
 .mx{margin-left:auto;font-size:22px;line-height:1;color:var(--sub);padding:4px 9px;border-radius:9px}
@@ -1251,7 +1268,7 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
               <h3>Every referral moves a cohort</h3>
               <p class="cardnote">Neighbours strengthen your cohort directly. Friends anywhere else speed up their own region's launch. Either way, someone's bill gets better.</p>
               <div class="codebox"><code id="refcode">WHL-&hellip;</code><button class="copybtn" type="button" id="copyref">Copy</button></div>
-              <div style="margin-top:10px"><button class="btn ghost" type="button" id="sharelink">Share your link</button></div>
+              <div class="refacts"><button class="btn ghost" type="button" id="sharelink">Share your link</button><button class="btn ghost" type="button" data-fbopen>Feedback</button></div>
               <p class="fnote" id="refcount">Loading your code&hellip;</p>
             </section>
 
@@ -2312,8 +2329,19 @@ function paintVerdict(){
   }else strip.hidden=true;
 
   var eb=$('#ckv-eyebrow');
-  paintOnce('ckchips',eb,v.chips.map(function(c){return '<b>'+esc(c)+'</b>'}).join(''));
-  eb.hidden=!v.chips.length;
+  /* It goes to /bill-checkup rather than to this page's own bill form because
+     the figures in these chips ARE the checkup's answers, and the verdict
+     above is computed from them: editing them anywhere else would leave a
+     member reading a verdict against a file they can no longer see.
+     ?from=dashboard is the entry the "Check if I'm overpaying" button already
+     uses, and it is what FROM_DASH on that page keys off, so a member who
+     arrives this way is not treated as a first-time visitor.
+     The row is no longer hidden on empty chips: it always carries this, and a
+     member with nothing on file is exactly the one who needs it. */
+  paintOnce('ckchips',eb,v.chips.map(function(c){return '<b>'+esc(c)+'</b>'}).join('')
+    +'<a class="ckv__editbill" href="/bill-checkup?from=dashboard">Edit your bill'
+    +'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></a>');
+  eb.hidden=false;
 
   $('#ckv-pill').hidden=!v.cliffSoon;
   ckv.classList.toggle('has-pill',!!v.cliffSoon);
@@ -3747,10 +3775,41 @@ $('#klist').innerHTML=BLOGS.map(function(b,i){
 
 /* ---------- generic modal ---------- */
 var modal=$('#modal');
-function openModal(html){$('#mbody').innerHTML=html;modal.hidden=false;document.body.style.overflow='hidden'}
+var mbox=$('#modal .mbox');
+function openModal(html,slim){
+  $('#mbody').innerHTML=html;
+  if(mbox)mbox.classList.toggle('is-slim',!!slim);
+  modal.hidden=false;document.body.style.overflow='hidden';
+}
 function closeModal(){modal.hidden=true;document.body.style.overflow=''}
 modal.addEventListener('click',function(e){if(e.target===modal||e.target.closest('[data-mclose]'))closeModal()});
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!modal.hidden)closeModal()});
+
+/* ---------- feedback, from beside the share buttons ----------
+   Every [data-fbopen] on the page opens the same slim box: the referral card is
+   rendered twice (member home and the visitor tile) and neither copy owns the
+   popup. It lands in user_events via POST /me/event, the same route the rate
+   card's open question uses, under kind 'rating': the server keeps a closed set
+   of kinds and a dedicated 'feedback' kind would need EVENT_KINDS widened and
+   the function redeployed, so the source travels in the payload instead. */
+function openFeedback(){
+  openModal('<div class="mhead"><h3>Share your experience!</h3><button class="mx" type="button" data-mclose aria-label="Close">\u00d7</button></div>'
+  +'<p class="msub">What is working, what is missing, what is confusing. Two lines is plenty.</p>'
+  +'<textarea class="fbtext" id="fb-note" rows="7" placeholder="Tell us anything\u2026" aria-label="Your experience"></textarea>'
+  +'<button class="btn terra" type="button" id="fb-send" style="width:100%;justify-content:center;margin-top:12px">Send it</button>'
+  +'<p class="fnote" style="text-align:center">It lands with a person, not a void.</p>',true);
+  var ta=$('#fb-note'); if(ta)ta.focus();
+}
+document.addEventListener('click',function(e){
+  if(e.target.closest('[data-fbopen]')){openFeedback();return}
+  if(!e.target.closest('#fb-send'))return;
+  var ta=$('#fb-note');
+  var txt=String((ta&&ta.value)||'').trim();
+  if(!txt){toast('It needs at least one line.');if(ta)ta.focus();return}
+  if(W&&W.session&&W.session.event)W.session.event('rating',{source:'referral-card',note:txt.slice(0,2000)}).then(null,function(){});
+  closeModal();
+  toast('Sent to the team. Thank you.');
+});
 
 /* ---------- chips helper (prefs + pass modals) ---------- */
 document.addEventListener('click',function(e){
@@ -3909,7 +3968,7 @@ function referralHTML(){
   +'<span class="eyebrow">Refer anyone, anywhere</span><h3>Every referral moves a cohort</h3>'
   +'<p class="cardnote">Neighbours strengthen the cohort here. Friends anywhere else speed up their own region’s launch. Either way, someone’s bill gets better.</p>'
   +'<div class="codebox"><code class="refc">'+esc(refCode())+'</code><button class="copybtn copyrefc" type="button">Copy</button></div>'
-  +'<div style="margin-top:10px"><button class="btn ghost sharerefc" type="button">Share your link</button></div>'
+  +'<div class="refacts"><button class="btn ghost sharerefc" type="button">Share your link</button><button class="btn ghost" type="button" data-fbopen>Feedback</button></div>'
   +'</section>';
 }
 /* ONE HERO AND THREE ROWS, from the same list, in one <ul> so the four articles
