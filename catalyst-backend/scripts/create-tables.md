@@ -1088,6 +1088,70 @@ The file itself appears in the `partner-documents` folder under
 
 ---
 
+## 23. `product_interest`
+
+The dashboard's "New products in progress" card: three tiles (mobile plans,
+streaming, winter tires), each opening a short survey. What this table holds is
+**demand**, not a cohort: which product to build first, and what the households
+asking for it already pay. Nothing here creates a membership, a bid or a fee.
+
+Written by `POST /me/product-interest` (`routes/interest.js`); nothing reads it
+yet except the console. One row per (member, product), and a resubmit
+**replaces** it: a member who opens winter tires twice has one opinion, not two.
+
+`answers` stores the chip **values** and never the labels: `{"interest":"yes",
+"parts":["buy","swap"],"tire_cost":"600-1000"}`. The copy on those chips will be
+edited, and storing "Under $40" would open a second bucket the day that becomes
+"Under $45". The server also drops any question or value not in the allowlist in
+`routes/interest.js`, so a stale tab contributes the answers that still exist
+rather than having the whole submission refused.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `interest_key` | Var Char | 130 | ✅ | ✅ | | **derived**: `` `${user_id}:${product}` ``: the composite unique, flattened like `campaign_members.membership_key` |
+| `user_id` | Var Char | 64 | | ✅ | | FK to `users.user_id` (logical) |
+| `product` | Var Char | 32 | | ✅ | | `mobile` \| `streaming` \| `tires` |
+| `answers` | Text | 4000 | | ✅ | | JSON object, values not labels. Never filtered on |
+| `keep_posted` | Var Char | 3 | | ✅ | | `yes` \| `no`: whether to tell them when it opens |
+| `email` | Var Char | 190 | | | ✅ | snapshot of `users.email_normalized`, so the notify list is one query |
+| `fsa` | Var Char | 3 | | | | snapshot of the member's FSA at submission, for a per-region read |
+| `source_page` | Var Char | 120 | | | | the path that asked, e.g. `/dashboard` |
+| `submitted_at` | DateTime | - | | ✅ | | server clock, never the client's |
+
+`keep_posted` is a `yes`/`no` string rather than a boolean for the same reason
+every other flag in this store is: the Data Store has no boolean column and a
+`0`/`1` Var Char reads as a count in the console's table view.
+
+**`keep_posted: no` does not mean discard.** The answers still count towards
+which product gets built; they only keep the member off the list that gets told
+when it does. Anything that later mails this table must filter on the column,
+not assume the row's presence is consent.
+
+Until this table exists, the card still works: the survey POST fails, the
+dashboard retries once, logs a console warning and says nothing to the member.
+That is deliberate (see `npSend` in `dashboard.html`): a demand signal is not
+worth blocking a dialog on. It also means **a missing table is silent**, so
+check the audit trail rather than the browser after creating it:
+
+```sql
+SELECT interest_key, product, keep_posted, submitted_at FROM product_interest LIMIT 5;
+
+SELECT event_type, outcome, CREATEDTIME FROM auth_events
+WHERE event_type = 'member.product_interest.save' LIMIT 5;
+```
+
+The counts the card exists to produce:
+
+```sql
+-- which product to build first
+SELECT product, COUNT(ROWID) FROM product_interest GROUP BY product;
+
+-- who to tell when it opens
+SELECT email FROM product_interest WHERE product = 'mobile' AND keep_posted = 'yes';
+```
+
+---
+
 ## Verify
 
 In the console: **Data Store → ZCQL** (or **Explore**), and run each of these.
@@ -1123,6 +1187,7 @@ SELECT ROWID FROM campaign_awards LIMIT 1;
 SELECT ROWID FROM provider_orders LIMIT 1;
 SELECT ROWID FROM provider_billing LIMIT 1;
 SELECT ROWID FROM provider_statements LIMIT 1;
+SELECT ROWID FROM product_interest LIMIT 1;
 ```
 
 Then one that exercises the column names the hot path depends on:

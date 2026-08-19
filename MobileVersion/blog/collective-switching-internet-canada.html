@@ -106,6 +106,26 @@
   .brand b{font-family:'Bricolage Grotesque';font-weight:800;font-size:18px;color:var(--ink);letter-spacing:-.02em}
   .mast .cta{font-family:'Space Mono';font-size:12px;font-weight:700;letter-spacing:.02em;color:#fff;background:var(--accent);padding:8px 14px;border-radius:8px;border:0}
   .mast .cta:hover{background:var(--ink)}
+  /* Back out of the article, in the STICKY bar rather than above the headline,
+     so it is still there four screens down where a reader actually decides to
+     leave. A link to the index and not history.back(): these pages are static
+     and they are the site's search-landing surface, so a visitor who arrived
+     from Google has no history to go back through. */
+  .mast .left{display:inline-flex;align-items:center;gap:14px;min-width:0}
+  .mast .back{display:inline-flex;align-items:center;gap:7px;flex:none;font-family:'Space Mono';font-size:12px;font-weight:700;letter-spacing:.02em;
+    color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+  .mast .back:hover{color:var(--ink);border-color:var(--ink)}
+  .mast .back svg{width:13px;height:13px;flex:none}
+  /* Three things on one line at 390px, so the wordmark drops and the back
+     button keeps only its arrow. The logo still says whose site this is, and
+     the aria-label carries the label the eye loses. */
+  @media(max-width:600px){
+    .mast .in{gap:10px;padding:12px 18px}
+    .mast .left{gap:10px}
+    .mast .back{padding:8px 10px}
+    .mast .back span{display:none}
+    .brand b{display:none}
+  }
   article{padding:46px 0 20px}
   .eyebrow{font-family:'Space Mono';font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:18px}
   h1{font-family:'Bricolage Grotesque';font-weight:800;color:var(--ink);font-size:clamp(33px,5.4vw,50px);line-height:1.04;letter-spacing:-.025em;margin:0}
@@ -205,10 +225,13 @@
 
 <div class="mast">
   <div class="in">
-    <a class="brand" href="/MobileVersion/consumer-mobile" aria-label="Whollar home">
-      <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
-      <b>Whollar</b>
-    </a>
+    <div class="left">
+      <a class="back" href="/MobileVersion/resources-mobile" aria-label="Back to all articles"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg><span>All articles</span></a>
+      <a class="brand" href="/MobileVersion/consumer-mobile" aria-label="Whollar home">
+        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
+        <b>Whollar</b>
+      </a>
+    </div>
     <a class="cta" href="/MobileVersion/join-the-first-cohort-mobile">Join the first cohort</a>
   </div>
 </div>
