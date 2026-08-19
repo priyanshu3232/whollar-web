@@ -240,6 +240,21 @@ test('seed emits one INSERT per cohort, carrying every column catalog reads', ()
   assert.doesNotMatch(out, /''/, "seed emitted an empty literal, which it omits the column for instead");
 });
 
+/* The featured cohort on /dashboard is the LOWEST sort_order: catalog.load()
+   sorts ascending, ccRank breaks its ties on that order, and featuredCamp()
+   takes the first card. So a batch has to be able to sort BELOW the rows
+   already in the table, and it must do that without touching them: rewriting
+   an existing cohort's sort_order to make room is an UPDATE per row, and the
+   one that gets missed is the one that stays featured. */
+test('seed counts sort_order up from --sort, so a newer batch can sort below an older one', () => {
+  const orders = (out) => out.match(/'auction', 0, 0, (?:true|false), (\d+)/g)
+    .map((m) => Number(m.split(', ').pop()));
+  assert.deepEqual(orders(run('seed', ...IDS).out), [0, 1, 2, 3, 4]);
+  assert.deepEqual(orders(run('seed', ...IDS, '--sort', '100').out), [100, 101, 102, 103, 104]);
+  /* And --sort takes a value, so its argument is never read as a campaign_id. */
+  assert.equal(seededRows(run('seed', 'scarborough-east', '--sort', '99').out).length, 1);
+});
+
 test('seed writes sub only when it is given', () => {
   assert.doesNotMatch(run('seed', 'scarborough-east').out, /\bsub\b/);
   const { out } = run('seed', 'scarborough-east', '--sub', 'Winter cohort');
