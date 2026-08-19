@@ -1,4 +1,25 @@
 <!doctype html>
+<!--
+  The printable operator's guide to opening a cohort. Source of record for
+  cohort-launch-guide.pdf, which is what gets read; edit this file and re-render.
+
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+      --headless --disable-gpu --no-pdf-header-footer \
+      --print-to-pdf="docs/console/cohort-launch-guide.pdf" \
+      "file://$PWD/docs/console/cohort-launch-guide.html"
+
+  Print first: A4, 15mm margins, page-break-inside avoided on every card, panel
+  and table row, so a step is never split across a fold. System fonts only, so
+  the render is the same offline and on any machine.
+
+  NOT DEPLOYED, and listed in .vercelignore twice over (this file and the PDF).
+  docs/ is published, so cleanUrls would otherwise serve this at
+  /docs/console/cohort-launch-guide. It carries ZCQL for a console with full
+  write access and the admin steps that go around the approval routes.
+
+  Companions: docs/COHORT_RUNBOOK.md (the long path, forming first),
+  scripts/cohort.mjs (prints every statement here), create-tables.md 16, 18, 20.
+-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -243,6 +264,66 @@ figure svg{display:block;width:100%;height:auto}
     cohort never has to rewrite the ones already there.</p>
   </div>
 
+
+  <h3>Every column in the row, and what it decides</h3>
+  <p>Eleven columns plus a seven date calendar. Step 3 writes all of them in one statement, so
+  this is the reference for what you are actually saying, not a second thing to type.</p>
+
+  <table>
+    <thead><tr><th class="m" style="width:22%">Column</th><th style="width:12%">Written as</th><th>What it decides</th></tr></thead>
+    <tr><td class="m">campaign_id</td><td>slug</td>
+      <td>The key both dashboards read and every bid receipt is built from. Immutable. Never rendered.</td></tr>
+    <tr><td class="m">region</td><td>text</td>
+      <td>What a household reads, and the only thing a partner's coverage is matched against.</td></tr>
+    <tr><td class="m">sub</td><td>text</td>
+      <td>The line under the region on the card, for example "Autumn cohort". Optional.</td></tr>
+    <tr><td class="m">kind</td><td>one of six</td>
+      <td>Joins, bids, or neither. Must be lowercase: anything else is silently read as <code>planned</code>.</td></tr>
+    <tr><td class="m">target</td><td>number</td>
+      <td>The households a forming cohort aims at. Left out on an auction, where the count is the joins, not a goal.</td></tr>
+    <tr><td class="m">seed_members<br>seed_households</td><td>number</td>
+      <td>Added to real joins on <b>both</b> surfaces. Keep at 0 unless you are staging a demo: a seed is padding a partner will bid against.</td></tr>
+    <tr><td class="m">bidding_open</td><td>true / false</td>
+      <td>The bid window. Only meaningful while <code>kind = 'auction'</code>, and never opened by a date.</td></tr>
+    <tr><td class="m">sort_order</td><td>number</td>
+      <td>Card order, ascending. The lowest is the featured cohort. See part two.</td></tr>
+    <tr><td class="m">updated_by<br>updated_at</td><td>text, datetime</td>
+      <td>Who and when. Write <code>'manual'</code> when the change came from ZCQL rather than a route.</td></tr>
+    <tr><td class="m">the seven dates</td><td>datetime, UTC</td>
+      <td>The calendar, all optional. They set the stage label on both sides, and
+      <code>bidding_closes_at</code> is the only one with teeth: past it, every bid is refused.</td></tr>
+  </table>
+
+  <div class="warn">
+    <h4>Datetimes are UTC, in Catalyst's own format</h4>
+    <p><code>'YYYY-MM-DD HH:MM:SS'</code>, which is neither ISO-8601 nor your local time. The
+    generator prints them correctly. Typing one by hand is how a cohort ends up closing at 5pm
+    in a timezone nobody lives in.</p>
+  </div>
+
+  <h3>What actually opens a bid window</h3>
+  <p>Four conditions, all four checked on the server on every bid write. Three of them are
+  rows you control. The fourth is the clock.</p>
+
+  <table>
+    <thead><tr><th style="width:36%">Condition</th><th style="width:26%">Where it lives</th><th>If it is wrong</th></tr></thead>
+    <tr><td class="m">kind = 'auction'</td><td class="m">campaigns</td><td>The desk shows the cohort with no bid button.</td></tr>
+    <tr><td class="m">bidding_open = true</td><td class="m">campaigns</td><td>Same. Entering auction never opens bidding on its own, by design.</td></tr>
+    <tr><td class="m">bidding_closes_at ahead</td><td class="m">campaigns</td><td>Every bid is refused while the row still reads open. Dates may close a window and may never open one.</td></tr>
+    <tr><td class="m">bidding_enabled</td><td class="m">site_config</td><td>Global kill switch. Absent means on.</td></tr>
+  </table>
+
+  <div class="warn">
+    <h4>Two failures that are completely silent</h4>
+    <p><b>A region no partner can declare.</b> The region name is the entire join between a
+    cohort and a partner, matched by slug, server side. Name a cohort for a place outside the
+    37 declarable regions and it renders on both dashboards, takes joins, runs its clock down,
+    and takes no bids. Nothing is logged. It reads as a market that did not bite.</p>
+    <p style="margin-top:2mm"><b>A missing table.</b> <code>campaigns</code> and
+    <code>campaign_members</code> fall back to a code catalog and seed counts when they cannot
+    be read, so their absence looks like a working site. <code>provider_terms</code> is the
+    opposite: it fails closed, and while it is missing no bid can be placed at all.</p>
+  </div>
 </section>
 
 <!-- ============================ FEATURED ============================ -->
@@ -312,7 +393,7 @@ figure svg{display:block;width:100%;height:auto}
   is the last tiebreak, not the first authority.</p>
 
   <table>
-    <tr><th style="width:10%">Order</th><th style="width:36%">What wins</th><th>Consequence for you</th></tr>
+    <thead><tr><th style="width:10%">Order</th><th style="width:36%">What wins</th><th>Consequence for you</th></tr></thead>
     <tr><td class="m">1st</td><td><b>The member's own cohort</b></td>
       <td>A household that has joined something always sees theirs featured. Nothing you write changes that, and it should not.</td></tr>
     <tr><td class="m">2nd</td><td><b>kind</b>, in lifecycle order</td>
@@ -344,7 +425,7 @@ figure svg{display:block;width:100%;height:auto}
   <div class="panel plain" style="margin-bottom:6mm">
     <h3 style="margin-top:0">Fill these in once</h3>
     <table style="margin-bottom:0">
-      <tr><th class="m" style="width:24%">Placeholder</th><th style="width:30%">What it is</th><th>Not negotiable</th></tr>
+      <thead><tr><th class="m" style="width:24%">Placeholder</th><th style="width:30%">What it is</th><th>Not negotiable</th></tr></thead>
       <tr><td class="m">&lt;ID&gt;</td><td>the slug, <code>campaign_id</code></td>
         <td>3 to 64 characters of a-z, 0-9, hyphen. Permanent: both dashboards key on it and every bid receipt is built from it. Never appears on screen.</td></tr>
       <tr><td class="m">&lt;REGION&gt;</td><td>the region name</td>
@@ -411,11 +492,64 @@ figure svg{display:block;width:100%;height:auto}
       title-cases into <code>&lt;REGION&gt;</code> exactly. Seeds stay at 0 deliberately: a seed count
       is added to real joins on both surfaces, so a non-zero seed is padding a partner will
       eventually bid against.</p>
+      <figure style="margin:4mm 0 0">
+        <svg viewBox="0 0 700 196" role="img" aria-label="The seven dates as day offsets from the bid close">
+          <rect x="30" y="87" width="135.4" height="26" fill="#F2F5F2"/>
+          <path d="M30 100 L676 100" stroke="#C7D3CB" stroke-width="1.4"/>
+
+          <path d="M165.4 74 L165.4 114" stroke="#178A5A" stroke-width="1.4" stroke-dasharray="3 2"/>
+          <text x="165.4" y="69" text-anchor="middle" font-family="Helvetica,sans-serif" font-size="8.5"
+            font-weight="700" fill="#178A5A">today</text>
+
+          <path d="M216.6 20 L216.6 156" stroke="#C2643B" stroke-width="1.6"/>
+          <circle cx="216.6" cy="100" r="4.6" fill="#C2643B"/>
+          <text x="216.6" y="13" text-anchor="middle" font-family="Helvetica,sans-serif" font-size="9.5"
+            font-weight="700" fill="#C2643B">day 0, the close</text>
+          <text x="216.6" y="170" text-anchor="middle" font-family="Menlo,monospace" font-size="8.2" fill="#8C3F1D">bidding_closes_at</text>
+          <text x="216.6" y="181" text-anchor="middle" font-family="Helvetica,sans-serif" font-size="8.2" fill="#8C3F1D">past this, every bid is refused</text>
+
+          <path d="M46.0 92 L46.0 108" stroke="#54625B" stroke-width="1.2"/><text x="46.0" y="40" text-anchor="middle" font-family="Helvetica,sans-serif" font-size="8.2" fill="#54625B">joining shuts</text><text x="46.0" y="53" text-anchor="middle" font-family="Menlo,monospace" font-size="8.2" fill="#54625B">announce_at</text><text x="46.0" y="68" text-anchor="middle" font-family="Menlo,monospace" font-size="9.5" fill="#0A2018">-10d</text><path d="M250.7 92 L250.7 108" stroke="#54625B" stroke-width="1.2"/><text x="258" y="40" text-anchor="start" font-family="Helvetica,sans-serif" font-size="8.2" fill="#54625B">the offer goes out</text><text x="258" y="53" text-anchor="start" font-family="Menlo,monospace" font-size="8.2" fill="#54625B">offers_at</text><text x="258" y="68" text-anchor="start" font-family="Menlo,monospace" font-size="9.5" fill="#0A2018">+2d</text><path d="M421.2 92 L421.2 108" stroke="#54625B" stroke-width="1.2"/><text x="421.2" y="40" text-anchor="middle" font-family="Helvetica,sans-serif" font-size="8.2" fill="#54625B">installs run</text><text x="421.2" y="53" text-anchor="middle" font-family="Menlo,monospace" font-size="8.2" fill="#54625B">switch_window_at</text><text x="421.2" y="68" text-anchor="middle" font-family="Menlo,monospace" font-size="9.5" fill="#0A2018">+12d</text><path d="M97.2 92 L97.2 108" stroke="#54625B" stroke-width="1.2"/><text x="97.2" y="120" text-anchor="middle" font-family="Menlo,monospace" font-size="9.5" fill="#0A2018">-7d</text><text x="97.2" y="134" text-anchor="middle" font-family="Menlo,monospace" font-size="8.2" fill="#54625B">bidding_opens_at</text><text x="97.2" y="146" text-anchor="middle" font-family="Helvetica,sans-serif" font-size="8.2" fill="#54625B">sealed bidding opens</text><path d="M370.1 92 L370.1 108" stroke="#54625B" stroke-width="1.2"/><text x="370.1" y="120" text-anchor="middle" font-family="Menlo,monospace" font-size="9.5" fill="#0A2018">+9d</text><text x="370.1" y="134" text-anchor="middle" font-family="Menlo,monospace" font-size="8.2" fill="#54625B">decision_at</text><text x="370.1" y="146" text-anchor="middle" font-family="Helvetica,sans-serif" font-size="8.2" fill="#54625B">confirmations lock</text><path d="M660.0 92 L660.0 108" stroke="#54625B" stroke-width="1.2"/><text x="676" y="120" text-anchor="end" font-family="Menlo,monospace" font-size="9.5" fill="#0A2018">+26d</text><text x="676" y="134" text-anchor="end" font-family="Menlo,monospace" font-size="8.2" fill="#54625B">reconcile_at</text><text x="676" y="146" text-anchor="end" font-family="Helvetica,sans-serif" font-size="8.2" fill="#54625B">final counts settle</text>
+
+          <text x="676" y="192" text-anchor="end" font-family="Helvetica,sans-serif" font-size="8.2" fill="#54625B">Deadlines land at 21:00 UTC, every other date at 13:00 UTC, which is 9 AM Eastern.</text>
+        </svg>
+        <figcaption><b>The offsets are days from the close, and nothing else.</b>
+          <code>&lt;DAYS&gt;</code> only decides where day 0 lands. Set it small and the two negative
+          dates are already behind, which is exactly what writes
+          <code>bidding_open = true</code>. Set it to 8 and <code>bidding_opens_at</code> is still
+          ahead, so the row is written closed and the desk reads Announced.</figcaption>
+      </figure>
     </div>
   </div>
 </section>
 
 <section class="page">
+  <div class="step">
+    <div class="n">3b</div>
+    <div>
+      <h3>The same thing on a test rail, in minutes <span class="tag t">terminal</span> <span class="tag z">zcql</span></h3>
+      <p class="why">For a test case rather than a launch. <code>--minutes</code> replaces
+        <code>--first</code> and dates the whole batch from now, so one statement lands a cohort
+        that is <b>featured on the consumer side and biddable on the desk</b> straight away.</p>
+<pre class="term"><span class="p">node</span> scripts/cohort.mjs seed <span class="f">&lt;ID&gt;</span> --minutes <span class="f">5</span> --sort <span class="f">&lt;SORT&gt;</span></pre>
+      <table style="margin-bottom:3mm">
+        <thead><tr><th class="m" style="width:30%">Column</th><th style="width:22%">Lands at</th><th>Why there</th></tr></thead>
+        <tr><td class="m">announce_at</td><td class="m">-2 intervals</td><td>joining has already shut</td></tr>
+        <tr><td class="m">bidding_opens_at</td><td class="m">-1 interval</td><td><b>behind you deliberately.</b> The desk draws its button on stage open or closing, and neither is reachable until this date has passed</td></tr>
+        <tr><td class="m">bidding_closes_at</td><td class="m">+1 interval</td><td>so the bid window is <b>two intervals wide</b>: ten minutes at <code>--minutes 5</code>, twenty at 10</td></tr>
+        <tr><td class="m">offers_at</td><td class="m">+2</td><td>the rest runs one stage per interval</td></tr>
+        <tr><td class="m">decision_at</td><td class="m">+3</td><td>and this one is read first by the stage engine, so it ends the run</td></tr>
+        <tr><td class="m">switch_window_at</td><td class="m">+4</td><td></td></tr>
+        <tr><td class="m">reconcile_at</td><td class="m">+5</td><td>the whole rail finishes here, 25 minutes out at <code>--minutes 5</code></td></tr>
+      </table>
+      <p style="margin-bottom:0"><b>2 is the floor</b>, and 1 is refused rather than quietly
+      unwatchable: the catalog is memoized for 60 seconds. Every cohort in a batch runs the same
+      rail, so a row of cards stays comparable. <code>--minutes</code> and <code>--first</code>
+      cannot be combined. And note the member rail only advances on its own for a member who has
+      <b>joined</b> that cohort, which an auction cannot be, so a full rail test means creating at
+      <code>forming</code>, joining, then moving to auction.</p>
+    </div>
+  </div>
+
   <div class="step">
     <div class="n">4<small>both</small></div>
     <div>
@@ -478,7 +612,8 @@ figure svg{display:block;width:100%;height:auto}
 <pre><span class="k">SELECT</span> campaign_id, region, kind, bidding_open, sort_order <span class="k">FROM</span> campaigns;
 <span class="k">SELECT</span> org_id, region, status <span class="k">FROM</span> provider_coverage;</pre>
       <p style="margin-bottom:0">That first result, read top to bottom, <b>is</b> the card order
-      on <code>/dashboard</code> inside each <code>kind</code> bucket. Then, signed in on each
+      on <code>/dashboard</code> inside each <code>kind</code> bucket, which groups 6f and 6g of
+      <code>scripts/qa-dashboard.mjs</code> assert in a browser. Then, signed in on each
       side: <code>GET /api/auth/campaigns</code> and
       <code>GET /api/auth/provider/campaigns</code>. Check <code>live</code> on both.
       <code>live: false</code> means <code>campaign_members</code> was unreadable and every count
@@ -504,30 +639,6 @@ figure svg{display:block;width:100%;height:auto}
   <p class="sub">Read this page before you conclude that something is broken. The single most
     common surprise is a cohort that is in the table, visible to households, and absent from
     every partner desk.</p>
-
-  <h3>What actually opens a bid window</h3>
-  <p>Four conditions, all four checked on the server on every bid write. Three of them are
-  rows you control. The fourth is the clock.</p>
-
-  <table>
-    <tr><th style="width:36%">Condition</th><th style="width:26%">Where it lives</th><th>If it is wrong</th></tr>
-    <tr><td class="m">kind = 'auction'</td><td class="m">campaigns</td><td>The desk shows the cohort with no bid button.</td></tr>
-    <tr><td class="m">bidding_open = true</td><td class="m">campaigns</td><td>Same. Entering auction never opens bidding on its own, by design.</td></tr>
-    <tr><td class="m">bidding_closes_at ahead</td><td class="m">campaigns</td><td>Every bid is refused while the row still reads open. Dates may close a window and may never open one.</td></tr>
-    <tr><td class="m">bidding_enabled</td><td class="m">site_config</td><td>Global kill switch. Absent means on.</td></tr>
-  </table>
-
-  <div class="warn">
-    <h4>Two failures that are completely silent</h4>
-    <p><b>A region no partner can declare.</b> The region name is the entire join between a
-    cohort and a partner, matched by slug, server side. Name a cohort for a place outside the
-    37 declarable regions and it renders on both dashboards, takes joins, runs its clock down,
-    and takes no bids. Nothing is logged. It reads as a market that did not bite.</p>
-    <p style="margin-top:2mm"><b>A missing table.</b> <code>campaigns</code> and
-    <code>campaign_members</code> fall back to a code catalog and seed counts when they cannot
-    be read, so their absence looks like a working site. <code>provider_terms</code> is the
-    opposite: it fails closed, and while it is missing no bid can be placed at all.</p>
-  </div>
 
   <h3>Coverage: who a cohort reaches</h3>
 
@@ -564,7 +675,7 @@ figure svg{display:block;width:100%;height:auto}
 
   <h3>One minute after the INSERT</h3>
   <table>
-    <tr><th style="width:22%"></th><th style="width:39%">Consumer, /dashboard</th><th>Partner, /partner</th></tr>
+    <thead><tr><th style="width:22%"></th><th style="width:39%">Consumer, /dashboard</th><th>Partner, /partner</th></tr></thead>
     <tr><td><b>Appears as</b></td><td>a card in "Campaigns near you", badge <b>Sealed bidding</b></td>
       <td>a desk row, <b>only where coverage is active</b></td></tr>
     <tr><td><b>Stage</b></td><td><code>bidding</code></td><td><code>open</code>, or <code>closing</code> in the last 24 hours</td></tr>
@@ -583,7 +694,7 @@ figure svg{display:block;width:100%;height:auto}
 
   <h3>When it still looks wrong</h3>
   <table>
-    <tr><th style="width:44%">What you see</th><th>What it is</th></tr>
+    <thead><tr><th style="width:44%">What you see</th><th>What it is</th></tr></thead>
     <tr><td>Nothing changed on either dashboard</td><td>The 60 second catalog memo. Wait, then reload.</td></tr>
     <tr><td>The new cohort is not featured, and kinds differ</td><td>Working as designed. <code>kind</code> is read before <code>sort_order</code>.</td></tr>
     <tr><td>The new cohort is not featured, all are auctions</td><td>Its <code>sort_order</code> is not the lowest. Check step 7's first query.</td></tr>

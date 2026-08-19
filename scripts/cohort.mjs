@@ -7,6 +7,7 @@
  *   node scripts/cohort.mjs bidding scarborough-east --on
  *   node scripts/cohort.mjs calendar scarborough-east --minutes 3
  *   node scripts/cohort.mjs seed scarborough-east etobicoke-centre north-york-central
+ *   node scripts/cohort.mjs seed scarborough-east --minutes 5   # a test rail, biddable now
  *   node scripts/cohort.mjs coverage org_7f2a --region "Scarborough East"
  *   node scripts/cohort.mjs regions
  *   node scripts/cohort.mjs verify scarborough-east
@@ -378,6 +379,24 @@ const SEED_OFFSETS = Object.freeze({
   offers_at: 2, decision_at: 9, switch_window_at: 12, reconcile_at: 26,
 });
 
+/* THE TEST SCHEDULE, in multiples of --minutes rather than days.
+ *
+ * Two dates are deliberately BEHIND: a cohort has to be biddable the moment the
+ * row lands, and both halves of that are gated on it. bidAction() in
+ * partner/views/desk.js only draws "Review and bid" at stage open or closing,
+ * and stageOf only reaches those once bidding_opens_at has passed. A rail that
+ * starts in the future reads Announced, with no button, which is the one state
+ * a tester reads as broken code.
+ *
+ * The bid window is therefore TWO intervals wide, from one interval ago to one
+ * ahead, so --minutes 5 leaves ten minutes to fill a ticket in and --minutes 10
+ * leaves twenty. Everything after the close runs at one interval per stage.
+ */
+const FAST_OFFSETS = Object.freeze({
+  announce_at: -2, bidding_opens_at: -1, bidding_closes_at: 1,
+  offers_at: 2, decision_at: 3, switch_window_at: 4, reconcile_at: 5,
+});
+
 /* Deadlines land at --hour, everything else at 13:00 UTC, which is 9 AM
    Eastern. Two times of day rather than one because a cohort that opens and
    closes at the same minute reads as a scheduling accident. */
@@ -398,7 +417,7 @@ function regionFromId(id) {
 
 /* Every seed flag takes a value, and POSITIONAL only drops the flags
    themselves, so `--seed 87` would otherwise offer 87 as a campaign_id. */
-const SEED_FLAGS = new Set(['regions', 'first', 'every', 'hour', 'sub', 'seed', 'sort']);
+const SEED_FLAGS = new Set(['regions', 'first', 'every', 'hour', 'sub', 'seed', 'sort', 'minutes']);
 
 function seedIds() {
   const out = [];
@@ -433,6 +452,23 @@ function cmdSeed() {
      guesses 'Mississauga Core', which is not a region anyone can declare. */
   const regions = given.map((r) => region(r, { what: '--regions' }));
 
+  /* --minutes switches the whole batch from a calendar measured in days to one
+     measured in minutes, for a test run rather than a launch. It replaces the
+     three day flags rather than combining with them: a batch cannot be spaced
+     both a week and five minutes apart, and silently ignoring one of them is
+     how a tester ends up watching a cohort that was never going to move. */
+  const fastFlag = flag('minutes');
+  const fast = fastFlag === undefined ? null : Number(fastFlag === true ? NaN : fastFlag);
+  if (fast !== null) {
+    if (!Number.isFinite(fast) || fast < 2) {
+      die('--minutes must be a number of at least 2. catalog.load() memoizes the table for 60\n'
+        + '  seconds, so a faster rail moves through stages no dashboard gets to render.');
+    }
+    for (const f of ['first', 'every', 'hour']) {
+      if (has(f)) die(`--minutes replaces --${f}: it dates the batch from now, not from a day`);
+    }
+  }
+
   const first = num(flag('first', '1'), 'first');
   const every = num(flag('every', '7'), 'every');
   if (every < 1) die('--every must be at least 1 day, or two cohorts close on the same date');
@@ -461,9 +497,18 @@ function cmdSeed() {
   const rows = ids.map((id, i) => {
     const close = midnight + (first + i * every) * DAY_MS + hour * 3600000;
     const dates = {};
-    for (const [col, off] of Object.entries(SEED_OFFSETS)) {
-      const deadline = col === 'bidding_closes_at' || col === 'decision_at';
-      dates[col] = close + off * DAY_MS + (deadline ? 0 : (SEED_MORNING - hour) * 3600000);
+    if (fast !== null) {
+      /* Every cohort in the batch runs the same rail. Staggering them would
+         put each one in a different stage, and the reason to seed several at
+         once is to look at a row of cards, which wants them comparable. */
+      for (const [col, mult] of Object.entries(FAST_OFFSETS)) {
+        dates[col] = now.getTime() + mult * fast * 60000;
+      }
+    } else {
+      for (const [col, off] of Object.entries(SEED_OFFSETS)) {
+        const deadline = col === 'bidding_closes_at' || col === 'decision_at';
+        dates[col] = close + off * DAY_MS + (deadline ? 0 : (SEED_MORNING - hour) * 3600000);
+      }
     }
     const biddingOpen = now.getTime() >= dates.bidding_opens_at
       && now.getTime() < dates.bidding_closes_at;
@@ -480,7 +525,9 @@ function cmdSeed() {
     }
   }
 
-  console.log(`\nSEED: ${rows.length} auction cohorts, one closing every ${every} day(s)`);
+  console.log(fast !== null
+    ? `\nSEED: ${rows.length} auction cohorts on a ${fast} minute rail, biddable now`
+    : `\nSEED: ${rows.length} auction cohorts, one closing every ${every} day(s)`);
   console.log(update
     ? '  --update: these RESCHEDULE rows that already exist. Nothing is created.\n'
     : '');
@@ -562,6 +609,20 @@ function cmdSeed() {
     : '    households  seed_households is 0, so a calendar row reads "A cohort in your coverage"\n'
       + '                rather than a count. Pass --seed N to stage a demo, and remember a seed\n'
       + '                is added to real joins on both surfaces.');
+  if (fast !== null) {
+    const r = rows[0];
+    console.log('    rail        every cohort in the batch runs this, from the moment you paste it:\n');
+    const w2 = Math.max(...DATE_COLUMNS.map((c) => c.length));
+    for (const col of DATE_COLUMNS) {
+      const at = new Date(r.dates[col]);
+      const away = Math.round((r.dates[col] - Date.now()) / 60000);
+      const when = away === 0 ? 'now' : (away < 0 ? `${-away} min ago` : `in ${away} min`);
+      console.log(`                  ${col.padEnd(w2)}  ${localTime(at)}  ${when.padEnd(11)}  ${OPENS[col]}`);
+    }
+    console.log(`\n                The bid window is open NOW and closes in ${fast} minute(s): stage is`);
+    console.log('                closing, so the desk draws "Review and bid" rather than a locked row.');
+    console.log(`                The whole rail finishes ${fast * 5} minutes from now.\n`);
+  }
   console.log(`    featured    sort_order runs ${sortBase} to ${sortBase + rows.length - 1}, and the LOWEST is the featured`);
   console.log('                cohort on /dashboard. Next batch takes a LOWER --sort than this one, or');
   console.log('                the newest cohort lands last. Nothing already written has to move.');
@@ -658,6 +719,7 @@ function usage() {
     calendar <id> [--minutes N] [--start N]
     seed <id> [<id>...] [--regions "A,B"] [--first N] [--every N] [--hour UTC]
                             [--sort N] [--seed N] [--update]
+    seed <id> [<id>...] --minutes N [--regions "A,B"] [--sort N] [--seed N]
     coverage <org_id> --region R [--techs cable,fibre] [--status active]
     verify [<id>]
     regions

@@ -255,6 +255,48 @@ test('seed counts sort_order up from --sort, so a newer batch can sort below an 
   assert.equal(seededRows(run('seed', 'scarborough-east', '--sort', '99').out).length, 1);
 });
 
+/* --minutes is the test-run schedule, and its whole claim is that the cohort is
+   biddable the moment the row lands. Two things have to hold for that, and
+   neither is visible in the SQL: bidding_open must be written true, and the
+   stage the server derives must be open or closing, because bidAction() in
+   partner/views/desk.js draws "Review and bid" on those two stages and nothing
+   else. A rail that starts in the future satisfies the first and fails the
+   second, which reads to a tester as broken code rather than as a date. */
+test('seed --minutes lands a cohort that is biddable now, not announced', () => {
+  const { out, code } = run('seed', ...IDS, '--minutes', '5');
+  assert.equal(code, 0);
+  const rows = seededRows(out);
+  assert.equal(rows.length, IDS.length);
+  for (const r of rows) {
+    assert.equal(r.biddingOpen, true, `${r.id} was written closed`);
+    const stage = catalog.publicStage({ ...r, biddingOpen: true }).stage;
+    assert.ok(stage === 'open' || stage === 'closing',
+      `${r.id} derives stage ${stage}, so the desk would draw no bid button`);
+    /* Two dates behind, five ahead, in DATE_COLUMNS order. */
+    assert.ok(r.dates.announce_at < Date.now(), 'announce_at is not behind');
+    assert.ok(r.dates.bidding_opens_at < Date.now(), 'bidding_opens_at is not behind');
+    assert.ok(r.dates.bidding_closes_at > Date.now(), 'bidding_closes_at is not ahead');
+    const at = catalog.DATE_COLUMNS.map((c) => r.dates[c]);
+    for (let i = 1; i < at.length; i += 1) {
+      assert.ok(at[i] > at[i - 1], `${catalog.DATE_COLUMNS[i]} is out of order on ${r.id}`);
+    }
+  }
+});
+
+test('seed --minutes refuses a rail the 60 second memo would swallow', () => {
+  assert.equal(run('seed', 'scarborough-east', '--minutes', '1').code, 1);
+  assert.equal(run('seed', 'scarborough-east', '--minutes', '0').code, 1);
+  assert.equal(run('seed', 'scarborough-east', '--minutes').code, 1);
+});
+
+test('seed --minutes refuses the day flags rather than ignoring one', () => {
+  for (const f of ['first', 'every', 'hour']) {
+    const { code, out } = run('seed', 'scarborough-east', '--minutes', '5', `--${f}`, '3');
+    assert.equal(code, 1, `--${f} was accepted alongside --minutes`);
+    assert.match(out, /replaces/);
+  }
+});
+
 test('seed writes sub only when it is given', () => {
   assert.doesNotMatch(run('seed', 'scarborough-east').out, /\bsub\b/);
   const { out } = run('seed', 'scarborough-east', '--sub', 'Winter cohort');

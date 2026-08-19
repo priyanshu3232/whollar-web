@@ -331,6 +331,19 @@ rather than being wired up.
 > minute the row lands**, several of them live together, and the newest one
 > featured on the member dashboard. One `INSERT` per cohort, and nothing already
 > written has to move.
+>
+> Everything below is written with placeholders. Fill these five in once and the
+> whole sequence follows.
+
+| Placeholder | What it is | Rules that are not negotiable |
+|---|---|---|
+| `<ID>` | `campaign_id`, the slug | 3 to 64 characters of `a-z`, `0-9` and hyphen. **Permanent**: both dashboards key on it and every `bid_key` is built from it. Never rendered on screen. |
+| `<REGION>` | the region name | Must be one of the 37 from `node scripts/cohort.mjs regions`. This is the entire join to a partner, matched by slug, server side. |
+| `<REGION_SLUG>` | `<REGION>` lowercased, every run of non-alphanumerics turned into one hyphen | Only used to build `coverage_key`. `North York Central` gives `north-york-central`; `Maple and VMC` gives `maple-and-vmc`. |
+| `<SORT>` | `sort_order` | **Lower is featured.** Start at 100 and count down one per cohort. |
+| `<ORG_ID>` | the partner org that should see it | From `SELECT org_id, legal_name FROM provider_orgs;` |
+
+`<DAYS>`, `<NOW>` and `<USER_ID>` appear once each and are named where they do.
 
 ## What "featured" is, exactly
 
@@ -347,7 +360,7 @@ on `/dashboard` read as featured, and both fall out of `sort_order`:
 `catalog.load()` sorts **ascending**, so the featured cohort is the one with the
 **lowest `sort_order`**. Three consequences, and all three are load-bearing:
 
-- **Newest featured means counting down.** Start a store at `--sort 100` and
+- **Newest featured means counting down.** Start a store at `<SORT>` = 100 and
   take one off per cohort. The new row sorts below every existing one without a
   single `UPDATE`, and the cohort that was featured shifts to position 1. The
   alternative, renumbering the rows already there, is one `UPDATE` per cohort,
@@ -391,11 +404,27 @@ An existence check that needs no console:
 cd catalyst-backend && catalyst ds:export --table campaigns --page 1
 ```
 
-## Step 2: one statement, both dashboards, open to bid
+## Step 2: name it, and check the name can be bid on
 
 ```
-node scripts/cohort.mjs seed scarborough-centre --first 3 --sort 100
+node scripts/cohort.mjs regions
 ```
+
+`<REGION>` must be in that list. `<ID>` is normally its slug, but it does not
+have to be: `region` is what renders and what coverage matches, `<ID>` is only
+the key. A cohort named for a place no partner can declare renders on both
+dashboards, takes joins, runs its clock down, and takes no bids, with nothing
+logged anywhere.
+
+## Step 3: one statement, both dashboards, open to bid
+
+```
+node scripts/cohort.mjs seed <ID> --regions "<REGION>" --first <DAYS> --sort <SORT>
+```
+
+`--regions` may be omitted when `<ID>` title-cases into `<REGION>` exactly. The
+tool refuses any name that is not declarable, which is the check ZCQL cannot do
+for you.
 
 Paste the one `INSERT` it prints. It carries `kind = 'auction'`,
 `bidding_open = true` and all seven calendar dates, so the row is live on both
@@ -405,15 +434,15 @@ surfaces as soon as the memo expires:
 INSERT INTO campaigns (campaign_id, region, kind, seed_members, seed_households,
   bidding_open, sort_order, updated_by, updated_at, announce_at, bidding_opens_at,
   bidding_closes_at, offers_at, decision_at, switch_window_at, reconcile_at)
-VALUES ('scarborough-centre', 'Scarborough Centre', 'auction', 0, 0, true, 100,
-  'manual', '<now>', '<close -10d>', '<close -7d>', '<close>', '<close +2d>',
+VALUES ('<ID>', '<REGION>', 'auction', 0, 0, true, <SORT>,
+  'manual', '<NOW>', '<close -10d>', '<close -7d>', '<close>', '<close +2d>',
   '<close +9d>', '<close +12d>', '<close +26d>');
 ```
 
-`--first N` is days to the bid close, and it is what decides `bidding_open`:
-the tool writes `true` only when `bidding_opens_at` is already behind and the
-close is still ahead. `--first 1` to `--first 6` opens the window now;
-`--first 8` writes `false` and the desk reads **Announced**, not open.
+`<DAYS>` is days to the bid close, and it is what decides `bidding_open`: the
+tool writes `true` only when `bidding_opens_at` is already behind and the close
+is still ahead. `<DAYS>` of 1 to 6 opens the window now; 8 writes `false` and the
+desk reads **Announced**, not open.
 
 Then, one minute later:
 
@@ -425,9 +454,55 @@ Then, one minute later:
 | bid window | n/a | `bidding_open: true` |
 
 Nothing else has to be written for the consumer side. **The partner side needs
-steps 3 and 4**, and until then the cohort is on no desk at all.
+steps 4 and 5**, and until then the cohort is on no desk at all.
 
-## Step 3: coverage, or the cohort reaches nobody
+## Step 3b: the same thing on a test rail, in minutes
+
+For a test case rather than a launch, `--minutes` replaces `--first` and dates
+the whole batch from now:
+
+```
+node scripts/cohort.mjs seed <ID> --minutes 5 --sort <SORT>
+```
+
+The schedule is fixed in multiples of the interval, and **two dates are
+deliberately behind**:
+
+```
+announce_at        -2 intervals   joining already shut
+bidding_opens_at   -1 interval    the window is already open
+bidding_closes_at  +1 interval    <- the bid window is TWO intervals wide
+offers_at          +2
+decision_at        +3
+switch_window_at   +4
+reconcile_at       +5             the whole rail ends here
+```
+
+That is what makes the row biddable the moment it lands. `bidAction()` in
+`partner/views/desk.js` draws **Review and bid** only at stage `open` or
+`closing`, and `stageOf` only reaches those once `bidding_opens_at` has passed,
+so a rail that starts in the future writes `bidding_open = true` and still shows
+a locked row. The tool prints the minute each date falls on and
+`scripts/test-cohort.mjs` asserts the derived stage is one the desk will draw a
+button on.
+
+- **2 is the floor.** `catalog.load()` memoizes for 60 seconds, so `--minutes 1`
+  is refused rather than accepted and quietly unwatchable.
+- **5 leaves ten minutes to fill a ticket, 10 leaves twenty.** The window is two
+  intervals wide for exactly this reason.
+- **Every cohort in the batch runs the same rail.** Staggering them would put
+  each in a different stage, and the reason to seed several at once is to look
+  at a row of cards.
+- **The member rail only self-advances for a member who joined that cohort**
+  (`nextPollDelay` in `dashboard.html`: 15 seconds while the calendar spans
+  under 36 hours, 120 seconds otherwise). An auction cannot be joined, so a
+  full-rail test means creating at `forming`, joining, then moving to auction.
+- **The partner console never polls.** Reload it after each write.
+
+`--minutes` and `--first` cannot be combined: the tool refuses rather than
+ignoring one of them.
+
+## Step 4: coverage, or the cohort reaches nobody
 
 `biddableCampaigns()` in `partner/core/state.js` filters the desk to regions
 where **that org's** coverage is `status = 'active'`. A `campaigns` row alone is
@@ -439,31 +514,30 @@ SELECT org_id, legal_name, approval_status FROM provider_orgs;
 ```
 
 ```
-node scripts/cohort.mjs coverage <org_id> --region "Scarborough Centre"
+node scripts/cohort.mjs coverage <ORG_ID> --region "<REGION>"
 ```
 
 That prints the `INSERT`, and the `UPDATE` to use instead when the row exists.
 New coverage normally lands `verifying`, which greys the desk row with
-"Verifies with Scarborough Centre coverage". Move it on:
+"Verifies with `<REGION>` coverage". Move it on:
 
 ```sql
 UPDATE provider_coverage
-SET status = 'active', verified_at = '<now>', rejection_reason = '', updated_at = '<now>'
-WHERE coverage_key = '<org_id>:scarborough-centre';
+SET status = 'active', verified_at = '<NOW>', rejection_reason = '', updated_at = '<NOW>'
+WHERE coverage_key = '<ORG_ID>:<REGION_SLUG>';
 ```
 
-The region name is the entire join, matched by slug, server side. A cohort named
-for a place no partner can declare renders on both dashboards, takes joins, runs
-its clock down, and takes no bids, with nothing logged anywhere.
-`node scripts/cohort.mjs regions` is the 37 that exist.
+If that errors on the last two columns they are not created yet; drop them and
+set `status` alone, which is the same fallback the admin route takes.
 
-## Step 4: the three gates on the bid itself
+## Step 5: the three gates on the bid itself
 
-Only if a partner is meant to actually bid, not just see the cohort:
+Only if a partner is meant to actually bid, not just see the cohort.
+`<USER_ID>` is the seat that will place it.
 
 ```sql
-UPDATE provider_orgs  SET approval_status = 'approved' WHERE org_id  = '<org_id>';
-UPDATE provider_users SET role = 'admin'              WHERE user_id = '<user_id>';
+UPDATE provider_orgs  SET approval_status = 'approved' WHERE org_id  = '<ORG_ID>';
+UPDATE provider_users SET role = 'admin'              WHERE user_id = '<USER_ID>';
 SELECT config_key, value FROM site_config WHERE config_key = 'bidding_enabled';
 ```
 
@@ -471,33 +545,36 @@ SELECT config_key, value FROM site_config WHERE config_key = 'bidding_enabled';
 accepted by the partner in the console (`POST /provider/contracts/terms/accept`),
 so `provider_terms` needs to exist but needs no row written by hand.
 
-## Step 5: the next cohort takes a lower `--sort`
+## Step 6: every cohort after the first takes a lower `<SORT>`
+
+Call the one already in the table `<ID_A>` at `<SORT_A>`, and the new one
+`<ID_B>`. Then `<SORT_B>` = `<SORT_A>` - 1:
 
 ```
-node scripts/cohort.mjs seed north-york-central --first 5 --sort 99
+node scripts/cohort.mjs seed <ID_B> --regions "<REGION_B>" --first <DAYS> --sort <SORT_B>
 ```
 
 ```sql
-INSERT INTO campaigns (...) VALUES ('north-york-central', 'North York Central',
-  'auction', 0, 0, true, 99, ...);
+INSERT INTO campaigns (...) VALUES ('<ID_B>', '<REGION_B>', 'auction', 0, 0,
+  true, <SORT_B>, ...);
 ```
 
-`north-york-central` at 99 sorts below `scarborough-centre` at 100, so it is
-featured and Scarborough shifts to position 1. Both stay live, both stay open to
-bid, and the Scarborough row is not touched. Repeat with 98, 97, and so on. Then
-step 3 again for the new region: coverage is per region, so a partner covering
-Scarborough Centre sees nothing of North York Central.
+`<ID_B>` sorts below `<ID_A>`, so it is featured and `<ID_A>` shifts to position
+1. Both stay live, both stay open to bid, and the `<ID_A>` row is not touched.
+Repeat, one lower each time. Then step 4 again for `<REGION_B>`: coverage is per
+region, so a partner covering `<REGION_A>` sees nothing of `<REGION_B>`.
 
-To hand the featured slot back:
+To hand the featured slot back to `<ID_A>`, move the newer one **below** it
+rather than moving the older one up, so only one row is ever rewritten:
 
 ```sql
-UPDATE campaigns SET sort_order = 98 WHERE campaign_id = 'north-york-central';
+UPDATE campaigns SET sort_order = <SORT_A + 1> WHERE campaign_id = '<ID_B>';
 ```
 
-## Step 6: verify what both sides will read
+## Step 7: verify what both sides will read
 
 ```
-node scripts/cohort.mjs verify
+node scripts/cohort.mjs verify <ID>
 ```
 
 ```sql
@@ -508,7 +585,10 @@ SELECT org_id, region, status FROM provider_coverage;
 ```
 
 `sort_order` ascending in that first result **is** the card order on
-`/dashboard`, inside each `kind` bucket. Then in a browser, signed in on each
+`/dashboard`, inside each `kind` bucket. Groups 6f and 6g of
+`scripts/qa-dashboard.mjs` assert both halves of that in a browser: an
+all-auction catalog features the newest cohort, and one `forming` cohort takes
+the slot back whatever its number. Then in a browser, signed in on each
 side: `GET /api/auth/campaigns` and `GET /api/auth/provider/campaigns`. Check
 `live` on both; `live: false` means `campaign_members` was unreadable and every
 count is a seed, which looks exactly like a cohort nobody joined.
@@ -523,5 +603,6 @@ count is a seed, which looks exactly like a cohort nobody joined.
 | Featured card is not the newest, for one member | They have joined a cohort. Theirs is always featured. |
 | Every other region vanished | The table went from empty to one row. An empty `campaigns` falls back to the code catalog; a populated one is the truth, so seed every region you want visible. |
 | On the desk for one partner, absent for another | Coverage is per org per region. That is correct behaviour. |
-| Desk reads **Announced**, no bid button | `bidding_opens_at` is still ahead, so the tool wrote `bidding_open = false`. Use `--first 6` or lower, or `node scripts/cohort.mjs bidding <id> --on`. |
+| Desk reads **Announced**, no bid button | `bidding_opens_at` is still ahead, so the tool wrote `bidding_open = false`. Use a smaller `<DAYS>`, or `node scripts/cohort.mjs bidding <ID> --on`. |
 | Desk stale after a ZCQL write | The partner console fetches once at boot. Reload it. |
+| `kind` looks right, cohort still missing | `kind` is not lowercase. `fromRow` reads anything outside the six as `planned` and says nothing. |
