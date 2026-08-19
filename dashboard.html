@@ -757,9 +757,11 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
    blocks). Each row grows by the same ~18px and its thumbnail and title stay
    centred in it, so what the reader sees is a list at a comfortable rhythm.
 
-   Growth, never shrinkage: flex-basis stays auto and nothing here sets a height,
-   so a two-line headline still sets its own row's floor and the card gets taller
-   than the room rather than clipping a title to match it. */
+   flex-basis 0 with the default min-height:auto is what makes the shares equal
+   rather than proportional: every row is dealt the same height, and a row whose
+   headline wraps to two lines takes what it needs instead, because a flex item
+   does not shrink under its own content. The 5px the last row runs short by is
+   its missing divider, not a different row. */
 .rcard{display:flex;flex-direction:column;min-width:0}
 .rcard__head{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
 .rcard__head .tlink{margin-top:0;flex:none}
