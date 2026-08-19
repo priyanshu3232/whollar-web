@@ -17,6 +17,7 @@ import { esc, titleCase, monogram } from '../core/format.js';
 import { toast } from '../core/toast.js';
 import { on } from '../core/actions.js';
 import { authFailed } from '../core/session.js';
+import { clearSeed } from '../core/bidseed.js';
 
 var NOTIFY = [
   ['forming', 'New cohort forming in my coverage'],
@@ -137,6 +138,10 @@ export function mount() {
     /* End the SERVER session, not just the local record. Clearing localStorage
        alone leaves the cookie alive, and the boot guard would adopt() it on the
        next visit and sign the visitor straight back in. */
+    /* The carried-forward bid terms go with it. They are refused to another
+       org on read anyway, but a shared browser should not keep one partner's
+       rate card sitting in it after they have left. */
+    clearSeed();
     var done = function () { location.replace('/whollar-login-provider'); };
     api.signOut().then(done, done);
   });

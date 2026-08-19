@@ -33,6 +33,7 @@ import { fmtDate, until } from '../core/time.js';
 import { on } from '../core/actions.js';
 import { toast, failed } from '../core/toast.js';
 import { TIER_NAMES, TECH, TECH_LABEL, REDUCTION_LABEL } from '../core/contract.js';
+import { readSeed, writeSeed } from '../core/bidseed.js';
 
 /* Suggested prices per tier, from the prototype (SUGG / SUGGUP / SUGGSTICKER,
    lines 2142-2143 and 2563). Suggestions only: everything is editable and the
@@ -206,6 +207,133 @@ function mixSummaryHTML(tiers, mix, guar) {
       ? '<p class="mixwarn">The mix averages to a different figure than the effective price entered on '
         + esc(off.join(', ')) + '. Households are shown the effective price.</p>'
       : '');
+}
+
+/* ------------------------------------------------------------------ *
+ * carrying terms forward
+ *
+ * A partner bidding on their fifth cohort this week is not retyping six tiers,
+ * a guarantee and an equipment line five times. The terms they last sealed
+ * open the next form, and every one of them is editable before it is sealed.
+ *
+ * WHAT IS NOT CARRIED, and why each one:
+ *   consent, mixConfirmed   affirmations about THIS cohort's numbers. A bid is
+ *                           sealed and binding; a pre-ticked box is a bid
+ *                           nobody agreed to. Always false on a seeded form.
+ *   committedHouseholds     capped at the new cohort's size. 64 households
+ *                           committed on a cohort of 20 is not a preference
+ *                           carried forward, it is a wrong number.
+ *   campaignId, improve, error   per-form by definition.
+ *
+ * THREE SOURCES, in order. The session's last seal, then the stored copy from
+ * a previous session, then the most recent sealed bid the server returned.
+ * The third exists because the first two are local and can be absent on a new
+ * machine; it is weaker than the others only in that a sealed head carries no
+ * discount schedule, so a custom mix comes back as the one row mixFromBid can
+ * reconstruct. See core/bidseed.js.
+ * ------------------------------------------------------------------ */
+
+/** The campaign-agnostic half of a draft: what carries to the next cohort. */
+function seedFromDraft(d) {
+  return {
+    tiers: (d.tiers || []).map(function (t) {
+      return {
+        name: t.name, uploadMbps: t.uploadMbps || '', technology: t.technology || 'cable',
+        stickerPrice: String(t.stickerPrice || ''), effectivePrice: String(t.effectivePrice || ''),
+        afterPrice: t.afterPrice ? String(t.afterPrice) : ''
+      };
+    }),
+    reductionPresentation: d.reductionPresentation || 'member',
+    mechanismLabel: d.mechanismLabel || '',
+    discountMix: (d.discountMix || []).map(function (r) {
+      return { type: r.type, label: r.label || '', amount: String(r.amount || ''), from: r.from, to: r.to };
+    }),
+    guaranteeMonths: d.guaranteeMonths || 24,
+    afterMode: d.afterMode || 'none',
+    equipment: d.equipment || 'inc',
+    rentalMonthly: d.rentalMonthly || '7',
+    extraPodMonthly: d.extraPodMonthly || '0',
+    committedHouseholds: d.committedHouseholds || 0
+  };
+}
+
+/** The most recent sealed bid this org holds, as a seed. Null if none. */
+function seedFromBids(S) {
+  var best = null;
+  var bids = S.bids || {};
+  for (var k in bids) {
+    if (!Object.prototype.hasOwnProperty.call(bids, k)) continue;
+    var b = bids[k];
+    if (!b || !(b.tiers || []).length) continue;
+    var at = b.updatedAt || b.placedAt || 0;
+    if (!best || at > best.at) best = { at: at, bid: b, campaignId: k };
+  }
+  if (!best) return null;
+  var m = best.bid;
+  var a = campaignById(best.campaignId);
+  return {
+    draft: seedFromDraft({
+      tiers: m.tiers,
+      reductionPresentation: m.reductionPresentation || 'member',
+      mechanismLabel: m.mechanismLabel || '',
+      discountMix: mixFromBid(m),
+      guaranteeMonths: m.guaranteeMonths,
+      afterMode: m.afterMode,
+      equipment: m.equipment,
+      rentalMonthly: m.rentalMonthly,
+      extraPodMonthly: m.extraPodMonthly,
+      committedHouseholds: m.committedHouseholds
+    }),
+    from: a ? (a.region || null) : null,
+    savedAt: best.at || 0
+  };
+}
+
+/**
+ * The seed on offer right now, or null. Pure: it reads state and storage and
+ * writes neither, because it is called from a render and a render that mutates
+ * state is the bug this codebase was ported away from.
+ */
+function currentSeed() {
+  var S = get();
+  if (S.ticketSeed) return S.ticketSeed;
+  var stored = readSeed(S.org && S.org.orgId);
+  if (stored) return stored;
+  return seedFromBids(S);
+}
+
+/** What the seeded banner says, or null when nothing is on offer. */
+function seedBanner() {
+  var seed = currentSeed();
+  if (!seed || !seed.draft || !(seed.draft.tiers || []).length) return null;
+  return { from: seed.from || null, savedAt: seed.savedAt || 0 };
+}
+
+/** The draft a form opens on: the seed where there is one, defaults otherwise. */
+function openingDraft(a) {
+  var seed = currentSeed();
+  var d = defaultDraft(a);
+  if (!seed || !seed.draft || !(seed.draft.tiers || []).length) return d;
+  var s = seed.draft;
+  d.tiers = s.tiers.map(function (t) { return { name: t.name, uploadMbps: t.uploadMbps, technology: t.technology, stickerPrice: t.stickerPrice, effectivePrice: t.effectivePrice, afterPrice: t.afterPrice }; });
+  d.reductionPresentation = s.reductionPresentation;
+  d.mechanismLabel = s.mechanismLabel;
+  if ((s.discountMix || []).length) {
+    d.discountMix = s.discountMix.map(function (r) { return { type: r.type, label: r.label, amount: r.amount, from: r.from, to: r.to }; });
+  }
+  d.guaranteeMonths = s.guaranteeMonths;
+  d.afterMode = s.afterMode;
+  d.equipment = s.equipment;
+  d.rentalMonthly = s.rentalMonthly;
+  d.extraPodMonthly = s.extraPodMonthly;
+  var cap = a.households || 0;
+  var want = Number(s.committedHouseholds) || 0;
+  d.committedHouseholds = cap ? (want ? Math.min(want, cap) : cap) : (want || 1);
+  /* Never carried: see the note above. */
+  d.consent = false;
+  d.mixConfirmed = false;
+  d.seeded = { from: seed.from || null, savedAt: seed.savedAt || 0 };
+  return d;
 }
 
 /** The default draft for a cohort: one 500 Mbps row at the suggested prices. */
@@ -408,7 +536,7 @@ export function ticketHTML(a, data, mine) {
   }
 
   /* The form: place, or improve when a draft says so. */
-  return formHTML(a, data, draft || defaultDraft(a), Boolean(mine));
+  return formHTML(a, data, draft || openingDraft(a), Boolean(mine));
 }
 
 /**
@@ -481,7 +609,13 @@ function formHTML(a, data, t, improving) {
       ? '<div class="receipt" style="margin-bottom:12px"><b>Improving version ' + esc(String((S.bids[a.id] || {}).version || 1)) + '.</b> '
         + 'Every tier must stay at least as good: no raised effective price, no shortened guarantee, no worsened after-rate, no reduced commitment. '
         + '<button class="tlink" type="button" data-action="ticket:cancel">Keep the sealed version</button></div>'
-      : '')
+      : (t.seeded
+        ? '<div class="receipt" style="margin-bottom:12px"><b>Filled in from the terms you last sealed'
+          + (t.seeded.from ? ' on ' + esc(t.seeded.from) : '')
+          + (t.seeded.savedAt ? ', ' + fmtDate(t.seeded.savedAt) : '') + '.</b> '
+          + 'Nothing is sent until you seal, every field is editable, and your commitment has been set to this cohort\u2019s size. '
+          + '<button class="tlink" type="button" data-action="ticket:fresh" data-id="' + esc(a.id) + '">Start from blank terms</button></div>'
+        : ''))
     + '<label class="blk">Price by service <small class="lsub">sticker is your rate card; effective is what the cohort pays</small></label>'
     + '<table class="tiert t7"><thead><tr><th>Tier</th><th>Upload, Mbps</th><th>Technology</th><th>Sticker /mo</th><th>Effective /mo</th><th class="tac">After</th><th></th></tr></thead><tbody class="tierbody">'
     + rows
@@ -714,7 +848,13 @@ function draftFromForm(el) {
   if (!a) return null;
   var S = get();
   var d = readTicket(form, a);
-  d.improve = Boolean(S.ticketDraft && S.ticketDraft.campaignId === a.id && S.ticketDraft.improve);
+  var prev = S.ticketDraft && S.ticketDraft.campaignId === a.id ? S.ticketDraft : null;
+  d.improve = Boolean(prev && prev.improve);
+  /* The banner has to survive the first edit, and the first edit is where the
+     draft is born: until then the form on screen came from openingDraft(),
+     which seeded it exactly when a seed existed. currentSeed() cannot change
+     between those two moments, since only a successful seal moves it. */
+  d.seeded = prev ? (prev.seeded || null) : seedBanner();
   d.error = null;
   delete d.bad;
   return d;
@@ -804,6 +944,13 @@ export function mount() {
 
   on('click', 'ticket:cancel', function () { set('ticketDraft', null); });
 
+  /* Blank terms on request. The seed itself is left alone: this partner wants
+     a different bid on THIS cohort, which says nothing about the next one. */
+  on('click', 'ticket:fresh', function (el) {
+    var a = campaignById(el.getAttribute('data-id'));
+    if (a) set('ticketDraft', defaultDraft(a));
+  });
+
   on('click', 'ticket:place', function (el) {
     var S = get();
     var form = el.closest('.bidform');
@@ -812,7 +959,10 @@ export function mount() {
     if (!form || !a) return;
 
     var d = readTicket(form, a);
-    var improve = Boolean(S.ticketDraft && S.ticketDraft.campaignId === id && S.ticketDraft.improve);
+    var prev = S.ticketDraft && S.ticketDraft.campaignId === id ? S.ticketDraft : null;
+    var improve = Boolean(prev && prev.improve);
+    /* Whatever refuses the bid, the banner it was filled in from stays put. */
+    d.seeded = prev ? (prev.seeded || null) : seedBanner();
     if (d.bad) {
       d.improve = improve;
       d.error = d.bad;
@@ -844,7 +994,12 @@ export function mount() {
       var cur = get().bids;
       for (var k in cur) { if (Object.prototype.hasOwnProperty.call(cur, k)) bids[k] = cur[k]; }
       if (r && r.bid) bids[id] = r.bid;
-      set({ bids: bids, ticketDraft: null });
+      /* These terms are now the starting point for the next cohort. Written
+         from the draft that was actually sealed, not from the response: the
+         response is a head row and drops the discount schedule. */
+      var seed = { draft: seedFromDraft(d), from: a.region || null, savedAt: Date.now() };
+      writeSeed((S.org && S.org.orgId) || null, seed.draft, seed.from);
+      set({ bids: bids, ticketDraft: null, ticketSeed: seed });
       var no = r && r.receipt && r.receipt.no;
       toast(improve
         ? 'Improved to version ' + ((r && r.receipt && r.receipt.revision) || '') + '. Receipt ' + no + '.'

@@ -723,6 +723,72 @@ console.log('\n16b. the custom mix: a schedule, its arithmetic, and a second con
   await c.close();
 }
 
+console.log('\n16c. terms carry to the next cohort, and nothing binding carries with them');
+{
+  const c = await ctx(browser, { record: REC, me: APPROVED });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/partner?fixture=open`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(120);
+  await p.click('[data-action="desk:open"]');
+  await p.waitForTimeout(150);
+
+  ok(await p.locator('[data-action="ticket:fresh"]').count() === 0,
+    'a first bid opens on the house defaults, with nothing to say about them');
+
+  /* Terms a partner would not want to retype: a price, a guarantee, equipment. */
+  await p.locator('.trow:nth-child(1) .teff').fill('61');
+  await p.locator('.trow:nth-child(1) .teff').blur();
+  await p.selectOption('.bguar', '36');
+  await p.selectOption('.bequip', 'rent');
+  await p.locator('.brent').fill('9');
+  await p.locator('.brent').blur();
+  await p.waitForTimeout(150);
+  await p.click('.bconsent');
+  await p.waitForTimeout(120);
+  await p.click('[data-action="ticket:place"]');
+  await p.waitForTimeout(250);
+  const sealed = await p.evaluate(() => {
+    const s = window.WHOLLAR.console.state();
+    return s.bids.kw && s.bids.kw.state;
+  });
+  ok(sealed === 'sealed', `the bid seals (${sealed})`);
+  const seeded = await p.evaluate(() => {
+    const s = window.WHOLLAR.console.state();
+    return s.ticketSeed && s.ticketSeed.draft && s.ticketSeed.draft.guaranteeMonths;
+  });
+  ok(seeded === 36, `and the terms it sealed are remembered (guarantee ${seeded})`);
+
+  /* A reload is the harder half: the seed has to come off storage, keyed to
+     this org, with no bid of ours left in state to read it from. */
+  await p.goto(`${BASE}/partner?fixture=open`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(120);
+  await p.click('[data-action="desk:open"]');
+  await p.waitForTimeout(150);
+
+  ok(await p.locator('.trow:nth-child(1) .teff').inputValue() === '61',
+    'the next form opens on the price last sealed');
+  ok(await p.locator('.bguar').inputValue() === '36', 'and the guarantee');
+  ok(await p.locator('.bequip').inputValue() === 'rent' && await p.locator('.brent').inputValue() === '9',
+    'and the equipment line, rental and all');
+  const note = await p.locator('.bidform .receipt').innerText().catch(() => '');
+  ok(/last sealed/i.test(note) && /Scarborough East/.test(note), `the form says where it came from (${note.slice(0, 48)})`);
+
+  /* The two boxes that are statements about THIS cohort, and must be ticked
+     again for it. A pre-ticked consent is a binding bid nobody agreed to. */
+  ok(await p.locator('.bconsent:checked').count() === 0, 'the sealing consent is NOT carried forward');
+  ok(await p.locator('[data-action="ticket:place"][disabled]').count() === 1,
+    'so the seal button is disabled again, exactly as on a blank form');
+
+  /* And a partner who wants none of it can say so. */
+  await p.click('[data-action="ticket:fresh"]');
+  await p.waitForTimeout(150);
+  ok(await p.locator('.trow:nth-child(1) .teff').inputValue() === '56',
+    'starting from blank terms puts the house defaults back');
+  ok(await p.locator('[data-action="ticket:fresh"]').count() === 0, 'and takes the note with it');
+  await c.close();
+}
+
 console.log('\n17. sealed means sealed: receipt, improve, and no withdraw path anywhere');
 {
   const c = await ctx(browser, { record: REC, me: APPROVED });

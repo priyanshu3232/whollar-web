@@ -92,6 +92,12 @@
     ticketDraft: null,    /* the in-progress bid ticket, so a repaint cannot eat
                              a half-typed bid; the prototype's expandRow-mutates-
                              state bug is the cautionary tale above */
+    ticketSeed: null,     /* the terms last sealed, campaign-agnostic, so the next
+                             cohort's form opens on them rather than on the house
+                             defaults. Written on a successful seal, mirrored to
+                             core/bidseed.js so it survives a reload. A starting
+                             point for a form and nothing else: it is never sent,
+                             and the two consent boxes are never carried */
 
     prefs: null,
     fixture: null         /* { name, label, view } under fixture mode */
@@ -2657,6 +2663,79 @@
   };
 
   /* ==================================================================
+     core/bidseed.js
+     ================================================================== */
+  __defs["core/bidseed.js"] = function (__exports, __require, root) {
+  /* The terms a partner last sealed, kept so the next cohort's form opens on
+   * them instead of on the house defaults.
+   *
+   * WHY THIS IS NOT A SERVER PREFERENCE. A partner's rate card is already on the
+   * server, once per sealed bid, and /provider/bids returns it. What the server
+   * does NOT keep is the custom discount schedule: readBid() takes a single
+   * mechanismLabel and drops discountMix on the floor (see desk.js headFields),
+   * so a mix rebuilt from a sealed head is one row, not the steps that were
+   * typed. This module keeps the whole draft locally so the schedule survives a
+   * reload; views/ticket.js falls back to the sealed head when it does not.
+   *
+   * NO PARTNER SEES ANOTHER PARTNER'S TERMS. The record carries the org it was
+   * written by and read() refuses it to any other org, so a shared browser
+   * cannot leak one org's pricing into another org's form. Sign-out clears it
+   * outright rather than relying on that check.
+   *
+   * Nothing here is authoritative. It is a starting point for a form; the bid is
+   * whatever the DOM says at seal time, and the server validates that.
+   */
+
+  var KEY = 'whollar.partner.bidseed';
+
+  /* A seed older than this is not offered. A rate card from three months ago is
+     not a convenience, it is a wrong number wearing a familiar face. */
+  var MAX_AGE_MS = 45 * 24 * 60 * 60 * 1000;
+
+  function store() {
+    try { return window.localStorage; } catch (e) { return null; }
+  }
+
+  /**
+   * The stored seed for this org, or null.
+   * `orgId` is the org asking; a mismatch reads as no seed, never as someone
+   * else's terms.
+   */
+  function readSeed(orgId) {
+    var ls = store();
+    if (!ls || !orgId) return null;
+    var raw;
+    try { raw = ls.getItem(KEY); } catch (e) { return null; }
+    if (!raw) return null;
+    var rec;
+    try { rec = JSON.parse(raw); } catch (e) { clearSeed(); return null; }
+    if (!rec || rec.orgId !== orgId || !rec.draft) return null;
+    if (!(rec.savedAt > 0) || (Date.now() - rec.savedAt) > MAX_AGE_MS) return null;
+    return { draft: rec.draft, from: rec.from || null, savedAt: rec.savedAt };
+  }
+
+  /** Remember these terms for the next cohort. Failure is silent on purpose:
+      a full disk or a private window must not break sealing a bid. */
+  function writeSeed(orgId, draft, from) {
+    var ls = store();
+    if (!ls || !orgId || !draft) return;
+    try {
+      ls.setItem(KEY, JSON.stringify({ orgId: orgId, draft: draft, from: from || null, savedAt: Date.now() }));
+    } catch (e) { /* not worth a toast */ }
+  }
+
+  function clearSeed() {
+    var ls = store();
+    if (!ls) return;
+    try { ls.removeItem(KEY); } catch (e) { /* nothing to do */ }
+  }
+
+  __exports.readSeed = readSeed;
+  __exports.writeSeed = writeSeed;
+  __exports.clearSeed = clearSeed;
+  };
+
+  /* ==================================================================
      views/account.js
      ================================================================== */
   __defs["views/account.js"] = function (__exports, __require, root) {
@@ -2685,6 +2764,8 @@
   var on = __ns4.on;
   var __ns5 = __require("core/session.js");
   var authFailed = __ns5.authFailed;
+  var __ns6 = __require("core/bidseed.js");
+  var clearSeed = __ns6.clearSeed;
 
   var NOTIFY = [
     ['forming', 'New cohort forming in my coverage'],
@@ -2805,6 +2886,10 @@
       /* End the SERVER session, not just the local record. Clearing localStorage
          alone leaves the cookie alive, and the boot guard would adopt() it on the
          next visit and sign the visitor straight back in. */
+      /* The carried-forward bid terms go with it. They are refused to another
+         org on read anyway, but a shared browser should not keep one partner's
+         rate card sitting in it after they have left. */
+      clearSeed();
       var done = function () { location.replace('/whollar-login-provider'); };
       api.signOut().then(done, done);
     });
@@ -3434,6 +3519,8 @@
   var toast = __ns5.toast, failed = __ns5.failed;
   var __ns6 = __require("core/contract.js");
   var TIER_NAMES = __ns6.TIER_NAMES, TECH = __ns6.TECH, TECH_LABEL = __ns6.TECH_LABEL, REDUCTION_LABEL = __ns6.REDUCTION_LABEL;
+  var __ns7 = __require("core/bidseed.js");
+  var readSeed = __ns7.readSeed, writeSeed = __ns7.writeSeed;
 
   /* Suggested prices per tier, from the prototype (SUGG / SUGGUP / SUGGSTICKER,
      lines 2142-2143 and 2563). Suggestions only: everything is editable and the
@@ -3607,6 +3694,133 @@
         ? '<p class="mixwarn">The mix averages to a different figure than the effective price entered on '
           + esc(off.join(', ')) + '. Households are shown the effective price.</p>'
         : '');
+  }
+
+  /* ------------------------------------------------------------------ *
+   * carrying terms forward
+   *
+   * A partner bidding on their fifth cohort this week is not retyping six tiers,
+   * a guarantee and an equipment line five times. The terms they last sealed
+   * open the next form, and every one of them is editable before it is sealed.
+   *
+   * WHAT IS NOT CARRIED, and why each one:
+   *   consent, mixConfirmed   affirmations about THIS cohort's numbers. A bid is
+   *                           sealed and binding; a pre-ticked box is a bid
+   *                           nobody agreed to. Always false on a seeded form.
+   *   committedHouseholds     capped at the new cohort's size. 64 households
+   *                           committed on a cohort of 20 is not a preference
+   *                           carried forward, it is a wrong number.
+   *   campaignId, improve, error   per-form by definition.
+   *
+   * THREE SOURCES, in order. The session's last seal, then the stored copy from
+   * a previous session, then the most recent sealed bid the server returned.
+   * The third exists because the first two are local and can be absent on a new
+   * machine; it is weaker than the others only in that a sealed head carries no
+   * discount schedule, so a custom mix comes back as the one row mixFromBid can
+   * reconstruct. See core/bidseed.js.
+   * ------------------------------------------------------------------ */
+
+  /** The campaign-agnostic half of a draft: what carries to the next cohort. */
+  function seedFromDraft(d) {
+    return {
+      tiers: (d.tiers || []).map(function (t) {
+        return {
+          name: t.name, uploadMbps: t.uploadMbps || '', technology: t.technology || 'cable',
+          stickerPrice: String(t.stickerPrice || ''), effectivePrice: String(t.effectivePrice || ''),
+          afterPrice: t.afterPrice ? String(t.afterPrice) : ''
+        };
+      }),
+      reductionPresentation: d.reductionPresentation || 'member',
+      mechanismLabel: d.mechanismLabel || '',
+      discountMix: (d.discountMix || []).map(function (r) {
+        return { type: r.type, label: r.label || '', amount: String(r.amount || ''), from: r.from, to: r.to };
+      }),
+      guaranteeMonths: d.guaranteeMonths || 24,
+      afterMode: d.afterMode || 'none',
+      equipment: d.equipment || 'inc',
+      rentalMonthly: d.rentalMonthly || '7',
+      extraPodMonthly: d.extraPodMonthly || '0',
+      committedHouseholds: d.committedHouseholds || 0
+    };
+  }
+
+  /** The most recent sealed bid this org holds, as a seed. Null if none. */
+  function seedFromBids(S) {
+    var best = null;
+    var bids = S.bids || {};
+    for (var k in bids) {
+      if (!Object.prototype.hasOwnProperty.call(bids, k)) continue;
+      var b = bids[k];
+      if (!b || !(b.tiers || []).length) continue;
+      var at = b.updatedAt || b.placedAt || 0;
+      if (!best || at > best.at) best = { at: at, bid: b, campaignId: k };
+    }
+    if (!best) return null;
+    var m = best.bid;
+    var a = campaignById(best.campaignId);
+    return {
+      draft: seedFromDraft({
+        tiers: m.tiers,
+        reductionPresentation: m.reductionPresentation || 'member',
+        mechanismLabel: m.mechanismLabel || '',
+        discountMix: mixFromBid(m),
+        guaranteeMonths: m.guaranteeMonths,
+        afterMode: m.afterMode,
+        equipment: m.equipment,
+        rentalMonthly: m.rentalMonthly,
+        extraPodMonthly: m.extraPodMonthly,
+        committedHouseholds: m.committedHouseholds
+      }),
+      from: a ? (a.region || null) : null,
+      savedAt: best.at || 0
+    };
+  }
+
+  /**
+   * The seed on offer right now, or null. Pure: it reads state and storage and
+   * writes neither, because it is called from a render and a render that mutates
+   * state is the bug this codebase was ported away from.
+   */
+  function currentSeed() {
+    var S = get();
+    if (S.ticketSeed) return S.ticketSeed;
+    var stored = readSeed(S.org && S.org.orgId);
+    if (stored) return stored;
+    return seedFromBids(S);
+  }
+
+  /** What the seeded banner says, or null when nothing is on offer. */
+  function seedBanner() {
+    var seed = currentSeed();
+    if (!seed || !seed.draft || !(seed.draft.tiers || []).length) return null;
+    return { from: seed.from || null, savedAt: seed.savedAt || 0 };
+  }
+
+  /** The draft a form opens on: the seed where there is one, defaults otherwise. */
+  function openingDraft(a) {
+    var seed = currentSeed();
+    var d = defaultDraft(a);
+    if (!seed || !seed.draft || !(seed.draft.tiers || []).length) return d;
+    var s = seed.draft;
+    d.tiers = s.tiers.map(function (t) { return { name: t.name, uploadMbps: t.uploadMbps, technology: t.technology, stickerPrice: t.stickerPrice, effectivePrice: t.effectivePrice, afterPrice: t.afterPrice }; });
+    d.reductionPresentation = s.reductionPresentation;
+    d.mechanismLabel = s.mechanismLabel;
+    if ((s.discountMix || []).length) {
+      d.discountMix = s.discountMix.map(function (r) { return { type: r.type, label: r.label, amount: r.amount, from: r.from, to: r.to }; });
+    }
+    d.guaranteeMonths = s.guaranteeMonths;
+    d.afterMode = s.afterMode;
+    d.equipment = s.equipment;
+    d.rentalMonthly = s.rentalMonthly;
+    d.extraPodMonthly = s.extraPodMonthly;
+    var cap = a.households || 0;
+    var want = Number(s.committedHouseholds) || 0;
+    d.committedHouseholds = cap ? (want ? Math.min(want, cap) : cap) : (want || 1);
+    /* Never carried: see the note above. */
+    d.consent = false;
+    d.mixConfirmed = false;
+    d.seeded = { from: seed.from || null, savedAt: seed.savedAt || 0 };
+    return d;
   }
 
   /** The default draft for a cohort: one 500 Mbps row at the suggested prices. */
@@ -3809,7 +4023,7 @@
     }
 
     /* The form: place, or improve when a draft says so. */
-    return formHTML(a, data, draft || defaultDraft(a), Boolean(mine));
+    return formHTML(a, data, draft || openingDraft(a), Boolean(mine));
   }
 
   /**
@@ -3882,7 +4096,13 @@
         ? '<div class="receipt" style="margin-bottom:12px"><b>Improving version ' + esc(String((S.bids[a.id] || {}).version || 1)) + '.</b> '
           + 'Every tier must stay at least as good: no raised effective price, no shortened guarantee, no worsened after-rate, no reduced commitment. '
           + '<button class="tlink" type="button" data-action="ticket:cancel">Keep the sealed version</button></div>'
-        : '')
+        : (t.seeded
+          ? '<div class="receipt" style="margin-bottom:12px"><b>Filled in from the terms you last sealed'
+            + (t.seeded.from ? ' on ' + esc(t.seeded.from) : '')
+            + (t.seeded.savedAt ? ', ' + fmtDate(t.seeded.savedAt) : '') + '.</b> '
+            + 'Nothing is sent until you seal, every field is editable, and your commitment has been set to this cohort\u2019s size. '
+            + '<button class="tlink" type="button" data-action="ticket:fresh" data-id="' + esc(a.id) + '">Start from blank terms</button></div>'
+          : ''))
       + '<label class="blk">Price by service <small class="lsub">sticker is your rate card; effective is what the cohort pays</small></label>'
       + '<table class="tiert t7"><thead><tr><th>Tier</th><th>Upload, Mbps</th><th>Technology</th><th>Sticker /mo</th><th>Effective /mo</th><th class="tac">After</th><th></th></tr></thead><tbody class="tierbody">'
       + rows
@@ -4115,7 +4335,13 @@
     if (!a) return null;
     var S = get();
     var d = readTicket(form, a);
-    d.improve = Boolean(S.ticketDraft && S.ticketDraft.campaignId === a.id && S.ticketDraft.improve);
+    var prev = S.ticketDraft && S.ticketDraft.campaignId === a.id ? S.ticketDraft : null;
+    d.improve = Boolean(prev && prev.improve);
+    /* The banner has to survive the first edit, and the first edit is where the
+       draft is born: until then the form on screen came from openingDraft(),
+       which seeded it exactly when a seed existed. currentSeed() cannot change
+       between those two moments, since only a successful seal moves it. */
+    d.seeded = prev ? (prev.seeded || null) : seedBanner();
     d.error = null;
     delete d.bad;
     return d;
@@ -4205,6 +4431,13 @@
 
     on('click', 'ticket:cancel', function () { set('ticketDraft', null); });
 
+    /* Blank terms on request. The seed itself is left alone: this partner wants
+       a different bid on THIS cohort, which says nothing about the next one. */
+    on('click', 'ticket:fresh', function (el) {
+      var a = campaignById(el.getAttribute('data-id'));
+      if (a) set('ticketDraft', defaultDraft(a));
+    });
+
     on('click', 'ticket:place', function (el) {
       var S = get();
       var form = el.closest('.bidform');
@@ -4213,7 +4446,10 @@
       if (!form || !a) return;
 
       var d = readTicket(form, a);
-      var improve = Boolean(S.ticketDraft && S.ticketDraft.campaignId === id && S.ticketDraft.improve);
+      var prev = S.ticketDraft && S.ticketDraft.campaignId === id ? S.ticketDraft : null;
+      var improve = Boolean(prev && prev.improve);
+      /* Whatever refuses the bid, the banner it was filled in from stays put. */
+      d.seeded = prev ? (prev.seeded || null) : seedBanner();
       if (d.bad) {
         d.improve = improve;
         d.error = d.bad;
@@ -4245,7 +4481,12 @@
         var cur = get().bids;
         for (var k in cur) { if (Object.prototype.hasOwnProperty.call(cur, k)) bids[k] = cur[k]; }
         if (r && r.bid) bids[id] = r.bid;
-        set({ bids: bids, ticketDraft: null });
+        /* These terms are now the starting point for the next cohort. Written
+           from the draft that was actually sealed, not from the response: the
+           response is a head row and drops the discount schedule. */
+        var seed = { draft: seedFromDraft(d), from: a.region || null, savedAt: Date.now() };
+        writeSeed((S.org && S.org.orgId) || null, seed.draft, seed.from);
+        set({ bids: bids, ticketDraft: null, ticketSeed: seed });
         var no = r && r.receipt && r.receipt.no;
         toast(improve
           ? 'Improved to version ' + ((r && r.receipt && r.receipt.revision) || '') + '. Receipt ' + no + '.'
