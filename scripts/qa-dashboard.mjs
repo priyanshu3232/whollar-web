@@ -49,11 +49,12 @@ const REC = { emailKey: 'ada@example.com', email: 'ada@example.com', firstName: 
 
 const DAY = 86400000;
 /* A campaign shaped like publicCampaign() in routes/campaigns.js. */
-function camp(id, region, sub, { you = null, kind = 'forming', stage = 'forming', members = 44 } = {}) {
+function camp(id, region, sub, { you = null, kind = 'forming', stage = 'forming', members = 44,
+  joinable = true } = {}) {
   const t = Date.now();
   return {
     id, region, sub, kind, target: 100, members, households: members, watching: 0,
-    joinable: true, you, stage, stageLabel: stage, next: null,
+    joinable, you, stage, stageLabel: stage, next: null,
     dates: {
       announce_at: t - 9 * DAY, bidding_opens_at: t + 9 * DAY,
       bidding_closes_at: t + 11 * DAY, decision_at: t + 18 * DAY, switch_window_at: t + 30 * DAY,
@@ -347,6 +348,75 @@ console.log('\n6e. a sealed window reveals nothing, and the panel does not inven
   ok(asked === 0, `the offer is not even requested while bidding is live (${asked} requests)`);
   const panel = await p.evaluate(() => (document.querySelector('#panel') || {}).innerText || '');
   ok(!/\$54\.50|Northline/.test(panel), 'and no fixture price or partner leaks into the bidding panel');
+  await c.close();
+}
+
+/* THE OPERATOR'S QUESTION, ANSWERED AS A TEST. A cohort created straight at
+   `auction` has to be two things at once: the FEATURED card for a household
+   that has joined nothing, and open to bid on the partner desk. Those are
+   different files, and the consumer half is the half that can silently not
+   happen, because featuredCamp() prefers a JOINABLE cohort and an auction is
+   never joinable. It falls through to CAMPS[0], which is the server's own
+   order, which is sort_order ascending.
+
+   So the newest auction cohort is featured only while nothing joinable is in
+   the catalog. That is a real constraint on how a launch table is filled, not
+   a detail, and it is asserted here in both directions: all auctions, then the
+   same list with one forming cohort added. */
+console.log('\n6f. an all-auction catalog features the newest cohort');
+{
+  const auction = (id, region) => camp(id, region, 'Autumn cohort',
+    { kind: 'auction', stage: 'bidding', joinable: false, members: 0 });
+  /* Server order IS sort_order ascending, so the newest cohort, carrying the
+     lowest sort_order, arrives first. */
+  const c = await ctx(browser, { campaigns: [
+    auction('north-york-central', 'North York Central'),   // sort_order 99, created second
+    auction('scarborough-centre', 'Scarborough Centre'),   // sort_order 100, created first
+  ] });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  const s = await snapshot(p);
+  const cards = await p.evaluate(() => Array.from(document.querySelectorAll('#crow .cc'))
+    .map(e => e.innerText.replace(/\s+/g, ' ').trim()));
+  ok(/North York Central/.test(s.regmono || ''),
+    `the newest auction cohort is the featured tile (${s.regmono})`);
+  ok(/North York Central/.test(cards[0] || ''), 'and it is the first card on the row');
+  ok(/Scarborough Centre/.test(cards[1] || ''), 'and the older one shifted to position 1');
+  ok(/Sealed bidding/.test(cards[0] || ''), 'the featured card reads Sealed bidding');
+  ok(await p.evaluate(() => !document.querySelector('#crow [data-choose]')),
+    'and carries no join button, because an auction is never joinable');
+  await c.close();
+}
+
+console.log('\n6g. one forming cohort takes the featured slot back');
+{
+  /* A bill on file, because the join CTA is gated on state 'result': a visitor
+     who has not been through the checkup is offered the checkup, not a cohort.
+     Without it neither card carries the button and the assertion below would
+     be passing for the wrong reason. */
+  const c = await ctx(browser, {
+    bill: { provider: 'Rogers', monthly: 92, promoEnd: '2026-11-01' },
+    campaigns: [
+      camp('north-york-central', 'North York Central', 'Autumn cohort',
+        { kind: 'auction', stage: 'bidding', joinable: false, members: 0 }),
+      camp('etobicoke-centre', 'Etobicoke Centre', 'Winter cohort', { members: 0 }),
+    ],
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  const s = await snapshot(p);
+  /* Second in the server's order, first on the row: ccRank reads `kind` before
+     it reads sort_order, so a joinable cohort outranks every auction whatever
+     its number. An operator who wants the newest cohort featured has to keep
+     the catalog to one kind. */
+  ok(/Etobicoke Centre/.test(s.regmono || ''),
+    `the joinable cohort is featured even though it sorts last (${s.regmono})`);
+  ok(await p.evaluate(() => !!document.querySelector('#crow [data-choose]')),
+    'and it is the one carrying the join button');
   await c.close();
 }
 
