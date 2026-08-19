@@ -47,9 +47,17 @@ var SUGGSTICKER = { '100 Mbps': 65, '300 Mbps': 75, '500 Mbps': 86, '1 Gig': 99,
  * ------------------------------------------------------------------ *
  *
  * 'Custom' used to be one free-text label. It is now a schedule: a discount
- * type, an amount, and the window it runs for, one row per step, so a partner
- * whose reduction changes at month 6 or month 12 can say so on the face of
- * the bid instead of averaging it into a single effective price.
+ * type, a percentage off the sticker price, and the window it runs for, one row
+ * per step, so a partner whose reduction changes at month 6 or month 12 can say
+ * so on the face of the bid instead of averaging it into a single effective
+ * price.
+ *
+ * THE MIX IS IN PERCENT, NOT DOLLARS. A rate card has several tiers at several
+ * sticker prices, and one dollar figure off all of them is a different offer on
+ * each: $22 off is 34% of a $65 tier and 16% of a $135 one. A percentage is the
+ * one figure that means the same thing on every row, so the schedule carries
+ * the percentage and the arithmetic turns it into dollars per tier, against
+ * that tier's own sticker.
  *
  * The types are the reduction reads offered above minus 'none', which is the
  * absence of a breakdown and cannot be a line in one, plus a row the partner
@@ -101,6 +109,17 @@ function windowFor(r, fits, guar) {
 /** Amount rounded to cents and rendered by the shared money(). */
 function cash(n) {
   return money(String(Math.round((Number(n) || 0) * 100) / 100));
+}
+
+/** A percentage at one decimal, with a trailing '.0' dropped. */
+function pct(n) {
+  var v = Math.round((Number(n) || 0) * 10) / 10;
+  return (v % 1 === 0 ? String(v) : v.toFixed(1)) + '%';
+}
+
+/** What one row takes off a sticker price, in dollars per month. */
+function rowOff(r, stk) {
+  return (Number(stk) || 0) * (Number(r.percentOff) || 0) / 100;
 }
 
 /* ------------------------------------------------------------------ *
@@ -164,7 +183,7 @@ function mixRowHTML(r, i, guar) {
     + '<td><select class="mtype" data-action="ticket:field">' + topts + '</select>'
     + '<input type="text" class="mown" data-action="ticket:field" placeholder="e.g. Neighbourhood build rate" maxlength="40" value="'
     + esc(r.label || '') + '"' + (r.type === 'own' ? '' : ' hidden') + '></td>'
-    + '<td><input type="number" class="mamt" data-action="ticket:field" value="' + esc(r.amount || '') + '" min="0" step="0.5"></td>'
+    + '<td><input type="number" class="mamt" data-action="ticket:field" value="' + esc(r.percentOff || '') + '" min="0" max="100" step="1"></td>'
     + '<td><select class="mper" data-action="ticket:field">' + popts + '</select></td>'
     + '<td>' + (i > 0 ? '<button type="button" class="trm" data-action="ticket:mixrm" data-i="' + i + '" aria-label="Remove discount">×</button>' : '') + '</td></tr>';
 }
@@ -173,36 +192,66 @@ function mixRowHTML(r, i, guar) {
  * What the mix comes to over the whole guarantee, and what that makes the
  * average effective price per tier.
  *
+ * The schedule is in percent, so the dollars are per tier: each row takes its
+ * percentage off THAT tier's sticker, for the months it runs. The percentage is
+ * the one figure common to every tier, so the header states the weighted
+ * average percentage and each tier row states the money it comes to.
+ *
  * The tier table already carries an effective price, so the two can disagree:
- * a partner can schedule $40 off for six months and still type $56 effective.
+ * a partner can schedule 40% off for six months and still type $56 effective.
  * Neither is wrong on its own, so this states both and names the tiers where
  * they part company. Households are shown the effective price either way,
  * which is why the confirmation below asks about that number specifically.
  */
 function mixSummaryHTML(tiers, mix, guar) {
   var months = guar || 24;
-  var total = 0;
+  /* Percent-months: the weighted average percentage over the guarantee, which
+     comes out the same on every tier and so belongs above the per-tier rows. */
+  var pctMonths = 0;
   mix.forEach(function (r) {
     var from = Math.min(Number(r.from) || 0, months);
     var to = Math.min(Number(r.to) || 0, months);
-    if (to > from) total += (Number(r.amount) || 0) * (to - from);
+    if (to > from) pctMonths += (Number(r.percentOff) || 0) * (to - from);
   });
-  var avg = months ? total / months : 0;
+  var avgPct = months ? pctMonths / months : 0;
+
+  /* A month where the rows running together come to more than the sticker is
+     not a price, so count those months rather than clamping in silence. */
+  var over = 0;
+  for (var m = 0; m < months; m++) {
+    var at = 0;
+    mix.forEach(function (r) {
+      if (m >= (Number(r.from) || 0) && m < (Number(r.to) || 0)) at += Number(r.percentOff) || 0;
+    });
+    if (at > 100) over++;
+  }
 
   var off = [];
   var rows = tiers.map(function (t) {
     var stk = Number(t.stickerPrice) || 0;
     var eff = Number(t.effectivePrice) || 0;
-    var avgEff = Math.max(0, stk - avg);
+    var total = 0;
+    mix.forEach(function (r) {
+      var from = Math.min(Number(r.from) || 0, months);
+      var to = Math.min(Number(r.to) || 0, months);
+      if (to > from) total += rowOff(r, stk) * (to - from);
+    });
+    var avgOff = months ? total / months : 0;
+    var avgEff = Math.max(0, stk - avgOff);
     if (stk && Math.abs(avgEff - eff) > 0.5) off.push(t.name);
     return '<div class="mixrow"><span>' + esc(t.name || 'Tier') + '</span>'
-      + '<em>sticker ' + cash(stk) + '</em><b>' + cash(avgEff) + ' /mo</b></div>';
+      + '<em>sticker ' + cash(stk) + ', less ' + cash(avgOff) + ' /mo, '
+      + money(String(Math.round(total))) + ' total</em>'
+      + '<b>' + cash(avgEff) + ' /mo</b></div>';
   }).join('');
 
   return '<h4>Across the ' + months + '-month guarantee</h4>'
-    + '<div class="mixrow"><span>Total reduction</span><b>' + cash(total) + '</b></div>'
-    + '<div class="mixrow"><span>Average reduction</span><b>' + cash(avg) + ' /mo</b></div>'
+    + '<div class="mixrow"><span>Average discount</span><b>' + pct(avgPct) + ' off sticker</b></div>'
     + rows
+    + (over
+      ? '<p class="mixwarn">The rows running together take more than the sticker price in '
+        + over + (over === 1 ? ' month' : ' months') + '. Trim the percentages so no month passes 100%.</p>'
+      : '')
     + (off.length
       ? '<p class="mixwarn">The mix averages to a different figure than the effective price entered on '
         + esc(off.join(', ')) + '. Households are shown the effective price.</p>'
@@ -246,7 +295,7 @@ function seedFromDraft(d) {
     reductionPresentation: d.reductionPresentation || 'member',
     mechanismLabel: d.mechanismLabel || '',
     discountMix: (d.discountMix || []).map(function (r) {
-      return { type: r.type, label: r.label || '', amount: String(r.amount || ''), from: r.from, to: r.to };
+      return { type: r.type, label: r.label || '', percentOff: String(r.percentOff || ''), from: r.from, to: r.to };
     }),
     guaranteeMonths: d.guaranteeMonths || 24,
     afterMode: d.afterMode || 'none',
@@ -319,7 +368,12 @@ function openingDraft(a) {
   d.reductionPresentation = s.reductionPresentation;
   d.mechanismLabel = s.mechanismLabel;
   if ((s.discountMix || []).length) {
-    d.discountMix = s.discountMix.map(function (r) { return { type: r.type, label: r.label, amount: r.amount, from: r.from, to: r.to }; });
+    /* percentOff only. A seed written while the mix was in dollars carries an
+       `amount`, and $22 read as 22% is a different offer on every tier, so an
+       old row opens with an empty percentage rather than a wrong one. */
+    d.discountMix = s.discountMix.map(function (r) {
+      return { type: r.type, label: r.label, percentOff: String(r.percentOff || ''), from: r.from, to: r.to };
+    });
   }
   d.guaranteeMonths = s.guaranteeMonths;
   d.afterMode = s.afterMode;
@@ -346,9 +400,10 @@ function defaultDraft(a) {
     tiers: [{ name: '500 Mbps', uploadMbps: '50', technology: 'cable', stickerPrice: '86', effectivePrice: '56', afterPrice: '69' }],
     reductionPresentation: 'member',
     mechanismLabel: '',
-    /* One row, running the full guarantee, at the gap the tier row above
-       already states, so the mix opens agreeing with the prices beside it. */
-    discountMix: [{ type: 'member', label: '', amount: '30', from: 0, to: 24 }],
+    /* One row, running the full guarantee, at the share of sticker the tier
+       row above already comes to (86 down to 56 is 35% off), so the mix opens
+       agreeing with the prices beside it. */
+    discountMix: [{ type: 'member', label: '', percentOff: '35', from: 0, to: 24 }],
     mixConfirmed: false,
     guaranteeMonths: 24,
     afterMode: 'none',
@@ -361,11 +416,15 @@ function defaultDraft(a) {
 
 function mixFromBid(m) {
   var t0 = (m.tiers || [])[0] || {};
-  var gap = Math.max(0, (Number(t0.stickerPrice) || 0) - (Number(t0.effectivePrice) || 0));
+  var stk = Number(t0.stickerPrice) || 0;
+  var gap = Math.max(0, stk - (Number(t0.effectivePrice) || 0));
+  /* The sealed head is in dollars and the schedule is in percent, so the first
+     tier's gap is read back as a share of its own sticker. */
+  var share = stk && gap ? Math.round((gap / stk) * 1000) / 10 : 0;
   return [{
     type: m.mechanismLabel ? 'own' : 'member',
     label: m.mechanismLabel || '',
-    amount: gap ? String(gap) : '',
+    percentOff: share ? String(share) : '',
     from: 0,
     to: m.guaranteeMonths || 24
   }];
@@ -550,11 +609,11 @@ function mixHTML(t) {
   var guar = t.guaranteeMonths || 24;
   var mix = t.discountMix && t.discountMix.length
     ? t.discountMix
-    : [{ type: 'member', label: '', amount: '', from: 0, to: guar }];
+    : [{ type: 'member', label: '', percentOff: '', from: 0, to: guar }];
   return '<div class="mixw"' + (t.reductionPresentation === 'custom' ? '' : ' hidden') + '>'
-    + '<label class="blk">Your mix <small class="lsub">one row per step, so a reduction that changes partway through says so</small></label>'
+    + '<label class="blk">Your mix <small class="lsub">one row per step, each a percentage off sticker, so a reduction that changes partway through says so</small></label>'
     + '<div class="mixgrid"><div>'
-    + '<table class="tiert mixt"><thead><tr><th>Discount type</th><th>Discount, $ /mo</th><th>Valid time period</th><th></th></tr></thead><tbody class="mixbody">'
+    + '<table class="tiert mixt"><thead><tr><th>Discount type</th><th>Discount, %</th><th>Valid time period</th><th></th></tr></thead><tbody class="mixbody">'
     + mix.map(function (r, i) { return mixRowHTML(r, i, guar); }).join('')
     + '</tbody></table>'
     + '<button type="button" class="taddrow" data-action="ticket:mixadd">+ Add another discount</button></div>'
@@ -661,7 +720,7 @@ function readMix(form) {
     return {
       type: $('.mtype', tr).value,
       label: String(($('.mown', tr) || {}).value || '').trim(),
-      amount: String($('.mamt', tr).value || '').trim(),
+      percentOff: String($('.mamt', tr).value || '').trim(),
       from: parseInt(per[0], 10) || 0,
       to: parseInt(per[1], 10) || 0
     };
@@ -681,7 +740,7 @@ function readMix(form) {
 function mixLabel(mix) {
   var parts = [];
   mix.forEach(function (r) {
-    if (!(Number(r.amount) > 0 && r.to > r.from)) return;
+    if (!(Number(r.percentOff) > 0 && r.to > r.from)) return;
     var n = String(r.type === 'own' ? r.label : (MIX_TYPE_SHORT[r.type] || ''))
       .replace(/[^A-Za-z0-9 ,.'&-]/g, '').trim();
     if (n && parts.indexOf(n) < 0) parts.push(n);
@@ -717,9 +776,11 @@ function readTicket(form, a) {
   var mech = $('.bmech', form) ? $('.bmech', form).value : 'member';
   var mix = readMix(form);
   if (mech === 'custom') {
-    var live = mix.filter(function (r) { return Number(r.amount) > 0 && r.to > r.from; });
+    var live = mix.filter(function (r) { return Number(r.percentOff) > 0 && r.to > r.from; });
     var unnamed = live.filter(function (r) { return r.type === 'own' && r.label.length < 3; });
-    if (!live.length) bad = bad || 'Give the mix at least one discount with an amount and a period.';
+    var overs = mix.filter(function (r) { return Number(r.percentOff) > 100; });
+    if (!live.length) bad = bad || 'Give the mix at least one discount with a percentage and a period.';
+    else if (overs.length) bad = bad || 'A discount cannot take more than 100% off the sticker price.';
     else if (unnamed.length) bad = bad || 'Name the discount you worded yourself, in 3 to 40 plain characters.';
   }
 
@@ -919,7 +980,7 @@ export function mount() {
     var from = last && last.to < guar ? last.to : 0;
     var fits = MIX_PERIODS.filter(function (p) { return p[0] === from && p[1] <= guar; });
     var win = fits.length ? fits[fits.length - 1] : [0, guar];
-    d.discountMix.push({ type: 'promo', label: '', amount: '', from: win[0], to: win[1] });
+    d.discountMix.push({ type: 'promo', label: '', percentOff: '', from: win[0], to: win[1] });
     set('ticketDraft', d);
     refreshMix();
   });
