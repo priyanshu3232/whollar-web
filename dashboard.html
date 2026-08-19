@@ -4304,8 +4304,15 @@ function npSel(cls,ph,groups,extra){
   });
   return o+'</select>';
 }
+/* The ceiling on every $/mo field, and the SAME number the server enforces
+   (`money: 2000` in PRODUCTS, routes/interest.js). It is here as one constant
+   because the two halves disagreeing is invisible: the server drops a value
+   over its cap silently, so a client that accepted more would thank the member
+   for an answer nobody stored. Above this is a typo, an annual figure or a
+   probe, not a monthly bill. */
+var NPPAYMAX=2000;
 function npNum(cls,label){
-  return '<input class="'+cls+'" type="number" min="0" step="1" inputmode="decimal" placeholder="$/mo" aria-label="'+esc(label)+'">';
+  return '<input class="'+cls+'" type="number" min="0" max="'+NPPAYMAX+'" step="1" inputmode="decimal" placeholder="$/mo" aria-label="'+esc(label)+'">';
 }
 
 /* ---------- the three detail tables ---------- */
@@ -4654,9 +4661,10 @@ function npMoney(row,cls){
   var v=String(el.value||'').trim();
   if(v==='')return null;
   var n=Number(v);
-  /* A negative or absurd bill is a typo or a probe. The server caps this too;
-     dropping it here just keeps the payload honest on the way out. */
-  return (isFinite(n)&&n>=0&&n<=100000)?Math.round(n):null;
+  /* A negative or absurd bill is a typo or a probe. Same ceiling as the input's
+     max and as the server's, so a number the store would drop cannot leave here
+     looking accepted. */
+  return (isFinite(n)&&n>=0&&n<=NPPAYMAX)?Math.round(n):null;
 }
 function npChecks(scope,cls){
   return $$('.'+cls+':checked',scope).map(function(i){return i.value});
