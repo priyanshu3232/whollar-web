@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Opening a cohort: the operator's guide</title>
+<style>
+:root{
+  --ink:#2B3A33; --ink2:#0A2018; --accent:#1E9E63; --accent-deep:#178A5A;
+  --mint:#E4F4EC; --terra:#C2643B; --terra-soft:#F7E7DD; --paper:#FAF8F3;
+  --line:#DFE5DF; --sub:#54625B;
+  --disp:-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --body:-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --mono:"Menlo","SF Mono",ui-monospace,monospace;
+}
+@page{size:A4;margin:15mm 14mm 16mm}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--body);color:var(--ink);font-size:9.6pt;line-height:1.5;background:#fff;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+h1,h2,h3,h4{font-family:var(--disp);letter-spacing:-.02em;color:var(--ink2)}
+code,.mono{font-family:var(--mono)}
+strong{color:var(--ink2)}
+.page{page-break-after:always}
+.page:last-child{page-break-after:auto}
+
+/* ---------- cover ---------- */
+.cover{padding-top:6mm}
+.brand{display:flex;align-items:center;gap:9px;margin-bottom:16mm}
+.brand b{font-family:var(--disp);font-weight:800;font-size:13pt;letter-spacing:-.03em}
+.brand span{font-size:8pt;color:var(--sub);border-left:1px solid var(--line);padding-left:9px}
+h1{font-size:31pt;font-weight:800;line-height:1.02;max-width:15cm}
+.lede{font-size:11.4pt;color:var(--sub);max-width:13.4cm;margin-top:7mm;line-height:1.45}
+.lede b{color:var(--ink2);font-weight:650}
+.coverfoot{margin-top:16mm;border-top:1px solid var(--line);padding-top:5mm;
+  display:grid;grid-template-columns:repeat(3,1fr);gap:7mm;font-size:8.4pt;color:var(--sub)}
+.coverfoot b{display:block;color:var(--ink2);font-size:8.6pt;margin-bottom:2px}
+
+/* ---------- structure ---------- */
+h2{font-size:16pt;font-weight:800;margin:0 0 1.5mm}
+.kicker{font-family:var(--mono);font-size:7.6pt;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent-deep);margin-bottom:2.5mm}
+.sub{color:var(--sub);max-width:15cm;margin-bottom:6mm}
+h3{font-size:11pt;font-weight:750;margin:7mm 0 2mm}
+p{margin-bottom:2.6mm;max-width:16cm}
+ul{margin:0 0 3mm 4.6mm}li{margin-bottom:1.4mm;max-width:15.6cm}
+
+/* ---------- panels ---------- */
+.panel{border:1px solid var(--line);border-radius:5mm;padding:6mm 6.5mm;background:var(--paper);
+  margin-bottom:5mm;page-break-inside:avoid}
+.panel.plain{background:#fff}
+.rule{border:1px solid var(--line);border-left:3.5px solid var(--accent);border-radius:2.5mm;
+  background:var(--mint);padding:3.4mm 5mm;margin:0 0 3.6mm;page-break-inside:avoid}
+.warn{border:1px solid #EBD3C4;border-left:3.5px solid var(--terra);border-radius:2.5mm;
+  background:var(--terra-soft);padding:3.4mm 5mm;margin:0 0 3.6mm;page-break-inside:avoid}
+.rule h4,.warn h4{font-size:9.8pt;font-weight:800;margin-bottom:1.4mm}
+.warn h4{color:#8C3F1D}
+.rule p:last-child,.warn p:last-child,.panel p:last-child{margin-bottom:0}
+
+/* ---------- code ---------- */
+pre{font-family:var(--mono);font-size:8pt;line-height:1.5;background:var(--ink2);color:#DFF0E6;
+  border-radius:3mm;padding:3.6mm 4.4mm;overflow:hidden;white-space:pre-wrap;word-break:break-word;
+  margin:0 0 3mm;page-break-inside:avoid}
+pre .c{color:#7FA893}
+pre .k{color:#7FE3B0}
+pre .s{color:#F0C9A8}
+pre.term{background:#fff;color:var(--ink2);border:1px solid var(--line)}
+pre.term .p{color:var(--accent-deep);font-weight:700}
+pre.term .f{color:var(--terra)}
+code{font-size:8.6pt;background:var(--mint);color:#0d4c33;padding:.5mm 1.4mm;border-radius:1.4mm}
+
+/* ---------- tables ---------- */
+table{width:100%;border-collapse:collapse;font-size:8.6pt;margin-bottom:4mm}
+tr{page-break-inside:avoid}
+thead{display:table-header-group}
+th{text-align:left;font-family:var(--disp);font-size:7.6pt;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--sub);border-bottom:1.4px solid var(--ink2);padding:0 3mm 1.8mm 0;vertical-align:bottom}
+td{border-bottom:1px solid var(--line);padding:1.8mm 3mm 1.8mm 0;vertical-align:top}
+td:last-child,th:last-child{padding-right:0}
+td.m,th.m{font-family:var(--mono);font-size:8pt;white-space:nowrap}
+tr.no td{background:#FDF6F2}
+
+/* ---------- step cards ---------- */
+.step{display:grid;grid-template-columns:11mm 1fr;gap:4mm;border:1px solid var(--line);
+  border-radius:4mm;padding:5mm 5.5mm;margin-bottom:4mm;page-break-inside:avoid;background:#fff}
+.step .n{font-family:var(--disp);font-weight:800;font-size:15pt;color:var(--accent-deep);
+  line-height:1;text-align:center;border-right:1px solid var(--line);padding-right:4mm}
+.step .n small{display:none}
+.step h3{margin:0 0 1.5mm;font-size:11.4pt}
+.step .why{color:var(--sub);margin-bottom:3mm}
+.tag{display:inline-block;font-family:var(--mono);font-size:7pt;letter-spacing:.07em;
+  text-transform:uppercase;padding:.9mm 2mm;border-radius:1.4mm;vertical-align:1.2mm;margin-left:2mm}
+.tag.t{background:var(--mint);color:#0d4c33}
+.tag.z{background:#EDEAFB;color:#3B3272}
+.tag.b{background:#FCEFE7;color:#8C3F1D}
+
+/* ---------- two-up ---------- */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:5mm}
+figure{margin:0 0 5mm;page-break-inside:avoid}
+figcaption{font-size:8pt;color:var(--sub);margin-top:2mm;max-width:16cm}
+figure svg{display:block;width:100%;height:auto}
+.brand svg{flex:none}
+.legend{font-size:8pt;color:var(--sub);display:flex;gap:6mm;flex-wrap:wrap;margin-top:2mm}
+.legend i{display:inline-block;width:3mm;height:3mm;border-radius:1mm;margin-right:1.5mm;vertical-align:-.3mm}
+</style>
+</head>
+<body>
+
+<!-- ============================ COVER ============================ -->
+<section class="page cover">
+  <div class="brand">
+    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#178A5A" stroke-width="1.9"
+      stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M10 20v-5h4v5"/></svg>
+    <b>Whollar</b><span>Operations</span>
+  </div>
+
+  <h1>Opening a cohort</h1>
+  <p class="lede">One row in one table puts a campaign in front of households
+    <b>and</b> in front of partners. This is what that row has to say, in what
+    order to write it, and why the newest cohort is the featured one.</p>
+
+
+  <figure style="margin-top:16mm">
+    <svg viewBox="0 0 700 250" role="img" aria-label="One campaigns row read by two dashboards">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M0 0 L10 5 L0 10 z" fill="#178A5A"/>
+        </marker>
+        <marker id="arg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M0 0 L10 5 L0 10 z" fill="#C2643B"/>
+        </marker>
+      </defs>
+
+      <!-- centre: the row -->
+      <rect x="248" y="86" width="204" height="78" rx="12" fill="#0A2018"/>
+      <text x="350" y="110" text-anchor="middle" font-family="Menlo,monospace" font-size="12" fill="#7FE3B0">campaigns</text>
+      <text x="350" y="130" text-anchor="middle" font-family="Helvetica,sans-serif" font-size="12.5" font-weight="700" fill="#fff">one row</text>
+      <text x="350" y="149" text-anchor="middle" font-family="Menlo,monospace" font-size="9.5" fill="#9FC4B1">one INSERT</text>
+
+      <!-- left: consumer -->
+      <rect x="14" y="74" width="196" height="102" rx="12" fill="#E4F4EC" stroke="#BFE3D0"/>
+      <text x="30" y="99" font-family="Helvetica,sans-serif" font-size="12" font-weight="700" fill="#0A2018">Consumer</text>
+      <text x="30" y="115" font-family="Menlo,monospace" font-size="9" fill="#54625B">/dashboard</text>
+      <text x="30" y="136" font-family="Helvetica,sans-serif" font-size="9.5" fill="#2B3A33">Campaigns near you</text>
+      <text x="30" y="151" font-family="Helvetica,sans-serif" font-size="9.5" fill="#2B3A33">the featured card</text>
+      <text x="30" y="166" font-family="Helvetica,sans-serif" font-size="9.5" fill="#2B3A33">the member rail</text>
+
+      <!-- right: partner -->
+      <rect x="490" y="74" width="196" height="102" rx="12" fill="#F7E7DD" stroke="#EBD3C4"/>
+      <text x="506" y="99" font-family="Helvetica,sans-serif" font-size="12" font-weight="700" fill="#0A2018">Partner</text>
+      <text x="506" y="115" font-family="Menlo,monospace" font-size="9" fill="#54625B">/partner</text>
+      <text x="506" y="136" font-family="Helvetica,sans-serif" font-size="9.5" fill="#2B3A33">the desk</text>
+      <text x="506" y="151" font-family="Helvetica,sans-serif" font-size="9.5" fill="#2B3A33">Open to bid</text>
+      <text x="506" y="166" font-family="Helvetica,sans-serif" font-size="9.5" fill="#2B3A33">the bid ticket</text>
+
+      <!-- arrows -->
+      <path d="M246 125 L216 125" stroke="#178A5A" stroke-width="2" marker-end="url(#ar)"/>
+      <path d="M454 125 L484 125" stroke="#C2643B" stroke-width="2" marker-end="url(#arg)"/>
+
+      <text x="228" y="112" text-anchor="middle" font-family="Menlo,monospace" font-size="8" fill="#178A5A">GET</text>
+      <text x="228" y="203" text-anchor="middle" font-family="Menlo,monospace" font-size="8.5" fill="#54625B">/campaigns</text>
+      <text x="472" y="112" text-anchor="middle" font-family="Menlo,monospace" font-size="8" fill="#C2643B">GET</text>
+      <text x="472" y="203" text-anchor="middle" font-family="Menlo,monospace" font-size="8.5" fill="#54625B">/provider/campaigns</text>
+      <path d="M228 190 L228 134" stroke="#DFE5DF" stroke-width="1"/>
+      <path d="M472 190 L472 134" stroke="#DFE5DF" stroke-width="1"/>
+
+      <!-- the coverage gate -->
+      <rect x="404" y="26" width="196" height="34" rx="8" fill="#fff" stroke="#C2643B" stroke-dasharray="4 3"/>
+      <text x="502" y="47" text-anchor="middle" font-family="Helvetica,sans-serif" font-size="9.5" fill="#8C3F1D">gated by provider_coverage</text>
+      <path d="M502 62 L502 72" stroke="#C2643B" stroke-width="1.4" stroke-dasharray="3 2"/>
+
+      <text x="350" y="232" text-anchor="middle" font-family="Helvetica,sans-serif" font-size="9.5" fill="#54625B">
+        Both sides read the same row. Neither side derives a stage of its own.</text>
+    </svg>
+  </figure>
+
+  <div class="coverfoot">
+    <div><b>Who this is for</b>The operator with ZCQL write access in the Catalyst console.</div>
+    <div><b>Companion files</b>scripts/cohort.mjs, docs/COHORT_RUNBOOK.md, create-tables.md sections 16, 18, 20.</div>
+    <div><b>Standing rule</b>The tools print statements. They never write. Every write is yours, pasted deliberately.</div>
+  </div>
+</section>
+
+<!-- ============================ THE MODEL ============================ -->
+<section class="page">
+  <p class="kicker">Part one</p>
+  <h2>Three rules that decide everything else</h2>
+  <p class="sub">Nothing in the command list makes sense until these are true in your head.
+    Each one is a single column doing a single job.</p>
+
+  <figure>
+    <svg viewBox="0 0 700 176" role="img" aria-label="The cohort lifecycle, with joins open on the first three kinds and bids open on auction">
+      <g font-family="Menlo,monospace" font-size="10.5">
+        <rect x="6"   y="52" width="104" height="34" rx="7" fill="#fff" stroke="#DFE5DF"/>
+        <text x="58"  y="74" text-anchor="middle" fill="#2B3A33">planned</text>
+        <rect x="122" y="52" width="104" height="34" rx="7" fill="#fff" stroke="#DFE5DF"/>
+        <text x="174" y="74" text-anchor="middle" fill="#2B3A33">waitlist</text>
+        <rect x="238" y="52" width="104" height="34" rx="7" fill="#E4F4EC" stroke="#1E9E63" stroke-width="1.6"/>
+        <text x="290" y="74" text-anchor="middle" fill="#0A2018" font-weight="700">forming</text>
+        <rect x="354" y="52" width="104" height="34" rx="7" fill="#F7E7DD" stroke="#C2643B" stroke-width="1.6"/>
+        <text x="406" y="74" text-anchor="middle" fill="#0A2018" font-weight="700">auction</text>
+        <rect x="470" y="52" width="104" height="34" rx="7" fill="#fff" stroke="#DFE5DF"/>
+        <text x="522" y="74" text-anchor="middle" fill="#2B3A33">closed</text>
+        <rect x="586" y="52" width="104" height="34" rx="7" fill="#fff" stroke="#DFE5DF"/>
+        <text x="638" y="74" text-anchor="middle" fill="#54625B">archived</text>
+      </g>
+      <g stroke="#9FB5A8" stroke-width="1.6" fill="none" marker-end="url(#ar)">
+        <path d="M110 69 L118 69"/><path d="M226 69 L234 69"/><path d="M342 69 L350 69"/>
+        <path d="M458 69 L466 69"/><path d="M574 69 L582 69"/>
+      </g>
+      <!-- brackets -->
+      <path d="M6 34 L6 24 L342 24 L342 34" fill="none" stroke="#178A5A" stroke-width="1.6"/>
+      <text x="174" y="17" text-anchor="middle" font-family="Helvetica,sans-serif" font-size="10.5"
+        font-weight="700" fill="#178A5A">households can JOIN</text>
+      <path d="M354 104 L354 114 L458 114 L458 104" fill="none" stroke="#C2643B" stroke-width="1.6"/>
+      <text x="406" y="129" text-anchor="middle" font-family="Helvetica,sans-serif" font-size="10.5"
+        font-weight="700" fill="#C2643B">partners can BID</text>
+      <text x="406" y="145" text-anchor="middle" font-family="Helvetica,sans-serif" font-size="9.5" fill="#54625B">
+        and only with bidding_open = true</text>
+      <text x="350" y="170" text-anchor="middle" font-family="Helvetica,sans-serif" font-size="9.5" fill="#54625B">
+        The brackets do not overlap. That is the first rule.</text>
+    </svg>
+  </figure>
+
+  <div class="rule">
+    <h4>Rule 1. A cohort takes joins or bids, never both</h4>
+    <p><code>kind</code> is one column. Joining is open on <code>planned</code>,
+    <code>waitlist</code> and <code>forming</code>. Bidding is open on <code>auction</code>.
+    A sealed auction runs against a locked household count, so the moment bidding opens,
+    joining is over, permanently. There is no join path back.</p>
+  </div>
+
+  <div class="rule">
+    <h4>Rule 2. The server owns the stage. The browser only renders it</h4>
+    <p>Stage is derived on every read from the seven calendar dates, never stored and never
+    computed in a browser. A visitor's clock running four minutes fast must not be able to
+    disagree with the server about whether a sealed window is open. Labels come down the wire;
+    countdowns offset from the <code>serverTime</code> in the same response.</p>
+  </div>
+
+  <div class="rule">
+    <h4>Rule 3. Featured is not a column. It is the lowest sort_order</h4>
+    <p>The catalog is sorted ascending, so the smallest <code>sort_order</code> is the first
+    card. To make the newest cohort featured you count <b>down</b>, which is also why adding a
+    cohort never has to rewrite the ones already there.</p>
+  </div>
+
+</section>
+
+<!-- ============================ FEATURED ============================ -->
+<section class="page">
+  <p class="kicker">Part two</p>
+  <h2>Why the newest cohort is the featured one</h2>
+  <p class="sub">You asked for cohort B, created after A, to be featured, with A sliding to
+    position 1. That works, and it takes exactly one number.</p>
+
+  <figure>
+    <svg viewBox="0 0 700 268" role="img" aria-label="Adding a cohort with a lower sort_order makes it featured and pushes the previous one to position 1">
+      <!-- before -->
+      <text x="8" y="16" font-family="Helvetica,sans-serif" font-size="10.5" font-weight="700" fill="#54625B">BEFORE: one cohort</text>
+      <rect x="8" y="30" width="200" height="52" rx="9" fill="#E4F4EC" stroke="#1E9E63" stroke-width="1.8"/>
+      <text x="22" y="50" font-family="Helvetica,sans-serif" font-size="11" font-weight="700" fill="#0A2018">Cohort A</text>
+      <text x="22" y="67" font-family="Menlo,monospace" font-size="9" fill="#178A5A">sort_order 100</text>
+      <text x="196" y="50" text-anchor="end" font-family="Menlo,monospace" font-size="8" fill="#178A5A">FEATURED</text>
+      <text x="196" y="67" text-anchor="end" font-family="Menlo,monospace" font-size="8" fill="#54625B">position 0</text>
+
+      <!-- the insert -->
+      <path d="M108 92 L108 116" stroke="#C2643B" stroke-width="1.6" marker-end="url(#arg)"/>
+      <rect x="8" y="120" width="200" height="34" rx="7" fill="#fff" stroke="#C2643B" stroke-dasharray="4 3"/>
+      <text x="108" y="141" text-anchor="middle" font-family="Menlo,monospace" font-size="9" fill="#8C3F1D">INSERT B, sort_order 99</text>
+      <path d="M108 158 L108 178" stroke="#C2643B" stroke-width="1.6" marker-end="url(#arg)"/>
+
+      <!-- after -->
+      <text x="8" y="200" font-family="Helvetica,sans-serif" font-size="10.5" font-weight="700" fill="#54625B">AFTER: nothing was rewritten</text>
+      <rect x="8" y="210" width="200" height="24" rx="7" fill="#E4F4EC" stroke="#1E9E63" stroke-width="1.8"/>
+      <text x="22" y="226" font-family="Helvetica,sans-serif" font-size="10" font-weight="700" fill="#0A2018">Cohort B</text>
+      <text x="196" y="226" text-anchor="end" font-family="Menlo,monospace" font-size="8" fill="#178A5A">99 · FEATURED</text>
+      <rect x="8" y="238" width="200" height="24" rx="7" fill="#fff" stroke="#DFE5DF"/>
+      <text x="22" y="254" font-family="Helvetica,sans-serif" font-size="10" fill="#2B3A33">Cohort A</text>
+      <text x="196" y="254" text-anchor="end" font-family="Menlo,monospace" font-size="8" fill="#54625B">100 · position 1</text>
+
+      <!-- divider -->
+      <path d="M240 8 L240 262" stroke="#DFE5DF" stroke-width="1"/>
+
+      <!-- the ladder -->
+      <text x="266" y="16" font-family="Helvetica,sans-serif" font-size="10.5" font-weight="700" fill="#54625B">THE LADDER: start at 100, count down</text>
+      <g font-family="Menlo,monospace" font-size="9.5">
+        <rect x="266" y="30" width="420" height="26" rx="6" fill="#E4F4EC" stroke="#1E9E63" stroke-width="1.6"/>
+        <text x="280" y="47" fill="#0A2018">97</text><text x="322" y="47" fill="#0A2018">fourth cohort created</text>
+        <text x="672" y="47" text-anchor="end" fill="#178A5A">featured today</text>
+        <rect x="266" y="62" width="420" height="26" rx="6" fill="#fff" stroke="#DFE5DF"/>
+        <text x="280" y="79" fill="#2B3A33">98</text><text x="322" y="79" fill="#2B3A33">third cohort</text>
+        <text x="672" y="79" text-anchor="end" fill="#54625B">position 1</text>
+        <rect x="266" y="94" width="420" height="26" rx="6" fill="#fff" stroke="#DFE5DF"/>
+        <text x="280" y="111" fill="#2B3A33">99</text><text x="322" y="111" fill="#2B3A33">second cohort</text>
+        <text x="672" y="111" text-anchor="end" fill="#54625B">position 2</text>
+        <rect x="266" y="126" width="420" height="26" rx="6" fill="#fff" stroke="#DFE5DF"/>
+        <text x="280" y="143" fill="#2B3A33">100</text><text x="322" y="143" fill="#2B3A33">first cohort ever</text>
+        <text x="672" y="143" text-anchor="end" fill="#54625B">position 3</text>
+      </g>
+      <text x="266" y="176" font-family="Helvetica,sans-serif" font-size="9.5" fill="#54625B">The next one takes 96. No UPDATE to any row above it.</text>
+      <rect x="266" y="188" width="420" height="74" rx="8" fill="#FDF6F2" stroke="#EBD3C4"/>
+      <text x="282" y="208" font-family="Helvetica,sans-serif" font-size="10" font-weight="700" fill="#8C3F1D">The alternative, and why not</text>
+      <text x="282" y="226" font-family="Helvetica,sans-serif" font-size="9.5" fill="#2B3A33">Renumbering upward means one UPDATE per existing</text>
+      <text x="282" y="241" font-family="Helvetica,sans-serif" font-size="9.5" fill="#2B3A33">cohort, every time. The one you miss is the one that</text>
+      <text x="282" y="256" font-family="Helvetica,sans-serif" font-size="9.5" fill="#2B3A33">stays featured, and nothing tells you.</text>
+    </svg>
+    <figcaption>Ascending sort means lower is earlier. Counting down is what makes "newest first"
+      a single number rather than a migration.</figcaption>
+  </figure>
+
+  <h3>The three things that outrank your number</h3>
+  <p>"Featured" is decided by the member dashboard in this order. Your <code>sort_order</code>
+  is the last tiebreak, not the first authority.</p>
+
+  <table>
+    <tr><th style="width:10%">Order</th><th style="width:36%">What wins</th><th>Consequence for you</th></tr>
+    <tr><td class="m">1st</td><td><b>The member's own cohort</b></td>
+      <td>A household that has joined something always sees theirs featured. Nothing you write changes that, and it should not.</td></tr>
+    <tr><td class="m">2nd</td><td><b>kind</b>, in lifecycle order</td>
+      <td>A <code>forming</code> cohort sits above every <code>auction</code> one whatever its number. So "newest featured" holds only among cohorts of the <b>same kind</b>. Households read what they can join before what they cannot.</td></tr>
+    <tr><td class="m">3rd</td><td><b>sort_order</b>, ascending</td>
+      <td>Your ladder. It orders cohorts inside one kind.</td></tr>
+  </table>
+
+  <div class="warn">
+    <h4>The one thing to accept before you start</h4>
+    <p>A cohort that is open to bid is an <code>auction</code>, and an auction is not joinable.
+    So the featured card will read <b>Sealed bidding</b> and will carry <b>no join button</b>.
+    That is rule 1 doing its job, not a bug.</p>
+    <p style="margin-top:2mm">If the featured card must be joinable, create at
+    <code>forming</code> instead, collect the joins, and open the auction afterwards. That is
+    the long path in <code>docs/COHORT_RUNBOOK.md</code>. You cannot have both at once on one
+    cohort.</p>
+  </div>
+</section>
+
+<!-- ============================ THE COMMANDS ============================ -->
+<section class="page">
+  <p class="kicker">Part three</p>
+  <h2>The sequence, start to finish</h2>
+  <p class="sub">Seven steps. The <span class="tag t">terminal</span> steps print statements and
+    write nothing. The <span class="tag z">zcql</span> steps are what you paste into Catalyst
+    console, Data Store, ZCQL, environment Development.</p>
+
+  <div class="panel plain" style="margin-bottom:6mm">
+    <h3 style="margin-top:0">Fill these in once</h3>
+    <table style="margin-bottom:0">
+      <tr><th class="m" style="width:24%">Placeholder</th><th style="width:30%">What it is</th><th>Not negotiable</th></tr>
+      <tr><td class="m">&lt;ID&gt;</td><td>the slug, <code>campaign_id</code></td>
+        <td>3 to 64 characters of a-z, 0-9, hyphen. Permanent: both dashboards key on it and every bid receipt is built from it. Never appears on screen.</td></tr>
+      <tr><td class="m">&lt;REGION&gt;</td><td>the region name</td>
+        <td>Must be one of the 37. This is the whole join to a partner.</td></tr>
+      <tr><td class="m">&lt;REGION_SLUG&gt;</td><td>region, lowercased, runs of non-alphanumerics to one hyphen</td>
+        <td>Only used to build <code>coverage_key</code>.</td></tr>
+      <tr><td class="m">&lt;SORT&gt;</td><td><code>sort_order</code></td>
+        <td>Lower is featured. Start at 100, take one off per cohort.</td></tr>
+      <tr><td class="m">&lt;DAYS&gt;</td><td>days until bids close</td>
+        <td>1 to 6 opens the window now. 8 or more writes <code>bidding_open = false</code>.</td></tr>
+      <tr><td class="m">&lt;ORG_ID&gt;</td><td>the partner org that should see it</td>
+        <td>From <code>SELECT org_id, legal_name FROM provider_orgs;</code></td></tr>
+    </table>
+  </div>
+
+  <div class="step">
+    <div class="n">1<small>zcql</small></div>
+    <div>
+      <h3>Prove the tables exist <span class="tag z">zcql</span></h3>
+      <p class="why">Each of these must return <b>without an error</b>. Zero rows is a pass.
+        Run this once per environment, not once per cohort.</p>
+<pre><span class="k">SELECT</span> ROWID <span class="k">FROM</span> campaigns <span class="k">LIMIT</span> 1;
+<span class="k">SELECT</span> announce_at, bidding_opens_at, bidding_closes_at, offers_at,
+       decision_at, switch_window_at, reconcile_at <span class="k">FROM</span> campaigns <span class="k">LIMIT</span> 1;
+<span class="k">SELECT</span> ROWID <span class="k">FROM</span> campaign_members <span class="k">LIMIT</span> 1;
+<span class="k">SELECT</span> coverage_key, org_id, region, status <span class="k">FROM</span> provider_coverage <span class="k">LIMIT</span> 1;
+<span class="k">SELECT</span> acceptance_key, org_id, doc_type, doc_version <span class="k">FROM</span> provider_terms <span class="k">LIMIT</span> 1;</pre>
+      <p style="margin-bottom:0">Anything that errors gets built from <code>create-tables.md</code>,
+      sections 16, 18 and 20. An existence check that needs no console at all:
+      <code>cd catalyst-backend &amp;&amp; catalyst ds:export --table campaigns --page 1</code></p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="n">2<small>terminal</small></div>
+    <div>
+      <h3>Check the name can be bid on <span class="tag t">terminal</span></h3>
+      <p class="why">This is the check ZCQL cannot do for you, and the one that has already
+        produced live cohorts nobody could bid on.</p>
+<pre class="term"><span class="p">node</span> scripts/cohort.mjs regions</pre>
+      <p style="margin-bottom:0"><code>&lt;REGION&gt;</code> must be in that list. <code>&lt;ID&gt;</code>
+      is usually its slug but does not have to be: <code>region</code> is what renders and what
+      coverage matches, <code>&lt;ID&gt;</code> is only the key.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="n">3<small>both</small></div>
+    <div>
+      <h3>Create it, open to bid, in one statement <span class="tag t">terminal</span> <span class="tag z">zcql</span></h3>
+      <p class="why">One <code>INSERT</code> is the entire creation, for both dashboards at once.
+        There is no second row to write for the consumer side.</p>
+<pre class="term"><span class="p">node</span> scripts/cohort.mjs seed <span class="f">&lt;ID&gt;</span> --regions <span class="f">"&lt;REGION&gt;"</span> --first <span class="f">&lt;DAYS&gt;</span> --sort <span class="f">&lt;SORT&gt;</span></pre>
+      <p>Paste the one <code>INSERT</code> it prints. It carries <code>kind = 'auction'</code>,
+      <code>bidding_open = true</code> and all seven calendar dates:</p>
+<pre><span class="k">INSERT INTO</span> campaigns (campaign_id, region, kind, seed_members, seed_households,
+  bidding_open, sort_order, updated_by, updated_at, announce_at, bidding_opens_at,
+  bidding_closes_at, offers_at, decision_at, switch_window_at, reconcile_at)
+<span class="k">VALUES</span> (<span class="s">'&lt;ID&gt;'</span>, <span class="s">'&lt;REGION&gt;'</span>, <span class="s">'auction'</span>, 0, 0, <span class="k">true</span>, <span class="s">&lt;SORT&gt;</span>, <span class="s">'manual'</span>, <span class="s">'&lt;now&gt;'</span>,
+  <span class="c">/* the seven dates, spaced around the close: */</span>
+  <span class="s">'&lt;close -10d&gt;'</span>, <span class="s">'&lt;close -7d&gt;'</span>, <span class="s">'&lt;close&gt;'</span>, <span class="s">'&lt;close +2d&gt;'</span>,
+  <span class="s">'&lt;close +9d&gt;'</span>, <span class="s">'&lt;close +12d&gt;'</span>, <span class="s">'&lt;close +26d&gt;'</span>);</pre>
+      <p style="margin-bottom:0"><code>--regions</code> can be dropped when <code>&lt;ID&gt;</code>
+      title-cases into <code>&lt;REGION&gt;</code> exactly. Seeds stay at 0 deliberately: a seed count
+      is added to real joins on both surfaces, so a non-zero seed is padding a partner will
+      eventually bid against.</p>
+    </div>
+  </div>
+</section>
+
+<section class="page">
+  <div class="step">
+    <div class="n">4<small>both</small></div>
+    <div>
+      <h3>Give it coverage, or it reaches nobody <span class="tag t">terminal</span> <span class="tag z">zcql</span></h3>
+      <p class="why">A <code>campaigns</code> row alone is on <b>no</b> partner's desk. It reaches
+        every partner whose declared coverage matches the region and is active, and nobody else.
+        One row per org, per region.</p>
+<pre class="term"><span class="p">node</span> scripts/cohort.mjs coverage <span class="f">&lt;ORG_ID&gt;</span> --region <span class="f">"&lt;REGION&gt;"</span></pre>
+      <p>That prints the <code>INSERT</code>, and the <code>UPDATE</code> to use when the row
+      already exists. New coverage lands <code>verifying</code>, which greys the desk row with
+      "Verifies with &lt;REGION&gt; coverage". Move it on:</p>
+<pre><span class="k">UPDATE</span> provider_coverage
+<span class="k">SET</span> status = <span class="s">'active'</span>, verified_at = <span class="s">'&lt;now&gt;'</span>, rejection_reason = <span class="s">''</span>, updated_at = <span class="s">'&lt;now&gt;'</span>
+<span class="k">WHERE</span> coverage_key = <span class="s">'&lt;ORG_ID&gt;:&lt;REGION_SLUG&gt;'</span>;</pre>
+      <p style="margin-bottom:0">If that errors on the last two columns they do not exist yet.
+      Drop them and set <code>status</code> alone, which is the fallback the admin route takes.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="n">5<small>zcql</small></div>
+    <div>
+      <h3>Clear the three gates on the bid itself <span class="tag z">zcql</span></h3>
+      <p class="why">Only needed if a partner is meant to actually place a bid, not just see the
+        cohort. Each of these refuses with its own message, so the message tells you which one.</p>
+<pre><span class="k">UPDATE</span> provider_orgs  <span class="k">SET</span> approval_status = <span class="s">'approved'</span> <span class="k">WHERE</span> org_id  = <span class="s">'&lt;ORG_ID&gt;'</span>;
+<span class="k">UPDATE</span> provider_users <span class="k">SET</span> role = <span class="s">'admin'</span>              <span class="k">WHERE</span> user_id = <span class="s">'&lt;USER_ID&gt;'</span>;
+<span class="k">SELECT</span> config_key, value <span class="k">FROM</span> site_config <span class="k">WHERE</span> config_key = <span class="s">'bidding_enabled'</span>;</pre>
+      <p style="margin-bottom:0">Orgs are created <code>pending</code> and nothing self-approves.
+      The first seat in an org is <code>admin</code> and every seat after is <code>viewer</code>,
+      which cannot bid. <code>bidding_enabled</code> absent means on. The standard cohort terms
+      are accepted by the partner in their own console, so <code>provider_terms</code> needs to
+      exist but needs no row from you.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="n">6<small>both</small></div>
+    <div>
+      <h3>Every later cohort takes a lower number <span class="tag t">terminal</span> <span class="tag z">zcql</span></h3>
+      <p class="why">This is the featured flow. Cohort A is already in the table at
+        <code>&lt;SORT_A&gt;</code>. The new one gets <code>&lt;SORT_A&gt; - 1</code>.</p>
+<pre class="term"><span class="p">node</span> scripts/cohort.mjs seed <span class="f">&lt;ID_B&gt;</span> --regions <span class="f">"&lt;REGION_B&gt;"</span> --first <span class="f">&lt;DAYS&gt;</span> --sort <span class="f">&lt;SORT_B&gt;</span></pre>
+      <p>B is now featured, A is position 1, both are live, both are open to bid, and the A row
+      was never touched. Then step 4 again for <code>&lt;REGION_B&gt;</code>: coverage is per
+      region, so a partner covering A's region sees nothing of B's.</p>
+      <p>To hand the featured slot back, move the newer cohort <b>below</b> the older one rather
+      than moving the older one up, so only one row is ever rewritten:</p>
+<pre><span class="k">UPDATE</span> campaigns <span class="k">SET</span> sort_order = <span class="s">&lt;SORT_A + 1&gt;</span> <span class="k">WHERE</span> campaign_id = <span class="s">'&lt;ID_B&gt;'</span>;</pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="n">7<small>both</small></div>
+    <div>
+      <h3>Verify what both sides will read <span class="tag t">terminal</span> <span class="tag z">zcql</span></h3>
+      <p class="why">Wait 60 seconds first. The catalog is memoized for a minute, and
+        hand-written ZCQL cannot invalidate it the way the admin routes do.</p>
+<pre class="term"><span class="p">node</span> scripts/cohort.mjs verify <span class="f">&lt;ID&gt;</span></pre>
+<pre><span class="k">SELECT</span> campaign_id, region, kind, bidding_open, sort_order <span class="k">FROM</span> campaigns;
+<span class="k">SELECT</span> org_id, region, status <span class="k">FROM</span> provider_coverage;</pre>
+      <p style="margin-bottom:0">That first result, read top to bottom, <b>is</b> the card order
+      on <code>/dashboard</code> inside each <code>kind</code> bucket. Then, signed in on each
+      side: <code>GET /api/auth/campaigns</code> and
+      <code>GET /api/auth/provider/campaigns</code>. Check <code>live</code> on both.
+      <code>live: false</code> means <code>campaign_members</code> was unreadable and every count
+      is a seed, which looks exactly like a cohort nobody joined.</p>
+    </div>
+  </div>
+  <div class="rule" style="margin-top:5mm">
+    <h4>Two habits worth keeping</h4>
+    <p><b>Never DELETE a campaign row.</b> There are no foreign keys, so its
+    <code>campaign_members</code> rows survive pointing at nothing. A duplicate key error means
+    the cohort exists: <code>SELECT</code> it and <code>UPDATE</code> what you meant to change.</p>
+    <p style="margin-top:2mm"><b>Let the tool write the literals.</b> ZCQL here has no parameter
+    binding, so <code>cohort.mjs</code> refuses a value containing a quote or a backslash rather
+    than escaping it. A rejected value is a typo you fix. An escaped one is a habit, in a console
+    with full write access.</p>
+  </div>
+</section>
+
+<!-- ============================ COVERAGE + EXPECTATIONS ============================ -->
+<section class="page">
+  <p class="kicker">Part four</p>
+  <h2>What opens a window, and what fails silently</h2>
+  <p class="sub">Read this page before you conclude that something is broken. The single most
+    common surprise is a cohort that is in the table, visible to households, and absent from
+    every partner desk.</p>
+
+  <h3>What actually opens a bid window</h3>
+  <p>Four conditions, all four checked on the server on every bid write. Three of them are
+  rows you control. The fourth is the clock.</p>
+
+  <table>
+    <tr><th style="width:36%">Condition</th><th style="width:26%">Where it lives</th><th>If it is wrong</th></tr>
+    <tr><td class="m">kind = 'auction'</td><td class="m">campaigns</td><td>The desk shows the cohort with no bid button.</td></tr>
+    <tr><td class="m">bidding_open = true</td><td class="m">campaigns</td><td>Same. Entering auction never opens bidding on its own, by design.</td></tr>
+    <tr><td class="m">bidding_closes_at ahead</td><td class="m">campaigns</td><td>Every bid is refused while the row still reads open. Dates may close a window and may never open one.</td></tr>
+    <tr><td class="m">bidding_enabled</td><td class="m">site_config</td><td>Global kill switch. Absent means on.</td></tr>
+  </table>
+
+  <div class="warn">
+    <h4>Two failures that are completely silent</h4>
+    <p><b>A region no partner can declare.</b> The region name is the entire join between a
+    cohort and a partner, matched by slug, server side. Name a cohort for a place outside the
+    37 declarable regions and it renders on both dashboards, takes joins, runs its clock down,
+    and takes no bids. Nothing is logged. It reads as a market that did not bite.</p>
+    <p style="margin-top:2mm"><b>A missing table.</b> <code>campaigns</code> and
+    <code>campaign_members</code> fall back to a code catalog and seed counts when they cannot
+    be read, so their absence looks like a working site. <code>provider_terms</code> is the
+    opposite: it fails closed, and while it is missing no bid can be placed at all.</p>
+  </div>
+
+  <h3>Coverage: who a cohort reaches</h3>
+
+  <figure>
+    <svg viewBox="0 0 700 210" role="img" aria-label="A cohort reaches only the partners whose active coverage slug matches its region">
+      <rect x="8" y="72" width="180" height="62" rx="10" fill="#0A2018"/>
+      <text x="98" y="96" text-anchor="middle" font-family="Menlo,monospace" font-size="9.5" fill="#7FE3B0">campaigns</text>
+      <text x="98" y="114" text-anchor="middle" font-family="Helvetica,sans-serif" font-size="10.5" fill="#fff">region: &lt;REGION&gt;</text>
+      <text x="98" y="128" text-anchor="middle" font-family="Menlo,monospace" font-size="8.5" fill="#9FC4B1">slug: &lt;REGION_SLUG&gt;</text>
+
+      <path d="M192 103 L232 103" stroke="#9FB5A8" stroke-width="1.6" marker-end="url(#ar)"/>
+      <text x="212" y="94" text-anchor="middle" font-family="Menlo,monospace" font-size="8" fill="#54625B">slug ==</text>
+
+      <!-- partner rows -->
+      <rect x="236" y="20" width="456" height="46" rx="9" fill="#E4F4EC" stroke="#1E9E63" stroke-width="1.6"/>
+      <text x="252" y="40" font-family="Helvetica,sans-serif" font-size="10.5" font-weight="700" fill="#0A2018">Partner 1</text>
+      <text x="252" y="56" font-family="Menlo,monospace" font-size="8.5" fill="#178A5A">coverage &lt;REGION_SLUG&gt; · status active</text>
+      <text x="676" y="49" text-anchor="end" font-family="Helvetica,sans-serif" font-size="10" font-weight="700" fill="#178A5A">on the desk, can bid</text>
+
+      <rect x="236" y="74" width="456" height="46" rx="9" fill="#FDF6F2" stroke="#EBD3C4"/>
+      <text x="252" y="94" font-family="Helvetica,sans-serif" font-size="10.5" font-weight="700" fill="#0A2018">Partner 2</text>
+      <text x="252" y="110" font-family="Menlo,monospace" font-size="8.5" fill="#8C3F1D">coverage &lt;REGION_SLUG&gt; · status verifying</text>
+      <text x="676" y="103" text-anchor="end" font-family="Helvetica,sans-serif" font-size="10" font-weight="700" fill="#8C3F1D">greyed, cannot bid</text>
+
+      <rect x="236" y="128" width="456" height="46" rx="9" fill="#fff" stroke="#DFE5DF"/>
+      <text x="252" y="148" font-family="Helvetica,sans-serif" font-size="10.5" font-weight="700" fill="#54625B">Partner 3</text>
+      <text x="252" y="164" font-family="Menlo,monospace" font-size="8.5" fill="#54625B">coverage some-other-region · active</text>
+      <text x="676" y="157" text-anchor="end" font-family="Helvetica,sans-serif" font-size="10" fill="#54625B">sees nothing at all</text>
+
+      <text x="350" y="198" text-anchor="middle" font-family="Helvetica,sans-serif" font-size="9.5" fill="#54625B">
+        Partner 3 is not an error state. No partner ever learns a cohort outside their coverage exists.</text>
+    </svg>
+  </figure>
+
+  <h3>One minute after the INSERT</h3>
+  <table>
+    <tr><th style="width:22%"></th><th style="width:39%">Consumer, /dashboard</th><th>Partner, /partner</th></tr>
+    <tr><td><b>Appears as</b></td><td>a card in "Campaigns near you", badge <b>Sealed bidding</b></td>
+      <td>a desk row, <b>only where coverage is active</b></td></tr>
+    <tr><td><b>Stage</b></td><td><code>bidding</code></td><td><code>open</code>, or <code>closing</code> in the last 24 hours</td></tr>
+    <tr><td><b>Can act</b></td><td>No. An auction is not joinable</td><td>Yes, once steps 4 and 5 are done</td></tr>
+    <tr><td><b>Refreshes</b></td><td>on its own, every 15 seconds while the calendar fits in 36 hours</td>
+      <td><b>never.</b> The console fetches once at boot, so reload it after any ZCQL write</td></tr>
+  </table>
+
+  <div class="warn">
+    <h4>The first row you ever insert hides the other six</h4>
+    <p>An <b>empty</b> <code>campaigns</code> table falls back to the six-region code catalog. A
+    populated one is the truth. So the moment your first cohort lands, the six demo regions
+    disappear from both dashboards. Insert every region you want visible, or expect a one-card
+    site.</p>
+  </div>
+
+  <h3>When it still looks wrong</h3>
+  <table>
+    <tr><th style="width:44%">What you see</th><th>What it is</th></tr>
+    <tr><td>Nothing changed on either dashboard</td><td>The 60 second catalog memo. Wait, then reload.</td></tr>
+    <tr><td>The new cohort is not featured, and kinds differ</td><td>Working as designed. <code>kind</code> is read before <code>sort_order</code>.</td></tr>
+    <tr><td>The new cohort is not featured, all are auctions</td><td>Its <code>sort_order</code> is not the lowest. Check step 7's first query.</td></tr>
+    <tr><td>The featured card has no join button</td><td>It is an auction. Auctions are never joinable.</td></tr>
+    <tr><td>One member sees a different featured card</td><td>They have joined a cohort. Theirs always wins.</td></tr>
+    <tr class="no"><td>The row is missing entirely, and <code>kind</code> looks right</td>
+      <td><code>kind</code> is not lowercase, or not one of the six. Anything else is read as <code>planned</code> and nothing is logged.</td></tr>
+    <tr class="no"><td>Desk reads <b>Announced</b>, no bid button</td>
+      <td><code>bidding_opens_at</code> is still ahead, so <code>bidding_open</code> was written <code>false</code>. Use a smaller <code>&lt;DAYS&gt;</code>, or <code>cohort.mjs bidding &lt;ID&gt; --on</code>.</td></tr>
+    <tr class="no"><td><code>bidding_open</code> is true and every bid is refused</td>
+      <td><code>bidding_closes_at</code> has passed, or <code>bidding_enabled</code> is false.</td></tr>
+    <tr class="no"><td>"Bidding is not available right now"</td>
+      <td><code>bid_revisions</code> or the fifteen extra <code>provider_bids</code> columns do not exist. Section 18.</td></tr>
+    <tr class="no"><td><code>bidding_open</code> reads false right after you set it</td>
+      <td>The bare <code>true</code> literal was not accepted. Try <code>'true'</code>, then <code>1</code>, then the row's checkbox in the Data Store UI. All three are read as true.</td></tr>
+    <tr class="no"><td>Counts frozen, <code>live: false</code></td>
+      <td><code>campaign_members</code> is unreadable. Every count on screen is a seed.</td></tr>
+  </table>
+
+</section>
+
+</body>
+</html>

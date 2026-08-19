@@ -125,3 +125,11 @@ whollar-welcome-v2.html
 # paths, so the lowercase spelling matched nothing and shipped every original,
 # the 2.9 MB one included. macOS cannot show you that mistake.
 Campaignphotos/
+
+# The operator's guide to opening a cohort, kept in the repo as the printable
+# companion to docs/COHORT_RUNBOOK.md. Same reason as docs/prototype above:
+# docs/ itself IS deployed, so cleanUrls would publish the .html at
+# /docs/console/cohort-launch-guide and serve the PDF verbatim beside it. It
+# names internal steps and internal table columns and is written for staff.
+docs/console/cohort-launch-guide.html
+docs/console/cohort-launch-guide.pdf
