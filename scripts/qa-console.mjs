@@ -20,7 +20,8 @@
  * all 11 views, four widths, the burger's two behaviours, the completeness of
  * the 67-endpoint register, all 20 fixture states, the fixture layer declining
  * to install off localhost, the bid ticket (seven-column tier table, consent
- * gate, a sealed place round-trip), the sealed receipt with no withdraw path
+ * gate, a sealed place round-trip), the custom mix with its schedule, its
+ * arithmetic across the guarantee and its second confirmation, the sealed receipt with no withdraw path
  * anywhere, the my-bids record with its nudge and result pills, and the
  * contracts registry with its terms gate on the desk, the landing view an
  * unapproved partner arrives on with no hash, the four ticket panels a cohort
@@ -639,6 +640,152 @@ console.log('\n16. the ticket: seven columns, consent gates the seal, place roun
   ok(placed === 'sealed', `placing writes the sealed bid into state (${placed})`);
   const deskText = await p.locator('#desk-body').innerText();
   ok(/Sealed/.test(deskText), 'and the desk row now shows the sealed pill');
+  await c.close();
+}
+
+console.log('\n16b. the custom mix: a schedule, its arithmetic, and a second confirmation');
+{
+  const c = await ctx(browser, { record: REC, me: APPROVED });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/partner?fixture=open`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(120);
+  await p.click('[data-action="desk:open"]');
+  await p.waitForTimeout(150);
+
+  ok(!(await p.locator('.mixw').isVisible()), 'the mix stays hidden until custom is chosen');
+  ok(await p.locator('.bmech option[value="custom"]').innerText() === 'Custom, choose your mix',
+    'the custom option names the mix, not a wording box');
+
+  await p.selectOption('.bmech', 'custom');
+  await p.waitForTimeout(150);
+  ok(await p.locator('.mixw').isVisible(), 'choosing custom opens the schedule');
+  ok(await p.locator('.bmechtxt').count() === 0, 'and the old single wording box is gone');
+
+  const head = await p.locator('.mixt thead').innerText();
+  ok(/discount type/i.test(head) && /discount, \$ \/mo/i.test(head) && /valid time period/i.test(head),
+    'three columns: type, amount, window');
+  ok(await p.locator('.mrow').count() === 1, 'it opens on one row');
+
+  /* The default row states the gap the tier row beside it already states, so
+     the mix and the prices agree before anything is typed. */
+  let sum = await p.locator('.mixsum').innerText();
+  ok(/24-month guarantee/i.test(sum), 'the panel is scoped to the whole guarantee');
+  ok(/\$720/.test(sum) && /\$30 \/mo/.test(sum), 'total and average reduction across the term ($720, $30/mo)');
+  ok(/\$56 \/mo/.test(sum), 'and the effective monthly price it implies ($56)');
+  ok(!/averages to a different figure/.test(sum), 'no mismatch to flag when the mix agrees with the effective price');
+
+  /* Two steps stack. */
+  await p.click('[data-action="ticket:mixadd"]');
+  await p.waitForTimeout(120);
+  ok(await p.locator('.mrow').count() === 2, 'a second discount can be added');
+  await p.locator('.mrow:nth-child(2) .mamt').fill('12');
+  await p.locator('.mrow:nth-child(2) .mamt').blur();
+  await p.waitForTimeout(150);
+  sum = await p.locator('.mixsum').innerText();
+  ok(/\$1,008/.test(sum), 'the second step is carried into the total');
+  ok(/averages to a different figure/.test(sum), 'and a mix that no longer matches the effective price says so');
+
+  /* A partner may word a row themselves; the text only appears on that row. */
+  await p.selectOption('.mrow:nth-child(2) .mtype', 'own');
+  await p.waitForTimeout(120);
+  ok(await p.locator('.mrow:nth-child(2) .mown').isVisible(), 'the own-wording box opens on its row');
+  ok(!(await p.locator('.mrow:nth-child(1) .mown').isVisible()), 'and only on its row');
+
+  /* The seal needs BOTH the consent sentence and the effective-price
+     confirmation, because they are statements about different numbers. */
+  await p.click('.bconsent');
+  await p.waitForTimeout(120);
+  ok(await p.locator('[data-action="ticket:place"][disabled]').count() === 1,
+    'consent alone does not seal a custom mix');
+  await p.click('.bmixok');
+  await p.waitForTimeout(150);
+  ok(await p.locator('[data-action="ticket:place"]:not([disabled])').count() === 1,
+    'confirming the effective price enables the seal');
+
+  /* Shortening the guarantee retires the windows that ran past it, and the
+     rows that were on one fall back rather than silently collapsing to the
+     shortest window in the list. */
+  await p.selectOption('.bguar', '12');
+  await p.waitForTimeout(200);
+  const windows = await p.locator('.mrow:nth-child(1) .mper option').allInnerTexts();
+  ok(windows.length === 3 && windows.every(w => !/24|36/.test(w)),
+    'a 12 month guarantee offers only windows that close inside it');
+  ok(await p.locator('.mrow:nth-child(1) .mper').inputValue() === '0-12',
+    'and a row that ran to 24 falls back to the widest window that still fits');
+
+  /* Leaving custom puts the schedule away without losing the bid. */
+  await p.selectOption('.bmech', 'member');
+  await p.waitForTimeout(150);
+  ok(!(await p.locator('.mixw').isVisible()), 'leaving custom puts the schedule away');
+  ok(await p.locator('[data-action="ticket:place"]:not([disabled])').count() === 1,
+    'and the seal no longer waits on a confirmation about a mix nobody is offering');
+  await c.close();
+}
+
+console.log('\n16c. terms carry to the next cohort, and nothing binding carries with them');
+{
+  const c = await ctx(browser, { record: REC, me: APPROVED });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/partner?fixture=open`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(120);
+  await p.click('[data-action="desk:open"]');
+  await p.waitForTimeout(150);
+
+  ok(await p.locator('[data-action="ticket:fresh"]').count() === 0,
+    'a first bid opens on the house defaults, with nothing to say about them');
+
+  /* Terms a partner would not want to retype: a price, a guarantee, equipment. */
+  await p.locator('.trow:nth-child(1) .teff').fill('61');
+  await p.locator('.trow:nth-child(1) .teff').blur();
+  await p.selectOption('.bguar', '36');
+  await p.selectOption('.bequip', 'rent');
+  await p.locator('.brent').fill('9');
+  await p.locator('.brent').blur();
+  await p.waitForTimeout(150);
+  await p.click('.bconsent');
+  await p.waitForTimeout(120);
+  await p.click('[data-action="ticket:place"]');
+  await p.waitForTimeout(250);
+  const sealed = await p.evaluate(() => {
+    const s = window.WHOLLAR.console.state();
+    return s.bids.kw && s.bids.kw.state;
+  });
+  ok(sealed === 'sealed', `the bid seals (${sealed})`);
+  const seeded = await p.evaluate(() => {
+    const s = window.WHOLLAR.console.state();
+    return s.ticketSeed && s.ticketSeed.draft && s.ticketSeed.draft.guaranteeMonths;
+  });
+  ok(seeded === 36, `and the terms it sealed are remembered (guarantee ${seeded})`);
+
+  /* A reload is the harder half: the seed has to come off storage, keyed to
+     this org, with no bid of ours left in state to read it from. */
+  await p.goto(`${BASE}/partner?fixture=open`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(120);
+  await p.click('[data-action="desk:open"]');
+  await p.waitForTimeout(150);
+
+  ok(await p.locator('.trow:nth-child(1) .teff').inputValue() === '61',
+    'the next form opens on the price last sealed');
+  ok(await p.locator('.bguar').inputValue() === '36', 'and the guarantee');
+  ok(await p.locator('.bequip').inputValue() === 'rent' && await p.locator('.brent').inputValue() === '9',
+    'and the equipment line, rental and all');
+  const note = await p.locator('.bidform .receipt').innerText().catch(() => '');
+  ok(/last sealed/i.test(note) && /Scarborough East/.test(note), `the form says where it came from (${note.slice(0, 48)})`);
+
+  /* The two boxes that are statements about THIS cohort, and must be ticked
+     again for it. A pre-ticked consent is a binding bid nobody agreed to. */
+  ok(await p.locator('.bconsent:checked').count() === 0, 'the sealing consent is NOT carried forward');
+  ok(await p.locator('[data-action="ticket:place"][disabled]').count() === 1,
+    'so the seal button is disabled again, exactly as on a blank form');
+
+  /* And a partner who wants none of it can say so. */
+  await p.click('[data-action="ticket:fresh"]');
+  await p.waitForTimeout(150);
+  ok(await p.locator('.trow:nth-child(1) .teff').inputValue() === '56',
+    'starting from blank terms puts the house defaults back');
+  ok(await p.locator('[data-action="ticket:fresh"]').count() === 0, 'and takes the note with it');
   await c.close();
 }
 

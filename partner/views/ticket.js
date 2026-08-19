@@ -33,6 +33,7 @@ import { fmtDate, until } from '../core/time.js';
 import { on } from '../core/actions.js';
 import { toast, failed } from '../core/toast.js';
 import { TIER_NAMES, TECH, TECH_LABEL, REDUCTION_LABEL } from '../core/contract.js';
+import { readSeed, writeSeed } from '../core/bidseed.js';
 
 /* Suggested prices per tier, from the prototype (SUGG / SUGGUP / SUGGSTICKER,
    lines 2142-2143 and 2563). Suggestions only: everything is editable and the
@@ -40,6 +41,67 @@ import { TIER_NAMES, TECH, TECH_LABEL, REDUCTION_LABEL } from '../core/contract.
 var SUGG = { '100 Mbps': 44, '300 Mbps': 49, '500 Mbps': 56, '1 Gig': 64, '1.5 Gig': 74, '2.5 Gig': 84 };
 var SUGGUP = { '100 Mbps': '20', '300 Mbps': '30', '500 Mbps': '50', '1 Gig': '100', '1.5 Gig': '150', '2.5 Gig': '250' };
 var SUGGSTICKER = { '100 Mbps': 65, '300 Mbps': 75, '500 Mbps': 86, '1 Gig': 99, '1.5 Gig': 115, '2.5 Gig': 135 };
+
+/* ------------------------------------------------------------------ *
+ * the custom mix
+ * ------------------------------------------------------------------ *
+ *
+ * 'Custom' used to be one free-text label. It is now a schedule: a discount
+ * type, an amount, and the window it runs for, one row per step, so a partner
+ * whose reduction changes at month 6 or month 12 can say so on the face of
+ * the bid instead of averaging it into a single effective price.
+ *
+ * The types are the reduction reads offered above minus 'none', which is the
+ * absence of a breakdown and cannot be a line in one, plus a row the partner
+ * words themselves.
+ *
+ * NOT YET SEALED. lib/bids.js readBid() still takes a single mechanismLabel
+ * and knows nothing about a schedule, so mixLabel() derives a label the server
+ * accepts and the schedule itself does not survive the seal. Persisting it
+ * needs a discount_mix column on provider_bids and its validation; until then
+ * this is the composer, not the record.
+ */
+var MIX_TYPES = ['member', 'promo', 'cash', 'own'];
+/* Shorter than the reduction select above on purpose: the period column
+   already states the expiry, so 'expiry stated' would be the table repeating
+   the column beside it. */
+var MIX_TYPE_LABEL = {
+  member: 'Whollar member discount',
+  promo: 'Promotional credit',
+  cash: 'Monthly cashback',
+  own: 'Other, your wording'
+};
+/* Short forms, for the label the seal carries. Kept clear of the pressure and
+   condition words lib/bids.js LABEL_BANNED refuses. */
+var MIX_TYPE_SHORT = {
+  member: 'Member discount', promo: 'Promotional credit', cash: 'Monthly cashback', own: ''
+};
+/* Windows, in months from the start of service. Only those that close inside
+   the guarantee are offered: a discount running past the guaranteed price is a
+   promise about a price this bid does not make. */
+var MIX_PERIODS = [[0, 6], [0, 12], [0, 24], [0, 36], [6, 12], [12, 24], [24, 36]];
+
+function periodLabel(p) { return p[0] + ' to ' + p[1] + ' months'; }
+
+/**
+ * The window a row renders on, given the windows a guarantee leaves standing.
+ *
+ * Shortening the guarantee retires the windows that ran past it, and a select
+ * with nothing selected shows its first option, which would silently move
+ * every row to the shortest window in the list. So fall back to the widest
+ * window that still starts where this row started.
+ */
+function windowFor(r, fits, guar) {
+  var pick = null;
+  fits.forEach(function (p) { if (Number(r.from) === p[0] && Number(r.to) === p[1]) pick = p; });
+  if (!pick) fits.forEach(function (p) { if (Number(r.from) === p[0]) pick = p; });
+  return pick || fits[fits.length - 1] || [0, guar];
+}
+
+/** Amount rounded to cents and rendered by the shared money(). */
+function cash(n) {
+  return money(String(Math.round((Number(n) || 0) * 100) / 100));
+}
 
 /* ------------------------------------------------------------------ *
  * small builders
@@ -87,6 +149,193 @@ function tierRowHTML(t, i) {
     + '<td>' + (i > 0 ? '<button type="button" class="trm" data-action="ticket:rm" data-i="' + i + '" aria-label="Remove tier">×</button>' : '') + '</td></tr>';
 }
 
+/** One row of the mix: type, amount, window. Same table furniture as the tiers. */
+function mixRowHTML(r, i, guar) {
+  var topts = MIX_TYPES.map(function (k) {
+    return '<option value="' + k + '"' + (k === r.type ? ' selected' : '') + '>' + MIX_TYPE_LABEL[k] + '</option>';
+  }).join('');
+  var fits = MIX_PERIODS.filter(function (p) { return p[1] <= guar; });
+  var pick = windowFor(r, fits, guar);
+  var popts = fits.map(function (p) {
+    var on = pick[0] === p[0] && pick[1] === p[1];
+    return '<option value="' + p[0] + '-' + p[1] + '"' + (on ? ' selected' : '') + '>' + periodLabel(p) + '</option>';
+  }).join('');
+  return '<tr class="mrow" data-i="' + i + '">'
+    + '<td><select class="mtype" data-action="ticket:field">' + topts + '</select>'
+    + '<input type="text" class="mown" data-action="ticket:field" placeholder="e.g. Neighbourhood build rate" maxlength="40" value="'
+    + esc(r.label || '') + '"' + (r.type === 'own' ? '' : ' hidden') + '></td>'
+    + '<td><input type="number" class="mamt" data-action="ticket:field" value="' + esc(r.amount || '') + '" min="0" step="0.5"></td>'
+    + '<td><select class="mper" data-action="ticket:field">' + popts + '</select></td>'
+    + '<td>' + (i > 0 ? '<button type="button" class="trm" data-action="ticket:mixrm" data-i="' + i + '" aria-label="Remove discount">×</button>' : '') + '</td></tr>';
+}
+
+/**
+ * What the mix comes to over the whole guarantee, and what that makes the
+ * average effective price per tier.
+ *
+ * The tier table already carries an effective price, so the two can disagree:
+ * a partner can schedule $40 off for six months and still type $56 effective.
+ * Neither is wrong on its own, so this states both and names the tiers where
+ * they part company. Households are shown the effective price either way,
+ * which is why the confirmation below asks about that number specifically.
+ */
+function mixSummaryHTML(tiers, mix, guar) {
+  var months = guar || 24;
+  var total = 0;
+  mix.forEach(function (r) {
+    var from = Math.min(Number(r.from) || 0, months);
+    var to = Math.min(Number(r.to) || 0, months);
+    if (to > from) total += (Number(r.amount) || 0) * (to - from);
+  });
+  var avg = months ? total / months : 0;
+
+  var off = [];
+  var rows = tiers.map(function (t) {
+    var stk = Number(t.stickerPrice) || 0;
+    var eff = Number(t.effectivePrice) || 0;
+    var avgEff = Math.max(0, stk - avg);
+    if (stk && Math.abs(avgEff - eff) > 0.5) off.push(t.name);
+    return '<div class="mixrow"><span>' + esc(t.name || 'Tier') + '</span>'
+      + '<em>sticker ' + cash(stk) + '</em><b>' + cash(avgEff) + ' /mo</b></div>';
+  }).join('');
+
+  return '<h4>Across the ' + months + '-month guarantee</h4>'
+    + '<div class="mixrow"><span>Total reduction</span><b>' + cash(total) + '</b></div>'
+    + '<div class="mixrow"><span>Average reduction</span><b>' + cash(avg) + ' /mo</b></div>'
+    + rows
+    + (off.length
+      ? '<p class="mixwarn">The mix averages to a different figure than the effective price entered on '
+        + esc(off.join(', ')) + '. Households are shown the effective price.</p>'
+      : '');
+}
+
+/* ------------------------------------------------------------------ *
+ * carrying terms forward
+ *
+ * A partner bidding on their fifth cohort this week is not retyping six tiers,
+ * a guarantee and an equipment line five times. The terms they last sealed
+ * open the next form, and every one of them is editable before it is sealed.
+ *
+ * WHAT IS NOT CARRIED, and why each one:
+ *   consent, mixConfirmed   affirmations about THIS cohort's numbers. A bid is
+ *                           sealed and binding; a pre-ticked box is a bid
+ *                           nobody agreed to. Always false on a seeded form.
+ *   committedHouseholds     capped at the new cohort's size. 64 households
+ *                           committed on a cohort of 20 is not a preference
+ *                           carried forward, it is a wrong number.
+ *   campaignId, improve, error   per-form by definition.
+ *
+ * THREE SOURCES, in order. The session's last seal, then the stored copy from
+ * a previous session, then the most recent sealed bid the server returned.
+ * The third exists because the first two are local and can be absent on a new
+ * machine; it is weaker than the others only in that a sealed head carries no
+ * discount schedule, so a custom mix comes back as the one row mixFromBid can
+ * reconstruct. See core/bidseed.js.
+ * ------------------------------------------------------------------ */
+
+/** The campaign-agnostic half of a draft: what carries to the next cohort. */
+function seedFromDraft(d) {
+  return {
+    tiers: (d.tiers || []).map(function (t) {
+      return {
+        name: t.name, uploadMbps: t.uploadMbps || '', technology: t.technology || 'cable',
+        stickerPrice: String(t.stickerPrice || ''), effectivePrice: String(t.effectivePrice || ''),
+        afterPrice: t.afterPrice ? String(t.afterPrice) : ''
+      };
+    }),
+    reductionPresentation: d.reductionPresentation || 'member',
+    mechanismLabel: d.mechanismLabel || '',
+    discountMix: (d.discountMix || []).map(function (r) {
+      return { type: r.type, label: r.label || '', amount: String(r.amount || ''), from: r.from, to: r.to };
+    }),
+    guaranteeMonths: d.guaranteeMonths || 24,
+    afterMode: d.afterMode || 'none',
+    equipment: d.equipment || 'inc',
+    rentalMonthly: d.rentalMonthly || '7',
+    extraPodMonthly: d.extraPodMonthly || '0',
+    committedHouseholds: d.committedHouseholds || 0
+  };
+}
+
+/** The most recent sealed bid this org holds, as a seed. Null if none. */
+function seedFromBids(S) {
+  var best = null;
+  var bids = S.bids || {};
+  for (var k in bids) {
+    if (!Object.prototype.hasOwnProperty.call(bids, k)) continue;
+    var b = bids[k];
+    if (!b || !(b.tiers || []).length) continue;
+    var at = b.updatedAt || b.placedAt || 0;
+    if (!best || at > best.at) best = { at: at, bid: b, campaignId: k };
+  }
+  if (!best) return null;
+  var m = best.bid;
+  var a = campaignById(best.campaignId);
+  return {
+    draft: seedFromDraft({
+      tiers: m.tiers,
+      reductionPresentation: m.reductionPresentation || 'member',
+      mechanismLabel: m.mechanismLabel || '',
+      discountMix: mixFromBid(m),
+      guaranteeMonths: m.guaranteeMonths,
+      afterMode: m.afterMode,
+      equipment: m.equipment,
+      rentalMonthly: m.rentalMonthly,
+      extraPodMonthly: m.extraPodMonthly,
+      committedHouseholds: m.committedHouseholds
+    }),
+    from: a ? (a.region || null) : null,
+    savedAt: best.at || 0
+  };
+}
+
+/**
+ * The seed on offer right now, or null. Pure: it reads state and storage and
+ * writes neither, because it is called from a render and a render that mutates
+ * state is the bug this codebase was ported away from.
+ */
+function currentSeed() {
+  var S = get();
+  if (S.ticketSeed) return S.ticketSeed;
+  var stored = readSeed(S.org && S.org.orgId);
+  if (stored) return stored;
+  return seedFromBids(S);
+}
+
+/** What the seeded banner says, or null when nothing is on offer. */
+function seedBanner() {
+  var seed = currentSeed();
+  if (!seed || !seed.draft || !(seed.draft.tiers || []).length) return null;
+  return { from: seed.from || null, savedAt: seed.savedAt || 0 };
+}
+
+/** The draft a form opens on: the seed where there is one, defaults otherwise. */
+function openingDraft(a) {
+  var seed = currentSeed();
+  var d = defaultDraft(a);
+  if (!seed || !seed.draft || !(seed.draft.tiers || []).length) return d;
+  var s = seed.draft;
+  d.tiers = s.tiers.map(function (t) { return { name: t.name, uploadMbps: t.uploadMbps, technology: t.technology, stickerPrice: t.stickerPrice, effectivePrice: t.effectivePrice, afterPrice: t.afterPrice }; });
+  d.reductionPresentation = s.reductionPresentation;
+  d.mechanismLabel = s.mechanismLabel;
+  if ((s.discountMix || []).length) {
+    d.discountMix = s.discountMix.map(function (r) { return { type: r.type, label: r.label, amount: r.amount, from: r.from, to: r.to }; });
+  }
+  d.guaranteeMonths = s.guaranteeMonths;
+  d.afterMode = s.afterMode;
+  d.equipment = s.equipment;
+  d.rentalMonthly = s.rentalMonthly;
+  d.extraPodMonthly = s.extraPodMonthly;
+  var cap = a.households || 0;
+  var want = Number(s.committedHouseholds) || 0;
+  d.committedHouseholds = cap ? (want ? Math.min(want, cap) : cap) : (want || 1);
+  /* Never carried: see the note above. */
+  d.consent = false;
+  d.mixConfirmed = false;
+  d.seeded = { from: seed.from || null, savedAt: seed.savedAt || 0 };
+  return d;
+}
+
 /** The default draft for a cohort: one 500 Mbps row at the suggested prices. */
 function defaultDraft(a) {
   return {
@@ -97,6 +346,10 @@ function defaultDraft(a) {
     tiers: [{ name: '500 Mbps', uploadMbps: '50', technology: 'cable', stickerPrice: '86', effectivePrice: '56', afterPrice: '69' }],
     reductionPresentation: 'member',
     mechanismLabel: '',
+    /* One row, running the full guarantee, at the gap the tier row above
+       already states, so the mix opens agreeing with the prices beside it. */
+    discountMix: [{ type: 'member', label: '', amount: '30', from: 0, to: 24 }],
+    mixConfirmed: false,
     guaranteeMonths: 24,
     afterMode: 'none',
     equipment: 'inc',
@@ -104,6 +357,18 @@ function defaultDraft(a) {
     extraPodMonthly: '0',
     committedHouseholds: a.households || 1
   };
+}
+
+function mixFromBid(m) {
+  var t0 = (m.tiers || [])[0] || {};
+  var gap = Math.max(0, (Number(t0.stickerPrice) || 0) - (Number(t0.effectivePrice) || 0));
+  return [{
+    type: m.mechanismLabel ? 'own' : 'member',
+    label: m.mechanismLabel || '',
+    amount: gap ? String(gap) : '',
+    from: 0,
+    to: m.guaranteeMonths || 24
+  }];
 }
 
 /** A draft prefilled from the sealed head, for the improve form. */
@@ -122,6 +387,13 @@ function draftFromBid(a, m) {
     }),
     reductionPresentation: m.reductionPresentation || 'member',
     mechanismLabel: m.mechanismLabel || '',
+    /* A sealed head carries the derived label and no schedule, because the
+       server has nowhere to keep one yet. Reconstruct a single row from what
+       did survive: the partner's own wording, the gap on the first tier, and
+       the whole guarantee. It is a starting point for the improvement, not a
+       claim about what was sealed. */
+    discountMix: mixFromBid(m),
+    mixConfirmed: false,
     guaranteeMonths: m.guaranteeMonths || 24,
     afterMode: m.afterMode || 'none',
     equipment: m.equipment || 'inc',
@@ -264,7 +536,32 @@ export function ticketHTML(a, data, mine) {
   }
 
   /* The form: place, or improve when a draft says so. */
-  return formHTML(a, data, draft || defaultDraft(a), Boolean(mine));
+  return formHTML(a, data, draft || openingDraft(a), Boolean(mine));
+}
+
+/**
+ * The mix block: the schedule on the left, its arithmetic on the right.
+ *
+ * Rendered always and hidden unless 'custom' is chosen, the same
+ * hidden-attribute reveal the rental cell and the after column already use, so
+ * a select change repaints from the draft rather than poking at the DOM.
+ */
+function mixHTML(t) {
+  var guar = t.guaranteeMonths || 24;
+  var mix = t.discountMix && t.discountMix.length
+    ? t.discountMix
+    : [{ type: 'member', label: '', amount: '', from: 0, to: guar }];
+  return '<div class="mixw"' + (t.reductionPresentation === 'custom' ? '' : ' hidden') + '>'
+    + '<label class="blk">Your mix <small class="lsub">one row per step, so a reduction that changes partway through says so</small></label>'
+    + '<div class="mixgrid"><div>'
+    + '<table class="tiert mixt"><thead><tr><th>Discount type</th><th>Discount, $ /mo</th><th>Valid time period</th><th></th></tr></thead><tbody class="mixbody">'
+    + mix.map(function (r, i) { return mixRowHTML(r, i, guar); }).join('')
+    + '</tbody></table>'
+    + '<button type="button" class="taddrow" data-action="ticket:mixadd">+ Add another discount</button></div>'
+    + '<div class="mixcalc"><div class="mixsum">' + mixSummaryHTML(t.tiers || [], mix, guar) + '</div>'
+    + '<label class="consent"><input type="checkbox" class="bmixok" data-action="ticket:field"' + (t.mixConfirmed ? ' checked' : '') + '>'
+    + '<span>I confirm the effective monthly price each tier reaches under this mix, for the whole guarantee.</span></label>'
+    + '</div></div></div>';
 }
 
 function formHTML(a, data, t, improving) {
@@ -279,7 +576,7 @@ function formHTML(a, data, t, improving) {
     ['promo', 'A promotional credit, expiry stated'],
     ['cash', 'Monthly cashback'],
     ['none', 'Effective price only, no breakdown'],
-    ['custom', 'Custom, your wording']
+    ['custom', 'Custom, choose your mix']
   ].map(function (o) {
     return '<option value="' + o[0] + '"' + (t.reductionPresentation === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
   }).join('');
@@ -298,8 +595,11 @@ function formHTML(a, data, t, improving) {
   } else if (closed) {
     button = '<button class="btn" type="button" disabled>Bidding closed</button>';
   } else {
+    /* A custom mix has its own confirmation, because the number it asks about
+       (the effective price each tier averages to) is not on the consent line. */
+    var ready = t.consent && (t.reductionPresentation !== 'custom' || t.mixConfirmed);
     button = '<button class="btn" type="button" data-action="ticket:place" data-id="' + esc(a.id) + '"'
-      + (t.consent ? '' : ' disabled') + '>'
+      + (ready ? '' : ' disabled') + '>'
       + (improving ? 'Seal the improvement' : 'Place sealed bid') + '</button>';
   }
 
@@ -309,15 +609,21 @@ function formHTML(a, data, t, improving) {
       ? '<div class="receipt" style="margin-bottom:12px"><b>Improving version ' + esc(String((S.bids[a.id] || {}).version || 1)) + '.</b> '
         + 'Every tier must stay at least as good: no raised effective price, no shortened guarantee, no worsened after-rate, no reduced commitment. '
         + '<button class="tlink" type="button" data-action="ticket:cancel">Keep the sealed version</button></div>'
-      : '')
+      : (t.seeded
+        ? '<div class="receipt" style="margin-bottom:12px"><b>Filled in from the terms you last sealed'
+          + (t.seeded.from ? ' on ' + esc(t.seeded.from) : '')
+          + (t.seeded.savedAt ? ', ' + fmtDate(t.seeded.savedAt) : '') + '.</b> '
+          + 'Nothing is sent until you seal, every field is editable, and your commitment has been set to this cohort\u2019s size. '
+          + '<button class="tlink" type="button" data-action="ticket:fresh" data-id="' + esc(a.id) + '">Start from blank terms</button></div>'
+        : ''))
     + '<label class="blk">Price by service <small class="lsub">sticker is your rate card; effective is what the cohort pays</small></label>'
     + '<table class="tiert t7"><thead><tr><th>Tier</th><th>Upload, Mbps</th><th>Technology</th><th>Sticker /mo</th><th>Effective /mo</th><th class="tac">After</th><th></th></tr></thead><tbody class="tierbody">'
     + rows
     + '</tbody></table>'
     + '<button type="button" class="taddrow" data-action="ticket:add">+ Add another service</button>'
-    + '<div class="two"><div><label>How the reduction reads to households</label><select class="bmech" data-action="ticket:field">' + mechOpts + '</select>'
-    + '<div class="mechtxtw"' + (t.reductionPresentation === 'custom' ? '' : ' hidden') + ' style="margin-top:8px"><input type="text" class="bmechtxt" data-action="ticket:field" placeholder="e.g. Neighbourhood build rate" maxlength="40" value="' + esc(t.mechanismLabel || '') + '"></div></div>'
+    + '<div class="two"><div><label>How the reduction reads to households</label><select class="bmech" data-action="ticket:field">' + mechOpts + '</select></div>'
     + '<div class="mechnote"><small class="hint">Your rate card stays intact either way. Households always see the effective price and the after-rate; this only sets whether the math between sticker and effective is shown, and under what name.</small></div></div>'
+    + mixHTML(t)
     + '<div class="two"><div><label>Price guaranteed for</label><select class="bguar" data-action="ticket:field">'
     + [24, 12, 36].map(function (g) { return '<option value="' + g + '"' + (t.guaranteeMonths === g ? ' selected' : '') + '>' + g + ' months</option>'; }).join('')
     + '</select></div>'
@@ -332,7 +638,7 @@ function formHTML(a, data, t, improving) {
     + '<option value="byod"' + (t.equipment === 'byod' ? ' selected' : '') + '>BYOD allowed, no charge</option>'
     + '</select></div>'
     + '<div class="rentw"' + (t.equipment === 'rent' ? '' : ' hidden') + '><label>Rental ($ /mo)</label><input type="number" class="brent" data-action="ticket:field" value="' + esc(t.rentalMonthly || '7') + '" min="0" step="0.5"></div>'
-    + '<div class="podcell"><label>Extra pod, $ /mo</label><input type="number" class="bpods" data-action="ticket:field" value="' + esc(t.extraPodMonthly || '0') + '" min="0" step="0.5"><small class="hint">0 means included</small></div></div>'
+    + '<div class="podcell"><label>Extra pod, $ /mo <small class="lsub">0 means included</small></label><input type="number" class="bpods" data-action="ticket:field" value="' + esc(t.extraPodMonthly || '0') + '" min="0" step="0.5"></div></div>'
     + '<div class="two" style="margin-top:14px"><div><label>Service commitment</label><input type="number" class="bcommit" data-action="ticket:field" value="' + esc(String(t.committedHouseholds || '')) + '" min="1" max="' + esc(String(a.households || 9999)) + '" step="1"><small class="hint">households you can serve at these prices</small></div><div></div></div>'
     + '<label class="consent"><input type="checkbox" class="bconsent" data-action="ticket:field"' + (t.consent ? ' checked' : '') + '><span>I understand this bid is sealed and binding until the offer deadline, on the standard cohort terms, for up to my committed household count, with the effective prices above shown to households exactly as entered. I can improve it before close; I cannot withdraw it.</span></label>'
     + (t.error ? '<p class="fnote" style="color:#8C3B1B">' + esc(t.error) + '</p>' : '')
@@ -346,6 +652,44 @@ function formHTML(a, data, t, improving) {
 
 function $(sel, root) { return (root || document).querySelector(sel); }
 function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+
+/** The schedule rows, as typed. Order is display order, which is the order
+    the windows were laid out in, so it is worth keeping. */
+function readMix(form) {
+  return $$('.mrow', form).map(function (tr) {
+    var per = String($('.mper', tr).value || '0-0').split('-');
+    return {
+      type: $('.mtype', tr).value,
+      label: String(($('.mown', tr) || {}).value || '').trim(),
+      amount: String($('.mamt', tr).value || '').trim(),
+      from: parseInt(per[0], 10) || 0,
+      to: parseInt(per[1], 10) || 0
+    };
+  });
+}
+
+/**
+ * The one label a sealed custom bid can still carry, derived from the mix.
+ *
+ * This exists because the server has nowhere to put a schedule: readBid()
+ * takes a single mechanismLabel of 3 to 40 plain characters and refuses the
+ * pressure language the standard terms forbid. So the distinct type names of
+ * the live rows are joined, stripped to the accepted charset, and cut back to
+ * the first name if that runs long. When discount_mix lands on provider_bids
+ * this becomes a display convenience instead of the whole record.
+ */
+function mixLabel(mix) {
+  var parts = [];
+  mix.forEach(function (r) {
+    if (!(Number(r.amount) > 0 && r.to > r.from)) return;
+    var n = String(r.type === 'own' ? r.label : (MIX_TYPE_SHORT[r.type] || ''))
+      .replace(/[^A-Za-z0-9 ,.'&-]/g, '').trim();
+    if (n && parts.indexOf(n) < 0) parts.push(n);
+  });
+  var joined = parts.join(', ');
+  if (joined.length > 40) joined = parts[0] || '';
+  return joined.slice(0, 40).trim();
+}
 
 /**
  * DOM to draft. The DOM is the source of truth at submit time; the store's
@@ -371,6 +715,14 @@ function readTicket(form, a) {
   if (!tiers.length) bad = bad || 'Add at least one tier to the bid.';
 
   var mech = $('.bmech', form) ? $('.bmech', form).value : 'member';
+  var mix = readMix(form);
+  if (mech === 'custom') {
+    var live = mix.filter(function (r) { return Number(r.amount) > 0 && r.to > r.from; });
+    var unnamed = live.filter(function (r) { return r.type === 'own' && r.label.length < 3; });
+    if (!live.length) bad = bad || 'Give the mix at least one discount with an amount and a period.';
+    else if (unnamed.length) bad = bad || 'Name the discount you worded yourself, in 3 to 40 plain characters.';
+  }
+
   var commitMax = a && a.households ? a.households : Infinity;
   var commit = parseInt($('.bcommit', form).value, 10) || 0;
   if (commit > commitMax) commit = commitMax;
@@ -379,7 +731,9 @@ function readTicket(form, a) {
     campaignId: a ? a.id : null,
     tiers: tiers,
     reductionPresentation: mech,
-    mechanismLabel: mech === 'custom' ? String(($('.bmechtxt', form) || {}).value || '').trim() : '',
+    mechanismLabel: mech === 'custom' ? mixLabel(mix) : '',
+    discountMix: mix,
+    mixConfirmed: Boolean($('.bmixok', form) && $('.bmixok', form).checked),
     guaranteeMonths: parseInt($('.bguar', form).value, 10),
     afterMode: $('.bafter', form).value,
     equipment: $('.bequip', form).value,
@@ -460,6 +814,22 @@ export function refreshScn() {
   }).join('');
 }
 
+/**
+ * Recompute the mix arithmetic from the open form, in place.
+ *
+ * Only the summary block is rewritten, never the schedule table and never the
+ * confirmation checkbox: a keystroke in an amount must not repaint the input
+ * it was typed into, and it must not quietly clear a box the partner ticked.
+ */
+export function refreshMix() {
+  var form = $('.bidform');
+  if (!form) return;
+  var sum = $('.mixsum', form);
+  if (!sum) return;
+  var d = readTicket(form, null);
+  sum.innerHTML = mixSummaryHTML(d.tiers, d.discountMix, d.guaranteeMonths);
+}
+
 /* ------------------------------------------------------------------ *
  * actions
  * ------------------------------------------------------------------ */
@@ -478,7 +848,13 @@ function draftFromForm(el) {
   if (!a) return null;
   var S = get();
   var d = readTicket(form, a);
-  d.improve = Boolean(S.ticketDraft && S.ticketDraft.campaignId === a.id && S.ticketDraft.improve);
+  var prev = S.ticketDraft && S.ticketDraft.campaignId === a.id ? S.ticketDraft : null;
+  d.improve = Boolean(prev && prev.improve);
+  /* The banner has to survive the first edit, and the first edit is where the
+     draft is born: until then the form on screen came from openingDraft(),
+     which seeded it exactly when a seed existed. currentSeed() cannot change
+     between those two moments, since only a successful seal moves it. */
+  d.seeded = prev ? (prev.seeded || null) : seedBanner();
   d.error = null;
   delete d.bad;
   return d;
@@ -492,11 +868,12 @@ export function mount() {
     var d = draftFromForm(el);
     if (d) set('ticketDraft', d);
     refreshScn();
+    refreshMix();
   });
 
-  /* Keystrokes update only the scenario table. Writing the store here would
+  /* Keystrokes update only the derived panels. Writing the store here would
      repaint the form under the cursor mid-word. */
-  on('input', 'ticket:field', function () { refreshScn(); });
+  on('input', 'ticket:field', function () { refreshScn(); refreshMix(); });
 
   on('click', 'ticket:add', function (el) {
     var d = draftFromForm(el);
@@ -530,6 +907,33 @@ export function mount() {
     refreshScn();
   });
 
+  on('click', 'ticket:mixadd', function (el) {
+    var d = draftFromForm(el);
+    if (!d) return;
+    var guar = d.guaranteeMonths || 24;
+    /* The new window starts where the last one ended, so a schedule reads as
+       steps. When the last row already runs the whole guarantee there is no
+       next step and the row lands on the same window, which is fine: two
+       reductions running together is a legitimate mix too. */
+    var last = d.discountMix[d.discountMix.length - 1];
+    var from = last && last.to < guar ? last.to : 0;
+    var fits = MIX_PERIODS.filter(function (p) { return p[0] === from && p[1] <= guar; });
+    var win = fits.length ? fits[fits.length - 1] : [0, guar];
+    d.discountMix.push({ type: 'promo', label: '', amount: '', from: win[0], to: win[1] });
+    set('ticketDraft', d);
+    refreshMix();
+  });
+
+  on('click', 'ticket:mixrm', function (el) {
+    var d = draftFromForm(el);
+    if (!d) return;
+    var i = parseInt(el.getAttribute('data-i'), 10);
+    d.discountMix = d.discountMix.filter(function (r, j) { return j !== i; });
+    if (!d.discountMix.length) return;
+    set('ticketDraft', d);
+    refreshMix();
+  });
+
   on('click', 'ticket:improve', function (el) {
     var id = el.getAttribute('data-id');
     var a = campaignById(id);
@@ -540,6 +944,13 @@ export function mount() {
 
   on('click', 'ticket:cancel', function () { set('ticketDraft', null); });
 
+  /* Blank terms on request. The seed itself is left alone: this partner wants
+     a different bid on THIS cohort, which says nothing about the next one. */
+  on('click', 'ticket:fresh', function (el) {
+    var a = campaignById(el.getAttribute('data-id'));
+    if (a) set('ticketDraft', defaultDraft(a));
+  });
+
   on('click', 'ticket:place', function (el) {
     var S = get();
     var form = el.closest('.bidform');
@@ -548,7 +959,10 @@ export function mount() {
     if (!form || !a) return;
 
     var d = readTicket(form, a);
-    var improve = Boolean(S.ticketDraft && S.ticketDraft.campaignId === id && S.ticketDraft.improve);
+    var prev = S.ticketDraft && S.ticketDraft.campaignId === id ? S.ticketDraft : null;
+    var improve = Boolean(prev && prev.improve);
+    /* Whatever refuses the bid, the banner it was filled in from stays put. */
+    d.seeded = prev ? (prev.seeded || null) : seedBanner();
     if (d.bad) {
       d.improve = improve;
       d.error = d.bad;
@@ -565,6 +979,9 @@ export function mount() {
       mechanismLabel: d.mechanismLabel || undefined,
       guaranteeMonths: d.guaranteeMonths,
       afterMode: d.afterMode,
+      /* Sent, and dropped by readBid() until provider_bids carries a column
+         for it. The label above is what the seal keeps today. */
+      discountMix: d.reductionPresentation === 'custom' ? d.discountMix : undefined,
       equipment: d.equipment,
       rentalMonthly: d.equipment === 'rent' ? d.rentalMonthly : undefined,
       extraPodMonthly: d.extraPodMonthly,
@@ -577,7 +994,12 @@ export function mount() {
       var cur = get().bids;
       for (var k in cur) { if (Object.prototype.hasOwnProperty.call(cur, k)) bids[k] = cur[k]; }
       if (r && r.bid) bids[id] = r.bid;
-      set({ bids: bids, ticketDraft: null });
+      /* These terms are now the starting point for the next cohort. Written
+         from the draft that was actually sealed, not from the response: the
+         response is a head row and drops the discount schedule. */
+      var seed = { draft: seedFromDraft(d), from: a.region || null, savedAt: Date.now() };
+      writeSeed((S.org && S.org.orgId) || null, seed.draft, seed.from);
+      set({ bids: bids, ticketDraft: null, ticketSeed: seed });
       var no = r && r.receipt && r.receipt.no;
       toast(improve
         ? 'Improved to version ' + ((r && r.receipt && r.receipt.revision) || '') + '. Receipt ' + no + '.'

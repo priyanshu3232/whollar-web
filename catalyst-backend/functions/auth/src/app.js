@@ -33,6 +33,7 @@ const providerRoutes = require('./routes/provider');
 const memberRoutes = require('./routes/member');
 const meRoutes = require('./routes/me');
 const ratingRoutes = require('./routes/rating');
+const interestRoutes = require('./routes/interest');
 const campaignRoutes = require('./routes/campaigns');
 const deskRoutes = require('./routes/desk');
 const applicationRoutes = require('./routes/application');
@@ -240,6 +241,7 @@ function buildApp(cfg) {
   memberRoutes.mount(router);
   meRoutes.mount(router);
   ratingRoutes.mount(router);
+  interestRoutes.mount(router);
   campaignRoutes.mount(router);
   deskRoutes.mount(router);
   applicationRoutes.mount(router);

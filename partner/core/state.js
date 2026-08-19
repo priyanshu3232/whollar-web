@@ -67,6 +67,12 @@ var state = {
   ticketDraft: null,    /* the in-progress bid ticket, so a repaint cannot eat
                            a half-typed bid; the prototype's expandRow-mutates-
                            state bug is the cautionary tale above */
+  ticketSeed: null,     /* the terms last sealed, campaign-agnostic, so the next
+                           cohort's form opens on them rather than on the house
+                           defaults. Written on a successful seal, mirrored to
+                           core/bidseed.js so it survives a reload. A starting
+                           point for a form and nothing else: it is never sent,
+                           and the two consent boxes are never carried */
 
   prefs: null,
   fixture: null         /* { name, label, view } under fixture mode */
