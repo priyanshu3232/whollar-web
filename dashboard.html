@@ -317,18 +317,19 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
    columns finish on one line: the band's own height is its taller child's, and
    the shorter one is pulled to it.
 
-   The left column is now TWO cards in a flex column, not one card: "New products
-   in progress" over "Worth a read". NEITHER of them stretches: align-items:start
-   is what lets the reading card stop at the height its three rows actually need,
-   instead of being pulled down to the handset's and spending the difference on
-   air between the rows. The two columns finishing at different heights is the
-   point, not a defect. See .reads. */
-.splitband{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:24px;align-items:start}
+   The left column is TWO cards in a flex column, not one card: "New products
+   in progress" over "Worth a read". The products card is the height of its
+   tiles; the reading card takes the rest, so the column finishes level with the
+   handset beside it. What it does with the surplus is give it to its three rows
+   in equal shares, which is the one distribution that leaves the list looking
+   like a list. See .reads. */
+.splitband{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:24px}
 .splitband>*{min-width:0}
 /* The two left-hand cards share the band's own 24px gap, so the seam between
-   them reads as the same seam as the one beside them. Nothing in the column is
-   flex:1: both cards are the height of their own content. */
+   them reads as the same seam as the one beside them. The reading card is the
+   flexible one of the pair, so it is the one that absorbs the difference. */
 .splitcol{display:flex;flex-direction:column;gap:24px;min-width:0}
+.splitcol>.rcard{flex:1}
 .pane__prof{display:flex;align-items:center;gap:10px;margin:8px 12px 14px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--card);text-align:left;transition:background .15s}
 .pane__prof:hover{background:#EDE8DB}
 .pane__prof.on{background:var(--mint);border-color:#CBDCC9}
@@ -748,16 +749,22 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
    own article photograph, is a tenth of the height and the fourth link is one
    click away under See all.
 
-   THE CARD NO LONGER STRETCHES. It used to be flex:1 in the column and spend
-   the surplus height on the spacing between its rows, which turned a short list
-   into a tall one for no reason a reader could name. Its height is now its three
-   rows, and a real headline wraps to two lines, so the card grows with the
-   copy rather than with the handset opposite. */
+   THE SURPLUS GOES TO THE ROWS, IN EQUAL SHARES. The card is flex:1 in the
+   column, so it runs down to the member room's last pixel, and the ~55px that
+   buys at 1440 is split three ways by flex:1 on the rows rather than poured
+   into the gaps between them (justify-content:space-between, which this used
+   to do, banks the whole surplus in the two seams and reads as three separated
+   blocks). Each row grows by the same ~18px and its thumbnail and title stay
+   centred in it, so what the reader sees is a list at a comfortable rhythm.
+
+   Growth, never shrinkage: flex-basis stays auto and nothing here sets a height,
+   so a two-line headline still sets its own row's floor and the card gets taller
+   than the room rather than clipping a title to match it. */
 .rcard{display:flex;flex-direction:column;min-width:0}
 .rcard__head{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
 .rcard__head .tlink{margin-top:0;flex:none}
-.reads{list-style:none;margin-top:12px;display:flex;flex-direction:column;gap:4px}
-.reads li{display:block}
+.reads{list-style:none;margin-top:12px;display:flex;flex-direction:column;gap:4px;flex:1;min-height:0}
+.reads li{display:flex;flex:1 1 0;flex-direction:column;justify-content:center}
 /* The divider survives the redesign on purpose. Once every row carries a
    thumbnail, 4px of gap alone reads as three floating tiles rather than a list. */
 .reads li:not(:last-child){border-block-end:1px solid var(--line);padding-block-end:4px}
@@ -991,9 +998,10 @@ body.npopen{overflow:hidden}
    because that boundary is the rail's 4-column track running out and has nothing
    to do with this band.
    One column, products first, reading second, the room third: DOM order, which
-   is also tab and screen-reader order. The reading card was already at its
-   natural height beside the rail, so it carries down unchanged; only the
-   handset changes, back to its full 300px. */
+   is also tab and screen-reader order. Height matching stops applying with
+   nothing to match against: the rows fall back to their natural height, because
+   flex:1 divides a surplus that no longer exists, and the handset is centred at
+   its full 300px. */
 @media (max-width:1099px){
   .splitband{grid-template-columns:minmax(0,1fr)}
   .mrview{width:300px}
@@ -4044,10 +4052,21 @@ document.addEventListener('error',function(e){
    transform attribute and the inner one carries the animation as a CSS
    transform, because a CSS transform replaces the attribute rather than
    composing with it, and a flake that animates from the origin falls through
-   the tire. */
+   the tire.
+
+   MEET, NOT SLICE, AND THE TINT IS THE SVG'S OWN BACKGROUND. Each band is a
+   120x76 drawing in a box whose width is the tile's: a third of the left column
+   at 1440, ~240px, so slice scaled the art to COVER that box and cut half its
+   height away. The screen lost its stand, the tire lost its bottom and a
+   snowflake lost its arms, and every breakpoint cropped a different amount.
+   meet fits the drawing to the band's height and centres it, so the art is the
+   art at any width. The full-bleed <rect> went with slice: it only ever covered
+   the viewBox, which is no longer the whole box, so the tint moved to the
+   element's own background where it covers whatever the band turns out to be.
+   That also makes the 46px dialog thumbnail a tinted square with the whole
+   drawing in it, rather than a crop of the middle third. */
 var NPART={
-  mobile:'<svg viewBox="0 0 120 76" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">'
-    +'<rect width="120" height="76" fill="#E4EDE2"/>'
+  mobile:'<svg viewBox="0 0 120 76" preserveAspectRatio="xMidYMid meet" style="background:#E4EDE2" aria-hidden="true" focusable="false">'
     +'<rect x="51" y="17" width="18" height="42" rx="5" fill="#fff" stroke="#1E4D38" stroke-width="2"/>'
     +'<rect x="56" y="21" width="8" height="1.8" rx=".9" fill="#1E4D38"/>'
     +'<g fill="none" stroke="#1E7A50" stroke-width="1.8" stroke-linecap="round">'
@@ -4055,8 +4074,7 @@ var NPART={
     +'<g fill="none" stroke="#B0512B" stroke-width="1.8" stroke-linecap="round">'
     +'<path class="nparc a1" d="M45 32a9 9 0 0 0 0 12"/><path class="nparc a2" d="M39.5 27a17 17 0 0 0 0 22"/><path class="nparc a3" d="M34 22a25 25 0 0 0 0 32"/></g>'
     +'</svg>',
-  streaming:'<svg viewBox="0 0 120 76" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">'
-    +'<rect width="120" height="76" fill="#F2E8DA"/>'
+  streaming:'<svg viewBox="0 0 120 76" preserveAspectRatio="xMidYMid meet" style="background:#F2E8DA" aria-hidden="true" focusable="false">'
     +'<rect x="29" y="14" width="62" height="42" rx="7" fill="#fff" stroke="#8C4622" stroke-width="2"/>'
     +'<path d="M55 27.5 68.5 35 55 42.5Z" fill="#B0512B"/>'
     +'<svg x="35" y="45" width="50" height="7" viewBox="0 0 50 7" preserveAspectRatio="none">'
@@ -4067,8 +4085,7 @@ var NPART={
     +'</g></svg>'
     +'<path d="M53 61h14M60 56v5" fill="none" stroke="#8C4622" stroke-width="2" stroke-linecap="round"/>'
     +'</svg>',
-  tires:'<svg viewBox="0 0 120 76" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">'
-    +'<rect width="120" height="76" fill="#E8ECE3"/>'
+  tires:'<svg viewBox="0 0 120 76" preserveAspectRatio="xMidYMid meet" style="background:#E8ECE3" aria-hidden="true" focusable="false">'
     +'<g class="nptire">'
     +'<circle cx="60" cy="38" r="21" fill="#1A2520"/>'
     /* Tread across the OUTER edge only. Spokes reaching the middle turned the

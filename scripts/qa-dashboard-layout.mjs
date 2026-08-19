@@ -26,9 +26,9 @@
  *  11. one set of tracks across every tab
  *  12. THE COHORT ROW: exactly four cards, equal heights, their progress bars on
  *      one line, no button inside a card, and the row above all reading content
- *  13. THE SPLIT BAND: a reading column no taller than the member room, three
- *      articles at one weight over one thumbnail each, and no stock photography
- *      left in the band
+ *  13. THE SPLIT BAND: two columns finishing on the same line with the surplus
+ *      spread across the rows, three articles at one weight over one thumbnail
+ *      each, and no stock photography left in the band
  *
  * It walks EVERY state in the prototype controls, because the Home card set
  * changes by state and a layout tuned to one state is the fault this pass
@@ -443,9 +443,8 @@ for (const vw of [1280, 1100]) {
     const r = el => { const b = el.getBoundingClientRect(); return { y: Math.round(b.top), h: Math.round(b.height), w: Math.round(b.width) }; };
     const ccs = [...document.querySelectorAll('#crow > *')];
     const reads = document.querySelector('.splitband .rcard');
-    /* The left column is TWO cards now (products over reading), and neither
-       stretches, so the column is measured to prove it stays under the room's
-       height rather than to prove it matches it. */
+    /* The left column is TWO cards now (products over reading), so what has to
+       finish level with the member room is the column, not the reading card. */
     const leftcol = document.querySelector('.splitband > .splitcol');
     const room = document.querySelector('.splitband .mroom');
     const items = [...reads.querySelectorAll('.reads > li')];
@@ -463,14 +462,17 @@ for (const vw of [1280, 1100]) {
       /* A terracotta button inside a cohort card is the duplicated decision. */
       ccBtns: ccs.reduce((n, el) => n + el.querySelectorAll('button, .btn').length, 0),
       readsBox: r(leftcol), roomBox: r(room),
-      /* The proof that the reading card is no longer stretched: the list's own
-         height, minus its rows and its 4px gaps, is nothing. A card pulled to a
-         neighbour's height would carry that difference here as free space. */
-      readsSlack: (() => {
+      /* WHERE THE STRETCH WENT. The card runs down to the member room, and the
+         surplus that buys has to be inside the rows, not banked in the seams
+         between them. Two numbers say so: the gap left over once the rows are
+         subtracted (zero), and the spread between the tallest and shortest row
+         (small, and only as large as a two-line headline makes it). */
+      readsGapSlack: (() => {
         const list = reads.querySelector('.reads');
         const rows = items.reduce((n, li) => n + li.getBoundingClientRect().height, 0) + 4 * (items.length - 1);
         return Math.round(list.getBoundingClientRect().height - rows);
       })(),
+      rowH: items.map(li => Math.round(li.getBoundingClientRect().height)),
       articles: items.length,
       /* One weight across all three: the hero treatment is gone, so a title that
          differs from its neighbours is a regression, not a hierarchy. */
@@ -501,14 +503,13 @@ for (const vw of [1280, 1100]) {
   ok(m.bars === 0 && m.counts === 0, `no fill bar and no count on any tile (${m.bars} bars, ${m.counts} counts)`);
   ok(m.ccBtns === 0, `no button of any kind sits inside a cohort card (${m.ccBtns})`);
   ok(m.rowY < m.bandY, `the cohort row is above the reading content (${m.rowY} < ${m.bandY})`);
-  /* The columns no longer have to finish level, and asserting that they do would
-     re-impose the stretch this redesign removed: the reading card is the height
-     of its own three rows, and at 1440 that leaves it ~50px short of the room.
-     What is asserted instead is that the shortfall is real free space and not
-     air poured into the list (readsSlack), and that the left column has not
-     grown PAST the room, which is the regression this pass removed. */
-  ok(m.readsSlack <= 1, `the reading list carries no stretched-in space (${m.readsSlack}px)`);
-  ok(m.readsBox.h <= m.roomBox.h + 24, `the left column has not outgrown the member room (left ${m.readsBox.h}, room ${m.roomBox.h})`);
+  /* The two columns finish level again, and the reading card is what closes the
+     difference. The two assertions under it are what stop that being done the
+     cheap way: not by banking the surplus in the seams between the rows, and not
+     by growing one row while the others stay put. */
+  ok(Math.abs(m.readsBox.h - m.roomBox.h) <= 24, `the two split-band columns finish within 24px (left ${m.readsBox.h}, room ${m.roomBox.h})`);
+  ok(m.readsGapSlack <= 1, `the surplus is inside the rows, not banked in the gaps (${m.readsGapSlack}px)`);
+  ok(Math.max(...m.rowH) - Math.min(...m.rowH) <= 24, `the rows grew together, not one of them (${m.rowH.join(', ')}px)`);
   ok(m.articles === 3, `three articles in the reading card (${m.articles})`);
   ok(new Set(m.fonts).size === 1, `all three titles are set at one size (${m.fonts.join(', ')}px)`);
   ok(m.thumbs.every(h => h === 46), `every article carries a 46px thumbnail (${m.thumbs.join(', ')})`);
