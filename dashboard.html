@@ -315,11 +315,20 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 
    align-items:stretch (the default, and load-bearing here) is what makes the two
    columns finish on one line: the band's own height is its taller child's, and
-   the shorter one is pulled to it. The reading card then spends that height on
-   its hero image, which is the only flexible element in either column. See
-   .rhero. Nothing measures anything; the browser does the reconciliation. */
-.splitband{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:24px}
-.splitband>.card{min-width:0}
+   the shorter one is pulled to it.
+
+   The left column is now TWO cards in a flex column, not one card: "New products
+   in progress" over "Worth a read". NEITHER of them stretches: align-items:start
+   is what lets the reading card stop at the height its three rows actually need,
+   instead of being pulled down to the handset's and spending the difference on
+   air between the rows. The two columns finishing at different heights is the
+   point, not a defect. See .reads. */
+.splitband{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:24px;align-items:start}
+.splitband>*{min-width:0}
+/* The two left-hand cards share the band's own 24px gap, so the seam between
+   them reads as the same seam as the one beside them. Nothing in the column is
+   flex:1: both cards are the height of their own content. */
+.splitcol{display:flex;flex-direction:column;gap:24px;min-width:0}
 .pane__prof{display:flex;align-items:center;gap:10px;margin:8px 12px 14px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--card);text-align:left;transition:background .15s}
 .pane__prof:hover{background:#EDE8DB}
 .pane__prof.on{background:var(--mint);border-color:#CBDCC9}
@@ -359,23 +368,27 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
    centred against the text so a one line and a two line title both sit right.
    The whole anchor is the row, so the whole row is the click target and the
    one tab stop, and :focus-visible at the top of this sheet rings all of it.
-   :not(.rlead) because the hero article is the same list and not the same shape:
-   full-width media over its text, not a thumbnail beside it. Without the
-   exclusion this rule's specificity beats .rlead>a and the hero lays itself out
-   as a very tall row. */
-.reads li:not(.rlead) a{display:grid;grid-template-columns:64px 1fr;gap:14px;align-items:center;width:100%;padding:6px 0;border-radius:10px;transition:background 120ms ease}
-.reads li a:hover{background:rgba(30,158,99,.035)}
-.reads li a:hover .rttl{color:var(--accent-deep)}
-.rthumb{width:64px;height:64px;border-radius:10px;overflow:hidden;background:var(--mint);box-shadow:inset 0 0 0 1px rgba(43,58,51,.06)}
+
+   FOUR ROWS OF ONE SHAPE. The hero treatment is gone: a 280px stock photograph
+   of a man asleep on banknotes opened the card, carried no information the
+   headline did not, and pushed the other three articles under the fold. There
+   is no .rlead any more, so no exclusion is needed here either.
+
+   The negative inline margin is what lets the hover background bleed to the
+   card's padding edge while the text still lines up with the eyebrow above it. */
+.reads li a{display:grid;grid-template-columns:46px 1fr;gap:13px;align-items:center;width:100%;margin:0 -8px;padding:7px 8px;border-radius:12px;transition:background 120ms ease}
+.reads li a:hover{background:#F4F1E9}
+.reads li a:hover .rttl{color:#1E4D38}
+.rthumb{width:46px;height:46px;border-radius:10px;overflow:hidden;flex:none;border:1px solid var(--line);background:var(--mint)}
 .rthumb img{display:block;width:100%;height:100%;object-fit:cover}
 /* The tint above is also the placeholder: .rthumb is sized, the img is not, so
    the column holds its width before the image arrives and there is no reflow
    when it does. An image that fails is hidden and leaves the tint, rather than
    a broken icon in a collapsed column. */
 .rthumb img.gone{display:none}
-.rtxt{min-width:0;display:flex;flex-direction:column;gap:6px}
-.rttl{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;line-height:1.35;transition:color 120ms ease}
-.rtxt small{font-family:var(--mono);font-size:12px;color:var(--sub);font-weight:400}
+.rtxt{min-width:0;display:flex;flex-direction:column}
+.rttl{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.4;transition:color 120ms ease}
+.rtxt small{font-family:var(--mono);font-size:11px;color:var(--sub);font-weight:400;margin-top:3px}
 .kcard{display:flex;gap:13px;align-items:flex-start}
 .kthumb{width:52px;height:52px;border-radius:12px;overflow:hidden;flex:none;border:1px solid var(--line)}
 .kthumb svg{display:block;width:100%;height:100%}
@@ -414,7 +427,7 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
    layout work. 414 x 822 (an 800px screen inside 11px of bezel) at scale .7246
    is 300px wide, and the window is 420px of that: the screen runs on past the
    bottom edge and is clipped, which is true of a real feed and is the point.
-   The reading card opposite absorbs the height difference instead. See .rhero.
+   The reading card opposite absorbs the height difference instead. See .reads.
 
    The drop shadow moved from .mrdev to .mrview, because overflow:hidden clips a
    CHILD's shadow and not the clipper's own. */
@@ -513,8 +526,6 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .lipost p.tags{color:#0A66C2}
 .lipost > img{display:block;width:100%;height:150px;object-fit:cover;margin-top:12px}
 .liacts{display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid #00000014;font-size:13.5px;font-weight:600;color:#00000099}
-/* The lead article is back, and .rlead is with the rest of the reading card up
-   under "Worth a read: one hero, three rows". */
 .phero{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:20px}
 .ring--av{width:84px;height:84px}
 .avtxt{font-family:var(--disp);font-size:19px;font-weight:800;fill:var(--ink);text-anchor:middle}
@@ -728,38 +739,119 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .dots button{width:20px;height:20px;border-radius:50%;background:#E7E2D3;transition:transform .15s}
 .dots button:hover{transform:scale(1.12)}
 .dots button.on{background:var(--accent)}
-/* ---------- Worth a read: one hero, three rows ----------
-   THREE EQUAL ROWS CARRY NO HIERARCHY. Three articles at "5 min" each, side by
-   side at the same size, is a list of things nobody was invited to read. One
-   article at reading size with three under it says: this one now, these three
-   exist. Same link targets, same content, one axis of emphasis added.
+/* ---------- Worth a read: three rows of one shape ----------
+   The hero is gone. It was one article at reading size over a 280px photograph
+   with three 64px rows under it, and the photograph was a stock shot of a man
+   asleep on a pile of banknotes: it said nothing the headline did not, it was
+   the largest single element on the tab, and it put the other three articles
+   below the fold on a laptop. Three equal rows, each with a square crop of its
+   own article photograph, is a tenth of the height and the fourth link is one
+   click away under See all.
 
-   The card is a flex column and .reads is its flexible child, so everything
-   below chains off the band's height. See .rhero for the element that spends it. */
+   THE CARD NO LONGER STRETCHES. It used to be flex:1 in the column and spend
+   the surplus height on the spacing between its rows, which turned a short list
+   into a tall one for no reason a reader could name. Its height is now its three
+   rows, and a real headline wraps to two lines, so the card grows with the
+   copy rather than with the handset opposite. */
 .rcard{display:flex;flex-direction:column;min-width:0}
 .rcard__head{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
 .rcard__head .tlink{margin-top:0;flex:none}
-.reads{list-style:none;margin-top:12px;display:flex;flex-direction:column;flex:1;min-height:0}
+.reads{list-style:none;margin-top:12px;display:flex;flex-direction:column;gap:4px}
 .reads li{display:block}
-.reads li:not(:last-child){border-block-end:1px solid var(--line)}
-.reads a{font-size:15px;font-weight:600;color:var(--ink);line-height:1.35}
-.reads small{font-family:var(--mono);font-size:12px;color:var(--sub)}
-/* THE HERO IS THE ONLY FLEXIBLE ELEMENT IN EITHER COLUMN, and the flex chain
-   from the card down to it exists for one reason: to let the band reconcile its
-   two columns without measuring either. Everything else in both columns is
-   fixed, so whatever the member room's height comes to, the surplus arrives
-   here and lands on a photograph, which is the one element that can take it
-   without changing what it says.
-   The 200px floor and 280px ceiling are the bounds inside which a 3:2 crop still
-   reads as a photograph rather than a letterbox or a poster. Past them the card
-   leaves slack at its foot rather than distorting the image. */
-.rlead{flex:1 1 auto;min-height:0;display:flex}
-.rlead>a{flex:1;display:flex;flex-direction:column;gap:11px;min-height:0;padding-bottom:16px;border-radius:10px;transition:background 120ms ease}
-.rhero{flex:1 1 auto;min-height:200px;max-height:280px;border-radius:14px;overflow:hidden;background:var(--mint);box-shadow:inset 0 0 0 1px rgba(43,58,51,.06)}
-.rhero img{display:block;width:100%;height:100%;object-fit:cover}
-.rhero img.gone{display:none}
-.rlead .rttl{font-family:var(--disp);font-size:20.5px;font-weight:750;letter-spacing:-.015em;line-height:1.22}
-.rdek{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;font-size:13.5px;font-weight:400;color:var(--sub);line-height:1.5}
+/* The divider survives the redesign on purpose. Once every row carries a
+   thumbnail, 4px of gap alone reads as three floating tiles rather than a list. */
+.reads li:not(:last-child){border-block-end:1px solid var(--line);padding-block-end:4px}
+
+/* ---------- New products in progress ----------
+   Three tiles that each open one short survey. It sits ABOVE the reading card
+   rather than below it because it is the only thing in the left column that
+   asks the member for something; the articles are there whenever they are
+   wanted, and a card nobody scrolls to is a question nobody answers.
+
+   Terracotta, not the page's green, throughout the header: green on this page
+   means a live cohort with a real price attached to it. Nothing here is live,
+   and borrowing the colour that says it is would be the card telling its first
+   lie before the member has read a word. */
+.npcard{display:flex;flex-direction:column;min-width:0}
+.nphead{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.npcard .eyebrow{color:#8C4622}
+.npcard h3{font-size:clamp(19px,2.4vw,22px);font-weight:800;margin-top:2px}
+.nppill{display:inline-flex;align-items:center;gap:6px;flex:none;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#8C4622;background:#F2E3D6;border:1px solid #EBD3BE;border-radius:999px;padding:5px 12px}
+.nppill i{width:6px;height:6px;border-radius:50%;background:#B0512B;animation:npblink 2.4s ease-in-out infinite}
+@keyframes npblink{0%,100%{opacity:1}50%{opacity:.25}}
+.nptiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+/* A real <button>, so Enter, Space, the tab order and the dialog announcement
+   all arrive without a single line of key handling. */
+.nptile{display:flex;flex-direction:column;text-align:left;min-width:0;background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:transform .15s,box-shadow .2s,border-color .2s}
+.nptile:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(26,37,32,.11);border-color:#2C6A4E}
+.nptile:hover .nparrow{transform:translateX(3px)}
+@media (prefers-reduced-motion:reduce){.nptile:hover{transform:none}}
+.npart{display:block;height:76px;flex:none}
+.npart svg{display:block;width:100%;height:100%}
+.nptxt{padding:11px 13px 13px;min-width:0}
+.nptxt b{display:block;font-family:var(--disp);font-size:15.5px;font-weight:750;line-height:1.25}
+.npgo{display:block;margin-top:5px;font-size:12.5px;font-weight:650;color:#1E7A50}
+.nparrow{display:inline-block;font-style:normal;transition:transform .15s}
+/* The art bands. Every animation on this card is decorative: it says "being
+   worked on", which is the one claim the card is making. */
+.nparc{animation:nppulse 2.2s ease-in-out infinite}
+.nparc.a2{animation-delay:.5s}
+.nparc.a3{animation-delay:1s}
+@keyframes nppulse{0%,100%{opacity:.25}45%{opacity:1}}
+/* The bars live inside a NESTED <svg>, which clips to its own viewport. A
+   clipPath would need an id, and this art is drawn twice (the tile and the
+   modal's thumbnail), so an id here would be a duplicate id by construction. */
+.npbars{animation:npdrift 3.2s linear infinite}
+@keyframes npdrift{to{transform:translateX(-18px)}}
+.nptire{transform-origin:60px 38px;animation:npspin 9s linear infinite}
+@keyframes npspin{to{transform:rotate(360deg)}}
+.npflake{animation:npfall 3.4s linear infinite}
+.npflake.f2{animation-delay:1.1s}
+.npflake.f3{animation-delay:2.2s}
+@keyframes npfall{0%{transform:translateY(-14px);opacity:0}18%{opacity:1}82%{opacity:1}100%{transform:translateY(52px);opacity:0}}
+
+/* ---------- the survey dialog ----------
+   One shell, refilled per product. Centred over a scrim, and the BOX scrolls
+   rather than the page behind it: winter tires asks five questions, which is
+   taller than a 667px phone viewport with the browser chrome taken out. */
+.npmodal{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:20px}
+.npmodal[hidden]{display:none}
+.npscrim{position:absolute;inset:0;background:rgba(26,37,32,.45);backdrop-filter:blur(3px)}
+.npbox{position:relative;width:100%;max-width:540px;max-height:88vh;overflow-y:auto;background:#FCFAF5;border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:0 24px 60px rgba(26,37,32,.3)}
+.npmhead{display:flex;align-items:center;gap:12px}
+.npmthumb{width:46px;height:46px;border-radius:12px;overflow:hidden;flex:none;border:1px solid var(--line)}
+.npmthumb svg{display:block;width:100%;height:100%}
+.npmhead h3{flex:1;min-width:0;font-size:19px;font-weight:800}
+.npmx{width:34px;height:34px;border-radius:50%;flex:none;font-size:19px;line-height:1;color:var(--sub);transition:background .15s}
+.npmx:hover{background:#EDE8DB}
+.msub{font-size:13.5px;color:#5B655C;line-height:1.55;max-width:56ch;margin-top:12px}
+.npq{margin-top:16px}
+.npq>p{font-size:13.5px;font-weight:650}
+.npq>p em{font-style:normal;font-weight:400;color:var(--sub)}
+.npchips{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+.npchip{font-size:12.5px;font-weight:600;color:#3A453E;background:#fff;border:1px solid var(--line);border-radius:999px;padding:7px 13px;transition:background .15s,border-color .15s,color .15s}
+.npchip:hover{border-color:#CBDCC9}
+.npchip.on{background:#E4EDE2;border-color:#2C6A4E;color:#1E4D38}
+.npconsent{display:flex;align-items:flex-start;gap:10px;margin-top:18px;font-size:13px;color:#3A453E;line-height:1.5;cursor:pointer}
+.npconsent input{margin-top:2px;width:17px;height:17px;flex:none;accent-color:var(--accent)}
+.msend{width:100%;justify-content:center;margin-top:14px;background:#B0512B;color:#fff;font-weight:700;border-radius:12px;padding:13px 18px;transition:background .15s}
+.msend:hover{background:#8C4622}
+.npfoot{text-align:center;font-size:12.5px;color:var(--sub);margin-top:11px}
+body.npopen{overflow:hidden}
+
+/* Tiles stack and flip horizontal: a 76px band across a full-width tile is a
+   letterbox nobody reads, and three stacked letterboxes is most of a phone
+   screen spent on decoration. */
+@media (max-width:680px){
+  .nptiles{grid-template-columns:1fr}
+  .nptile{flex-direction:row;align-items:center;padding:0 14px 0 0}
+  .npart{width:110px;height:76px}
+  .nptxt{padding:10px 0 10px 13px}
+}
+@media (prefers-reduced-motion:reduce){
+  .nppill i,.nparc,.npbars,.nptire,.npflake{animation:none}
+  .nptile,.nparrow,.npchip,.msend,.npmx{transition:none}
+}
 
 /* ---------- the cohort row, promoted ----------
    FOUR CARDS, ONE ROW, directly under the two-up. This was an auto-fill grid at
@@ -846,11 +938,13 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .tile.dark .tn{color:#B5CDB9}
 .tile.dark b{color:var(--glow)}
 .tlink{font-size:13.5px;font-weight:650;color:var(--accent-deep);margin-top:10px;display:inline-block}
-/* 390px: a narrower gap, and the card's own inline padding opened to 20px. The
-   row is 64 + 12 = 76px, well past the 56px touch floor. */
+/* 390px: the card's own inline padding opened to 20px, and the thumbnail down
+   to 44. The row is 44 + 12 + two 7px paddings = 72px, past the 56px touch
+   floor even at the narrowest width this page is built for. */
 @media (max-width:430px){
   .rcard{padding-inline:20px}
-  .reads li:not(.rlead) a{gap:12px}
+  .reads li a{grid-template-columns:44px 1fr;gap:12px}
+  .rthumb{width:44px;height:44px}
 }
 
 /* ---------- toast & controls ---------- */
@@ -881,12 +975,11 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
    The handset's WIDTH follows the rail; its 420px window does not, because the
    window is the fixed reference the reading card reconciles against and a band
    that shrinks it to make the columns meet has resized the one thing that was
-   making an honest claim. The hero's floor drops instead. */
+   making an honest claim. The reading card takes the difference instead. */
 @media (max-width:1279px){
   .splitband{grid-template-columns:minmax(0,1fr) 360px}
   .mrview{width:280px}
   .mrdev{transform:scale(.6763)}
-  .rhero{min-height:180px}
   .cc__art{height:88px}
 }
 @media (max-width:1100px){
@@ -897,16 +990,14 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
    two-up above collapses a pixel earlier, at its own long-standing breakpoint,
    because that boundary is the rail's 4-column track running out and has nothing
    to do with this band.
-   One column, reading card first, member room second: DOM order, which is also
-   tab and screen-reader order. Height matching stops applying with nothing to
-   match against, so the hero goes back to a plain 3:2 crop and the handset is
-   centred at its full 300px. */
+   One column, products first, reading second, the room third: DOM order, which
+   is also tab and screen-reader order. The reading card was already at its
+   natural height beside the rail, so it carries down unchanged; only the
+   handset changes, back to its full 300px. */
 @media (max-width:1099px){
   .splitband{grid-template-columns:minmax(0,1fr)}
   .mrview{width:300px}
   .mrdev{transform:scale(.7246)}
-  .rhero{max-height:none;aspect-ratio:3/2;min-height:0;flex:none}
-  .rlead{flex:none}
   .crow{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 /* Four cards is four cards on a phone too, so the row scrolls rather than
@@ -1325,11 +1416,33 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
              400px rail. See .splitband. -->
         <div class="splitband is-wide">
 
-          <section class="card rcard" aria-label="Worth a read">
-            <div class="rcard__head"><span class="eyebrow">Worth a read</span>
-            <button class="tlink" type="button" data-nav="knowledge">See all &rarr;</button></div>
-            <ul class="reads" id="reads"></ul>
-          </section>
+          <!-- The left column: what we are asking for, then what there is to
+               read. Two cards, one flex column, so the band still has exactly
+               two grid children and the member room's rail is untouched. -->
+          <div class="splitcol">
+
+            <!-- The three tiles are written by renderProducts() from NPROD, not
+                 by hand: the modal's 46px thumbnail is the same artwork as the
+                 tile's band, and one source is what keeps them the same drawing
+                 as well as the same idea. -->
+            <section class="card npcard" aria-labelledby="np-h">
+              <div class="nphead">
+                <div>
+                  <span class="eyebrow">Help us save you more</span>
+                  <h3 id="np-h">New products in progress</h3>
+                </div>
+                <span class="nppill"><i aria-hidden="true"></i>In the works</span>
+              </div>
+              <div class="nptiles" id="nptiles"></div>
+            </section>
+
+            <section class="card rcard" aria-label="Worth a read">
+              <div class="rcard__head"><span class="eyebrow">Worth a read</span>
+              <button class="tlink" type="button" data-nav="knowledge">See all &rarr;</button></div>
+              <ul class="reads" id="reads"></ul>
+            </section>
+
+          </div>
 
           <section class="card mroom" aria-label="The member room">
               <div class="mrcopy">
@@ -1714,6 +1827,22 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 <div class="modal" id="modal" hidden><div class="mbox" role="dialog" aria-modal="true" aria-label="Whollar dialog"><div id="mbody"></div></div></div>
 
 <div class="toast" id="toast" role="status"></div>
+
+<!-- The product survey. One shell for all three products: the head, the intro,
+     the questions and the footnote are written by openProduct() from NPROD.
+     aria-labelledby points at the title the shell fills in, so the dialog
+     announces the product rather than a static "Product survey". -->
+<div class="npmodal" id="npmodal" hidden>
+  <div class="npscrim" data-mclose></div>
+  <div class="npbox" role="dialog" aria-modal="true" aria-labelledby="npm-title">
+    <div class="npmhead">
+      <span class="npmthumb" id="npm-thumb" aria-hidden="true"></span>
+      <h3 id="npm-title"></h3>
+      <button class="npmx" type="button" data-mclose id="npm-x" aria-label="Close">&times;</button>
+    </div>
+    <div id="npm-body"></div>
+  </div>
+</div>
 <button class="ctl-t" type="button" id="ctl-toggle" aria-expanded="false" aria-controls="ctl">Prototype controls</button>
 <div class="ctl" id="ctl" aria-label="Prototype controls">
   <h5>Prototype controls</h5>
@@ -3882,9 +4011,12 @@ var KMETA=[
   ['collective-switching','How it works','Collective switching is not a theory. It moved energy markets for years. Now, internet.','~5 min read','An electricity pylon with power lines fanning out overhead'],
   ['three-companies','The market','The prices make more sense once you see who owns the pipes.','~6 min read','A telecommunications mast with dish antennas against a clear sky']
 ];
-/* FOUR reads, once, for both lanes: a hero and three rows. Written at boot
-   because BLOGS and KMETA are constants and nothing about this list depends on
-   state, which is why it is not in render(). */
+/* Where the square crop is not the hero crop, the alt text has to describe what
+   the square actually shows. Only the first article needs one so far. */
+var RTHUMBALT={'the-487-problem':'A scatter of banknotes across a dark table'};
+/* THREE reads, once, for both lanes. Written at boot because BLOGS and KMETA
+   are constants and nothing about this list depends on state, which is why it
+   is not in render(). */
 $('#reads').innerHTML=readsItemsHTML();
 /* A thumbnail that 404s leaves the mint placeholder rather than a broken icon
    in a collapsed column. `error` does not bubble, hence the capture phase, and
@@ -3896,6 +4028,322 @@ document.addEventListener('error',function(e){
   var p=t.parentNode;
   if(p&&p.classList.contains('rthumb'))t.classList.add('gone');
 },true);
+/* ---------- new products in progress ----------
+   Three tiles, three short surveys, one dialog shell. What this collects is
+   demand: which of the three to build first, and against what the household
+   already pays. Nothing here is a cohort yet, nothing here has a price, and the
+   card says so in its own pill rather than leaving the member to find out.
+
+   THE ARTWORK CARRIES NO ids. Each band is drawn twice, once in the tile and
+   once at 46px in the dialog head, so a clipPath id would be a duplicate id by
+   construction. The drifting subtitle bars are clipped by a NESTED <svg>, which
+   establishes its own viewport and clips to it without needing to be referenced
+   by name. See .npbars.
+
+   ONE FLAKE, TWO ELEMENTS: the outer <g> carries the position as an SVG
+   transform attribute and the inner one carries the animation as a CSS
+   transform, because a CSS transform replaces the attribute rather than
+   composing with it, and a flake that animates from the origin falls through
+   the tire. */
+var NPART={
+  mobile:'<svg viewBox="0 0 120 76" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">'
+    +'<rect width="120" height="76" fill="#E4EDE2"/>'
+    +'<rect x="51" y="17" width="18" height="42" rx="5" fill="#fff" stroke="#1E4D38" stroke-width="2"/>'
+    +'<rect x="56" y="21" width="8" height="1.8" rx=".9" fill="#1E4D38"/>'
+    +'<g fill="none" stroke="#1E7A50" stroke-width="1.8" stroke-linecap="round">'
+    +'<path class="nparc a1" d="M75 32a9 9 0 0 1 0 12"/><path class="nparc a2" d="M80.5 27a17 17 0 0 1 0 22"/><path class="nparc a3" d="M86 22a25 25 0 0 1 0 32"/></g>'
+    +'<g fill="none" stroke="#B0512B" stroke-width="1.8" stroke-linecap="round">'
+    +'<path class="nparc a1" d="M45 32a9 9 0 0 0 0 12"/><path class="nparc a2" d="M39.5 27a17 17 0 0 0 0 22"/><path class="nparc a3" d="M34 22a25 25 0 0 0 0 32"/></g>'
+    +'</svg>',
+  streaming:'<svg viewBox="0 0 120 76" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">'
+    +'<rect width="120" height="76" fill="#F2E8DA"/>'
+    +'<rect x="29" y="14" width="62" height="42" rx="7" fill="#fff" stroke="#8C4622" stroke-width="2"/>'
+    +'<path d="M55 27.5 68.5 35 55 42.5Z" fill="#B0512B"/>'
+    +'<svg x="35" y="45" width="50" height="7" viewBox="0 0 50 7" preserveAspectRatio="none">'
+    +'<g class="npbars" fill="#E4D2BD">'
+    +'<rect x="0" y="2" width="12" height="3" rx="1.5"/><rect x="15" y="2" width="6" height="3" rx="1.5"/><rect x="24" y="2" width="9" height="3" rx="1.5"/>'
+    +'<rect x="36" y="2" width="12" height="3" rx="1.5"/><rect x="51" y="2" width="6" height="3" rx="1.5"/><rect x="60" y="2" width="9" height="3" rx="1.5"/>'
+    +'<rect x="72" y="2" width="12" height="3" rx="1.5"/><rect x="87" y="2" width="6" height="3" rx="1.5"/><rect x="96" y="2" width="9" height="3" rx="1.5"/>'
+    +'</g></svg>'
+    +'<path d="M53 61h14M60 56v5" fill="none" stroke="#8C4622" stroke-width="2" stroke-linecap="round"/>'
+    +'</svg>',
+  tires:'<svg viewBox="0 0 120 76" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">'
+    +'<rect width="120" height="76" fill="#E8ECE3"/>'
+    +'<g class="nptire">'
+    +'<circle cx="60" cy="38" r="21" fill="#1A2520"/>'
+    /* Tread across the OUTER edge only. Spokes reaching the middle turned the
+       whole thing into a sun at 46px, which is the size it is drawn at in the
+       dialog head. */
+    +'<path stroke="#E8ECE3" stroke-width="2.2" d="M75.1 42.0L80.4 43.5M71.0 49.0L74.9 52.9M64.0 53.1L65.5 58.4M56.0 53.1L54.5 58.4M49.0 49.0L45.1 52.9M44.9 42.0L39.6 43.5M44.9 34.0L39.6 32.5M49.0 27.0L45.1 23.1M56.0 22.9L54.5 17.6M64.0 22.9L65.5 17.6M71.0 27.0L74.9 23.1M75.1 34.0L80.4 32.5"/>'
+    +'<circle cx="60" cy="38" r="13" fill="#E8ECE3" stroke="#1A2520" stroke-width="1.4"/>'
+    +'<path stroke="#1A2520" stroke-width="1.6" d="M60.0 33.5L60.0 26.0M64.3 36.6L71.4 34.3M62.6 41.6L67.1 47.7M57.4 41.6L52.9 47.7M55.7 36.6L48.6 34.3"/>'
+    +'<circle cx="60" cy="38" r="3.2" fill="#1A2520"/>'
+    +'</g>'
+    +'<g fill="none" stroke="#5B655C" stroke-width="1.6" stroke-linecap="round">'
+    +'<g transform="translate(22,12)"><g class="npflake f1"><path d="M0-4v8M-3.5-2l7 4M-3.5 2l7-4"/></g></g>'
+    +'<g transform="translate(99,7)"><g class="npflake f2"><path d="M0-4v8M-3.5-2l7 4M-3.5 2l7-4"/></g></g>'
+    +'<g transform="translate(104,26)"><g class="npflake f3"><path d="M0-4v8M-3.5-2l7 4M-3.5 2l7-4"/></g></g>'
+    +'</g></svg>'
+};
+
+/* Every chip carries a VALUE, and the value is what is stored. The labels are
+   copy and will be edited; "$40 to $60" becoming "$40 to $65" must not create a
+   second bucket in the store that nobody can reconcile with the first. */
+var NPORDER=['mobile','streaming','tires'];
+var NPROD={
+  mobile:{
+    title:'Mobile plans',
+    go:'Tell us about your plan',
+    intro:'Mobile has the same disease as home internet: a promo rate that quietly resets 12 to 24 months in, and posted prices that tell you nothing about what people actually pay. Same fix too: we build cohorts by renewal timing and let carriers bid for the whole cohort, so the credible exit does the negotiating for you.',
+    qs:[
+      {id:'interest',q:'Would a mobile cohort interest you?',pre:'yes',opts:[['yes','Yes, build it'],['maybe','Maybe, depends on price'],['no','Not for me']]},
+      {id:'carrier',q:'Who is your mobile carrier today?',opts:[['rogers-fido','Rogers / Fido'],['bell-virgin','Bell / Virgin'],['telus-koodo','Telus / Koodo'],['freedom-public','Freedom / Public'],['other','Other']]},
+      {id:'spend',q:'Roughly what do you pay per line, per month?',note:'optional, stays private',opts:[['u40','Under $40'],['40-60','$40 to $60'],['60-80','$60 to $80'],['80p','$80 or more'],['unsure','Not sure']]}
+    ]
+  },
+  streaming:{
+    title:'Streaming',
+    go:'Tell us what you pay',
+    intro:'Streaming prices creep the same way your internet bill does: a dollar or two at a time, across four or five services, often bundled through the same providers. We want to track the bumps the month they happen, flag the overlap you are paying twice for, and build cohorts wherever a shared rate is possible.',
+    qs:[
+      {id:'interest',q:'Would streaming tracking interest you?',pre:'yes',opts:[['yes','Yes, build it'],['maybe','Maybe, depends on price'],['no','Not for me']]},
+      {id:'services',q:'How many services does your household pay for?',opts:[['1-2','1 to 2'],['3-4','3 to 4'],['5p','5 or more'],['isp-bundle','Bundled with my ISP'],['unsure','Not sure']]},
+      {id:'spend',q:'Roughly what does it add up to per month?',note:'optional, stays private',opts:[['u25','Under $25'],['25-50','$25 to $50'],['50-80','$50 to $80'],['80p','$80 or more'],['unsure','No idea, honestly']]}
+    ]
+  },
+  tires:{
+    title:'Winter tires',
+    go:'Help shape this one',
+    intro:'Most Canadian drivers run two sets of wheels, and the winter set is three separate headaches: buying at whatever price the shop quotes, booking the seasonal changeover, and finding somewhere to keep the off-season set. We want to run all three through one cohort: a better price on the tires, trusted mechanics for the swap, and storage for the spare set, at prices posted up front.',
+    qs:[
+      {id:'interest',q:'Would a winter tire program interest you?',pre:'yes',opts:[['yes','Yes, build it'],['maybe','Maybe, depends on price'],['no','Not for me']]},
+      {id:'parts',q:'Which parts would you actually use?',note:'pick any',multi:true,opts:[['buy','Buying tires cheaper'],['swap','Seasonal swap / mechanic'],['storage','Storing the off-season set']]},
+      {id:'tire_cost',q:'What did your last set of winter tires cost, installed?',note:'optional',opts:[['u600','Under $600'],['600-1000','$600 to $1,000'],['1000-1500','$1,000 to $1,500'],['1500p','$1,500 or more'],['unsure','Not sure']]},
+      {id:'swap_cost',q:'What does the seasonal changeover cost you, each time?',note:'optional',opts:[['diy','I do it myself'],['u80','Under $80'],['80-120','$80 to $120'],['120p','$120 or more'],['unsure','Not sure']]},
+      {id:'storage_cost',q:'What does storing the off-season set cost you, per season?',note:'optional',opts:[['home','Nothing, I store at home'],['u80','Under $80'],['80-150','$80 to $150'],['150p','$150 or more'],['unsure','Not sure']]}
+    ]
+  }
+};
+
+function renderProducts(){
+  var host=$('#nptiles');
+  if(!host)return;
+  host.innerHTML=NPORDER.map(function(k){
+    var p=NPROD[k];
+    return '<button class="nptile" type="button" data-np="'+k+'" aria-haspopup="dialog">'
+    +'<span class="npart">'+NPART[k]+'</span>'
+    +'<span class="nptxt"><b>'+esc(p.title)+'</b>'
+    +'<span class="npgo">'+esc(p.go)+' <i class="nparrow" aria-hidden="true">&rarr;</i></span></span>'
+    +'</button>';
+  }).join('');
+}
+renderProducts();
+
+/* The dialog. NPOPEN is the whole of its state: which product, which chips, and
+   which tile to hand focus back to. Null means closed, and every handler below
+   returns on null rather than testing the element's hidden attribute, so there
+   is one answer to "is this open" and not two that can disagree. */
+var NPOPEN=null;
+
+/* Only the questions with a `pre` start answered. A pre-ticked "Yes, build it"
+   is a leading question and we know it; the alternative is a dialog whose
+   submit button does nothing until the member has agreed with it, which is a
+   worse kind of leading. Everything below it starts blank. */
+function npInitialAnswers(prod){
+  var a={};
+  prod.qs.forEach(function(q){
+    if(q.multi)a[q.id]=[];
+    else if(q.pre)a[q.id]=q.pre;
+  });
+  return a;
+}
+
+function npChipsHTML(q,answers){
+  var picked=answers[q.id];
+  return q.opts.map(function(o){
+    var on=q.multi?(picked.indexOf(o[0])>-1):(picked===o[0]);
+    /* role=radio inside a radiogroup, aria-pressed inside a plain group: a
+       single-answer question and a pick-any question are different controls and
+       a screen reader is told which one it is on. */
+    var state=q.multi?('aria-pressed="'+(on?'true':'false')+'"')
+      :('role="radio" aria-checked="'+(on?'true':'false')+'" tabindex="'+(on||(!picked&&o===q.opts[0])?'0':'-1')+'"');
+    return '<button class="npchip'+(on?' on':'')+'" type="button" data-q="'+q.id+'" data-v="'+esc(o[0])+'" '+state+'>'+esc(o[1])+'</button>';
+  }).join('');
+}
+
+function npBodyHTML(key){
+  var prod=NPROD[key], answers=NPOPEN.answers;
+  var qs=prod.qs.map(function(q,i){
+    var lid='npq-'+key+'-'+q.id;
+    return '<div class="npq">'
+    +'<p id="'+lid+'">'+esc(q.q)+(q.note?' <em>('+esc(q.note)+')</em>':'')+'</p>'
+    +'<div class="npchips" role="'+(q.multi?'group':'radiogroup')+'" aria-labelledby="'+lid+'" data-qid="'+q.id+'">'
+    +npChipsHTML(q,answers)+'</div></div>';
+  }).join('');
+  return '<p class="msub">'+esc(prod.intro)+'</p>'+qs
+  +'<label class="npconsent"><input type="checkbox" id="npm-keep" checked>'
+  +'<span>Keep me posted as this one takes shape. No spam, just the milestones.</span></label>'
+  +'<button class="msend" type="button" data-send>Count me in</button>'
+  +'<p class="npfoot">Answers shape what we build first. Never shown to providers, never sold.</p>';
+}
+
+function openProduct(key,opener){
+  var prod=NPROD[key];
+  if(!prod)return;
+  NPOPEN={key:key,answers:npInitialAnswers(prod),opener:opener||null};
+  $('#npm-thumb').innerHTML=NPART[key];
+  $('#npm-title').textContent=prod.title;
+  $('#npm-body').innerHTML=npBodyHTML(key);
+  $('#npmodal').hidden=false;
+  document.body.classList.add('npopen');
+  $('#npm-x').focus();
+}
+
+function closeProduct(){
+  if(!NPOPEN)return;
+  var back=NPOPEN.opener;
+  NPOPEN=null;
+  $('#npmodal').hidden=true;
+  document.body.classList.remove('npopen');
+  $('#npm-body').innerHTML='';
+  /* Back to the tile that opened it, not to the top of the document: a member
+     who opened the third tile and closed it should still be on the third tile. */
+  if(back&&document.contains(back))back.focus();
+}
+
+/* Repaint one question's chips rather than the whole body: rebuilding the body
+   would drop the consent checkbox's state and move focus off the chip that was
+   just pressed. */
+function npRepaint(qid){
+  var prod=NPROD[NPOPEN.key];
+  var q=null;
+  prod.qs.forEach(function(x){if(x.id===qid)q=x});
+  var group=$('.npchips[data-qid="'+qid+'"]',$('#npm-body'));
+  if(!q||!group)return;
+  group.innerHTML=npChipsHTML(q,NPOPEN.answers);
+}
+
+function npChoose(chip){
+  var qid=chip.getAttribute('data-q'), val=chip.getAttribute('data-v');
+  var prod=NPROD[NPOPEN.key], q=null;
+  prod.qs.forEach(function(x){if(x.id===qid)q=x});
+  if(!q)return;
+  if(q.multi){
+    var list=NPOPEN.answers[qid]||[];
+    var at=list.indexOf(val);
+    if(at>-1)list.splice(at,1); else list.push(val);
+    NPOPEN.answers[qid]=list;
+  }else{
+    /* A second press on the chosen chip clears it. Every single-answer question
+       here except the first is optional, and without this a mis-tap is an
+       answer the member cannot take back. */
+    NPOPEN.answers[qid]=(NPOPEN.answers[qid]===val)?null:val;
+  }
+  npRepaint(qid);
+  var again=$('.npchips[data-qid="'+qid+'"] [data-v="'+val+'"]',$('#npm-body'));
+  if(again)again.focus();
+}
+
+/* ---------- the survey POST ----------
+   Optimistic and quiet: the toast fires before the request does, one retry runs
+   in the background, and a failure is a console line. This is a demand signal,
+   not a bid; blocking the dialog on it, or telling a member their answer to
+   "would winter tires interest you" failed to save, would spend more of their
+   attention than the answer is worth.
+
+   The server owns who this is (session), when it happened, and the notify list.
+   The client sends what it actually knows: the product, the values, the consent
+   and which page asked. */
+function npSend(payload,retried){
+  return fetch(W.AUTH_API+'/me/product-interest',{
+    method:'POST',
+    credentials:'same-origin',
+    headers:{'Content-Type':'application/json',Accept:'application/json'},
+    body:JSON.stringify(payload)
+  }).then(function(r){
+    if(!r.ok)throw new Error('HTTP '+r.status);
+  }).catch(function(err){
+    if(!retried){setTimeout(function(){npSend(payload,true)},1500);return}
+    if(window.console&&console.warn)console.warn('product interest not recorded:',(err&&err.message)||err);
+  });
+}
+
+function npSubmit(){
+  if(!NPOPEN)return;
+  var key=NPOPEN.key, prod=NPROD[key];
+  var keep=!!($('#npm-keep')&&$('#npm-keep').checked);
+  var answers={};
+  Object.keys(NPOPEN.answers).forEach(function(k){
+    var v=NPOPEN.answers[k];
+    if(v===null||v===undefined)return;
+    if(v&&v.length===0)return;
+    answers[k]=v;
+  });
+  var payload={
+    product:key,
+    answers:answers,
+    keepPosted:keep,
+    fsa:(MEMBER&&MEMBER.fsa)||null,
+    sourcePage:location.pathname
+  };
+  closeProduct();
+  /* Only promise the email if they asked for it. Everyone on this page is a
+     signed-in member with an address on file, so the promise is one we can
+     actually keep, which is what the second clause is doing here at all. */
+  toast(keep
+    ?'Thanks. We’ll email you when '+prod.title.toLowerCase()+' opens up.'
+    :'Thanks. Your answers are in.');
+  npSend(payload);
+}
+
+/* One delegated listener for the whole feature: the tiles are rendered, the
+   chips are re-rendered on every press, and neither survives a per-element
+   binding. */
+document.addEventListener('click',function(e){
+  var tile=e.target.closest('.nptile');
+  if(tile){openProduct(tile.getAttribute('data-np'),tile);return}
+  if(!NPOPEN)return;
+  if(e.target.closest('[data-mclose]')){closeProduct();return}
+  var chip=e.target.closest('.npchip');
+  if(chip){npChoose(chip);return}
+  if(e.target.closest('[data-send]'))npSubmit();
+});
+
+document.addEventListener('keydown',function(e){
+  if(!NPOPEN)return;
+  if(e.key==='Escape'){closeProduct();return}
+
+  /* Arrow keys inside a radiogroup, because role=radio promises them. The chips
+     carry a roving tabindex (see npChipsHTML), so Tab treats each group as one
+     stop and the arrows move within it, which is what a screen reader user is
+     told to expect the moment the group announces itself as radios. */
+  var chip=e.target&&e.target.closest?e.target.closest('.npchip'):null;
+  var group=chip&&chip.parentNode;
+  if(chip&&group&&group.getAttribute('role')==='radiogroup'&&
+     (e.key==='ArrowRight'||e.key==='ArrowLeft'||e.key==='ArrowDown'||e.key==='ArrowUp')){
+    var chips=$$('.npchip',group);
+    var at=chips.indexOf(chip);
+    var step=(e.key==='ArrowRight'||e.key==='ArrowDown')?1:-1;
+    var next=chips[(at+step+chips.length)%chips.length];
+    e.preventDefault();
+    if(next)npChoose(next);
+    return;
+  }
+
+  /* Tab stays inside the box while it is open. Without this the tab order runs
+     on into the dashboard behind the scrim, where nothing is visible and
+     everything is still clickable. */
+  if(e.key!=='Tab')return;
+  var box=$('.npbox');
+  if(!box)return;
+  var focusable=$$('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',box)
+    .filter(function(el){return !el.disabled&&el.offsetParent!==null});
+  if(!focusable.length)return;
+  var first=focusable[0], last=focusable[focusable.length-1];
+  if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+  else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+});
+
 $('#klist').innerHTML=BLOGS.map(function(b,i){
   var m=KMETA[i], n=(i<9?'0':'')+(i+1), img='/images/resources/'+m[0];
   return '<a class="ktile" href="/blog/'+b[2]+'">'
@@ -4108,35 +4556,40 @@ function referralHTML(){
   +'<div class="refacts"><button class="btn ghost sharerefc" type="button">Share your link</button><button class="btn ghost" type="button" data-fbopen>Feedback</button></div>'
   +'</section>';
 }
-/* ONE HERO AND THREE ROWS, from the same list, in one <ul> so the four articles
+/* THREE ROWS OF ONE SHAPE, from the same list, in one <ul> so the three articles
    are one list to a screen reader and each item is ONE link: a link on the title
    plus a second on the thumbnail would double the tab stops for one destination.
    The title is its own element so it clamps on its own: as a bare text node
    beside the <small> the clamp cut the read time off with the title.
 
-   Three equal rows carried no hierarchy. The first article now runs at reading
-   size over its own 3:2 photograph, with a one-line dek, and the other three are
-   64px rows: one thing worth reading now, three worth knowing exist. It also
-   gives the band the flexible element it needs to meet the member room's height,
-   which three fixed rows could not. See .rhero.
+   The hero is gone. Its photograph (a man asleep on banknotes) was 280px of the
+   card, said nothing the headline did not, and pushed the other three articles
+   below the fold. Three equal rows is a short list at its own height, with no
+   editorial claim that one of them matters more, and See all above carries a
+   reader who wants the fourth into the knowledge view.
 
-   Media is sized by its container (.rhero, .rthumb) and not by the image, so both
-   columns hold their geometry before a file arrives and nothing reflows when one
-   does. */
-function readsRowHTML(b,m,hero){
-  var img='/images/resources/'+m[0];
-  var pic=hero
-    ? '<span class="rhero"><img src="'+img+'.webp" srcset="'+img+'.webp 800w, '+img+'@2x.webp 1600w"'
-      +' sizes="(max-width:1100px) 100vw, 780px" alt="'+esc(m[4])+'" loading="lazy" decoding="async" width="800" height="533"></span>'
-    : '<span class="rthumb"><img src="'+img+'.webp" srcset="'+img+'.webp 800w, '+img+'@2x.webp 1600w"'
-      +' sizes="64px" alt="'+esc(m[4])+'" loading="lazy" decoding="async" width="800" height="533"></span>';
-  return '<li'+(hero?' class="rlead"':'')+'><a href="/blog/'+b[2]+'">'+pic
+   A DEDICATED SQUARE CROP, not the 800px hero scaled down. The rows used to
+   pour a full-width JPEG into a 64px box: 40x the pixels for the same 46px of
+   screen. images/resources/thumbs/ holds a 92px crop and its retina pair, and
+   the crop is chosen per article rather than taken from the centre, because the
+   centre of the first article's photograph is a face and a face at 46px is
+   nobody in particular.
+
+   Media is sized by its container (.rthumb) and not by the image, so the column
+   holds its geometry before a file arrives and nothing reflows when one does. */
+function readsRowHTML(b,m){
+  var img='/images/resources/thumbs/'+m[0];
+  return '<li><a href="/blog/'+b[2]+'">'
+  +'<span class="rthumb"><img src="'+img+'.webp" srcset="'+img+'.webp 92w, '+img+'@2x.webp 184w"'
+  +' sizes="46px" alt="'+esc(RTHUMBALT[m[0]]||m[4])+'" loading="lazy" decoding="async" width="92" height="92"></span>'
   +'<span class="rtxt"><b class="rttl">'+esc(b[0])+'</b>'
-  +(hero?'<span class="rdek">'+esc(m[2])+'</span>':'')
   +'<small>'+b[1]+'</small></span></a></li>';
 }
+/* THREE, not four. The card sits at its own height now rather than filling the
+   band, so every row it carries is a row the reader has to be given a reason
+   for; the fourth was there to fill a column, which is not one. */
 function readsItemsHTML(){
-  return BLOGS.slice(0,4).map(function(b,i){return readsRowHTML(b,KMETA[i],i===0)}).join('');
+  return BLOGS.slice(0,3).map(function(b,i){return readsRowHTML(b,KMETA[i])}).join('');
 }
 /* The visitor lane used to build its own member-room card and its own Worth a
    read card here, and the member lane carried a third copy of the reads card in

@@ -26,8 +26,9 @@
  *  11. one set of tracks across every tab
  *  12. THE COHORT ROW: exactly four cards, equal heights, their progress bars on
  *      one line, no button inside a card, and the row above all reading content
- *  13. THE SPLIT BAND: two columns finishing on the same line, four articles with
- *      the first visibly larger, and the stock illustration gone from the document
+ *  13. THE SPLIT BAND: a reading column no taller than the member room, three
+ *      articles at one weight over one thumbnail each, and no stock photography
+ *      left in the band
  *
  * It walks EVERY state in the prototype controls, because the Home card set
  * changes by state and a layout tuned to one state is the fault this pass
@@ -166,7 +167,7 @@ const measure = (p) => p.evaluate(() => {
   /* The split band's two cards are children of .home, not of a lane: they are the
      same two cards whichever lane is showing, which is why they moved out. They
      still have to be measured, so they are collected explicitly. */
-  const cards = [...document.querySelectorAll('.home > .cliff, .home > .crowband, .home > .splitband > .card')]
+  const cards = [...document.querySelectorAll('.home > .cliff, .home > .crowband, .home > .splitband > .card, .home > .splitband > .splitcol > .card')]
     .concat([...laneEl.querySelectorAll('.card')]).filter(vis);
 
   const role = el => el.classList.contains('is-band') ? 'band'
@@ -442,6 +443,10 @@ for (const vw of [1280, 1100]) {
     const r = el => { const b = el.getBoundingClientRect(); return { y: Math.round(b.top), h: Math.round(b.height), w: Math.round(b.width) }; };
     const ccs = [...document.querySelectorAll('#crow > *')];
     const reads = document.querySelector('.splitband .rcard');
+    /* The left column is TWO cards now (products over reading), and neither
+       stretches, so the column is measured to prove it stays under the room's
+       height rather than to prove it matches it. */
+    const leftcol = document.querySelector('.splitband > .splitcol');
     const room = document.querySelector('.splitband .mroom');
     const items = [...reads.querySelectorAll('.reads > li')];
     const ttl = el => { const t = el.querySelector('.rttl'); return t ? Math.round(parseFloat(getComputedStyle(t).fontSize)) : 0; };
@@ -457,10 +462,26 @@ for (const vw of [1280, 1100]) {
       counts: ccs.reduce((n, el) => n + el.querySelectorAll('.mono').length, 0),
       /* A terracotta button inside a cohort card is the duplicated decision. */
       ccBtns: ccs.reduce((n, el) => n + el.querySelectorAll('button, .btn').length, 0),
-      readsBox: r(reads), roomBox: r(room),
+      readsBox: r(leftcol), roomBox: r(room),
+      /* The proof that the reading card is no longer stretched: the list's own
+         height, minus its rows and its 4px gaps, is nothing. A card pulled to a
+         neighbour's height would carry that difference here as free space. */
+      readsSlack: (() => {
+        const list = reads.querySelector('.reads');
+        const rows = items.reduce((n, li) => n + li.getBoundingClientRect().height, 0) + 4 * (items.length - 1);
+        return Math.round(list.getBoundingClientRect().height - rows);
+      })(),
       articles: items.length,
-      heroFont: ttl(items[0]), rowFont: items[1] ? ttl(items[1]) : 0,
-      heroMedia: items[0].querySelector('.rhero') ? r(items[0].querySelector('.rhero')).h : 0,
+      /* One weight across all three: the hero treatment is gone, so a title that
+         differs from its neighbours is a regression, not a hierarchy. */
+      fonts: items.map(ttl),
+      thumbs: items.map(li => { const t = li.querySelector('.rthumb'); return t ? Math.round(r(t).h) : 0; }),
+      /* Acceptance: no stock photograph of a person left in the band. The hero
+         image was the only one, and it is gone from the document, not hidden. */
+      heroMedia: document.querySelectorAll('.splitband .rhero, .splitband .rlead').length,
+      /* The three product tiles, each a real button so the dialog is reachable
+         by keyboard without a key handler. */
+      tiles: document.querySelectorAll('.nptiles > button.nptile').length,
       /* The handset window is the fixed reference: it must not have been resized
          to make the two columns meet. */
       phone: r(document.querySelector('.mrview')),
@@ -480,11 +501,19 @@ for (const vw of [1280, 1100]) {
   ok(m.bars === 0 && m.counts === 0, `no fill bar and no count on any tile (${m.bars} bars, ${m.counts} counts)`);
   ok(m.ccBtns === 0, `no button of any kind sits inside a cohort card (${m.ccBtns})`);
   ok(m.rowY < m.bandY, `the cohort row is above the reading content (${m.rowY} < ${m.bandY})`);
-  ok(Math.abs(m.readsBox.h - m.roomBox.h) <= 24, `the two split-band columns finish within 24px (reads ${m.readsBox.h}, room ${m.roomBox.h})`);
-  ok(m.articles === 4, `four articles in the reading card (${m.articles})`);
-  ok(m.heroFont > m.rowFont, `the first is visibly larger than the rest (${m.heroFont}px vs ${m.rowFont}px)`);
-  ok(m.heroMedia >= (vw >= 1280 ? 200 : 180) && m.heroMedia <= 280,
-    `the hero media absorbed the difference inside its bounds (${m.heroMedia}px)`);
+  /* The columns no longer have to finish level, and asserting that they do would
+     re-impose the stretch this redesign removed: the reading card is the height
+     of its own three rows, and at 1440 that leaves it ~50px short of the room.
+     What is asserted instead is that the shortfall is real free space and not
+     air poured into the list (readsSlack), and that the left column has not
+     grown PAST the room, which is the regression this pass removed. */
+  ok(m.readsSlack <= 1, `the reading list carries no stretched-in space (${m.readsSlack}px)`);
+  ok(m.readsBox.h <= m.roomBox.h + 24, `the left column has not outgrown the member room (left ${m.readsBox.h}, room ${m.roomBox.h})`);
+  ok(m.articles === 3, `three articles in the reading card (${m.articles})`);
+  ok(new Set(m.fonts).size === 1, `all three titles are set at one size (${m.fonts.join(', ')}px)`);
+  ok(m.thumbs.every(h => h === 46), `every article carries a 46px thumbnail (${m.thumbs.join(', ')})`);
+  ok(m.heroMedia === 0, `the hero photograph is out of the document (${m.heroMedia} found)`);
+  ok(m.tiles === 3, `three product tiles, each a real button (${m.tiles})`);
   ok(m.phone.h === 420, `the handset window is still 420px, not resized to force a match (${m.phone.h})`);
   ok(m.phone.w === (vw >= 1280 ? 300 : 280), `the handset is ${vw >= 1280 ? 300 : 280}px wide at ${vw} (${m.phone.w})`);
   ok(m.art === 0, `the stock illustration is out of the document (${m.art} found)`);
