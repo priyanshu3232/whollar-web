@@ -1099,12 +1099,38 @@ Written by `POST /me/product-interest` (`routes/interest.js`); nothing reads it
 yet except the console. One row per (member, product), and a resubmit
 **replaces** it: a member who opens winter tires twice has one opinion, not two.
 
-`answers` stores the chip **values** and never the labels: `{"interest":"yes",
-"parts":["buy","swap"],"tire_cost":"600-1000"}`. The copy on those chips will be
-edited, and storing "Under $40" would open a second bucket the day that becomes
-"Under $45". The server also drops any question or value not in the allowlist in
+`answers` holds two kinds of thing, and the difference is deliberate.
+
+**The chip questions store values, never labels**: `{"interest":"yes",
+"cars":"2"}`. The copy on those chips will be edited, and storing "Under $40"
+would open a second bucket the day that becomes "Under $45".
+
+**The detail tables store catalog names as themselves**, because for these the
+label *is* the value:
+
+```json
+{"interest":"yes","lines":"2",
+ "line_rows":[{"carrier":"Rogers","financed":"Yes, financed",
+               "device":"iPhone 17 Pro","pay":72}]}
+```
+
+Nobody renames a car make the way a price band gets renamed, so no second
+bucket is waiting to happen, and minting a parallel code for every phone and
+trim level would be a catalog to keep in step with the client's. `make`,
+`model` and `device` are therefore validated by **shape** (40 characters off a
+closed charset) rather than by membership, so a handset released after the last
+deploy is recorded rather than silently dropped. `carrier`, `financed`,
+`service`, `via`, `provider` and `needs` stay allowlisted, and `size` must
+match `235/55R20` exactly. Row arrays are capped: 5 mobile lines, 6 streaming
+services, 4 cars.
+
+The server drops any question, value or shape not named in `PRODUCTS` in
 `routes/interest.js`, so a stale tab contributes the answers that still exist
-rather than having the whole submission refused.
+rather than having the whole submission refused. It also drops the row arrays,
+largest first, if the encoded JSON would exceed 3,600 characters, so a
+submission can never be truncated into invalid JSON in the column. Worst case
+today is about 850 characters, so that guard is a backstop and not a limit
+anyone meets.
 
 | Column | Type | Length | Unique | Mandatory | PII | Notes |
 |---|---|---|:--:|:--:|:--:|---|
@@ -1130,8 +1156,23 @@ not assume the row's presence is consent.
 Until this table exists, the card still works: the survey POST fails, the
 dashboard retries once, logs a console warning and says nothing to the member.
 That is deliberate (see `npSend` in `dashboard.html`): a demand signal is not
-worth blocking a dialog on. It also means **a missing table is silent**, so
-check the audit trail rather than the browser after creating it:
+worth blocking a dialog on. It also means **a missing table is silent**, and
+silent in both directions: the route answers, the member is thanked, and the
+answer is dropped. **Confirmed missing in Development on 2026-08-19**, with
+`POST /me/product-interest` deployed and answering, so every survey submitted
+since then is gone. Nothing recovers them: create the table, then check the
+audit trail rather than the browser.
+
+The fastest existence check needs no console, and it is the one that found the
+above. It reads rows, it creates nothing:
+
+```
+cd catalyst-backend
+catalyst ds:export --table product_interest --page 1
+```
+
+`404, No such Table with the given name exists` means it has not been created.
+Add `--production` for the other environment, which has its own empty store.
 
 ```sql
 SELECT interest_key, product, keep_posted, submitted_at FROM product_interest LIMIT 5;

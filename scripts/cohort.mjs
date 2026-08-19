@@ -398,7 +398,7 @@ function regionFromId(id) {
 
 /* Every seed flag takes a value, and POSITIONAL only drops the flags
    themselves, so `--seed 87` would otherwise offer 87 as a campaign_id. */
-const SEED_FLAGS = new Set(['regions', 'first', 'every', 'hour', 'sub', 'seed']);
+const SEED_FLAGS = new Set(['regions', 'first', 'every', 'hour', 'sub', 'seed', 'sort']);
 
 function seedIds() {
   const out = [];
@@ -440,6 +440,15 @@ function cmdSeed() {
   if (hour > 23) die('--hour is a UTC hour, 0 to 23');
   const sub = flag('sub', '') === true ? '' : flag('sub', '');
   const seed = num(flag('seed', '0'), 'seed');
+  /* THE FEATURED COHORT IS THE LOWEST sort_order, so a new one has to sort
+     BELOW the rows already there, and the only way to do that without
+     rewriting them is to count down. catalog.load() sorts ascending, the
+     member row's ccRank breaks its ties on that order, and featuredCamp()
+     takes the first card, so "newest is featured" is one descending number and
+     no UPDATE to any existing cohort. Start a store at --sort 100 and take one
+     off per batch; within a batch the ids stay in the order given, which is
+     closing order. */
+  const sortBase = num(flag('sort', '0'), 'sort');
   /* A duplicate-key refusal means the row is already there. Rescheduling it is
      an UPDATE: DELETE is never the answer, because there are no foreign keys
      and any campaign_members row would survive pointing at nothing. */
@@ -498,7 +507,7 @@ function cmdSeed() {
       ['seed_members', lit(seed)],
       ['seed_households', lit(seed)],
       ['bidding_open', lit(r.biddingOpen)],
-      ['sort_order', lit(i)],
+      ['sort_order', lit(sortBase + i)],
       ['updated_by', lit('manual', { max: 64 })],
       ['updated_at', lit(utc(new Date()))],
       ...DATE_COLUMNS.map((c) => [c, lit(utc(new Date(r.dates[c])))]),
@@ -553,6 +562,9 @@ function cmdSeed() {
     : '    households  seed_households is 0, so a calendar row reads "A cohort in your coverage"\n'
       + '                rather than a count. Pass --seed N to stage a demo, and remember a seed\n'
       + '                is added to real joins on both surfaces.');
+  console.log(`    featured    sort_order runs ${sortBase} to ${sortBase + rows.length - 1}, and the LOWEST is the featured`);
+  console.log('                cohort on /dashboard. Next batch takes a LOWER --sort than this one, or');
+  console.log('                the newest cohort lands last. Nothing already written has to move.');
   console.log('    check       node scripts/cohort.mjs verify\n');
   console.log('  Paste into Catalyst console -> Data Store -> ZCQL, Development environment.');
   console.log('  catalog.load() memoizes for 60 seconds, so allow a minute before judging a dashboard.\n');
@@ -644,7 +656,8 @@ function usage() {
     move <id> --to <kind> [--from <kind>]
     bidding <id> --on | --off
     calendar <id> [--minutes N] [--start N]
-    seed <id> [<id>...] [--regions "A,B"] [--first N] [--every N] [--hour UTC] [--seed N] [--update]
+    seed <id> [<id>...] [--regions "A,B"] [--first N] [--every N] [--hour UTC]
+                            [--sort N] [--seed N] [--update]
     coverage <org_id> --region R [--techs cable,fibre] [--status active]
     verify [<id>]
     regions

@@ -740,22 +740,27 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .dots button{width:20px;height:20px;border-radius:50%;background:#E7E2D3;transition:transform .15s}
 .dots button:hover{transform:scale(1.12)}
 .dots button.on{background:var(--accent)}
-/* ---------- Worth a read: three rows of one shape ----------
+/* ---------- Worth a read: equal rows of one shape ----------
    The hero is gone. It was one article at reading size over a 280px photograph
    with three 64px rows under it, and the photograph was a stock shot of a man
    asleep on a pile of banknotes: it said nothing the headline did not, it was
    the largest single element on the tab, and it put the other three articles
-   below the fold on a laptop. Three equal rows, each with a square crop of its
-   own article photograph, is a tenth of the height and the fourth link is one
-   click away under See all.
+   below the fold on a laptop. Equal rows, each with a square crop of its own
+   article photograph, are a tenth of the height and the rest is one click away
+   under See all.
+
+   NOTHING HERE COUNTS THE ROWS. READS_N in the script owns how many there are,
+   and this block works at any count: the selectors below are :not(:last-child)
+   and flex:1 1 0, never :nth-child. Changing the number is a one-line change
+   there and no change here, which is the point of writing it this way.
 
    THE SURPLUS GOES TO THE ROWS, IN EQUAL SHARES. The card is flex:1 in the
-   column, so it runs down to the member room's last pixel, and the ~55px that
-   buys at 1440 is split three ways by flex:1 on the rows rather than poured
-   into the gaps between them (justify-content:space-between, which this used
-   to do, banks the whole surplus in the two seams and reads as three separated
-   blocks). Each row grows by the same ~18px and its thumbnail and title stay
-   centred in it, so what the reader sees is a list at a comfortable rhythm.
+   column, so it runs down to the member room's last pixel, and what that buys
+   at 1440 is split evenly by flex:1 on the rows rather than poured into the
+   gaps between them (justify-content:space-between, which this used to do,
+   banks the whole surplus in the seams and reads as separated blocks). Each row
+   grows by the same amount and its thumbnail and title stay centred in it, so
+   what the reader sees is a list at a comfortable rhythm.
 
    flex-basis 0 with the default min-height:auto is what makes the shares equal
    rather than proportional: every row is dealt the same height, and a row whose
@@ -793,14 +798,20 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
    all arrive without a single line of key handling. */
 .nptile{display:flex;flex-direction:column;text-align:left;min-width:0;background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:transform .15s,box-shadow .2s,border-color .2s}
 .nptile:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(26,37,32,.11);border-color:#2C6A4E}
-.nptile:hover .nparrow{transform:translateX(3px)}
+.nptile:hover .nparrow{left:3px}
 @media (prefers-reduced-motion:reduce){.nptile:hover{transform:none}}
 .npart{display:block;height:76px;flex:none}
 .npart svg{display:block;width:100%;height:100%}
 .nptxt{padding:11px 13px 13px;min-width:0}
 .nptxt b{display:block;font-family:var(--disp);font-size:15.5px;font-weight:750;line-height:1.25}
 .npgo{display:block;margin-top:5px;font-size:12.5px;font-weight:650;color:#1E7A50}
-.nparrow{display:inline-block;font-style:normal;transition:transform .15s}
+/* INLINE, not inline-block, and nudged with `left` rather than `transform`.
+   An inline-block is a break opportunity all by itself, so the non-breaking
+   space in front of it did nothing and the arrow still landed alone on a second
+   line wherever the label was one word too long for the track. `transform` does
+   not apply to a non-replaced inline box, which is why it was inline-block in
+   the first place; relative positioning does, and animates just as well. */
+.nparrow{display:inline;position:relative;left:0;font-style:normal;transition:left .15s}
 /* The art bands. Every animation on this card is decorative: it says "being
    worked on", which is the one claim the card is making. */
 .nparc{animation:nppulse 2.2s ease-in-out infinite}
@@ -847,6 +858,100 @@ select.fld-edit{width:auto;max-width:180px;text-align:left;padding-right:6px}
 .msend:hover{background:#8C4622}
 .npfoot{text-align:center;font-size:12.5px;color:var(--sub);margin-top:11px}
 body.npopen{overflow:hidden}
+
+/* ---------- the detail tables ----------
+   The chip questions above answer "would you use this". These answer "what
+   would we be buying for you", which is the half a carrier or a tire shop
+   actually needs to quote against, and it does not fit in chips: four cars at
+   four fields each is sixteen answers, and sixteen chip groups is a form nobody
+   finishes.
+
+   A TABLE, NOT A REPEATED FIELDSET. One header row states each question once
+   and every row after it is the same question asked of the next line or car,
+   which is both a quarter of the vertical space and the shape the member
+   already reads the answer in: a phone bill is a table, and so is a driveway.
+
+   The wrapper scrolls on its own (.ltwrap) rather than letting the dialog
+   scroll sideways, because the box is already the scroller for its own height
+   and two scrollers on one axis is a box you cannot get out of on a trackpad. */
+.npbox.wide{max-width:680px}
+.nplabel{display:block;font-size:12.5px;font-weight:700;margin:16px 0 7px}
+.nplabel .opt{font-weight:500;color:#949E95;font-size:11.5px}
+.ltwrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px}
+.ltable{width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px}
+.ltable th{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--sub);text-align:left;padding:9px 10px;background:#F4F1E9;border-block-end:1px solid var(--line);white-space:nowrap}
+.ltable td{padding:7px 8px;border-block-end:1px solid var(--line);vertical-align:middle}
+.ltable tr:last-child td{border-block-end:0}
+.ltable td:first-child{font-family:var(--mono);font-size:11px;color:var(--sub);text-align:center;width:30px}
+.ltable select,.ltable input{width:100%;font:inherit;font-size:12.5px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 7px;color:var(--ink)}
+.ltable select:focus,.ltable input:focus{outline:none;border-color:var(--accent)}
+.ltable .colpay{width:86px}
+.ltable .colfin{width:112px}
+.ltable .colsize{width:176px}
+/* Width / profile / rim as three narrow selects with the separators drawn
+   between them, so the control reads as the 235/55R20 the member is copying off
+   a sidewall rather than as three unrelated dropdowns. */
+.sizetrio{display:flex;gap:3px;align-items:center}
+.sizetrio select{padding:6px 3px;text-align:center;text-align-last:center}
+.sizetrio .sw{width:58px;flex:none}
+.sizetrio .sp,.sizetrio .sr{width:50px;flex:none}
+.sizetrio i{font-style:normal;color:#949E95;font-size:11.5px;font-family:var(--mono);flex:none}
+.sizehelp{width:17px;height:17px;border-radius:50%;background:#E4EDE2;color:var(--accent-deep);font-size:11px;font-weight:800;display:inline-grid;place-items:center;margin-inline-start:6px;vertical-align:1px;border:1px solid #CBDCC9;line-height:1}
+.sizehelp:hover{background:#D5E4D3}
+.sizeinfo{background:#E4EDE2;border:1px solid #CBDCC9;border-radius:14px;padding:15px 18px;margin-top:12px;font-size:12.8px;line-height:1.6;color:#1E3A2C}
+.sizeinfo[hidden]{display:none}
+.sizeinfo h5{font-family:var(--disp);font-size:14.5px;font-weight:750;color:var(--accent-deep);margin-block-end:7px}
+.sizeinfo p{margin-top:6px}
+.sizeinfo p:first-of-type{margin-top:0}
+.sizeinfo b{color:var(--accent-deep)}
+.sirow{text-align:center;margin:11px 0}
+.sirow .ex{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--accent-deep);background:#fff;border:1px solid #CBDCC9;border-radius:10px;padding:7px 16px;display:inline-block;letter-spacing:.5px}
+.sirow .ex em{font-style:normal;color:#9BB3A1;margin:0 1px}
+.silist{list-style:none;margin:0 0 8px;padding:0;display:flex;flex-direction:column;gap:5px}
+.silist li{padding-inline-start:14px;position:relative}
+.silist li::before{content:"";position:absolute;inset-inline-start:0;top:8px;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+.silist b{font-family:var(--mono);color:var(--accent-deep)}
+.sivid{display:inline-flex;align-items:center;gap:8px;font-weight:650;color:var(--accent-deep);text-decoration:underline;text-underline-offset:2px}
+.sivid .play{width:19px;height:19px;border-radius:50%;background:#B0512B;color:#fff;font-size:8px;display:inline-grid;place-items:center;padding-inline-start:2px;text-decoration:none;flex:none}
+.siok{background:#fff;border-radius:10px;padding:9px 12px;margin-top:10px}
+
+/* The needs column. A <select multiple> is 5 rows tall in every row of the
+   table, and a row of checkboxes is wider than the dialog, so this is a button
+   that summarises and a popover that holds the boxes. Native checkboxes inside,
+   so the label click target and the keyboard both arrive for free. */
+.msel{position:relative;min-width:150px}
+.mselbtn{width:100%;text-align:left;border:1px solid var(--line);border-radius:8px;padding:6px 24px 6px 8px;font-size:12.5px;font-weight:500;background:#fff;color:var(--ink);position:relative;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* SCOPED NAME, not `.empty`. The page already carries a global
+   `.empty{padding:clamp(34px,6vw,60px) 20px}` for empty-state panels, and a
+   bare `.mselbtn.empty` lost to it on equal specificity: the needs button came
+   out 141px tall and every car row with it. */
+.mselbtn.mselempty{color:#7A847B}
+.mselbtn::after{content:"\25BE";position:absolute;inset-inline-end:8px;top:50%;transform:translateY(-50%);color:var(--sub);font-size:10px}
+.mselbtn:focus{outline:none;border-color:var(--accent)}
+/* FIXED, and placed by npOpenMenu() rather than by `top:100%`. The row it
+   belongs to lives inside .ltwrap, which scrolls horizontally, and an
+   absolutely positioned child of a scroll container is clipped by it: the menu
+   for the last column opened underneath the table's own edge. Taking it out of
+   the flow entirely is what lets a 200px popover hang off a 150px cell in a
+   scroller. It closes on any scroll or resize, because a fixed box does not
+   follow the thing it is anchored to. */
+.mselmenu{position:fixed;z-index:90;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 26px rgba(26,37,32,.16);padding:9px 11px;display:flex;flex-direction:column;gap:7px;min-width:200px;max-height:60vh;overflow-y:auto}
+.mselmenu[hidden]{display:none}
+.mselmenu label{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:#3A453E;cursor:pointer;white-space:nowrap}
+.mselmenu input{width:15px;height:15px;accent-color:var(--accent);margin:0}
+
+/* ---------- the thanks step ----------
+   The dialog used to close on submit and leave a toast behind it. It refills
+   instead, because the one moment a member is provably willing to help this
+   product along is the second after they just did, and a referral code is the
+   only ask on this page that costs them nothing and moves the build order. */
+.thanks{text-align:center;padding:8px 0 2px}
+.thanks .tick{width:54px;height:54px;border-radius:50%;background:#E4EDE2;display:inline-grid;place-items:center;margin-block-end:10px}
+.thanks .tick svg{width:26px;height:26px}
+.thanks h4{font-family:var(--disp);font-size:21px;font-weight:800;margin-block-end:6px}
+.thanks p{font-size:13.5px;color:var(--sub);max-width:46ch;margin:0 auto}
+.npdone{width:100%;justify-content:center;margin-top:14px;background:transparent;color:var(--ink);border:1px solid #C9C3B2;font-weight:650;border-radius:12px;padding:12px 18px}
+.npdone:hover{background:#F4F1E9}
 
 /* Tiles stack and flip horizontal: a 76px band across a full-width tile is a
    letterbox nobody reads, and three stacked letterboxes is most of a phone
@@ -4024,7 +4129,21 @@ var KMETA=[
 /* Where the square crop is not the hero crop, the alt text has to describe what
    the square actually shows. Only the first article needs one so far. */
 var RTHUMBALT={'the-487-problem':'A scatter of banknotes across a dark table'};
-/* THREE reads, once, for both lanes. Written at boot because BLOGS and KMETA
+/* HOW MANY ROWS THE READING CARD CARRIES, and the one place it is written.
+   Four, where it was three for a while on the argument that the fourth row was
+   only there to fill a column. That argument was about a card sitting at its
+   own height; the card is flex:1 in the column again and runs down to the
+   member room's last pixel, so the surplus is real and a fourth article spends
+   it on something to read rather than on 18px of extra padding per row.
+
+   IT LIVES HERE, ABOVE THE CALL, and not beside readsItemsHTML() where it
+   reads more naturally. `var` hoists the declaration and not the value, so
+   declared down there it is `undefined` on this line, and `slice(0, undefined)`
+   is the whole array rather than nothing: ten articles in a four row card, and
+   404s for the six crops that were never cut. Nothing in the CSS counts the
+   rows (`.reads li` is flex:1 1 0), so this really is the only number. */
+var READS_N=4;
+/* The reads, once, for both lanes. Written at boot because BLOGS and KMETA
    are constants and nothing about this list depends on state, which is why it
    is not in render(). */
 $('#reads').innerHTML=readsItemsHTML();
@@ -4105,41 +4224,213 @@ var NPART={
     +'</g></svg>'
 };
 
+/* ---------- the detail catalogs ----------
+   Carriers, devices, makes, models, sizes and services. These are LABELS THAT
+   ARE ALSO VALUES, which is the one exception to the rule stated below, and it
+   is deliberate: "Rogers" and "Toyota" and "235/55R20" are proper nouns and
+   measurements, not copy. Nobody is going to rewrite "iPhone 17 Pro" into
+   "iPhone 17 Professional" the way "Under $40" becomes "Under $45", so there is
+   no second bucket waiting to happen and inventing a parallel code for each
+   would be a second list to keep in step with this one.
+
+   The server validates these by SHAPE, not membership (see routes/interest.js):
+   a short string off a constrained charset. Allowlisting every phone and every
+   trim level would put a catalog that changes twice a year into a deployed
+   function, and the day it went stale it would silently drop the newest
+   handsets, which are exactly the ones worth knowing about. */
+var NPCARRIERS=['Rogers','Fido','Bell','Virgin Plus','Telus','Koodo','Freedom','Public Mobile','Lucky','Chatr','Other'];
+var NPDEVICES=[
+  ['iPhone',['iPhone 17 Pro Max','iPhone 17 Pro','iPhone 17','iPhone Air','iPhone 16e','iPhone 16','iPhone 15','Older iPhone']],
+  ['Samsung',['Galaxy S25 Ultra','Galaxy S25 / S25+','Galaxy S24 FE','Galaxy Z Fold','Galaxy Z Flip','Galaxy A series']],
+  ['Google',['Pixel 10 Pro','Pixel 10','Pixel 9a','Older Pixel']],
+  ['Other',['Motorola','OnePlus','Other Android','Basic / other phone']]
+];
+var NPFINANCE=['Yes, financed','No, own phone','Not sure'];
+var NPSVCS=['Netflix','Crave','Disney+','Prime Video','Apple TV+','Paramount+','Sportsnet+','TSN+','YouTube Premium','Other'];
+var NPBILLVIA=['Direct to the service','Rogers bill','Bell bill','Telus bill','App Store / Google Play','Amazon','Not sure'];
+var NPPACKS=['Rogers (bundled streaming)','Bell (Crave bundle)','Telus (Stream+)','Amazon Prime channels','Other package'];
+var NPCARS={
+'Acura':['Integra','TLX','ADX','RDX','MDX'],
+'Alfa Romeo':['Giulia','Stelvio','Tonale'],
+'Audi':['A3','A4','A5','A6','A7','A8','Q3','Q4 e-tron','Q5','Q6 e-tron','Q7','Q8','e-tron GT'],
+'BMW':['2 Series','3 Series','4 Series','5 Series','7 Series','X1','X2','X3','X4','X5','X6','X7','i4','i5','iX'],
+'Buick':['Envista','Encore GX','Envision','Enclave'],
+'Cadillac':['CT4','CT5','XT4','XT5','XT6','Escalade','Optiq','Lyriq'],
+'Chevrolet':['Trax','Trailblazer','Equinox','Equinox EV','Blazer','Blazer EV','Traverse','Tahoe','Suburban','Malibu','Colorado','Silverado','Silverado EV','Corvette'],
+'Chrysler':['Pacifica','Grand Caravan'],
+'Dodge':['Hornet','Durango','Charger'],
+'Ford':['Escape','Bronco Sport','Bronco','Edge','Explorer','Expedition','Maverick','Ranger','F-150','F-150 Lightning','Super Duty','Mustang','Mustang Mach-E','Transit'],
+'Genesis':['G70','G80','G90','GV60','GV70','GV80'],
+'GMC':['Terrain','Acadia','Yukon','Canyon','Sierra','Hummer EV'],
+'Honda':['Civic','Accord','HR-V','CR-V','Passport','Pilot','Odyssey','Ridgeline','Prologue'],
+'Hyundai':['Elantra','Sonata','Venue','Kona','Tucson','Santa Fe','Palisade','Santa Cruz','Ioniq 5','Ioniq 6'],
+'Infiniti':['QX50','QX55','QX60','QX80'],
+'Jeep':['Compass','Wrangler','Grand Cherokee','Gladiator','Wagoneer'],
+'Kia':['K4','K5','Soul','Seltos','Niro','Sportage','Sorento','Telluride','Carnival','EV6','EV9'],
+'Land Rover':['Defender','Discovery','Range Rover Evoque','Range Rover Velar','Range Rover Sport','Range Rover'],
+'Lexus':['IS','ES','UX','NX','RX','TX','GX','LX','RZ'],
+'Lincoln':['Corsair','Nautilus','Aviator','Navigator'],
+'Mazda':['Mazda3','CX-30','CX-5','CX-50','CX-70','CX-90','MX-5'],
+'Mercedes-Benz':['A-Class','C-Class','E-Class','S-Class','CLA','GLA','GLB','GLC','GLE','GLS','EQB','EQE','EQS','Sprinter'],
+'Mini':['Cooper','Countryman'],
+'Mitsubishi':['Mirage','RVR','Eclipse Cross','Outlander','Outlander PHEV'],
+'Nissan':['Versa','Sentra','Altima','Kicks','Qashqai','Rogue','Murano','Pathfinder','Armada','Frontier','Ariya','Leaf','Z'],
+'Polestar':['Polestar 2','Polestar 3','Polestar 4'],
+'Porsche':['718','911','Panamera','Taycan','Macan','Cayenne'],
+'RAM':['1500','2500 / 3500','ProMaster'],
+'Subaru':['Impreza','Crosstrek','Forester','Outback','Ascent','WRX','BRZ','Solterra'],
+'Tesla':['Model 3','Model Y','Model S','Model X','Cybertruck'],
+'Toyota':['Corolla','Corolla Cross','Camry','Prius','RAV4','Highlander','Grand Highlander','4Runner','Sequoia','Tacoma','Tundra','Sienna','Crown','bZ4X','GR86'],
+'Volkswagen':['Jetta','Golf GTI / R','Taos','Tiguan','Atlas','Atlas Cross Sport','ID.4','ID. Buzz'],
+'Volvo':['S60','S90','XC40','XC60','XC90','EX30','EX90','V60']
+};
+var NPMAKES=Object.keys(NPCARS).concat(['Other']);
+var NPNEEDS=['New tires','New rims','Install: mount + balance','Alignment','Swap on / off rims','Seasonal changeover','Seasonal storage'];
+/* Metric sidewall sizes, generated rather than listed: 155 to 315 in tens, 30
+   to 80 in fives, 14 to 22 inches. That is every size a passenger car or light
+   truck sold in Canada actually wears, and typing them out would be 60 lines
+   nobody would ever proofread. */
+function npRange(from,to,step){var a=[];for(var n=from;n<=to;n+=step)a.push(String(n));return a}
+var NPTW=npRange(155,315,10),NPTA=npRange(30,80,5),NPTR=npRange(14,22,1);
+
+/* One <select>. `groups` is a flat list of strings, or [label,[options]] pairs
+   for an optgroup, so the device catalog and the carrier list build the same
+   way and only one of them has to care about grouping. */
+function npSel(cls,ph,groups,extra){
+  var o='<select class="'+cls+'" aria-label="'+esc(ph)+'"'+(extra||'')+'><option value="">'+esc(ph)+'</option>';
+  groups.forEach(function(g){
+    if(typeof g==='string'){o+='<option>'+esc(g)+'</option>';return}
+    o+='<optgroup label="'+esc(g[0])+'">'+g[1].map(function(m){return '<option>'+esc(m)+'</option>'}).join('')+'</optgroup>';
+  });
+  return o+'</select>';
+}
+function npNum(cls,label){
+  return '<input class="'+cls+'" type="number" min="0" step="1" inputmode="decimal" placeholder="$/mo" aria-label="'+esc(label)+'">';
+}
+
+/* ---------- the three detail tables ---------- */
+function npLineTable(n){
+  var rows='';
+  for(var i=1;i<=n;i++){
+    rows+='<tr><td>'+i+'</td>'
+    +'<td>'+npSel('l-carrier','Carrier',NPCARRIERS)+'</td>'
+    +'<td class="colfin">'+npSel('l-fin','Phone on plan?',NPFINANCE)+'</td>'
+    +'<td>'+npSel('l-device','Device',NPDEVICES)+'</td>'
+    +'<td class="colpay">'+npNum('l-pay','What line '+i+' costs per month')+'</td></tr>';
+  }
+  return '<p class="nplabel">Your lines <span class="opt">fill what you know, skip the rest</span></p>'
+  +'<div class="ltwrap"><table class="ltable"><thead><tr><th>#</th><th>Carrier</th><th>Phone on plan?</th><th>Device</th><th>$/mo</th></tr></thead>'
+  +'<tbody>'+rows+'</tbody></table></div>'
+  +(n>=5?'<p class="npfoot" style="text-align:left">Five is plenty for now. We’ll collect the rest when the cohort forms.</p>':'');
+}
+
+function npCarTable(n){
+  var rows='';
+  for(var i=1;i<=n;i++){
+    rows+='<tr><td>'+i+'</td>'
+    +'<td>'+npSel('c-make','Make',NPMAKES)+'</td>'
+    +'<td><select class="c-model" aria-label="Model" disabled><option value="">Pick make first</option></select></td>'
+    +'<td class="colsize"><span class="sizetrio">'
+    +npSel('c-tw sw','W',NPTW)+'<i>/</i>'+npSel('c-ta sp','P',NPTA)+'<i>R</i>'+npSel('c-tr sr','R',NPTR)
+    +'</span></td>'
+    +'<td><div class="msel"><button type="button" class="mselbtn mselempty" aria-expanded="false">Select needs</button>'
+    +'<div class="mselmenu" hidden>'
+    +NPNEEDS.map(function(o){return '<label><input type="checkbox" class="c-need" value="'+esc(o)+'">'+esc(o)+'</label>'}).join('')
+    +'</div></div></td></tr>';
+  }
+  return '<p class="nplabel">Your cars <span class="opt">tire size is optional, fill what you know</span></p>'
+  +'<div class="ltwrap"><table class="ltable" style="min-width:560px"><thead><tr>'
+  +'<th>#</th><th>Make</th><th>Model</th>'
+  +'<th>Tire size<button type="button" class="sizehelp" data-sizehelp aria-expanded="false" aria-controls="npsizeinfo" aria-label="How to find your tire size">?</button></th>'
+  +'<th>This car needs</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+  +'<div class="sizeinfo" id="npsizeinfo" hidden>'
+  +'<h5>Finding your tire size</h5>'
+  +'<p>Three places have it, easiest first. <b>The sticker inside the driver’s door</b>, on the frame where the door shuts. <b>Your owner’s manual</b>, under tires or specifications. Or <b>the tire itself</b>, moulded into the rubber on the outer sidewall.</p>'
+  +'<p class="sirow"><span class="ex">235<em>/</em>55<em>R</em>20</span></p>'
+  +'<ul class="silist">'
+  +'<li><b>235</b> how wide the tire is, in millimetres, tread edge to tread edge</li>'
+  +'<li><b>55</b> how tall the sidewall is, as a percent of that width. Lower number, shorter and sportier</li>'
+  +'<li><b>R20</b> the wheel it fits, in inches. R just means radial, which is nearly every car tire</li>'
+  +'</ul>'
+  +'<p>Letters or numbers after that, like 103H or M+S, are load and speed ratings. You can ignore those here.</p>'
+  +'<p class="siok"><b>Truly, do not sweat this one.</b> Leave it blank if you are not sure, or take a guess. Nothing is ordered off this form. When your cohort goes live we confirm every size with you first, so a wrong number here costs you nothing.</p>'
+  +'</div>'
+  +'<p class="npfoot" style="text-align:left">Not sure about the tire size? Press the <b>?</b> above, or just leave it blank.</p>';
+}
+
+/* Streaming splits before it tabulates. One package billed by a provider is a
+   single line with a list of what is inside it; four services billed separately
+   is four lines. Asking both of a household that only has one would be three
+   empty rows and a question they have already answered. */
+function npPackTable(){
+  return '<p class="nplabel">Your package</p>'
+  +'<div class="ltwrap"><table class="ltable" style="min-width:440px"><thead><tr><th>#</th><th>Who bills the package?</th><th>$/mo</th></tr></thead>'
+  +'<tbody><tr><td>1</td><td>'+npSel('s-pack','Package',NPPACKS)+'</td>'
+  +'<td class="colpay">'+npNum('s-pay','What the package costs per month')+'</td></tr></tbody></table></div>'
+  +'<p class="nplabel">What is inside the pack? <span class="opt">pick any</span></p>'
+  +'<div class="msel"><button type="button" class="mselbtn mselempty" aria-expanded="false">Select services</button>'
+  +'<div class="mselmenu" hidden>'
+  +NPSVCS.map(function(o){return '<label><input type="checkbox" class="s-inpack" value="'+esc(o)+'">'+esc(o)+'</label>'}).join('')
+  +'</div></div>';
+}
+function npSvcTable(n){
+  var rows='';
+  for(var i=1;i<=n;i++){
+    rows+='<tr><td>'+i+'</td>'
+    +'<td>'+npSel('s-svc','Service',NPSVCS)+'</td>'
+    +'<td>'+npSel('s-via','Billed via',NPBILLVIA)+'</td>'
+    +'<td class="colpay">'+npNum('s-pay','What service '+i+' costs per month')+'</td></tr>';
+  }
+  return '<p class="nplabel">Your services <span class="opt">fill what you know</span></p>'
+  +'<div class="ltwrap"><table class="ltable" style="min-width:480px"><thead><tr><th>#</th><th>Service</th><th>Billed via</th><th>$/mo</th></tr></thead>'
+  +'<tbody>'+rows+'</tbody></table></div>'
+  +'<p class="npfoot" style="text-align:left">The billed-via column is how we spot the ones hiding on a Rogers, Bell or Telus bill.</p>';
+}
+
 /* Every chip carries a VALUE, and the value is what is stored. The labels are
    copy and will be edited; "$40 to $60" becoming "$40 to $65" must not create a
-   second bucket in the store that nobody can reconcile with the first. */
+   second bucket in the store that nobody can reconcile with the first.
+
+   `spawn` is what turns a count into a table: the chip question renders as
+   normal, and the value it lands on decides what fills the slot underneath it.
+   `showWhen` hides a question until an earlier one has been answered a
+   particular way, so streaming can ask "how many services" only of the
+   households that said they pay for them separately. Hidden means hidden AND
+   cleared: a member who switches from separate back to one package must not
+   submit a service count they can no longer see. */
 var NPORDER=['mobile','streaming','tires'];
 var NPROD={
   mobile:{
     title:'Mobile plans',
     go:'Tell us about your plan',
-    intro:'Mobile has the same disease as home internet: a promo rate that quietly resets 12 to 24 months in, and posted prices that tell you nothing about what people actually pay. Same fix too: we build cohorts by renewal timing and let carriers bid for the whole cohort, so the credible exit does the negotiating for you.',
+    intro:'Same trick as internet. A promo rate that resets after 12 to 24 months, and posted prices that mean nothing. We pool households and let carriers bid for the whole group.',
     qs:[
       {id:'interest',q:'Would a mobile cohort interest you?',pre:'yes',opts:[['yes','Yes, build it'],['maybe','Maybe, depends on price'],['no','Not for me']]},
-      {id:'carrier',q:'Who is your mobile carrier today?',opts:[['rogers-fido','Rogers / Fido'],['bell-virgin','Bell / Virgin'],['telus-koodo','Telus / Koodo'],['freedom-public','Freedom / Public'],['other','Other']]},
-      {id:'spend',q:'Roughly what do you pay per line, per month?',note:'optional, stays private',opts:[['u40','Under $40'],['40-60','$40 to $60'],['60-80','$60 to $80'],['80p','$80 or more'],['unsure','Not sure']]}
+      {id:'lines',q:'How many mobile lines does your household pay for?',spawn:function(v){return npLineTable(parseInt(v,10))},
+        opts:[['1','1'],['2','2'],['3','3'],['4','4'],['5','5 or more']]}
     ]
   },
   streaming:{
     title:'Streaming',
     go:'Tell us what you pay',
-    intro:'Streaming prices creep the same way your internet bill does: a dollar or two at a time, across four or five services, often bundled through the same providers. We want to track the bumps the month they happen, flag the overlap you are paying twice for, and build cohorts wherever a shared rate is possible.',
+    intro:'A dollar here, two there, across four or five services. We track the bumps the month they land, flag what overlaps, and pool demand for group rates.',
     qs:[
       {id:'interest',q:'Would streaming tracking interest you?',pre:'yes',opts:[['yes','Yes, build it'],['maybe','Maybe, depends on price'],['no','Not for me']]},
-      {id:'services',q:'How many services does your household pay for?',opts:[['1-2','1 to 2'],['3-4','3 to 4'],['5p','5 or more'],['isp-bundle','Bundled with my ISP'],['unsure','Not sure']]},
-      {id:'spend',q:'Roughly what does it add up to per month?',note:'optional, stays private',opts:[['u25','Under $25'],['25-50','$25 to $50'],['50-80','$50 to $80'],['80p','$80 or more'],['unsure','No idea, honestly']]}
+      {id:'paymode',q:'How do you pay for streaming?',spawn:function(v){return v==='one'?npPackTable():''},
+        opts:[['one','All in one package'],['sep','Each service separately'],['mix','A mix of both']]},
+      {id:'svccount',q:'How many services do you pay for?',showWhen:{q:'paymode',in:['sep','mix']},
+        spawn:function(v){return npSvcTable(parseInt(v,10))},
+        opts:[['1','1'],['2','2'],['3','3'],['4','4'],['5','5'],['6','6 or more']]}
     ]
   },
   tires:{
     title:'Winter tires',
     go:'Help shape this one',
-    intro:'Most Canadian drivers run two sets of wheels, and the winter set is three separate headaches: buying at whatever price the shop quotes, booking the seasonal changeover, and finding somewhere to keep the off-season set. We want to run all three through one cohort: a better price on the tires, trusted mechanics for the swap, and storage for the spare set, at prices posted up front.',
+    intro:'Every fall, the same scramble. You call around, get a different number from everyone, and by the time you book, the good install slots are gone. So we are trying something else: get enough neighbours together, take the whole group to local shops, and have them quote for all of us at once. Better price, an install date before the December rush, and a few shops to choose from instead of whoever picks up the phone. Tell us what your driveway looks like and we will build it.',
     qs:[
       {id:'interest',q:'Would a winter tire program interest you?',pre:'yes',opts:[['yes','Yes, build it'],['maybe','Maybe, depends on price'],['no','Not for me']]},
-      {id:'parts',q:'Which parts would you actually use?',note:'pick any',multi:true,opts:[['buy','Buying tires cheaper'],['swap','Seasonal swap / mechanic'],['storage','Storing the off-season set']]},
-      {id:'tire_cost',q:'What did your last set of winter tires cost, installed?',note:'optional',opts:[['u600','Under $600'],['600-1000','$600 to $1,000'],['1000-1500','$1,000 to $1,500'],['1500p','$1,500 or more'],['unsure','Not sure']]},
-      {id:'swap_cost',q:'What does the seasonal changeover cost you, each time?',note:'optional',opts:[['diy','I do it myself'],['u80','Under $80'],['80-120','$80 to $120'],['120p','$120 or more'],['unsure','Not sure']]},
-      {id:'storage_cost',q:'What does storing the off-season set cost you, per season?',note:'optional',opts:[['home','Nothing, I store at home'],['u80','Under $80'],['80-150','$80 to $150'],['150p','$150 or more'],['unsure','Not sure']]}
+      {id:'cars',q:'How many cars does your household run?',spawn:function(v){return npCarTable(parseInt(v,10))},
+        opts:[['1','1'],['2','2'],['3','3'],['4','4 or more']]}
     ]
   }
 };
@@ -4152,7 +4443,12 @@ function renderProducts(){
     return '<button class="nptile" type="button" data-np="'+k+'" aria-haspopup="dialog">'
     +'<span class="npart">'+NPART[k]+'</span>'
     +'<span class="nptxt"><b>'+esc(p.title)+'</b>'
-    +'<span class="npgo">'+esc(p.go)+' <i class="nparrow" aria-hidden="true">&rarr;</i></span></span>'
+    /* NON-BREAKING before the arrow, so it can never be stranded alone on a
+       second line. Between about 1150 and 1400 the three tracks are narrow
+       enough that "Tell us about your plan" wraps, and with an ordinary space
+       what lands underneath it is a single arrow with nothing to point at.
+       Glued to the last word it wraps as "plan >" and reads as a link. */
+    +'<span class="npgo">'+esc(p.go)+'&nbsp;<i class="nparrow" aria-hidden="true">&rarr;</i></span></span>'
     +'</button>';
   }).join('');
 }
@@ -4190,14 +4486,27 @@ function npChipsHTML(q,answers){
   }).join('');
 }
 
+/* Is a `showWhen` question's condition met right now? A question with no
+   condition is always shown, which keeps the caller free of the null check. */
+function npShown(q,answers){
+  if(!q.showWhen)return true;
+  return q.showWhen.in.indexOf(answers[q.showWhen.q])>-1;
+}
+
 function npBodyHTML(key){
   var prod=NPROD[key], answers=NPOPEN.answers;
-  var qs=prod.qs.map(function(q,i){
+  var qs=prod.qs.map(function(q){
     var lid='npq-'+key+'-'+q.id;
-    return '<div class="npq">'
+    var shown=npShown(q,answers);
+    /* The slot is rendered whether or not the question has spawned anything
+       yet, so npChoose has somewhere to write without rebuilding the body and
+       losing the consent checkbox and the focus ring with it. */
+    return '<div class="npq" data-qwrap="'+q.id+'"'+(shown?'':' hidden')+'>'
     +'<p id="'+lid+'">'+esc(q.q)+(q.note?' <em>('+esc(q.note)+')</em>':'')+'</p>'
     +'<div class="npchips" role="'+(q.multi?'group':'radiogroup')+'" aria-labelledby="'+lid+'" data-qid="'+q.id+'">'
-    +npChipsHTML(q,answers)+'</div></div>';
+    +npChipsHTML(q,answers)+'</div>'
+    +(q.spawn?'<div data-spawn="'+q.id+'"></div>':'')
+    +'</div>';
   }).join('');
   return '<p class="msub">'+esc(prod.intro)+'</p>'+qs
   +'<label class="npconsent"><input type="checkbox" id="npm-keep" checked>'
@@ -4213,6 +4522,9 @@ function openProduct(key,opener){
   $('#npm-thumb').innerHTML=NPART[key];
   $('#npm-title').textContent=prod.title;
   $('#npm-body').innerHTML=npBodyHTML(key);
+  /* Wider than the chip-only dialog it used to be, because a five column table
+     at 540px is a horizontal scrollbar on a laptop. */
+  $('.npbox').classList.add('wide');
   $('#npmodal').hidden=false;
   document.body.classList.add('npopen');
   $('#npm-x').focus();
@@ -4259,8 +4571,40 @@ function npChoose(chip){
     NPOPEN.answers[qid]=(NPOPEN.answers[qid]===val)?null:val;
   }
   npRepaint(qid);
+  npSpawn(q);
+  npGate(prod,qid);
   var again=$('.npchips[data-qid="'+qid+'"] [data-v="'+val+'"]',$('#npm-body'));
   if(again)again.focus();
+}
+
+/* Fill (or empty) one question's slot from its current answer. Called on every
+   press including the one that clears an answer, which is why the empty branch
+   exists: unpicking "3 cars" has to take the three-car table with it, or the
+   member submits a table for a count they just withdrew. */
+function npSpawn(q){
+  if(!q||!q.spawn)return;
+  var slot=$('[data-spawn="'+q.id+'"]',$('#npm-body'));
+  if(!slot)return;
+  var v=NPOPEN.answers[q.id];
+  slot.innerHTML=v?q.spawn(v):'';
+}
+
+/* Show or hide every question gated on the one that just changed, and CLEAR
+   what a hidden one was holding, its chips and its spawned table alike. A
+   household that switches from "each service separately" back to "all in one
+   package" must not still be submitting six service rows nobody can see. */
+function npGate(prod,changedId){
+  prod.qs.forEach(function(q){
+    if(!q.showWhen||q.showWhen.q!==changedId)return;
+    var wrap=$('[data-qwrap="'+q.id+'"]',$('#npm-body'));
+    if(!wrap)return;
+    var shown=npShown(q,NPOPEN.answers);
+    wrap.hidden=!shown;
+    if(shown)return;
+    NPOPEN.answers[q.id]=q.multi?[]:null;
+    npRepaint(q.id);
+    npSpawn(q);
+  });
 }
 
 /* ---------- the survey POST ----------
@@ -4287,6 +4631,108 @@ function npSend(payload,retried){
   });
 }
 
+/* ---------- reading the tables back ----------
+   The chips live in NPOPEN.answers because they are re-rendered on every press
+   and could not survive in the DOM. The tables are the opposite: they are
+   native selects and inputs that hold their own state perfectly well, so they
+   are read at submit rather than mirrored into a model that could drift from
+   what the member is looking at.
+
+   EMPTY ROWS ARE DROPPED, and the count is not lost by dropping them: it is
+   already stored as the chip answer above the table. A member who says four
+   cars and fills two has said both things, and sending two empty objects would
+   turn "did not answer" into "answered nothing", which reads the same in a
+   spreadsheet and is not the same fact. */
+function npStr(row,cls){
+  var el=row.querySelector('.'+cls);
+  var v=el?String(el.value||'').trim():'';
+  return v||null;
+}
+function npMoney(row,cls){
+  var el=row.querySelector('.'+cls);
+  if(!el)return null;
+  var v=String(el.value||'').trim();
+  if(v==='')return null;
+  var n=Number(v);
+  /* A negative or absurd bill is a typo or a probe. The server caps this too;
+     dropping it here just keeps the payload honest on the way out. */
+  return (isFinite(n)&&n>=0&&n<=100000)?Math.round(n):null;
+}
+function npChecks(scope,cls){
+  return $$('.'+cls+':checked',scope).map(function(i){return i.value});
+}
+function npKeep(rows){
+  return rows.filter(function(r){
+    return Object.keys(r).some(function(k){
+      var v=r[k];
+      return v!==null&&v!==undefined&&!(v&&v.length===0);
+    });
+  });
+}
+function npRows(slotId,build){
+  var slot=$('[data-spawn="'+slotId+'"]',$('#npm-body'));
+  if(!slot)return [];
+  return npKeep($$('.ltable tbody tr',slot).map(build));
+}
+
+function npDetail(key){
+  var out={};
+  if(key==='mobile'){
+    var lines=npRows('lines',function(tr){
+      return {carrier:npStr(tr,'l-carrier'),financed:npStr(tr,'l-fin'),
+        device:npStr(tr,'l-device'),pay:npMoney(tr,'l-pay')};
+    });
+    if(lines.length)out.line_rows=lines;
+  }
+  if(key==='tires'){
+    var cars=npRows('cars',function(tr){
+      var w=npStr(tr,'c-tw'),p=npStr(tr,'c-ta'),r=npStr(tr,'c-tr');
+      return {make:npStr(tr,'c-make'),model:npStr(tr,'c-model'),
+        /* All three or none. "235/R20" with the profile missing is not a tire
+           size, and half a size in the store is worse than a blank one. */
+        size:(w&&p&&r)?(w+'/'+p+'R'+r):null,
+        needs:npChecks(tr,'c-need')};
+    });
+    if(cars.length)out.car_rows=cars;
+  }
+  if(key==='streaming'){
+    var packSlot=$('[data-spawn="paymode"]',$('#npm-body'));
+    if(packSlot){
+      var prow=$('.ltable tbody tr',packSlot);
+      if(prow){
+        var pack={provider:npStr(prow,'s-pack'),pay:npMoney(prow,'s-pay')};
+        if(npKeep([pack]).length)out.pack=pack;
+      }
+      var inside=npChecks(packSlot,'s-inpack');
+      if(inside.length)out.pack_svcs=inside;
+    }
+    var svcs=npRows('svccount',function(tr){
+      return {service:npStr(tr,'s-svc'),via:npStr(tr,'s-via'),pay:npMoney(tr,'s-pay')};
+    });
+    if(svcs.length)out.svc_rows=svcs;
+  }
+  return out;
+}
+
+/* ---------- the thanks step ----------
+   Refill the dialog rather than close it. The referral code is the real one,
+   derived from the session by refCode(), and the Copy button is the same
+   .copyrefc the rest of the page uses, so there is one clipboard path and not a
+   second that could fall behind it. */
+function npThanksHTML(prod){
+  return '<div class="thanks">'
+  +'<span class="tick" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span>'
+  +'<h4>Thank you. You’re on the list.</h4>'
+  +'<p>Once enough households raise their hand, we start building this in earnest. The more interest, the faster it lands.</p>'
+  +'</div>'
+  +'<p class="nplabel">Pull it closer</p>'
+  +'<p class="msub" style="margin-top:0">Every neighbour who joins moves '+esc(prod.title.toLowerCase())+' up our build list.</p>'
+  +'<div class="codebox"><code class="refc">'+esc(refCode())+'</code>'
+  +'<button class="copybtn copyrefc" type="button">Copy</button></div>'
+  +'<p class="npfoot" style="text-align:left">Share your code anywhere. It counts for this waitlist and for their internet cohort too.</p>'
+  +'<button class="npdone" type="button" data-mclose>Done</button>';
+}
+
 function npSubmit(){
   if(!NPOPEN)return;
   var key=NPOPEN.key, prod=NPROD[key];
@@ -4298,6 +4744,9 @@ function npSubmit(){
     if(v&&v.length===0)return;
     answers[k]=v;
   });
+  /* Read the tables BEFORE the body is replaced by the thanks step. */
+  var detail=npDetail(key);
+  Object.keys(detail).forEach(function(k){answers[k]=detail[k]});
   var payload={
     product:key,
     answers:answers,
@@ -4305,7 +4754,14 @@ function npSubmit(){
     fsa:(MEMBER&&MEMBER.fsa)||null,
     sourcePage:location.pathname
   };
-  closeProduct();
+  /* The dialog stays open and becomes the thanks step. NPOPEN is cleared of its
+     answers so a second press of a stale button cannot resubmit, but the key
+     and the opener are kept: Escape and Done still have to land back on the
+     tile that started this. */
+  NPOPEN={key:key,answers:{},opener:NPOPEN.opener,done:true};
+  $('#npm-body').innerHTML=npThanksHTML(prod);
+  $('.npbox').scrollTop=0;
+  $('#npm-x').focus();
   /* Only promise the email if they asked for it. Everyone on this page is a
      signed-in member with an address on file, so the promise is one we can
      actually keep, which is what the second clause is doing here at all. */
@@ -4323,9 +4779,116 @@ document.addEventListener('click',function(e){
   if(tile){openProduct(tile.getAttribute('data-np'),tile);return}
   if(!NPOPEN)return;
   if(e.target.closest('[data-mclose]')){closeProduct();return}
+
+  /* The tire size explainer. One panel for the whole table, not one per row:
+     the answer is the same for every car and three copies of it would be most
+     of the dialog. */
+  var help=e.target.closest('[data-sizehelp]');
+  if(help){
+    var info=$('#npsizeinfo',$('#npm-body'));
+    if(info){
+      info.hidden=!info.hidden;
+      $$('[data-sizehelp]',$('#npm-body')).forEach(function(b){
+        b.setAttribute('aria-expanded',info.hidden?'false':'true');
+      });
+    }
+    return;
+  }
+
+  /* The needs popover. Opening one closes the others, and a click anywhere
+     that is not inside a menu closes all of them, which is what a member
+     expects of something that looks like a dropdown. */
+  var mb=e.target.closest('.mselbtn');
+  if(mb){
+    var wasOpen=!mb.nextElementSibling.hidden;
+    npCloseMenus();
+    if(!wasOpen)npOpenMenu(mb);
+    return;
+  }
+  if(!e.target.closest('.mselmenu'))npCloseMenus();
+
   var chip=e.target.closest('.npchip');
   if(chip){npChoose(chip);return}
   if(e.target.closest('[data-send]'))npSubmit();
+});
+
+function npCloseMenus(){
+  NPMENU=null;
+  var body=$('#npm-body');
+  if(!body)return;
+  $$('.mselmenu',body).forEach(function(m){m.hidden=true});
+  $$('.mselbtn',body).forEach(function(b){b.setAttribute('aria-expanded','false')});
+}
+
+/* Which button owns the open menu, so scrolling can move it rather than lose
+   track of it. Null whenever nothing is open. */
+var NPMENU=null;
+
+/* Place the popover against its button in viewport coordinates, and flip it
+   above when there is not room below. The dialog is 88vh of scroller, so the
+   last row's menu would otherwise open past the bottom of the screen. */
+function npOpenMenu(btn){
+  var menu=btn.nextElementSibling;
+  menu.hidden=false;
+  btn.setAttribute('aria-expanded','true');
+  NPMENU=btn;
+  npPlaceMenu();
+}
+function npPlaceMenu(){
+  if(!NPMENU||!document.contains(NPMENU))return npCloseMenus();
+  var menu=NPMENU.nextElementSibling, r=NPMENU.getBoundingClientRect();
+  /* The anchor has scrolled out of the window entirely. A fixed menu pointing
+     at nothing is worse than no menu, so it goes. */
+  if(r.bottom<0||r.top>window.innerHeight)return npCloseMenus();
+  var h=menu.offsetHeight, below=window.innerHeight-r.bottom-8;
+  menu.style.minWidth=Math.max(200,r.width)+'px';
+  menu.style.left=Math.max(8,Math.min(r.left,window.innerWidth-menu.offsetWidth-8))+'px';
+  menu.style.top=(h>below&&r.top>h?r.top-h-4:r.bottom+4)+'px';
+}
+/* A fixed box does not follow what it is anchored to, so it is re-placed on
+   every scroll rather than closed. Closing looked like the safe choice and is
+   not: clicking the button focuses it, focusing scrolls the row into view, and
+   the menu was being shut by the very click that opened it. */
+['scroll','resize'].forEach(function(ev){
+  window.addEventListener(ev,function(){if(NPMENU)npPlaceMenu()},true);
+});
+
+/* Model follows make, and the tick count follows the boxes. Both are `change`
+   rather than `click` so the keyboard reaches them: a select changed with the
+   arrow keys never fires a click, and a checkbox toggled with Space does not
+   reliably either. */
+document.addEventListener('change',function(e){
+  if(!NPOPEN||!e.target.closest)return;
+  var body=$('#npm-body');
+  if(!body||!body.contains(e.target))return;
+
+  var box=e.target.closest('.mselmenu');
+  if(box){
+    var wrap=box.parentNode, btn=wrap.querySelector('.mselbtn');
+    var picked=$$('input:checked',box).map(function(i){return i.value});
+    btn.classList.toggle('mselempty',!picked.length);
+    /* One name plus a count, never the full list: seven needs spelled out is
+       wider than the column and would push the table into a scrollbar. */
+    btn.textContent=!picked.length?(box.querySelector('.s-inpack')?'Select services':'Select needs')
+      :(picked.length===1?picked[0]:picked[0]+' +'+(picked.length-1)+' more');
+    return;
+  }
+
+  if(!e.target.classList||!e.target.classList.contains('c-make'))return;
+  var row=e.target.closest('tr'), msel=row&&row.querySelector('.c-model');
+  if(!msel)return;
+  var models=NPCARS[e.target.value]||[];
+  if(!e.target.value){
+    msel.disabled=true;
+    msel.innerHTML='<option value="">Pick make first</option>';
+    return;
+  }
+  msel.disabled=false;
+  /* "Other / older model" always last: the catalog is current trims only, and
+     a member on a 2009 Corolla still has to be able to say so. */
+  msel.innerHTML='<option value="">Model</option>'
+    +models.map(function(m){return '<option>'+esc(m)+'</option>'}).join('')
+    +'<option>Other / older model</option>';
 });
 
 document.addEventListener('keydown',function(e){
@@ -4604,11 +5167,20 @@ function readsRowHTML(b,m){
   +'<span class="rtxt"><b class="rttl">'+esc(b[0])+'</b>'
   +'<small>'+b[1]+'</small></span></a></li>';
 }
-/* THREE, not four. The card sits at its own height now rather than filling the
-   band, so every row it carries is a row the reader has to be given a reason
-   for; the fourth was there to fill a column, which is not one. */
+/* READS_N is declared beside KMETA, not here, and it has to be: this function
+   is called at boot from up there, and `var` hoists the declaration without the
+   value. Declared here it would be `undefined` at call time, `slice(0,
+   undefined)` returns the WHOLE array, and all ten articles would render into a
+   four row card, 404ing on the six thumbnail crops that do not exist. That is
+   not a hypothetical; it is what the first version of this did, and
+   qa-dashboard.mjs caught it as six console errors on the demo tour.
+
+   The KMETA guard is the second half of the same care: a row without metadata
+   has no thumbnail to point at, so it is skipped rather than rendered broken. */
 function readsItemsHTML(){
-  return BLOGS.slice(0,3).map(function(b,i){return readsRowHTML(b,KMETA[i])}).join('');
+  return BLOGS.slice(0,READS_N).map(function(b,i){
+    return KMETA[i]?readsRowHTML(b,KMETA[i]):'';
+  }).join('');
 }
 /* The visitor lane used to build its own member-room card and its own Worth a
    read card here, and the member lane carried a third copy of the reads card in

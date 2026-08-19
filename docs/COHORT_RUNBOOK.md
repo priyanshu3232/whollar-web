@@ -10,6 +10,10 @@
 > **Development**, which is what `vercel.json` proxies the live site to.
 > Companions: `scripts/cohort.mjs`, `catalyst-backend/scripts/create-tables.md`.
 
+> **Creating a cohort that is open to bid immediately**, with several live at
+> once and the newest one featured, is a different shape and is its own section
+> at the end: "Several cohorts at once, and the newest one featured".
+
 ## The two rules that set the whole order
 
 **A cohort cannot take joins and bids at the same time.** `kind` is one column:
@@ -317,3 +321,207 @@ Reload `/partner`: the bid shows **Won**.
 rows, on every cohort, whatever the real count. It cannot honestly show a count
 at all while a window is sealed, so the number and the rows both have to go
 rather than being wired up.
+
+---
+
+# Several cohorts at once, and the newest one featured
+
+> The path above starts a cohort at `forming` and collects joins for days before
+> anyone bids. This is the other shape: **a cohort that is open to bid the
+> minute the row lands**, several of them live together, and the newest one
+> featured on the member dashboard. One `INSERT` per cohort, and nothing already
+> written has to move.
+
+## What "featured" is, exactly
+
+There is no `featured` column and there should not be one. Two separate things
+on `/dashboard` read as featured, and both fall out of `sort_order`:
+
+1. **The hero panel and the `#cc-first` card** come from `featuredCamp()`
+   (`dashboard.html`): the member's own cohort if they have joined one,
+   otherwise the first **joinable** cohort, otherwise `CAMPS[0]`.
+2. **The order of the four cards** in "Campaigns near you" comes from
+   `ccRank()`: joined, then `forming`, then `auction`, then `planned`, then
+   `waitlist`, with `sort_order` breaking ties inside each bucket.
+
+`catalog.load()` sorts **ascending**, so the featured cohort is the one with the
+**lowest `sort_order`**. Three consequences, and all three are load-bearing:
+
+- **Newest featured means counting down.** Start a store at `--sort 100` and
+  take one off per cohort. The new row sorts below every existing one without a
+  single `UPDATE`, and the cohort that was featured shifts to position 1. The
+  alternative, renumbering the rows already there, is one `UPDATE` per cohort,
+  and the one you miss is the one that stays featured.
+- **Kind outranks recency.** A `forming` cohort sits above every `auction` one
+  whatever its `sort_order`, because `ccRank` buckets by `kind` first. So
+  "newest is featured" holds only across cohorts of the **same kind**. Mixed
+  kinds are ordered by lifecycle, deliberately: a household reads what it can
+  join before what it cannot.
+- **A member who has joined a cohort always sees their own as featured.** That
+  is `featuredCamp()`'s first line and it is not a bug to route around.
+
+> **An `auction` cohort is not joinable, so the featured card carries no join
+> CTA.** Its badge reads "Sealed bidding" and the whole-card button is not
+> rendered. `kind` is one column: joins are open on `planned | waitlist |
+> forming`, bids on `auction`, and nothing is ever both. If the featured card
+> has to be joinable, create at `forming` and open bidding later, which is
+> phases 1 to 6 above.
+
+## Step 1: preflight, once per environment
+
+ZCQL. Each must return **without an error**; zero rows is fine.
+
+```sql
+SELECT ROWID FROM campaigns LIMIT 1;
+SELECT announce_at, bidding_opens_at, bidding_closes_at, offers_at,
+       decision_at, switch_window_at, reconcile_at FROM campaigns LIMIT 1;
+SELECT ROWID FROM campaign_members LIMIT 1;
+SELECT coverage_key, org_id, region, status FROM provider_coverage LIMIT 1;
+SELECT acceptance_key, org_id, doc_type, doc_version FROM provider_terms LIMIT 1;
+```
+
+`campaigns` and `campaign_members` missing is silent: every read falls back to
+the six-region code catalog and seed counts. `provider_terms` missing is **not**
+silent and is not a degradation: `lib/terms.js` fails closed, so every bid is
+refused until the table exists (`create-tables.md` section 20).
+
+An existence check that needs no console:
+
+```
+cd catalyst-backend && catalyst ds:export --table campaigns --page 1
+```
+
+## Step 2: one statement, both dashboards, open to bid
+
+```
+node scripts/cohort.mjs seed scarborough-centre --first 3 --sort 100
+```
+
+Paste the one `INSERT` it prints. It carries `kind = 'auction'`,
+`bidding_open = true` and all seven calendar dates, so the row is live on both
+surfaces as soon as the memo expires:
+
+```sql
+INSERT INTO campaigns (campaign_id, region, kind, seed_members, seed_households,
+  bidding_open, sort_order, updated_by, updated_at, announce_at, bidding_opens_at,
+  bidding_closes_at, offers_at, decision_at, switch_window_at, reconcile_at)
+VALUES ('scarborough-centre', 'Scarborough Centre', 'auction', 0, 0, true, 100,
+  'manual', '<now>', '<close -10d>', '<close -7d>', '<close>', '<close +2d>',
+  '<close +9d>', '<close +12d>', '<close +26d>');
+```
+
+`--first N` is days to the bid close, and it is what decides `bidding_open`:
+the tool writes `true` only when `bidding_opens_at` is already behind and the
+close is still ahead. `--first 1` to `--first 6` opens the window now;
+`--first 8` writes `false` and the desk reads **Announced**, not open.
+
+Then, one minute later:
+
+| | Consumer, `GET /api/auth/campaigns` | Partner, `GET /api/auth/provider/campaigns` |
+|---|---|---|
+| shows up | "Campaigns near you", badge **Sealed bidding** | on the desk, **only where coverage matches** |
+| stage | `bidding` | `open`, or `closing` inside the last 24h |
+| joinable | `false` | n/a |
+| bid window | n/a | `bidding_open: true` |
+
+Nothing else has to be written for the consumer side. **The partner side needs
+steps 3 and 4**, and until then the cohort is on no desk at all.
+
+## Step 3: coverage, or the cohort reaches nobody
+
+`biddableCampaigns()` in `partner/core/state.js` filters the desk to regions
+where **that org's** coverage is `status = 'active'`. A `campaigns` row alone is
+not visible to any partner: it is visible to every partner whose coverage
+matches the region, and to nobody else. One coverage row per org per region.
+
+```sql
+SELECT org_id, legal_name, approval_status FROM provider_orgs;
+```
+
+```
+node scripts/cohort.mjs coverage <org_id> --region "Scarborough Centre"
+```
+
+That prints the `INSERT`, and the `UPDATE` to use instead when the row exists.
+New coverage normally lands `verifying`, which greys the desk row with
+"Verifies with Scarborough Centre coverage". Move it on:
+
+```sql
+UPDATE provider_coverage
+SET status = 'active', verified_at = '<now>', rejection_reason = '', updated_at = '<now>'
+WHERE coverage_key = '<org_id>:scarborough-centre';
+```
+
+The region name is the entire join, matched by slug, server side. A cohort named
+for a place no partner can declare renders on both dashboards, takes joins, runs
+its clock down, and takes no bids, with nothing logged anywhere.
+`node scripts/cohort.mjs regions` is the 37 that exist.
+
+## Step 4: the three gates on the bid itself
+
+Only if a partner is meant to actually bid, not just see the cohort:
+
+```sql
+UPDATE provider_orgs  SET approval_status = 'approved' WHERE org_id  = '<org_id>';
+UPDATE provider_users SET role = 'admin'              WHERE user_id = '<user_id>';
+SELECT config_key, value FROM site_config WHERE config_key = 'bidding_enabled';
+```
+
+`bidding_enabled` absent is fine and means on. The standard cohort terms are
+accepted by the partner in the console (`POST /provider/contracts/terms/accept`),
+so `provider_terms` needs to exist but needs no row written by hand.
+
+## Step 5: the next cohort takes a lower `--sort`
+
+```
+node scripts/cohort.mjs seed north-york-central --first 5 --sort 99
+```
+
+```sql
+INSERT INTO campaigns (...) VALUES ('north-york-central', 'North York Central',
+  'auction', 0, 0, true, 99, ...);
+```
+
+`north-york-central` at 99 sorts below `scarborough-centre` at 100, so it is
+featured and Scarborough shifts to position 1. Both stay live, both stay open to
+bid, and the Scarborough row is not touched. Repeat with 98, 97, and so on. Then
+step 3 again for the new region: coverage is per region, so a partner covering
+Scarborough Centre sees nothing of North York Central.
+
+To hand the featured slot back:
+
+```sql
+UPDATE campaigns SET sort_order = 98 WHERE campaign_id = 'north-york-central';
+```
+
+## Step 6: verify what both sides will read
+
+```
+node scripts/cohort.mjs verify
+```
+
+```sql
+SELECT campaign_id, region, kind, bidding_open, sort_order FROM campaigns;
+SELECT campaign_id, announce_at, bidding_opens_at, bidding_closes_at,
+       offers_at, decision_at, switch_window_at, reconcile_at FROM campaigns;
+SELECT org_id, region, status FROM provider_coverage;
+```
+
+`sort_order` ascending in that first result **is** the card order on
+`/dashboard`, inside each `kind` bucket. Then in a browser, signed in on each
+side: `GET /api/auth/campaigns` and `GET /api/auth/provider/campaigns`. Check
+`live` on both; `live: false` means `campaign_members` was unreadable and every
+count is a seed, which looks exactly like a cohort nobody joined.
+
+## What bites on this path
+
+| Symptom | Cause |
+|---|---|
+| The new cohort is not featured | Another cohort's `kind` outranks it. `ccRank` buckets by `kind` before it reads `sort_order`. |
+| The new cohort is not featured, all are `auction` | Its `sort_order` is not the lowest, or the 60 second memo has not expired. |
+| Featured card has no join button | It is an `auction`. Auctions are never joinable, by design. |
+| Featured card is not the newest, for one member | They have joined a cohort. Theirs is always featured. |
+| Every other region vanished | The table went from empty to one row. An empty `campaigns` falls back to the code catalog; a populated one is the truth, so seed every region you want visible. |
+| On the desk for one partner, absent for another | Coverage is per org per region. That is correct behaviour. |
+| Desk reads **Announced**, no bid button | `bidding_opens_at` is still ahead, so the tool wrote `bidding_open = false`. Use `--first 6` or lower, or `node scripts/cohort.mjs bidding <id> --on`. |
+| Desk stale after a ZCQL write | The partner console fetches once at boot. Reload it. |
