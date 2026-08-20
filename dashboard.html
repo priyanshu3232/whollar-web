@@ -398,7 +398,7 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
    The handset is drawn at its native size (a 392px frame around a 748px
    screen) and scaled as a single unit, so every type size inside the mock
    keeps the proportion it was designed at. Only the wrapper box changes,
-   which is why .mrview carries the fixed dimensions and .mrdev the scale.
+   which is why .mrview carries the window and .mrdev the scale.
    Each mock keeps its own platform's chrome and typography on purpose: a
    member should recognise the room before reading a word of it. */
 /* VERTICAL, in a 400px rail. The card was a full-width band with the handset
@@ -424,23 +424,33 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .mrtab svg{width:16px;height:16px;flex:none}
 .mrtab.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(26,37,32,.06),0 4px 12px rgba(26,37,32,.11)}
 .mrstage{display:flex;justify-content:center;align-items:flex-start;margin:0}
-/* A FIXED WINDOW, and the one thing on this band that never resizes to make a
-   layout work. 414 x 822 (an 800px screen inside 11px of bezel) at scale .7246
-   is 300px wide, and the window is 420px of that: the screen runs on past the
-   bottom edge and is clipped, which is true of a real feed and is the point.
-   The reading card opposite absorbs the height difference instead. See .reads.
+/* THE WHOLE HANDSET, top bezel to home indicator. The window was 300 x 420 and
+   cut the device off mid-screen behind a 40px fade: the mock showed about two
+   thirds of a room, the frame had no bottom, and the member took the rest of the
+   room on trust. It now carries the device's own proportion, 414 x 822 (an 800px
+   screen inside 11px of bezel), so the pane runs to the bottom edge of the
+   screen and the screen ends where a screen ends. What is still clipped is the
+   FEED inside the pane, at the bezel, which is what a phone does.
+
+   WIDTH IS THE ONLY DIMENSION SET, here and at each breakpoint, and
+   aspect-ratio derives the height from it. The scale on .mrdev is width/414, so
+   a window with its height in pixels had to be re-pinned by hand every time the
+   rail moved, and one of the two numbers was always going to be forgotten.
+   The reading card opposite absorbs the height, which is its job. See .reads.
 
    The drop shadow moved from .mrdev to .mrview, because overflow:hidden clips a
-   CHILD's shadow and not the clipper's own. */
-.mrview{position:relative;width:300px;height:420px;flex:none;overflow:hidden;border-radius:58px 58px 4px 4px;box-shadow:0 18px 44px -20px rgba(26,37,32,.34)}
-/* The clip has to read as "there is more", not as a broken crop, so the last
-   40px dissolves into the card it sits on. Decorative and inert: pointer-events
-   off so it cannot eat a click meant for the mock underneath. */
-.mrview::after{content:"";position:absolute;left:0;right:0;bottom:0;height:40px;z-index:6;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,0),var(--card))}
+   CHILD's shadow and not the clipper's own. overflow stays: it is what rounds
+   the device's corners against the card, and it now clips nothing. */
+.mrview{position:relative;width:300px;aspect-ratio:414/822;flex:none;overflow:hidden;border-radius:58px;box-shadow:0 18px 44px -20px rgba(26,37,32,.34)}
 .mrdev{position:absolute;top:0;left:0;width:414px;padding:11px;transform-origin:0 0;transform:scale(.7246);background:linear-gradient(150deg,#3A3A3C,#1C1C1E 42%,#2C2C2E);border-radius:58px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
 .mrscr{position:relative;height:800px;border-radius:47px;overflow:hidden;background:#000}
 .mrscr::before{content:"";position:absolute;top:12px;left:50%;transform:translateX(-50%);width:112px;height:33px;border-radius:999px;background:#000;z-index:5}
-.mrscr::after{content:"";position:absolute;left:50%;bottom:9px;transform:translateX(-50%);width:132px;height:5px;border-radius:999px;background:rgba(255,255,255,.42);z-index:5}
+/* The home indicator, and it only started mattering when the window grew to
+   show the bottom of the device. A fixed white bar disappears over the Reddit
+   pane and a fixed dark one disappears over X, so it is drawn white and
+   inverted against whatever is under it: difference on white gives black over a
+   light feed and white over a dark one, which is what the OS itself does. */
+.mrscr::after{content:"";position:absolute;left:50%;bottom:9px;transform:translateX(-50%);width:132px;height:5px;border-radius:999px;background:#fff;mix-blend-mode:difference;z-index:5}
 .mrpane{height:800px;overflow:hidden;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.4}
 .mrpane[hidden]{display:none}
 .mrbar{display:flex;align-items:center;justify-content:space-between;padding:19px 26px 10px;font-size:14px;font-weight:700}
@@ -1086,10 +1096,9 @@ body.npopen{overflow:hidden}
    768px: the container and card padding drop to 20px together, and the cohort
    row becomes a snap scroller. */
 /* 1279px: the split band's rail tightens by 40px and the handset scales with it.
-   The handset's WIDTH follows the rail; its 420px window does not, because the
-   window is the fixed reference the reading card reconciles against and a band
-   that shrinks it to make the columns meet has resized the one thing that was
-   making an honest claim. The reading card takes the difference instead. */
+   Width is all that is set, at both this breakpoint and the next: .mrview's
+   aspect-ratio takes the height down with it, so the whole device stays in frame
+   at either size. The reading card takes the difference, as it already did. */
 @media (max-width:1279px){
   .splitband{grid-template-columns:minmax(0,1fr) 360px}
   .mrview{width:280px}
