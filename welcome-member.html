@@ -581,6 +581,17 @@ button{font-family:var(--body)}
 
   /* ---------- feedback popup ---------- */
 
+  /* The server's own message, except for VALIDATION_ERROR: the only thing
+     POST /me/event validates is the kind, so a rejection there is our bug,
+     and "Unknown event kind." is not something to hand a member. A rate
+     limit and a dead connection keep their own wording, which is written
+     for them and says whether a retry is worth anything. */
+  function fbReason(e){
+    var generic = 'We could not send that just now. Please try again in a moment.';
+    if (!e || !e.message || e.code === 'VALIDATION_ERROR') return generic;
+    return e.message;
+  }
+
   var FB_FROM = null;   /* what to hand focus back to on close */
 
   function fbKey(e){ if (e.key === 'Escape') fbClose(); }
@@ -604,20 +615,36 @@ button{font-family:var(--body)}
   });
 
   $('fbgo').addEventListener('click', function(){
+    var btn = this;
     var note = String($('fbtext').value || '').trim();
     var err = $('fbmsg');
+    function say(m){ err.textContent = m; err.hidden = false; }
     if (!note){
-      err.textContent = 'Two lines is plenty, but it needs at least one.';
-      err.hidden = false;
+      say('Two lines is plenty, but it needs at least one.');
       return;
     }
     err.hidden = true;
-    /* Same pipe as the dashboard's feedback box: user_events, kind 'rating'.
-       Fire and forget, because the thank you is for having written it. */
-    if (W.session && W.session.event) W.session.event('rating', { note: note.slice(0, 2000) }).then(null, function(){});
-    $('fb-form').hidden = true;
-    $('fb-done').hidden = false;
-    setTimeout(fbClose, 2200);
+    /* Same pipe as the dashboard's feedback box: user_events, kind 'feedback'.
+       NOT fire and forget. "Thank you" replaces the form only once the write
+       came back ok, because the panel it replaces is holding the only copy of
+       what the member typed: swallow the rejection and the note is gone along
+       with any chance of retyping it. */
+    if (!(W.session && W.session.event)){
+      say(fbReason(null));
+      return;
+    }
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = 'Sending\u2026';
+    W.session.event('feedback', { source: 'welcome', page: 'welcome-member', note: note.slice(0, 2000) }).then(function(){
+      $('fb-form').hidden = true;
+      $('fb-done').hidden = false;
+      setTimeout(fbClose, 2200);
+    }, function(e){
+      btn.disabled = false;
+      btn.textContent = 'Send it';
+      say(fbReason(e));
+    });
   });
 
   /* ---------- animation ---------- */

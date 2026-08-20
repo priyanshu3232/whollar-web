@@ -232,8 +232,9 @@ const TABLES = Object.freeze({
     updated_at: 'datetime required',
   },
   user_events: {
-    // Append-only feedback from the dashboards: provider ratings, outage
-    // reports, "first in line" interest, a partner's opening-day alerts.
+    // Append-only feedback from the dashboards: provider ratings, open notes
+    // from the "Share your experience" box, outage reports, "first in line"
+    // interest, a partner's opening-day alerts.
     // Write-only from the product; the admin console reads it. Payload is JSON
     // and never filtered on: queries go by user_id or kind only.
     user_id:    'varchar(64) required',

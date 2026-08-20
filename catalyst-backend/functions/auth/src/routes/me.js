@@ -8,8 +8,8 @@
  *   POST /me/profile    update name / phone / postal code
  *   GET  /me/prefs      the stored preference blob
  *   POST /me/prefs      merge preference keys (notification toggles, interests)
- *   POST /me/event      record feedback: a provider rating, an outage report,
- *                       a "first in line" interest signal
+ *   POST /me/event      record feedback: a provider rating, an open note, an
+ *                       outage report, a "first in line" interest signal
  *   GET  /me/referral   this member's share code and how many joined with it
  *   GET  /me/export     everything we hold about this account, as JSON
  *   POST /me/delete     revoke sessions, delete owned rows, scrub the account
@@ -31,7 +31,13 @@ const guards = require('../lib/guards');
 const { wrap, badRequest, forbidden } = require('../lib/errors');
 
 const EVENTS = 'user_events';
-const EVENT_KINDS = new Set(['rating', 'outage', 'interest', 'provider-notify']);
+/* A CLOSED SET, and the only place it is declared. 'feedback' is the open box
+   the dashboards call "Share your experience": unprompted, not attached to a
+   provider or a cohort, and kept apart from 'rating' so a note about the site
+   cannot be read later as an opinion of somebody's provider. The source of the
+   box travels in the payload, since a kind per button would grow this set
+   without telling the reader anything a payload key does not. */
+const EVENT_KINDS = new Set(['rating', 'feedback', 'outage', 'interest', 'provider-notify']);
 
 /* Moved to lib/guards.js. requireUser is deliberately type-agnostic: /me/prefs,
    /me/event, /me/export and /me/delete already serve partners as well as
@@ -153,7 +159,8 @@ function mount(router) {
   }));
 
   /**
-   * Record feedback: a provider rating, an outage report, an interest signal.
+   * Record feedback: a provider rating, an open note, an outage report, an
+   * interest signal.
    * -> { ok }. A failure is a failure: the dashboards only say "logged"
    * when it was.
    */

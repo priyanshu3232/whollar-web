@@ -371,14 +371,17 @@ keys: `alerts`, `interests`, `notify`, `services`.
 | `updated_at` | DateTime | - | | ✅ | |
 
 `user_events`: append-only feedback from the dashboards: provider ratings,
-outage reports, "first in line" interest, a partner's opening-day alerts.
-Write-only from the product; the admin console reads it.
+open notes from the "Share your experience" box, outage reports, "first in
+line" interest, a partner's opening-day alerts. Write-only from the product;
+the admin console reads it. `kind` is a closed set declared in
+`src/routes/me.js`, and a kind the deployed function does not know is a 400,
+so adding one is a code change and a redeploy, never a console change.
 
 | Column | Type | Length | Unique | Mandatory | Notes |
 |---|---|---|:--:|:--:|---|
 | `user_id` | Var Char | 64 | | ✅ | |
 | `user_type` | Var Char | 16 | | | |
-| `kind` | Var Char | 32 | | ✅ | `rating` \| `outage` \| `interest` \| `provider-notify` |
+| `kind` | Var Char | 32 | | ✅ | `rating` \| `feedback` \| `outage` \| `interest` \| `provider-notify` |
 | `payload` | Text | - | | | JSON, never filtered on |
 | `created_at` | DateTime | - | | ✅ | |
 

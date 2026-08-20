@@ -2939,7 +2939,8 @@ function ratecardDone(){
   var card=$('#ratecard');
   if(!card)return;
   /* Rated -> ask for two lines of open feedback (v10). It lands in
-     user_events via POST /me/event, kind 'rating'. */
+     user_events via POST /me/event, kind 'rating', and the card does not say
+     thank you until that write comes back. */
   card.innerHTML='<span class="eyebrow">'+esc(ratecardProvider())+' rated ✓</span><h3>Anything we should fix or build?</h3>'
   +'<p class="cardnote">Two lines is plenty. This goes to the team, not to a form nobody reads.</p>'
   +'<textarea class="fbtext" rows="3" placeholder="What’s working, what’s missing, what’s confusing…" aria-label="Feedback"></textarea>'
@@ -2950,14 +2951,26 @@ function ratecardThanks(){
   if(!card)return;
   card.innerHTML='<span class="eyebrow">Heard</span><h3>Thank you</h3><p class="cardnote">It lands with a person, not a void. If it needs a reply, you’ll get one. Your rating stays private and is never shown to bidding providers.</p>';
 }
+/* Same rule as the feedback modal: the card only turns into "Thank you" once
+   the write came back ok. This note stays under kind 'rating' rather than the
+   modal's 'feedback' because it is the open half of a rating the member just
+   gave, and the admin console reads the two together. */
 document.addEventListener('click',function(e){
-  if(!e.target.closest('#fbgo'))return;
+  var btn=e.target.closest('#fbgo');
+  if(!btn)return;
   var ta=$('#ratecard .fbtext');
   var txt=String((ta&&ta.value)||'').trim();
   if(!txt){toast('Two lines is plenty, but it needs at least one.');return}
-  if(W&&W.session&&W.session.event)W.session.event('rating',{note:txt.slice(0,2000)}).then(null,function(){});
-  ratecardThanks();
-  toast('Sent to the team. Thank you.');
+  if(!(W&&W.session&&W.session.event)){toast(fbReason(null));return}
+  if(btn.disabled)return;
+  btn.disabled=true;btn.textContent='Sending\u2026';
+  W.session.event('rating',{source:'rate-card',page:'dashboard',note:txt.slice(0,2000)}).then(function(){
+    ratecardThanks();
+    toast('Sent to the team. Thank you.');
+  },function(err){
+    btn.disabled=false;btn.textContent='Send it';
+    toast(fbReason(err));
+  });
 });
 
 /* Keeping it alive: a dashboard left open across a month boundary, or a bill
@@ -4972,27 +4985,65 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!modal.hidd
 /* ---------- feedback, from beside the share buttons ----------
    Every [data-fbopen] on the page opens the same slim box: the referral card is
    rendered twice (member home and the visitor tile) and neither copy owns the
-   popup. It lands in user_events via POST /me/event, the same route the rate
-   card's open question uses, under kind 'rating': the server keeps a closed set
-   of kinds and a dedicated 'feedback' kind would need EVENT_KINDS widened and
-   the function redeployed, so the source travels in the payload instead. */
+   popup. It lands in user_events via POST /me/event under kind 'feedback', which
+   is its own kind rather than the rate card's 'rating': an open note about the
+   product is not an opinion of a provider, and filing both under one kind means
+   whoever reads the table has to guess which it was. Which box it came from
+   still travels in the payload, because there is one box and three openers.
+
+   THE MODAL DOES NOT CLOSE UNTIL THE SERVER SAYS IT LANDED. "It lands with a
+   person, not a void" is printed under the button, and a fire-and-forget POST
+   under a thank-you toast is that line taken on the client's own word: an
+   unknown kind, an expired session, a phone with one bar, all three read as
+   success and the member's two lines leave with the modal. On a failure the text
+   stays where it was typed, the reason is printed under the button, and Send it
+   comes back. */
 function openFeedback(){
   openModal('<div class="mhead"><h3>Share your experience!</h3><button class="mx" type="button" data-mclose aria-label="Close">\u00d7</button></div>'
   +'<p class="msub">What is working, what is missing, what is confusing. Two lines is plenty.</p>'
   +'<textarea class="fbtext" id="fb-note" rows="7" placeholder="Tell us anything\u2026" aria-label="Your experience"></textarea>'
   +'<button class="btn terra" type="button" id="fb-send" style="width:100%;justify-content:center;margin-top:12px">Send it</button>'
+  +'<p class="whl-fielderr" id="fb-err" role="alert" style="text-align:center" hidden></p>'
   +'<p class="fnote" style="text-align:center">It lands with a person, not a void.</p>',true);
   var ta=$('#fb-note'); if(ta)ta.focus();
 }
+/* The server's own message, except for VALIDATION_ERROR. The only thing this
+   route validates is the kind, so a rejection there is our bug and not the
+   member's, and "Unknown event kind." under a card that just promised a person
+   would read this is worse than saying nothing useful. A rate limit, a dropped
+   connection and a 500 all keep their own wording, which is written for the
+   member and tells them whether trying again is worth anything. */
+function fbReason(e){
+  var generic='We could not send that just now. Please try again in a moment.';
+  if(!e||!e.message||e.code==='VALIDATION_ERROR')return generic;
+  return e.message;
+}
+var FBSENDING=false;
+function feedbackSend(btn){
+  if(FBSENDING)return;
+  var ta=$('#fb-note'),err=$('#fb-err');
+  var txt=String((ta&&ta.value)||'').trim();
+  function say(m){if(err){err.textContent=m;err.hidden=false}else toast(m)}
+  if(!txt){say('It needs at least one line.');if(ta)ta.focus();return}
+  if(err)err.hidden=true;
+  /* No session pipe is a failure and says so. The alternative is thanking
+     someone for a note that was never posted anywhere. */
+  if(!(W&&W.session&&W.session.event)){say(fbReason(null));return}
+  FBSENDING=true;btn.disabled=true;btn.textContent='Sending\u2026';
+  W.session.event('feedback',{source:'referral-card',page:'dashboard',note:txt.slice(0,2000)}).then(function(){
+    FBSENDING=false;
+    closeModal();
+    toast('Sent to the team. Thank you.');
+  },function(e){
+    FBSENDING=false;btn.disabled=false;btn.textContent='Send it';
+    say(fbReason(e));
+    if(ta)ta.focus();
+  });
+}
 document.addEventListener('click',function(e){
   if(e.target.closest('[data-fbopen]')){openFeedback();return}
-  if(!e.target.closest('#fb-send'))return;
-  var ta=$('#fb-note');
-  var txt=String((ta&&ta.value)||'').trim();
-  if(!txt){toast('It needs at least one line.');if(ta)ta.focus();return}
-  if(W&&W.session&&W.session.event)W.session.event('rating',{source:'referral-card',note:txt.slice(0,2000)}).then(null,function(){});
-  closeModal();
-  toast('Sent to the team. Thank you.');
+  var b=e.target.closest('#fb-send');
+  if(b)feedbackSend(b);
 });
 
 /* ---------- chips helper (prefs + pass modals) ---------- */
