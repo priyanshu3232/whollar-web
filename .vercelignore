@@ -133,3 +133,9 @@ Campaignphotos/
 # names internal steps and internal table columns and is written for staff.
 docs/console/cohort-launch-guide.html
 docs/console/cohort-launch-guide.pdf
+
+# The stage ladder, same reason as the launch guide above: an internal ops
+# document and its HTML source. docs/ is deployed, so cleanUrls would publish
+# the source at /docs/console/cohort-stage-ladder and serve the PDF beside it.
+docs/console/cohort-stage-ladder.html
+docs/console/cohort-stage-ladder.pdf

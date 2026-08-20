@@ -6,6 +6,8 @@
  *   node scripts/cohort.mjs move scarborough-east --from forming --to auction
  *   node scripts/cohort.mjs bidding scarborough-east --on
  *   node scripts/cohort.mjs calendar scarborough-east --minutes 3
+ *   node scripts/cohort.mjs step scarborough-east --list
+ *   node scripts/cohort.mjs step scarborough-east --to bidding
  *   node scripts/cohort.mjs seed scarborough-east etobicoke-centre north-york-central
  *   node scripts/cohort.mjs seed scarborough-east --minutes 5   # a test rail, biddable now
  *   node scripts/cohort.mjs coverage org_7f2a --region "Scarborough East"
@@ -153,8 +155,11 @@ function predict(c, now = Date.now()) {
     lines.push('    BUT bidding_closes_at has passed, so requireBiddingOpen refuses every bid.');
     lines.push('    bidding_open being true does not override it: dates may close a window, never open one.');
   }
-  lines.push(`    reaches a desk only where that org's provider_coverage row for "${c.region || '(region)'}"`);
-  lines.push('    is status=active. A cohort with no matching coverage is invisible to that partner.');
+  lines.push('    appears on EVERY approved partner\'s desk. views/desk.js renders the whole payload:');
+  lines.push('    planned and announced under "Coming cohorts", everything else under "Open auctions".');
+  lines.push(`    BIDDABLE only where that org's provider_coverage row for "${c.region || '(region)'}" is`);
+  lines.push('    status=active. Without it the row still renders, locked, tagged "Verifies with');
+  lines.push('    <region> coverage", and the bid write is refused server side either way.');
   if (c.kind === 'auction') {
     lines.push('    a bid write also needs bid_revisions and the 15 extra provider_bids columns (create-tables.md 18)');
   }
@@ -666,9 +671,13 @@ function cmdCoverage() {
   console.log('\n  If the row already exists, set its status instead:\n');
   console.log(`  UPDATE provider_coverage SET status = ${lit(status)}, updated_at = ${lit(utc(new Date()))} WHERE coverage_key = ${lit(key, { max: 200 })};`);
   console.log('\n  Why this is needed:\n');
-  console.log('    biddableCampaigns() in partner/core/state.js filters the desk to regions where');
-  console.log('    this org\'s coverage is status=active. A campaigns row alone does not reach a');
-  console.log('    partner: it reaches every partner whose coverage matches, and nobody else.');
+  console.log('    Coverage decides whether a cohort can be BID ON, not whether it is seen.');
+  console.log('    views/desk.js renders every campaign in the payload and passes each row an');
+  console.log('    `unlocked` flag: without active coverage for that region the action cell is a');
+  console.log('    "Verifies with <region> coverage" tag instead of the bid button, and the row');
+  console.log('    carries .locked. biddableCampaigns() (core/state.js) IS the coverage filter,');
+  console.log('    and only views/bids.js calls it, for the ticket list. requireActiveCoverage()');
+  console.log('    on the write path is what actually refuses the bid.');
   console.log('    New rows normally land "verifying" and are moved on by the admin verify route.');
   console.log('    Writing active here goes around that check, which is fine for a test org and');
   console.log('    is not fine for a real one: serviceability accuracy is what the figure beside');
@@ -717,6 +726,7 @@ function usage() {
     move <id> --to <kind> [--from <kind>]
     bidding <id> --on | --off
     calendar <id> [--minutes N] [--start N]
+    step <id> --to <rung> | --list          (drive it by hand, one UPDATE per rung)
     seed <id> [<id>...] [--regions "A,B"] [--first N] [--every N] [--hour UTC]
                             [--sort N] [--seed N] [--update]
     seed <id> [<id>...] --minutes N [--regions "A,B"] [--sort N] [--seed N]
@@ -733,8 +743,158 @@ function usage() {
 `);
 }
 
+
+/* ------------------------------------------------------------------ *
+ * step: drive a cohort one rung at a time, by hand
+ *
+ * `calendar` sets all seven dates at once and lets a clock walk the cohort
+ * through them. That is the right shape for watching the rail move on its own
+ * and the wrong shape for a test you are working through: the window closes
+ * while you are filling in a bid ticket, and every rung has a deadline you did
+ * not ask for.
+ *
+ * This is the other shape. One UPDATE per rung, each stamping ONE date with
+ * "now", and every later date left NULL. A stage engine reading only the dates
+ * it has been given cannot expire anything, so
+ *
+ *   - a bid window opened here stays open until you close it. requireBiddingOpen
+ *     only refuses past `bidding_closes_at`, and there is no such date yet.
+ *   - the cohort cannot skip a rung, because a stage is derived from the dates
+ *     that exist, not from a counter someone has to keep.
+ *   - the ladder is resumable. The row says where it is; nothing here does.
+ *
+ * The prediction under each rung assumes the rungs above it have been run,
+ * which is what makes it a ladder. Run them out of order and the row is still
+ * legal, the label is just no longer the one printed here.
+ * ------------------------------------------------------------------ */
+
+/* Each rung: the flag it sets, the date it stamps, and what a person does at
+   that point. `dates` accumulates down the list, so the prediction for rung N
+   is the row after rungs 1..N. */
+const LADDER = Object.freeze([
+  {
+    key: 'announce', date: 'announce_at', kind: null, open: null,
+    title: 'the brief is fixed, joining shuts',
+    doing: 'Nothing to click. The member rail moves to Locked on its next poll.',
+  },
+  {
+    key: 'auction', date: null, kind: 'auction', open: true,
+    title: 'the cohort becomes an auction, and the window opens',
+    doing: 'Reload /partner. The desk row is still not biddable: the stage needs the next rung.',
+  },
+  {
+    key: 'bidding', date: 'bidding_opens_at', kind: null, open: null,
+    title: 'sealed bidding is live',
+    doing: 'Reload /partner. The row now reads Open and draws "Review and bid". Place the bid.',
+  },
+  {
+    key: 'close', date: 'bidding_closes_at', kind: null, open: null,
+    title: 'bids close, and the seal opens',
+    doing: 'The member can now read the winning offer. Every further bid is refused from here.',
+  },
+  {
+    key: 'offers', date: 'offers_at', kind: null, open: null,
+    title: 'the offer has reached the household',
+    doing: 'On /dashboard, accept the offer. That is what creates the switch order.',
+  },
+  {
+    key: 'decide', date: 'decision_at', kind: null, open: null,
+    title: 'confirmations lock',
+    doing: 'Nothing to click. The partner desk reads Decided from here on.',
+  },
+  {
+    key: 'switch', date: 'switch_window_at', kind: null, open: null,
+    title: 'installs and transfers run',
+    doing: 'On /partner, mark the activation. Only a clean line test creates a fee.',
+  },
+  {
+    key: 'reconcile', date: 'reconcile_at', kind: null, open: null,
+    title: 'final counts settle',
+    doing: 'Nothing to click. The member rail reads Done.',
+  },
+  {
+    key: 'done', date: null, kind: 'closed', open: false,
+    title: 'the cohort is closed',
+    doing: 'Optional. Archive it later with `move <id> --to archived` to take it off every surface.',
+  },
+]);
+
+const LADDER_KEYS = LADDER.map((r) => r.key);
+
+/** The statement for one rung. */
+function rungSql(rung, id, stamp) {
+  const sets = [];
+  if (rung.kind) sets.push(`kind = ${lit(rung.kind)}`);
+  if (rung.open !== null) sets.push(`bidding_open = ${rung.open}`);
+  if (rung.date) sets.push(`${rung.date} = ${lit(stamp)}`);
+  sets.push(`updated_at = ${lit(stamp)}`);
+  return `UPDATE campaigns SET ${sets.join(', ')} WHERE campaign_id = ${lit(id, { max: 64 })};`;
+}
+
+/** The row as it stands after rungs 0..i, for the stage functions to read. */
+function rungState(i, id, stamp) {
+  const dates = {};
+  let kind = 'forming';
+  let biddingOpen = false;
+  for (let n = 0; n <= i; n += 1) {
+    const r = LADDER[n];
+    if (r.date) dates[r.date] = new Date(`${stamp.replace(' ', 'T')}Z`).getTime() - (i - n) * 1000;
+    if (r.kind) kind = r.kind;
+    if (r.open !== null) biddingOpen = r.open;
+  }
+  return { id, region: '', kind, biddingOpen, dates };
+}
+
+function cmdStep() {
+  const id = cohortId(POSITIONAL[0]);
+  const stamp = utc(new Date());
+  const to = flag('to');
+  const all = has('list') || to === undefined;
+
+  if (!all) {
+    if (to === true || !LADDER_KEYS.includes(String(to))) {
+      die(`--to must be one of: ${LADDER_KEYS.join(' | ')}\n\n  The whole ladder:  node scripts/cohort.mjs step ${id} --list`);
+    }
+    const i = LADDER_KEYS.indexOf(String(to));
+    const rung = LADDER[i];
+    emit(`RUNG ${i + 1} of ${LADDER.length}, ${rung.key}: ${rung.title}`,
+      [rungSql(rung, id, stamp)], rungState(i, id, stamp), [
+        `You do: ${rung.doing}`,
+        i + 1 < LADDER.length
+          ? `Next:   node scripts/cohort.mjs step ${id} --to ${LADDER[i + 1].key}`
+          : 'That is the last rung.',
+      ]);
+    return;
+  }
+
+  console.log(`\nTHE LADDER: ${LADDER.length} rungs, one statement each, ${id}\n`);
+  console.log('  Every rung stamps its date with the moment you run it, and leaves every later');
+  console.log('  date NULL. Nothing expires while you work: a window opened at rung 3 stays open');
+  console.log('  until rung 4 closes it, because there is no close date until then.\n');
+  console.log(`  Start from a cohort created at kind = 'forming' with NO dates:`);
+  console.log(`    node scripts/cohort.mjs new ${id} --region "<REGION>"\n`);
+
+  LADDER.forEach((rung, i) => {
+    const st = rungState(i, id, stamp);
+    const m = catalog.publicMemberStage(st);
+    const pa = catalog.publicStage(st);
+    const biddable = pa.stage === 'open' || pa.stage === 'closing';
+    console.log(`  ${String(i + 1).padStart(2)}. ${rung.key.padEnd(10)} ${rung.title}`);
+    console.log(`      ${rungSql(rung, id, stamp)}`);
+    console.log(`      consumer: ${m.stage.padEnd(9)} partner: ${pa.stage.padEnd(10)} bid button: ${biddable ? 'yes' : 'no'}`);
+    console.log(`      you do:   ${rung.doing}\n`);
+  });
+
+  console.log('  One statement per submission: the ZCQL console takes one, and a block of nine');
+  console.log('  is a syntax error. Allow 60 seconds after each for the catalog memo, and reload');
+  console.log('  /partner every time: the console fetches campaigns once at boot and never polls.\n');
+  console.log('  Timestamps above were generated once. Re-run this per rung, or read the clock:');
+  console.log(`  every date is simply the current UTC minute in '${'YYYY-MM-DD HH:MM:SS'}'.\n`);
+}
+
 const COMMANDS = {
   new: cmdNew, move: cmdMove, bidding: cmdBidding, calendar: cmdCalendar,
+  step: cmdStep,
   seed: cmdSeed, coverage: cmdCoverage, verify: cmdVerify, preview: cmdPreview,
   regions: cmdRegions,
 };

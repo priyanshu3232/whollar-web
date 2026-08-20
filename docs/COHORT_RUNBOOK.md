@@ -10,6 +10,11 @@
 > **Development**, which is what `vercel.json` proxies the live site to.
 > Companions: `scripts/cohort.mjs`, `catalyst-backend/scripts/create-tables.md`.
 
+> **Driving one cohort by hand, one UPDATE per stage**, is
+> `node scripts/cohort.mjs step <id> --list`, and it is printed as a document in
+> `docs/console/cohort-stage-ladder.pdf`. Nothing on that path is on a clock, so
+> a bid window opened at one rung stays open until the next rung closes it.
+>
 > **Creating a cohort that is open to bid immediately**, with several live at
 > once and the newest one featured, is a different shape and is its own section
 > at the end: "Several cohorts at once, and the newest one featured".
@@ -137,9 +142,9 @@ SELECT user_id, org_id, role FROM provider_users;
 UPDATE provider_users SET role = 'admin' WHERE user_id = '<user_id>';
 ```
 
-**4d. Coverage, then verify it.** A campaigns row alone reaches nobody. It
-reaches every partner whose declared coverage matches the region and has
-verified.
+**4d. Coverage, then verify it.** Coverage gates the bid, not the sighting: the
+desk renders every cohort in the payload, and a region this org has not verified
+renders the row locked rather than hiding it.
 
 ```
 node scripts/cohort.mjs coverage <org_id> --region Kitchener
@@ -448,7 +453,7 @@ Then, one minute later:
 
 | | Consumer, `GET /api/auth/campaigns` | Partner, `GET /api/auth/provider/campaigns` |
 |---|---|---|
-| shows up | "Campaigns near you", badge **Sealed bidding** | on the desk, **only where coverage matches** |
+| shows up | "Campaigns near you", badge **Sealed bidding** | on **every** approved partner's desk; biddable only where coverage is active |
 | stage | `bidding` | `open`, or `closing` inside the last 24h |
 | joinable | `false` | n/a |
 | bid window | n/a | `bidding_open: true` |
@@ -502,12 +507,16 @@ button on.
 `--minutes` and `--first` cannot be combined: the tool refuses rather than
 ignoring one of them.
 
-## Step 4: coverage, or the cohort reaches nobody
+## Step 4: coverage, or the cohort reaches nobody's bid ticket
 
-`biddableCampaigns()` in `partner/core/state.js` filters the desk to regions
-where **that org's** coverage is `status = 'active'`. A `campaigns` row alone is
-not visible to any partner: it is visible to every partner whose coverage
-matches the region, and to nobody else. One coverage row per org per region.
+**Coverage gates bidding, not visibility.** `views/desk.js` renders every
+campaign in the payload: `planned` and `announced` under "Coming cohorts", the
+rest under "Open auctions". What coverage decides is the row's action cell. With
+`status = 'active'` for that region the row draws the bid button; without it the
+row still renders, locked, tagged **"Verifies with &lt;REGION&gt; coverage"**.
+`biddableCampaigns()` in `partner/core/state.js` is the actual coverage filter
+and only the My bids ticket list calls it, while `requireActiveCoverage()` is
+what refuses the write. One coverage row per org per region.
 
 ```sql
 SELECT org_id, legal_name, approval_status FROM provider_orgs;
@@ -562,7 +571,8 @@ INSERT INTO campaigns (...) VALUES ('<ID_B>', '<REGION_B>', 'auction', 0, 0,
 `<ID_B>` sorts below `<ID_A>`, so it is featured and `<ID_A>` shifts to position
 1. Both stay live, both stay open to bid, and the `<ID_A>` row is not touched.
 Repeat, one lower each time. Then step 4 again for `<REGION_B>`: coverage is per
-region, so a partner covering `<REGION_A>` sees nothing of `<REGION_B>`.
+region, so a partner covering `<REGION_A>` sees `<REGION_B>`'s row locked rather
+than biddable.
 
 To hand the featured slot back to `<ID_A>`, move the newer one **below** it
 rather than moving the older one up, so only one row is ever rewritten:
@@ -602,7 +612,7 @@ count is a seed, which looks exactly like a cohort nobody joined.
 | Featured card has no join button | It is an `auction`. Auctions are never joinable, by design. |
 | Featured card is not the newest, for one member | They have joined a cohort. Theirs is always featured. |
 | Every other region vanished | The table went from empty to one row. An empty `campaigns` falls back to the code catalog; a populated one is the truth, so seed every region you want visible. |
-| On the desk for one partner, absent for another | Coverage is per org per region. That is correct behaviour. |
+| A cohort on a desk in a region that partner never declared | Expected. The desk is not coverage filtered; the row renders locked with "Verifies with ... coverage". Coverage gates the bid, not the sighting. |
 | Desk reads **Announced**, no bid button | `bidding_opens_at` is still ahead, so the tool wrote `bidding_open = false`. Use a smaller `<DAYS>`, or `node scripts/cohort.mjs bidding <ID> --on`. |
 | Desk stale after a ZCQL write | The partner console fetches once at boot. Reload it. |
 | `kind` looks right, cohort still missing | `kind` is not lowercase. `fromRow` reads anything outside the six as `planned` and says nothing. |

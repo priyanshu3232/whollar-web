@@ -169,6 +169,74 @@ test('every surface the tool names is named in both predictions', () => {
 });
 
 /* ------------------------------------------------------------------ *
+ * step: the hand-driven ladder
+ *
+ * The claim is narrower than "it prints UPDATEs". Each rung stamps ONE date and
+ * leaves every later one NULL, and the reason that matters is that nothing can
+ * then expire while an operator works: the only rung whose row draws a bid
+ * button is the one that opened the window, and it keeps drawing it until the
+ * next rung closes it. If a rung ever emitted a close date early, a test run
+ * would refuse the bid it exists to place, and the tool would still look right.
+ * ------------------------------------------------------------------ */
+
+test('step --list prints one statement per rung, all against the same id', () => {
+  const { out, code } = run('step', 'scarborough-east', '--list');
+  assert.equal(code, 0);
+  const sql = out.match(/UPDATE campaigns SET [^\n]+;/g) || [];
+  assert.equal(sql.length, 9, `expected 9 rungs, got ${sql.length}`);
+  for (const st of sql) {
+    assert.match(st, /WHERE campaign_id = 'scarborough-east';$/);
+    /* campaign_id is immutable: both dashboards and every bid_key are built
+       from it, so a rung reschedules a row and never renames one. Checked on
+       the SET clause alone, since the WHERE clause names it by design. */
+    const setClause = st.slice(st.indexOf('SET '), st.indexOf(' WHERE '));
+    assert.doesNotMatch(setClause, /campaign_id/);
+    assert.match(st, /updated_at = '\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}'/);
+  }
+});
+
+test('step stamps one date per rung and no rung sets a date it does not own', () => {
+  const { out } = run('step', 'scarborough-east', '--list');
+  const sql = out.match(/UPDATE campaigns SET [^\n]+;/g) || [];
+  const seen = [];
+  for (const st of sql) {
+    const dates = catalog.DATE_COLUMNS.filter((c) => st.includes(`${c} = '`));
+    assert.ok(dates.length <= 1, `a rung stamped ${dates.length} dates: ${dates.join(', ')}`);
+    seen.push(...dates);
+  }
+  /* All seven, in DATE_COLUMNS order: the ladder is the calendar, one rung at a
+     time, so a missing or reordered date is a rung that cannot be reached. */
+  assert.deepEqual(seen, [...catalog.DATE_COLUMNS]);
+});
+
+test('only the bidding rung leaves a window a partner can bid into', () => {
+  const { out } = run('step', 'scarborough-east', '--list');
+  const lines = out.split('\n').filter((l) => l.includes('bid button:'));
+  assert.equal(lines.length, 9);
+  const yes = lines.filter((l) => /bid button: yes/.test(l));
+  assert.equal(yes.length, 1, `${yes.length} rungs claim a bid button`);
+  /* And it is rung 3, the one that stamps bidding_opens_at: the desk draws its
+     button on stage open or closing and nothing else. */
+  assert.match(lines[2], /partner: open\s+bid button: yes/);
+  /* The rung that closes bidding must take the button away again. */
+  assert.match(lines[3], /bid button: no/);
+});
+
+test('step --to prints exactly that rung, and names the next one', () => {
+  const { out, code } = run('step', 'scarborough-east', '--to', 'bidding');
+  assert.equal(code, 0);
+  assert.equal((out.match(/UPDATE campaigns SET/g) || []).length, 1);
+  assert.match(out, /bidding_opens_at = '/);
+  assert.match(out, /step scarborough-east --to close/);
+});
+
+test('step refuses a rung that is not on the ladder', () => {
+  assert.equal(run('step', 'scarborough-east', '--to', 'switching').code, 1);
+  assert.equal(run('step', 'scarborough-east', '--to').code, 1);
+  assert.equal(run('step', 'not_a_slug', '--to', 'bidding').code, 1);
+});
+
+/* ------------------------------------------------------------------ *
  * seed
  *
  * The claim being tested is narrower than "it emits SQL": every row it prints

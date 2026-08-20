@@ -122,6 +122,20 @@ figure svg{display:block;width:100%;height:auto}
 .legend{font-size:8pt;color:var(--sub);display:flex;gap:6mm;flex-wrap:wrap;margin-top:2mm}
 .legend i{display:inline-block;width:3mm;height:3mm;border-radius:1mm;margin-right:1.5mm;vertical-align:-.3mm}
 </style>
+
+<style>
+/* WHICH BLOCK IS WHICH. Every step card carries a pair: a command that prints a
+   statement and the statement itself. Unlabelled, the pair reads as two things
+   to run, or as one thing printed twice, and the honest answer (run both, in
+   this order, and only the second one writes) was in the prose. Generated
+   content rather than markup, so the rule cannot drift per card. */
+.step pre::before{
+  display:block;font-family:var(--disp);font-size:6.8pt;font-weight:800;letter-spacing:.12em;
+  text-transform:uppercase;margin:-.6mm 0 2mm;
+}
+.step pre.term::before{content:"1 · Terminal · prints the statement. Writes nothing";color:var(--accent-deep)}
+.step pre:not(.term)::before{content:"2 · ZCQL · paste this. The only thing that writes";color:#7FE3B0}
+</style>
 </head>
 <body>
 
@@ -195,7 +209,7 @@ figure svg{display:block;width:100%;height:auto}
 
   <div class="coverfoot">
     <div><b>Who this is for</b>The operator with ZCQL write access in the Catalyst console.</div>
-    <div><b>Companion files</b>scripts/cohort.mjs, docs/COHORT_RUNBOOK.md, create-tables.md sections 16, 18, 20.</div>
+    <div><b>Companion files</b>cohort-stage-ladder.pdf to drive one cohort stage by stage, scripts/cohort.mjs, create-tables.md sections 16, 18, 20.</div>
     <div><b>Standing rule</b>The tools print statements. They never write. Every write is yours, pasted deliberately.</div>
   </div>
 </section>
@@ -553,10 +567,11 @@ figure svg{display:block;width:100%;height:auto}
   <div class="step">
     <div class="n">4<small>both</small></div>
     <div>
-      <h3>Give it coverage, or it reaches nobody <span class="tag t">terminal</span> <span class="tag z">zcql</span></h3>
-      <p class="why">A <code>campaigns</code> row alone is on <b>no</b> partner's desk. It reaches
-        every partner whose declared coverage matches the region and is active, and nobody else.
-        One row per org, per region.</p>
+      <h3>Give it coverage, or nobody can bid <span class="tag t">terminal</span> <span class="tag z">zcql</span></h3>
+      <p class="why"><b>Coverage gates bidding, not visibility.</b> The desk renders every campaign
+        in the payload. What coverage decides is the row's action: with <code>status = 'active'</code>
+        for that region the row draws the bid button, and without it the row still renders, locked,
+        tagged "Verifies with &lt;REGION&gt; coverage". One row per org, per region.</p>
 <pre class="term"><span class="p">node</span> scripts/cohort.mjs coverage <span class="f">&lt;ORG_ID&gt;</span> --region <span class="f">"&lt;REGION&gt;"</span></pre>
       <p>That prints the <code>INSERT</code>, and the <code>UPDATE</code> to use when the row
       already exists. New coverage lands <code>verifying</code>, which greys the desk row with
@@ -595,7 +610,7 @@ figure svg{display:block;width:100%;height:auto}
 <pre class="term"><span class="p">node</span> scripts/cohort.mjs seed <span class="f">&lt;ID_B&gt;</span> --regions <span class="f">"&lt;REGION_B&gt;"</span> --first <span class="f">&lt;DAYS&gt;</span> --sort <span class="f">&lt;SORT_B&gt;</span></pre>
       <p>B is now featured, A is position 1, both are live, both are open to bid, and the A row
       was never touched. Then step 4 again for <code>&lt;REGION_B&gt;</code>: coverage is per
-      region, so a partner covering A's region sees nothing of B's.</p>
+      region, so a partner covering A's region sees B's row locked rather than biddable.</p>
       <p>To hand the featured slot back, move the newer cohort <b>below</b> the older one rather
       than moving the older one up, so only one row is ever rewritten:</p>
 <pre><span class="k">UPDATE</span> campaigns <span class="k">SET</span> sort_order = <span class="s">&lt;SORT_A + 1&gt;</span> <span class="k">WHERE</span> campaign_id = <span class="s">'&lt;ID_B&gt;'</span>;</pre>
@@ -640,7 +655,7 @@ figure svg{display:block;width:100%;height:auto}
     common surprise is a cohort that is in the table, visible to households, and absent from
     every partner desk.</p>
 
-  <h3>Coverage: who a cohort reaches</h3>
+  <h3>Coverage: who can bid on a cohort</h3>
 
   <figure>
     <svg viewBox="0 0 700 210" role="img" aria-label="A cohort reaches only the partners whose active coverage slug matches its region">
@@ -665,11 +680,11 @@ figure svg{display:block;width:100%;height:auto}
 
       <rect x="236" y="128" width="456" height="46" rx="9" fill="#fff" stroke="#DFE5DF"/>
       <text x="252" y="148" font-family="Helvetica,sans-serif" font-size="10.5" font-weight="700" fill="#54625B">Partner 3</text>
-      <text x="252" y="164" font-family="Menlo,monospace" font-size="8.5" fill="#54625B">coverage some-other-region · active</text>
-      <text x="676" y="157" text-anchor="end" font-family="Helvetica,sans-serif" font-size="10" fill="#54625B">sees nothing at all</text>
+      <text x="252" y="164" font-family="Menlo,monospace" font-size="8.5" fill="#54625B">no coverage for this region</text>
+      <text x="676" y="150" text-anchor="end" font-family="Helvetica,sans-serif" font-size="10" fill="#54625B">sees the row, locked,</text><text x="676" y="164" text-anchor="end" font-family="Helvetica,sans-serif" font-size="10" fill="#54625B">naming the other region</text>
 
       <text x="350" y="198" text-anchor="middle" font-family="Helvetica,sans-serif" font-size="9.5" fill="#54625B">
-        Partner 3 is not an error state. No partner ever learns a cohort outside their coverage exists.</text>
+        Coverage decides who can BID. The desk is not filtered by it: every approved partner sees the cohort.</text>
     </svg>
   </figure>
 
@@ -677,9 +692,10 @@ figure svg{display:block;width:100%;height:auto}
   <table>
     <thead><tr><th style="width:22%"></th><th style="width:39%">Consumer, /dashboard</th><th>Partner, /partner</th></tr></thead>
     <tr><td><b>Appears as</b></td><td>a card in "Campaigns near you", badge <b>Sealed bidding</b></td>
-      <td>a desk row, <b>only where coverage is active</b></td></tr>
+      <td>a desk row on <b>every</b> approved partner's desk</td></tr>
     <tr><td><b>Stage</b></td><td><code>bidding</code></td><td><code>open</code>, or <code>closing</code> in the last 24 hours</td></tr>
-    <tr><td><b>Can act</b></td><td>No. An auction is not joinable</td><td>Yes, once steps 4 and 5 are done</td></tr>
+    <tr><td><b>Can act</b></td><td>No. An auction is not joinable</td>
+      <td>Only where coverage is active, and once steps 4 and 5 are done. Elsewhere the row is locked</td></tr>
     <tr><td><b>Refreshes</b></td><td>on its own, every 15 seconds while the calendar fits in 36 hours</td>
       <td><b>never.</b> The console fetches once at boot, so reload it after any ZCQL write</td></tr>
   </table>

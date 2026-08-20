@@ -1,0 +1,535 @@
+<!doctype html>
+<!--
+  The stage ladder: driving one cohort by hand, one UPDATE per rung. Source of
+  record for cohort-stage-ladder.pdf. Render with:
+
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+      --headless --disable-gpu --no-pdf-header-footer \
+      --print-to-pdf="docs/console/cohort-stage-ladder.pdf" \
+      "file://$PWD/docs/console/cohort-stage-ladder.html"
+
+  The rungs, their statements and the two predicted stages all come from
+  `node scripts/cohort.mjs step <id> --list`, which derives them by calling the
+  server's own stage functions. If this document and that command disagree, the
+  command is right: it imports lib/catalog.js, and this is a transcription.
+
+  NOT DEPLOYED. Listed in .vercelignore with the guide, for the same reason.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The cohort stage ladder</title>
+<style>
+:root{
+  --ink:#2B3A33; --ink2:#0A2018; --accent:#1E9E63; --accent-deep:#178A5A;
+  --mint:#E4F4EC; --terra:#C2643B; --terra-soft:#F7E7DD; --paper:#FAF8F3;
+  --line:#DFE5DF; --sub:#54625B;
+  --disp:-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --body:-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --mono:"Menlo","SF Mono",ui-monospace,monospace;
+}
+@page{size:A4;margin:15mm 14mm 16mm}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--body);color:var(--ink);font-size:9.6pt;line-height:1.5;background:#fff;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+h1,h2,h3,h4{font-family:var(--disp);letter-spacing:-.02em;color:var(--ink2)}
+code,.mono{font-family:var(--mono)}
+strong{color:var(--ink2)}
+.page{page-break-after:always}
+.page:last-child{page-break-after:auto}
+
+/* ---------- cover ---------- */
+.cover{padding-top:6mm}
+.brand{display:flex;align-items:center;gap:9px;margin-bottom:16mm}
+.brand b{font-family:var(--disp);font-weight:800;font-size:13pt;letter-spacing:-.03em}
+.brand span{font-size:8pt;color:var(--sub);border-left:1px solid var(--line);padding-left:9px}
+h1{font-size:31pt;font-weight:800;line-height:1.02;max-width:15cm}
+.lede{font-size:11.4pt;color:var(--sub);max-width:13.4cm;margin-top:7mm;line-height:1.45}
+.lede b{color:var(--ink2);font-weight:650}
+.coverfoot{margin-top:16mm;border-top:1px solid var(--line);padding-top:5mm;
+  display:grid;grid-template-columns:repeat(3,1fr);gap:7mm;font-size:8.4pt;color:var(--sub)}
+.coverfoot b{display:block;color:var(--ink2);font-size:8.6pt;margin-bottom:2px}
+
+/* ---------- structure ---------- */
+h2{font-size:16pt;font-weight:800;margin:0 0 1.5mm}
+.kicker{font-family:var(--mono);font-size:7.6pt;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent-deep);margin-bottom:2.5mm}
+.sub{color:var(--sub);max-width:15cm;margin-bottom:6mm}
+h3{font-size:11pt;font-weight:750;margin:7mm 0 2mm}
+p{margin-bottom:2.6mm;max-width:16cm}
+ul{margin:0 0 3mm 4.6mm}li{margin-bottom:1.4mm;max-width:15.6cm}
+
+/* ---------- panels ---------- */
+.panel{border:1px solid var(--line);border-radius:5mm;padding:6mm 6.5mm;background:var(--paper);
+  margin-bottom:5mm;page-break-inside:avoid}
+.panel.plain{background:#fff}
+.rule{border:1px solid var(--line);border-left:3.5px solid var(--accent);border-radius:2.5mm;
+  background:var(--mint);padding:3.4mm 5mm;margin:0 0 3.6mm;page-break-inside:avoid}
+.warn{border:1px solid #EBD3C4;border-left:3.5px solid var(--terra);border-radius:2.5mm;
+  background:var(--terra-soft);padding:3.4mm 5mm;margin:0 0 3.6mm;page-break-inside:avoid}
+.rule h4,.warn h4{font-size:9.8pt;font-weight:800;margin-bottom:1.4mm}
+.warn h4{color:#8C3F1D}
+.rule p:last-child,.warn p:last-child,.panel p:last-child{margin-bottom:0}
+
+/* ---------- code ---------- */
+pre{font-family:var(--mono);font-size:8pt;line-height:1.5;background:var(--ink2);color:#DFF0E6;
+  border-radius:3mm;padding:3.6mm 4.4mm;overflow:hidden;white-space:pre-wrap;word-break:break-word;
+  margin:0 0 3mm;page-break-inside:avoid}
+pre .c{color:#7FA893}
+pre .k{color:#7FE3B0}
+pre .s{color:#F0C9A8}
+pre.term{background:#fff;color:var(--ink2);border:1px solid var(--line)}
+pre.term .p{color:var(--accent-deep);font-weight:700}
+pre.term .f{color:var(--terra)}
+code{font-size:8.6pt;background:var(--mint);color:#0d4c33;padding:.5mm 1.4mm;border-radius:1.4mm}
+
+/* ---------- tables ---------- */
+table{width:100%;border-collapse:collapse;font-size:8.6pt;margin-bottom:4mm}
+tr{page-break-inside:avoid}
+thead{display:table-header-group}
+th{text-align:left;font-family:var(--disp);font-size:7.6pt;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--sub);border-bottom:1.4px solid var(--ink2);padding:0 3mm 1.8mm 0;vertical-align:bottom}
+td{border-bottom:1px solid var(--line);padding:1.8mm 3mm 1.8mm 0;vertical-align:top}
+td:last-child,th:last-child{padding-right:0}
+td.m,th.m{font-family:var(--mono);font-size:8pt;white-space:nowrap}
+tr.no td{background:#FDF6F2}
+
+/* ---------- step cards ---------- */
+.step{display:grid;grid-template-columns:11mm 1fr;gap:4mm;border:1px solid var(--line);
+  border-radius:4mm;padding:5mm 5.5mm;margin-bottom:4mm;page-break-inside:avoid;background:#fff}
+.step .n{font-family:var(--disp);font-weight:800;font-size:15pt;color:var(--accent-deep);
+  line-height:1;text-align:center;border-right:1px solid var(--line);padding-right:4mm}
+.step .n small{display:none}
+.step h3{margin:0 0 1.5mm;font-size:11.4pt}
+.step .why{color:var(--sub);margin-bottom:3mm}
+.tag{display:inline-block;font-family:var(--mono);font-size:7pt;letter-spacing:.07em;
+  text-transform:uppercase;padding:.9mm 2mm;border-radius:1.4mm;vertical-align:1.2mm;margin-left:2mm}
+.tag.t{background:var(--mint);color:#0d4c33}
+.tag.z{background:#EDEAFB;color:#3B3272}
+.tag.b{background:#FCEFE7;color:#8C3F1D}
+
+/* ---------- two-up ---------- */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:5mm}
+figure{margin:0 0 5mm;page-break-inside:avoid}
+figcaption{font-size:8pt;color:var(--sub);margin-top:2mm;max-width:16cm}
+figure svg{display:block;width:100%;height:auto}
+.brand svg{flex:none}
+.legend{font-size:8pt;color:var(--sub);display:flex;gap:6mm;flex-wrap:wrap;margin-top:2mm}
+.legend i{display:inline-block;width:3mm;height:3mm;border-radius:1mm;margin-right:1.5mm;vertical-align:-.3mm}
+</style>
+<style>
+  .rail text{dominant-baseline:auto}
+  .glance{font-size:8pt;color:var(--sub);display:grid;grid-template-columns:repeat(4,auto);gap:2mm 8mm;margin-top:3mm}
+</style>
+
+<style>
+/* WHICH BLOCK IS WHICH. Every step card carries a pair: a command that prints a
+   statement and the statement itself. Unlabelled, the pair reads as two things
+   to run, or as one thing printed twice, and the honest answer (run both, in
+   this order, and only the second one writes) was in the prose. Generated
+   content rather than markup, so the rule cannot drift per card. */
+.step pre::before{
+  display:block;font-family:var(--disp);font-size:6.8pt;font-weight:800;letter-spacing:.12em;
+  text-transform:uppercase;margin:-.6mm 0 2mm;
+}
+.step pre.term::before{content:"1 · Terminal · prints the statement. Writes nothing";color:var(--accent-deep)}
+.step pre:not(.term)::before{content:"2 · ZCQL · paste this. The only thing that writes";color:#7FE3B0}
+</style>
+</head>
+<body>
+
+<section class="page cover">
+  <div class="brand">
+    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#178A5A" stroke-width="1.9"
+      stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M10 20v-5h4v5"/></svg>
+    <b>Whollar</b><span>Operations</span>
+  </div>
+
+  <h1>The stage ladder</h1>
+  <p class="lede">One cohort, driven by hand: <b>one statement per rung</b>, from
+    created to closed. Nothing is on a clock, so nothing expires while you work.
+    Every rung says what both dashboards will read afterwards, and what you have
+    to click before the next one.</p>
+
+  <figure style="margin-top:12mm">
+    <svg class="rail" viewBox="0 -16 700 390" role="img" aria-label="The nine rungs and the stage each leaves on both dashboards">
+      <g font-family="Helvetica,sans-serif" font-size="7.4" font-weight="700" fill="#9FB5A8"><text x="24" y="-6">RUNG</text><text x="160" y="-6">WRITES</text><text x="330" y="-6">CONSUMER</text><text x="450" y="-6">PARTNER</text><text x="600" y="-6">PARTNER CAN BID</text></g>
+      <rect x="8" y="0" width="684" height="30" rx="7" fill="#fff" stroke="#DFE5DF"/>
+      <text x="24" y="19" font-family="Menlo,monospace" font-size="10" fill="#54625B">0</text>
+      <text x="48" y="19" font-family="Menlo,monospace" font-size="10.5" fill="#0A2018">create</text>
+      <text x="160" y="19" font-family="Helvetica,sans-serif" font-size="9.5" fill="#2B3A33">one INSERT</text>
+      <text x="330" y="19" font-family="Menlo,monospace" font-size="9.5" fill="#178A5A">forming</text>
+      <text x="450" y="19" font-family="Menlo,monospace" font-size="9.5" fill="#8C3F1D">planned</text>
+      <text x="600" y="19" font-family="Helvetica,sans-serif" font-size="9.5" font-weight="400" fill="#9FB5A8">no button</text>
+      <rect x="8" y="34" width="684" height="30" rx="7" fill="#fff" stroke="#DFE5DF"/>
+      <text x="24" y="53" font-family="Menlo,monospace" font-size="10" fill="#54625B">1</text>
+      <text x="48" y="53" font-family="Menlo,monospace" font-size="10.5" fill="#0A2018">announce</text>
+      <text x="160" y="53" font-family="Helvetica,sans-serif" font-size="9.5" fill="#2B3A33">announce_at</text>
+      <text x="330" y="53" font-family="Menlo,monospace" font-size="9.5" fill="#178A5A">locked</text>
+      <text x="450" y="53" font-family="Menlo,monospace" font-size="9.5" fill="#8C3F1D">announced</text>
+      <text x="600" y="53" font-family="Helvetica,sans-serif" font-size="9.5" font-weight="400" fill="#9FB5A8">no button</text>
+      <rect x="8" y="68" width="684" height="30" rx="7" fill="#fff" stroke="#DFE5DF"/>
+      <text x="24" y="87" font-family="Menlo,monospace" font-size="10" fill="#54625B">2</text>
+      <text x="48" y="87" font-family="Menlo,monospace" font-size="10.5" fill="#0A2018">auction</text>
+      <text x="160" y="87" font-family="Helvetica,sans-serif" font-size="9.5" fill="#2B3A33">kind and the flag</text>
+      <text x="330" y="87" font-family="Menlo,monospace" font-size="9.5" fill="#178A5A">locked</text>
+      <text x="450" y="87" font-family="Menlo,monospace" font-size="9.5" fill="#8C3F1D">announced</text>
+      <text x="600" y="87" font-family="Helvetica,sans-serif" font-size="9.5" font-weight="400" fill="#9FB5A8">no button</text>
+      <rect x="8" y="102" width="684" height="30" rx="7" fill="#E4F4EC" stroke="#1E9E63"/>
+      <text x="24" y="121" font-family="Menlo,monospace" font-size="10" fill="#54625B">3</text>
+      <text x="48" y="121" font-family="Menlo,monospace" font-size="10.5" fill="#0A2018">bidding</text>
+      <text x="160" y="121" font-family="Helvetica,sans-serif" font-size="9.5" fill="#2B3A33">bidding_opens_at</text>
+      <text x="330" y="121" font-family="Menlo,monospace" font-size="9.5" fill="#178A5A">bidding</text>
+      <text x="450" y="121" font-family="Menlo,monospace" font-size="9.5" fill="#8C3F1D">open</text>
+      <text x="600" y="121" font-family="Helvetica,sans-serif" font-size="9.5" font-weight="700" fill="#178A5A">BID WINDOW</text>
+      <rect x="8" y="136" width="684" height="30" rx="7" fill="#fff" stroke="#DFE5DF"/>
+      <text x="24" y="155" font-family="Menlo,monospace" font-size="10" fill="#54625B">4</text>
+      <text x="48" y="155" font-family="Menlo,monospace" font-size="10.5" fill="#0A2018">close</text>
+      <text x="160" y="155" font-family="Helvetica,sans-serif" font-size="9.5" fill="#2B3A33">bidding_closes_at</text>
+      <text x="330" y="155" font-family="Menlo,monospace" font-size="9.5" fill="#178A5A">offers</text>
+      <text x="450" y="155" font-family="Menlo,monospace" font-size="9.5" fill="#8C3F1D">offers_out</text>
+      <text x="600" y="155" font-family="Helvetica,sans-serif" font-size="9.5" font-weight="400" fill="#9FB5A8">no button</text>
+      <rect x="8" y="170" width="684" height="30" rx="7" fill="#fff" stroke="#DFE5DF"/>
+      <text x="24" y="189" font-family="Menlo,monospace" font-size="10" fill="#54625B">5</text>
+      <text x="48" y="189" font-family="Menlo,monospace" font-size="10.5" fill="#0A2018">offers</text>
+      <text x="160" y="189" font-family="Helvetica,sans-serif" font-size="9.5" fill="#2B3A33">offers_at</text>
+      <text x="330" y="189" font-family="Menlo,monospace" font-size="9.5" fill="#178A5A">offers</text>
+      <text x="450" y="189" font-family="Menlo,monospace" font-size="9.5" fill="#8C3F1D">offers_out</text>
+      <text x="600" y="189" font-family="Helvetica,sans-serif" font-size="9.5" font-weight="400" fill="#9FB5A8">no button</text>
+      <rect x="8" y="204" width="684" height="30" rx="7" fill="#fff" stroke="#DFE5DF"/>
+      <text x="24" y="223" font-family="Menlo,monospace" font-size="10" fill="#54625B">6</text>
+      <text x="48" y="223" font-family="Menlo,monospace" font-size="10.5" fill="#0A2018">decide</text>
+      <text x="160" y="223" font-family="Helvetica,sans-serif" font-size="9.5" fill="#2B3A33">decision_at</text>
+      <text x="330" y="223" font-family="Menlo,monospace" font-size="9.5" fill="#178A5A">confirm</text>
+      <text x="450" y="223" font-family="Menlo,monospace" font-size="9.5" fill="#8C3F1D">decided</text>
+      <text x="600" y="223" font-family="Helvetica,sans-serif" font-size="9.5" font-weight="400" fill="#9FB5A8">no button</text>
+      <rect x="8" y="238" width="684" height="30" rx="7" fill="#fff" stroke="#DFE5DF"/>
+      <text x="24" y="257" font-family="Menlo,monospace" font-size="10" fill="#54625B">7</text>
+      <text x="48" y="257" font-family="Menlo,monospace" font-size="10.5" fill="#0A2018">switch</text>
+      <text x="160" y="257" font-family="Helvetica,sans-serif" font-size="9.5" fill="#2B3A33">switch_window_at</text>
+      <text x="330" y="257" font-family="Menlo,monospace" font-size="9.5" fill="#178A5A">switching</text>
+      <text x="450" y="257" font-family="Menlo,monospace" font-size="9.5" fill="#8C3F1D">decided</text>
+      <text x="600" y="257" font-family="Helvetica,sans-serif" font-size="9.5" font-weight="400" fill="#9FB5A8">no button</text>
+      <rect x="8" y="272" width="684" height="30" rx="7" fill="#fff" stroke="#DFE5DF"/>
+      <text x="24" y="291" font-family="Menlo,monospace" font-size="10" fill="#54625B">8</text>
+      <text x="48" y="291" font-family="Menlo,monospace" font-size="10.5" fill="#0A2018">reconcile</text>
+      <text x="160" y="291" font-family="Helvetica,sans-serif" font-size="9.5" fill="#2B3A33">reconcile_at</text>
+      <text x="330" y="291" font-family="Menlo,monospace" font-size="9.5" fill="#178A5A">done</text>
+      <text x="450" y="291" font-family="Menlo,monospace" font-size="9.5" fill="#8C3F1D">decided</text>
+      <text x="600" y="291" font-family="Helvetica,sans-serif" font-size="9.5" font-weight="400" fill="#9FB5A8">no button</text>
+      <rect x="8" y="306" width="684" height="30" rx="7" fill="#fff" stroke="#DFE5DF"/>
+      <text x="24" y="325" font-family="Menlo,monospace" font-size="10" fill="#54625B">9</text>
+      <text x="48" y="325" font-family="Menlo,monospace" font-size="10.5" fill="#0A2018">done</text>
+      <text x="160" y="325" font-family="Helvetica,sans-serif" font-size="9.5" fill="#2B3A33">kind and the flag</text>
+      <text x="330" y="325" font-family="Menlo,monospace" font-size="9.5" fill="#178A5A">done</text>
+      <text x="450" y="325" font-family="Menlo,monospace" font-size="9.5" fill="#8C3F1D">decided</text>
+      <text x="600" y="325" font-family="Helvetica,sans-serif" font-size="9.5" font-weight="400" fill="#9FB5A8">no button</text>
+    </svg>
+    <figcaption><b>Left to right:</b> the rung, what its statement writes, the stage the consumer
+      dashboard shows, the stage the partner desk shows, and whether a partner can bid.
+      Exactly one rung opens the bid window, and exactly one closes it.</figcaption>
+  </figure>
+
+  <div class="coverfoot">
+    <div><b>Print this one</b>The ladder is meant to sit beside the ZCQL console while you work through it.</div>
+    <div><b>Generated by</b><code>node scripts/cohort.mjs step &lt;ID&gt; --list</code>, which fills in every timestamp for you.</div>
+    <div><b>Companions</b>cohort-launch-guide.pdf for creating cohorts, docs/COHORT_RUNBOOK.md for the long path.</div>
+  </div>
+</section>
+
+<section class="page">
+  <p class="kicker">Before you start</p>
+  <h2>Four things that make the ladder work</h2>
+  <p class="sub">All four are consequences of one design decision: a stage is
+    <b>derived from the dates that exist</b>, never stored and never counted.</p>
+
+  <div class="rule">
+    <h4>1. A date you have not written cannot expire</h4>
+    <p>Every rung stamps one date and leaves the later ones NULL. So a bid window opened at rung 3
+    stays open until rung 4 closes it: <code>requireBiddingOpen</code> only refuses past
+    <code>bidding_closes_at</code>, and until rung 4 there is no such date. This is the whole
+    reason to drive by hand instead of setting a timed calendar: no rung has a deadline you did
+    not ask for.</p>
+  </div>
+
+  <div class="rule">
+    <h4>2. The ladder is resumable, because the row is the state</h4>
+    <p>Nothing tracks where you are. The dates on the row are where you are, so you can stop for
+    a day, come back, and run the next rung. Running one twice is harmless: it restamps the same
+    date with a later minute.</p>
+  </div>
+
+  <div class="warn">
+    <h4>3. Rung 0 is the only chance to join</h4>
+    <p>Joining is open on <code>planned</code>, <code>waitlist</code> and <code>forming</code>.
+    Rung 2 makes the cohort an auction and <b>locks joining permanently</b>. Worse, the member
+    rail only advances by itself for a member who has joined that cohort: without a join it polls
+    every 120 seconds instead of every 15. <b>Join at rung 0 or the consumer half of the test is
+    not watchable.</b></p>
+  </div>
+
+  <div class="warn">
+    <h4>4. Two habits, every rung</h4>
+    <p><b>One statement per submission.</b> The ZCQL console takes one; a block of nine is a
+    syntax error. <b>Then wait 60 seconds</b>, because the catalog is memoized and hand-written
+    ZCQL cannot invalidate it. And <b>reload /partner</b> every time: the console fetches
+    campaigns once at boot and never polls. The member dashboard is the only side that moves on
+    its own.</p>
+  </div>
+
+  <h3>The vocabulary, so the two columns are readable</h3>
+  <table>
+    <thead><tr><th style="width:26%">Consumer stages</th><th>Partner stages</th></tr></thead>
+    <tr><td class="m">forming, locked, bidding,<br>offers, confirm, switching, done</td>
+      <td class="m">planned, announced, open, closing, offers_out, decided</td></tr>
+    <tr><td colspan="2">Seven for the household, six for the partner, both derived from the same
+      seven dates. They are different vocabularies because the two sides are watching different
+      films: a partner is finished at <code>decided</code>, a household still has an offer to
+      confirm and an install to sit through.</td></tr>
+  </table>
+</section>
+
+<section class="page">
+  <p class="kicker">The ladder</p>
+  <h2>Nine rungs, nine statements</h2>
+  <p class="sub">Every rung below is a <b>pair</b>, and the order matters.</p>
+
+  <div class="rule">
+    <h4>Run the terminal command first. Paste the statement second</h4>
+    <p><b>1. The terminal command writes nothing.</b> It prints the statement with the UTC
+    timestamp already filled in, validates the id against the same constants the server uses,
+    and predicts what both dashboards will read afterwards by calling the server's own stage
+    functions. That prediction is the point: it is how you tell "the rung did not work" apart
+    from "the rung worked, and this is what it looks like".</p>
+    <p style="margin-top:2mm"><b>2. The dark block is the write</b>, and the only one. What is
+    printed here carries <code>&lt;NOW&gt;</code> and <code>&lt;ID&gt;</code> because a document
+    cannot know either, so it is the shape rather than something to paste. The command in step 1
+    is what turns the shape into a statement you can paste.</p>
+    <p style="margin-top:2mm">Skipping step 1 is legal and costs you three things: you type the
+    UTC minute by hand in <code>'YYYY-MM-DD HH:MM:SS'</code>, which is neither ISO-8601 nor your
+    local time; nothing checks the value, and a mistyped <code>kind</code> reads back as
+    <code>planned</code> in silence; and you find out what the rung did by looking, rather than
+    by knowing first.</p>
+  </div>
+
+  <div class="step">
+    <div class="n">0</div>
+    <div>
+      <h3>Create the cohort, with no calendar at all</h3>
+      <p class="why">Not a rung: the row every rung after this one updates.</p>
+<pre class="term"><span class="p">node</span> scripts/cohort.mjs new &lt;ID&gt; --region "&lt;REGION&gt;"</pre>
+<pre><span class="k">INSERT INTO</span> campaigns (campaign_id, region, sub, kind, target, seed_members,
+  seed_households, bidding_open, sort_order, updated_by, updated_at)
+<span class="k">VALUES</span> ('&lt;ID&gt;', '&lt;REGION&gt;', '&lt;SUB&gt;', 'forming', 100, 0, 0, false, &lt;SORT&gt;, 'manual', '&lt;NOW&gt;');</pre>
+      <table style="margin-bottom:2.5mm">
+        <thead><tr><th style="width:16%">After it</th><th style="width:14%">Stage</th><th>What the surface shows</th></tr></thead>
+        <tr><td><b>Consumer</b></td><td class="m">forming</td><td>On the row as <b>Open to join</b>, and the featured card while nothing else is joinable.</td></tr>
+        <tr><td><b>Partner</b></td><td class="m">planned</td><td>Under <b>Coming cohorts</b>, headed "Planned in your coverage", status <b>Still forming</b>. Every approved partner sees it. No action column in that table at all.</td></tr>
+      </table>
+      <p style="margin-bottom:0"><b>You do:</b> <b>Join it, as a test member, on /dashboard.</b> This is the only rung where that is possible, and the member rail will not advance for anyone who has not joined.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="n">1</div>
+    <div>
+      <h3>The brief is fixed and joining shuts</h3>
+      <p class="why">Stamps <code>announce_at</code> with the minute you run it, and leaves every later date NULL.</p>
+<pre class="term"><span class="p">node</span> scripts/cohort.mjs step &lt;ID&gt; --to announce</pre>
+<pre><span class="k">UPDATE</span> campaigns <span class="k">SET</span> announce_at = '&lt;NOW&gt;', updated_at = '&lt;NOW&gt;'
+<span class="k">WHERE</span> campaign_id = '&lt;ID&gt;';</pre>
+      <table style="margin-bottom:2.5mm">
+        <thead><tr><th style="width:16%">After it</th><th style="width:14%">Stage</th><th>What the surface shows</th></tr></thead>
+        <tr><td><b>Consumer</b></td><td class="m">locked</td><td>The rail moves to <b>Locked</b> on its next poll, 15 seconds.</td></tr>
+        <tr><td><b>Partner</b></td><td class="m">announced</td><td>Still under <b>Coming cohorts</b>, status now <b>Announced</b>. Nothing to bid on: it is not in the Open auctions table yet.</td></tr>
+      </table>
+      <p style="margin-bottom:0"><b>You do:</b> Nothing to click.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="n">2</div>
+    <div>
+      <h3>It becomes an auction, and the window opens</h3>
+      <p class="why">No date. This one moves the lifecycle, not the calendar.</p>
+<pre class="term"><span class="p">node</span> scripts/cohort.mjs step &lt;ID&gt; --to auction</pre>
+<pre><span class="k">UPDATE</span> campaigns <span class="k">SET</span> kind = 'auction', bidding_open = true, updated_at = '&lt;NOW&gt;'
+<span class="k">WHERE</span> campaign_id = '&lt;ID&gt;';</pre>
+      <table style="margin-bottom:2.5mm">
+        <thead><tr><th style="width:16%">After it</th><th style="width:14%">Stage</th><th>What the surface shows</th></tr></thead>
+        <tr><td><b>Consumer</b></td><td class="m">locked</td><td>Unchanged, but <b>joining is now permanently closed</b>. There is no route back.</td></tr>
+        <tr><td><b>Partner</b></td><td class="m">announced</td><td>Still under <b>Coming cohorts</b> as <b>Announced</b>. The flag alone is not a stage, so the row has not moved tables.</td></tr>
+      </table>
+      <p style="margin-bottom:0"><b>You do:</b> Reload /partner if you want to see that the row has not changed yet. That is the point of the next rung.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="n">3</div>
+    <div>
+      <h3>Sealed bidding is live</h3>
+      <p class="why">Stamps <code>bidding_opens_at</code> with the minute you run it, and leaves every later date NULL.</p>
+<pre class="term"><span class="p">node</span> scripts/cohort.mjs step &lt;ID&gt; --to bidding</pre>
+<pre><span class="k">UPDATE</span> campaigns <span class="k">SET</span> bidding_opens_at = '&lt;NOW&gt;', updated_at = '&lt;NOW&gt;'
+<span class="k">WHERE</span> campaign_id = '&lt;ID&gt;';</pre>
+      <table style="margin-bottom:2.5mm">
+        <thead><tr><th style="width:16%">After it</th><th style="width:14%">Stage</th><th>What the surface shows</th></tr></thead>
+        <tr><td><b>Consumer</b></td><td class="m">bidding</td><td>The rail reads <b>Bidding</b>. No price, no count, nothing about any bid.</td></tr>
+        <tr><td><b>Partner</b></td><td class="m">open</td><td>Moves into <b>Open auctions</b>, reads <b>Open</b>, and draws <b>Review and bid</b> where coverage is active, or a "Verifies with &lt;REGION&gt; coverage" lock where it is not. No close date yet, so the window does not expire while you work.</td></tr>
+      </table>
+      <p style="margin-bottom:0"><b>You do:</b> <b>Reload /partner and place the bid.</b> Fill the ticket in the console; do not hand-roll the body.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="n">4</div>
+    <div>
+      <h3>Bids close, and the seal opens</h3>
+      <p class="why">Stamps <code>bidding_closes_at</code> with the minute you run it, and leaves every later date NULL.</p>
+<pre class="term"><span class="p">node</span> scripts/cohort.mjs step &lt;ID&gt; --to close</pre>
+<pre><span class="k">UPDATE</span> campaigns <span class="k">SET</span> bidding_closes_at = '&lt;NOW&gt;', updated_at = '&lt;NOW&gt;'
+<span class="k">WHERE</span> campaign_id = '&lt;ID&gt;';</pre>
+      <table style="margin-bottom:2.5mm">
+        <thead><tr><th style="width:16%">After it</th><th style="width:14%">Stage</th><th>What the surface shows</th></tr></thead>
+        <tr><td><b>Consumer</b></td><td class="m">offers</td><td>The winning offer becomes readable. Before this rung the answer was <code>sealed: true</code> and nothing else.</td></tr>
+        <tr><td><b>Partner</b></td><td class="m">offers_out</td><td>Reads <b>Offers out</b>. <b>Every further bid is refused from here</b>, whatever the flag says.</td></tr>
+      </table>
+      <p style="margin-bottom:0"><b>You do:</b> Nothing to click, but this is the rung to check the offer panel on /dashboard.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="n">5</div>
+    <div>
+      <h3>The offer has reached the household</h3>
+      <p class="why">Stamps <code>offers_at</code> with the minute you run it, and leaves every later date NULL.</p>
+<pre class="term"><span class="p">node</span> scripts/cohort.mjs step &lt;ID&gt; --to offers</pre>
+<pre><span class="k">UPDATE</span> campaigns <span class="k">SET</span> offers_at = '&lt;NOW&gt;', updated_at = '&lt;NOW&gt;'
+<span class="k">WHERE</span> campaign_id = '&lt;ID&gt;';</pre>
+      <table style="margin-bottom:2.5mm">
+        <thead><tr><th style="width:16%">After it</th><th style="width:14%">Stage</th><th>What the surface shows</th></tr></thead>
+        <tr><td><b>Consumer</b></td><td class="m">offers</td><td>Same stage, now dated. The rail says the offer is in rather than inferring it.</td></tr>
+        <tr><td><b>Partner</b></td><td class="m">offers_out</td><td>Unchanged.</td></tr>
+      </table>
+      <p style="margin-bottom:0"><b>You do:</b> <b>Accept the offer on /dashboard.</b> That is the act that creates the switch order and the only thing that puts an address in front of a partner.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="n">6</div>
+    <div>
+      <h3>Confirmations lock</h3>
+      <p class="why">Stamps <code>decision_at</code> with the minute you run it, and leaves every later date NULL.</p>
+<pre class="term"><span class="p">node</span> scripts/cohort.mjs step &lt;ID&gt; --to decide</pre>
+<pre><span class="k">UPDATE</span> campaigns <span class="k">SET</span> decision_at = '&lt;NOW&gt;', updated_at = '&lt;NOW&gt;'
+<span class="k">WHERE</span> campaign_id = '&lt;ID&gt;';</pre>
+      <table style="margin-bottom:2.5mm">
+        <thead><tr><th style="width:16%">After it</th><th style="width:14%">Stage</th><th>What the surface shows</th></tr></thead>
+        <tr><td><b>Consumer</b></td><td class="m">confirm</td><td>The rail reads <b>Confirm</b>.</td></tr>
+        <tr><td><b>Partner</b></td><td class="m">decided</td><td>Reads <b>Decided</b>, and stays there for every rung after this one.</td></tr>
+      </table>
+      <p style="margin-bottom:0"><b>You do:</b> Nothing to click.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="n">7</div>
+    <div>
+      <h3>Installs and transfers run</h3>
+      <p class="why">Stamps <code>switch_window_at</code> with the minute you run it, and leaves every later date NULL.</p>
+<pre class="term"><span class="p">node</span> scripts/cohort.mjs step &lt;ID&gt; --to switch</pre>
+<pre><span class="k">UPDATE</span> campaigns <span class="k">SET</span> switch_window_at = '&lt;NOW&gt;', updated_at = '&lt;NOW&gt;'
+<span class="k">WHERE</span> campaign_id = '&lt;ID&gt;';</pre>
+      <table style="margin-bottom:2.5mm">
+        <thead><tr><th style="width:16%">After it</th><th style="width:14%">Stage</th><th>What the surface shows</th></tr></thead>
+        <tr><td><b>Consumer</b></td><td class="m">switching</td><td>The rail reads <b>Switching</b>.</td></tr>
+        <tr><td><b>Partner</b></td><td class="m">decided</td><td>Unchanged. The work is on the delivery view, not the desk.</td></tr>
+      </table>
+      <p style="margin-bottom:0"><b>You do:</b> <b>Mark the activation on /partner.</b> Only an activation with a clean line test creates a fee: not a confirmation, not an acceptance, not a booking.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="n">8</div>
+    <div>
+      <h3>Final counts settle</h3>
+      <p class="why">Stamps <code>reconcile_at</code> with the minute you run it, and leaves every later date NULL.</p>
+<pre class="term"><span class="p">node</span> scripts/cohort.mjs step &lt;ID&gt; --to reconcile</pre>
+<pre><span class="k">UPDATE</span> campaigns <span class="k">SET</span> reconcile_at = '&lt;NOW&gt;', updated_at = '&lt;NOW&gt;'
+<span class="k">WHERE</span> campaign_id = '&lt;ID&gt;';</pre>
+      <table style="margin-bottom:2.5mm">
+        <thead><tr><th style="width:16%">After it</th><th style="width:14%">Stage</th><th>What the surface shows</th></tr></thead>
+        <tr><td><b>Consumer</b></td><td class="m">done</td><td>The rail reads <b>Done</b>. Seven stages, all of them from dates.</td></tr>
+        <tr><td><b>Partner</b></td><td class="m">decided</td><td>Unchanged.</td></tr>
+      </table>
+      <p style="margin-bottom:0"><b>You do:</b> Nothing to click.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="n">9</div>
+    <div>
+      <h3>The cohort is closed</h3>
+      <p class="why">No date. This one moves the lifecycle, not the calendar.</p>
+<pre class="term"><span class="p">node</span> scripts/cohort.mjs step &lt;ID&gt; --to done</pre>
+<pre><span class="k">UPDATE</span> campaigns <span class="k">SET</span> kind = 'closed', bidding_open = false, updated_at = '&lt;NOW&gt;'
+<span class="k">WHERE</span> campaign_id = '&lt;ID&gt;';</pre>
+      <table style="margin-bottom:2.5mm">
+        <thead><tr><th style="width:16%">After it</th><th style="width:14%">Stage</th><th>What the surface shows</th></tr></thead>
+        <tr><td><b>Consumer</b></td><td class="m">done</td><td>Results only.</td></tr>
+        <tr><td><b>Partner</b></td><td class="m">decided</td><td>Closed. Leaving auction always closes the window, which is what this statement does explicitly.</td></tr>
+      </table>
+      <p style="margin-bottom:0"><b>You do:</b> Optional. <code>move &lt;ID&gt; --to archived</code> later takes it off every non-admin surface.</p>
+    </div>
+  </div>
+
+</section>
+
+<section class="page">
+  <p class="kicker">Around the ladder</p>
+  <h2>What the statements cannot do</h2>
+  <p class="sub">Four of the rungs need a person in a browser, and two of the four are the
+    interesting ones to test, because they are the writes that create records.</p>
+
+  <table>
+    <thead><tr><th style="width:12%">Rung</th><th style="width:30%">You do</th><th>Why it is not a statement</th></tr></thead>
+    <tr><td class="m">0</td><td><b>Join the cohort</b> on /dashboard</td>
+      <td>Writes <code>campaign_members</code> through <code>POST /campaigns/join</code>. Doing it by hand would skip the flattened membership key the route builds, and the count on both dashboards is that table.</td></tr>
+    <tr><td class="m">3</td><td><b>Place the bid</b> on /partner</td>
+      <td><code>lib/bids.js</code> validates tiers, technologies, speeds, sticker and effective prices, the guarantee term, equipment and the commitment cap, then writes the sealed revision and a receipt. Never hand-roll the body.</td></tr>
+    <tr><td class="m">5</td><td><b>Accept the offer</b> on /dashboard</td>
+      <td>The one act that puts a household address in front of a partner, and the only thing that creates a switch order.</td></tr>
+    <tr><td class="m">7</td><td><b>Mark the activation</b> on /partner</td>
+      <td>The only event that creates a billable line. Not a confirmation, not an acceptance, not a booking, and only with a clean line test.</td></tr>
+  </table>
+
+  <h3>Before rung 0, once per environment</h3>
+  <p>The ladder writes to one table and reads from five. Each of these must return
+  <b>without an error</b>; zero rows is a pass.</p>
+<pre><span class="k">SELECT</span> ROWID <span class="k">FROM</span> campaigns <span class="k">LIMIT</span> 1;
+<span class="k">SELECT</span> announce_at, bidding_opens_at, bidding_closes_at, offers_at,
+       decision_at, switch_window_at, reconcile_at <span class="k">FROM</span> campaigns <span class="k">LIMIT</span> 1;
+<span class="k">SELECT</span> ROWID <span class="k">FROM</span> campaign_members <span class="k">LIMIT</span> 1;
+<span class="k">SELECT</span> coverage_key, org_id, region, status <span class="k">FROM</span> provider_coverage <span class="k">LIMIT</span> 1;
+<span class="k">SELECT</span> acceptance_key, org_id, doc_type, doc_version <span class="k">FROM</span> provider_terms <span class="k">LIMIT</span> 1;
+<span class="k">SELECT</span> revision_key, bid_key, revision_no, payload <span class="k">FROM</span> bid_revisions <span class="k">LIMIT</span> 1;</pre>
+  <p>And the partner has to be able to reach the cohort at all, which is coverage plus two
+  admin decisions:</p>
+<pre class="term"><span class="p">node</span> scripts/cohort.mjs coverage <span class="f">&lt;ORG_ID&gt;</span> --region <span class="f">"&lt;REGION&gt;"</span></pre>
+<pre><span class="k">UPDATE</span> provider_orgs  <span class="k">SET</span> approval_status = <span class="s">'approved'</span> <span class="k">WHERE</span> org_id  = <span class="s">'&lt;ORG_ID&gt;'</span>;
+<span class="k">UPDATE</span> provider_users <span class="k">SET</span> role = <span class="s">'admin'</span>              <span class="k">WHERE</span> user_id = <span class="s">'&lt;USER_ID&gt;'</span>;</pre>
+
+  <h3>When a rung does not seem to land</h3>
+  <table>
+    <thead><tr><th style="width:44%">What you see</th><th>What it is</th></tr></thead>
+    <tr><td>Nothing moved on either side</td><td>The 60 second catalog memo. Wait, then reload.</td></tr>
+    <tr><td>Rung 2 ran and the desk still has no button</td><td>Correct. Rung 3 is what makes the stage <code>open</code>. The flag is not a stage.</td></tr>
+    <tr class="no"><td>Rung 3 ran and the desk still has no button</td>
+      <td>Coverage for that region is not <code>active</code> for that org, or the org is not <code>approved</code>, or the seat is <code>viewer</code>.</td></tr>
+    <tr class="no"><td>The bid is refused with "not open"</td>
+      <td><code>site_config.bidding_enabled</code> is false, or rung 4 has already run.</td></tr>
+    <tr class="no"><td>"Bidding is not available right now"</td>
+      <td><code>bid_revisions</code> or the fifteen extra <code>provider_bids</code> columns do not exist.</td></tr>
+    <tr class="no"><td>The bid is refused and nothing explains it</td>
+      <td><code>provider_terms</code> does not exist. The terms gate fails closed, by design.</td></tr>
+    <tr class="no"><td>The member rail is not moving</td>
+      <td>That member has not joined this cohort, so the page polls every 120 seconds. Rung 0 was the only chance.</td></tr>
+    <tr class="no"><td>The cohort reads Decided far too early</td>
+      <td><code>decision_at</code> is set. The partner stage reads it first, so a rung run out of order ends the run.</td></tr>
+    <tr><td>A rung was run twice</td><td>Harmless. It restamps the same date with a later minute.</td></tr>
+  </table>
+</section>
+
+</body>
+</html>
