@@ -492,6 +492,8 @@ for (const vw of [1280, 1100]) {
       bandY: Math.round(document.querySelector('.splitband').getBoundingClientRect().top),
       /* Acceptance 7: gone from the document, not hidden. */
       art: document.querySelectorAll('.mrart, img[src*="member-room-networks"]').length,
+      /* No READS_N here: it lives inside the page's IIFE and is not reachable
+         from an evaluate(). Which is the right answer anyway, see below. */
     };
   });
 
@@ -510,12 +512,30 @@ for (const vw of [1280, 1100]) {
   ok(Math.abs(m.readsBox.h - m.roomBox.h) <= 24, `the two split-band columns finish within 24px (left ${m.readsBox.h}, room ${m.roomBox.h})`);
   ok(m.readsGapSlack <= 1, `the surplus is inside the rows, not banked in the gaps (${m.readsGapSlack}px)`);
   ok(Math.max(...m.rowH) - Math.min(...m.rowH) <= 24, `the rows grew together, not one of them (${m.rowH.join(', ')}px)`);
-  ok(m.articles === 3, `three articles in the reading card (${m.articles})`);
-  ok(new Set(m.fonts).size === 1, `all three titles are set at one size (${m.fonts.join(', ')}px)`);
-  ok(m.thumbs.every(h => h === 46), `every article carries a 46px thumbnail (${m.thumbs.join(', ')})`);
+  /* NOT A PINNED COUNT. READS_N in the page owns how many rows there are, the
+     CSS block says so in as many words ("NOTHING HERE COUNTS THE ROWS"), and a
+     harness that pins the number is the same mistake in a second file: this
+     read `=== 3` and went red the day the card took a fourth article, which was
+     a deliberate change. What the card must not do is collapse to a hero plus
+     stubs, which is `heroMedia` below and the equal-shape assertions above. */
+  ok(m.articles >= 3, `the reading card is a list of equal rows (${m.articles} of them)`);
+  ok(new Set(m.fonts).size === 1, `every title is set at one size (${m.fonts.join(', ')}px)`);
+  /* One shape, not one number. The crop grew from 46 to 64 when the rows turned
+     out to be two thirds air: the card is flex:1 against the handset opposite,
+     so its height is decided elsewhere and only its contents can answer for the
+     density. What must not vary is the crop between rows. */
+  ok(new Set(m.thumbs).size === 1 && m.thumbs[0] >= 46,
+    `every article carries the same square crop, at least 46px (${m.thumbs.join(', ')})`);
   ok(m.heroMedia === 0, `the hero photograph is out of the document (${m.heroMedia} found)`);
   ok(m.tiles === 3, `three product tiles, each a real button (${m.tiles})`);
-  ok(m.phone.h === 420, `the handset window is still 420px, not resized to force a match (${m.phone.h})`);
+  /* The window is the fixed reference and must not have been resized to make
+     the two columns meet. It is no longer a pinned height: width is the only
+     dimension set and aspect-ratio derives the rest, so the assertion is the
+     device's own proportion, 414 x 822, which is what a hand-resize would
+     break. The old `=== 420` pinned a window that had already grown to show the
+     bottom of the phone. */
+  ok(Math.abs(m.phone.h - m.phone.w * 822 / 414) <= 1,
+    `the handset keeps the device's proportion, not a resize (${m.phone.w} x ${m.phone.h})`);
   ok(m.phone.w === (vw >= 1280 ? 300 : 280), `the handset is ${vw >= 1280 ? 300 : 280}px wide at ${vw} (${m.phone.w})`);
   ok(m.art === 0, `the stock illustration is out of the document (${m.art} found)`);
 

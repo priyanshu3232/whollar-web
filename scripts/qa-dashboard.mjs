@@ -523,6 +523,68 @@ console.log('\n6j. the locked panel shows a real bidding date when there is one'
   await c.close();
 }
 
+/* THE LOOP. memberStageOf answers from the cohort's seven dates and nothing
+   else, so a household that has taken its offer is still `offers` to the
+   server. The dashboard repolls every 15 seconds on a short calendar and
+   re-derived the state from that answer, which put the Offers panel back on
+   screen with the take button live again, forever. The member's own click has
+   to outrank a server stage that is BEHIND it, and only ever behind it. */
+console.log('\n6k. taking the offer is not undone by the next poll');
+{
+  const t = Date.now(), MIN = 60000;
+  const mine = {
+    id: 'kleinburg', region: 'Kleinburg', sub: 'Autumn cohort', kind: 'auction',
+    target: null, members: 4, households: 4, watching: 0, joinable: false, you: 'joined',
+    stage: 'offers', stageLabel: 'Offer in', next: null,
+    dates: {
+      announce_at: t - 40 * MIN, bidding_opens_at: t - 30 * MIN,
+      bidding_closes_at: t - 20 * MIN, offers_at: t - 10 * MIN,
+    },
+  };
+  const c = await ctx(browser, { campaigns: [mine] });
+  /* The offer the panel is about. Sealed is false because the cohort closed. */
+  await c.route('**/api/auth/campaigns/*/offer', r => r.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({
+      ok: true, sealed: false, live: true, closesAt: t - 20 * MIN, bidCount: 1,
+      offer: {
+        partner: 'Northline', price: '43', speed: '100 Mbps', technology: 'cable',
+        guaranteeMonths: 24, afterLine: 'no scheduled change', equipment: 'byo',
+        rentalMonthly: null, committedHouseholds: 4, reference: 'WB-1', tiers: [],
+      },
+    }),
+  }));
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+
+  const pill = () => p.locator('#statepill, .statepill').first().innerText();
+  ok(/Offer/.test(await pill()), `starts on the server's stage (${await pill()})`);
+
+  await p.click('#panel [data-take]');
+  await p.waitForTimeout(300);
+  ok(/Confirm/.test(await pill()), `taking the offer moves to Confirm (${await pill()})`);
+
+  /* Force the repoll the page does on returning to a visible tab. The server
+     still says `offers`, which is exactly the answer that used to win. */
+  await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await p.waitForTimeout(1200);
+  ok(/Confirm/.test(await pill()), `and a poll answering "offers" does not undo it (${await pill()})`);
+  ok(await p.evaluate(() => !document.querySelector('#panel [data-take]')),
+    'the take button is not live again');
+
+  /* Back to offers is the member saying they did not mean it, and that must
+     stick too, or the panel would bounce the other way. */
+  await p.click('#panel [data-act="backoffers"]');
+  await p.waitForTimeout(300);
+  ok(/Offer/.test(await pill()), `"Back to offers" returns, and stays (${await pill()})`);
+  await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await p.waitForTimeout(1200);
+  ok(/Offer/.test(await pill()), 'after a poll as well');
+  await c.close();
+}
+
 console.log('\n7. the demo tour renders all 13 states with no console error');
 {
   const c = await ctx(browser, { campaigns: [] });

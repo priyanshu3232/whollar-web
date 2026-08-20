@@ -377,10 +377,16 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 
    The negative inline margin is what lets the hover background bleed to the
    card's padding edge while the text still lines up with the eyebrow above it. */
-.reads li a{display:grid;grid-template-columns:46px 1fr;gap:13px;align-items:center;width:100%;margin:0 -8px;padding:7px 8px;border-radius:12px;transition:background 120ms ease}
+/* 64px crop, not 46. The card is flex:1 against the member room opposite, so
+   its height is decided by a handset and not by its own contents: at 1440 that
+   left four 116px rows carrying a 46px thumbnail and a 13.5px headline, which
+   is a third of each row in use and two thirds of it in air. The row height is
+   not the thing to change, since it is what keeps the two columns level. The
+   contents are. */
+.reads li a{display:grid;grid-template-columns:64px 1fr;gap:15px;align-items:center;width:100%;margin:0 -8px;padding:7px 8px;border-radius:12px;transition:background 120ms ease}
 .reads li a:hover{background:#F4F1E9}
 .reads li a:hover .rttl{color:#1E4D38}
-.rthumb{width:46px;height:46px;border-radius:10px;overflow:hidden;flex:none;border:1px solid var(--line);background:var(--mint)}
+.rthumb{width:64px;height:64px;border-radius:12px;overflow:hidden;flex:none;border:1px solid var(--line);background:var(--mint)}
 .rthumb img{display:block;width:100%;height:100%;object-fit:cover}
 /* The tint above is also the placeholder: .rthumb is sized, the img is not, so
    the column holds its width before the image arrives and there is no reflow
@@ -388,8 +394,11 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
    a broken icon in a collapsed column. */
 .rthumb img.gone{display:none}
 .rtxt{min-width:0;display:flex;flex-direction:column}
-.rttl{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.4;transition:color 120ms ease}
-.rtxt small{font-family:var(--mono);font-size:11px;color:var(--sub);font-weight:400;margin-top:3px}
+/* 15px, and the clamp stays at two lines: the longest headline in the set runs
+   to two at this size in a 400px column, and a third line would make one row
+   taller than its siblings and break the level the flex:1 0 rows exist for. */
+.rttl{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:15px;font-weight:650;color:var(--ink);line-height:1.38;transition:color 120ms ease}
+.rtxt small{font-family:var(--mono);font-size:11.5px;color:var(--sub);font-weight:400;margin-top:4px}
 .kcard{display:flex;gap:13px;align-items:flex-start}
 .kthumb{width:52px;height:52px;border-radius:12px;overflow:hidden;flex:none;border:1px solid var(--line)}
 .kthumb svg{display:block;width:100%;height:100%}
@@ -441,8 +450,22 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
    The drop shadow moved from .mrdev to .mrview, because overflow:hidden clips a
    CHILD's shadow and not the clipper's own. overflow stays: it is what rounds
    the device's corners against the card, and it now clips nothing. */
-.mrview{position:relative;width:300px;aspect-ratio:414/822;flex:none;overflow:hidden;border-radius:58px;box-shadow:0 18px 44px -20px rgba(26,37,32,.34)}
-.mrdev{position:absolute;top:0;left:0;width:414px;padding:11px;transform-origin:0 0;transform:scale(.7246);background:linear-gradient(150deg,#3A3A3C,#1C1C1E 42%,#2C2C2E);border-radius:58px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+/* ONE NUMBER, and the width, the corner and the scale all derive from it.
+   --mrw is the window's width in unitless px, because a scale() factor is a
+   number and calc() cannot divide two lengths.
+
+   THE CORNER IS WHY THIS CHANGED. The window clipped at a flat 58px while the
+   device's own 58px corners were being drawn through scale(.7246), so the real
+   corner was 42px and the clip was 16px rounder than the thing it clipped: it
+   cut across all four corners of the frame, which read as a rendering fault
+   rather than as a phone. The radius now scales with the device, so the clip
+   traces the frame instead of shaving it.
+
+   The scale was also a hand-pinned .7246 next to a hand-pinned 300px, in two
+   breakpoints, with a third pair a reader had to keep in their head. Two of
+   those three numbers can be computed, so they are. */
+.mrview{--mrw:300;position:relative;width:calc(var(--mrw) * 1px);aspect-ratio:414/822;flex:none;overflow:hidden;border-radius:calc(var(--mrw) * 58px / 414);box-shadow:0 18px 44px -20px rgba(26,37,32,.34)}
+.mrdev{position:absolute;top:0;left:0;width:414px;padding:11px;transform-origin:0 0;transform:scale(calc(var(--mrw) / 414));background:linear-gradient(150deg,#3A3A3C,#1C1C1E 42%,#2C2C2E);border-radius:58px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
 .mrscr{position:relative;height:800px;border-radius:47px;overflow:hidden;background:#000}
 .mrscr::before{content:"";position:absolute;top:12px;left:50%;transform:translateX(-50%);width:112px;height:33px;border-radius:999px;background:#000;z-index:5}
 /* The home indicator, and it only started mattering when the window grew to
@@ -451,7 +474,14 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
    inverted against whatever is under it: difference on white gives black over a
    light feed and white over a dark one, which is what the OS itself does. */
 .mrscr::after{content:"";position:absolute;left:50%;bottom:9px;transform:translateX(-50%);width:132px;height:5px;border-radius:999px;background:#fff;mix-blend-mode:difference;z-index:5}
-.mrpane{height:800px;overflow:hidden;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.4}
+/* 34px of safe area at the foot, which is what the home indicator needs and
+   what the OS reserves. Without it the feed ran to the last pixel and the
+   indicator, drawn with mix-blend-mode:difference, landed as a 5px bar THROUGH
+   a half-clipped line of text: a strikethrough across a sentence cut in half,
+   which is the one thing in the mock that read as broken rather than as a
+   phone. The pane keeps its 800px, box-sizing is border-box, so the feed is
+   clipped 34px higher and the indicator sits on the pane's own background. */
+.mrpane{height:800px;padding-bottom:34px;overflow:hidden;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.4}
 .mrpane[hidden]{display:none}
 .mrbar{display:flex;align-items:center;justify-content:space-between;padding:19px 26px 10px;font-size:14px;font-weight:700}
 .mrbar em{font-style:normal;font-size:11px;font-weight:600;letter-spacing:.06em}
@@ -1101,8 +1131,7 @@ body.npopen{overflow:hidden}
    at either size. The reading card takes the difference, as it already did. */
 @media (max-width:1279px){
   .splitband{grid-template-columns:minmax(0,1fr) 360px}
-  .mrview{width:280px}
-  .mrdev{transform:scale(.6763)}
+  .mrview{--mrw:280}
   .cc__art{height:88px}
 }
 @media (max-width:1100px){
@@ -1120,8 +1149,7 @@ body.npopen{overflow:hidden}
    its full 300px. */
 @media (max-width:1099px){
   .splitband{grid-template-columns:minmax(0,1fr)}
-  .mrview{width:300px}
-  .mrdev{transform:scale(.7246)}
+  .mrview{--mrw:300}
   .crow{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 /* Four cards is four cards on a phone too, so the row scrolls rather than
@@ -3757,10 +3785,16 @@ $('#panel').addEventListener('click',function(e){
   var t=e.target.closest('button');if(!t)return;
   var take=t.getAttribute('data-take');
   var act=t.getAttribute('data-act');
-  if(take){S.chosen=take;go('confirm');return}
-  if(act==='backoffers'){go('offers');return}
+  /* NOT PERSISTED. This is the whole accept flow today: a local state change.
+     POST /campaigns/:id/offer/accept exists, is deployed, and is what creates
+     the switch order, and nothing on this page calls it, because the route
+     requires a service address and this panel has no field to collect one.
+     Until that step exists, `advance` is what keeps the member's own click on
+     screen against the next poll. */
+  if(take){S.chosen=take;advance('confirm');go('confirm');return}
+  if(act==='backoffers'){ADVANCED=null;go('offers');return}
   if(act==='invite'){shareRef();return}
-  if(t.id==='paydep'){t.disabled=true;t.textContent='Placing deposit\u2026';setTimeout(function(){go('switching');openSavings();toast('Deposit placed: '+dep()+', credited to your first bill.')},reduce?350:900);return}
+  if(t.id==='paydep'){t.disabled=true;t.textContent='Placing deposit\u2026';setTimeout(function(){advance('switching');go('switching');openSavings();toast('Deposit placed: '+dep()+', credited to your first bill.')},reduce?350:900);return}
 });
 $('#panel').addEventListener('change',function(e){
   if(e.target.id==='consent'){var b=$('#paydep');if(b)b.disabled=!e.target.checked}
@@ -5099,7 +5133,34 @@ function joinedCamp(){
   for(var i=0;i<CAMPS.length;i++)if(CAMPS[i].you==='joined'||CAMPS[i].you==='waitlist')return CAMPS[i];
   return null;
 }
+/* THE FURTHEST STATE THIS MEMBER REACHED BY ACTING, this session.
+ *
+ * Not a stage, and not derived from anything: a record of a click. The server
+ * owns stage and still does, and this never invents one or moves ahead of a
+ * cohort's calendar. What it stops is the state falling BACKWARDS underneath a
+ * member who just acted: memberStageOf answers from the cohort's seven dates
+ * alone, so a household that has taken its offer is still `offers` to the
+ * server, and the 15 second poll was putting the Offers panel back on screen
+ * every 15 seconds, over and over, with the take button live again.
+ *
+ * Forward only, and cleared by "Back to offers", which is the member saying
+ * they did not mean it. Session scoped on purpose: it is a click, not a record,
+ * and the click is NOT persisted anywhere yet (see the note by the take
+ * handler), so a reload honestly returns to what the server knows.
+ */
+var ADVANCED=null;
+function advance(st){
+  if(STATES.indexOf(st)<0)return;
+  if(!ADVANCED||STATES.indexOf(st)>STATES.indexOf(ADVANCED))ADVANCED=st;
+}
 function deriveState(){
+  var st=serverState();
+  /* Only ever ahead of the server, and only within the seven member states: a
+     visitor state or a waitlist answer is not something a click can outrank. */
+  if(ADVANCED&&STATES.indexOf(st)>-1&&STATES.indexOf(ADVANCED)>STATES.indexOf(st))return ADVANCED;
+  return st;
+}
+function serverState(){
   var bill=MEMBER&&MEMBER.bill;
   var hasBill=!!(bill&&(bill.provider||bill.monthly||bill.promoEnd));
   /* Only a LIVE campaigns answer can prove a join: the seeded CAMPS mark
