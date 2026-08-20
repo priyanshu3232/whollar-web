@@ -327,6 +327,28 @@ rows, on every cohort, whatever the real count. It cannot honestly show a count
 at all while a window is sealed, so the number and the rows both have to go
 rather than being wired up.
 
+The activity feed is the other one. `FEEDS` in `dashboard.html` carries dated
+lines per state, `[['Aug 4','Cohort opened for London East']]` and
+`[['Sep 15','Bidding opened, bids sealed']]` among them, and they render on any
+cohort. Same class of bug as the three below, and not yet fixed.
+
+**Fixed on 2026-08-20**, all three the same mistake, a fixture that reads as
+data on the screen whose only job is telling a household what to expect:
+
+- The join dialog's button read **"Join London East · free"** as a literal,
+  whichever card was pressed. The join itself always went to the right cohort,
+  so the only wrong thing on screen was the sentence being consented to.
+- The **date tiles** carried `Sep 12 / Sep 15 to 17 / Sep 24 / October` in the
+  markup, and `paintDates` left any column the cohort had no date for alone. A
+  cohort one rung into its ladder has one date, so a member saw one real
+  deadline and four invented ones. Now `To come`.
+- `tplLocked` read **"Bidding opens September 15"** in bold, on every cohort.
+  Now the cohort's own `bidding_opens_at`, or "We'll text you the day bidding
+  opens" when it has none, which is the normal state for a locked cohort whose
+  window is not scheduled.
+
+Groups 6h, 6i and 6j of `scripts/qa-dashboard.mjs` hold all three.
+
 ---
 
 # Several cohorts at once, and the newest one featured

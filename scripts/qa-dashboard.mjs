@@ -420,6 +420,109 @@ console.log('\n6g. one forming cohort takes the featured slot back');
   await c.close();
 }
 
+/* The join dialog's button used to read "Join London East · free" as a literal,
+   whichever card was pressed. The join itself was already correct, which is
+   what made it worth a test rather than a fix and a shrug: the only wrong
+   thing on screen was the sentence the member was consenting to, and there is
+   nothing afterwards to notice it by. `?cohorts=all` is used so both cards
+   carry the CTA; it relaxes which cohorts are choosable and leaves the join
+   itself real. */
+console.log('\n6h. the join button names the cohort that was pressed');
+{
+  const c = await ctx(browser, {
+    bill: { provider: 'Rogers', monthly: 92, promoEnd: '2026-11-01' },
+    campaigns: [
+      camp('etobicoke-centre', 'Etobicoke Centre', 'Winter cohort', { members: 0 }),
+      camp('kleinburg', 'Kleinburg', 'Autumn cohort', { members: 0 }),
+    ],
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard?cohorts=all`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+
+  /* The second card, which is NOT the featured one. */
+  await p.click('#crow [data-choose="kleinburg"]');
+  await p.waitForSelector('#pf-save', { timeout: 4000 });
+  const second = (await p.locator('#pf-save').innerText()).trim();
+  ok(/Kleinburg/.test(second), `pressing Kleinburg asks to join Kleinburg (${second})`);
+  ok(!/London East/.test(second), 'and no hardcoded region survives');
+
+  await p.click('[data-mclose]');
+  await p.waitForTimeout(200);
+  await p.click('#crow [data-choose="etobicoke-centre"]');
+  await p.waitForSelector('#pf-save', { timeout: 4000 });
+  const first = (await p.locator('#pf-save').innerText()).trim();
+  ok(/Etobicoke Centre/.test(first), `and pressing the other one follows it (${first})`);
+  await c.close();
+}
+
+/* THE FABRICATED CALENDAR. The date tiles carried Sep 12 / Sep 15 to 17 / Sep 24
+   / October in the markup, and paintDates left them alone for any column the
+   cohort had no date in. The locked panel read "Bidding opens September 15" as
+   a literal. A cohort one rung into its ladder has exactly one date, so a
+   member was shown one real deadline and four invented ones, on the screen
+   whose only job is telling them when to expect something. Fixture dates that
+   look like data are worse than a blank: there is nothing to notice. */
+console.log('\n6i. a cohort shows its own dates, and nothing where it has none');
+{
+  const t = Date.now(), MIN = 60000;
+  /* announce_at only, which is what rung 1 of the ladder leaves behind. */
+  const mine = {
+    id: 'kleinburg', region: 'Kleinburg', sub: 'Autumn cohort', kind: 'forming',
+    target: 100, members: 3, households: 3, watching: 0, joinable: false, you: 'joined',
+    stage: 'locked', stageLabel: 'Locked', next: null,
+    dates: { announce_at: t - 2 * MIN },
+  };
+  const c = await ctx(browser, { campaigns: [mine] });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  const tiles = await p.evaluate(() => {
+    const out = {};
+    document.querySelectorAll('.tn2[data-t]').forEach(e => {
+      out[e.getAttribute('data-t')] = (e.querySelector('span') || {}).textContent;
+    });
+    return out;
+  });
+  const panel = await p.locator('#panel').innerText();
+  ok(!/Sep 15|Sep 24|Sep 12|October/.test(Object.values(tiles).join(' ')),
+    `no fabricated date survives on the tiles (${JSON.stringify(tiles)})`);
+  ok(/To come/.test(tiles.bid || ''), 'a column the cohort has no date in reads "To come"');
+  ok(/^(Aug|Sep|Oct|Nov|Dec|Jan|Feb|Mar|Apr|May|Jun|Jul)/.test(tiles.close || ''),
+    `and the one date it does carry is shown (${tiles.close})`);
+  ok(!/September 15/.test(panel), 'the locked panel no longer invents a bidding date');
+  ok(/text you the day bidding opens/.test(panel),
+    'and says what it actually knows instead');
+  await c.close();
+}
+
+/* And the same panel WITH a date has to show that date, or the fix above would
+   pass by saying nothing on every cohort. */
+console.log('\n6j. the locked panel shows a real bidding date when there is one');
+{
+  const t = Date.now(), DAYMS = 86400000;
+  const at = t + 9 * DAYMS;
+  const mine = {
+    id: 'kleinburg', region: 'Kleinburg', sub: 'Autumn cohort', kind: 'forming',
+    target: 100, members: 3, households: 3, watching: 0, joinable: false, you: 'joined',
+    stage: 'locked', stageLabel: 'Locked', next: null,
+    dates: { announce_at: t - 2 * DAYMS, bidding_opens_at: at, bidding_closes_at: at + 2 * DAYMS },
+  };
+  const c = await ctx(browser, { campaigns: [mine] });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  const panel = await p.locator('#panel').innerText();
+  const MONFULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+    'August', 'September', 'October', 'November', 'December'];
+  const want = `${MONFULL[new Date(at).getMonth()]} ${new Date(at).getDate()}`;
+  ok(panel.includes(want), `the panel names the cohort's own open date (${want})`);
+  await c.close();
+}
+
 console.log('\n7. the demo tour renders all 13 states with no console error');
 {
   const c = await ctx(browser, { campaigns: [] });

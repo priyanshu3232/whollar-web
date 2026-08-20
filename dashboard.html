@@ -1457,10 +1457,15 @@ body.npopen{overflow:hidden}
             <div class="tl">
               <h4>Your dates</h4>
               <div class="tl__row">
-                <div class="tn2" data-t="close"><b>Cohort closes</b><span>Sep 12</span></div>
-                <div class="tn2" data-t="bid"><b>Bidding window</b><span>Sep 15 to 17</span></div>
-                <div class="tn2" data-t="offer"><b>Offer deadline</b><span>Sep 24</span></div>
-                <div class="tn2" data-t="switch"><b>Switch window</b><span>October</span></div>
+                <!-- No dates in the markup. These were Sep 12, Sep 15 to 17, Sep 24 and
+                     October, which is a fabricated calendar that renders before the first
+                     campaigns answer arrives and stays put on any cohort whose own dates
+                     are not set yet. paintDates fills these in from the cohort's calendar
+                     and writes "To come" where it has none. -->
+                <div class="tn2" data-t="close"><b>Cohort closes</b><span>To come</span></div>
+                <div class="tn2" data-t="bid"><b>Bidding window</b><span>To come</span></div>
+                <div class="tn2" data-t="offer"><b>Offer deadline</b><span>To come</span></div>
+                <div class="tn2" data-t="switch"><b>Switch window</b><span>To come</span></div>
                 <div class="tn2 cliffed" data-t="cliff"><b>Your promo cliff</b><span data-fld="promoMonth">Not set</span></div>
               </div>
             </div>
@@ -2063,7 +2068,7 @@ var mobile=function(){return window.innerWidth<=920};
 
 /* ---------- demo state ---------- */
 var STATES=['forming','locked','bidding','offers','confirm','switching','done'];
-var S={state:'forming',deposit:10,chosen:null,member:{bill:92},cohort:{locked:112}};
+var S={state:'forming',deposit:10,chosen:null,member:{bill:92}};
 var OFFERS=[
   {id:'a',name:'Provider A',price:54.5,speed:'500 Mbps',term:'24 months',note:'Install included'},
   {id:'b',name:'Provider B',price:58,speed:'1 Gig',term:'24 months',note:'Modem included'},
@@ -2084,9 +2089,7 @@ var OFFERS=[
    sends none of that, and a feed is the last place to guess. When a route
    exists that reveals the winning offer after close, its entries belong here. */
 var FEED_STEPS=[
-  ['announce_at', function(c){
-    return 'Joining closed, cohort locked at '+c.households+' household'+(c.households===1?'':'s');
-  }],
+  ['announce_at', function(){return 'Joining closed, your cohort is locked'}],
   ['bidding_opens_at',  function(){return 'Bidding opened, bids sealed'}],
   ['bidding_closes_at', function(){return 'Bidding closed'}],
   ['offers_at',         function(){return 'The winning offer went to the cohort'}],
@@ -2099,7 +2102,7 @@ var FEED_STEPS=[
    meets an invented one. */
 var DEMO_FEED={
   forming:[['Aug 4','Cohort opened for London East']],
-  locked:[['Sep 12','Cohort locked at 112 households']],
+  locked:[['Sep 12','Cohort locked, joining closed']],
   bidding:[['Sep 15','3 providers joined the auction'],['Sep 15','Bidding opened, bids sealed']],
   offers:[['Sep 17','Bidding closed: 3 offers in']],
   confirm:[['Today','You chose an offer']],
@@ -3601,9 +3604,19 @@ function tplForming(){
   +'<div style="margin-top:15px"><button class="btn" type="button" data-act="invite">Invite a neighbour</button></div>';
 }
 function tplLocked(){
-  return '<h3>Locked: '+S.cohort.locked+' households, sealed</h3>'
+  /* THE DATE IS THE COHORT'S OR IT IS NOT SHOWN. This read "Bidding opens
+     September 15" as a literal, on every cohort, forever. A household whose
+     cohort opens in March was told September, in bold, on the one screen whose
+     whole job is telling them when to expect something. An absent date is a
+     real state, and it says so: a cohort is locked before its window is
+     scheduled, which is exactly the window this panel is shown in. */
+  var c=CAMPLIVE?joinedCamp():null;
+  var at=c&&c.dates&&c.dates.bidding_opens_at;
+  return '<h3>Locked: your cohort is sealed</h3>'
   +'<p class="p">Your cohort is closed and the auction brief is with providers: how many households, which speeds, and the renewal window. Never your names, your current providers, or what you pay today.</p>'
-  +'<p class="p">Bidding opens <b>September 15</b>. We\u2019ll text you when it does.</p>';
+  +'<p class="p">'+(at
+    ? 'Bidding opens <b>'+esc(dlong(at))+'</b>. We\u2019ll text you when it does.'
+    : 'We\u2019ll text you the day bidding opens.')+'</p>';
 }
 function tplBidding(){
   var rows=[['#2C6A4E','Provider A'],['#5B7290','Provider B'],['#C08A3E','Provider C']].map(function(r){
@@ -3630,7 +3643,7 @@ function tplOffers(){
   var o=OFFERS[0];var save=S.member.bill-o.price;
   var c=S.checkup||{};
   return '<h3>Your cohort\u2019s winning offer is in</h3>'
-  +'<p class="p">'+WIN.bids+' partner'+(WIN.bids===1?'':'s')+' bid, sealed. This was the best against the cohort\u2019s standard terms, and it\u2019s the same offer for all '+S.cohort.locked+' households.</p>'
+  +'<p class="p">'+WIN.bids+' partner'+(WIN.bids===1?'':'s')+' bid, sealed. This was the best against the cohort\u2019s standard terms, and it\u2019s the same offer for every household in it.</p>'
   +'<div class="duo">'
   +'<div class="duocell now"><span class="dl">Your bill today</span><b>'+money(S.member.bill)+'/mo</b><span class="ds">'+esc(c.prov||'Your provider')+(c.speed?' \u00b7 '+esc(c.speed):'')+'</span><span class="ds">'+(c.promo&&c.promo!=='Not sure'?'Resets around '+esc(c.promo):'Promo reset not set')+'</span></div>'
   +'<div class="duocell win"><span class="dl">'+esc(WIN.name)+'</span><b>'+money(o.price)+'/mo</b><span class="ds">'+esc(WIN.speed)+' \u00b7 '+esc(WIN.guar.toLowerCase())+'</span><span class="ds">'+esc(WIN.after)+'</span><span class="ds">'+esc(WIN.inc)+'</span><span class="savetag">saves '+money(save)+'/mo</span></div>'
@@ -3965,24 +3978,13 @@ function featuredCamp(){
   for(var i=0;i<CAMPS.length;i++)if(CAMPS[i].joinable)return CAMPS[i];
   return CAMPS[0]||null;
 }
-/* One cohort drives the hero panel, and it is the member's own.
-   This read london-east unconditionally, which is right for the "Campaigns near
-   you" row (that card IS London East) and wrong for the panel above it: a
-   member who joined Windsor got a panel and a calendar belonging to London
-   East, while the campaign history two cards down was Windsor's. Two cohorts on
-   one screen, both called theirs.
-   The featured cohort is the fallback, because that is what the row's first
-   card and the join CTA are about for a member who has joined nothing yet. It
-   used to be london-east by name, which was only ever right while the catalog
-   was the six ids hardcoded above. */
-function syncCohortFromCamps(){
-  var c=featuredCamp();
-  if(!c)return;
-  /* have/need went with the counts: nothing renders a cohort's fill against
-     its target any more. `locked` stays, it is the sealed size the offer and
-     the locked panel quote. */
-  S.cohort.locked=c.households;
-}
+/* A sync of the featured cohort's household count onto S.cohort stood here,
+   so that the locked panel and the offer panel could quote it.
+   NO COHORT COUNT ON A MEMBER SURFACE, for the reason the tiles and the dot
+   cluster already carry: the fill figure belongs to the partner console, where
+   it is the thing being bid on, and on this page it is a number the household
+   can neither change nor check. With nothing reading it, the copy is the state
+   and the function was a no-op. */
 /* Campaign history's "in play" panel: everything the member has put their
    name against: a joined cohort, a waitlist spot, an opening-day alert. The
    leave buttons here are the same data-leave the cards use, handled by the
@@ -4006,7 +4008,7 @@ function paintHistory(){
       if(S.state==='forming')act='<button class="ccleave" type="button" data-leave="'+c.id+'">Leave this cohort</button>';
     }else if(c.you==='waitlist'){
       tag='<span class="rtag live">You’re on the waitlist</span>';
-      cnt=c.members+' households waiting';
+      cnt='';
       act='<button class="ccleave" type="button" data-leave="'+c.id+'">Leave the waitlist</button>';
     }else{
       tag='<span class="rtag">Opening-day alert set</span>';
@@ -4015,7 +4017,7 @@ function paintHistory(){
     return '<div class="rrow"><span><b>'+esc(c.region)+'</b><span class="sub">'+esc(c.sub)+'</span>'+tag+'</span><span class="cnt">'+cnt+'</span><span class="act">'+act+'</span></div>';
   }).join('');
 }
-function campRepaint(){syncCohortFromCamps();render()}
+function campRepaint(){render()}
 /* The endpoint not existing yet (404) or being unreachable degrades to the
    local demo rather than a dead button; a real refusal shows its message. */
 function offlineish(err){return !err||err.code==='NETWORK'||err.status===404}
@@ -4027,7 +4029,7 @@ function doJoin(id,btn){
   var doneToast=function(){
     toast(c.kind==='forming'
       ?('You’re in. We’ll text you as '+c.region+' reaches each step.')
-      :('You’re on the '+c.region+' list, '+c.members+' households waiting.'));
+      :('You’re on the '+c.region+' list. We’ll text you the day it opens.'));
   };
   W.session.campaignJoin(id).then(function(r){
     if(r&&r.campaign)applyCampaign(r.campaign);else localApply();
@@ -5147,6 +5149,15 @@ function dstamp(ms){
     ? MONS[d.getMonth()]+' '+d.getDate()+', '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')
     : MONS[d.getMonth()]+' '+d.getDate();
 }
+var MONFULL=['January','February','March','April','May','June','July','August',
+ 'September','October','November','December'];
+/* Prose form: "September 15". Falls back to the tile's own format on a test
+   calendar, where a bare month and day is the one thing that cannot be read. */
+function dlong(ms){
+  if(SHORTCAL)return dstamp(ms);
+  var d=new Date(ms);
+  return MONFULL[d.getMonth()]+' '+d.getDate();
+}
 var SHORTCAL=false;
 function paintDates(c){
   var dates=(c&&c.dates)||null;
@@ -5161,7 +5172,13 @@ function paintDates(c){
     var el=$('.tn2[data-t="'+t[0]+'"] span');
     if(!el)return;
     var vals=t[1].map(function(col){return dates[col]}).filter(Boolean);
-    if(!vals.length)return;                       /* keep whatever was there */
+    /* NOT "keep whatever was there", which was the markup's own Sep 15 to 17.
+       A cohort carries its calendar one date at a time, and the rungs it has
+       not reached have no date at all, so the fallback was showing four
+       fabricated deadlines beside one real one. There is nothing to say here
+       and it now says that. The seeded demo records carry no `dates` object at
+       all, so paintDates returns above and the tour keeps its literals. */
+    if(!vals.length){el.textContent='To come';return}
     el.textContent=(t[2]&&vals.length>1&&vals[0]!==vals[1])
       ? dstamp(vals[0])+' to '+dstamp(vals[1])
       : dstamp(vals[0]);
@@ -5698,6 +5715,15 @@ function avoidPicked(){
 function openPrefs(edit){
   var p=S.prefs||{};
   var other=avoidExtras(p.avoid).join(', ');
+  /* THE COHORT THIS DIALOG IS ABOUT, resolved exactly the way the save handler
+     resolves it: the card that was pressed, else the featured one. The button
+     used to read "Join London East · free" as a literal, so a member who
+     pressed Kleinburg was asked to confirm joining a region they had not
+     chosen, while the join itself went to the right cohort. The label was the
+     only thing lying, which is the worst version of this bug: nothing to see
+     afterwards, and no reason to doubt the screen at the moment of consent. */
+  var joining=(CHOSEN&&campById(CHOSEN))||featuredCamp();
+  var joinLabel='Join '+(joining&&(joining.region||joining.id)||'this cohort')+' · free';
   openModal('<div class="mhead"><h3>'+(edit?'Your preferences':'Six quick questions')+'</h3><button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
   +'<p class="msub">Bids fit better when partners know what the cohort actually wants. This shapes the auction; it never obligates you.</p>'
   +'<label class="plabel">When would you actually switch?</label>'
@@ -5718,7 +5744,7 @@ function openPrefs(edit){
   +'<div id="pf-avoidwrap" style="margin-top:10px"'+(other?'':' hidden')+'><input class="minput" id="pf-avoidother" type="text" maxlength="120"'
    +' placeholder="Who else? Separate names with commas" value="'+esc(other)+'"></div>'
   +'<p class="pfhint">This shapes bids, it doesn’t bind them: whoever wins, you still see the offer and you can still say no.</p>'
-  +'<button class="btn terra" type="button" id="pf-save" style="width:100%;justify-content:center;margin-top:16px">'+(edit?'Save preferences':'Join London East · free')+'</button>'
+  +'<button class="btn terra" type="button" id="pf-save" style="width:100%;justify-content:center;margin-top:16px">'+(edit?'Save preferences':esc(joinLabel))+'</button>'
   +'<p class="fnote" style="text-align:center">No card, no commitment. A deposit only ever appears if you accept a winning offer later.</p>');
 }
 document.addEventListener('click',function(e){
@@ -5967,7 +5993,6 @@ if(W&&W.session&&W.session.campaignsList){
          everything". */
       (r.campaigns||[]).forEach(applyCampaign);
       if(CAMPLIVE)dropUnnamedSeeds(r.campaigns);
-      syncCohortFromCamps();
       applyDerived();
       /* Only announce a move the member did not make themselves. */
       if(before!==S.state&&VIS.indexOf(S.state)<0&&VIS.indexOf(before)<0){
