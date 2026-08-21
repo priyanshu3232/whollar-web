@@ -331,6 +331,20 @@ const TABLES = Object.freeze({
     outcome:          'varchar(16) required',
     detail:           'text',
   },
+  referral_token: {
+    // A member's opaque share token (lib/token.js form: 7 payload characters
+    // plus a mod-31 check character, stored without the display hyphen).
+    // Issued at member creation and lazily by GET /me/referral for accounts
+    // that predate the table; lib/referral.js is the only writer. One ACTIVE
+    // token per member is policy, not a constraint: a suspended token must
+    // keep its row so the code it explains stays explainable.
+    token:      'varchar(16) unique required',
+    owner_type: 'varchar(16) required',  // 'member' | 'partner' | 'staff'
+    owner_id:   'varchar(64) required',  // users.user_id
+    status:     'varchar(16) required',  // 'active' | 'suspended' | 'retired'
+    clicks:     'int',                   // diagnostic only, never shown to the member
+    issued_at:  'datetime required',
+  },
   provider_ratings: {
     // The dashboard's "One minute, once" card. One row per member: `unique`
     // on user_id is what makes a second POST /me/rating fail with CONFLICT

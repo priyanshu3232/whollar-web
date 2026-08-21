@@ -206,7 +206,14 @@ function mount(router) {
   router.get('/me/referral', wrap(async (req, res) => {
     const user = requireMember(req);
     const code = referralCodeFor(user);
-    const count = await referral.countFor(catalyst(req), code, user.user_id);
+
+    /* The member's opaque token, minted lazily here for accounts that predate
+     * the `referral_token` table: this read IS the backfill, no migration
+     * script exists. Not yet in the response, the dashboard still shows the
+     * legacy code until the resolver ships, but arrivals who typed the token
+     * are already stored under it, so it joins the count today. */
+    const shareToken = await referral.tokenFor(catalyst(req), user);
+    const count = await referral.countFor(catalyst(req), [code, shareToken], user.user_id);
 
     res.status(200).json({ ok: true, code, joined: count.joined, pending: count.pending });
   }));

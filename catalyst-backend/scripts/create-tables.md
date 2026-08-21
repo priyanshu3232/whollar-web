@@ -1196,6 +1196,105 @@ SELECT email FROM product_interest WHERE product = 'mobile' AND keep_posted = 'y
 
 ---
 
+## 24. Referral tokens: one table and two `users` columns
+
+The opaque share token that replaces handing out a prefix of the member's
+`user_id`. The legacy `WHL-<8 hex>` code IS the first eight characters of the
+UUID, so every share link discloses a third of the account's primary
+identifier; the token discloses nothing. Legacy codes keep resolving forever
+(links are already in the wild), the token is simply what gets handed out once
+the dashboard switches over.
+
+One console visit covers this session and the two that follow it: the table
+now, the two `users` columns so the carrier and same-region work does not wait
+on console access later.
+
+### 24a. `referral_token` (new table)
+
+Issued at member creation and lazily by `GET /me/referral` for accounts that
+predate the table. `lib/referral.js` is the only writer. Until this table
+exists, nothing breaks: issuance is best-effort, every signup logs one
+`referral token insert failed` line and proceeds, and the dashboard keeps
+showing the legacy code.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `token` | Var Char | 16 | ✅ | ✅ | | 8 characters stored uppercase, no hyphen (`K7MQT4WB`). The hyphen in `K7MQ-T4WB` is display only. The unique constraint is the collision guard: issuance inserts blind and regenerates on failure |
+| `owner_type` | Var Char | 16 | | ✅ | | `member` \| `partner` \| `staff`. Only `member` is issued or resolved today |
+| `owner_id` | Var Char | 64 | | ✅ | | FK to `users.user_id` (logical) |
+| `status` | Var Char | 16 | | ✅ | | `active` \| `suspended` \| `retired`. A suspended token must keep its row: it still explains the arrivals it produced |
+| `clicks` | Int | - | | | | default 0. Diagnostic only, never shown to the member |
+| `issued_at` | DateTime | - | | ✅ | | |
+
+One **active** token per member is policy, not a constraint: a suspended
+token's row has to survive, so `owner_id` cannot be unique.
+
+There is deliberately **no per-token cap and no address-level check**. One
+token can be used by any number of people; four roommates who each create an
+account are four counted arrivals. What prevents double-counting is on the
+other side entirely: the joining member's `users.referral_code` is one column
+holding one string, so one joining member can only ever credit one referrer.
+
+### 24b. Two columns to add to `users`
+
+Written by the sessions after this one; nullable so their absence changes
+nothing. Same drill as section 14: **Edit Table** on `users`, add both.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `referral_carrier` | Var Char | 24 | | | | how the code arrived: `typed_code` \| `typed_email` \| `link_cookie` \| `resume_email`. Written at signup alongside `referral_code` |
+| `referral_same_region` | Var Char | 8 | | | | `yes` \| `no`, computed ONCE when this member verifies, comparing FSAs. Never recomputed: a number that changes when someone moves house is a support conversation with no good ending |
+
+### 24c. Gate checks, in the ZCQL tab
+
+**The unique constraint is enforced.** Insert two rows with the same token;
+the second must fail. If it does not, stop: issuance is not collision-safe and
+nothing downstream is.
+
+```sql
+INSERT INTO referral_token (token, owner_type, owner_id, status, clicks, issued_at)
+VALUES ('TESTTKN0', 'member', 'gate-check', 'active', 0, '2026-08-21 00:00:00');
+
+-- run it a second time: this one MUST error on the unique constraint
+INSERT INTO referral_token (token, owner_type, owner_id, status, clicks, issued_at)
+VALUES ('TESTTKN0', 'member', 'gate-check-2', 'active', 0, '2026-08-21 00:00:00');
+
+-- then remove the fixture (SELECT its ROWID first)
+SELECT ROWID FROM referral_token WHERE token = 'TESTTKN0';
+DELETE FROM referral_token WHERE ROWID = <that rowid>;
+```
+
+**Confirmed in Development on 2026-08-21.** The second insert errors with
+exactly: `Duplicate value for token. Please give a different value`, which the
+wording match in `lib/referral.js` (`duplicate` / `unique` / `already exists`)
+catches, and `scripts/test-referral-token.mjs` now pins that exact text. If
+Catalyst ever rewords it, the same shape appears in Application Logs as
+`referral token insert failed` the first time a live signup collides.
+
+### 24d. Two informational probes (record the answers, nothing waits on them)
+
+These no longer gate this build: counting stays in code over paginated reads,
+the pattern every other count here uses, and the one state transition involved
+(`users.status` pending → active) already exists and is already idempotent.
+They decide which primitive is available on the day rewards attach and a
+balance needs guarding under concurrency. Run each once in Development, record
+what comes back, verbatim.
+
+```sql
+-- (a) Does ZCQL UPDATE support a guarding predicate, and what does it return?
+--     Wanted: whether the response says how many rows were affected.
+UPDATE referral_token SET clicks = 1
+WHERE token = 'TESTTKN0' AND status = 'active';
+
+-- (b) Does COUNT with GROUP BY execute? (Section 23's sample queries assume
+--     it does; this is the confirmation.)
+SELECT status, COUNT(ROWID) FROM referral_token GROUP BY status;
+```
+
+Run (a) between the two 24c inserts, while the fixture row still exists.
+
+---
+
 ## Verify
 
 In the console: **Data Store → ZCQL** (or **Explore**), and run each of these.
@@ -1232,6 +1331,7 @@ SELECT ROWID FROM provider_orders LIMIT 1;
 SELECT ROWID FROM provider_billing LIMIT 1;
 SELECT ROWID FROM provider_statements LIMIT 1;
 SELECT ROWID FROM product_interest LIMIT 1;
+SELECT token, owner_type, owner_id, status FROM referral_token LIMIT 1;
 ```
 
 Then one that exercises the column names the hot path depends on:

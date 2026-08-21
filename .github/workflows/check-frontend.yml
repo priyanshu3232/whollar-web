@@ -164,6 +164,14 @@ jobs:
       - name: Referral code unit tests
         run: node --test scripts/test-referral.mjs
 
+      # The opaque referral token: the mod-31 checksum (exhaustive substitution
+      # and transposition sweeps, zero misses permitted), the issuance retry,
+      # and the routing rule that lets tokens and legacy WHL-<hex> codes share
+      # one normalize(). The count is an exact match on what normalize stored,
+      # so an input routed to the wrong form is a referral that never counts.
+      - name: Referral token unit tests
+        run: node --test scripts/test-referral-token.mjs
+
       # The v17 checkup savings engine (js/checkup-savings.js): the 12-month
       # window, benchmark selection with the Ontario offer pool and the
       # out-of-province fallback, the four single-promo bases, multi-promo

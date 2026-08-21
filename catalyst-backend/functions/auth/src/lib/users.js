@@ -175,6 +175,18 @@ async function findOrCreate(catalystApp, {
   }
 
   const user = await findById(catalystApp, userId);
+
+  /* A member's opaque share token, minted with the account. Best-effort by
+   * contract: the `referral_token` table is created by hand and may lag this
+   * code, and a signup is worth more than a token that lib/referral.js's
+   * `tokenFor` will mint lazily on the first dashboard read anyway. The
+   * require is local to keep users <-> referral acyclic at module load. */
+  if (userType === 'member') {
+    try {
+      await require('./referral').issueToken(catalystApp, 'member', userId);
+    } catch { /* already logged inside issueToken */ }
+  }
+
   return { user, created: true };
 }
 
