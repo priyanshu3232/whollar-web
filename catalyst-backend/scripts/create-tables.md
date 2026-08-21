@@ -1292,8 +1292,29 @@ These no longer gate this build: counting stays in code over paginated reads,
 the pattern every other count here uses, and the one state transition involved
 (`users.status` pending → active) already exists and is already idempotent.
 They decide which primitive is available on the day rewards attach and a
-balance needs guarding under concurrency. Run each once in Development, record
-what comes back, verbatim.
+balance needs guarding under concurrency.
+
+**A third probe earned its place here the same day it was written.** ZCQL's
+LIKE wildcard is `*`, not SQL's `%`: `LIKE 'bf93ebdc%'` returned nothing for a
+row an exact match found, `LIKE '*bf93ebdc*'` returned it (verified in the
+live console, 2026-08-21). The `%` spelling had shipped in the legacy referral
+resolver on 2026-08-14 and silently resolved nobody for a week. Any future
+prefix or contains query must use `*`, and the cheap way to prove a new one
+works is this pair against any known row:
+
+```sql
+SELECT user_id FROM users WHERE user_id = '<a real id>';
+SELECT user_id FROM users WHERE user_id LIKE '<its first 8 chars>*';
+```
+
+Both must return the row, or the wildcard query is decoration.
+
+**Both original probes ran in Development on 2026-08-21.** (a) executed and applied: the
+guarded predicate held and `clicks` moved to 1 on the fixture row. What the
+response reports (rows affected or not) went unrecorded, so re-run it the day
+that number matters. (b) executed cleanly and returned `3, active` with three
+tokens in the table: COUNT with GROUP BY works, as section 23's sample
+queries assumed.
 
 ```sql
 -- (a) Does ZCQL UPDATE support a guarding predicate, and what does it return?

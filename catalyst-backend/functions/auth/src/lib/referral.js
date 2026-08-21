@@ -13,7 +13,7 @@
  * resolvable forever, because links carrying them are already in the wild.
  *
  *   forward   code = f(user_id)          what old links carry
- *   backward  user_id LIKE 'hex%'        a typed legacy code, resolved
+ *   backward  user_id LIKE 'hex*'        a typed legacy code, resolved
  *
  * The current form is an OPAQUE TOKEN from lib/token.js, issued into the
  * `referral_token` table at member creation (and lazily for members who
@@ -128,15 +128,25 @@ const OWNER_COLUMNS = ['user_id', 'first_name', 'email_normalized', 'status'];
 /**
  * The member who owns a code, or null if it belongs to nobody.
  *
- * LEGACY PATH. Reads at most a handful of rows: `user_id LIKE 'hex%'` is a
+ * LEGACY PATH. Reads at most a handful of rows: `user_id LIKE 'hex*'` is a
  * prefix match on an eight character hex string, so one row is the expected
  * answer and more than one means two accounts genuinely collided. That case
  * returns null rather than guessing, because crediting the wrong member is
  * worse than telling this one their code was not recognised.
  *
+ * ZCQL's LIKE wildcard is `*`, NOT SQL's `%`. Verified in the live console on
+ * 2026-08-21: `LIKE 'bf93ebdc%'` returned nothing for a row an exact match
+ * found, `LIKE '*bf93ebdc*'` returned it. The `%` spelling shipped 2026-08-14
+ * and resolved nobody for a week, silently, because this function never
+ * throws; counting survived it (exact match on the stored string), the inline
+ * join-form check and the referred_by audit field did not. No unit test can
+ * catch this class of bug: it lives in the store's dialect, so the check that
+ * guards it is the live probe in create-tables.md section 24.
+ *
  * The LIKE literal is interpolated rather than passed through `datastore.lit`,
- * which rejects `%` by design. CORE_RE above is the guard, and it is asserted
- * again here so a future caller cannot reach the query with anything else.
+ * whose charset rejects wildcards by design. CORE_RE above is the guard, and
+ * it is asserted again here so a future caller cannot reach the query with
+ * anything else.
  *
  * TOKEN PATH. Exact match on `referral_token.token`, then the owner read by
  * `user_id`. Only an `active` token resolves: a suspended or retired one is
@@ -172,7 +182,7 @@ async function resolve(catalystApp, input) {
     const rows = await datastore.query(
       catalystApp, USERS,
       `SELECT ${OWNER_COLUMNS.join(', ')} FROM users ` +
-      `WHERE user_id like '${core}%' LIMIT 5`
+      `WHERE user_id like '${core}*' LIMIT 5`
     );
     const live = (rows || []).filter((r) => r.status !== 'deleted');
     return live.length === 1 ? live[0] : null;
