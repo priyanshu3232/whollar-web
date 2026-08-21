@@ -3671,7 +3671,15 @@ function tplOffers(){
   var o=OFFERS[0];var save=S.member.bill-o.price;
   var c=S.checkup||{};
   return '<h3>Your cohort\u2019s winning offer is in</h3>'
-  +'<p class="p">'+WIN.bids+' partner'+(WIN.bids===1?'':'s')+' bid, sealed. This was the best against the cohort\u2019s standard terms, and it\u2019s the same offer for every household in it.</p>'
+  /* NOT THE COUNT. "3 partners bid" reads as a number the household can weigh
+     the offer by, and it is the wrong number for that: how many partners bid
+     says nothing about whether the winning one is good, and a cohort that drew
+     two strong bids is not worse than one that drew five. It is also the figure
+     the demo constant fakes hardest. One bid is still said plainly, because
+     "multiple" over a single bid would be the same overclaim in the other
+     direction. WIN.bids is still the server's bidCount, and still what decides
+     which of the two this is. */
+  +'<p class="p">'+(WIN.bids===1?'One partner bid':'Multiple partners bid')+', sealed. This was the best against the cohort\u2019s standard terms, and it\u2019s the same offer for every household in it.</p>'
   +'<div class="duo">'
   +'<div class="duocell now"><span class="dl">Your bill today</span><b>'+money(S.member.bill)+'/mo</b><span class="ds">'+esc(c.prov||'Your provider')+(c.speed?' \u00b7 '+esc(c.speed):'')+'</span><span class="ds">'+(c.promo&&c.promo!=='Not sure'?'Resets around '+esc(c.promo):'Promo reset not set')+'</span></div>'
   +'<div class="duocell win"><span class="dl">'+esc(WIN.name)+'</span><b>'+money(o.price)+'/mo</b><span class="ds">'+esc(WIN.speed)+' \u00b7 '+esc(WIN.guar.toLowerCase())+'</span><span class="ds">'+esc(WIN.after)+'</span><span class="ds">'+esc(WIN.inc)+'</span><span class="savetag">saves '+money(save)+'/mo</span></div>'
@@ -5129,9 +5137,29 @@ var TOURED=false;
    state holds 'forming' while the join request is still in flight (or the
    campaigns backend is degraded). Never set from seed data. */
 var OPTJOIN=false;
+/* THE COHORT THIS MEMBER IS ACTUALLY IN, when they are in more than one.
+   This took the FIRST row with any standing, in the server's sort_order, so a
+   household still holding a place on an older region's list was pinned to that
+   one while the cohort it had really joined moved on without it. One pick feeds
+   everything downstream: the rail, the calendar tiles, the offer panel and the
+   poll cadence, so getting it wrong is not a cosmetic mistake.
+   Ranked rather than first-found: a join outranks a waitlist place, and among
+   equals the cohort furthest along its own ladder wins, because that is the one
+   with something happening to it. `c.stage` is the SERVER'S answer; this chooses
+   BETWEEN cohorts and never derives a stage. Same map/sort/index idiom as
+   campsRanked, so the server's sort_order breaks the ties rather than
+   Array#sort's stability. */
+function jcStanding(c){return c.you==='joined'?0:1}
+function jcReach(c){return STATES.indexOf(c.stage)}
 function joinedCamp(){
-  for(var i=0;i<CAMPS.length;i++)if(CAMPS[i].you==='joined'||CAMPS[i].you==='waitlist')return CAMPS[i];
-  return null;
+  var mine=CAMPS.map(function(c,i){return [c,i]})
+    .filter(function(x){return x[0].you==='joined'||x[0].you==='waitlist'})
+    .sort(function(a,b){
+      return jcStanding(a[0])-jcStanding(b[0])
+        ||jcReach(b[0])-jcReach(a[0])
+        ||a[1]-b[1];
+    });
+  return mine.length?mine[0][0]:null;
 }
 /* THE FURTHEST STATE THIS MEMBER REACHED BY ACTING, this session.
  *
@@ -5160,14 +5188,53 @@ function deriveState(){
   if(ADVANCED&&STATES.indexOf(st)>-1&&STATES.indexOf(ADVANCED)>STATES.indexOf(st))return ADVANCED;
   return st;
 }
-function serverState(){
+/* WHAT "HAS DETAILS" MEANS, in one place. This was inline in serverState and
+   is now read by three callers: the state machine below, the join gate, and the
+   resume check that runs when a member comes back from the checkup. Three
+   copies of one test drift, and the copy that drifts either gates a member who
+   has run the checkup or lets one through who has not. */
+function hasBill(){
   var bill=MEMBER&&MEMBER.bill;
-  var hasBill=!!(bill&&(bill.provider||bill.monthly||bill.promoEnd));
+  return !!(bill&&(bill.provider||bill.monthly||bill.promoEnd));
+}
+/* WHAT "HAS A PROFILE" MEANS, in one place, for the same reason hasBill() is
+   one place: two copies of this test drift, and the copy that drifts either
+   asks a member who has already answered or lets one through who has not.
+
+   TWO FIELDS, and each one is load-bearing rather than tidy:
+     postal code   the FSA is what a cohort is keyed on, and campaign_members
+                   writes it onto the membership row at join time from the
+                   account. Joining without one files a household under no
+                   region at all, which is a row nobody can bid against.
+     mobile        every join confirmation on this page promises a text, at
+                   each step for a forming cohort and on the day for a
+                   waitlist. Without a number that is a promise we cannot keep.
+   The name is NOT here: signup always lands a first name (users.firstNameFrom
+   derives one from the address when the form leaves it blank), so requiring it
+   would be a field nobody can be missing. It is asked for anyway when it is
+   absent, because a gate that has to open a dialog may as well collect it. */
+function profileMissing(){
+  var m=MEMBER||{};
+  var out=[];
+  if(!String(m.postal||m.fsa||'').trim())out.push('region');
+  if(!String(m.phone||'').trim())out.push('mobile');
+  if(!String(m.firstName||'').trim())out.push('name');
+  return out;
+}
+function hasProfile(){return profileMissing().length===0}
+function serverState(){
   /* Only a LIVE campaigns answer can prove a join: the seeded CAMPS mark
      london-east as joined for the demo, and deriving from that would show
      every real member a cohort they never joined. */
   var c=CAMPLIVE?joinedCamp():null;
-  if(!c)return OPTJOIN?'forming':(hasBill?'result':'arrive');
+  if(!c)return OPTJOIN?'forming':(hasBill()?'result':'arrive');
+  /* A waitlist answer means THE COHORT IS STILL GATHERING, and returning here
+     before c.stage is read is only correct because of that. The server derives
+     `you` per request now (catalog.standingOf): a join taken while a region was
+     planned reads `joined` the moment that region forms. It used to be the
+     stored click, which never moved, so this line pinned those households in a
+     visitor lane for the whole life of the cohort. Do not re-derive standing
+     here to compensate: the server owns it, as it owns stage. */
   if(c.you==='waitlist')return 'waitlist';
   /* THE SERVER OWNS STAGE. c.stage is derived by catalog.memberStageOf from
      the cohort's own calendar, against one clock reading taken server side.
@@ -5180,7 +5247,7 @@ function serverState(){
     case 'forming':return 'forming';
     case 'auction':return 'bidding';
     case 'closed':case 'archived':return 'done';
-    default:return hasBill?'result':'arrive';
+    default:return hasBill()?'result':'arrive';
   }
 }
 
@@ -5401,7 +5468,15 @@ function rvArriveX(){
      back here when the result lands. */
   +'<a class="btn terra" id="cf-open" href="/bill-checkup?from=dashboard">Check if I’m overpaying</a>'
   +'</div></div>'
-  +'</section>',
+  +'</section>'
+  /* THE COHORT IS THE PRODUCT, so it is on screen before the checkup is done.
+     This card was built for state `result` only, which meant a new account saw
+     the thing it signed up for only after nine questions: the cohort was real,
+     open, joinable, and invisible. Same card, same featured cohort, same
+     server-owned calendar. What it cannot do without the member's numbers is
+     promise the timing, and `nobill` is what keeps that promise off it.
+     Pressing it opens the checkup gate, not the six questions. */
+  +openCohortHTML(featuredCamp(),ckOrDefault(),true),
   /* "How this works" is a rail card, not the second item in the main stack.
      Stacked under the checkup card it made the main column 533px against a
      281px rail, which is the same void the reads card used to make one lane
@@ -5418,9 +5493,14 @@ function rvArriveX(){
    rate (MEDIAN=67, labelled "demo figure" and still shown to real members),
    which put two different answers about the same bill on one screen. What is
    left is the step the band cannot take: the cohort they can join. */
+/* The member's own numbers where they have them, a neutral stand-in where they
+   do not. Shared now, because the arrive lane shows the same cohort card
+   against no numbers at all. */
+function ckOrDefault(){
+  return S.checkup||{prov:'your provider',bill:0,speed:'',promo:'Not sure'};
+}
 function rvResult(){
-  var c=S.checkup||{prov:'your provider',bill:0,speed:'',promo:'Not sure'};
-  return openCohortHTML(featuredCamp(),c);
+  return openCohortHTML(featuredCamp(),ckOrDefault());
 }
 
 /* ---------- the "Open in your area" card ----------
@@ -5429,7 +5509,7 @@ function rvResult(){
    data-choose of 'le'. It now reads the featured cohort and its server-owned
    calendar, so the cohort a household is offered is whichever one ops opened,
    and the dates are that cohort's own. */
-function openCohortHTML(le,ck){
+function openCohortHTML(le,ck,nobill){
   if(!le||!le.joinable){
     /* No cohort is open to this household. Saying nothing here would leave the
        result card ending on a diagnosis with no next step. */
@@ -5461,7 +5541,13 @@ function openCohortHTML(le,ck){
   /* The timing note only claims the offer beats the cliff when there is an
      offer date to compare against. It used to assert it from a literal. */
   var elig;
-  if(ck.promo==='Not sure'){
+  if(nobill){
+    /* Nothing to time against yet. "Add your promo end date" is the line for a
+       member who ran the checkup and skipped one question; said to someone who
+       has added nothing it names a field they have never seen. The gate behind
+       this card's button is what asks for it. */
+    elig='We time bidding to close before your promo cliff. Run the two minute checkup and we\u2019ll check this cohort\u2019s timing works for you.';
+  }else if(ck.promo==='Not sure'){
     elig='Add your promo end date and we’ll check the timing works for you.';
   }else if(offer){
     elig='Offer lands '+dstamp(offer)+' · your reset is around '+esc(ck.promo)
@@ -5478,7 +5564,9 @@ function openCohortHTML(le,ck){
   +'<button class="btn terra" type="button" data-choose="'+esc(le.id)+'">Choose this cohort</button>'
   +'<button class="btn ghost" type="button" data-act="whyfree">Why it’s free</button>'
   +'</div>'
-  +'<p class="fnote">Joining is free and never obligates you. You’ll answer six quick questions so bids fit what you actually want.</p>'
+  +'<p class="fnote">'+(nobill
+    ?'Joining is free and never obligates you. We\u2019ll ask for your bill numbers first, so the cohort is timed to your own reset.'
+    :'Joining is free and never obligates you. You\u2019ll answer six quick questions so bids fit what you actually want.')+'</p>'
   +'</section>';
 }
 
@@ -5688,8 +5776,20 @@ function ccCard(c,feat,ids){
      A card without an action stays a div, because a focus ring and a pointer on
      something that does nothing is a worse lie than no ring at all. The bell and
      the whole-card target are mutually exclusive by `joinable`, which is what
-     keeps a button out of a button. */
-  var choose=(!mine&&c.joinable&&(PICKANY||(c===feat&&S.state==='result')));
+     keeps a button out of a button.
+
+     `arrive` IS THE ONE STATE WHERE WIDENING IT IS SAFE, and it is widened all
+     the way: every joinable cohort, not the featured one. The paragraph above
+     is about a click that JOINS, and the fear in it is real, a household in the
+     wrong region by a mispress. A click in `arrive` cannot join anything. It
+     can only open the gate that asks for their numbers, which is a dialog they
+     read and close. Three inert tiles beside one live one is the worse lie: a
+     member presses the region they actually live in, nothing happens, and the
+     page has told them the cohort is not for them.
+
+     `result` is unchanged, featured only, because there the press is the join.
+     See openCheckupGate. */
+  var choose=(!mine&&c.joinable&&(PICKANY||S.state==='arrive'||(c===feat&&S.state==='result')));
   /* #cc-first and #regmono stay on the featured card in the Home row. They are the
      handles qa-dashboard.mjs reads to assert that this row shows the server's
      cohorts and not four regions from the markup, which is the whole point of
@@ -5743,9 +5843,229 @@ document.addEventListener('click',function(e){
   /* Which cohort was chosen has to survive the six questions: the save handler
      runs long after this click, and it used to join london-east by name no
      matter which card the member pressed. */
-  if(ch){CHOSEN=ch.getAttribute('data-choose')||null;openPrefs();return}
+  if(ch){
+    CHOSEN=ch.getAttribute('data-choose')||null;
+    /* PROFILE FIRST, then the numbers. Two gates in a row is one dialog too
+       many, and this is the order that avoids it: the profile gate saves in
+       place and hands straight on to joinNext(), so a member missing both
+       answers two fields and lands on the checkup gate, rather than reading
+       about their bill and then being stopped again by a postal code. */
+    if(!hasProfile()){openProfileGate(CHOSEN);return}
+    /* AND IT HAS TO SURVIVE A PAGE LOAD, now that a member with no numbers can
+       reach this. The gate sends them to /bill-checkup, which is a different
+       document, and CHOSEN dies with this one. intentSave carries the cohort
+       across; resumeIntent picks it up when they land back here with a bill. */
+    joinNext(CHOSEN);return;
+  }
 });
 var CHOSEN=null;
+
+/* ---------- the join gate: numbers before a cohort ----------
+   POST /campaigns/join does NOT require a bill, deliberately: the seal, not the
+   household's numbers, is what the server is protecting. The requirement is
+   ours. It used to be enforced by hiding the cohort until the checkup was done,
+   which hid the product from the account that had just been created for it. It
+   is enforced here instead, on the one click that reaches a join.
+
+   HARD GATE. Two ways out, the checkup or the close box, and no "join anyway".
+   A household joined with no reset date is one we cannot time bidding for, and
+   the card they pressed would then be making a promise about a cliff we know
+   nothing about. */
+var INTENT_KEY='whollar.cohort.intent';
+var INTENT_TTL=86400000;
+function intentSave(id){
+  if(!id)return;
+  try{localStorage.setItem(INTENT_KEY,JSON.stringify({id:String(id),at:Date.now()}))}catch(err){}
+}
+function intentClear(){try{localStorage.removeItem(INTENT_KEY)}catch(err){}}
+/* Expires on its own. A cohort chosen a week ago and never joined is not a
+   pending decision any more, and reopening the six questions on it would be
+   this page acting on an intent the member has forgotten having. */
+function intentRead(){
+  var raw=null;
+  try{raw=localStorage.getItem(INTENT_KEY)}catch(err){return null}
+  if(!raw)return null;
+  var rec=null;
+  try{rec=JSON.parse(raw)}catch(err){rec=null}
+  if(!rec||!rec.id||!rec.at||(Date.now()-rec.at)>INTENT_TTL){intentClear();return null}
+  return rec;
+}
+/* ---------- the profile gate: who and where, before a cohort ----------
+   SAME SHAPE AS THE CHECKUP GATE BELOW, and for the same reason: the cohort is
+   shown to a brand new account, and the requirement is enforced on the one
+   click that reaches a join rather than by hiding the product from the person
+   it was built for.
+
+   IT DOES NOT NAVIGATE. The checkup gate sends a member to another document,
+   which is why it has to write the cohort into localStorage first. This one is
+   two fields, so it collects them here and carries on into the same flow the
+   click would have run: the checkup gate if the numbers are still missing, the
+   six questions if they are not. Nothing is stored across a page load because
+   nothing leaves the page.
+
+   THE SERVER STILL ACCEPTS A JOIN WITHOUT THIS. POST /campaigns/join requires
+   a member session and nothing else, deliberately, exactly as it requires no
+   bill: what the server protects is the seal, not the household's details. The
+   requirement is ours, so a stale tab can still file a join with no FSA. If
+   that ever needs closing it belongs in one guard on the route, next to
+   requireMember, and not in a second copy of this dialog. */
+var PROF_FIELDS={
+  region:{
+    label:'Postal code',hint:'N5Y 2T6',type:'text',auto:'postal-code',max:7,
+    val:function(){return (MEMBER&&MEMBER.postal)||''},
+    read:function(v){
+      var p=W.parsePostal(v);
+      if(!p||!p.complete)return {error:'Enter a full Canadian postal code, e.g. N5Y 2T6.'};
+      return {value:{postalCode:p.full,provinceCode:p.provinceCode}};
+    }
+  },
+  mobile:{
+    label:'Mobile',hint:'(555) 123 4567',type:'tel',auto:'tel',max:32,
+    val:function(){return (MEMBER&&MEMBER.phone)||''},
+    read:function(v){
+      /* Ten digits, which is every Canadian number and is what the texts this
+         promises are sent to. Formatting is the member's business: the server
+         keeps the string it is given. */
+      if(v.replace(/[^\d]/g,'').length<10)return {error:'Enter a mobile number we can text, area code first.'};
+      return {value:{phone:v}};
+    }
+  },
+  name:{
+    label:'Your name',hint:'First and last',type:'text',auto:'name',max:140,
+    val:function(){
+      var m=MEMBER||{};
+      return String(m.firstName||'')+(m.lastName?' '+m.lastName:'');
+    },
+    read:function(v){
+      var parts=v.split(/\s+/);
+      return {value:{firstName:parts.shift(),lastName:parts.join(' ')||null}};
+    }
+  }
+};
+/* Asked in the order they are needed, not in the order they were noticed. */
+var PROF_ORDER=['name','region','mobile'];
+function openProfileGate(id){
+  var c=id?campById(id):null;
+  var where=(c&&(c.region||c.id))||'this cohort';
+  var need=profileMissing();
+  var rows=PROF_ORDER.filter(function(k){return need.indexOf(k)>-1}).map(function(k){
+    var f=PROF_FIELDS[k];
+    return '<label class="plabel" for="pg-'+k+'">'+esc(f.label)+'</label>'
+    +'<input class="minput" id="pg-'+k+'" type="'+f.type+'" autocomplete="'+f.auto+'"'
+    +' maxlength="'+f.max+'" placeholder="'+esc(f.hint)+'" value="'+esc(f.val())+'">';
+  }).join('');
+  /* The heading counts what is actually being asked. "Two details first" over
+     three fields is the kind of small lie this page is being cleared of. */
+  var head=need.length===1?'One detail first':(need.length===2?'Two details first':'A few details first');
+  openModal('<div class="mhead"><h3>'+head+'</h3><button class="mx" type="button" data-mclose aria-label="Close">\u00d7</button></div>'
+  +'<p class="msub">A cohort is a street, not a mailing list: your postal code is what puts you in <b>'+esc(where)+'</b> rather than beside it, and the number is where each step of the auction is texted to you.</p>'
+  +rows
+  +'<p class="whl-fielderr" id="pg-err" role="alert" hidden></p>'
+  +'<button class="btn terra" type="button" id="pg-save" style="width:100%;justify-content:center;margin-top:16px">Save and continue</button>'
+  +'<p class="fnote" style="text-align:center">Your address is never shown to a partner. They bid against a count and a region, never a name or a door.</p>',true);
+  var first=$('#pg-'+(PROF_ORDER.filter(function(k){return need.indexOf(k)>-1})[0]||'region'));
+  if(first){
+    if(first.id==='pg-region')first.addEventListener('input',function(){first.value=W.formatPostal(first.value)});
+    first.focus();
+  }
+  var pc=$('#pg-region');
+  if(pc&&pc!==first)pc.addEventListener('input',function(){pc.value=W.formatPostal(pc.value)});
+}
+/* Where the click was going before the gate stopped it. One place, so the gate
+   and the resume path cannot disagree about what comes next. */
+function joinNext(id){
+  if(!hasBill()){intentSave(id);openCheckupGate(id);return}
+  openPrefs();
+}
+var PGSAVING=false;
+document.addEventListener('click',function(e){
+  var btn=e.target.closest('#pg-save');
+  if(!btn||PGSAVING)return;
+  var err=$('#pg-err');
+  var say=function(m){if(err){err.textContent=m;err.hidden=false}else toast(m)};
+  var payload={},bad=null;
+  PROF_ORDER.forEach(function(k){
+    var el=$('#pg-'+k);
+    if(!el||bad)return;
+    var r=PROF_FIELDS[k].read(String(el.value||'').trim());
+    if(r.error){bad={msg:r.error,el:el};return}
+    Object.keys(r.value).forEach(function(n){payload[n]=r.value[n]});
+  });
+  if(bad){say(bad.msg);bad.el.focus();return}
+  if(!(W&&W.session&&W.session.profileSave)){say('We could not save that just now. Please try again in a moment.');return}
+  if(err)err.hidden=true;
+  PGSAVING=true;btn.disabled=true;btn.textContent='Saving\u2026';
+  W.session.profileSave(payload).then(function(resp){
+    PGSAVING=false;
+    /* The response carries the public profile and that is what is patched in.
+       The fallback is written in the SAME key names (postal, not postalCode),
+       because MEMBER is what profileMissing() reads: patched under the wire
+       names, a member who had just filled the form in would be handed the same
+       gate again on the next click. */
+    MEMBER=W.member.patch((resp&&resp.user)||{
+      firstName:payload.firstName,lastName:payload.lastName,
+      phone:payload.phone,postal:payload.postalCode,
+      fsa:payload.postalCode?String(payload.postalCode).replace(/\s+/g,'').slice(0,3):null,
+      provinceCode:payload.provinceCode
+    })||MEMBER;
+    /* The identity strip reads FIRST/LAST, and a name saved here has to reach
+       it or the header keeps greeting a member who has just told us who they
+       are. Same three lines the account card's own editor runs. */
+    if(payload.firstName){
+      FIRST=String(MEMBER.firstName||'').trim();
+      LAST=String(MEMBER.lastName||'').trim();
+      INITIALS=FIRST?((FIRST.charAt(0)+(LAST?LAST.charAt(0):FIRST.charAt(1)||'')).toUpperCase()):'W';
+      DISPNAME=FIRST?(LAST?FIRST+' '+LAST.charAt(0)+'.':FIRST):'Member';
+      paintIdentity();
+    }
+    paintAccount();
+    closeModal();
+    /* Straight on, no toast. The member pressed a cohort, not a settings page:
+       a "Saved" notice here would be the page congratulating itself in the
+       middle of a join. */
+    joinNext(CHOSEN);
+  },function(er){
+    PGSAVING=false;btn.disabled=false;btn.textContent='Save and continue';
+    if(er&&er.code==='FORBIDDEN'){W.member.clear();toSignIn();return}
+    say((er&&er.message)||'We could not save that just now. Please try again in a moment.');
+  });
+});
+
+function openCheckupGate(id){
+  var c=id?campById(id):null;
+  var where=(c&&(c.region||c.id))||'this cohort';
+  openModal('<div class="mhead"><h3>Your numbers first</h3><button class="mx" type="button" data-mclose aria-label="Close">\u00d7</button></div>'
+  +'<p class="msub">A cohort is timed so sealed bidding closes before your promo cliff, and priced against what its households actually pay today. Both of those start with your bill, which is the one thing we don\u2019t have yet.</p>'
+  +'<a class="btn terra" id="gate-go" href="/bill-checkup?from=dashboard" style="width:100%;justify-content:center;margin-top:4px">Check if I\u2019m overpaying</a>'
+  +'<p class="fnote" style="text-align:center">Two minutes, free and private. We\u2019ll bring you straight back to <b>'+esc(where)+'</b> when your result lands.</p>',true);
+  var go=$('#gate-go');if(go)go.focus();
+}
+/* ---------- coming back with the numbers ----------
+   Fires once, and only when BOTH halves are true: the bill has landed (it can
+   arrive from GET /me/bill after first paint, which is why the bill sync calls
+   this as well as the campaign poll) and the campaign list is live, so the
+   cohort can be checked rather than assumed. Anything that makes the intent
+   stale clears it quietly: the cohort locked while they were away, or they
+   joined it from another device. A dialog offering to join a cohort that has
+   already closed is worse than no dialog. */
+var RESUMED=false;
+function resumeIntent(){
+  if(RESUMED)return;
+  var it=intentRead();
+  if(!it||!hasBill()||!CAMPLIVE)return;
+  RESUMED=true;intentClear();
+  var c=campById(it.id);
+  if(!c||!c.joinable||c.you==='joined'||c.you==='waitlist')return;
+  /* Never over the top of something the member opened themselves. */
+  if(!modal.hidden)return;
+  CHOSEN=it.id;
+  /* A bill can land without a profile: the checkup asks for a postal code but a
+     member can have run it before this gate existed, or from another device.
+     Coming back is exactly the wrong moment to skip it, because the next dialog
+     ends in a join. */
+  if(!hasProfile()){openProfileGate(it.id);return}
+  openPrefs();
+}
 
 /* ---------- preferences: six questions -> the cohort brief ----------
    Saved to the account via POST /me/prefs under the `interests` key (the only
@@ -5997,6 +6317,9 @@ if(W&&W.session&&W.session.syncBill){
     paintChecklist();
     buPrefill();
     applyDerived();
+    /* The bill half of a resume can land here, after the campaign poll has
+       already been and gone. resumeIntent is a no-op until both halves hold. */
+    resumeIntent();
   });
 }
 
@@ -6055,6 +6378,8 @@ if(W&&W.session&&W.session.campaignsList){
       (r.campaigns||[]).forEach(applyCampaign);
       if(CAMPLIVE)dropUnnamedSeeds(r.campaigns);
       applyDerived();
+      /* And the campaign half can land here, after the bill sync finished. */
+      resumeIntent();
       /* Only announce a move the member did not make themselves. */
       if(before!==S.state&&VIS.indexOf(S.state)<0&&VIS.indexOf(before)<0){
         EXTRA.push(['Just now','Your cohort moved to '+String(PILL[S.state]||S.state)]);

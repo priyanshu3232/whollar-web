@@ -65,6 +65,13 @@ const note = (label) => { notes.push(label); console.log(`  note  ${label}`); };
    arrive's "How this works" moved to the rail. Both visitor states now sit
    under 30px. The exception is gone with the fault.
 
+   ARRIVE THEN TOOK A SECOND MAIN CARD, the cohort card, so that a member who
+   has not run the checkup can see the cohort at all. That is content, and it
+   moved the lane the RIGHT way: main was the short side against a two-card
+   rail, so the void narrowed rather than widened and arrive dropped out of the
+   note below. Recorded because the paragraph above reads like the shape is
+   settled, and it is not.
+
    VOID_CAP was 260 against a member rail of three cards (~1405px) facing a main
    stack of 1182 (locked) to 1612 (confirm).
 

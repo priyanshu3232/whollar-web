@@ -77,6 +77,14 @@ Paste the `INSERT`. Three things that matter:
   non-zero seed is padding a partner eventually bids against.
 - **The slug is permanent.** Both dashboards key on it; every `bid_key` is built
   from it. It never appears on screen: `region` and `sub` are what render.
+- **`--kind` defaults to `forming`, which is the kind that takes joins.** Create
+  a cohort you intend to collect households on as `forming`. A join taken while
+  the cohort is `planned` or `waitlist` is written to `campaign_members.status`
+  as `waitlist` and stays that way forever, because nothing rewrites that column
+  on a transition. `catalog.standingOf` now reads such a row as `joined` once the
+  cohort is past gathering, so this is no longer load-bearing, but the row will
+  still say `waitlist` when you `SELECT` it in phase 3. The admin console's
+  "New campaign" sheet defaults to `forming` for the same reason.
 
 Leave the seven dates null. Stage falls back to `kind` alone, which is correct
 for a cohort that has not been scheduled.
@@ -114,7 +122,11 @@ WHERE campaign_id = 'kitchener-central';
 ```
 
 One row per household. `status` is `joined`, `waitlist` or `alert`; only `alert`
-counts as watching rather than a household. Repeat with as many member accounts
+counts as watching rather than a household. `status` is what joining meant when
+it was clicked, not the household's standing today: a `waitlist` row on a cohort
+past gathering reaches the dashboard as `joined` (`catalog.standingOf`). What you
+should never see on a cohort you are driving is a household whose only row is
+`alert`, which is a bell and gets no cohort at all. Repeat with as many member accounts
 as you want households.
 
 ---

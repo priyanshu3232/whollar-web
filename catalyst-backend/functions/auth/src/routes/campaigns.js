@@ -87,7 +87,12 @@ function publicCampaign(c, counts, mine, now) {
     households: c.seedHouseholds + t.signups,
     watching: t.watching,
     joinable: Boolean(JOIN_STATUS[c.kind]),
-    you: mine ? mine.status : null,
+    /* DERIVED, not the stored status. `campaign_members.status` is a snapshot
+       of the click and no transition rewrites it, so a household that joined
+       while the region was gathering read `waitlist` forever, which the
+       dashboard renders as a visitor lane with no rail at all. See
+       catalog.standingOf: the cohort moves, the click does not. */
+    you: mine ? catalog.standingOf(mine.status, c) : null,
     /* Stage and calendar are SERVER OWNED. The dashboard renders these; it
        must never re-derive a stage from `kind` in the browser, which is what
        it did before this field existed. `dates` are epoch ms, and the

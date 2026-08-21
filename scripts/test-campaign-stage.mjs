@@ -210,3 +210,53 @@ test('the seven member stages are the ones the dashboard rail renders', () => {
     ['forming', 'locked', 'bidding', 'offers', 'confirm', 'switching', 'done']
   );
 });
+
+/* ------------------------------------------------------------------ *
+ * standingOf: the membership row, read as what it means now
+ * ------------------------------------------------------------------ */
+
+test('a waitlist place becomes a join the moment the region stops gathering', () => {
+  /* The bug this exists for: campaign_members.status is a snapshot of
+     JOIN_STATUS at click time, and nothing rewrites it when a cohort moves.
+     A household that joined a `planned` region stayed `waitlist` through
+     forming, auction and close, and the dashboard reads `waitlist` as a
+     visitor state, so it never saw a rail at all. */
+  const kindOf = (kind) => catalog.standingOf('waitlist', { kind });
+  assert.equal(kindOf('planned'), 'waitlist', 'still gathering');
+  assert.equal(kindOf('waitlist'), 'waitlist', 'still gathering');
+  assert.equal(kindOf('forming'), 'joined');
+  assert.equal(kindOf('auction'), 'joined');
+  assert.equal(kindOf('closed'), 'joined');
+  assert.equal(kindOf('archived'), 'joined');
+});
+
+test('standingOf promotes nothing but a waitlist place', () => {
+  for (const kind of catalog.KINDS) {
+    assert.equal(catalog.standingOf('joined', { kind }), 'joined');
+    /* A bell is not a join and is never promoted into one. */
+    assert.equal(catalog.standingOf('alert', { kind }), 'alert',
+      `a bell was promoted on a ${kind} cohort`);
+  }
+});
+
+test('standingOf answers null for no membership, and never undefined', () => {
+  /* publicCampaign sends this straight onto the wire as `you`, where the
+     dashboard tests it against three strings. undefined would drop the key
+     from the JSON and applyCampaign would leave a stale value in place. */
+  for (const v of [null, undefined, '']) {
+    assert.equal(catalog.standingOf(v, { kind: 'forming' }), null);
+  }
+  assert.equal(catalog.standingOf('waitlist', undefined), 'joined',
+    'no campaign is not a gathering campaign');
+});
+
+test('standingOf is pure, and GATHERING is the kinds that take a list', () => {
+  const c = { kind: 'auction' };
+  assert.equal(catalog.standingOf('waitlist', c), catalog.standingOf('waitlist', c));
+  assert.deepEqual([...catalog.GATHERING], ['planned', 'waitlist']);
+  /* Every gathering kind must be one JOIN_STATUS writes `waitlist` for, or a
+     join would land as `joined` and then be demoted on the next read. */
+  for (const k of catalog.GATHERING) {
+    assert.equal(catalog.JOIN_STATUS[k], 'waitlist', `${k} gathers but does not list`);
+  }
+});

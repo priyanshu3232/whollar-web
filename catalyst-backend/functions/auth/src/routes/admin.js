@@ -575,7 +575,15 @@ function mount(router, cfg) {
     if (!catalog.ID_RE.test(id)) {
       throw badRequest('id must be a slug: 3-64 characters of a-z, 0-9 and hyphen.');
     }
-    const kind = String(body.kind || 'planned');
+    /* `forming` is the default because it is the kind that TAKES JOINS, and a
+       cohort created without saying otherwise is one somebody means to collect
+       households on. It defaulted to `planned`, which quietly wrote every join
+       taken before the first transition as `waitlist` (JOIN_STATUS), and that
+       column is a snapshot nothing rewrites. catalog.standingOf now reads such
+       a row as the household it is, so this is no longer load-bearing, but the
+       default that surprises nobody is the one that matches the lifecycle step
+       an operator is actually at. scripts/cohort.mjs new has always used it. */
+    const kind = String(body.kind || 'forming');
     if (!catalog.KINDS.includes(kind)) {
       throw badRequest(`kind must be one of ${catalog.KINDS.join(' | ')}.`);
     }

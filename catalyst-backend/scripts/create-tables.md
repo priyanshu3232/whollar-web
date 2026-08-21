@@ -274,9 +274,24 @@ fallback `src/lib/catalog.js` uses whenever the table is missing or empty.
 | `membership_key` | Var Char | 130 | ✅ | ✅ | | **derived**: `` `${campaign_id}:${user_id}` ``: the composite unique, flattened like `auth_identities.provider_key` |
 | `campaign_id` | Var Char | 64 | | ✅ | | catalog slug, e.g. `london-east` |
 | `user_id` | Var Char | 64 | | ✅ | | FK to `users.user_id` (logical) |
-| `status` | Var Char | 16 | | ✅ | | `joined` \| `waitlist` \| `alert` |
+| `status` | Var Char | 16 | | ✅ | | `joined` \| `waitlist` \| `alert`: **a snapshot of the click**, see below |
 | `fsa` | Var Char | 3 | | | | snapshot of `users.fsa` at join time |
 | `joined_at` | DateTime | - | | ✅ | | |
+
+`status` records what joining meant **at the moment it was clicked**:
+`JOIN_STATUS` maps a `forming` cohort to `joined` and a `planned` or `waitlist`
+region to `waitlist`. Nothing rewrites it afterwards. A lifecycle transition
+writes the `campaigns` row alone, and a cohort driven by hand in the Data Store
+never reaches a route at all, so a household that joined a `planned` region
+still reads `waitlist` here long after that region formed and went to auction.
+
+**Do not read this column as the member's standing.** `lib/catalog.js`
+`standingOf(status, campaign)` derives that on every read, and `GET /campaigns`
+sends the derived value as `you`: a `waitlist` row on a cohort past `planned`
+and `waitlist` is a `joined` household. Derived rather than repaired by a write
+for the same reason stage is, and because that is the only version of the fix
+that reaches a cohort moved by hand. `alert` is never promoted: a bell was
+never a join.
 
 Until this table exists, `GET /campaigns` and `GET /provider/campaigns` answer
 with `live: false` and the seed demo counts, the dashboards keep working,

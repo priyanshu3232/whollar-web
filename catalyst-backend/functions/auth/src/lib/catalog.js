@@ -42,6 +42,9 @@ const DATE_COLUMNS = Object.freeze(['announce_at', 'bidding_opens_at', 'bidding_
 /** What joining each kind means. Absent = not joinable. Unchanged semantics. */
 const JOIN_STATUS = Object.freeze({ forming: 'joined', waitlist: 'waitlist', planned: 'waitlist' });
 
+/** Kinds where a membership is a place on a list, not a household in a cohort. */
+const GATHERING = Object.freeze(['planned', 'waitlist']);
+
 /** Slug charset: campaign ids travel in URLs and ZCQL literals. */
 const ID_RE = /^[a-z0-9-]{3,64}$/;
 
@@ -253,6 +256,36 @@ function publicMemberStage(campaign, now = Date.now()) {
   return { stage, stageLabel: MEMBER_STAGE_LABEL[stage], next: nextTransition(campaign, now) };
 }
 
+/* ------------------------------------------------------------------ *
+ * The member's standing: derived on read, for the same reason stage is
+ * ------------------------------------------------------------------ */
+
+/**
+ * What a membership row MEANS now, as against what it meant the day it was
+ * written.
+ *
+ * `campaign_members.status` is a snapshot of JOIN_STATUS taken at click time,
+ * and NOTHING rewrites it when a cohort moves: the transition route writes the
+ * `campaigns` row alone, and a cohort driven by hand in the console never
+ * reaches a route at all. So a household that joined a `planned` region was
+ * still marked `waitlist` after that region formed, locked and went to
+ * auction, and the dashboard reads `waitlist` as a visitor state and hides the
+ * whole member surface. Every such household sat in "your region is gathering"
+ * for the life of the cohort while the one account that happened to join after
+ * the move to `forming` watched the rail advance.
+ *
+ * Derived here rather than repaired by a write for the same three reasons
+ * stageOf is: it is a pure function of (row, campaign), it needs no scheduler
+ * and no fan-out over a table with no joins, and it fixes the hand-written
+ * ZCQL path, which a route-side promotion could never reach.
+ *
+ * A bell ('alert') is never promoted. It was never a join.
+ */
+function standingOf(status, campaign) {
+  if (status !== 'waitlist') return status || null;
+  return GATHERING.includes(campaign && campaign.kind) ? 'waitlist' : 'joined';
+}
+
 /** The next calendar moment a partner is waiting on, for the countdown. */
 function nextTransition(campaign, now = Date.now()) {
   const d = (campaign && campaign.dates) || {};
@@ -322,8 +355,8 @@ async function load(catalystApp, { fresh = false } = {}) {
 module.exports = {
   TABLE, COLUMNS, DATE_COLUMNS, KINDS, JOIN_STATUS, ID_RE, TRANSITIONS, CODE_CATALOG,
   STAGES, STAGE_LABEL, CLOSING_WINDOW_MS,
-  MEMBER_STAGES, MEMBER_STAGE_LABEL,
-  load, invalidate, fromRow, isTruthyDb,
+  MEMBER_STAGES, MEMBER_STAGE_LABEL, GATHERING,
+  load, invalidate, fromRow, isTruthyDb, standingOf,
   stageOf, nextTransition, publicStage,
   memberStageOf, publicMemberStage,
 };

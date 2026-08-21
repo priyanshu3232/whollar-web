@@ -44,8 +44,15 @@ const collect = (page, sink) => {
   page.on('pageerror', e => sink.push(String(e)));
 };
 
-/* A member record shaped like the one whollar-login-consumer.html writes. */
+/* A member record shaped like the one whollar-login-consumer.html writes. A
+   BRAND NEW ACCOUNT: a name and an address and nothing else, which is what
+   signup lands. It has no postal code and no number, so it is on the wrong side
+   of the profile gate, which is the point of group 6o. */
 const REC = { emailKey: 'ada@example.com', email: 'ada@example.com', firstName: 'Ada', lastName: 'Lovelace' };
+/* The same account after the profile gate: an FSA to file a membership under
+   and a number to text. Every group whose subject is NOT the profile gate uses
+   this, because a fixture that trips an unrelated gate tests the gate. */
+const RECFULL = { ...REC, phone: '(416) 555 0134', postal: 'M5S 2J7', fsa: 'M5S', provinceCode: 'ON' };
 
 const DAY = 86400000;
 /* A campaign shaped like publicCampaign() in routes/campaigns.js. */
@@ -316,7 +323,12 @@ console.log('\n6d. the offer panel shows the real winning bid');
   ok(!/54\.50|54\.5/.test(panel), 'and not the hardcoded $54.50');
   ok(/Testline Fibre/.test(panel), 'the partner is the org that bid');
   ok(!/Northline/.test(panel), 'and not the hardcoded Northline Internet');
-  ok(/1 partner bid/.test(panel), `one bid reads as "1 partner bid", singular (${(panel.match(/\d+ partners? bid/) || [])[0]})`);
+  /* The count itself is off the panel now (it invited the household to weigh
+     the offer by it), but the singular still has to be the truth, and it is
+     still what catches the demo constant: bidCount 3 would read "Multiple". */
+  ok(/One partner bid/.test(panel), `one bid reads as "One partner bid", singular`);
+  ok(!/Multiple partners/.test(panel), 'and does not overclaim a field of bidders');
+  ok(!/\d+ partners? bid/.test(panel), 'and no bid count is printed at all');
   await c.close();
 }
 
@@ -392,10 +404,10 @@ console.log('\n6f. an all-auction catalog features the newest cohort');
 
 console.log('\n6g. one forming cohort takes the featured slot back');
 {
-  /* A bill on file, because the join CTA is gated on state 'result': a visitor
-     who has not been through the checkup is offered the checkup, not a cohort.
-     Without it neither card carries the button and the assertion below would
-     be passing for the wrong reason. */
+  /* A bill on file. The CTA no longer NEEDS one (see 6l: a member with nothing
+     on file gets the same button and the checkup gate behind it), so this
+     fixture is here to keep the group about what it is about, which is which
+     cohort is featured, with the state held at 'result' and out of the way. */
   const c = await ctx(browser, {
     bill: { provider: 'Rogers', monthly: 92, promoEnd: '2026-11-01' },
     campaigns: [
@@ -430,6 +442,7 @@ console.log('\n6g. one forming cohort takes the featured slot back');
 console.log('\n6h. the join button names the cohort that was pressed');
 {
   const c = await ctx(browser, {
+    record: RECFULL,
     bill: { provider: 'Rogers', monthly: 92, promoEnd: '2026-11-01' },
     campaigns: [
       camp('etobicoke-centre', 'Etobicoke Centre', 'Winter cohort', { members: 0 }),
@@ -439,7 +452,17 @@ console.log('\n6h. the join button names the cohort that was pressed');
   const p = await c.newPage();
   collect(p, errors);
   await p.goto(`${BASE}/dashboard?cohorts=all`, { waitUntil: 'networkidle' });
-  await p.waitForTimeout(900);
+  /* WAIT FOR THE BILL, not for a stopwatch. ?cohorts=all puts the CTA on every
+     tile from the first paint, and GET /me/bill lands after it, so a click on a
+     fixed timer could fall in the window where the page correctly does not know
+     this member has a bill yet and opens the checkup gate instead of the join.
+     That window is real and the gate is right to be in it; what was wrong was a
+     test racing it. */
+  await p.waitForFunction(() => {
+    try { return !!(JSON.parse(localStorage.getItem('whollar.member') || '{}').bill); }
+    catch { return false; }
+  }, null, { timeout: 6000 });
+  await p.waitForTimeout(300);
 
   /* The second card, which is NOT the featured one. */
   await p.click('#crow [data-choose="kleinburg"]');
@@ -582,6 +605,212 @@ console.log('\n6k. taking the offer is not undone by the next poll');
   await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await p.waitForTimeout(1200);
   ok(/Offer/.test(await pill()), 'after a poll as well');
+  await c.close();
+}
+
+/* THE COHORT WAS REAL, OPEN, JOINABLE AND INVISIBLE. Every join surface was
+   gated on state 'result', so an account created ten seconds ago saw a checkup
+   offer and a row of inert tiles, and nothing it could press. The gate moved:
+   the cohort card and the featured tile are on screen from the first load, and
+   the numbers are asked for on the click instead of before it. */
+console.log('\n6l. a member with no bill sees the cohort, and is asked for their numbers');
+{
+  const c = await ctx(browser, {
+    /* Profile on file, bill missing: the subject here is the CHECKUP gate, and
+       a fixture short of a postal code would open the profile gate in front of
+       it and test that instead. Group 6o owns the case where both are missing. */
+    record: RECFULL,
+    bill: null,
+    campaigns: [
+      camp('etobicoke-centre', 'Etobicoke Centre', 'Winter cohort', { members: 0 }),
+      /* NOT the featured one. Before the gate existed this tile was an inert
+         div, so a member who lives in Kleinburg pressed their own region and
+         the page did nothing at all. */
+      camp('kleinburg', 'Kleinburg', 'Autumn cohort', { members: 0 }),
+      /* Joinable by nobody, so it stays inert and keeps its bell. */
+      camp('scarborough-centre', 'Scarborough Centre', 'Spring cohort',
+        { kind: 'planned', joinable: false, members: 0 }),
+    ],
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  const s = await snapshot(p);
+  ok(s.lane === 'visitor', 'still the visitor lane: no bill is no cohort joined');
+  const lane = await p.locator('#visitor-home').innerText();
+  /* The eyebrow is text-transform:uppercase and innerText reports what is
+     rendered, so this reads it case-insensitively rather than asserting the
+     stylesheet. */
+  ok(/open in your area/i.test(lane), 'the arrive lane carries the cohort card');
+  ok(/Etobicoke Centre/.test(lane), 'and it names the server\'s cohort');
+  ok(await p.locator('#visitor-home a[href^="/bill-checkup"]').count() > 0,
+    'the checkup is still offered alongside it');
+  ok(await p.locator('#visitor-home [data-choose="etobicoke-centre"]').count() > 0,
+    'the card is pressable');
+  ok(await p.locator('#crow [data-choose="etobicoke-centre"]').count() > 0,
+    'and so is the featured tile on the row');
+  ok(await p.locator('#crow [data-choose="kleinburg"]').count() > 0,
+    'and so is every OTHER joinable tile, not just the featured one');
+  ok(await p.locator('#crow [data-choose="scarborough-centre"]').count() === 0,
+    'a cohort nobody can join stays inert, and keeps its bell instead');
+  ok(await p.locator('#crow [data-bell="Scarborough Centre"]').count() > 0,
+    'the bell is still there');
+
+  await p.click('#visitor-home [data-choose="etobicoke-centre"]');
+  await p.waitForSelector('#modal:not([hidden])', { timeout: 4000 });
+  const box = await p.locator('#mbody').innerText();
+  ok(/Your numbers first/.test(box), 'pressing it opens the gate, not the six questions');
+  ok(/Etobicoke Centre/.test(box), `and the gate names the cohort they pressed`);
+  ok(await p.locator('#pf-save').count() === 0, 'the join dialog is NOT behind it');
+  ok(await p.locator('#mbody a[href^="/bill-checkup"]').count() > 0, 'the way out is the checkup');
+  /* HARD GATE: the checkup and the close box, and nothing that joins anyway. */
+  ok(await p.locator('#mbody [data-choose], #mbody [data-join]').count() === 0,
+    'and there is no join-anyway escape');
+  const intent = await p.evaluate(() => localStorage.getItem('whollar.cohort.intent'));
+  ok(/etobicoke-centre/.test(intent || ''), `the cohort is stashed for the trip (${intent})`);
+
+  /* And the tile that was inert before this: same gate, its OWN region named,
+     and the stash follows the press rather than the featured cohort. */
+  await p.click('[data-mclose]');
+  await p.waitForTimeout(200);
+  await p.click('#crow [data-choose="kleinburg"]');
+  await p.waitForSelector('#modal:not([hidden])', { timeout: 4000 });
+  const box2 = await p.locator('#mbody').innerText();
+  ok(/Your numbers first/.test(box2), 'a non-featured tile opens the same gate');
+  ok(/Kleinburg/.test(box2) && !/Etobicoke/.test(box2),
+    'and it names the region that was pressed, not the featured one');
+  const intent2 = await p.evaluate(() => localStorage.getItem('whollar.cohort.intent'));
+  ok(/kleinburg/.test(intent2 || ''), `and the stash follows the press (${intent2})`);
+  await c.close();
+}
+
+console.log('\n6m. the cohort survives the round trip to the checkup');
+{
+  const c = await ctx(browser, {
+    record: RECFULL,
+    bill: { provider: 'Rogers', monthly: 92, promoEnd: '2026-11-01' },
+    campaigns: [
+      camp('etobicoke-centre', 'Etobicoke Centre', 'Winter cohort', { members: 0 }),
+      camp('kleinburg', 'Kleinburg', 'Autumn cohort', { members: 0 }),
+    ],
+  });
+  /* What the gate wrote before sending them to /bill-checkup. The SECOND
+     cohort, so a resume that quietly falls back to the featured one fails. */
+  await c.addInitScript(() => {
+    localStorage.setItem('whollar.cohort.intent', JSON.stringify({ id: 'kleinburg', at: Date.now() }));
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForSelector('#pf-save', { timeout: 6000 });
+  const label = (await p.locator('#pf-save').innerText()).trim();
+  ok(/Kleinburg/.test(label), `coming back with a bill reopens the join on the cohort they chose (${label})`);
+  ok(await p.evaluate(() => localStorage.getItem('whollar.cohort.intent')) === null,
+    'and the stash is spent, so a later visit is not ambushed by it');
+  await c.close();
+}
+
+console.log('\n6n. a stale intent is dropped rather than acted on');
+{
+  const c = await ctx(browser, {
+    bill: { provider: 'Rogers', monthly: 92, promoEnd: '2026-11-01' },
+    /* Gone to auction while they were away: not joinable any more. */
+    campaigns: [camp('kleinburg', 'Kleinburg', 'Autumn cohort',
+      { kind: 'auction', stage: 'bidding', joinable: false, members: 0 })],
+  });
+  await c.addInitScript(() => {
+    localStorage.setItem('whollar.cohort.intent', JSON.stringify({ id: 'kleinburg', at: Date.now() }));
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(1200);
+  ok(await p.locator('#pf-save').count() === 0, 'no dialog offering a cohort that has closed to joins');
+  ok(await p.evaluate(() => localStorage.getItem('whollar.cohort.intent')) === null,
+    'and it is cleared, not left to fire on the next load');
+  await c.close();
+}
+
+/* THE PROFILE GATE. A cohort is shown to an account created a minute ago, which
+   is the point: hiding the product from the person it was built for was the old
+   behaviour and it is not coming back. What the account cannot do yet is JOIN,
+   because a membership row carries the FSA and every join confirmation on the
+   page promises a text, and a brand new account has neither a postal code nor a
+   number. The gate is on the one click that reaches a join.
+
+   The two halves are tested separately on purpose. A gate that never opens and
+   a gate that never closes are the same bug from opposite ends, and only the
+   first one looks broken. */
+console.log('\n6o. a new account sees the cohorts and is asked for two details to join');
+{
+  const c = await ctx(browser, {
+    campaigns: [camp('kleinburg', 'Kleinburg', 'Autumn cohort', { members: 0 })],
+  });
+  /* The route the gate saves through, answering in the shape /me/profile
+     answers in, and holding what it was sent so this can assert the fields
+     actually left the page. */
+  const sent = [];
+  await c.route('**/api/auth/me/profile', r => {
+    sent.push(JSON.parse(r.request().postData() || '{}'));
+    r.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ ok: true, user: { ...REC, userType: 'member', phone: '(416) 555 0134', postal: 'M5S 2J7', fsa: 'M5S' } }),
+    });
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+
+  const cards = await p.locator('#crow .cc').count();
+  ok(cards > 0, `the cohort row is painted for an account with no bill and no profile (${cards} card(s))`);
+
+  await p.click('#crow [data-choose="kleinburg"]');
+  await p.waitForSelector('#pg-save', { timeout: 4000 });
+  const gate = await p.locator('#mbody').innerText();
+  ok(/Two details first/.test(gate), 'pressing a cohort opens the profile gate');
+  ok(/Kleinburg/.test(gate), 'and it names the cohort that was pressed');
+  ok(!/Your numbers first/.test(gate), 'the checkup gate does not jump the queue');
+
+  /* An incomplete postal code is refused in place: the gate exists to collect a
+     usable FSA, and a gate that accepts "M5S" has collected nothing. */
+  await p.fill('#pg-region', 'M5S');
+  await p.fill('#pg-mobile', '4165550134');
+  await p.click('#pg-save');
+  await p.waitForTimeout(250);
+  ok(await p.locator('#pg-err').isVisible(), 'a half-typed postal code is refused, in the dialog');
+  ok(sent.length === 0, 'and nothing was sent');
+
+  await p.fill('#pg-region', 'M5S 2J7');
+  await p.click('#pg-save');
+  await p.waitForSelector('#gate-go', { timeout: 4000 });
+  ok(sent.length === 1, 'a complete answer posts once');
+  ok(sent[0] && sent[0].postalCode === 'M5S 2J7' && /4165550134/.test(String(sent[0].phone).replace(/[^\d]/g, '')),
+    `and sends the postal code and the number (${JSON.stringify(sent[0])})`);
+  const next = await p.locator('#mbody').innerText();
+  ok(/Your numbers first/.test(next), 'then hands straight on to the checkup gate, with no second press');
+  await c.close();
+}
+
+/* And the gate has to stay shut for a member who has already answered, or every
+   join on the site grows a dialog in front of it. */
+console.log('\n6p. a member with a profile and a bill goes straight to the six questions');
+{
+  const c = await ctx(browser, {
+    record: { ...REC, phone: '(416) 555 0134', postal: 'M5S 2J7', fsa: 'M5S' },
+    bill: { provider: 'Rogers', monthly: 92, promoEnd: '2026-11-01' },
+    campaigns: [camp('kleinburg', 'Kleinburg', 'Autumn cohort', { members: 0 })],
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard?cohorts=all`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  await p.click('#crow [data-choose="kleinburg"]');
+  await p.waitForSelector('#pf-save', { timeout: 4000 });
+  const body = await p.locator('#mbody').innerText();
+  ok(!/Two details first/.test(body), 'no profile gate for a member who has both');
+  ok(/Kleinburg/.test(await p.locator('#pf-save').innerText()), 'and the join button names the cohort');
   await c.close();
 }
 
