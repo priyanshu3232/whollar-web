@@ -3801,7 +3801,13 @@ $('#panel').addEventListener('click',function(e){
      screen against the next poll. */
   if(take){S.chosen=take;advance('confirm');go('confirm');return}
   if(act==='backoffers'){ADVANCED=null;go('offers');return}
-  if(act==='invite'){shareRef();return}
+  /* `invite` used to be handled HERE ONLY, on #panel, which is the member lane.
+     rvWaitlist puts the same button in #visitor-home, outside this listener, so
+     the one screen whose whole job is "bring a neighbour to speed your region
+     up" had a button that did nothing at all: no share, no toast, no error.
+     Moved to the document-level handler by the visitor events, which sees both
+     lanes. Do not re-add it here: two listeners on one bubble path would call
+     shareRef twice for every member-lane press. */
   if(t.id==='paydep'){t.disabled=true;t.textContent='Placing deposit\u2026';setTimeout(function(){advance('switching');go('switching');openSavings();toast('Deposit placed: '+dep()+', credited to your first bill.')},reduce?350:900);return}
 });
 $('#panel').addEventListener('change',function(e){
@@ -5844,11 +5850,49 @@ function renderRegions(){
    that landed and the card flips from "arrive" to "result" on its own. */
 document.addEventListener('click',function(e){
   if(e.target.closest('[data-act="whyfree"]')){toast('Providers pay Whollar only when a switch completes. You never pay, and you’re never obligated.');return}
-  if(e.target.closest('[data-act="wnotify"]')){
+  if(e.target.closest('[data-act="invite"]')){shareRef();return}
+  /* THE BELL PROMISED A TEXT AND RECORDED NOTHING.
+     This read the cohort from joinedCamp(), then fell through to a bare toast
+     when there wasn't one. But the loudest place this button appears is
+     openCohortHTML's "nothing open near you yet" card, which renders EXACTLY
+     when no cohort is joinable and (in arrive/result) no membership exists, so
+     joinedCamp() is null there every time. The member was told "Noted, we'll
+     text you the day your region opens" and no row was written anywhere. That
+     card is the default state of any region without a cohort yet.
+     It also reported success on failure: `.then(done,done)` toasted "Noted"
+     when the server had refused.
+     Both halves now mirror the [data-bell] handler, which has always got this
+     right: a real campaign gets an alert row, no campaign falls back to an
+     interest event, and a genuine error says so instead of lying. */
+  var wb=e.target.closest('[data-act="wnotify"]');
+  if(wb){
     var c=joinedCamp();
     var done=function(){toast('Noted. We’ll text you the day '+(c?c.region:'your region')+' opens.')};
-    if(c&&W&&W.session&&W.session.campaignNotify){W.session.campaignNotify(c.id).then(done,done)}else done();
-    return;
+    if(c&&W&&W.session&&W.session.campaignNotify){
+      W.session.campaignNotify(c.id).then(function(r){
+        if(r&&r.campaign)applyCampaign(r.campaign);else if(!c.you)c.you='alert';
+        paintHistory();done();
+      },function(err){
+        /* Offline is not a refusal: the bell stands and the row lands on the
+           next poll, same rule the tile bell follows. */
+        if(offlineish(err)){if(!c.you)c.you='alert';paintHistory();done();return}
+        toast((err&&err.message)||'That didn’t save. Please try again.');
+      });
+      return;
+    }
+    /* No cohort to bell. Record the interest rather than claim an alert that
+       has no campaign to hang on, and say only what actually happened. */
+    if(W&&W.session&&W.session.event){
+      var where=String((MEMBER&&(MEMBER.fsa||MEMBER.postal))||'').trim();
+      W.session.event('interest',{topic:'region-open',fsa:where||null}).then(function(){
+        toast('Noted. We’ll tell you when a cohort opens near you.');
+      },function(err){
+        if(offlineish(err)){toast('Noted. We’ll tell you when a cohort opens near you.');return}
+        toast((err&&err.message)||'That didn’t save. Please try again.');
+      });
+      return;
+    }
+    done();return;
   }
   var ch=e.target.closest('[data-choose]');
   /* Which cohort was chosen has to survive the six questions: the save handler
@@ -6064,11 +6108,17 @@ function resumeIntent(){
   if(RESUMED)return;
   var it=intentRead();
   if(!it||!hasBill()||!CAMPLIVE)return;
+  /* Never over the top of something the member opened themselves. CHECKED
+     BEFORE THE INTENT IS SPENT: this sat below the clear, so a modal open at
+     the moment the bill and the campaign list both landed destroyed the record
+     and latched RESUMED, and the cohort the member went to the checkup for was
+     never offered again. Returning here leaves it for the next poll. */
+  if(!modal.hidden)return;
   RESUMED=true;intentClear();
   var c=campById(it.id);
+  /* Spent deliberately above: a cohort that locked while they were away is a
+     stale intent, and clearing it is the point. */
   if(!c||!c.joinable||c.you==='joined'||c.you==='waitlist')return;
-  /* Never over the top of something the member opened themselves. */
-  if(!modal.hidden)return;
   CHOSEN=it.id;
   /* A bill can land without a profile: the checkup asks for a postal code but a
      member can have run it before this gate existed, or from another device.
