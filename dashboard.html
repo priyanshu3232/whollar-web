@@ -13,7 +13,7 @@
      the visitor is, because a Google sign-in lands here with a cookie and an
      empty localStorage. Synchronous and in the head so the guard at the foot of
      the body can rely on it. -->
-<script src="/js/whollar-core.js?v=20260814b"></script>
+<script src="/js/whollar-core.js?v=20260821a"></script>
 <script src="/js/whollar-select.js?v=20260818"></script>
 <!-- The same savings engine /bill-checkup runs, so the deal signal band states
      the checkup's verdict rather than a second opinion about the same bill.
@@ -3813,19 +3813,25 @@ $('#panel').addEventListener('change',function(e){
    nothing on the page invents one, which is exactly the bug this replaced. */
 var REF=null;
 
+/* One sentence, built once, painted everywhere the card appears: the rail
+   card's #refcount and every .refcnt in a re-rendered visitor tile. Two
+   copies of this text drifted apart once already; one builder is the fix. */
+function refCountText(){
+  if(!REF)return 'Your code is loading…';
+  if(!REF.code)return 'Your code will appear here shortly.';
+  var t;
+  if(!REF.joined)t='Nobody has joined with your code yet. Share your link and this counts them.';
+  else if(REF.joined===1)t='1 person has joined with your code so far.';
+  else t=REF.joined+' people have joined with your code so far.';
+  if(REF.pending)t+=' '+REF.pending+' more started and haven’t confirmed their email yet.';
+  return t;
+}
 function paintReferral(){
   var code=REF&&REF.code;
   var rc=$('#refcode'); if(rc)rc.textContent=code||'WHL-…';
-  var n=$('#refcount');
-  if(n){
-    if(!REF)n.textContent='Your code is loading…';
-    else if(!code)n.textContent='Your code will appear here shortly.';
-    else if(!REF.joined)n.textContent='Nobody has joined with your code yet. Share your link and this counts them.';
-    else if(REF.joined===1)n.textContent='1 person has joined with your code so far.';
-    else n.textContent=REF.joined+' people have joined with your code so far.';
-    if(REF&&REF.pending)n.textContent+=' '+REF.pending+' more started and haven’t confirmed their email yet.';
-  }
+  var n=$('#refcount'); if(n)n.textContent=refCountText();
   $$('.refc').forEach(function(el){el.textContent=code||'WHL-…'});
+  $$('.refcnt').forEach(function(el){el.textContent=refCountText()});
 }
 
 /* The link, not the code, is what gets shared: it survives being pasted into a
@@ -5349,6 +5355,11 @@ function referralHTML(){
   +'<p class="cardnote">Neighbours strengthen the cohort here. Friends anywhere else speed up their own region’s launch. Either way, someone’s bill gets better.</p>'
   +'<div class="codebox"><code class="refc">'+esc(refCode())+'</code><button class="copybtn copyrefc" type="button">Copy</button></div>'
   +'<div class="refacts"><button class="btn ghost sharerefc" type="button">Share your link</button><button class="btn ghost" type="button" data-fbopen>Feedback</button></div>'
+  /* The count was rail-card-only for no reason anyone could defend: a member
+     who has not joined a cohort yet still owns the number their sharing
+     earned, and hiding it read as "tracking is broken". Same source, same
+     text, filled inline on render and repainted when /me/referral lands. */
+  +'<p class="fnote refcnt">'+esc(refCountText())+'</p>'
   +'</section>';
 }
 /* THREE ROWS OF ONE SHAPE, from the same list, in one <ul> so the three articles

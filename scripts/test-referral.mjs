@@ -33,6 +33,7 @@ import { join } from 'node:path';
 import { backend, ROOT } from './backend-module.mjs';
 
 const referral = backend('lib/referral.js');
+const token = backend('lib/token.js');
 
 /** js/whollar-core.js, loaded as a browser would, with a link in the URL. */
 function loadCore(search = '') {
@@ -124,11 +125,26 @@ test('the share link round-trips through capture', () => {
 });
 
 test('server and browser normalise identically', () => {
+  // Tokens joined the legacy inputs when the browser learned the form: the
+  // display form, the bare form, a lowercase paste, a corrupted check char,
+  // and the all-hex string that passes the checksum but must read as legacy.
+  const t = token.generate();
+  const tokenInputs = [
+    t, t.slice(0, 4) + '-' + t.slice(4), t.toLowerCase(), ` ${t} `,
+    t.slice(0, 7) + (t[7] === 'X' ? 'Y' : 'X'), // bad check char: null on both sides
+    '00000000', // checksums as a token, minted never, legacy always
+  ];
   const W = loadCore('');
-  for (const input of INPUTS) {
+  for (const input of INPUTS.concat(tokenInputs)) {
     assert.equal(
       W.referral.normalize(input), referral.normalize(input),
       `browser and server disagree on ${JSON.stringify(input)}`
     );
   }
+});
+
+test('a token share link banks like a legacy one', () => {
+  const t = token.generate();
+  const W = loadCore('?ref=' + t.slice(0, 4).toLowerCase() + '-' + t.slice(4).toLowerCase());
+  assert.equal(W.referral.pending(), t, 'the banked form must be the stored form');
 });

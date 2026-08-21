@@ -1328,9 +1328,55 @@
   W.REF_KEY = 'whollar.ref';
   W.REF_TTL_MS = 60 * 24 * 60 * 60 * 1000;
 
-  /** `WHL-3F9A2C1D` from any form a link or a human produces, or null. */
+  /* The opaque token: 7 characters of a 30-symbol alphabet plus a mod-31
+   * check character, weights 2..8. This is a MIRROR of the server's
+   * lib/token.js, and scripts/test-referral.mjs asserts the two agree on
+   * every input, because the count is an exact string match between what
+   * this banks and what the server stores: a character of disagreement
+   * makes referrals silently count as zero. Change either side, run that
+   * test. */
+  var TOKEN_PAYLOAD = '0123456789BCDFGHJKMNPQRSTVWXYZ'; // 30 symbols, no A E I L O U
+  var TOKEN_CHECK = TOKEN_PAYLOAD + 'A';                // 31, prime, and prime matters
+
+  function tokenCheckChar(payload) {
+    var sum = 0;
+    for (var i = 0; i < 7; i++) {
+      var v = TOKEN_PAYLOAD.indexOf(payload.charAt(i));
+      if (v < 0) return null;
+      sum += v * (i + 2);
+    }
+    return TOKEN_CHECK.charAt(sum % 31);
+  }
+
+  /** Canonical 8-character token from whatever a human produced, or null.
+   *  Crockford leniency, same as the server: case, separators, O for 0,
+   *  I and L for 1 are all forgiven; a failed checksum is not. */
+  function normalizeToken(input) {
+    var st = String(input == null ? '' : input)
+      .toUpperCase()
+      .replace(/[\s\-_.]/g, '')
+      .replace(/O/g, '0')
+      .replace(/[IL]/g, '1');
+    if (st.length !== 8) return null;
+    var payload = st.slice(0, 7), check = st.charAt(7);
+    if (!/^[0-9BCDFGHJKMNPQRSTVWXYZ]{7}$/.test(payload)) return null;
+    if (TOKEN_CHECK.indexOf(check) < 0) return null;
+    return tokenCheckChar(payload) === check ? st : null;
+  }
+
+  /** `WHL-3F9A2C1D` or `K7MQT4WB` from any form a link or a human produces,
+   *  or null. The routing rule is the server's, verbatim: anything carrying
+   *  `whl` is legacy; eight bare hex characters are ALWAYS legacy (the server
+   *  never mints an all-hex token, precisely so this line can exist); anything
+   *  else is tried as a token by checksum, then as a trailing-8-hex legacy
+   *  core. */
   function normalizeRef(input) {
-    var flat = String(input == null ? '' : input).toLowerCase().replace(/[^0-9a-z]/g, '');
+    var raw = String(input == null ? '' : input);
+    if (!/whl/i.test(raw)) {
+      var t = normalizeToken(raw);
+      if (t && !/^[0-9A-F]{8}$/.test(t)) return t;
+    }
+    var flat = raw.toLowerCase().replace(/[^0-9a-z]/g, '');
     if (flat.length < 8) return null;
     var tail = flat.slice(-8);
     return /^[0-9a-f]{8}$/.test(tail) ? 'WHL-' + tail.toUpperCase() : null;
