@@ -59,6 +59,19 @@
       ]
     },
     {
+      "source": "/r/(.*)",
+      "headers": [
+        {
+          "key": "x-vercel-enable-rewrite-caching",
+          "value": "0"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    },
+    {
       "source": "/api/auth/(.*)",
       "headers": [
         {
@@ -73,6 +86,10 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/r/:token",
+      "destination": "https://whollar-110003037934.development.catalystserverless.ca/server/auth/r/:token"
+    },
     {
       "source": "/api/auth/:path*",
       "destination": "https://whollar-110003037934.development.catalystserverless.ca/server/auth/:path*"

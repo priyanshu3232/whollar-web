@@ -42,6 +42,7 @@ const deliveryRoutes = require('./routes/delivery');
 const billingRoutes = require('./routes/billing');
 const adminRoutes = require('./routes/admin');
 const publicRoutes = require('./routes/public');
+const shareRoutes = require('./routes/share');
 
 /**
  * Strip anything address-shaped out of a provider error before it is returned.
@@ -251,6 +252,7 @@ function buildApp(cfg) {
   // Mounts nothing unless the `admin` config group is set: see routes/admin.js.
   adminRoutes.mount(router, cfg);
   publicRoutes.mount(router);
+  shareRoutes.mount(router);
 
   /**
    * Schema + request-shape diagnostics.

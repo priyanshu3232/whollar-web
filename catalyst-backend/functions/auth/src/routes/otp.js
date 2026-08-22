@@ -23,6 +23,7 @@ const mailer = require('../lib/mailer');
 const audit = require('../lib/audit');
 const ratelimit = require('../lib/ratelimit');
 const referral = require('../lib/referral');
+const share = require('./share');
 const datastore = require('../lib/datastore');
 
 /**
@@ -175,7 +176,15 @@ function mount(router, cfg) {
        * account may already have. Best-effort: an unattributed referral is not
        * worth failing a sign-in that has already succeeded.
        */
-      const code = referral.normalize(req.body && req.body.referralCode);
+      /* Two lanes, body first. The body carries whatever the client had: a
+       * typed code, or the ?ref= parameter whollar-core banked in localStorage.
+       * The cookie is the fallback lane for the visitor whose storage did not
+       * survive the trip: set HttpOnly by GET /r/:token, readable only here.
+       * Body wins because a typed code is an explicit human statement and the
+       * cookie is an inference. */
+      const typed = referral.normalize(req.body && req.body.referralCode);
+      const banked = typed ? null : share.readRefCookie(req);
+      const code = typed || banked;
       if (code && !user.referral_code) {
         const owner = await referral.resolve(req.catalyst, code);
         if (!owner || owner.email_normalized !== email) {
@@ -184,9 +193,23 @@ function mount(router, cfg) {
               ROWID: user.ROWID, referral_code: code,
             });
             user.referral_code = code;
+            /* The carrier, in its own guarded write: users.referral_carrier
+             * (create-tables.md 24b) may not exist yet, and a missing column
+             * fails the whole update it rides in, which must never cost the
+             * attribution itself. */
+            try {
+              await datastore.updateRow(req.catalyst, users.USERS, {
+                ROWID: user.ROWID,
+                referral_carrier: typed ? 'typed_code' : 'link_cookie',
+              });
+            } catch { /* column not provisioned yet */ }
           } catch { /* the session matters more than the attribution */ }
         }
       }
+      /* Spent, suppressed as self-referral, or the account already carries an
+       * attribution: in every case the cookie has nothing left to say, and an
+       * expired cookie cannot be replayed onto some other account later. */
+      if (share.readRefCookie(req)) share.clearRefCookie(req, res);
     }
 
     await users.touchLastLogin(req.catalyst, user);

@@ -209,13 +209,16 @@ function mount(router) {
 
     /* The member's opaque token, minted lazily here for accounts that predate
      * the `referral_token` table: this read IS the backfill, no migration
-     * script exists. Not yet in the response, the dashboard still shows the
-     * legacy code until the resolver ships, but arrivals who typed the token
-     * are already stored under it, so it joins the count today. */
+     * script exists. In the response since the share sheet shipped: the
+     * dashboard hands out the token wherever one exists, because the legacy
+     * code is a literal prefix of the member's UUID and the token discloses
+     * nothing. `token` is null until the referral_token table is provisioned,
+     * and the client falls back to the legacy code, so nothing waits on the
+     * console. */
     const shareToken = await referral.tokenFor(catalyst(req), user);
     const count = await referral.countFor(catalyst(req), [code, shareToken], user.user_id);
 
-    res.status(200).json({ ok: true, code, joined: count.joined, pending: count.pending });
+    res.status(200).json({ ok: true, code, token: shareToken || null, joined: count.joined, pending: count.pending });
   }));
 
   /**

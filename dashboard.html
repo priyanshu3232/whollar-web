@@ -628,6 +628,66 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .camp__head h3{font-size:clamp(20px,2.7vw,25px);font-weight:800}
 .camp__head .sub{font-size:13px;color:var(--sub);margin-top:2px}
 .statepill{margin-left:auto;font-size:12.5px;font-weight:700;padding:6px 14px 6px 12px;border-radius:999px;background:var(--mint);color:var(--accent-deep);border:1px solid #CBDCC9;white-space:nowrap}
+/* ---------- cohort share: the header control and the sheet ----------
+   The icon lives in the card header because the cohort name is the object
+   being shared, and the footer action zone is replaced wholesale at every
+   stage. It is inserted and REMOVED by script per stage rather than hidden:
+   a cohort that did not fill must not carry a share control in the DOM at
+   all, because a member has nothing honest to advertise about it.
+
+   Never terracotta. --terra is the primary commit action's colour, and a
+   share control that looks like a commit action is a misread waiting to
+   happen. Accent at the two stages where growing the roster is the product,
+   the muted ink everywhere else. */
+.shareic{width:36px;height:36px;border-radius:10px;display:inline-grid;place-items:center;color:var(--sub);background:transparent;transition:background .15s,color .15s;flex:none;margin-left:auto}
+.shareic.open{color:var(--accent)}
+.shareic:hover{background:var(--mint)}
+.shareic svg{width:20px;height:20px;display:block}
+.shareic+.statepill{margin-left:0}
+/* The panel's invite button, forming and closing only: a full-width ghost,
+   never a second terracotta on one panel. */
+.shinvite{display:flex;width:100%;justify-content:center;align-items:center;gap:8px}
+.shinvite .shglyph{width:16px;height:16px;flex:none}
+/* The sheet. z-index 65: above the demo controls (60), below the toast (70),
+   so a copy confirmation is visible over the open sheet. */
+.shs{position:fixed;inset:0;z-index:65;display:grid;place-items:center;padding:20px}
+.shs[hidden]{display:none}
+.shs__scrim{position:absolute;inset:0;background:rgba(19,28,23,.42)}
+.shs__box{position:relative;width:100%;max-width:480px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:0 16px 40px rgba(26,37,32,.14);opacity:0;transform:translateY(8px);transition:opacity 180ms cubic-bezier(.2,.8,.2,1),transform 180ms cubic-bezier(.2,.8,.2,1)}
+.shs.in .shs__box{opacity:1;transform:none}
+.shs__grab{display:none}
+.shs__x{position:absolute;top:6px;right:6px;width:44px;height:44px;display:grid;place-items:center;color:var(--sub);font-size:20px;line-height:1;border-radius:12px}
+.shs__x:hover{background:var(--mint);color:var(--ink)}
+.shchip{margin-top:6px;padding-right:40px}
+.shchip b{display:block;font-family:var(--disp);font-weight:700;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shchip span{font-size:13px;color:var(--sub)}
+/* The preview is the compliance control, not decoration: the member sees
+   precisely what goes out before it goes out. */
+.shprev{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:12px;font-size:13.5px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.shprev .u{display:block;font-family:var(--mono);font-size:13px;margin-top:8px;word-break:break-all;color:var(--accent-deep)}
+.shrow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.shch{border:1px solid var(--line);border-radius:12px;padding:10px 6px;display:grid;justify-items:center;gap:6px;font-size:12px;color:var(--sub);background:transparent;text-align:center;transition:background .15s}
+.shch:hover{background:var(--mint)}
+.shch svg{width:20px;height:20px;color:var(--accent-deep)}
+.shcode{display:flex;align-items:center;gap:10px;margin-top:16px}
+.shcode code{flex:1;font-family:var(--mono);font-size:14px;letter-spacing:.08em;text-transform:uppercase;background:var(--paper);border:1px dashed var(--line);border-radius:10px;padding:9px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shsub{font-size:12.5px;color:var(--sub);margin-top:8px;line-height:1.5}
+.shman{margin-top:12px}
+.shman input{width:100%;font-family:var(--mono);font-size:12.5px;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#fff;color:var(--ink)}
+.shman p{font-size:12.5px;color:var(--sub);margin-top:6px}
+@media(prefers-reduced-motion:reduce){.shs__box{transition:opacity 90ms linear;transform:none}}
+@media(max-width:768px){
+  .shareic{width:44px;height:44px}
+  .shrow{grid-template-columns:1fr 1fr}
+  .shch{min-height:44px}
+}
+/* 430 and under: a bottom sheet, because the thumb is at the bottom of the
+   screen and a centred modal on a phone is a reach problem. */
+@media(max-width:430px){
+  .shs{place-items:end stretch;padding:0}
+  .shs__box{max-width:none;border-radius:20px 20px 0 0;border-bottom:0;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateY(16px)}
+  .shs__grab{display:block;width:44px;height:4px;border-radius:999px;background:var(--line);margin:0 auto 12px}
+}
 .statepill::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:7px}
 .statepill.warm{background:var(--terra-soft);color:#8C4622;border-color:#E7CFB9}
 .rail{position:relative;display:flex;justify-content:space-between;margin:4px 2px 24px;overflow-x:auto;padding:4px 2px 2px}
@@ -1322,6 +1382,70 @@ body.npopen{overflow:hidden}
 .inv-cap{font-size:10.5px;color:#949E95;text-align:center;margin-top:9px;line-height:1.5}
 @media (max-width:760px){.arr2{grid-template-columns:1fr}}
 @media (max-width:640px){.duo{grid-template-columns:1fr}}
+/* ---------- cohort seats: ledger, notice band, sheets ---------- */
+.seatledger{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  border:1px solid var(--line);border-radius:13px;background:#fff;padding:11px 15px;margin:14px 0 2px}
+.seatledger[hidden]{display:none}
+.sl__left{display:flex;align-items:flex-start;gap:10px;min-width:0}
+.sl__dot{width:9px;height:9px;border-radius:50%;background:var(--accent);margin-top:6px;flex-shrink:0}
+.sl__dot.is-locked{background:#B9A88C}
+.sl__lines b{display:block;font-family:var(--disp);font-size:15px;font-weight:700;letter-spacing:-.01em;color:var(--ink)}
+.sl__lines .m{display:block;font-family:var(--mono);font-size:11px;color:var(--sub);margin-top:3px}
+.sl__right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.sl__leave{background:none;border:0;padding:0;cursor:pointer;font:inherit;font-size:13.5px;font-weight:600;
+  color:var(--terra);display:inline-flex;align-items:center;gap:6px}
+.sl__leave:hover{color:#96421F;text-decoration:underline}
+.sl__leave svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sl__chip{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;color:#96421F;background:var(--terra-soft);
+  border:1px solid #E7CFB9;border-radius:999px;padding:4px 10px;white-space:nowrap}
+.sl__note{font-size:13px;color:var(--sub);margin:2px 0 0}
+.sl__note .tlink{font-size:inherit}
+.seatnotice{border:1px solid #E7CFB9;background:linear-gradient(180deg,#fff 0%,var(--terra-soft) 160%);
+  border-radius:13px;padding:13px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:space-between}
+.seatnotice[hidden]{display:none}
+.seatnotice b{font-family:var(--disp);font-weight:700;color:var(--ink)}
+.seatnotice p{margin:2px 0 0;font-size:13.5px;color:var(--sub)}
+/* The sheets. Same skeleton as the share sheet: scrim, dialog, trap. */
+.sxs{position:fixed;inset:0;z-index:90;display:none}
+.sxs.is-open{display:block}
+.sxs__scrim{position:absolute;inset:0;background:rgba(10,32,24,.45);opacity:0;transition:opacity .18s ease}
+.sxs__box{position:absolute;left:50%;top:50%;transform:translate(-50%,-48%) scale(.97);opacity:0;
+  transition:transform .2s ease,opacity .2s ease;width:min(530px,calc(100vw - 32px));max-height:calc(100vh - 48px);
+  overflow:auto;background:#fff;border-radius:18px;box-shadow:0 30px 80px -20px rgba(8,42,36,.45);padding:22px 24px}
+.sxs.in .sxs__scrim{opacity:1}
+.sxs.in .sxs__box{transform:translate(-50%,-50%) scale(1);opacity:1}
+.sxs__eyebrow{display:block;font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--terra);margin-bottom:8px}
+.sxs__box h3{font-family:var(--disp);font-size:21px;font-weight:800;letter-spacing:-.02em;color:var(--ink);margin:0 0 8px}
+.sxs__lede{font-size:14px;color:var(--sub);margin:0 0 14px}
+.sxs__x{position:absolute;top:14px;right:14px;background:none;border:0;cursor:pointer;font-size:20px;
+  line-height:1;color:var(--sub);padding:6px}
+.sxs__list{list-style:none;margin:0 0 16px;padding:0;display:grid;gap:9px}
+.sxs__list li{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--ink);line-height:1.45}
+.sxs__list svg{width:16px;height:16px;flex-shrink:0;margin-top:2px;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.sxs__list .keep svg{stroke:var(--accent)}
+.sxs__list .lose svg{stroke:var(--terra)}
+.sxs__why{font-size:12.5px;color:var(--sub);margin:0 0 10px}
+.sxs__chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+.sxs__chip{font:inherit;font-size:12.5px;font-weight:600;color:var(--ink);background:#fff;border:1.5px solid #C9C3B2;
+  border-radius:999px;padding:6px 13px;cursor:pointer}
+.sxs__chip[aria-pressed="true"]{border-color:var(--accent);background:var(--mint);color:var(--accent-deep)}
+.sxs__actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px}
+.sxs__foot{font-size:12px;color:var(--sub);margin:14px 0 0;text-align:center}
+.sxs__swap{display:flex;align-items:stretch;gap:10px;margin:0 0 16px}
+.sxs__seat{flex:1;border-radius:13px;padding:11px 13px;border:1.5px solid var(--accent);background:linear-gradient(180deg,#fff 0%,var(--mint) 170%)}
+.sxs__seat.is-target{border-color:var(--terra);background:linear-gradient(180deg,#fff 0%,var(--terra-soft) 170%)}
+.sxs__seat b{display:block;font-family:var(--disp);font-size:14px;font-weight:700;color:var(--ink)}
+.sxs__seat .m{display:block;font-family:var(--mono);font-size:10.5px;color:var(--sub);margin-top:3px;text-transform:uppercase;letter-spacing:.06em}
+.sxs__arrow{align-self:center;color:var(--sub);flex-shrink:0}
+@media(max-width:480px){.sxs__swap{flex-direction:column}.sxs__arrow{transform:rotate(90deg);align-self:center}}
+.sxs button:focus-visible,.sxs [tabindex]:focus-visible,.sl__leave:focus-visible,.seatnotice button:focus-visible{
+  outline:2.5px solid var(--accent);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){
+  .sxs__scrim,.sxs__box{transition:none}
+  .sxs__box{transform:translate(-50%,-50%) scale(1)}
+}
+.cc--next{box-shadow:inset 0 0 0 1.5px var(--terra)}
 </style>
 </head>
 <body>
@@ -1481,6 +1605,9 @@ body.npopen{overflow:hidden}
                offer at the top of this stack, so a card that comes and goes by
                state joins the sequence instead of being placed by hand. -->
           <div class="mcol is-main">
+          <!-- After a leave: the way back. Painted by paintSeatNotice(), gone
+               the moment the member holds a seat again. -->
+          <div class="seatnotice" id="seatnotice" hidden></div>
           <!-- campaign card -->
           <section class="card" aria-label="Your campaign">
             <div class="camp__head">
@@ -1504,6 +1631,11 @@ body.npopen{overflow:hidden}
               <span class="rn" role="listitem"><i></i><span>Switching</span></span>
               <span class="rn" role="listitem"><i></i><span>Done</span></span>
             </div>
+            <!-- The seat ledger: the member's hold on this cohort and the one
+                 action the server says is available. aria-live so a count
+                 change or an affordance swap is announced. Painted by
+                 paintSeatLedger(); hidden until there is a seat to describe. -->
+            <div class="seatledger" id="seatledger" aria-live="polite" hidden></div>
             <div class="panel" id="panel" aria-live="polite"></div>
             <div class="tl">
               <h4>Your dates</h4>
@@ -4101,6 +4233,15 @@ function offlineish(err){return !err||err.code==='NETWORK'||err.status===404}
 function doJoin(id,btn){
   var c=campById(id);if(!c||!c.joinable)return;
   if(c.you==='joined'||c.you==='waitlist')return;
+  /* Forming cohorts go through the seat claim so one address can never hold
+     two. Anything else (waitlist, planned) is a place on a list, not a seat,
+     and keeps the original path. So does everything if the seat routes are
+     not deployed yet: seatJoin falls back into this legacy body. */
+  if(c.kind==='forming'&&!SEATBROKEN){seatJoin(c,btn);return}
+  doJoinLegacy(id,btn);
+}
+function doJoinLegacy(id,btn){
+  var c=campById(id);if(!c||!c.joinable)return;
   if(btn){btn.disabled=true;btn.textContent=c.kind==='forming'?'Joining…':'Adding you…'}
   var localApply=function(){c.you=c.kind==='forming'?'joined':'waitlist';c.members++;c.households++};
   var doneToast=function(){
@@ -4132,7 +4273,15 @@ document.addEventListener('click',function(e){
   var j=e.target.closest('[data-join]');
   if(j){doJoin(j.getAttribute('data-join'),j);return}
   var l=e.target.closest('[data-leave]');
-  if(l){doLeave(l.getAttribute('data-leave'));return}
+  if(l){
+    var lid=l.getAttribute('data-leave');
+    var lc=campById(lid);
+    /* A forming-cohort seat leaves through the exit sheet, which names what is
+       lost and what is kept. A waitlist row is not a seat; the plain path
+       stays. */
+    if(lc&&lc.kind==='forming'&&lc.you==='joined'){seatExitOpen(lid);return}
+    doLeave(lid);return;
+  }
 });
 /* No handler for the contact tile: "Email us" and "Send us a message" are
    plain anchors, and the "Text us" button they used to sit beside is gone. */
@@ -5782,9 +5931,15 @@ function campsRanked(){
 function ccCard(c,feat,ids){
   var mine=c.you==='joined'||c.you==='waitlist';
   var b=CCBADGE[c.kind]||CCBADGE.planned;
+  /* R5: the conflict is surfaced BEFORE the tap. A member holding a seat sees
+     every other open cohort labelled for what pressing it means: a move, not
+     a join. The sheet that opens on the tap is the second line of defence. */
+  var heldElsewhere=c.joinable&&!mine&&seatHeldId()&&seatHeldId()!==c.id;
   var badge=mine
     ? '<span class="badge live">Your cohort · '+esc(PILL[S.state]||'In play')+'</span>'
-    : '<span class="badge '+b[0]+'">'+esc(b[1])+'</span>';
+    : heldElsewhere
+      ? '<span class="badge">You hold another seat · Move here</span>'
+      : '<span class="badge '+b[0]+'">'+esc(b[1])+'</span>';
   /* A bell belongs on a cohort nobody can join yet. On one at auction it would
      offer to text the member about a window that has already shut. */
   var bell=(!mine&&!c.joinable&&c.kind!=='auction'&&c.kind!=='closed'&&c.region)
@@ -5835,9 +5990,12 @@ function ccCard(c,feat,ids){
      cohorts and not four regions from the markup, which is the whole point of
      the rewrite. */
   var mark=(ids&&c===feat);
+  /* After a two-step leave, the intended target card is promoted so the
+     second step is unmissable. Terracotta trim, cleared on the next hold. */
+  var next=(typeof SEATTARGET!=='undefined'&&SEATTARGET===c.id&&!mine)?' cc--next':'';
   var open=choose
-    ? '<button class="cc" type="button" data-choose="'+esc(c.id)+'"'+(mark?' id="cc-first"':'')+'>'
-    : '<div class="cc"'+(mark?' id="cc-first"':'')+'>';
+    ? '<button class="cc'+next+'" type="button" data-choose="'+esc(c.id)+'"'+(mark?' id="cc-first"':'')+'>'
+    : '<div class="cc'+next+'"'+(mark?' id="cc-first"':'')+'>';
   return open+badge+bell+ccArt(c)
    +'<span class="cc__b"'+(mark?' id="regmono"':'')+'><b>'+esc(c.region||c.id)+'</b>'
    +'<span class="m">'+esc(ccSub(c))+'</span></span>'
@@ -5923,6 +6081,12 @@ document.addEventListener('click',function(e){
      matter which card the member pressed. */
   if(ch){
     CHOSEN=ch.getAttribute('data-choose')||null;
+    /* ONE COHORT AT A TIME. A member holding a seat who presses a different
+       cohort is not silently switched and not silently refused: the conflict
+       sheet names both cohorts and offers the one-step move. The server is
+       the second line of defence (409 SEAT_HELD); this is the first. */
+    var heldNow=seatHeldId();
+    if(heldNow&&CHOSEN&&CHOSEN!==heldNow){seatConflictOpen(CHOSEN);return}
     /* PROFILE FIRST, then the numbers. Two gates in a row is one dialog too
        many, and this is the order that avoids it: the profile gate saves in
        place and hands straight on to joinNext(), so a member missing both
@@ -6489,6 +6653,970 @@ if(W&&W.session&&W.session.campaignsList){
     if(!document.hidden)pullCampaigns().then(schedule,schedule);
   });
 }
+
+/* ================= cohort share: control, sheet, copy engine =================
+   Ported conventions, not new ones: later function declarations override the
+   earlier ones by hoisting (the same rule the v10/v12 ports lean on), and
+   render() is wrapped rather than edited, the way renderOverviewBits is in the
+   provider console.
+
+   WHAT THIS REPLACES. shareRef() was one hardcoded sentence for every stage.
+   Share copy is a function of stage now, from a keyed string table so a French
+   variant for Quebec cohorts is a data change and not a code change.
+
+   PROMINENCE TRACKS STAGE, INVERSELY TO THE ROSTER GATE. At forming and
+   closing, growing the roster is the product: the header icon is joined by a
+   full-width ghost button in the panel. From locked onward the roster is
+   fixed, so only the quiet header icon remains. At short there is NO control
+   in the DOM at all: a member has nothing honest to advertise about a cohort
+   that did not fill.
+
+   THE GESTURE RULE. navigator.share() must run inside the click's own task:
+   an await before it consumes the gesture and iOS Safari throws
+   NotAllowedError. So the payload is PREFETCHED (rebuilt on every render and
+   whenever the referral answer lands) and the click handler reads it from
+   cache synchronously. There is no await and no fetch anywhere before the
+   navigator.share() call below.
+
+   NO DOLLAR FIGURE ENTERS THE SHARE TEXT. Prices are never published, only
+   the method. A member broadcasting a rate hands live intelligence to
+   incumbents and makes a promise the recipient's own address cannot honour.
+   And no invented incentive either: there is no discount, so the referral
+   line says what the code actually does, which is count toward the cohort. */
+
+var SHARE_SVG=function(px){
+  /* Three household nodes converging, the Y-mark's construction: glyph only,
+     no container, currentColor so it inherits the stage colour. */
+  return '<svg class="shglyph" width="'+px+'" height="'+px+'" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'
+  +'<circle cx="4.8" cy="10" r="2.5"/><circle cx="15.2" cy="4.4" r="2.5"/><circle cx="15.2" cy="15.6" r="2.5"/>'
+  +'<path d="M7.1 8.8l5.8-3.1M7.1 11.2l5.8 3.1"/></svg>';
+};
+
+/* Every member-facing string, keyed for a locale. {cohortName} {regionName}
+   {CODE} are the only slots. The verb in line 2 is what the code DOES, never
+   what the recipient gets: there is no discount and inventing one is worse
+   than having none, because the first thing a recipient does is look for it. */
+var SHARE_STR={en:{
+  open:{
+    eyebrow:'Share this cohort',
+    line1:'I joined the {cohortName} cohort on Whollar. Households in one area pool together and internet providers put in sealed bids for the whole block. It is free to join and you can pass on any offer.',
+    subject:'A cohort forming in {regionName}'
+  },
+  sealed:{
+    eyebrow:'Share the next round',
+    line1:'My cohort in {regionName} is closed and founding partners are bidding on it now. The next one is forming and you can get in on that.',
+    subject:'A cohort forming in {regionName}'
+  },
+  result:{
+    eyebrow:'Share the next round',
+    line1:'My {regionName} cohort got its sealed bid back. I saw my own before and after and I could have walked away for nothing. The next round is forming now.',
+    subject:'A cohort forming in {regionName}'
+  },
+  done:{
+    eyebrow:'Share the next round',
+    line1:'I switched through a Whollar cohort in {regionName}. Households pool by area and renewal timing, founding partners bid sealed for the whole block, and you see your own numbers before you decide.',
+    subject:'How my internet switch went'
+  },
+  nocohort:{
+    /* The base message, the user's own words: every share without a cohort to
+       point at says this, and the stage variants above are refinements of it. */
+    eyebrow:'Share your link',
+    line1:'People in your area are switching to Whollar to get transparent rates and better convenience. What’s your reason? Join today and find out how much you are overpaying for your internet service and start saving now.',
+    subject:'A cohort forming near you'
+  },
+  line2:'Use my code {CODE} when you sign up so it counts toward our cohort.',
+  refsub:'Every household your code brings in makes the cohort bigger, and a bigger cohort gets a sharper bid.',
+  moved:'This cohort moved on, so the share text was refreshed.',
+  manual:'Select the link above and copy it by hand: Ctrl+C, or Cmd+C on a Mac.'
+}};
+
+/* Stage to copy group. `short` is ABSENT on purpose: no group, no control.
+   The three visitor states share the no-cohort framing, which is what the
+   waitlist screen's own invite button needs. */
+var SHARE_GROUP={forming:'open',closing:'open',locked:'sealed',bidding:'sealed',
+  offers:'result',confirm:'result',switching:'result',
+  done:'done',passed:'done',
+  arrive:'nocohort',result:'nocohort',waitlist:'nocohort'};
+
+function shareFill(str,vars){
+  return str.replace(/\{(cohortName|regionName|CODE)\}/g,function(m,k){return vars[k]||''});
+}
+
+/* The cohort being talked about. Live from the campaigns answer when there is
+   one; the demo tour's fixture cohort otherwise, and null outside both, which
+   is the no-cohort framing. */
+function shareCohort(){
+  /* The name slots into "the {cohortName} cohort", so a sub that already says
+     the word sheds it: "Autumn cohort" contributes "Autumn", and the London
+     East Autumn cohort is never the Autumn cohort cohort. */
+  var c=(typeof CAMPLIVE!=='undefined'&&CAMPLIVE)?joinedCamp():null;
+  var join=function(region,sub){
+    var tail=sub?String(sub).replace(/\s*cohorts?\s*$/i,''):'';
+    return region+(tail?' '+tail:'');
+  };
+  if(c)return {id:c.id||null,region:c.region||'',name:join(c.region||'',c.sub)};
+  if(typeof DEMO!=='undefined'&&DEMO&&VIS.indexOf(S.state)<0)
+    return {id:null,region:'London East',name:'London East Autumn'};
+  return null;
+}
+
+/* The raw code a link carries: the opaque token when the account has one,
+   the legacy WHL code otherwise, null while the referral answer is still in
+   flight or if the mint failed. A null code NEVER blocks a share: the payload
+   falls back to a cohort-only URL and simply omits line 2. */
+function shareCodeRaw(){
+  if(!REF)return null;
+  return REF.token||REF.code||null;
+}
+/* K7MQT4WB -> K7MQ-T4WB for human eyes; the hyphen is display only and the
+   server's normalizer forgives it. Legacy WHL codes already read fine. */
+function shareCodeShown(){
+  var c=shareCodeRaw();
+  if(!c)return null;
+  return (c.length===8&&c.indexOf('-')<0)?c.slice(0,4)+'-'+c.slice(4):c;
+}
+
+function sharePayload(){
+  var g=SHARE_GROUP[S.state];
+  if(!g)return null;
+  var c=shareCohort()||{id:null,region:'your area',name:'your area'};
+  if(g!=='nocohort'&&!shareCohort())g='nocohort';
+  var t=SHARE_STR.en, str=t[g];
+  var raw=shareCodeRaw(), shown=shareCodeShown();
+  var origin=location.origin;
+  var shortUrl=raw?origin+'/r/'+encodeURIComponent(raw):origin+'/waitlist/';
+  var url=raw?origin+'/waitlist/?ref='+encodeURIComponent(raw):origin+'/waitlist/';
+  var vars={cohortName:c.name,regionName:c.region,CODE:shown||''};
+  var line1=shareFill(str.line1,vars);
+  var line2=raw?shareFill(t.line2,vars):'';
+  var body=line2?line1+'\n\n'+line2:line1;
+  /* SMS: 140 characters including the URL. First sentence only, and if even
+     that runs long against the URL, the sentence gives way, never the URL. */
+  var first=line1.split('. ')[0]+'.';
+  var room=140-(shortUrl.length+1);
+  if(first.length>room)first=first.slice(0,Math.max(0,room-1)).replace(/\s+\S*$/,'')+'…';
+  var sms=first+' '+shortUrl;
+  return {group:g,eyebrow:str.eyebrow,title:'Whollar',
+    line1:line1,line2:line2,body:body,url:url,shortUrl:shortUrl,sms:sms,
+    subject:shareFill(str.subject,vars),code:shown,codeRaw:raw,
+    cohortId:c.id,name:c.name,region:c.region,
+    stageLabel:(typeof PILL!=='undefined'&&PILL[S.state])||S.state};
+}
+
+var WhollarShare=(function(){
+  var cached=null;         /* the prefetched payload the click handler reads */
+  var sheet=null,box=null; /* one sheet for the whole view, never one per card */
+  var openGroup=null,trigger=null,shownFor=null;
+
+  function track(event,props){
+    try{
+      var b=props||{};b.event=event;
+      fetch('/api/auth/share/event',{method:'POST',credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(b),keepalive:true}).catch(function(){});
+    }catch(e){/* telemetry never breaks a share */}
+  }
+
+  function prefetch(){cached=sharePayload();return cached}
+
+  function chIcon(kind){
+    var d={copy:'M7 3h8a2 2 0 0 1 2 2v8M5 7h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z',
+      sms:'M3 5h14v9H8l-4 3v-3H3zM6.5 9.5h.01M10 9.5h.01M13.5 9.5h.01',
+      wa:'M10 2.8a7.2 7.2 0 0 0-6.2 10.8L3 17l3.5-.9A7.2 7.2 0 1 0 10 2.8zM7.4 7.2c.5 2.4 2.6 4.6 5.1 5.2l.9-1.4 1.6.9c-.3 1.3-1.5 1.9-2.8 1.5-2.9-.9-5.3-3.2-6.1-6.1-.4-1.3.3-2.5 1.6-2.8l.9 1.7z',
+      mail:'M2.5 5h15v10h-15zM2.5 5.5 10 11l7.5-5.5'};
+    return '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+d[kind]+'"/></svg>';
+  }
+
+  function build(){
+    if(sheet)return;
+    sheet=document.createElement('div');
+    sheet.className='shs';sheet.id='sharesheet';sheet.hidden=true;
+    sheet.innerHTML='<div class="shs__scrim" data-shclose></div>'
+      +'<div class="shs__box" role="dialog" aria-modal="true" aria-labelledby="shs-eyebrow">'
+      +'<span class="shs__grab" aria-hidden="true"></span>'
+      +'<button class="shs__x" type="button" data-shclose aria-label="Close">&#10005;</button>'
+      +'<span class="eyebrow" id="shs-eyebrow"></span>'
+      +'<div class="shchip"><b id="shs-name"></b><span id="shs-sub"></span></div>'
+      +'<div class="shprev" id="shs-prev"></div>'
+      +'<div class="shrow" id="shs-row"></div>'
+      +'<div class="shman" id="shs-man" hidden><input type="text" readonly id="shs-manurl" aria-label="Your share link">'
+      +'<p>'+esc(SHARE_STR.en.manual)+'</p></div>'
+      +'<div class="shcode" id="shs-codewrap"><code id="shs-code"></code>'
+      +'<button class="copybtn" type="button" id="shs-copycode">Copy</button></div>'
+      +'<p class="shsub">'+esc(SHARE_STR.en.refsub)+'</p>'
+      +'</div>';
+    document.body.appendChild(sheet);
+    box=sheet.querySelector('.shs__box');
+    sheet.addEventListener('click',function(e){
+      if(e.target===sheet||e.target.closest('[data-shclose]'))close('dismiss');
+    });
+    sheet.addEventListener('keydown',function(e){
+      if(e.key==='Escape'){e.stopPropagation();close('escape');return}
+      if(e.key!=='Tab')return;
+      /* The trap: tab cycles inside the dialog and nowhere else. */
+      var f=box.querySelectorAll('button,a[href],input:not([type=hidden]),[tabindex]:not([tabindex="-1"])');
+      var list=[].filter.call(f,function(el){return el.offsetParent!==null});
+      if(!list.length)return;
+      var first=list[0],last=list[list.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+      else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+    });
+    document.getElementById('shs-copycode').addEventListener('click',function(){
+      var p=cached;doCopy(p&&p.code?p.code:'', 'code');
+    });
+    /* One listener on the row, once: the anchors inside are repainted per
+       open, and a listener attached per paint would fire once per open. */
+    document.getElementById('shs-row').addEventListener('click',function(e){
+      var ch=e.target.closest('[data-shch]');if(!ch)return;
+      var p=cached;
+      track('share_channel_selected',{cohortId:p&&p.cohortId,stage:S.state,channel:ch.getAttribute('data-shch')});
+      if(ch.getAttribute('data-shch')==='copy')doCopy(p?p.shortUrl:'','link');
+    });
+  }
+
+  /* Tier 3 is reachable in real conditions: non-secure contexts, embedded
+     webviews, permission denials. It is not a theoretical branch: the link
+     lands in a read-only input, selected, with the instruction spelled out. */
+  function doCopy(text,target){
+    var done=function(){
+      toast(target==='code'?'Code copied: '+text:'Link copied');
+      track('share_copied',{cohortId:cached&&cached.cohortId,stage:S.state,target:target});
+    };
+    var manual=function(){
+      var man=document.getElementById('shs-man'),inp=document.getElementById('shs-manurl');
+      if(!man||sheet.hidden){toast('Copy this by hand: '+text);return}
+      man.hidden=false;inp.value=text;inp.focus();inp.select();
+      var ok=false;
+      try{ok=document.execCommand('copy')}catch(e){ok=false}
+      if(ok)done();
+    };
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done,manual);
+    }else manual();
+  }
+
+  function paintSheet(p){
+    document.getElementById('shs-eyebrow').textContent=p.eyebrow;
+    document.getElementById('shs-name').textContent=p.name;
+    document.getElementById('shs-sub').textContent=p.region+' · '+p.stageLabel;
+    /* The preview is EXACTLY what goes out: prose, then the URL. */
+    var prev=document.getElementById('shs-prev');
+    prev.textContent=p.body;
+    var u=document.createElement('span');u.className='u';u.textContent=p.shortUrl;
+    prev.appendChild(u);
+    var enc=encodeURIComponent;
+    var waText=enc(p.body+'\n'+p.shortUrl);
+    var mailBody=enc(p.body.replace(/\n/g,'\r\n')+'\r\n\r\n'+p.shortUrl);
+    /* Real anchors, never window.open: a popup opened after an await is
+       blocked, an anchor is not. sms:?&body= is the one form iOS and Android
+       both tolerate. */
+    document.getElementById('shs-row').innerHTML=
+      '<button class="shch" type="button" data-shch="copy">'+chIcon('copy')+'Copy link</button>'
+      +'<a class="shch" data-shch="sms" href="sms:?&body='+enc(p.sms)+'">'+chIcon('sms')+'Message</a>'
+      +'<a class="shch" data-shch="whatsapp" target="_blank" rel="noopener noreferrer" href="https://wa.me/?text='+waText+'">'+chIcon('wa')+'WhatsApp</a>'
+      +'<a class="shch" data-shch="email" href="mailto:?subject='+enc(p.subject)+'&body='+mailBody+'">'+chIcon('mail')+'Email</a>';
+    /* No fabricated code, ever: while the referral answer is in flight the
+       code row simply is not there, and the URL is the cohort-only one. */
+    var wrap=document.getElementById('shs-codewrap');
+    wrap.hidden=!p.code;
+    sheet.querySelector('.shsub').hidden=!p.code;
+    if(p.code)document.getElementById('shs-code').textContent=p.code;
+    document.getElementById('shs-man').hidden=true;
+  }
+
+  function open(trig){
+    build();
+    var p=prefetch();
+    if(!p){toast('Nothing to share right now.');return}
+    trigger=(trig&&trig.focus)?trig:document.activeElement;
+    openGroup=p.group;
+    paintSheet(p);
+    sheet.hidden=false;
+    requestAnimationFrame(function(){sheet.classList.add('in')});
+    document.body.style.overflow='hidden';
+    var x=sheet.querySelector('.shs__x');if(x)x.focus();
+    track('share_opened',{cohortId:p.cohortId,stage:S.state,tier:'modal'});
+  }
+
+  function close(reason){
+    if(!sheet||sheet.hidden)return;
+    sheet.classList.remove('in');sheet.hidden=true;
+    document.body.style.overflow='';
+    openGroup=null;
+    track('share_dismissed',{cohortId:cached&&cached.cohortId,stage:S.state,reason:reason||'dismiss'});
+    /* Focus returns to the element that opened the sheet, if it survived the
+       repaint; the header icon does, panel buttons may not. */
+    if(trigger&&document.contains(trigger)){try{trigger.focus()}catch(e){}}
+    trigger=null;
+  }
+
+  return {prefetch:prefetch,open:open,close:close,copy:doCopy,track:track,
+    isOpen:function(){return !!(sheet&&!sheet.hidden)},
+    openGroup:function(){return openGroup},
+    payload:function(){return cached}};
+})();
+
+/* The header icon: created once, INSERTED AND REMOVED per stage. `hidden`
+   would leave a share control in the DOM on a cohort that did not fill, and
+   absence is the honest state there. */
+var shareIcon=(function(){
+  var el=document.createElement('button');
+  el.type='button';el.className='shareic';el.id='campshare';
+  el.innerHTML=SHARE_SVG(20);
+  el.addEventListener('click',onShareClick);
+  return el;
+})();
+
+/* THE CLICK HANDLER. No await and no fetch before navigator.share(): the
+   payload comes from the prefetch cache, synchronously, or native is skipped
+   for the sheet (which can wait). A cancelled native sheet (AbortError) is
+   not a share and records nothing; NotAllowedError falls back to the sheet in
+   the same interaction rather than leaving the member with nothing. */
+function onShareClick(ev){
+  var p=WhollarShare.payload()||WhollarShare.prefetch();
+  var trig=ev&&ev.currentTarget;
+  if(p&&p.codeRaw&&navigator.share){
+    var data={title:p.title,text:p.body,url:p.shortUrl};
+    if(!navigator.canShare||navigator.canShare(data)){
+      WhollarShare.track('share_opened',{cohortId:p.cohortId,stage:S.state,tier:'native'});
+      navigator.share(data).then(function(){
+        WhollarShare.track('share_native_completed',{cohortId:p.cohortId,stage:S.state});
+      },function(err){
+        if(err&&err.name==='AbortError')return;
+        WhollarShare.open(trig);
+      });
+      return;
+    }
+  }
+  WhollarShare.open(trig);
+}
+
+/* Stage bookkeeping, run after every render: the icon's presence and colour,
+   the payload cache, and the open sheet's honesty. If the stage moves while
+   the sheet is open and the copy it shows is no longer true, the sheet closes
+   and says so in one quiet line, rather than swapping the text under the
+   member's cursor. */
+function shareOnState(){
+  var g=SHARE_GROUP[S.state];
+  var head=document.querySelector('.camp__head');
+  var pill=document.getElementById('statepill');
+  var member=VIS.indexOf(S.state)<0;
+  var want=!!g&&g!=='nocohort'&&member&&!!head;
+  if(!want){
+    if(shareIcon.parentNode)shareIcon.parentNode.removeChild(shareIcon);
+  }else{
+    shareIcon.classList.toggle('open',g==='open');
+    var c=shareCohort();
+    shareIcon.setAttribute('aria-label','Share the '+((c&&c.name)||'cohort')+' cohort');
+    if(shareIcon.parentNode!==head)head.insertBefore(shareIcon,pill);
+    if(shareOnState._for!==S.state){
+      shareOnState._for=S.state;
+      WhollarShare.track('share_control_shown',{cohortId:c&&c.id,stage:S.state,placement:'header'});
+    }
+  }
+  if(WhollarShare.isOpen()&&WhollarShare.openGroup()&&g!==WhollarShare.openGroup()){
+    WhollarShare.close('stage_change');
+    toast(SHARE_STR.en.moved);
+  }
+  WhollarShare.prefetch();
+}
+
+/* shareRef was one string for all seasons; every existing caller (the rail
+   card's Share your link, the waitlist screen's invite, data-act="invite" in
+   the panels) now lands in the sheet with stage-true copy. Later declaration
+   wins by hoisting, which is this codebase's porting convention. */
+function shareRef(){
+  onShareClick({currentTarget:document.activeElement});
+}
+
+/* The referral loader, now carrying the opaque token the backend added to
+   GET /me/referral. Minted lazily server side on this very read, which is
+   edge "no token yet": by the time a share happens the mint has already run,
+   and if it failed the payload falls back to the cohort-only URL. */
+function loadReferral(){
+  if(!W||!W.session||!W.session.referral){paintReferral();return}
+  W.session.referral().then(function(r){
+    if(r&&(r.code||r.token))REF={code:r.code||null,token:r.token||null,joined:r.joined||0,pending:r.pending||0};
+    paintReferral();
+    WhollarShare.prefetch();
+  },function(){paintReferral()});
+}
+
+/* The rail card shows the same identity a share carries: the token once one
+   exists, the legacy code until then. */
+function refLink(){
+  var raw=shareCodeRaw();
+  return raw?location.origin+'/r/'+encodeURIComponent(raw):null;
+}
+function paintReferral(){
+  var shown=shareCodeShown();
+  var rc=$('#refcode'); if(rc)rc.textContent=shown||'WHL-…';
+  var n=$('#refcount'); if(n)n.textContent=refCountText();
+  $$('.refc').forEach(function(el){el.textContent=shown||'WHL-…'});
+  $$('.refcnt').forEach(function(el){el.textContent=refCountText()});
+}
+function copyRef(){
+  var shown=shareCodeShown();
+  if(!shown){toast('Your code is still loading. One moment.');return}
+  WhollarShare.copy(shown,'code');
+}
+
+/* ---- panel templates that change under the share rules ---- */
+
+/* Forming: the invite is a full-width ghost with the glyph, never a second
+   terracotta beside the roster (two commit-coloured buttons on one panel is a
+   hierarchy failure). "bidding opens", not the a-word: sealed bids are the
+   vocabulary here. */
+function tplForming(){
+  return '<h3>Forming: the more of you, the sharper the bid</h3>'
+  +'<p class="p">Cohorts get bid on when providers can see real demand. Every neighbour who joins strengthens the number your whole cohort gets, and bidding opens once the cohort is deep enough to price properly.</p>'
+  +'<div style="margin-top:15px"><button class="btn ghost shinvite" type="button" data-act="invite">'+SHARE_SVG(16)+'Invite a neighbour</button></div>';
+}
+
+/* Short: NO share control of any kind. A member must not be handed a button
+   that advertises a cohort that failed, and nothing apologetic goes in its
+   place. The rollover carries the panel on its own. */
+function tplShort(){
+  return '<h3>This window didn’t fill</h3>'
+  +'<p class="p">We hold the line because a thin cohort gets thin bids, and a mediocre first offer helps nobody. So it doesn’t go to bidding: <b>everyone rolls into the Winter cohort automatically</b>, spot and preferences intact.</p>'
+  +'<p class="p">Winter opens <b>Nov 3</b>, and your cliff watch runs meanwhile. Your spot carries over on its own, nothing for you to do.</p>';
+}
+
+/* Passed: the header icon carries the share (a member who passed still has a
+   real, honest story), so the panel keeps only the decision that is actually
+   pending here. */
+function tplPassed(){
+  var p=S.pass||{next:true};
+  var save=p.amt?'<div class="savedbox"><b>'+esc((S.checkup||{}).prov||'Your provider')+' offered you '+money(p.amt)+'/mo when you pushed.</b> That’s the cohort working even when you stay: the credible exit is what moved them. Logged privately, never shown to bidders.</div>':'';
+  return '<h3>Passed. Nothing changes, nothing owed.</h3>'
+  +'<p class="p">You keep your plan and your standing. The winning offer stands until <b>Sep 24</b> if you rethink it.</p>'
+  +save
+  +(p.next
+    ?'<p class="p"><b>You’re in the Winter cohort.</b> Same region, next window. We’ll flag your promo cliff about two months out so the timing works in your favour next round.</p>'
+    :'<p class="p">We’ll keep watching your promo cliff and flag it about two months out. Rejoin any time, free.</p>')
+  +'<div style="margin-top:14px"><button class="btn ghost" type="button" data-act="backoffers">Reconsider the offer</button></div>';
+}
+
+/* render() is wrapped, not edited: the share bookkeeping runs after every
+   paint, including the visitor lane's early return. */
+var renderCoreForShare=render;
+render=function(){
+  renderCoreForShare();
+  try{shareOnState()}catch(e){/* the card must paint even if share breaks */}
+};
+try{shareOnState()}catch(e){}
+
+/* For the QA harness only: the page is an IIFE and evaluate() cannot reach
+   inside it. */
+window.WhollarShare=WhollarShare;
+
+/* ==================================================================== *
+ * Cohort seats: the exit window and one cohort at a time.
+ *
+ * The server owns every rule here. GET /me/seat computes an `affordance`
+ * (leave | locked | pass | cancel | concierge | none) from stage plus timing
+ * and this page renders whatever it is told, which is what stops the exit
+ * link reappearing through a stale bundle. Before the seat routes are
+ * deployed the ledger falls back to the cohort's server-sent `stage` and the
+ * legacy join and leave paths keep working; nothing is ever derived from
+ * `kind` or a local clock, and countdown windows offset from SKEW.
+ * ==================================================================== */
+
+var SEAT=null;          // last GET /me/seat answer, or null
+var SEATLIVE=false;     // true once the seat routes have answered
+var SEATBROKEN=false;   // true after the seat routes said "not deployed"
+var SEATTARGET=null;    // the promoted card after a two-step leave
+var SEATREASON=null;    // single-select reason chip in the exit sheet
+var SEATPENDING=null;   // two-step: where the member said they are heading
+var SEAT_LS='whollar.seat.left';
+
+/* ---------- copy deck, section 8, verbatim ---------- */
+function seatFmtD(ms){
+  if(!ms)return null;
+  try{return new Date(ms).toLocaleDateString('en-CA',{month:'short',day:'numeric'})}catch(e){return null}
+}
+function seatFmtDayTime(ms){
+  if(!ms)return null;
+  try{
+    var d=new Date(ms);
+    return d.toLocaleDateString('en-CA',{weekday:'short',month:'short',day:'numeric'})
+      +' '+d.toLocaleTimeString('en-CA',{hour:'numeric',minute:'2-digit'});
+  }catch(e){return null}
+}
+
+/* ---------- transport. Local to this page on purpose: adding these to
+   whollar-core.js would mean a cache stamp bump on every page for a module
+   only this page calls. Same precedent as the share telemetry fetch. ------ */
+function seatApi(method,path,body){
+  var headers={Accept:'application/json'};
+  if(method!=='GET'){
+    headers['Content-Type']='application/json';
+    headers['Idempotency-Key']='seat-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);
+  }
+  return fetch('/api/auth'+path,{
+    method:method,credentials:'same-origin',headers:headers,
+    body:method==='GET'?undefined:JSON.stringify(body||{})
+  }).then(function(r){
+    return r.json().catch(function(){return null}).then(function(b){
+      if(r.ok)return b||{};
+      var e=new Error((b&&b.error&&b.error.message)||'Something went wrong. Please try again.');
+      e.code=(b&&b.error&&b.error.code)||'SERVER_ERROR';
+      e.status=r.status;
+      e.extra=(b&&b.error)||{};
+      throw e;
+    });
+  },function(){
+    var e=new Error('We couldn’t reach Whollar. Check your connection and try again.');
+    e.code='NETWORK';throw e;
+  });
+}
+function seatOffline(err){return !err||err.code==='NETWORK'||err.status===404||err.code==='SERVER_ERROR'}
+function sTrack(action,extra){
+  try{if(W&&W.session&&W.session.event)W.session.event('interest',Object.assign({action:action},extra||{}))}catch(e){}
+}
+
+/* ---------- who holds what ---------- */
+function seatHeldCamp(){
+  if(SEATLIVE&&SEAT&&SEAT.claim&&SEAT.claim.status==='active')return campById(SEAT.claim.cohort_id);
+  /* Fallback: the cohort the server says this member joined. */
+  var c=joinedCamp();
+  return (c&&c.you==='joined')?c:null;
+}
+function seatHeldId(){var c=seatHeldCamp();return c?c.id:null}
+function seatWindowOpen(c){
+  if(!c)return false;
+  var close=c.dates&&c.dates.announce_at;
+  return !close||(Date.now()+SKEW)<close;
+}
+function seatAffordance(){
+  if(SEATLIVE&&SEAT)return (SEAT.claim&&SEAT.claim.status==='active')?SEAT.affordance:'none';
+  var c=seatHeldCamp();if(!c)return 'none';
+  var st=c.stage||'forming'; // server-sent, never derived here
+  if(st==='forming')return seatWindowOpen(c)?'leave':'locked';
+  if(st==='locked'||st==='bidding')return 'locked';
+  if(st==='offers')return 'pass';
+  if(st==='confirm')return 'cancel';
+  if(st==='switching')return 'concierge';
+  return 'none';
+}
+function seatCounts(c){
+  var have=(SEATLIVE&&SEAT&&SEAT.cohort&&SEAT.cohort.id===c.id&&SEAT.cohort.roster_count!=null)
+    ?SEAT.cohort.roster_count:(c.members||0);
+  return {have:have,need:c.target||null};
+}
+
+function seatRefresh(){
+  seatApi('GET','/me/seat').then(function(r){
+    SEAT=r;SEATLIVE=true;SEATBROKEN=false;
+    paintSeatLedger();paintSeatNotice();
+  },function(err){
+    if(err&&(err.status===404||err.code==='SERVER_ERROR'))SEATBROKEN=true;
+    SEATLIVE=false;
+    paintSeatLedger();paintSeatNotice();
+  });
+}
+
+/* ---------- the ledger ---------- */
+function paintSeatLedger(){
+  var el=$('#seatledger');if(!el)return;
+  var c=seatHeldCamp();
+  var aff=seatAffordance();
+  if(!c||aff==='none'){el.hidden=true;paintOnce('seatledger',el,'');return}
+  var region=c.region||c.id;
+  var counts=seatCounts(c);
+  var closeAt=c.dates&&c.dates.announce_at;
+  var closeStr=seatFmtD(closeAt);
+  var offersStr=seatFmtD(c.dates&&c.dates.offers_at);
+  var html='';
+  if(aff==='leave'){
+    var sub=(counts.need
+      ?counts.have+' of '+counts.need+' households'
+      :counts.have+' households')
+      +(closeStr?' · joining closes '+closeStr:' · joining is open');
+    var closing=Boolean(closeAt&&((closeAt-(Date.now()+SKEW))<=48*3600*1000));
+    html='<div class="sl__left"><span class="sl__dot"></span><span class="sl__lines">'
+      +'<b>Your seat is held in '+esc(region)+'</b>'
+      +'<span class="m">'+esc(sub)+'</span></span></div>'
+      +'<div class="sl__right">'
+      +(closing&&seatFmtDayTime(closeAt)?'<span class="sl__chip">Roster seals '+esc(seatFmtDayTime(closeAt))+'</span>':'')
+      +'<button class="sl__leave" type="button" data-seatleave-link="'+esc(c.id)+'">'
+      +'<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>'
+      +'Leave this cohort</button></div>';
+  }else if(aff==='locked'){
+    html='<div class="sl__left"><span class="sl__dot is-locked"></span><span class="sl__lines">'
+      +'<b>Roster sealed at '+esc(String(counts.have))+' households.</b>'
+      +'<span class="m">Founding partners are pricing against this exact list, so it cannot change now.</span>'
+      +'<p class="sl__note">You are still not committed to switch.'
+      +(offersStr?' The offer lands '+esc(offersStr)+' and it is yours to take or leave.':' When the offer lands it is yours to take or leave.')
+      +' <button class="tlink" type="button" data-seatwhatif>What if I do not want to switch?</button>'
+      +' · <button class="tlink" type="button" data-seatnotifymove="'+esc(c.id)+'">Notify me when I can move</button></p>'
+      +'</span></div>';
+  }else if(aff==='pass'){
+    html='<div class="sl__left"><span class="sl__dot"></span><span class="sl__lines">'
+      +'<b>The offer is in for '+esc(region)+'</b>'
+      +'<span class="m">Take it, or pass and your address frees up the same day.</span></span></div>'
+      +'<div class="sl__right"><button class="btn ghost" type="button" data-seatpass="'+esc(c.id)+'">Pass on this round</button></div>';
+  }else if(aff==='cancel'){
+    html='<div class="sl__left"><span class="sl__dot"></span><span class="sl__lines">'
+      +'<b>Confirmation window</b>'
+      +'<span class="m">Back out, deposit returned. The controls are on the panel above.</span></span></div>';
+  }else if(aff==='concierge'){
+    html='<div class="sl__left"><span class="sl__dot"></span><span class="sl__lines">'
+      +'<b>Your switch is in motion</b>'
+      +'<span class="m">Changes now go through a person, not a button.</span></span></div>'
+      +'<div class="sl__right"><a class="tlink" href="/contact">Message my concierge</a></div>';
+  }
+  el.hidden=!html;
+  paintOnce('seatledger',el,html);
+}
+
+/* ---------- the way back, after a leave ---------- */
+function seatLeftRead(){
+  try{
+    var v=JSON.parse(localStorage.getItem(SEAT_LS)||'null');
+    if(!v||!v.id)return null;
+    if(v.until&&(Date.now()+SKEW)>=v.until){localStorage.removeItem(SEAT_LS);return null}
+    return v;
+  }catch(e){return null}
+}
+function seatLeftWrite(v){try{if(v)localStorage.setItem(SEAT_LS,JSON.stringify(v));else localStorage.removeItem(SEAT_LS)}catch(e){}}
+function paintSeatNotice(){
+  var el=$('#seatnotice');if(!el)return;
+  var left=seatLeftRead();
+  if(!left||seatHeldId()){
+    if(left&&seatHeldId())seatLeftWrite(null);
+    el.hidden=true;paintOnce('seatnotice',el,'');return;
+  }
+  var dateStr=seatFmtD(left.until);
+  var html='<div><b>You left '+esc(left.region)+'</b>'
+    +'<p>Your seat went back to the pool.'
+    +(dateStr?' You can rejoin any time before joining closes on '+esc(dateStr)+'.':' You can rejoin while the cohort is still forming.')
+    +'</p></div>'
+    +'<button class="btn ghost" type="button" data-seatrejoin="'+esc(left.id)+'">Rejoin '+esc(left.region)+'</button>';
+  el.hidden=false;
+  paintOnce('seatnotice',el,html);
+}
+
+/* ---------- the sheet: one dialog, two fillings, a real focus trap ------- */
+var seatSheetEl=null,seatSheetTrig=null;
+function seatSheetBuild(){
+  if(seatSheetEl)return seatSheetEl;
+  seatSheetEl=document.createElement('div');
+  seatSheetEl.className='sxs';
+  seatSheetEl.innerHTML='<div class="sxs__scrim" data-stsclose></div>'
+    +'<div class="sxs__box" role="dialog" aria-modal="true" aria-labelledby="sxs-title">'
+    +'<button class="sxs__x" type="button" data-stsclose aria-label="Close">×</button>'
+    +'<div id="sxs-body"></div></div>';
+  document.body.appendChild(seatSheetEl);
+  seatSheetEl.addEventListener('keydown',function(e){
+    if(e.key==='Escape'){seatSheetClose('esc');return}
+    if(e.key!=='Tab')return;
+    var f=Array.prototype.filter.call(
+      seatSheetEl.querySelectorAll('button,[href],[tabindex]:not([tabindex="-1"])'),
+      function(n){return n.offsetParent!==null});
+    if(!f.length)return;
+    var first=f[0],last=f[f.length-1];
+    if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+    else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+  });
+  return seatSheetEl;
+}
+function seatSheetOpen(html,trig,focusSel){
+  var el=seatSheetBuild();
+  seatSheetTrig=trig||document.activeElement;
+  $('#sxs-body',el).innerHTML=html;
+  el.classList.add('is-open');
+  requestAnimationFrame(function(){el.classList.add('in')});
+  document.body.style.overflow='hidden';
+  var target=(focusSel&&el.querySelector(focusSel))||el.querySelector('.sxs__x');
+  if(target)target.focus();
+}
+function seatSheetClose(reason){
+  if(!seatSheetEl||!seatSheetEl.classList.contains('is-open'))return;
+  if(seatSheetEl.getAttribute('data-kind')==='exit'&&reason!=='commit')sTrack('seat_exit_abandon');
+  seatSheetEl.classList.remove('in');seatSheetEl.classList.remove('is-open');
+  seatSheetEl.removeAttribute('data-kind');
+  document.body.style.overflow='';
+  if(seatSheetTrig&&document.contains(seatSheetTrig))seatSheetTrig.focus();
+  seatSheetTrig=null;SEATREASON=null;
+}
+function $sts(sel){return seatSheetEl?seatSheetEl.querySelector(sel):null}
+
+/* ---------- the exit sheet ---------- */
+var SEAT_REASONS=[
+  ['timing','The timing is wrong'],
+  ['retention_offer','My provider made an offer'],
+  ['moving','We are moving'],
+  ['other_cohort','I want a different cohort'],
+  ['changed_mind','I changed my mind']
+];
+function seatExitOpen(id,pendingTargetId){
+  var c=campById(id);if(!c)return;
+  if(seatAffordance()!=='leave'){paintSeatLedger();return}
+  var region=c.region||c.id;
+  var counts=seatCounts(c);
+  var dateStr=seatFmtD(c.dates&&c.dates.announce_at);
+  var n=counts.have;
+  SEATPENDING=pendingTargetId||null;
+  SEATREASON=null;
+  var cross='<svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+  var check='<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>';
+  var html='<span class="sxs__eyebrow">Before you go</span>'
+    +'<h3 id="sxs-title">Leave the '+esc(region)+' cohort?</h3>'
+    +'<p class="sxs__lede">Nothing is owed and nothing is held against you. Here is exactly what changes.</p>'
+    +'<ul class="sxs__list">'
+    +'<li class="lose">'+cross+'<span>Your seat goes back to the pool. The count drops from '+esc(String(n))+' to '+esc(String(Math.max(0,n-1)))+(counts.need?' of '+esc(String(counts.need)):'')+'.</span></li>'
+    +'<li class="keep">'+check+'<span>You can rejoin any time before joining closes'+(dateStr?' on '+esc(dateStr):'')+', if the roster has room.</span></li>'
+    +'<li class="keep">'+check+'<span>Your bill checkup and your promo cliff watch stay active either way.</span></li>'
+    +'<li class="keep">'+check+'<span>Neighbours you referred keep their credit. It never depended on you staying.</span></li>'
+    +'</ul>'
+    +'<p class="sxs__why" id="sxs-why">One tap, optional: what changed?</p>'
+    +'<div class="sxs__chips" role="group" aria-labelledby="sxs-why">'
+    +SEAT_REASONS.map(function(r){
+      return '<button class="sxs__chip" type="button" data-stsreason="'+r[0]+'" aria-pressed="false">'+esc(r[1])+'</button>';
+    }).join('')
+    +'</div>'
+    +'<div class="sxs__actions">'
+    +'<button class="btn ghost" type="button" data-stsclose>Stay in the cohort</button>'
+    +'<button class="btn terra" type="button" data-stsleave="'+esc(c.id)+'">Leave '+esc(region)+'</button>'
+    +'</div>'
+    +'<p class="sxs__foot">If you leave and the cohort later fills without you, we will still text you before your promo cliff.</p>';
+  seatSheetOpen(html,null,'[data-stsclose]');
+  seatSheetEl.setAttribute('data-kind','exit');
+  sTrack('seat_exit_intent',{campaign:c.id});
+}
+function seatExitCommit(id,btn){
+  var c=campById(id);if(!c)return;
+  var region=c.region||c.id;
+  if(btn){btn.disabled=true;btn.textContent='Leaving…'}
+  var until=c.dates&&c.dates.announce_at;
+  var apply=function(rejoinUntil){
+    if(c.you==='joined'){c.members=Math.max(0,c.members-1);c.households=Math.max(0,c.households-1)}
+    c.you=null;
+    seatLeftWrite({id:c.id,region:region,until:rejoinUntil||until||null});
+    if(SEATPENDING){SEATTARGET=SEATPENDING;SEATPENDING=null}
+    seatSheetClose('commit');
+    campRepaint();paintSeatLedger();paintSeatNotice();
+    var d=seatFmtD(rejoinUntil||until);
+    toast('You left '+region+'.'+(d?' Rejoin any time before '+d+'.':' Rejoin any time while it is forming.'),5000);
+    sTrack('seat_exit_commit',{campaign:c.id,reason:SEATREASON||null});
+  };
+  if(!SEATLIVE||SEATBROKEN){
+    W.session.campaignLeave(c.id).then(function(r){
+      if(r&&r.campaign)applyCampaign(r.campaign);
+      apply(null);
+    },function(err){
+      if(offlineish(err)){apply(null);return}
+      if(btn){btn.disabled=false;btn.textContent='Leave '+region}
+      toast(err.message||'That didn’t save. Please try again.');
+    });
+    return;
+  }
+  seatApi('POST','/cohorts/'+encodeURIComponent(c.id)+'/leave',{reason:SEATREASON})
+  .then(function(r){
+    SEAT={claim:r.claim,cohort:null,affordance:'none',rejoin_until:r.rejoin_until};
+    apply(r.rejoin_until);
+  },function(err){
+    if(err.code==='SEAL_RACE'){seatSealRace(err);return}
+    if(seatOffline(err)){SEATBROKEN=true;seatExitCommit(id,btn);return}
+    if(btn){btn.disabled=false;btn.textContent='Leave '+region}
+    toast(err.message||'That didn’t save. Please try again.',5000);
+  });
+}
+function seatSealRace(err){
+  seatSheetClose('sealrace');
+  if(SEAT){SEAT.affordance='locked'}
+  seatRefresh();
+  paintSeatLedger();
+  toast(err.message||'This cohort sealed while the page was open. Nothing is owed and you are not committed to switch.',6000);
+}
+
+/* ---------- the conflict sheet ---------- */
+function seatConflictOpen(toId){
+  var a=seatHeldCamp(),b=campById(toId);
+  if(!a||!b){if(b)joinNext(toId);return}
+  var ra=a.region||a.id,rb=b.region||b.id;
+  var movable=seatAffordance()==='leave';
+  var arrow='<svg class="sxs__arrow" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+  var offersStr=seatFmtD(a.dates&&a.dates.offers_at);
+  var body=movable
+    ?'A household holds one seat. Founding partners bid against a roster of real addresses, so the same address cannot be counted in two cohorts at once. '+esc(ra)+' is still forming, so the move is one step.'
+    :esc(ra)+' is sealed and with founding partners. Its roster cannot change now, so your address stays counted there until the offer lands and you decide.';
+  var html='<span class="sxs__eyebrow">One cohort at a time</span>'
+    +'<h3 id="sxs-title">You are already in '+esc(ra)+'</h3>'
+    +'<p class="sxs__lede">'+body+'</p>'
+    +'<div class="sxs__swap">'
+    +'<div class="sxs__seat"><span class="m">Your seat now</span><b>'+esc(ra)+'</b><span class="m">'+esc(a.stageLabel||a.stage||'Forming')+'</span></div>'
+    +arrow
+    +'<div class="sxs__seat is-target"><span class="m">You tapped</span><b>'+esc(rb)+'</b><span class="m">'+esc(ccSub(b)||b.sub||'')+'</span></div>'
+    +'</div>'
+    +'<div class="sxs__actions">'
+    +(movable
+      ?'<button class="btn ghost" type="button" data-stsclose>Stay in '+esc(ra)+'</button>'
+       +'<button class="btn terra" type="button" data-stsmove="'+esc(b.id)+'" data-stsfrom="'+esc(a.id)+'">Move me to '+esc(rb)+'</button>'
+      :'<button class="btn ghost" type="button" data-stsclose>Stay in '+esc(ra)+'</button>'
+       +'<button class="btn terra" type="button" data-stshold="'+esc(b.id)+'">Hold '+esc(rb)+' for me</button>')
+    +'</div>'
+    +(movable
+      ?'<p class="sxs__foot">Prefer to do it in two steps? <button class="tlink" type="button" data-ststwostep="'+esc(a.id)+'" data-ststarget="'+esc(b.id)+'">Leave '+esc(ra)+' first</button>, then choose '+esc(rb)+' from the row.</p>'
+      :'<p class="sxs__foot">'+(offersStr?'If you pass on the '+esc(ra)+' offer on '+esc(offersStr)+', your address frees up the same day and '+esc(rb)+' will still be forming.':'When the '+esc(ra)+' offer lands, passing frees your address the same day.')+'</p>');
+  seatSheetOpen(html,null,'[data-stsclose]');
+  sTrack('seat_move_blocked',{from_cohort:a.id,to_cohort:b.id,movable:movable});
+}
+function seatMoveCommit(toId,fromId,btn){
+  var a=campById(fromId),b=campById(toId);if(!a||!b)return;
+  var ra=a.region||a.id,rb=b.region||b.id;
+  if(btn){btn.disabled=true;btn.textContent='Moving…'}
+  var apply=function(){
+    if(a.you==='joined'){a.members=Math.max(0,a.members-1);a.households=Math.max(0,a.households-1)}
+    a.you=null;b.you='joined';b.members++;b.households++;
+    SEATTARGET=null;seatLeftWrite(null);
+    seatSheetClose('commit');
+    campRepaint();paintSeatLedger();paintSeatNotice();
+    toast('Moved from '+ra+' to '+rb+'. One seat, one move.',5000);
+  };
+  if(!SEATLIVE||SEATBROKEN){
+    /* No seat routes: the honest fallback is the two writes the move wraps. */
+    W.session.campaignLeave(a.id).then(function(){return W.session.campaignJoin(b.id)})
+    .then(function(){apply()},function(err){
+      if(offlineish(err)){apply();return}
+      if(btn){btn.disabled=false;btn.textContent='Move me to '+rb}
+      toast(err.message||'That didn’t save. Please try again.',5000);
+    });
+    return;
+  }
+  seatApi('POST','/cohorts/'+encodeURIComponent(b.id)+'/move',{from_cohort_id:a.id,reason:SEATREASON,path:'one_step'})
+  .then(function(r){
+    SEAT={claim:r.claim,cohort:r.to_cohort,affordance:'leave',rejoin_until:r.to_cohort&&r.to_cohort.join_close_at};
+    apply();seatRefresh();
+  },function(err){
+    if(err.code==='SEAL_RACE'){seatSealRace(err);return}
+    if(err.code==='JOIN_CLOSED'||err.code==='ROSTER_FULL'||err.code==='RATE_LIMITED'){
+      seatSheetClose('refused');
+      toast(err.message||'That didn’t save.',6000);
+      seatRefresh();campRepaint();
+      return;
+    }
+    if(seatOffline(err)){SEATBROKEN=true;seatMoveCommit(toId,fromId,btn);return}
+    if(btn){btn.disabled=false;btn.textContent='Move me to '+rb}
+    toast(err.message||'That didn’t save. Please try again.',5000);
+  });
+}
+
+/* ---------- joining through the seat ---------- */
+function seatJoin(c,btn){
+  if(btn){btn.disabled=true;btn.textContent='Joining…'}
+  seatApi('POST','/cohorts/'+encodeURIComponent(c.id)+'/join',{source:'direct'})
+  .then(function(r){
+    SEAT={claim:r.claim,cohort:r.cohort,affordance:'leave',rejoin_until:r.cohort&&r.cohort.join_close_at};
+    SEATLIVE=true;
+    c.you='joined';c.members++;c.households++;
+    SEATTARGET=null;seatLeftWrite(null);
+    campRepaint();paintSeatLedger();paintSeatNotice();
+    toast('You are in '+(c.region||c.id)+'. Seat held.',5000);
+  },function(err){
+    if(err.code==='SEAT_HELD'){
+      if(btn){btn.disabled=false}
+      /* The server saw a seat this page did not know about, which is exactly
+         the deep-link case: render the conflict from the server's answer. */
+      if(err.extra&&err.extra.held_cohort)applyCampaign(err.extra.held_cohort);
+      seatRefresh();
+      seatConflictOpen(c.id);
+      return;
+    }
+    if(err.code==='JOIN_CLOSED'||err.code==='ROSTER_FULL'){
+      if(btn){btn.disabled=false}
+      toast(err.message||'Joining has closed on this cohort.',5000);
+      seatRefresh();campRepaint();
+      return;
+    }
+    if(seatOffline(err)){SEATBROKEN=true;doJoinLegacy(c.id,btn);return}
+    if(btn){btn.disabled=false;btn.textContent='Join'}
+    toast(err.message||'That didn’t save. Please try again.',5000);
+  });
+}
+
+/* ---------- clicks ---------- */
+document.addEventListener('click',function(e){
+  var t;
+  if(e.target.closest('[data-stsclose]')){seatSheetClose('close');return}
+  if((t=e.target.closest('[data-stsreason]'))){
+    var v=t.getAttribute('data-stsreason');
+    SEATREASON=(SEATREASON===v)?null:v;
+    Array.prototype.forEach.call(seatSheetEl.querySelectorAll('[data-stsreason]'),function(n){
+      n.setAttribute('aria-pressed',String(n.getAttribute('data-stsreason')===SEATREASON));
+    });
+    return;
+  }
+  if((t=e.target.closest('[data-stsleave]'))){seatExitCommit(t.getAttribute('data-stsleave'),t);return}
+  if((t=e.target.closest('[data-stsmove]'))){seatMoveCommit(t.getAttribute('data-stsmove'),t.getAttribute('data-stsfrom'),t);return}
+  if((t=e.target.closest('[data-stshold]'))){
+    var hb=campById(t.getAttribute('data-stshold'));
+    seatSheetClose('hold');
+    if(hb&&W&&W.session&&W.session.campaignNotify){
+      W.session.campaignNotify(hb.id).then(function(r){
+        if(r&&r.campaign)applyCampaign(r.campaign);else if(!hb.you)hb.you='alert';
+        paintHistory();
+        toast('Noted. We’ll text you the day your address frees up and '+(hb.region||hb.id)+' is ready for it.',5000);
+      },function(){toast('Noted.')});
+    }
+    return;
+  }
+  if((t=e.target.closest('[data-ststwostep]'))){
+    var fromId=t.getAttribute('data-ststwostep'),targetId=t.getAttribute('data-ststarget');
+    seatSheetClose('twostep');
+    sTrack('seat_move_twostep',{from_cohort:fromId,to_cohort:targetId});
+    seatExitOpen(fromId,targetId);
+    return;
+  }
+  if((t=e.target.closest('[data-seatleave-link]'))){seatExitOpen(t.getAttribute('data-seatleave-link'));return}
+  if((t=e.target.closest('[data-seatrejoin]'))){doJoin(t.getAttribute('data-seatrejoin'),t);return}
+  if((t=e.target.closest('[data-seatpass]'))){
+    /* The demo pass sheet already exists; the seat release rides along when
+       the member confirms in it (see the #ps-go listener below). */
+    if(typeof openPass==='function')openPass();
+    return;
+  }
+  if(e.target.closest('[data-seatwhatif]')){
+    openModal('<div class="mhead"><h3>What if I do not want to switch?</h3>'
+      +'<button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
+      +'<p class="msub">You are not committed to anything. When the offer lands you can take it or pass, and passing costs nothing.</p>',true);
+    return;
+  }
+  if((t=e.target.closest('[data-seatnotifymove]'))){
+    sTrack('seat_move_notify',{campaign:t.getAttribute('data-seatnotifymove')});
+    toast('Noted. We’ll text you when your seat can move again.');
+    return;
+  }
+});
+/* The member confirming a pass in the existing pass sheet also releases the
+   seat claim, fire and forget: the demo flow stays exactly as it was. */
+document.addEventListener('click',function(e){
+  if(!e.target.closest('#ps-go'))return;
+  var c=seatHeldCamp();
+  if(c&&SEATLIVE&&seatAffordance()==='pass'){
+    seatApi('POST','/cohorts/'+encodeURIComponent(c.id)+'/pass',{}).then(function(r){
+      SEAT={claim:r.claim,cohort:null,affordance:'none',rejoin_until:null};
+      paintSeatLedger();
+      toast('Passed. Nothing changes and nothing is owed.',5000);
+    },function(){/* the demo flow already told the member; the claim releases on the next sync */});
+  }
+});
+
+/* render() is wrapped, not edited, same as the share bookkeeping above. */
+var renderCoreForSeat=render;
+render=function(){
+  renderCoreForSeat();
+  try{paintSeatLedger();paintSeatNotice()}catch(e){/* the card must paint even if seats break */}
+};
+try{paintSeatLedger();paintSeatNotice()}catch(e){}
+seatRefresh();
+setInterval(function(){if(!document.hidden)seatRefresh()},120000);
+
+/* For the QA harness only, same rule as WhollarShare. */
+window.WhollarSeat={refresh:seatRefresh,exit:seatExitOpen,conflict:seatConflictOpen,
+  ledger:paintSeatLedger,affordance:seatAffordance};
+
 })();
 </script>
 </body>

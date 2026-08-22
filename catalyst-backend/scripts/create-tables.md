@@ -1331,6 +1331,85 @@ Run (a) between the two 24c inserts, while the fixture row still exists.
 
 ---
 
+## 25. Cohort share: `invite_click` and `share_event`
+
+Two write-only logs behind the campaign card's share sheet. Both writes are
+best-effort in code (routes/share.js): until these tables exist, every share
+and every landing still works, and each skipped write is one
+`invite click insert failed` or `share event insert failed` line in
+Application Logs. Same contract as section 23.
+
+**There is deliberately no `attribution_edge` table.** The attribution ledger
+already exists as one column holding one string: the joining member's
+`users.referral_code`, plus `users.referral_carrier` from section 24b
+(`typed_code` | `typed_email` | `link_cookie` | `resume_email`). One row per
+joining member is one referrer per joining member, the count is an exact
+match on that column at read time, and it counts verified accounts only. A
+parallel edge table would be a second copy of the same fact that could
+disagree with the first.
+
+### 25a. `invite_click` (new table)
+
+One row per landing on `GET /r/:token`, written before the redirect, valid
+token or not. Never mutated afterward, by anyone.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `token` | Var Char | 16 | | | | normalized, or empty when the token failed its checksum |
+| `token_valid` | Var Char | 8 | | ✅ | | `yes` \| `no`. A failed checksum is a logged fact, not an error page |
+| `landed_at` | DateTime | - | | ✅ | | |
+| `first_touch` | Var Char | 8 | | | | `yes` \| `no`. `no` means a different sender's cookie was already present, so this click set nothing |
+| `ip_hash` | Var Char | 128 | | | | peppered hash, never a raw IP |
+| `ua_hash` | Var Char | 128 | | | | sha256 of the user agent |
+
+No `cookie_id` and no `resolved_member_id`: resolution happens at
+verification through `users.referral_code`, and joining a click row to a
+person would make this table PII it does not need to be.
+
+### 25b. `share_event` (new table)
+
+Fire-and-forget telemetry from the share sheet, POST `/share/event`,
+whitelisted event names only: `share_control_shown`, `share_opened`,
+`share_channel_selected`, `share_copied`, `share_native_completed`,
+`share_dismissed`.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `event` | Var Char | 32 | | ✅ | | from the whitelist, nothing else is written |
+| `member_id` | Var Char | 64 | | | | from the session when one exists |
+| `cohort_id` | Var Char | 64 | | | | |
+| `stage_at_share` | Var Char | 24 | | | | |
+| `channel` | Var Char | 24 | | | | `copy` \| `sms` \| `whatsapp` \| `email` \| `native` |
+| `placement` | Var Char | 24 | | | | `header` \| `panel` \| `rail` |
+| `tier` | Var Char | 12 | | | | `native` \| `modal` \| `manual` |
+| `target` | Var Char | 12 | | | | for `share_copied`: `link` \| `code` |
+| `reason` | Var Char | 24 | | | | for `share_dismissed` |
+| `created_at` | DateTime | - | | ✅ | | |
+| `ip_hash` | Var Char | 128 | | | | peppered hash |
+| `ua_hash` | Var Char | 128 | | | | sha256 of the user agent |
+
+### 25c. Gate checks, in the ZCQL tab
+
+Both tables take a manual insert and read it back, which is all the code
+path needs:
+
+```sql
+INSERT INTO invite_click (token, token_valid, landed_at, first_touch)
+VALUES ('TESTTKN0', 'yes', '2026-08-22 00:00:00', 'yes');
+SELECT ROWID, token, token_valid FROM invite_click WHERE token = 'TESTTKN0';
+DELETE FROM invite_click WHERE ROWID = <that rowid>;
+
+INSERT INTO share_event (event, stage_at_share, channel, created_at)
+VALUES ('share_opened', 'forming', 'copy', '2026-08-22 00:00:00');
+SELECT ROWID, event FROM share_event WHERE event = 'share_opened';
+DELETE FROM share_event WHERE ROWID = <that rowid>;
+```
+
+Then one live check end to end: open
+`https://www.whollar.ca/r/<any member's real token>` in a private window,
+confirm the 302 lands on `/waitlist/?ref=<token>`, and SELECT the newest
+`invite_click` row.
+
 ## Verify
 
 In the console: **Data Store → ZCQL** (or **Explore**), and run each of these.
@@ -1368,6 +1447,8 @@ SELECT ROWID FROM provider_billing LIMIT 1;
 SELECT ROWID FROM provider_statements LIMIT 1;
 SELECT ROWID FROM product_interest LIMIT 1;
 SELECT token, owner_type, owner_id, status FROM referral_token LIMIT 1;
+SELECT ROWID FROM invite_click LIMIT 1;
+SELECT ROWID FROM share_event LIMIT 1;
 ```
 
 Then one that exercises the column names the hot path depends on:
