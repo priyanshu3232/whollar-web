@@ -568,15 +568,22 @@ button{font-family:var(--body)}
 
   $('sharelink').addEventListener('click', function(){
     if (!REF) return;
+    var btn = this;
     var url = W.referral.link(REF);
-    var text = 'Whollar pools households by renewal timing so providers bid for the whole cohort. ' +
-      'Join with my link and it strengthens both our spots.';
+    var text = 'People in your area are switching to Whollar to get transparent rates and better ' +
+      'convenience. What\u2019s your reason? Join today and find out how much you are overpaying ' +
+      'for your internet service and start saving now.';
+    /* Only a cancelled sheet stays silent. Any other failure falls back to
+       the clipboard, so the press always visibly does something. */
+    var fallback = function(){ copyText(text + '\n' + url); flash(btn, 'Invite copied'); };
     if (navigator.share){
-      navigator.share({ title:'Whollar', text:text, url:url }).then(null, function(){});
+      navigator.share({ title:'Whollar', text:text, url:url }).then(null, function(err){
+        if (err && err.name === 'AbortError') return;
+        fallback();
+      });
       return;
     }
-    copyText(url);
-    flash(this, 'Link copied');
+    fallback();
   });
 
   /* ---------- feedback popup ---------- */
