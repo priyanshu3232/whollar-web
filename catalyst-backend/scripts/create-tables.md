@@ -1410,6 +1410,114 @@ Then one live check end to end: open
 confirm the 302 lands on `/waitlist/?ref=<token>`, and SELECT the newest
 `invite_click` row.
 
+---
+
+## 26. Cohort seats: `seat_claim`, `claim_event` and `cohort_counter`
+
+The exit-window feature: one cohort seat per address per vertical, leave
+while forming, atomic move between cohorts. Written and read by
+routes/seat.js through lib/seats.js, and by nothing else.
+
+**The first two tables fail closed.** Until `seat_claim` and `claim_event`
+exist, every seat route returns a clear 500 ("Cohort seats are not available
+right now"), and the dashboard keeps rendering the pre-seat join flow. This
+is the terms-gate contract, not the section 23 silent-skip contract: a seat
+system that silently no-ops would let one address into two cohorts.
+`cohort_counter` alone is the sidecar exception: without it, counts degrade
+to the campaign seed numbers, logged as `cohort_counter write skipped`.
+
+**Why the key is the address, not the member.** A household that is
+genuinely moving holds two addresses for a while, and each address is its
+own seat. Nothing in the codebase has an address identity yet, so until an
+address table exists the id is derived as `<user_id>/1` (one default slot
+per member). When real addresses land, new slots get new ids and every row
+here keys correctly with no rewrite.
+
+### 26a. `seat_claim` (new table)
+
+The enforcement point. Exactly one row per `(address_id, vertical)`, created
+on first join and reused forever. The row either points at a cohort
+(`status='active'`) or it does not. A move swaps `cohort_id` in place, so an
+address is never seatless mid-flight and can never hold two seats.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `claim_key` | Var Char | 96 | ✅ | ✅ | | `<address_id>:<vertical>`, the flattened composite key |
+| `address_id` | Var Char | 72 | | ✅ | | `<user_id>/1` until an address table exists |
+| `vertical` | Var Char | 24 | | ✅ | | `internet` for this slice |
+| `member_id` | Var Char | 64 | | ✅ | | |
+| `cohort_id` | Var Char | 64 | | | | null while released |
+| `status` | Var Char | 12 | | ✅ | | `active` \| `released` |
+| `version` | Int | - | | ✅ | | optimistic lock, starts at 1, see 26b |
+| `claimed_at` | DateTime | - | | | | |
+| `released_at` | DateTime | - | | | | |
+
+### 26b. `claim_event` (new table, append only)
+
+One row per transition, never mutated. This table is two things at once: the
+audit trail (the input to churn analysis, so `reason` is captured even when
+null) and the **race guard**. Catalyst has no conditional update, so every
+transition first inserts the event whose `event_key` is
+`<claim_key>:<version+1>`; the unique constraint lets exactly one concurrent
+writer in, and the loser re-reads and returns a 409. Two tabs leaving the
+same seat produce one state change and one conflict, by construction.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `event_key` | Var Char | 120 | ✅ | ✅ | | `<claim_key>:<version>`, the serialization point |
+| `claim_key` | Var Char | 96 | | ✅ | | |
+| `address_id` | Var Char | 72 | | ✅ | | |
+| `member_id` | Var Char | 64 | | ✅ | | |
+| `from_cohort_id` | Var Char | 64 | | | | |
+| `to_cohort_id` | Var Char | 64 | | | | |
+| `action` | Var Char | 16 | | ✅ | | `join` \| `leave` \| `move` \| `rejoin` \| `pass` \| `cancel` \| `seal` \| `admin_move` |
+| `reason` | Var Char | 24 | | | | `timing` \| `retention_offer` \| `moving` \| `other_cohort` \| `changed_mind`, else null |
+| `actor` | Var Char | 16 | | | | `member` \| `system` \| `admin` |
+| `request_id` | Var Char | 128 | | | | the Idempotency-Key header; a replay returns current state instead of writing twice |
+| `occurred_at` | DateTime | - | | ✅ | | |
+
+### 26c. `cohort_counter` (new table, sidecar)
+
+Roster count and publish state per cohort. A sidecar rather than columns on
+`campaigns` because lib/catalog.js selects a fixed column list and falls back
+to the code catalog when the query errors: adding columns there would break
+every campaign read until the console caught up. `roster_count` is recomputed
+on every transition by counting active claims (a recount cannot go negative
+and cannot drift) and only read, never scanned, on the read path.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `cohort_id` | Var Char | 64 | ✅ | ✅ | | |
+| `roster_count` | Int | - | | ✅ | | maintained on transitions only |
+| `min_threshold` | Int | - | | | | |
+| `public_threshold` | Int | - | | | | un-publish floor is 10 percent below this |
+| `published` | Boolean | - | | | | hysteresis: never re-cleared after `partner_announced` |
+| `partner_announced` | Boolean | - | | | | once true, the cohort never un-publishes |
+| `updated_at` | DateTime | - | | | | |
+
+### 26d. Gate checks, in the ZCQL tab
+
+```sql
+INSERT INTO seat_claim (claim_key, address_id, vertical, member_id, status, version)
+VALUES ('TESTADDR/1:internet', 'TESTADDR/1', 'internet', 'TESTUSER', 'released', 1);
+SELECT ROWID, claim_key, status, version FROM seat_claim WHERE claim_key = 'TESTADDR/1:internet';
+DELETE FROM seat_claim WHERE ROWID = <that rowid>;
+
+INSERT INTO claim_event (event_key, claim_key, address_id, member_id, action, occurred_at)
+VALUES ('TESTADDR/1:internet:1', 'TESTADDR/1:internet', 'TESTADDR/1', 'TESTUSER', 'join', '2026-08-22 00:00:00');
+SELECT ROWID, event_key, action FROM claim_event WHERE claim_key = 'TESTADDR/1:internet';
+DELETE FROM claim_event WHERE ROWID = <that rowid>;
+
+INSERT INTO cohort_counter (cohort_id, roster_count) VALUES ('test-cohort', 0);
+SELECT ROWID, cohort_id, roster_count FROM cohort_counter WHERE cohort_id = 'test-cohort';
+DELETE FROM cohort_counter WHERE ROWID = <that rowid>;
+```
+
+Then confirm the unique constraint actually guards: run the `claim_event`
+INSERT twice and the second must fail. If it does not, the `event_key` column
+was created without Unique and every concurrency guarantee in this feature is
+off.
+
 ## Verify
 
 In the console: **Data Store → ZCQL** (or **Explore**), and run each of these.
@@ -1449,6 +1557,9 @@ SELECT ROWID FROM product_interest LIMIT 1;
 SELECT token, owner_type, owner_id, status FROM referral_token LIMIT 1;
 SELECT ROWID FROM invite_click LIMIT 1;
 SELECT ROWID FROM share_event LIMIT 1;
+SELECT ROWID FROM seat_claim LIMIT 1;
+SELECT ROWID FROM claim_event LIMIT 1;
+SELECT ROWID FROM cohort_counter LIMIT 1;
 ```
 
 Then one that exercises the column names the hot path depends on:

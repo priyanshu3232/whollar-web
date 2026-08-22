@@ -22,6 +22,15 @@ const CODES = Object.freeze({
   EMAIL_UNVERIFIED: 403,
   NOT_FOUND:        404,
   CONFLICT:         409,
+  /* Seat conflicts get their own codes for the same reason EMAIL_UNVERIFIED
+     does: the dashboard acts on each one differently (conflict sheet, in-place
+     locked swap, closed banner, waitlist offer), and branching on message
+     strings breaks the first time the copy is reworded. All four are 409s:
+     the request was well formed and the state of the world said no. */
+  SEAT_HELD:        409,
+  SEAL_RACE:        409,
+  JOIN_CLOSED:      409,
+  ROSTER_FULL:      409,
   RATE_LIMITED:     429,
   SERVER_ERROR:     500,
   NOT_IMPLEMENTED:  501,

@@ -2566,7 +2566,7 @@ var BLOGS=[
 /* ---------- helpers ---------- */
 function money(v){return '$'+(v%1===0?v:v.toFixed(2))}
 function dep(){return money(S.deposit)}
-function toast(msg){var t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._x);toast._x=setTimeout(function(){t.classList.remove('show')},2400)}
+function toast(msg,ms){var t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._x);toast._x=setTimeout(function(){t.classList.remove('show')},ms||2400)}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 
 /* ---------- promo cliff ----------
@@ -5984,7 +5984,11 @@ function ccCard(c,feat,ids){
 
      `result` is unchanged, featured only, because there the press is the join.
      See openCheckupGate. */
-  var choose=(!mine&&c.joinable&&(PICKANY||S.state==='arrive'||(c===feat&&S.state==='result')));
+  /* `heldElsewhere` widens the gate the same way `arrive` does, and for the
+     same reason the long comment above allows it there: this press cannot
+     join anything. It opens the conflict sheet, a dialog the member reads
+     and closes, and the actual move is confirmed inside it. */
+  var choose=(!mine&&c.joinable&&(PICKANY||heldElsewhere||S.state==='arrive'||(c===feat&&S.state==='result')));
   /* #cc-first and #regmono stay on the featured card in the Home row. They are the
      handles qa-dashboard.mjs reads to assert that this row shows the server's
      cohorts and not four regions from the markup, which is the whole point of
@@ -6030,7 +6034,7 @@ function renderRegions(){
    all happen on /bill-checkup. Coming back here, applyDerived() reads the bill
    that landed and the card flips from "arrive" to "result" on its own. */
 document.addEventListener('click',function(e){
-  if(e.target.closest('[data-act="whyfree"]')){toast('Providers pay Whollar only when a switch completes. You never pay, and you’re never obligated.');return}
+  if(e.target.closest('[data-act="whyfree"]')){toast('Providers pay Whollar only when a switch completes. You never pay, and you’re never obligated.',6000);return}
   if(e.target.closest('[data-act="invite"]')){shareRef();return}
   /* THE BELL PROMISED A TEXT AND RECORDED NOTHING.
      This read the cohort from joinedCamp(), then fell through to a bare toast
@@ -7177,7 +7181,11 @@ function sTrack(action,extra){
 
 /* ---------- who holds what ---------- */
 function seatHeldCamp(){
-  if(SEATLIVE&&SEAT&&SEAT.claim&&SEAT.claim.status==='active')return campById(SEAT.claim.cohort_id);
+  /* Once the seat routes have answered, their answer is the whole truth: a
+     released claim means no seat, even where a stale membership row lingers. */
+  if(SEATLIVE&&SEAT){
+    return (SEAT.claim&&SEAT.claim.status==='active')?campById(SEAT.claim.cohort_id):null;
+  }
   /* Fallback: the cohort the server says this member joined. */
   var c=joinedCamp();
   return (c&&c.you==='joined')?c:null;
@@ -7289,7 +7297,7 @@ function paintSeatNotice(){
   }
   var dateStr=seatFmtD(left.until);
   var html='<div><b>You left '+esc(left.region)+'</b>'
-    +'<p>Your seat went back to the pool.'
+    +'<p>Your seat is open again for another household.'
     +(dateStr?' You can rejoin any time before joining closes on '+esc(dateStr)+'.':' You can rejoin while the cohort is still forming.')
     +'</p></div>'
     +'<button class="btn ghost" type="button" data-seatrejoin="'+esc(left.id)+'">Rejoin '+esc(left.region)+'</button>';
@@ -7365,7 +7373,7 @@ function seatExitOpen(id,pendingTargetId){
     +'<h3 id="sxs-title">Leave the '+esc(region)+' cohort?</h3>'
     +'<p class="sxs__lede">Nothing is owed and nothing is held against you. Here is exactly what changes.</p>'
     +'<ul class="sxs__list">'
-    +'<li class="lose">'+cross+'<span>Your seat goes back to the pool. The count drops from '+esc(String(n))+' to '+esc(String(Math.max(0,n-1)))+(counts.need?' of '+esc(String(counts.need)):'')+'.</span></li>'
+    +'<li class="lose">'+cross+'<span>Your seat opens up for another household. The count drops from '+esc(String(n))+' to '+esc(String(Math.max(0,n-1)))+(counts.need?' of '+esc(String(counts.need)):'')+'.</span></li>'
     +'<li class="keep">'+check+'<span>You can rejoin any time before joining closes'+(dateStr?' on '+esc(dateStr):'')+', if the roster has room.</span></li>'
     +'<li class="keep">'+check+'<span>Your bill checkup and your promo cliff watch stay active either way.</span></li>'
     +'<li class="keep">'+check+'<span>Neighbours you referred keep their credit. It never depended on you staying.</span></li>'
@@ -7381,7 +7389,7 @@ function seatExitOpen(id,pendingTargetId){
     +'<button class="btn terra" type="button" data-stsleave="'+esc(c.id)+'">Leave '+esc(region)+'</button>'
     +'</div>'
     +'<p class="sxs__foot">If you leave and the cohort later fills without you, we will still text you before your promo cliff.</p>';
-  seatSheetOpen(html,null,'[data-stsclose]');
+  seatSheetOpen(html,null,'.sxs__actions button');
   seatSheetEl.setAttribute('data-kind','exit');
   sTrack('seat_exit_intent',{campaign:c.id});
 }
@@ -7460,7 +7468,7 @@ function seatConflictOpen(toId){
     +(movable
       ?'<p class="sxs__foot">Prefer to do it in two steps? <button class="tlink" type="button" data-ststwostep="'+esc(a.id)+'" data-ststarget="'+esc(b.id)+'">Leave '+esc(ra)+' first</button>, then choose '+esc(rb)+' from the row.</p>'
       :'<p class="sxs__foot">'+(offersStr?'If you pass on the '+esc(ra)+' offer on '+esc(offersStr)+', your address frees up the same day and '+esc(rb)+' will still be forming.':'When the '+esc(ra)+' offer lands, passing frees your address the same day.')+'</p>');
-  seatSheetOpen(html,null,'[data-stsclose]');
+  seatSheetOpen(html,null,'.sxs__actions button');
   sTrack('seat_move_blocked',{from_cohort:a.id,to_cohort:b.id,movable:movable});
 }
 function seatMoveCommit(toId,fromId,btn){

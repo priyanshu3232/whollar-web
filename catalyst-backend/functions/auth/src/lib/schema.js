@@ -358,6 +358,42 @@ const TABLES = Object.freeze({
     speed:       'int required',
     created_at:  'datetime required',
   },
+  // Cohort seats: create-tables.md section 26. The claim row is the
+  // enforcement point for one-seat-per-address; the event log is both the
+  // race guard (unique event_key) and the audit trail.
+  seat_claim: {
+    claim_key:   'varchar(96) unique required', // `${address_id}:${vertical}`
+    address_id:  'varchar(72) required',
+    vertical:    'varchar(24) required',
+    member_id:   'varchar(64) required',
+    cohort_id:   'varchar(64)',
+    status:      'varchar(12) required', // active | released
+    version:     'int required',
+    claimed_at:  'datetime',
+    released_at: 'datetime',
+  },
+  claim_event: {
+    event_key:      'varchar(120) unique required', // `${claim_key}:${version}`
+    claim_key:      'varchar(96) required',
+    address_id:     'varchar(72) required',
+    member_id:      'varchar(64) required',
+    from_cohort_id: 'varchar(64)',
+    to_cohort_id:   'varchar(64)',
+    action:         'varchar(16) required',
+    reason:         'varchar(24)',
+    actor:          'varchar(16)',
+    request_id:     'varchar(128)',
+    occurred_at:    'datetime required',
+  },
+  cohort_counter: {
+    cohort_id:         'varchar(64) unique required',
+    roster_count:      'int required',
+    min_threshold:     'int',
+    public_threshold:  'int',
+    published:         'boolean',
+    partner_announced: 'boolean',
+    updated_at:        'datetime',
+  },
 });
 
 const TABLE_NAMES = Object.freeze(Object.keys(TABLES));

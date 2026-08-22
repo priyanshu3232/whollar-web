@@ -653,4 +653,4 @@ function mount(router) {
   }));
 }
 
-module.exports = { mount, allRows, tally, requireBiddingOpen, publicPartnerCampaign, TABLE };
+module.exports = { mount, allRows, tally, requireBiddingOpen, publicPartnerCampaign, publicCampaign, upsert, TABLE };

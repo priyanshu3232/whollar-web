@@ -43,6 +43,7 @@ const billingRoutes = require('./routes/billing');
 const adminRoutes = require('./routes/admin');
 const publicRoutes = require('./routes/public');
 const shareRoutes = require('./routes/share');
+const seatRoutes = require('./routes/seat');
 
 /**
  * Strip anything address-shaped out of a provider error before it is returned.
@@ -253,6 +254,7 @@ function buildApp(cfg) {
   adminRoutes.mount(router, cfg);
   publicRoutes.mount(router);
   shareRoutes.mount(router);
+  seatRoutes.mount(router);
 
   /**
    * Schema + request-shape diagnostics.
