@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <script src="/js/device-router.js?v=20260806a"></script>
-<script src="/js/whollar-benchmarks.js?v=20260806"></script><script src="/js/whollar-base-pricing.js?v=20260807c"></script><script src="/js/whollar-estimate-bench.js?v=20260814a"></script><script src="/js/whollar-core.js?v=20260821a"></script><script type="text/javascript">(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window, document, "clarity", "script", "xrkpgls1yj");</script>
+<script src="/js/whollar-benchmarks.js?v=20260806"></script><script src="/js/whollar-base-pricing.js?v=20260807c"></script><script src="/js/whollar-estimate-bench.js?v=20260814a"></script><script src="/js/whollar-core.js?v=20260823a"></script><script type="text/javascript">(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window, document, "clarity", "script", "xrkpgls1yj");</script>
 <title>Whollar: wholesale prices on home internet</title>
 <link rel="canonical" href="https://www.whollar.ca/">
 <meta name="description" content="Whollar pools Canadian households by neighbourhood and renewal date, then makes internet providers bid for the whole group. Check if you are overpaying.">
@@ -1622,10 +1622,9 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .whl-mobnav.is-open a:nth-child(4){transition-delay:.18s}
   .whl-mobnav.is-open a:nth-child(5){transition-delay:.22s}
   .whl-mobnav.is-open a:nth-child(6){transition-delay:.26s}
-  /* matches the ink rule above at 0,3,1 and comes later, so the accent colour wins */
-  .whl-mobnav a[data-mobnav-link].whl-mobnav__alt{
-    display:flex;align-items:center;gap:8px;color:var(--accent);font-size:22px;
-    border-bottom:none;padding-top:22px}
+  /* same size, colour, and rule as the links above it: only the arrow marks it out */
+  .whl-mobnav a[data-mobnav-link].whl-mobnav__alt{display:flex;align-items:center;gap:10px}
+  .whl-mobnav a[data-mobnav-link].whl-mobnav__alt svg{width:19px;height:19px}
   /* both buttons carrying margin-top:auto split the free space and end up crowding each
      other at the bottom: only the first of the pair should absorb it */
   .whl-mobnav a.whl-btn{margin-top:12px;font-size:17px;padding:16px;border-bottom:none;border-radius:14px;color:#F1ECDF}
@@ -1910,7 +1909,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   #whero .hero__mask{background:linear-gradient(0deg, rgba(10,32,24,.95) 0%, rgba(10,32,24,.55) 40%, rgba(10,32,24,0) 68%)}
   #whero .col-scene{justify-self:center; max-width:440px}
   #whero .whero-mapspace{height:150px}
-  #whero .col-cta{display:flex; flex-direction:column; gap:18px; padding-bottom:6px}
+  #whero .col-cta{display:flex; flex-direction:column; gap:18px; padding-bottom:6px; margin-top:18px}
   #whero .col-cta .cta-row{margin-bottom:0}
   #whero .wrap{gap:26px}
   #whero .col-scene{margin-top:-160px}

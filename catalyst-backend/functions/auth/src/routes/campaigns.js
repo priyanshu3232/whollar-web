@@ -284,11 +284,34 @@ function mount(router) {
        not be staged a millisecond apart, and the serverTime the dashboard
        offsets from has to be the instant the stages were computed at. */
     const now = Date.now();
+    /* THE MEMBER'S OWN DECISION, RESTORED. An accepted offer is an order row
+       and the row is the record: without this field a household that accepted
+       saw the Offers panel again on every reload, take button live, as if it
+       had never answered. Asked only where an order can exist at all, which
+       is a cohort this member joined whose window has closed, so the common
+       payload costs nothing extra. Order number and state only: the address
+       a household consented to release goes to its winning partner through
+       routes/delivery.js and nowhere else, this response included. */
+    const list = [];
+    for (const c of visible(cat.list)) {
+      const pub = publicCampaign(c, counts, mineBy[c.id], now);
+      if (mineBy[c.id] && awards.isClosed(c, now)) {
+        try {
+          const key = `${c.id}:${user.user_id}`.slice(0, 200);
+          const row = await orders.findAnyByKey(req.catalyst, key);
+          if (row) pub.yourOrder = { orderNo: row.order_no || null, state: row.state || 'acc' };
+        } catch {
+          /* Orders table unreadable: the decision cannot be restored, and
+             everything else in the payload stands. Same contract as counts. */
+        }
+      }
+      list.push(pub);
+    }
     res.status(200).json({
       ok: true,
       serverTime: now,
       live: rows !== null,
-      campaigns: visible(cat.list).map((c) => publicCampaign(c, counts, mineBy[c.id], now)),
+      campaigns: list,
     });
   }));
 

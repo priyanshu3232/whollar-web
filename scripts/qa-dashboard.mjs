@@ -930,6 +930,144 @@ console.log('\n11. the retired discount field is gone, and historical values sur
   await c.close();
 }
 
+/* THE DECISION IS A RECORD. Taking the offer posts the accept, with the
+   address and the consent the server requires, and a reload restores the
+   answer from `yourOrder` on the campaigns payload. Passing posts the leave,
+   and the passed panel neither promises the demo's fictions nor gets yanked
+   away by the next poll. A refresh used to land every decided household back
+   on the Offers panel, take button live, as if it had never answered. */
+const OFFERCAMP = (t => ({
+  id: 'kleinburg', region: 'Kleinburg', sub: 'Autumn cohort', kind: 'auction',
+  target: null, members: 4, households: 4, watching: 0, joinable: false, you: 'joined',
+  stage: 'offers', stageLabel: 'Offer in', next: null,
+  dates: {
+    announce_at: t - 40 * 60000, bidding_opens_at: t - 30 * 60000,
+    bidding_closes_at: t - 20 * 60000, offers_at: t - 10 * 60000,
+  },
+}))(Date.now());
+const OFFERBODY = {
+  ok: true, sealed: false, live: true, closesAt: Date.now() - 20 * 60000, bidCount: 1,
+  offer: {
+    partner: 'Northline', price: '43', speed: '100 Mbps', technology: 'cable',
+    guaranteeMonths: 24, afterLine: 'no scheduled change', equipment: 'byo',
+    rentalMonthly: null, committedHouseholds: 4, reference: 'WB-1', tiers: [],
+  },
+};
+
+console.log('\n12. taking the offer posts the accept, and a reload restores it');
+{
+  const c = await ctx(browser, { campaigns: [OFFERCAMP] });
+  await c.route('**/api/auth/campaigns/*/offer', r => r.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify(OFFERBODY),
+  }));
+  let accepted = null;
+  await c.route('**/api/auth/campaigns/*/offer/accept', r => {
+    accepted = JSON.parse(r.request().postData() || '{}');
+    return r.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ ok: true, accepted: true, orderNo: 'WHL-77AB-C', note: 'Accepted. Nothing is charged for switching, and your installer books the visit from here.' }),
+    });
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+
+  await p.click('#panel [data-take]');
+  await p.waitForTimeout(300);
+  ok(await p.locator('#svcaddr').count() === 1, 'the live confirm screen asks for the service address');
+  ok(await p.evaluate(() => document.querySelector('#paydep').disabled), 'the confirm button starts disarmed');
+  await p.fill('#svcaddr', '12 Maple Street, Kleinburg');
+  await p.click('#consent');
+  await p.waitForTimeout(150);
+  ok(await p.evaluate(() => !document.querySelector('#paydep').disabled), 'address plus consent arms it');
+  await p.click('#paydep');
+  await p.waitForTimeout(700);
+  ok(accepted !== null, 'the accept reaches the server');
+  ok(accepted && accepted.consent === true, 'with the consent tick');
+  ok(accepted && accepted.address === '12 Maple Street, Kleinburg', `and the address (${accepted && accepted.address})`);
+  const panel = (await p.locator('#panel').innerText());
+  ok(/concierge has it from here/i.test(panel), 'the panel moves to switching');
+  ok(panel.includes('WHL-77AB-C'), 'and names the order');
+  await c.close();
+}
+{
+  const c = await ctx(browser, {
+    campaigns: [{ ...OFFERCAMP, yourOrder: { orderNo: 'WHL-77AB-C', state: 'acc' } }],
+  });
+  await c.route('**/api/auth/campaigns/*/offer', r => r.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify(OFFERBODY),
+  }));
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  const panel = (await p.locator('#panel').innerText());
+  ok(/concierge has it from here/i.test(panel), 'a fresh load lands on switching, not Offers');
+  ok(panel.includes('WHL-77AB-C'), 'still naming the order');
+  ok(await p.evaluate(() => !document.querySelector('#panel [data-take]')), 'and the take button is gone');
+  await c.close();
+}
+
+console.log('\n12b. passing posts the leave, survives the poll, and a failure reverts honestly');
+{
+  const c = await ctx(browser, { campaigns: [OFFERCAMP] });
+  await c.route('**/api/auth/campaigns/*/offer', r => r.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify(OFFERBODY),
+  }));
+  let left = null;
+  await c.route('**/api/auth/campaigns/leave', r => {
+    left = JSON.parse(r.request().postData() || '{}');
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, campaign: { ...OFFERCAMP, you: null } }) });
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+
+  await p.click('#panel [data-act="pass"]');
+  await p.waitForTimeout(300);
+  await p.click('#ps-go');
+  await p.waitForTimeout(700);
+  ok(left !== null && left.campaign === 'kleinburg', `the leave reaches the server (${left && left.campaign})`);
+  let panel = (await p.locator('#panel').innerText());
+  ok(/address is freed today/i.test(panel), 'the persisted pass says what is true');
+  ok(await p.evaluate(() => !document.querySelector('#panel [data-act="backoffers"]')),
+    'and offers no reconsider over a membership that is gone');
+  await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await p.waitForTimeout(1200);
+  panel = (await p.locator('#panel').innerText());
+  ok(/Passed\./.test(panel), 'the next poll does not yank the panel away');
+  await c.close();
+}
+{
+  const c = await ctx(browser, { campaigns: [OFFERCAMP] });
+  await c.route('**/api/auth/campaigns/*/offer', r => r.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify(OFFERBODY),
+  }));
+  await c.route('**/api/auth/campaigns/leave', r => r.fulfill({
+    status: 500, contentType: 'application/json',
+    body: JSON.stringify({ ok: false, error: { code: 'SERVER_ERROR', message: 'Campaign sign-ups are not available right now. Please try again shortly.' } }),
+  }));
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  await p.click('#panel [data-act="pass"]');
+  await p.waitForTimeout(300);
+  await p.click('#ps-go');
+  await p.waitForTimeout(900);
+  ok(await p.evaluate(() => !!document.querySelector('#panel [data-take]')),
+    'a pass the server never heard reverts to the offer, take button live');
+  /* The 500 above is the fixture, not a finding: the browser logs every non-2xx
+     resource, and this group exists to provoke exactly one. Drain that one line
+     so the zero-console-error contract keeps meaning something. */
+  const expected = errors.findIndex(t => /500/.test(t));
+  ok(expected >= 0, 'and the browser logged the provoked 500, nothing else new');
+  if (expected >= 0) errors.splice(expected, 1);
+  await c.close();
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${new Set(errors).size} distinct console error(s)`);
 for (const e of new Set(errors)) console.log('  console: ' + e);
 await browser.close();

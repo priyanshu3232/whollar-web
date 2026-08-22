@@ -13,7 +13,7 @@
      the visitor is, because a Google sign-in lands here with a cookie and an
      empty localStorage. Synchronous and in the head so the guard at the foot of
      the body can rely on it. -->
-<script src="/js/whollar-core.js?v=20260821a"></script>
+<script src="/js/whollar-core.js?v=20260823a"></script>
 <script src="/js/whollar-select.js?v=20260818"></script>
 <!-- The same savings engine /bill-checkup runs, so the deal signal band states
      the checkup's verdict rather than a second opinion about the same bill.
@@ -34,6 +34,9 @@
   --panew:264px; --panec:78px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
+/* Without this, Android Chrome font-boosts controls inside horizontal scrollers
+   (.ltwrap): one select inflates, its row breaks, the table reads as scrambled. */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{font-family:var(--body);background:var(--paper);color:var(--ink);font-size:15.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 a{color:var(--accent-deep);text-decoration:none}
@@ -988,6 +991,11 @@ body.npopen{overflow:hidden}
 .ltable .colpay{width:86px}
 .ltable .colfin{width:112px}
 .ltable .colsize{width:176px}
+@media (max-width:680px){
+  .ltable select,.ltable input{font-size:14px;padding:9px 8px;min-height:40px}
+  .ltable td{padding:8px 8px}
+  .ltable .colpay{width:96px}
+}
 /* Width / profile / rim as three narrow selects with the separators drawn
    between them, so the control reads as the 235/55R20 the member is copying off
    a sidewall rather than as three unrelated dropdowns. */
@@ -3850,9 +3858,40 @@ function tplOffers(){
   +'<button class="btn ghost" type="button" data-act="pass">Pass on it</button>'
   +'<button class="finelink" type="button" data-act="whopart">Who is '+esc(WIN.name)+'?</button></div>';
 }
+/* The cohort whose real offer this confirm screen would accept, or null when
+   this is the demo tour. Real means: a live joined cohort AND a live offer
+   AND a core new enough to carry the accept call. Anything less keeps the
+   demo screen, which promises nothing to a server. */
+function liveAccept(){
+  var c=CAMPLIVE?joinedCamp():null;
+  return (c&&OFFERLIVE&&W&&W.session&&W.session.campaignOfferAccept)?c:null;
+}
 function tplConfirm(){
   var o=OFFERS.filter(function(x){return x.id===S.chosen})[0]||OFFERS[0];
   var save=S.member.bill-o.price;
+  /* THE REAL CONFIRM IS THE ACCEPT. POST /campaigns/:id/offer/accept wants
+     exactly two things, a service address and the consent to release it, so
+     that is exactly what this screen collects. No deposit is taken here,
+     because no code anywhere takes one, and a screen that says "deposit
+     placed" over a request that charged nothing is a fabrication a member
+     would repeat to their bank. The demo tour below keeps the deposit
+     narrative it always had. */
+  if(liveAccept()){
+    return '<h3>Confirm your switch</h3>'
+    +'<p class="p">Your yes is what makes the cohort price real: partners priced against confirmed households, and confirming is what books this number for yours.</p>'
+    +'<div class="confbox">'
+    +'<div class="row"><span>Your pick</span><b>'+esc(o.name)+'</b></div>'
+    +'<div class="row"><span>New bill</span><b>'+money(o.price)+'/mo &middot; '+esc(o.speed)+'</b></div>'
+    +'<div class="row"><span>Against your current bill</span><b>saves '+money(save)+'/mo</b></div>'
+    +'<div class="row"><span>To pay today</span><b>Nothing. Switching never costs you anything.</b></div>'
+    +'</div>'
+    +'<label class="plabel" for="svcaddr" style="margin-top:12px">Service address for the install</label>'
+    +'<input class="minput" id="svcaddr" type="text" autocomplete="street-address" maxlength="180" placeholder="Street address, unit, city">'
+    +'<p class="fnote">Your address goes to '+esc(o.name)+' and nobody else, for this install and nothing else.</p>'
+    +'<label class="consent"><input type="checkbox" id="consent"><span>I\u2019m happy for my service address to go to '+esc(o.name)+' so this install can be booked.</span></label>'
+    +'<button class="btn terra" type="button" id="paydep" disabled>Confirm my switch</button>'
+    +'<button class="finelink" type="button" data-act="backoffers">Back to offers</button>';
+  }
   return '<h3>Confirm with a '+dep()+' deposit</h3>'
   +'<p class="p">The deposit is what makes your yes count: providers price cohorts on confirmed households, and confirmed is what gets you this number.</p>'
   +'<div class="confbox">'
@@ -3867,6 +3906,22 @@ function tplConfirm(){
 }
 function tplSwitching(){
   var o=OFFERS.filter(function(x){return x.id===S.chosen})[0]||OFFERS[0];
+  /* A REAL ORDER SHOWS ITS OWN TRUTH. The demo's "Wednesday, October 8" was a
+     fixture, and painting it over a real acceptance promises a visit nobody
+     booked. The order state is what is known: accepted means the partner has
+     it, booked means a slot exists, and the slot itself is confirmed by text
+     rather than invented here. */
+  var oc=CAMPLIVE?joinedCamp():null,ord=oc&&oc.yourOrder;
+  if(ord){
+    var booked=ord.state==='bkd'||ord.state==='act';
+    return '<h3>Your concierge has it from here</h3>'
+    +'<p class="p">You do nothing. We confirm each step by text, and your old plan only ends once the new one works.</p>'
+    +'<div class="checks">'
+    +'<div class="check dn"><i>&#10003;</i><span>'+esc(o.name)+' notified<small>'+(ord.orderNo?'Order '+esc(ord.orderNo)+' &middot; your':'Your')+' cohort rate is on file.</small></span></div>'
+    +'<div class="check '+(booked?'dn':'on')+'"><i>'+(booked?'&#10003;':'&bull;')+'</i><span>Install booked<small>'+(booked?'Booked. The visit window is confirmed by text.':'Your installer proposes visit times by text.')+'</small></span></div>'
+    +'<div class="check td"><i>&middot;</i><span>Old plan closed<small>Only after your new connection is live.</small></span></div>'
+    +'</div>';
+  }
   return '<h3>Your concierge has it from here</h3>'
   +'<p class="p">You do nothing. We confirm each step by text, and your old plan only ends once the new one works.</p>'
   +'<div class="checks">'
@@ -3948,14 +4003,13 @@ $('#panel').addEventListener('click',function(e){
   var t=e.target.closest('button');if(!t)return;
   var take=t.getAttribute('data-take');
   var act=t.getAttribute('data-act');
-  /* NOT PERSISTED. This is the whole accept flow today: a local state change.
-     POST /campaigns/:id/offer/accept exists, is deployed, and is what creates
-     the switch order, and nothing on this page calls it, because the route
-     requires a service address and this panel has no field to collect one.
-     Until that step exists, `advance` is what keeps the member's own click on
-     screen against the next poll. */
+  /* Taking the offer is navigation, not the decision: the persisted write is
+     the confirm button below, which posts the accept with the address and the
+     consent the server requires. Before that button is pressed a reload
+     honestly returns to Offers, because nothing has been decided yet.
+     `advance` keeps the confirm screen up against the poll meanwhile. */
   if(take){S.chosen=take;advance('confirm');go('confirm');return}
-  if(act==='backoffers'){ADVANCED=null;go('offers');return}
+  if(act==='backoffers'){ADVANCED=null;PASSLOCK=false;go('offers');return}
   /* `invite` used to be handled HERE ONLY, on #panel, which is the member lane.
      rvWaitlist puts the same button in #visitor-home, outside this listener, so
      the one screen whose whole job is "bring a neighbour to speed your region
@@ -3963,10 +4017,43 @@ $('#panel').addEventListener('click',function(e){
      Moved to the document-level handler by the visitor events, which sees both
      lanes. Do not re-add it here: two listeners on one bubble path would call
      shareRef twice for every member-lane press. */
-  if(t.id==='paydep'){t.disabled=true;t.textContent='Placing deposit\u2026';setTimeout(function(){advance('switching');go('switching');openSavings();toast('Deposit placed: '+dep()+', credited to your first bill.')},reduce?350:900);return}
+  if(t.id==='paydep'){
+    /* THE PERSISTED ACCEPT. One POST creates the switch order, idempotently:
+       a double tap, a retry, a second tab are all one order. Success carries
+       the server's own sentence about money, which is that there is none.
+       Failure re-arms the button and shows the server's message, written to
+       be shown. The demo tour keeps its deposit theatre, clearly below. */
+    var lc=liveAccept();
+    if(lc){
+      var ad=(($('#svcaddr')||{}).value||'').trim();
+      t.disabled=true;t.textContent='Confirming\u2026';
+      W.session.campaignOfferAccept(lc.id,{address:ad,consent:true}).then(function(r){
+        lc.yourOrder={orderNo:(r&&r.orderNo)||null,state:'acc'};
+        advance('switching');go('switching');openSavings();
+        toast((r&&r.note)||'Accepted. Nothing is charged for switching, and your installer books the visit from here.',6000);
+      },function(err){
+        t.disabled=false;t.textContent='Confirm my switch';
+        toast((err&&err.message)||'That didn\u2019t save. Nothing changed: try again.',6000);
+      });
+      return;
+    }
+    t.disabled=true;t.textContent='Placing deposit\u2026';setTimeout(function(){advance('switching');go('switching');openSavings();toast('Deposit placed: '+dep()+', credited to your first bill.')},reduce?350:900);return}
 });
+/* The confirm button arms only when everything the accept POST needs is
+   present: the consent tick always, and on the live screen an address long
+   enough for the server to take (its own floor is six characters). */
+function confirmGate(){
+  var b=$('#paydep');if(!b)return;
+  var cb=$('#consent'),ad=$('#svcaddr');
+  var ok=Boolean(cb&&cb.checked);
+  if(ad)ok=ok&&ad.value.trim().length>=6;
+  b.disabled=!ok;
+}
 $('#panel').addEventListener('change',function(e){
-  if(e.target.id==='consent'){var b=$('#paydep');if(b)b.disabled=!e.target.checked}
+  if(e.target.id==='consent')confirmGate();
+});
+$('#panel').addEventListener('input',function(e){
+  if(e.target.id==='svcaddr')confirmGate();
 });
 /* ---------- referral: one code, from the server, everywhere on the page ----
    REF holds what GET /me/referral answered. Null until it answers, and null
@@ -4177,6 +4264,11 @@ function applyCampaign(sc){
   if(sc.stage)c.stage=sc.stage;
   if(sc.dates)c.dates=sc.dates;
   if(sc.next!==undefined)c.next=sc.next;
+  /* The member's own decision, as the server restored it: the switch order
+     this household created by accepting. Carried whole so deriveState() and
+     tplSwitching() read one object. Left untouched when absent so an older
+     deployment degrades to the calendar stage, exactly as `stage` does. */
+  if(sc.yourOrder!==undefined)c.yourOrder=sc.yourOrder;
 }
 /* The cohort this page is ABOUT: the member's own if they have one, otherwise
    the first joinable one the server sent. The server orders by sort_order, so
@@ -4356,10 +4448,78 @@ paintChecklist();
 document.addEventListener('change',function(e){
   if(e.target.closest('.tog'))toast('Preference saved.');
 });
+/* ---------- your data: export and delete, live ----------
+   Same rule as the feedback modal: nothing on this card claims success until
+   the server confirmed it. The export is assembled by GET /me/export and saved
+   by the browser as a file the member keeps, right now, in this tab: no email
+   leg, no copy parked on a server to fetch later. */
+var DLBUSY=false;
+function downloadData(btn){
+  if(DLBUSY)return;
+  if(!(W&&W.session&&W.session.exportData)){toast('Your export could not be prepared. Please try again.');return}
+  DLBUSY=true;btn.textContent='Preparing your export…';
+  var restore=function(){DLBUSY=false;btn.textContent='Download my data →'};
+  W.session.exportData().then(function(data){
+    restore();
+    var stamp=String((data&&data.exportedAt)||'').slice(0,10)||'export';
+    var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=url;a.download='whollar-data-'+stamp+'.json';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(function(){URL.revokeObjectURL(url)},4000);
+    toast('Saved. Everything we hold about you, in one file.');
+  },function(e){
+    restore();
+    toast((e&&e.message)||'Your export could not be prepared. Please try again.');
+  });
+}
+/* The typed email is the confirmation, checked by the server and not here: a
+   local compare against the cached record would pass a stale copy and fail a
+   fresh one, and the server is the only party that knows which it has. */
+function openDeleteAccount(){
+  openModal('<div class="mhead"><h3>Delete my account</h3><button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
+  +'<p class="msub">This signs you out everywhere and deletes your bill, your cohort seat, your preferences and your feedback. There is no undo and no copy kept to restore from. Type your account email to confirm.</p>'
+  +'<input class="minput" id="del-email" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Your account email" aria-label="Account email">'
+  +'<button class="btn terra" type="button" id="del-go" style="width:100%;justify-content:center;margin-top:12px">Delete my account</button>'
+  +'<p class="whl-fielderr" id="del-err" role="alert" style="text-align:center" hidden></p>'
+  +'<p class="fnote" style="text-align:center">Your email can sign up fresh afterwards. Nothing carries over.</p>',true);
+  var f=$('#del-email');if(f)f.focus();
+}
+var DELSENDING=false;
+function deleteSend(btn){
+  if(DELSENDING)return;
+  var f=$('#del-email'),err=$('#del-err');
+  var typed=String((f&&f.value)||'').trim();
+  function say(m){if(err){err.textContent=m;err.hidden=false}else toast(m)}
+  if(!typed){say('Type the account email to confirm.');if(f)f.focus();return}
+  if(err)err.hidden=true;
+  if(!(W&&W.session&&W.session.deleteAccount)){say('We could not reach the server just now. Please try again.');return}
+  DELSENDING=true;btn.disabled=true;btn.textContent='Deleting…';
+  W.session.deleteAccount(typed).then(function(){
+    /* The server has already revoked every session and cleared the cookie.
+       Drop the local record and leave for the public home page: nothing on
+       this dashboard is theirs to see any more. */
+    try{localStorage.removeItem('whollar.member')}catch(e2){}
+    location.replace('/');
+  },function(e){
+    DELSENDING=false;btn.disabled=false;btn.textContent='Delete my account';
+    /* The server's wording ("Type the account email exactly…") is written
+       for the member, so it is shown as-is rather than mapped to a generic. */
+    say((e&&e.message)||'That did not go through. Please try again.');
+    if(f)f.focus();
+  });
+}
 document.addEventListener('click',function(e){
   if(e.target.closest('#pf-signout')){signOut();return}
-  if(e.target.closest('#dl-data'))toast('Prototype: your data export will land by email.');
-  if(e.target.closest('#del-acct'))toast('Prototype: deletion flow, with a real confirm step.');
+  var dl=e.target.closest('#dl-data');
+  if(dl){downloadData(dl);return}
+  if(e.target.closest('#del-acct')){openDeleteAccount();return}
+  var dg=e.target.closest('#del-go');
+  if(dg)deleteSend(dg);
+});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Enter'&&e.target&&e.target.id==='del-email'){e.preventDefault();var b=$('#del-go');if(b)deleteSend(b)}
 });
 
 /* ---------- reads + knowledge ---------- */
@@ -5361,11 +5521,21 @@ function joinedCamp(){
  * handler), so a reload honestly returns to what the server knows.
  */
 var ADVANCED=null;
+/* A CONFIRMED PASS, this session. The passed panel is not a stage the server
+   knows (the pass persists as leaving the cohort, after which the server
+   honestly answers "no cohort"), so without this latch the next campaigns
+   poll yanked the panel away mid-read and put either the Offers screen or the
+   visitor lane under the member who had just answered. Cleared by
+   "Reconsider the offer", which only exists while the pass has not persisted.
+   Session scoped: a reload lands on what the server knows, which after a
+   persisted pass is a member outside the cohort, exactly as chosen. */
+var PASSLOCK=false;
 function advance(st){
   if(STATES.indexOf(st)<0)return;
   if(!ADVANCED||STATES.indexOf(st)>STATES.indexOf(ADVANCED))ADVANCED=st;
 }
 function deriveState(){
+  if(PASSLOCK)return 'passed';
   var st=serverState();
   /* Only ever ahead of the server, and only within the seven member states: a
      visitor state or a waitlist answer is not something a click can outrank. */
@@ -5420,6 +5590,18 @@ function serverState(){
      visitor lane for the whole life of the cohort. Do not re-derive standing
      here to compensate: the server owns it, as it owns stage. */
   if(c.you==='waitlist')return 'waitlist';
+  /* THE MEMBER'S OWN DECISION OUTRANKS THE CALENDAR, because it is a record,
+     not a click: `yourOrder` is the switch order acceptance created, read
+     back from the server. A household that accepted must never see the
+     Offers panel again with the take button live, which is exactly what the
+     calendar stage alone showed it on every reload. A released order falls
+     through: that household was told it is off the board, and the cohort's
+     calendar is what remains true for it. */
+  if(c.yourOrder&&c.yourOrder.state!=='rel'){
+    if(c.yourOrder.state==='act')return 'done';
+    var os=(c.stage&&STATES.indexOf(c.stage)>-1)?c.stage:'offers';
+    return (os==='offers'||os==='confirm')?'switching':os;
+  }
   /* THE SERVER OWNS STAGE. c.stage is derived by catalog.memberStageOf from
      the cohort's own calendar, against one clock reading taken server side.
      Reading it here is the whole point: the browser must not re-derive a
@@ -6446,6 +6628,28 @@ document.addEventListener('click',function(e){
     if(W&&W.session&&W.session.event){
       W.session.event('interest',{action:'pass',why:S.pass.why,saveOffer:S.pass.amt,nextCohort:S.pass.next}).then(null,function(){});
     }
+    /* THE PASS IS A RECORD, NOT A CLICK. Passing at the offers stage means
+       leaving the cohort, and POST /campaigns/leave is the deployed write
+       that says so: the membership row goes, the address frees up, and a
+       reload lands the member outside the cohort instead of back on the
+       Offers panel with the take button live. The seat decorator below this
+       file also releases the seat claim when those routes answer; both
+       writes are idempotent, so firing both is one exit. Failure is not
+       swallowed: a pass the server never heard is not a pass, so the panel
+       reverts to the offer and says why. */
+    var pc=CAMPLIVE?joinedCamp():null;
+    PASSLOCK=true;
+    if(pc&&pc.stage==='offers'&&W&&W.session&&W.session.campaignLeave){
+      S.pass.persisting=true;
+      W.session.campaignLeave(pc.id).then(function(){
+        if(S.pass)S.pass.left=true;
+      },function(err){
+        PASSLOCK=false;ADVANCED=null;
+        if(S.pass){S.pass.persisting=false;S.pass.left=false}
+        go('offers');
+        toast((err&&err.message)||'Your pass didn’t reach the server, so nothing changed. The offer is still yours to take or pass.',6000);
+      });
+    }
     closeModal();
     if(S.pass.amt)EXTRA.push(['Today','You logged '+((S.checkup||{}).prov||'your provider')+'’s save offer: '+money(S.pass.amt)+'/mo']);
     go('passed');
@@ -7088,10 +7292,23 @@ function tplShort(){
 
 /* Passed: the header icon carries the share (a member who passed still has a
    real, honest story), so the panel keeps only the decision that is actually
-   pending here. */
+   pending here. THIS is the tplPassed that renders: it is the last
+   declaration of the name, which is the porting convention this whole
+   section runs on. */
 function tplPassed(){
   var p=S.pass||{next:true};
   var save=p.amt?'<div class="savedbox"><b>'+esc((S.checkup||{}).prov||'Your provider')+' offered you '+money(p.amt)+'/mo when you pushed.</b> That’s the cohort working even when you stay: the credible exit is what moved them. Logged privately, never shown to bidders.</div>':'';
+  /* THE PERSISTED PASS IS AN EXIT, and this panel must not promise the demo's
+     fictions over it: the membership row is gone, so there is no offer to
+     reconsider, no "stands until" date, and no Winter cohort anyone was
+     rolled into. What is true: the plan stays, the address is freed, the
+     cliff watch runs, and the next cohort for the region is free to join. */
+  if(p.persisting||p.left){
+    return '<h3>Passed. Nothing changes, nothing owed.</h3>'
+    +'<p class="p">You keep your plan, and your address is freed today. Your promo cliff watch keeps running'
+    +(p.next?', and we’ll flag the next cohort for your region when it forms: joining again is free.':'. Rejoin any time, free.')+'</p>'
+    +save;
+  }
   return '<h3>Passed. Nothing changes, nothing owed.</h3>'
   +'<p class="p">You keep your plan and your standing. The winning offer stands until <b>Sep 24</b> if you rethink it.</p>'
   +save

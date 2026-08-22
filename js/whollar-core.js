@@ -1727,6 +1727,20 @@
     campaignNotify: function (id) { return authPost('/campaigns/notify', { campaign: id }); },
 
     /**
+     * Accept the cohort's winning offer: the consent tick plus the service
+     * address, which is the only pair the server takes and the only moment a
+     * household address ever leaves this browser. Creates the switch order,
+     * idempotently: a double tap is one order. Button path, so it REJECTS
+     * with the server's message. Resolves { ok, accepted, orderNo, note }.
+     */
+    campaignOfferAccept: function (id, body) {
+      return authPost('/campaigns/' + encodeURIComponent(id) + '/offer/accept', {
+        address: (body && body.address) || '',
+        consent: Boolean(body && body.consent)
+      });
+    },
+
+    /**
      * The partner console's view of the same campaigns: counts only, no
      * member identity. Never rejects: resolves { live, campaigns } or null,
      * and the console keeps its demo numbers on null.
