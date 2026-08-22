@@ -1125,6 +1125,29 @@ body.npopen{overflow:hidden}
    follow, so nothing is re-sequenced on the way down.
    768px: the container and card padding drop to 20px together, and the cohort
    row becomes a snap scroller. */
+/* 1280px and up: the crop grows into the surplus, and only here.
+   The rows are dealt equal shares of whatever the member room opposite leaves
+   over (see .reads), and how large that surplus is depends on the width: at
+   1440 a row is 116px carrying 78px of content, at 1280 it is 111px, and from
+   1279 down to the point the band folds it is 88px, which a 64px crop already
+   very nearly fills. So this is the one range where the rows read as empty, and
+   it is the one range that changes. Below it the card's height is either fully
+   consumed at 64px or, under 1100 where the band is a single column, decided by
+   its own contents, and growing the crop there would grow the card.
+
+   76px, plus the 14px of vertical padding the row keeps for its hover bleed,
+   makes a 90px row content against a 111px share: still centred, still short of
+   the divider, and the card finishes on the same line it did before. The srcset
+   behind it is 92w/184w, so 76px is served at 1x and 2x without a new render.
+   The crop is border-box, so the 1px hairline is inside the 76. */
+@media (min-width:1280px){
+  .reads li a{grid-template-columns:76px 1fr}
+  .rthumb{width:76px;height:76px}
+  /* 16px, and the two line clamp holds: the longest headline in the set runs to
+     two lines at this size in the narrower of the two column widths this range
+     covers, and the clamp cannot make a third one. */
+  .rttl{font-size:16px}
+}
 /* 1279px: the split band's rail tightens by 40px and the handset scales with it.
    Width is all that is set, at both this breakpoint and the next: .mrview's
    aspect-ratio takes the height down with it, so the whole device stays in frame
