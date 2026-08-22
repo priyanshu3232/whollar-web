@@ -532,7 +532,8 @@ img,svg{display:block}
 /* The sticky block centres its content in a full viewport, so the section's own
    padding stacks on top of that slack. Trim the padding, keep the centring. */
 #why{padding-top:clamp(6px,1vw,14px);padding-bottom:clamp(6px,1vw,14px)}
-.whl-hard__track{position:relative;margin-top:0;height:calc(100vh * 2.05)}
+#why.whl-section{padding:clamp(16px,2vw,28px) 0}
+.whl-hard__track{position:relative;margin-top:0;height:calc(100vh * 1.7)}
 .whl-hard__sticky{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;justify-content:center;gap:clamp(14px,2.4vh,26px);padding:clamp(8px,1.6vh,18px) 0}
 .whl-hard__head{max-width:none;text-align:center;margin:0}
 .whl-hard__head .whl-eyebrow{margin:0 0 10px}
@@ -1014,6 +1015,7 @@ img,svg{display:block}
 .whl-logos:hover .whl-logos__track{animation-play-state:paused}
 .whl-logos__track img{height:32px;width:auto;flex-shrink:0;opacity:.78;filter:grayscale(.2);transition:opacity .2s var(--ease),filter .2s var(--ease)}
 .whl-logos__track img:hover{opacity:1;filter:grayscale(0)}
+.whl-logos__track img.whl-logos__stacked{height:48px}
 .whl-logos::before,.whl-logos::after{content:"";position:absolute;top:0;bottom:0;width:90px;z-index:2;pointer-events:none}
 .whl-logos::before{left:0;background:linear-gradient(to right,#FAF8F3,rgba(250,248,243,0))}
 .whl-logos::after{right:0;background:linear-gradient(to left,#FAF8F3,rgba(250,248,243,0))}
@@ -1795,7 +1797,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
     <img src="/images/index-assets/b7c31d1f497f.png" alt="Videotron">
     <img src="/images/index-assets/35c5c7bd6c33.jpg" alt="Carry Telecom">
     <img src="/images/index-assets/2b307ced1efd.png" alt="Eastlink">
-    <img src="/images/index-assets/4aa93a9cbe52.png" alt="NorthwesTel">
+    <img class="whl-logos__stacked" src="/images/index-assets/4aa93a9cbe52.png" alt="NorthwesTel">
     <img src="/images/index-assets/1372ac5c779a.jpg" alt="TekSavvy">
     <img src="/images/index-assets/5e41c49e525c.png" alt="SaskTel">
     <img src="/images/index-assets/169af0a5184b.jpg" alt="CIK Telecom">
@@ -1807,7 +1809,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
     <img src="/images/index-assets/b7c31d1f497f.png" alt="" aria-hidden="true">
     <img src="/images/index-assets/35c5c7bd6c33.jpg" alt="" aria-hidden="true">
     <img src="/images/index-assets/2b307ced1efd.png" alt="" aria-hidden="true">
-    <img src="/images/index-assets/4aa93a9cbe52.png" alt="" aria-hidden="true">
+    <img class="whl-logos__stacked" src="/images/index-assets/4aa93a9cbe52.png" alt="" aria-hidden="true">
     <img src="/images/index-assets/1372ac5c779a.jpg" alt="" aria-hidden="true">
     <img src="/images/index-assets/5e41c49e525c.png" alt="" aria-hidden="true">
     <img src="/images/index-assets/169af0a5184b.jpg" alt="" aria-hidden="true">
