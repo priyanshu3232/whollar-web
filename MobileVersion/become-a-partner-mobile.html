@@ -1026,7 +1026,9 @@ $$('.fs,.faqwrap').forEach(el=>io.observe(el));
 (function anims(){
   if(typeof lottie==='undefined')return;
   const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  [['lot1','application-completed.json'],['lot2','job-review.json'],['lot3','bid-animation.json']].forEach(([id,path])=>{
+  /* Root-relative on purpose: the mobile build serves this same script from
+     /MobileVersion/, where a bare filename resolves to a JSON that is not there. */
+  [['lot1','/application-completed.json'],['lot2','/job-review.json'],['lot3','/bid-animation.json']].forEach(([id,path])=>{
     const el=$('#'+id); if(!el)return;
     lottie.loadAnimation({container:el,renderer:'svg',loop:!reduce,autoplay:!reduce,path});
   });
