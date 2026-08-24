@@ -86,6 +86,10 @@ function applyCampaignsPayload(r) {
   set({
     campaigns: r.campaigns || [],
     campaignsLive: r.live !== false,
+    /* 'table' or 'code'. The server sends an empty list for 'code' (the
+       shipped fallback catalog never reaches a partner), so this is carried
+       for diagnostics only. */
+    campaignsSource: r.source || null,
     biddingPaused: !!(r.bidding && r.bidding.enabled === false),
     biddingNotice: (r.bidding && r.bidding.notice) || null
   });

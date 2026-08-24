@@ -1129,6 +1129,12 @@ body.npopen{overflow:hidden}
 .cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:24px}
 .cc{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s,transform .15s;position:relative;text-align:left;min-width:0}
 .cc:hover{box-shadow:0 10px 26px rgba(26,37,32,.1);transform:translateY(-2px)}
+/* An inert tile gets no lift: the lift is the affordance, and a div that
+   lifts and does nothing is the "unclickable cohort" defect in CSS. */
+div.cc:hover{box-shadow:none;transform:none}
+.cc--wait .cc__art{background:linear-gradient(90deg,#EEF3EF 25%,#F7FAF8 50%,#EEF3EF 75%);background-size:200% 100%;animation:ccwait 1.2s linear infinite}
+@keyframes ccwait{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.cc--wait .cc__art{animation:none}}
 /* The whole card is the target where the card carries an action, so the ring
    has to follow the card's own 18px radius rather than the 8px the sheet's
    global :focus-visible sets for text-sized targets. */
@@ -2440,20 +2446,32 @@ function pullOffer(){
 var EXTRA=[];
 
 /* ---------- campaigns: the surface shared with providers ----------
-   Seeded with the numbers the cards always showed, then overwritten by
-   GET /api/auth/campaigns when the service answers. Joining writes through
-   W.session, which is what moves the household counts on the partner
-   console's bid desk. One more member here is one more household there.
-   When the server can't be reached, joins still work as a local demo. */
-var CAMPS=[
- {id:'london-east',region:'London East',sub:'Autumn cohort',kind:'forming',target:100,members:61,households:112,joinable:true,you:'joined'},
- {id:'london-north',region:'London North',sub:'Winter cohort',kind:'planned',target:100,members:61,households:100,joinable:true,you:null},
- {id:'chatham-kent',region:'Chatham-Kent',sub:'First cohort',kind:'waitlist',target:100,members:37,households:100,joinable:true,you:null},
- {id:'windsor-core',region:'Windsor',sub:'Winter cohort',kind:'waitlist',target:100,members:52,households:87,joinable:true,you:null},
- {id:'kingston-west',region:'Kingston West',sub:'Autumn cohort',kind:'auction',target:null,members:64,households:64,joinable:false,you:null},
- {id:'hamilton-mountain',region:'Hamilton Mountain',sub:'Winter cohort',kind:'auction',target:null,members:58,households:58,joinable:false,you:null}
-];
+   EMPTY UNTIL THE SERVER ANSWERS. This was seeded with six invented regions
+   (London East marked as joined) so the page had something to show offline,
+   and every one of them was a ghost: no campaign_id behind it, invisible to
+   every partner, and one claiming a membership for every member on the site
+   whenever the server's answer did not happen to name it. The only source of
+   a card now is GET /api/auth/campaigns, which reads the same lib/cohorts.js
+   the partner desk reads, so a card here is a row there by construction.
+   Joining writes through W.session; one more member here is one more
+   household on the partner's desk, and the count is the same number.
+   Before the first answer the row paints a skeleton, not "no cohorts":
+   nothing is known yet, and saying otherwise is the old lie in new clothes. */
+var CAMPS=[];
 var CAMPLIVE=false;
+/* True once any campaigns answer has landed, live or degraded. Only then does
+   an empty CAMPS mean "the catalog has no visible cohort". */
+var CAMPASKED=false;
+/* `source` from the last answer: 'table' or 'code'. The server sends an empty
+   list for 'code', so this is diagnostic only, for the dev warning below. */
+var CAMPSOURCE=null;
+/* THE DEV-ONLY GHOST GUARD. The ids the server last named. renderRegions()
+   warns in the console, on local and preview hosts only, if a card is about
+   to paint for an id not in this set, which is the exact shape of the bug the
+   seed array used to be. It cannot fire today, because CAMPS has no source
+   but the server; it exists so the next local source cannot land quietly. */
+var CAMPSERVED={};
+var DEVHOST=/^(localhost|127\.0\.0\.1)$|\.vercel\.app$/.test(location.hostname);
 /* The offset between the server's clock and this browser's, captured from the
    `serverTime` on every campaigns answer. Declared out here rather than inside
    the poll below because the countdown needs it too, and a countdown measured
@@ -4299,27 +4317,18 @@ $('#mrcta').addEventListener('click',function(){
    changes parent. */
 /* ---------- campaigns: cards, sheet, joins ---------- */
 function campById(id){for(var i=0;i<CAMPS.length;i++)if(CAMPS[i].id===id)return CAMPS[i];return null}
-/* THE SERVER'S LIST IS THE WHOLE ANSWER ABOUT MEMBERSHIP, including its
-   silences. CAMPS is seeded with london-east marked `you:'joined'` so the demo
-   tour has a cohort, and deriveState() already refuses to read that seed until
-   a LIVE answer has arrived. That guard was not enough: GET /campaigns returns
-   `visible(cat.list)`, which is a SUBSET (archived cohorts are dropped, and the
-   catalog need not carry the six ids seeded here). Any seeded campaign the
-   server did not name therefore kept its seeded `you`, so the moment
-   london-east archives, or the catalog is anything but this exact six,
-   joinedCamp() answered with it and every member on the site, including one who
-   joined nothing, was shown "Your campaign · London East · Autumn cohort", a
-   forming rail, a dated calendar and an activity feed. All of it invented, none
-   of it theirs.
-   `you` is not cosmetic. An unmentioned campaign is one this member is not in. */
-/* The seeds are offline scaffolding. Once a live answer has arrived they are
-   not a fallback, they are four invented regions sitting in the row beside the
-   real ones, and one of them claiming a membership. Drop every seed the server
-   did not name, which takes its `you` with it. */
-function dropUnnamedSeeds(list){
+/* THE SERVER'S LIST IS THE WHOLE ANSWER, including its silences. A campaign
+   the last answer did not name is one that archived, or one this page invented,
+   and either way it leaves, taking its `you` with it. There is no seed to
+   protect any more, so this runs on EVERY answer rather than only on a live
+   one: the list itself comes from the catalog and is authoritative even when
+   the counts beside it are degraded. `you` is not cosmetic. An unmentioned
+   campaign is one this member is not in. */
+function dropUnnamed(list){
   var named={};
   (list||[]).forEach(function(sc){if(sc&&sc.id)named[sc.id]=true});
   CAMPS=CAMPS.filter(function(c){return named[c.id]});
+  CAMPSERVED=named;
 }
 function applyCampaign(sc){
   if(!sc||!sc.id)return;
@@ -5768,9 +5777,9 @@ function profileMissing(){
 }
 function hasProfile(){return profileMissing().length===0}
 function serverState(){
-  /* Only a LIVE campaigns answer can prove a join: the seeded CAMPS mark
-     london-east as joined for the demo, and deriving from that would show
-     every real member a cohort they never joined. */
+  /* Only a LIVE campaigns answer can prove a join: a degraded answer (a
+     count table or this member's own rows unreadable) must not be read as
+     "you are in nothing". */
   var c=CAMPLIVE?joinedCamp():null;
   if(!c)return OPTJOIN?'forming':(hasBill()?'result':'arrive');
   /* A waitlist answer means THE COHORT IS STILL GATHERING, and returning here
@@ -6072,6 +6081,14 @@ function rvResult(){
    calendar, so the cohort a household is offered is whichever one ops opened,
    and the dates are that cohort's own. */
 function openCohortHTML(le,ck,nobill){
+  if(!le&&!CAMPASKED){
+    /* The server has not answered yet. "Nothing open near you" here would be
+       an answer the page does not have; the bell would record a wish against
+       no cohort. Hold the slot instead. */
+    return '<section class="card cc--wait" aria-label="Cohorts near you" aria-busy="true">'
+    +'<span class="eyebrow">Open in your area</span><h3>Finding cohorts near you</h3>'
+    +'<p class="cardnote">One moment while we check what is open in your region.</p></section>';
+  }
   if(!le||!le.joinable){
     /* No cohort is open to this household. Saying nothing here would leave the
        result card ending on a diagnosis with no next step. */
@@ -6363,7 +6380,13 @@ function ccCard(c,feat,ids){
   /* `heldElsewhere` widens the gate the same way, and for the same reason:
      this press cannot join anything. It opens the conflict sheet, a dialog
      the member reads and closes, and the actual move is confirmed inside it. */
-  var choose=(!mine&&c.joinable&&(PICKANY||heldElsewhere||VIS.indexOf(S.state)>-1));
+  /* And the last widening, which makes the others redundant on purpose: a
+     member holding NO seat (a waitlist place, an alert, or nothing at all)
+     can press any joinable cohort. The gate had three doors and this case
+     fell between them: a waitlist standing derives a `forming` page state,
+     which is not a visitor state, and no seat means `heldElsewhere` is false,
+     so every other open cohort was an inert tile with a hover shadow. */
+  var choose=(!mine&&c.joinable&&(PICKANY||heldElsewhere||!seatHeldId()||VIS.indexOf(S.state)>-1));
   /* #cc-first and #regmono stay on the featured card in the Home row. They are the
      handles qa-dashboard.mjs reads to assert that this row shows the server's
      cohorts and not four regions from the markup, which is the whole point of
@@ -6386,9 +6409,26 @@ function renderRegions(){
      cohorts or fewer and the row already IS the whole list. */
   var va=$('#viewall');
   if(va)va.hidden=CAMPS.length<=4;
+  if(!CAMPASKED&&!CAMPS.length){
+    /* Nothing has answered yet. A skeleton, because "no cohorts open" before
+       the server has spoken is the seed array's lie with the sign flipped. */
+    var wait='<div class="cc cc--wait" aria-busy="true"><span class="cc__art"></span><span class="cc__b">'
+     +'<b>Finding cohorts near you</b><span class="m">One moment.</span></span></div>';
+    paintOnce('regions',row,wait);
+    paintOnce('regions-all',all,wait);
+    return;
+  }
+  if(DEVHOST){
+    /* Local and preview hosts only: a card about to paint for an id the
+       server never named is a ghost, and the console says so before the
+       member's eye can. Never reaches www: DEVHOST is false there. */
+    CAMPS.forEach(function(c){
+      if(!CAMPSERVED[c.id])console.warn('[whollar] campaign card without a live campaign_id:',c.id,'source='+CAMPSOURCE);
+    });
+  }
   if(!CAMPS.length){
-    /* Live and empty is a real answer: the catalog has no visible cohort. Say
-       so rather than leaving a blank row that reads as a failed load. */
+    /* Answered and empty is a real answer: the catalog has no visible cohort.
+       Say so rather than leaving a blank row that reads as a failed load. */
     var none='<div class="cc"><span class="cc__art"></span><span class="cc__b">'
      +'<b>No cohorts open yet</b><span class="m">We open one region at a time.</span>'
      +'<span class="mono">We’ll text you the day yours does</span></span></div>';
@@ -7010,10 +7050,9 @@ if(W&&W.session&&W.session.ratingGet){
 }
 
 /* ---------- server sync: campaigns ----------
-   Same shape as the bill sync: ask, and quietly keep the seeded demo numbers
-   on any failure. When the server answers, its counts and this member's own
-   standing (joined / waitlisted / bell set) replace the seeds, including
-   "not joined yet", which turns the London East card into an invitation. */
+   Same shape as the bill sync: ask, and on failure keep the skeleton up and
+   try again on the next beat. There is nothing to fall back to on purpose:
+   the server's list is the only source a card has. */
 if(W&&W.session&&W.session.campaignsList){
   /* Refetched on a timer, because a cohort's stage changes with the clock and
      nothing pushes. The server sends `serverTime` alongside the stages it
@@ -7043,16 +7082,15 @@ if(W&&W.session&&W.session.campaignsList){
       if(!r)return;
       if(r.serverTime)SKEW=r.serverTime-Date.now();
       CAMPLIVE=Boolean(r.live);
+      CAMPASKED=true;
+      CAMPSOURCE=r.source||null;
       var before=S.state;
-      /* After applying, not before: applyCampaign now creates records for ids
-         it has never seen, so the drop has to run once the server's own rows
-         are in or it would delete them on arrival. The server's silence about
-         a campaign is still as much of an answer as its rows. See
-         dropUnnamedSeeds. Gated on `live` for the same reason deriveState is,
-         so a degraded read (counts unavailable) does not read as "you left
-         everything". */
+      /* After applying, not before: applyCampaign creates records for ids it
+         has never seen, so the drop has to run once the server's own rows are
+         in or it would delete them on arrival. The server's silence about a
+         campaign is as much of an answer as its rows. See dropUnnamed. */
       (r.campaigns||[]).forEach(applyCampaign);
-      if(CAMPLIVE)dropUnnamedSeeds(r.campaigns);
+      dropUnnamed(r.campaigns);
       applyDerived();
       /* And the campaign half can land here, after the bill sync finished. */
       resumeIntent();

@@ -13,11 +13,12 @@
  *   POST /campaigns/notify     "text me the day it opens"
  *   GET  /provider/campaigns   the same campaigns, partner-shaped: counts only
  *
- * The catalog itself now lives in `lib/catalog.js`: the `campaigns` table when
- * it exists, the original code constant when it does not. That move is what
- * lets the admin console change a cohort's lifecycle without a deploy; the
- * fallback is what keeps day one identical to yesterday. Membership stays in
- * `campaign_members`, untouched.
+ * The catalog lives in `lib/catalog.js`; the STATE of a campaign (its count,
+ * its two stages, whether it is open) lives in `lib/cohorts.js`, and both
+ * routes here are projections of that one object. Membership stays in
+ * `campaign_members`; the seat ledger in `seat_claim`; cohorts.seatCount()
+ * counts across both so the number a member sees is the number a partner
+ * prices against.
  *
  * Bidding is enforced here as data, decided elsewhere: the response to the
  * partner desk carries `bidding.enabled` (the global kill switch from
@@ -34,6 +35,7 @@ const audit = require('../lib/audit');
 const seats = require('../lib/seats');
 const users = require('../lib/users');
 const catalog = require('../lib/catalog');
+const cohorts = require('../lib/cohorts');
 const siteconfig = require('../lib/siteconfig');
 const guards = require('../lib/guards');
 const bids = require('../lib/bids');
@@ -49,116 +51,31 @@ const { JOIN_STATUS } = catalog;
  * ------------------------------------------------------------------ */
 
 /**
- * Membership rows for the named campaigns, or null when the table cannot be
- * read, which above all means "not created in the console yet". The
- * distinction matters: the dashboards must keep working on seed numbers
- * before the table exists, so "no rows" and "no table" are different answers,
- * not both `[]`.
- *
- * One read PER CAMPAIGN, never a full-table scan. queryAll stops silently at
- * its page budget, and a ROWID-ordered scan spends that budget on the oldest
- * campaigns first, so with a single scan one busy cohort's volume truncated
- * every other cohort's count (INV-3: seat and member counts are per
- * campaign). Scoping the WHERE bounds any truncation to the one campaign.
+ * This member's own membership rows, keyed by campaign id. One scoped read
+ * on user_id, never a scan of every campaign's rows to find one person's.
+ * Null when the table cannot be read, which above all means "not created in
+ * the console yet": the dashboard must tell "no rows" from "no table".
  */
-async function allRows(catalystApp, campaignIds) {
+async function mineRows(catalystApp, userId) {
   try {
-    const rows = [];
-    for (const id of campaignIds) {
-      const batch = await datastore.queryAll(
-        catalystApp, TABLE, ['campaign_id', 'user_id', 'status'],
-        `campaign_id = ${datastore.lit(id)}`
-      );
-      for (const r of batch) rows.push(r);
-    }
-    return rows;
+    const rows = await datastore.queryAll(
+      catalystApp, TABLE, ['campaign_id', 'user_id', 'status'],
+      `user_id = ${datastore.lit(userId)}`
+    );
+    const by = {};
+    for (const r of rows) by[r.campaign_id] = r;
+    return by;
   } catch {
     return null;
   }
 }
 
-/** Fold rows into per-campaign tallies: sign-ups and watchers. */
-function tally(rows) {
-  const counts = {};
-  for (const row of rows) {
-    const c = counts[row.campaign_id] || (counts[row.campaign_id] = { signups: 0, watching: 0 });
-    if (row.status === 'alert') c.watching += 1;
-    else c.signups += 1;
-  }
-  return counts;
-}
-
-/** One campaign, wire-shaped. `mine` is this member's row or undefined. */
-function publicCampaign(c, counts, mine, now) {
-  const t = counts[c.id] || { signups: 0, watching: 0 };
-  const s = catalog.publicMemberStage(c, now);
-  return {
-    id: c.id,
-    region: c.region,
-    sub: c.sub,
-    kind: c.kind,
-    target: c.target,
-    members: c.seedMembers + t.signups,
-    households: c.seedHouseholds + t.signups,
-    watching: t.watching,
-    joinable: Boolean(JOIN_STATUS[c.kind]),
-    /* DERIVED, not the stored status. `campaign_members.status` is a snapshot
-       of the click and no transition rewrites it, so a household that joined
-       while the region was gathering read `waitlist` forever, which the
-       dashboard renders as a visitor lane with no rail at all. See
-       catalog.standingOf: the cohort moves, the click does not. */
-    you: mine ? catalog.standingOf(mine.status, c) : null,
-    /* Stage and calendar are SERVER OWNED. The dashboard renders these; it
-       must never re-derive a stage from `kind` in the browser, which is what
-       it did before this field existed. `dates` are epoch ms, and the
-       response's `serverTime` is the instant they were staged against, so a
-       countdown offsets from that rather than from the visitor's clock. */
-    stage: s.stage,
-    stageLabel: s.stageLabel,
-    next: s.next,
-    dates: c.dates || {},
-  };
-}
-
-/** Archived campaigns exist for the admin console only. */
-const visible = (list) => list.filter((c) => c.kind !== 'archived');
-
-/**
- * One campaign, partner-shaped: counts only, stage derived at `now`. Shared
- * by /provider/campaigns and the brief route in desk.js so the desk list and
- * the brief can never disagree about what a cohort looks like.
- *
- * `stage` is DISPLAY ONLY, and server owned. The console renders it and must
- * never recompute it: a browser clock a few minutes fast would otherwise
- * disagree with the server about whether a sealed window is open.
- * Authorisation stays with bidding_open here and with requireBiddingOpen on
- * the write path.
- */
-function publicPartnerCampaign(c, counts, enabled, now) {
-  const t = counts[c.id] || { signups: 0, watching: 0 };
-  const s = catalog.publicStage(c, now);
-  return {
-    id: c.id,
-    region: c.region,
-    /* The coverage key this cohort verifies against. Equal to region today;
-       sent separately so the console never has to guess, and so a cohort can
-       one day display "Scarborough East" while verifying against the
-       partner's "Scarborough" coverage. */
-    coverageRegion: c.region,
-    sub: c.sub,
-    kind: c.kind,
-    target: c.target,
-    members: c.seedMembers + t.signups,
-    households: c.seedHouseholds + t.signups,
-    signups: t.signups,
-    watching: t.watching,
-    bidding_open: enabled && c.kind === 'auction' && Boolean(c.biddingOpen),
-    stage: s.stage,
-    stageLabel: s.stageLabel,
-    nextAt: s.next ? s.next.at : null,
-    nextWhat: s.next ? s.next.what : null,
-    dates: c.dates || {},
-  };
+/** One campaign, freshly counted, member-shaped. For the mutation replies. */
+async function memberReply(catalystApp, campaign, mine) {
+  cohorts.invalidate(campaign.id);
+  const now = Date.now();
+  const s = cohorts.state(campaign, await cohorts.seatCount(catalystApp, campaign), now);
+  return { now, campaign: cohorts.forMember(s, mine) };
 }
 
 /* ------------------------------------------------------------------ *
@@ -244,6 +161,7 @@ async function requireBiddingOpen(catalystApp, campaign) {
  */
 async function upsert(catalystApp, campaign, user, status) {
   const key = `${campaign.id}:${user.user_id}`;
+  cohorts.invalidate(campaign.id);
   let existing;
   try {
     existing = await datastore.findBy(
@@ -305,18 +223,11 @@ function mount(router) {
    */
   router.get('/campaigns', wrap(async (req, res) => {
     const user = requireMember(req);
-    const cat = await catalog.load(req.catalyst);
-    const rows = await allRows(req.catalyst, visible(cat.list).map((c) => c.id));
-    const counts = rows ? tally(rows) : {};
-    const mineBy = {};
-    if (rows) {
-      for (const r of rows) if (r.user_id === user.user_id) mineBy[r.campaign_id] = r;
-    }
-    /* One clock reading for the whole response, for the same reason
-       /provider/campaigns takes one: two campaigns in a single payload must
-       not be staged a millisecond apart, and the serverTime the dashboard
-       offsets from has to be the instant the stages were computed at. */
-    const now = Date.now();
+    /* ONE read layer, one clock. cohorts.list() counts and stages every
+       visible campaign at a single instant; /provider/campaigns calls the
+       same function, so the two surfaces cannot disagree about a cohort. */
+    const { source, live, serverTime: now, states } = await cohorts.list(req.catalyst);
+    const mineBy = await mineRows(req.catalyst, user.user_id);
     /* THE MEMBER'S OWN DECISION, RESTORED. An accepted offer is an order row
        and the row is the record: without this field a household that accepted
        saw the Offers panel again on every reload, take button live, as if it
@@ -326,11 +237,12 @@ function mount(router) {
        a household consented to release goes to its winning partner through
        routes/delivery.js and nowhere else, this response included. */
     const list = [];
-    for (const c of visible(cat.list)) {
-      const pub = publicCampaign(c, counts, mineBy[c.id], now);
-      if (mineBy[c.id] && awards.isClosed(c, now)) {
+    for (const s of states) {
+      const mine = mineBy ? mineBy[s.id] : undefined;
+      const pub = cohorts.forMember(s, mine);
+      if (mine && awards.isClosed(s.campaign, now)) {
         try {
-          const key = `${c.id}:${user.user_id}`.slice(0, 200);
+          const key = `${s.id}:${user.user_id}`.slice(0, 200);
           const row = await orders.findAnyByKey(req.catalyst, key);
           if (row) pub.yourOrder = { orderNo: row.order_no || null, state: row.state || 'acc' };
         } catch {
@@ -343,7 +255,11 @@ function mount(router) {
     res.status(200).json({
       ok: true,
       serverTime: now,
-      live: rows !== null,
+      /* `live` is false when a count table was unreadable OR when this
+         member's own rows were: either way the dashboard must not read the
+         answer's silences as "you left everything". */
+      live: live && mineBy !== null,
+      source,
       campaigns: list,
     });
   }));
@@ -617,8 +533,8 @@ function mount(router) {
           });
       }
       if (ledgerReadable && (!existing || existing.status !== 'active')) {
-        const counter = await seats.counterFor(req.catalyst, campaign.id);
-        const count = counter ? counter.roster_count : (campaign.seedMembers || 0);
+        cohorts.invalidate(campaign.id);
+        const count = (await cohorts.seatCount(req.catalyst, campaign)).seats;
         if (campaign.target && count >= campaign.target) {
           throw new AppError('ROSTER_FULL', `${campaign.region} is full for this round.`, {
             logDetail: `join refused: ${campaign.id} at target`,
@@ -643,14 +559,8 @@ function mount(router) {
       detail: { campaign: campaign.id, status, was },
     });
 
-    const rows = await allRows(req.catalyst, [campaign.id]);
-    const counts = rows ? tally(rows) : {};
-    const now = Date.now();
-    res.status(200).json({
-      ok: true,
-      serverTime: now,
-      campaign: publicCampaign(campaign, counts, { status }, now),
-    });
+    const reply = await memberReply(req.catalyst, campaign, { status });
+    res.status(200).json({ ok: true, serverTime: reply.now, campaign: reply.campaign });
   }));
 
   /**
@@ -704,6 +614,7 @@ function mount(router) {
     } catch {
       // Table missing: there was nothing to leave. Idempotent success.
     }
+    cohorts.invalidate(campaign.id);
 
     audit.recordAsync(req.catalyst, req, {
       type: 'campaign.leave',
@@ -713,14 +624,8 @@ function mount(router) {
       detail: { campaign: campaign.id },
     });
 
-    const rows = await allRows(req.catalyst, [campaign.id]);
-    const counts = rows ? tally(rows) : {};
-    const now = Date.now();
-    res.status(200).json({
-      ok: true,
-      serverTime: now,
-      campaign: publicCampaign(campaign, counts, undefined, now),
-    });
+    const reply = await memberReply(req.catalyst, campaign, undefined);
+    res.status(200).json({ ok: true, serverTime: reply.now, campaign: reply.campaign });
   }));
 
   /**
@@ -756,14 +661,8 @@ function mount(router) {
       detail: { campaign: campaign.id },
     });
 
-    const rows = await allRows(req.catalyst, [campaign.id]);
-    const counts = rows ? tally(rows) : {};
-    const now = Date.now();
-    res.status(200).json({
-      ok: true,
-      serverTime: now,
-      campaign: publicCampaign(campaign, counts, { status }, now),
-    });
+    const reply = await memberReply(req.catalyst, campaign, { status });
+    res.status(200).json({ ok: true, serverTime: reply.now, campaign: reply.campaign });
   }));
 
   /**
@@ -781,30 +680,24 @@ function mount(router) {
    */
   router.get('/provider/campaigns', wrap(async (req, res) => {
     requireProvider(req);
-    const cat = await catalog.load(req.catalyst);
-    const rows = await allRows(req.catalyst, visible(cat.list).map((c) => c.id));
-    const counts = rows ? tally(rows) : {};
     const enabled = await siteconfig.getValue(req.catalyst, 'bidding_enabled') !== false;
-
-    /* One clock reading for the whole response, so two campaigns in the same
-       payload cannot be staged against times a millisecond apart, and so the
-       serverTime the console offsets from is the same instant the stages were
-       computed at. Derived here rather than inside catalog.load(), which is
-       memoized for 60 seconds: a stage may never be up to a minute stale, and
-       the minute it would be stale in is the one before bidding closes. */
-    const now = Date.now();
-
+    /* The SAME cohorts.list() the member route reads, projected for a
+       partner. One clock reading for the whole payload, taken inside list():
+       two campaigns in one answer are never staged a millisecond apart, and
+       serverTime is the instant the stages were computed at. */
+    const { source, live, serverTime: now, states } = await cohorts.list(req.catalyst);
     res.status(200).json({
       ok: true,
       serverTime: now,
-      live: rows !== null,
+      live,
+      source,
       bidding: {
         enabled,
         notice: enabled ? null : 'Bidding is paused across Whollar right now.',
       },
-      campaigns: visible(cat.list).map((c) => publicPartnerCampaign(c, counts, enabled, now)),
+      campaigns: states.map((s) => cohorts.forPartner(s, enabled)),
     });
   }));
 }
 
-module.exports = { mount, allRows, tally, requireBiddingOpen, publicPartnerCampaign, publicCampaign, upsert, TABLE };
+module.exports = { mount, requireBiddingOpen, upsert, TABLE, mineRows };

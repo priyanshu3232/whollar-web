@@ -40,9 +40,12 @@
  * datastore's SAFE_LITERAL set and cannot collide with a raw user_id.
  *
  * COUNTERS. `cohort_counter.roster_count` is recomputed on every transition by
- * counting active claims for the cohort, and only then: the read path reads
- * the stored number. A recount cannot go negative and cannot drift, which is
- * worth more than the cheaper increment it replaces.
+ * counting active claims for the cohort. It is a SIDECAR for the publish
+ * hysteresis flags on the same row: NO read path renders it. Every count a
+ * dashboard shows comes from lib/cohorts.js seatCount(), a COUNT at read
+ * time over this ledger and the click-time snapshot together, so a counter
+ * that drifted (a hand-edited row, a failed sidecar write) can never reach a
+ * member or a partner. /admin/campaigns/reconcile reports the drift instead.
  *
  * FAILS CLOSED. If `seat_claim` or `claim_event` cannot be written, no seat
  * moves. Same contract as the terms gate: a feature that silently no-ops on a
@@ -50,6 +53,7 @@
  */
 
 const datastore = require('./datastore');
+const cohorts = require('./cohorts');
 const { AppError } = require('./errors');
 
 const CLAIM_TABLE = 'seat_claim';
@@ -224,6 +228,13 @@ async function transition(catalystApp, {
         logDetail: `seat_claim write failed after event ${key}:${nextVersion}: ${String((err && err.message) || err).slice(0, 200)}`,
       });
   }
+
+  /* The read layer's memo for both cohorts this move touched is stale the
+     instant the claim row lands. Invalidated here, on the write, so the next
+     read on this instance is exact and the 60s memo only ever bounds
+     cross-instance staleness. */
+  cohorts.invalidate(fromCohortId);
+  cohorts.invalidate(toCohortId);
 
   const fresh = await getClaim(catalystApp, addressId, vertical);
   return { claim: publicClaim(fresh), version: nextVersion, replayed: false };

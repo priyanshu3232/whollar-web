@@ -103,7 +103,12 @@ function planned(coming) {
       + '<td style="font-size:12.5px;color:var(--sub)">'
       + esc(a.stage === 'announced'
         ? 'Announced' + (a.households ? ' · ' + a.households + ' households' : '')
-        : 'Still forming' + (a.households ? ' · ' + a.households + ' households so far' : ''))
+        : (a.kind === 'forming'
+          ? 'Still forming' + (a.households ? ' · ' + a.households + ' households so far' : '')
+          /* A planned or waitlist region has no seats yet, only a list. The
+             number is `waitlist`, and the desk says which it is showing so a
+             partner never reads interest as a roster. */
+          : 'Gathering' + (a.waitlist ? ' · ' + a.waitlist + ' on the list' : '')))
       + '</td></tr>';
   }).join('')
     || '<tr><td colspan="3"><p class="fnote" style="margin:6px 0 2px">'

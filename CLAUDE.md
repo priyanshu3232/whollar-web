@@ -52,6 +52,10 @@ strings. A `LeadService` leaks into copy eventually.
   error payloads.
 - **The success fee is configuration on the agreement record, never a constant in code.**
   The $95 figure is an unconfirmed planning number.
+- **No campaign card from anything but the server.** No seed array, fixture, or fallback
+  catalog in a member, partner, or admin render path; `lib/cohorts.js` is the one read
+  layer for campaign state and seat counts, and `source:'code'` is an empty list on every
+  non-admin route. No seed baseline in any household count.
 
 ## Before adding a page or a js/ module
 

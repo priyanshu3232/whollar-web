@@ -43,7 +43,8 @@ const bids = require('../lib/bids');
 const awards = require('../lib/awards');
 const terms = require('../lib/terms');
 const places = require('../lib/places');
-const { requireBiddingOpen, allRows, tally, publicPartnerCampaign } = require('./campaigns');
+const cohorts = require('../lib/cohorts');
+const { requireBiddingOpen } = require('./campaigns');
 const { requirePartner: guardPartner, requireApproved } = require('../lib/guards');
 const { wrap, badRequest, forbidden, AppError } = require('../lib/errors');
 const application = require('./application');
@@ -92,17 +93,15 @@ async function requireActiveCoverage(catalystApp, orgId, campaign) {
 }
 
 /**
- * The cohort's current household figure, for the commitment cap. Seed plus
- * live sign-ups, the same arithmetic the desk list shows, so the cap is
- * validated against the number the partner is looking at.
+ * The cohort's current household figure, for the commitment cap. The SAME
+ * cohorts.seatCount() the desk list and the member dashboard read, so the
+ * cap is validated against the number the partner is looking at, and no seed
+ * baseline: a cap against invented households would be a promise to nobody.
  */
 async function householdCount(catalystApp, campaign) {
   // INV-3: this cohort's count comes from this cohort's rows alone, so
   // another campaign's volume can never shrink the cap being validated.
-  const rows = await allRows(catalystApp, [campaign.id]);
-  const t = rows ? tally(rows) : {};
-  const signups = (t[campaign.id] && t[campaign.id].signups) || 0;
-  return campaign.seedHouseholds + signups;
+  return (await cohorts.seatCount(catalystApp, campaign)).seats;
 }
 
 /** The head-row fields one sealing writes. Shared by place and improve. */
@@ -272,14 +271,14 @@ function mount(router) {
       });
     }
 
-    const memberRows = await allRows(req.catalyst, [campaign.id]);
-    const counts = memberRows ? tally(memberRows) : {};
     const enabled = await siteconfig.getValue(req.catalyst, 'bidding_enabled') !== false;
     /* One clock reading for stage and serverTime, the same rule
        /provider/campaigns follows: the stage was computed at the instant the
-       console will offset from. */
+       console will offset from. Same read layer as the desk list, so the
+       brief and the list can never disagree about what a cohort looks like. */
     const now = Date.now();
-    const pub = publicPartnerCampaign(campaign, counts, enabled, now);
+    const pub = cohorts.forPartner(
+      cohorts.state(campaign, await cohorts.seatCount(req.catalyst, campaign), now), enabled);
 
     /* brief_json rides on the campaigns row but is read here, NOT via
        catalog.COLUMNS: catalog falls back to the code catalog whenever its

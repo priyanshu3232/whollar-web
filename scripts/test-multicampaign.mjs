@@ -241,6 +241,8 @@ const router = fakeRouter();
 backend('routes/campaigns.js').mount(router);
 backend('routes/desk.js').mount(router);
 backend('routes/seat.js').mount(router);
+backend('routes/admin.js').mount(router, { FEATURES: { admin: true }, ADMIN_EMAIL_DOMAIN: 'whollar.com' });
+const cohorts = backend('lib/cohorts.js');
 
 const R = router.routes;
 
@@ -260,6 +262,14 @@ const bidBody = (campaign, price, cap) => ({
   guaranteeMonths: 24, afterMode: 'none', reductionPresentation: 'member',
   equipment: 'inc', committedHouseholds: cap,
 });
+
+/* The response minus its clocks. serverTime is not the only one: the campaign
+   dates are epoch-ms too, and any such run of digits can contain the two-digit
+   price under test, which made the leak checks below fail at random rather than
+   on a real leak. So blank every long digit run, not serverTime alone. Prices,
+   org ids and campaign ids are all short, so nothing a leak check hunts for is
+   masked by this. */
+const blobOf = (body) => JSON.stringify({ ...body, serverTime: undefined }).replace(/\d{9,}/g, '<clock>');
 
 const snapshot = (campaignId) => JSON.stringify({
   bids: tableOf('provider_bids').filter((r) => r.campaign_id === campaignId),
@@ -290,16 +300,16 @@ async function main() {
 
   console.log('\n3. EC-10: zero cross-visibility at the API response level');
   r = await invoke(R['GET /provider/bids'], makeReq(P1U));
-  let blob = JSON.stringify(r.body);
+  let blob = blobOf(r.body);
   ok(r.status === 200 && (r.body.bids || []).length === 1, 'P1 sees exactly their own bid list');
   ok(!blob.includes('camp-c') && !blob.includes('61') && !blob.includes('org-p2'),
     'P1 response carries no trace of camp-c, P2, or P2 price');
   r = await invoke(R['GET /provider/bids'], makeReq(P2U));
-  blob = JSON.stringify(r.body);
+  blob = blobOf(r.body);
   ok(!blob.includes('camp-a') && !blob.includes('55') && !blob.includes('org-p1'),
     'P2 response carries no trace of camp-a, P1, or P1 price');
   r = await invoke(R['GET /provider/campaigns/:id/brief'], makeReq(P2U, { params: { id: 'camp-a' } }));
-  blob = JSON.stringify(r.body);
+  blob = blobOf(r.body);
   ok(r.status === 200 && !blob.includes('55') && !blob.includes('org-p1') && (!r.body.bid),
     'P2 reading camp-a\'s brief sees the cohort, never P1\'s bid');
 
@@ -364,6 +374,106 @@ async function main() {
     `m2's standing is per campaign (d=${you['camp-d']}, b=${you['camp-b']}, a=${you['camp-a']})`);
   ok(typeof r.body.serverTime === 'number' && (r.body.campaigns || []).length === 4,
     'one clock, all four campaigns in one answer');
+
+  console.log('\n9. SYNC: N members join, and every surface answers N from one read layer');
+  /* A fresh forming cohort with a target, so the count starts at zero and the
+     roster cap is exercised too. Three members through the two doors that
+     exist: the legacy POST /campaigns/join and POST /cohorts/:id/join. */
+  insert('campaigns', campaignRow('camp-e', 'Vaughan Woodbridge', 'forming', {
+    announce_at: ds.toDb(new Date(NOW + 4 * D)), target: 3,
+    /* Seed baselines on the row, deliberately: they must reach NO count. */
+    seed_members: 64, seed_households: 112,
+  }));
+  catalog.invalidate();
+  const M3 = userRow('m3', 'member');
+  const M4 = userRow('m4', 'member');
+  const M5 = userRow('m5', 'member');
+  const M6 = userRow('m6', 'member');
+  const ADMIN = userRow('staff', 'admin', { email_normalized: 'staff@whollar.com' });
+
+  r = await invoke(R['GET /provider/campaigns'], makeReq(P1U));
+  let e = (r.body.campaigns || []).find((c) => c.id === 'camp-e');
+  ok(e && e.households === 0 && e.members === 0, `before any join the partner sees 0, not the 112 seed (${e && e.households})`);
+  r = await invoke(R['GET /campaigns'], makeReq(M3));
+  e = (r.body.campaigns || []).find((c) => c.id === 'camp-e');
+  ok(e && e.households === 0, `and so does the member (${e && e.households})`);
+  ok(r.body.source === 'table', 'the member payload names its source');
+
+  r = await invoke(R['POST /campaigns/join'], makeReq(M3, { body: { campaign: 'camp-e' } }));
+  ok(r.status === 200 && r.body.campaign.households === 1, `m3 joins by the legacy door: the reply already says 1 (${r.body.campaign && r.body.campaign.households})`);
+  r = await invoke(R['POST /cohorts/:id/join'], makeReq(M4, { params: { id: 'camp-e' }, headers: { 'idempotency-key': 'join-m4-camp-e-0001' } }));
+  ok(r.status === 200 && r.body.cohort && r.body.cohort.roster_count === 2, `m4 joins by the seat route: the ledger reply says 2 (${r.body.cohort && r.body.cohort.roster_count})`);
+  r = await invoke(R['POST /campaigns/join'], makeReq(M5, { body: { campaign: 'camp-e' } }));
+  ok(r.status === 200, `m5 joins (${r.status})`);
+
+  /* Within the memo window, without waiting: the writes invalidated it. */
+  r = await invoke(R['GET /provider/campaigns'], makeReq(P1U));
+  e = (r.body.campaigns || []).find((c) => c.id === 'camp-e');
+  ok(e && e.households === 3 && e.signups === 3, `the partner desk reads 3 immediately (${e && e.households})`);
+  r = await invoke(R['GET /provider/campaigns/:id/brief'], makeReq(P1U, { params: { id: 'camp-e' } }));
+  ok(r.status === 200 && r.body.brief.households === 3 && r.body.campaign.households === 3, `the brief reads 3 (${r.body.brief && r.body.brief.households})`);
+  r = await invoke(R['GET /campaigns'], makeReq(M4));
+  e = (r.body.campaigns || []).find((c) => c.id === 'camp-e');
+  ok(e && e.households === 3 && e.you === 'joined', `the member dashboard reads 3 and m4's own standing (${e && e.households}, ${e && e.you})`);
+  r = await invoke(R['GET /me/seat'], makeReq(M4));
+  ok(r.status === 200 && r.body.cohort && r.body.cohort.roster_count === 3, `the seat ledger reads 3 (${r.body.cohort && r.body.cohort.roster_count})`);
+  r = await invoke(R['POST /campaigns/join'], makeReq(M6, { body: { campaign: 'camp-e' } }));
+  ok(r.status === 409 && r.body.error.code === 'ROSTER_FULL', `a fourth join against target 3 is ROSTER_FULL, on the real count (${r.status} ${r.body.error && r.body.error.code})`);
+
+  /* The memo really is a memo: a row written behind its back is invisible
+     for up to 60s, and visible the moment the layer is invalidated. */
+  insert('campaign_members', { membership_key: 'camp-e:ghost', campaign_id: 'camp-e', user_id: 'ghost', status: 'joined', joined_at: ds.nowDb() });
+  ok((await cohorts.seatCount(fakeApp, 'camp-e')).seats === 3, 'a write that bypassed the layer is not seen inside the memo window');
+  cohorts.invalidate('camp-e');
+  ok((await cohorts.seatCount(fakeApp, 'camp-e')).seats === 4, 'and is seen the moment the memo is invalidated');
+  tableOf('campaign_members').splice(tableOf('campaign_members').findIndex((m) => m.user_id === 'ghost'), 1);
+  cohorts.invalidate('camp-e');
+
+  /* A legacy row: joined before the ledger existed, no claim. Counted once. */
+  insert('campaign_members', { membership_key: 'camp-e:legacy', campaign_id: 'camp-e', user_id: 'legacy', status: 'joined', joined_at: ds.nowDb() });
+  /* And a bell: interest, never a seat. */
+  insert('campaign_members', { membership_key: 'camp-e:m6', campaign_id: 'camp-e', user_id: 'm6', status: 'alert', joined_at: ds.nowDb() });
+  cohorts.invalidate('camp-e');
+  const cnt = await cohorts.seatCount(fakeApp, 'camp-e');
+  ok(cnt.seats === 4 && cnt.watching === 1, `a pre-ledger joined row counts, a bell does not (${cnt.seats} seats, ${cnt.watching} watching)`);
+
+  r = await invoke(R['GET /admin/campaigns/reconcile'], makeReq(ADMIN));
+  ok(r.status === 200 && r.body.ok, `the drift check answers (${r.status})`);
+  ok(r.body.surfaces.member_only.length === 0 && r.body.surfaces.partner_only.length === 0, 'members and partners see the same campaign set');
+  const re = (r.body.campaigns || []).find((c) => c.id === 'camp-e');
+  ok(re && re.households_member === 4 && re.households_partner === 4, `both projections of camp-e say 4 (${re && re.households_member}/${re && re.households_partner})`);
+  ok(re && re.seat_claims === 3 && re.joined_rows === 4, `raw reads: 3 claims, 4 joined rows (${re && re.seat_claims}/${re && re.joined_rows})`);
+  const legacyFlag = (r.body.mismatches || []).find((m) => m.kind === 'legacy_rows' && m.campaign === 'camp-e');
+  ok(Boolean(legacyFlag), 'and the pre-ledger row is named as a legacy row');
+  ok(!(r.body.mismatches || []).some((m) => m.kind === 'surface_count'), 'no surface disagrees with another');
+  ok(r.body.surfaces.partner_biddable.join(',') === 'camp-a,camp-c' || r.body.surfaces.partner_biddable.sort().join(',') === 'camp-a,camp-c',
+    `open for sealed bidding is exactly the two auctions (${r.body.surfaces.partner_biddable.join(',')})`);
+  ok(!blobOf(r.body).includes('m3@') && !blobOf(r.body).includes('m4'), 'no member identity in the drift report');
+
+  /* Drift in the sidecar counter is reported, never rendered. */
+  const counterE = tableOf('cohort_counter').find((c) => c.cohort_id === 'camp-e');
+  counterE.roster_count = 99;
+  r = await invoke(R['GET /provider/campaigns'], makeReq(P1U));
+  e = (r.body.campaigns || []).find((c) => c.id === 'camp-e');
+  ok(e && e.households === 4, `a drifted cohort_counter reaches no partner (${e && e.households})`);
+  r = await invoke(R['GET /admin/campaigns/reconcile'], makeReq(ADMIN));
+  ok((r.body.mismatches || []).some((m) => m.kind === 'counter_drift' && m.campaign === 'camp-e'), 'but the drift check names it');
+  counterE.roster_count = 3;
+
+  console.log('\n10. GHOSTS: the shipped code catalog never reaches a member or a partner');
+  const saved = tableOf('campaigns').splice(0);
+  catalog.invalidate(); cohorts.invalidate();
+  r = await invoke(R['GET /campaigns'], makeReq(M3));
+  ok(r.status === 200 && r.body.source === 'code' && r.body.campaigns.length === 0, `empty table: the member list is empty and says source=code (${r.body.source}, ${r.body.campaigns.length})`);
+  r = await invoke(R['GET /provider/campaigns'], makeReq(P1U));
+  ok(r.status === 200 && r.body.source === 'code' && r.body.campaigns.length === 0, `and so is the partner list (${r.body.source}, ${r.body.campaigns.length})`);
+  r = await invoke(R['GET /admin/campaigns'], makeReq(ADMIN));
+  ok(r.status === 200 && r.body.source === 'code' && r.body.campaigns.length === 6, `the admin still sees the six to import (${r.body.campaigns.length})`);
+  r = await invoke(R['GET /admin/campaigns/reconcile'], makeReq(ADMIN));
+  ok((r.body.mismatches || []).some((m) => m.kind === 'code_catalog'), 'and the drift check says the table is empty');
+  ok((r.body.mismatches || []).some((m) => m.kind === 'orphan_memberships' && m.campaign === 'camp-e'), 'and names the membership rows now pointing at no campaign');
+  tableOf('campaigns').push(...saved);
+  catalog.invalidate(); cohorts.invalidate();
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);

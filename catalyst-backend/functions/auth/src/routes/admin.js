@@ -46,6 +46,8 @@ const audit = require('../lib/audit');
 const ratelimit = require('../lib/ratelimit');
 const siteconfig = require('../lib/siteconfig');
 const catalog = require('../lib/catalog');
+const cohorts = require('../lib/cohorts');
+const seats = require('../lib/seats');
 const places = require('../lib/places');
 const bids = require('../lib/bids');
 const awards = require('../lib/awards');
@@ -359,9 +361,17 @@ function mount(router, cfg) {
       }
     }
 
+    /* The admin reads the code catalog too (it is what the import button
+       imports), so this goes to catalog.load() for the rows and to the shared
+       read layer for the counts, campaign by campaign. */
     const cat = await catalog.load(c, { fresh: true });
-    const memberRows = await campaigns.allRows(c, cat.list.map((k) => k.id));
-    const tallies = memberRows ? campaigns.tally(memberRows) : {};
+    cohorts.invalidate();
+    const countBy = {};
+    let countsLive = true;
+    for (const k of cat.list) {
+      countBy[k.id] = await cohorts.seatCount(c, k);
+      if (!countBy[k.id].live) countsLive = false;
+    }
 
     res.status(200).json({
       ok: true,
@@ -373,16 +383,17 @@ function mount(router, cfg) {
       campaigns: {
         source: cat.source,
         list: cat.list.map((k) => {
-          const t = tallies[k.id] || { signups: 0, watching: 0 };
+          const t = countBy[k.id];
           return {
             id: k.id, region: k.region, kind: k.kind, target: k.target,
-            members: k.seedMembers + t.signups,
-            households: k.seedHouseholds + t.signups,
+            members: t.seats,
+            households: t.seats,
+            waitlist: t.waitlist,
             watching: t.watching,
             bidding_open: Boolean(k.biddingOpen),
           };
         }),
-        memberships_live: memberRows !== null,
+        memberships_live: countsLive,
       },
     });
   }));
@@ -466,19 +477,28 @@ function mount(router, cfg) {
   router.get('/admin/campaigns', wrap(async (req, res) => {
     requireAdmin(req);
     const cat = await catalog.load(req.catalyst, { fresh: true });
-    const memberRows = await campaigns.allRows(req.catalyst, cat.list.map((c) => c.id));
-    const tallies = memberRows ? campaigns.tally(memberRows) : {};
+    cohorts.invalidate();
+    const countBy = {};
+    let countsLive = true;
+    for (const c of cat.list) {
+      countBy[c.id] = await cohorts.seatCount(req.catalyst, c);
+      if (!countBy[c.id].live) countsLive = false;
+    }
     res.status(200).json({
       ok: true,
       source: cat.source,
-      memberships_live: memberRows !== null,
+      memberships_live: countsLive,
       campaigns: cat.list.map((c) => {
-        const t = tallies[c.id] || { signups: 0, watching: 0 };
+        const t = countBy[c.id];
         return {
           id: c.id, region: c.region, sub: c.sub, kind: c.kind, target: c.target,
+          /* Recorded on the row and shown here as configuration. NO COUNT
+             ADDS THEM: every household figure on every surface is a live
+             count over the ledger and the snapshot table. */
           seed_members: c.seedMembers, seed_households: c.seedHouseholds,
-          members: c.seedMembers + t.signups,
-          households: c.seedHouseholds + t.signups,
+          members: t.seats,
+          households: t.seats,
+          waitlist: t.waitlist,
           watching: t.watching,
           bidding_open: Boolean(c.biddingOpen),
           sort_order: c.sortOrder,
@@ -487,6 +507,133 @@ function mount(router, cfg) {
           dates: c.dates || {},
         };
       }),
+    });
+  }));
+
+  /**
+   * Drift detector: what members see, what partners see, and what the raw
+   * tables say, side by side. -> { ok, serverTime, source, surfaces, campaigns, orphans, mismatches }
+   *
+   * Both dashboards read lib/cohorts.js, so by construction they cannot
+   * disagree; this endpoint is what proves that on a live store and catches
+   * the day someone forks a projection. Each campaign is projected through
+   * the SAME forMember/forPartner the public routes use, and its household
+   * figure is then checked against three raw reads: active seat claims,
+   * snapshot rows standing as joined, and the stored roster_count sidecar.
+   * Anything that disagrees is a named mismatch, and the console renders
+   * the list rather than a green tick it cannot back.
+   *
+   * Two full-table reads (seat_claim active, campaign_members) find rows
+   * naming a campaign the catalog no longer has: a ghost a dashboard would
+   * never render but a count could silently include. Bounded by queryAll's
+   * page budget, which is stated in the payload rather than hidden.
+   */
+  router.get('/admin/campaigns/reconcile', wrap(async (req, res) => {
+    requireAdmin(req);
+    const c = req.catalyst;
+    cohorts.invalidate();
+    const enabled = (await siteconfig.getValue(c, 'bidding_enabled')) !== false;
+    const { source, live, serverTime, states } = await cohorts.list(c, { fresh: true, includeArchived: true });
+    const known = new Set(states.map((s) => s.id));
+
+    const mismatches = [];
+    if (source !== 'table') {
+      mismatches.push({ kind: 'code_catalog', campaign: null,
+        detail: 'The campaigns table is empty or unreadable: members and partners are shown nothing until it is imported.' });
+    }
+
+    const rows = [];
+    for (const s of states) {
+      const member = cohorts.forMember(s, undefined);
+      const partner = cohorts.forPartner(s, enabled);
+      let claims = null; let joinedRows = null; let stored = null;
+      try {
+        claims = (await datastore.queryAll(c, cohorts.CLAIM_TABLE, ['member_id'],
+          `cohort_id = ${datastore.lit(s.id)} AND status = 'active'`)).length;
+      } catch { claims = null; }
+      try {
+        const mrows = await datastore.queryAll(c, cohorts.MEMBERS_TABLE, ['user_id', 'status'],
+          `campaign_id = ${datastore.lit(s.id)}`);
+        joinedRows = mrows.filter((r) => catalog.standingOf(r.status, s.campaign) === 'joined').length;
+      } catch { joinedRows = null; }
+      const counter = await seats.counterFor(c, s.id);
+      stored = counter ? counter.roster_count : null;
+
+      const row = {
+        id: s.id, region: s.region, kind: s.kind,
+        member_visible: cohorts.memberVisible(s),
+        partner_listed: s.kind !== 'archived',
+        partner_biddable: partner.bidding_open,
+        member_stage: member.stage, partner_stage: partner.stage,
+        households_member: member.households,
+        households_partner: partner.households,
+        seat_claims: claims, joined_rows: joinedRows, roster_count_stored: stored,
+        count_live: s.countLive,
+      };
+      rows.push(row);
+
+      if (member.households !== partner.households) {
+        mismatches.push({ kind: 'surface_count', campaign: s.id,
+          detail: `Members see ${member.households} households, partners see ${partner.households}.` });
+      }
+      if (stored !== null && claims !== null && stored !== claims) {
+        mismatches.push({ kind: 'counter_drift', campaign: s.id,
+          detail: `cohort_counter says ${stored}, the ledger holds ${claims} active claims. Nothing renders the counter; the next seat transition recounts it.` });
+      }
+      if (claims !== null && joinedRows !== null && joinedRows > claims && s.kind !== 'archived') {
+        mismatches.push({ kind: 'legacy_rows', campaign: s.id,
+          detail: `${joinedRows - claims} joined rows carry no seat claim (joined before the ledger). They are counted; they hold no seat.` });
+      }
+      if (!s.countLive) {
+        mismatches.push({ kind: 'count_unreadable', campaign: s.id,
+          detail: 'A count table was unreadable; the figure shown is a floor.' });
+      }
+    }
+
+    /* Ghost rows: memberships or claims naming a campaign the catalog does
+       not carry. Full reads, bounded by the page budget. */
+    const orphans = { claims: {}, memberships: {}, truncated: false };
+    try {
+      const all = await datastore.queryAll(c, cohorts.CLAIM_TABLE, ['cohort_id'], `status = 'active'`);
+      for (const r of all) if (r.cohort_id && !known.has(String(r.cohort_id))) {
+        orphans.claims[r.cohort_id] = (orphans.claims[r.cohort_id] || 0) + 1;
+      }
+      if (all.length >= 15000) orphans.truncated = true;
+    } catch { /* ledger unreadable: reported per campaign above */ }
+    try {
+      const all = await datastore.queryAll(c, cohorts.MEMBERS_TABLE, ['campaign_id', 'status'], 'ROWID > 0');
+      for (const r of all) if (r.campaign_id && !known.has(String(r.campaign_id)) && r.status !== 'alert') {
+        orphans.memberships[r.campaign_id] = (orphans.memberships[r.campaign_id] || 0) + 1;
+      }
+      if (all.length >= 15000) orphans.truncated = true;
+    } catch { /* snapshot unreadable: reported per campaign above */ }
+    for (const [id, n] of Object.entries(orphans.claims)) {
+      mismatches.push({ kind: 'orphan_claims', campaign: id,
+        detail: `${n} active seat claims name a campaign the catalog does not carry.` });
+    }
+    for (const [id, n] of Object.entries(orphans.memberships)) {
+      mismatches.push({ kind: 'orphan_memberships', campaign: id,
+        detail: `${n} membership rows name a campaign the catalog does not carry.` });
+    }
+
+    const memberIds = states.filter(cohorts.memberVisible).map((s) => s.id);
+    const partnerIds = states.filter((s) => s.kind !== 'archived').map((s) => s.id);
+    const biddable = states.filter((s) => cohorts.partnerBiddable(s, enabled)).map((s) => s.id);
+    res.status(200).json({
+      ok: true,
+      serverTime,
+      source,
+      counts_live: live,
+      surfaces: {
+        member: memberIds,
+        partner: partnerIds,
+        partner_biddable: biddable,
+        member_only: memberIds.filter((id) => !partnerIds.includes(id)),
+        partner_only: partnerIds.filter((id) => !memberIds.includes(id)),
+      },
+      campaigns: rows,
+      orphans,
+      mismatches,
     });
   }));
 

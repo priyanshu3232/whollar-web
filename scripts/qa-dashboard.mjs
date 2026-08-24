@@ -21,13 +21,14 @@
  * given server answer (which is where the interesting bugs live), the demo
  * tour across all 13 states, four widths, and every link resolving.
  *
- * THE REGRESSION THIS FILE EXISTS FOR. CAMPS is seeded with london-east marked
- * `you:'joined'` so the demo tour has a cohort to show. GET /campaigns returns
- * `visible(cat.list)`, a SUBSET: archived cohorts are dropped. Any seeded
- * campaign the server does not name keeps its seeded standing, so once
- * london-east archives, every member on the site was shown "Your campaign ·
- * London East · Autumn cohort" with a forming rail, a dated calendar and an
- * activity feed, none of it theirs. Groups 3 and 4 are that bug.
+ * THE REGRESSION THIS FILE EXISTS FOR. CAMPS used to be seeded with six
+ * invented regions, london-east marked `you:'joined'`, so the demo tour had a
+ * cohort to show. Any seeded campaign the server did not name kept its seeded
+ * standing, so once london-east archived, every member on the site was shown
+ * "Your campaign · London East · Autumn cohort" with a forming rail, a dated
+ * calendar and an activity feed, none of it theirs. The seeds are gone (CAMPS
+ * boots empty and only GET /campaigns fills it); groups 3, 4 and 6 are what
+ * keeps them gone.
  */
 
 import { chromium } from 'playwright-core';
@@ -208,8 +209,12 @@ console.log('\n5. the join card counts what the server says, on the visitor lane
   await c.close();
 }
 
-console.log('\n6. a degraded read keeps the seeds rather than blanking the page');
+console.log('\n6. a degraded read paints the server\'s list and fabricates nothing');
 {
+  /* THERE ARE NO SEEDS ANY MORE. A degraded answer (live:false) with an empty
+     list is an empty row that says so; a degraded answer WITH cohorts paints
+     them, because the list is the catalog's and only the counts are in doubt.
+     Neither invents a membership. */
   const c = await ctx(browser, { campaigns: [], live: false });
   const p = await c.newPage();
   collect(p, errors);
@@ -217,7 +222,81 @@ console.log('\n6. a degraded read keeps the seeds rather than blanking the page'
   await p.waitForTimeout(900);
   const s = await snapshot(p);
   ok(s.lane === 'visitor', 'live:false does not fabricate a cohort either');
-  ok((s.regmono || '').length > 0, 'and the region row still says something');
+  const row = await p.evaluate(() => (document.querySelector('#crow') || {}).innerText || '');
+  ok(/No cohorts open yet/.test(row), 'and an empty list paints the empty state, not four invented regions');
+  ok(!/London East|Windsor|Kingston|Chatham/.test(row), 'none of the old seed regions appear');
+  await c.close();
+  const c2 = await ctx(browser, { campaigns: [camp('kleinburg', 'Kleinburg', 'Autumn cohort', { members: 2 })], live: false });
+  const p2 = await c2.newPage();
+  collect(p2, errors);
+  await p2.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p2.waitForTimeout(900);
+  const row2 = await p2.evaluate(() => (document.querySelector('#crow') || {}).innerText || '');
+  ok(/Kleinburg/.test(row2), 'a degraded answer that names a cohort still paints it');
+  await c2.close();
+}
+
+console.log('\n6a. before the first answer the row is a skeleton, not "no cohorts"');
+{
+  const c = await ctx(browser, { campaigns: [camp('kleinburg', 'Kleinburg', 'Autumn cohort')] });
+  /* Hold the campaigns answer so the pre-answer paint is observable. */
+  await c.route('**/api/auth/campaigns', async r => {
+    await new Promise(res => setTimeout(res, 1500));
+    r.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ ok: true, live: true, serverTime: Date.now(), campaigns: [camp('kleinburg', 'Kleinburg', 'Autumn cohort')] }) });
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(500);
+  const early = await p.evaluate(() => (document.querySelector('#crow') || {}).innerText || '');
+  ok(/Finding cohorts near you/.test(early) && !/No cohorts open yet/.test(early), 'skeleton while the server is asked');
+  ok(await p.locator('#crow .cc--wait[aria-busy="true"]').count() > 0, 'and it is marked busy for assistive tech');
+  await p.waitForTimeout(2000);
+  const late = await p.evaluate(() => (document.querySelector('#crow') || {}).innerText || '');
+  ok(/Kleinburg/.test(late) && !/Finding cohorts/.test(late), 'then the server\'s cohort replaces it');
+  await c.close();
+}
+
+console.log('\n6c. a member holding a waitlist place, not a seat, can press any open cohort');
+{
+  /* The state a waitlist standing derives is `forming`, which is not a
+     visitor state, and no seat means heldElsewhere is false: before the gate
+     widened, every other joinable cohort was an inert tile with a hover lift. */
+  const c = await ctx(browser, { record: RECFULL, campaigns: [
+    camp('brampton-east', 'Brampton East', 'Winter cohort', { kind: 'waitlist', you: 'waitlist', members: 0 }),
+    camp('kleinburg', 'Kleinburg', 'Autumn cohort', { members: 3 }),
+    camp('etobicoke-centre', 'Etobicoke Centre', 'Winter cohort', { members: 0 }),
+  ] });
+  await c.route('**/api/auth/me/seat*', r => r.fulfill({ status: 200, contentType: 'application/json',
+    body: JSON.stringify({ ok: true, serverTime: Date.now(), claim: null, cohort: null, affordance: 'none', rejoin_until: null }) }));
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  const pressable = await p.evaluate(() => Array.from(document.querySelectorAll('#crow button.cc[data-choose]')).map(b => b.getAttribute('data-choose')));
+  ok(pressable.includes('kleinburg') && pressable.includes('etobicoke-centre'), `both open cohorts are buttons (${pressable.join(', ')})`);
+  ok(!pressable.includes('brampton-east'), 'their own waitlist cohort is not offered as a join');
+  /* A real hover, not a synthetic event: :hover only follows the pointer.
+     The rise animation leaves an identity matrix behind, so the lift is read
+     as the translateY component and the shadow, not as "transform is none". */
+  await p.hover('#crow div.cc');
+  await p.waitForTimeout(250);
+  const inert = await p.evaluate(() => {
+    const d = document.querySelector('#crow div.cc'); if (!d) return null;
+    const cs = getComputedStyle(d);
+    const m = cs.transform.match(/matrix\(([^)]+)\)/);
+    const ty = m ? Number(m[1].split(',')[5]) : 0;
+    return { ty, shadow: cs.boxShadow };
+  });
+  ok(inert && inert.ty === 0 && inert.shadow === 'none', `an inert tile carries no hover lift (${inert && inert.ty}px, ${inert && inert.shadow})`);
+  await p.hover('#crow button.cc');
+  await p.waitForTimeout(250);
+  const live = await p.evaluate(() => {
+    const b = document.querySelector('#crow button.cc'); if (!b) return null;
+    return getComputedStyle(b).boxShadow;
+  });
+  ok(live && live !== 'none', 'a pressable card still lifts');
   await c.close();
 }
 

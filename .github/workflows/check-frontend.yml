@@ -143,6 +143,15 @@ jobs:
       - name: Cohort ZCQL tool unit tests
         run: node --test scripts/test-cohort.mjs
 
+      # Campaign state and seat counts through the REAL route handlers over
+      # an in-memory Data Store. Section 9 is the sync contract: N members
+      # join, and the member dashboard, the partner desk, the seat ledger
+      # and the admin drift check all answer N from lib/cohorts.js. Section
+      # 10 is the ghost guard: the shipped code catalog never reaches a
+      # member or a partner.
+      - name: Multi-campaign and cohort sync tests
+        run: node scripts/test-multicampaign.mjs
+
       # The route guards. These decide whether an unapproved organisation can
       # place a bid, and they were copy-pasted across four route files before
       # being extracted into lib/guards.js. This is what stops the fifth copy.

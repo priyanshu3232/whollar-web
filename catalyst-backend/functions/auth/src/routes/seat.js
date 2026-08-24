@@ -39,6 +39,7 @@
 const catalog = require('../lib/catalog');
 const datastore = require('../lib/datastore');
 const seats = require('../lib/seats');
+const cohorts = require('../lib/cohorts');
 const guards = require('../lib/guards');
 const audit = require('../lib/audit');
 const ratelimit = require('../lib/ratelimit');
@@ -56,8 +57,10 @@ const CLOSING_WINDOW_MS = 48 * 3600 * 1000; // the "closing" chip, presentationa
  * Shapes and windows
  * ------------------------------------------------------------------ */
 
-/** The cohort as these routes describe it: stage, clock, and the count. */
-function cohortShape(c, now, counter) {
+/** The cohort as these routes describe it: stage, clock, and the count.
+    `count` is a cohorts.seatCount() answer, or null when the caller did not
+    fetch one, in which case roster_count is null ("not read"), never a seed. */
+function cohortShape(c, now, count) {
   const s = catalog.publicMemberStage(c, now);
   const joinCloseAt = (c.dates && c.dates.announce_at) || null;
   return {
@@ -72,7 +75,7 @@ function cohortShape(c, now, counter) {
     join_close_at: joinCloseAt,
     closing: Boolean(joinCloseAt && now < joinCloseAt && (joinCloseAt - now) <= CLOSING_WINDOW_MS),
     target: c.target,
-    roster_count: counter ? counter.roster_count : (c.seedMembers || 0),
+    roster_count: count ? count.seats : null,
   };
 }
 
@@ -84,10 +87,9 @@ function joinWindowOpen(c, now) {
 }
 
 /** True when the roster cannot take one more household. */
-function rosterFull(c, counter) {
+function rosterFull(c, count) {
   if (!c.target) return false;
-  const count = counter ? counter.roster_count : (c.seedMembers || 0);
-  return count >= c.target;
+  return (count ? count.seats : 0) >= c.target;
 }
 
 /**
@@ -106,12 +108,12 @@ function affordanceFor(claim, cohort, now) {
 }
 
 /** The SEAL_RACE refusal, built one way for every route that can hit it. */
-function sealRace(c, now, counter) {
+function sealRace(c, now, count) {
   return new AppError('SEAL_RACE',
     `${c.region} sealed while this page was open. Nothing is owed and you are not committed to switch.`, {
       logDetail: `seat mutation refused: ${c.id} past join window`,
       extra: {
-        cohort: cohortShape(c, now, counter),
+        cohort: cohortShape(c, now, count),
         sealed_at: (c.dates && c.dates.announce_at) || null,
         next_decision_at: (c.dates && c.dates.offers_at) || null,
       },
@@ -137,6 +139,7 @@ async function dropMembershipRow(catalystApp, cohortId, userId) {
   } catch {
     // Snapshot table missing: nothing to drop. The claim row is the truth.
   }
+  cohorts.invalidate(cohortId);
 }
 
 /** Forming cohorts still open, for "here is what you can join instead". */
@@ -169,7 +172,7 @@ function mount(router) {
     if (claim && claim.cohort_id) {
       const cat = await catalog.load(req.catalyst);
       c = cat.byId.get(claim.cohort_id) || null;
-      if (c) cohort = cohortShape(c, now, await seats.counterFor(req.catalyst, c.id));
+      if (c) cohort = cohortShape(c, now, await cohorts.seatCount(req.catalyst, c.id));
     }
     return ok(res, {
       claim,
@@ -205,7 +208,7 @@ function mount(router) {
 
     if (existing && existing.status === 'active') {
       if (existing.cohort_id === target.id) {
-        const counter = await seats.counterFor(req.catalyst, target.id);
+        const counter = await cohorts.seatCount(req.catalyst, target.id);
         return ok(res, { claim: existing, cohort: cohortShape(target, now, counter), already: true });
       }
       const held = cat.byId.get(existing.cohort_id);
@@ -219,13 +222,13 @@ function mount(router) {
         held ? `You are already in ${held.region}.` : 'This address already holds a cohort seat.', {
           logDetail: `join refused: ${addressId} holds ${existing.cohort_id}`,
           extra: {
-            held_cohort: held ? cohortShape(held, now, await seats.counterFor(req.catalyst, held.id)) : null,
+            held_cohort: held ? cohortShape(held, now, await cohorts.seatCount(req.catalyst, held.id)) : null,
             can_move: canMove,
           },
         });
     }
 
-    const counter = await seats.counterFor(req.catalyst, target.id);
+    const counter = await cohorts.seatCount(req.catalyst, target.id);
     if (rosterFull(target, counter)) {
       throw new AppError('ROSTER_FULL', `${target.region} is full for this round.`, {
         logDetail: `join refused: ${target.id} at target`,
@@ -250,7 +253,7 @@ function mount(router) {
       detail: { cohort: target.id, source: String((req.body || {}).source || 'direct') },
     });
 
-    const after = await seats.counterFor(req.catalyst, target.id);
+    const after = await cohorts.seatCount(req.catalyst, target.id);
     return ok(res, { claim, cohort: cohortShape(target, now, after) });
   }));
 
@@ -271,7 +274,7 @@ function mount(router) {
     const claim = seats.publicClaim(row);
     if (!claim || claim.status !== 'active' || claim.cohort_id !== cohort.id) {
       /* Idempotent: leaving a seat you do not hold succeeds with the truth. */
-      const counter = await seats.counterFor(req.catalyst, cohort.id);
+      const counter = await cohorts.seatCount(req.catalyst, cohort.id);
       return ok(res, {
         claim, cohort: cohortShape(cohort, now, counter),
         rejoin_until: (cohort.dates && cohort.dates.announce_at) || null,
@@ -283,7 +286,7 @@ function mount(router) {
         type: 'seat.sealrace', outcome: 'failure', userId: user.user_id,
         email: user.email_normalized, detail: { route: 'leave', cohort: cohort.id },
       });
-      throw sealRace(cohort, now, await seats.counterFor(req.catalyst, cohort.id));
+      throw sealRace(cohort, now, await cohorts.seatCount(req.catalyst, cohort.id));
     }
 
     const { claim: fresh } = await seats.transition(req.catalyst, {
@@ -302,7 +305,7 @@ function mount(router) {
       detail: { cohort: cohort.id, reason: seats.cleanReason((req.body || {}).reason) },
     });
 
-    const counter = await seats.counterFor(req.catalyst, cohort.id);
+    const counter = await cohorts.seatCount(req.catalyst, cohort.id);
     return ok(res, {
       claim: fresh,
       cohort: cohortShape(cohort, now, counter),
@@ -346,7 +349,7 @@ function mount(router) {
         type: 'seat.sealrace', outcome: 'failure', userId: user.user_id,
         email: user.email_normalized, detail: { route: 'move', cohort: from.id },
       });
-      throw sealRace(from, now, await seats.counterFor(req.catalyst, from.id));
+      throw sealRace(from, now, await cohorts.seatCount(req.catalyst, from.id));
     }
     if (!joinWindowOpen(to, now)) {
       throw new AppError('JOIN_CLOSED', `Joining has closed on ${to.region}.`, {
@@ -354,7 +357,7 @@ function mount(router) {
         extra: { cohort: cohortShape(to, now, null) },
       });
     }
-    const toCounter = await seats.counterFor(req.catalyst, to.id);
+    const toCounter = await cohorts.seatCount(req.catalyst, to.id);
     if (rosterFull(to, toCounter)) {
       throw new AppError('ROSTER_FULL', `${to.region} is full for this round.`, {
         logDetail: `move refused: target ${to.id} at target`,
@@ -412,8 +415,8 @@ function mount(router) {
 
     return ok(res, {
       claim: fresh,
-      from_cohort: cohortShape(from, now, await seats.counterFor(req.catalyst, from.id)),
-      to_cohort: cohortShape(to, now, await seats.counterFor(req.catalyst, to.id)),
+      from_cohort: cohortShape(from, now, await cohorts.seatCount(req.catalyst, from.id)),
+      to_cohort: cohortShape(to, now, await cohorts.seatCount(req.catalyst, to.id)),
     });
   }));
 
@@ -462,7 +465,7 @@ function mount(router) {
 
     return ok(res, {
       claim: fresh,
-      cohort: cohortShape(cohort, now, await seats.counterFor(req.catalyst, cohort.id)),
+      cohort: cohortShape(cohort, now, await cohorts.seatCount(req.catalyst, cohort.id)),
       open_alternatives: openAlternatives(cat, now, cohort.id),
     });
   }));

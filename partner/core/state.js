@@ -35,6 +35,7 @@ var state = {
   coverageLive: true,
   campaigns: [],
   campaignsLive: true,
+  campaignsSource: null,
   bids: {},             /* keyed by campaign id */
   briefs: {},           /* GET .../brief payloads keyed by campaign id;
                            'loading' while in flight, { failed: true } on error */
