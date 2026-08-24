@@ -523,7 +523,7 @@ footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;col
         <p class="whl-fielderr" id="p-terms-err" role="alert" style="display:none;margin:6px 0 0;font-size:12px;font-weight:600;color:var(--warn-text,#A34F2B)"></p>
         <div class="ctarow">
           <button class="whl-btn go" id="p-go" type="button">Apply as a founding partner</button>
-          <a class="whl-btn go ghost" id="p-call" href="#book">Book a call</a>
+          <a class="whl-btn go ghost" id="p-call" href="https://calendly.com/hubcart99/30min" target="_blank" rel="noopener">Book a call</a>
         </div>
         <p class="signin-switch">Already have a partner account? <a href="/whollar-login-provider">Sign in</a></p>
       </div>
@@ -1033,10 +1033,6 @@ $$('.fs,.faqwrap').forEach(el=>io.observe(el));
     lottie.loadAnimation({container:el,renderer:'svg',loop:!reduce,autoplay:!reduce,path});
   });
 })();
-
-$('#p-call').addEventListener('click',e=>{e.preventDefault();
-  /* WIRE-UP POINT: replace with your scheduling link, e.g. window.open('https://cal.com/whollar','_blank') */
-  $('#p-call').textContent='Calendar coming soon';setTimeout(()=>$('#p-call').textContent='Book a call',1800);});
 
 $$('[data-faqwrap] .qa').forEach(item=>{
   const btn=item.querySelector('button');
