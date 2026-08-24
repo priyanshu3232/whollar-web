@@ -23,7 +23,7 @@
  * when instead.
  */
 
-import { get } from '../core/state.js';
+import { get, biddableCampaigns, termsState } from '../core/state.js';
 import { esc, plural } from '../core/format.js';
 import { fmtDate, fmtTime, fmtCountdown, until, sameDay, now, DAY } from '../core/time.js';
 import { checklistHTML } from './application.js';
@@ -106,7 +106,12 @@ function activation(S) {
   var sealed = Object.keys(S.bids).length > 0;
   return {
     coverage: S.coverage.length > 0,
-    terms: !!(S.application && S.application.cohortTermsAcceptedAt),
+    /* The same fact the bid ticket gates on, read from the same place
+       (contracts.terms), so the checklist and the ticket cannot disagree
+       after a version bump. The application field remains the fallback only
+       while the contracts payload has not answered yet. */
+    terms: termsState() === 'accepted'
+      || (termsState() === 'unknown' && !!(S.application && S.application.cohortTermsAcceptedAt)),
     pay: !!(S.billing && S.billing.method && S.billing.method.onFile),
     brief: sealed || Object.keys(S.briefs).length > 0,
     bid: sealed
@@ -166,13 +171,20 @@ function reviewCard(S) {
 function closeAt(c) { return ((c.dates || {}).bidding_closes_at) || Infinity; }
 function openAt(c) { return ((c.dates || {}).bidding_opens_at) || Infinity; }
 
+/* Every figure under these two says "in your coverage", so they count the
+   coverage-matched subset, not the whole platform payload: the campaigns list
+   arrives unfiltered by design (the desk shows locked rows), and counting it
+   here told a one-region partner that every open auction in Canada was
+   theirs. Pending results and sealed bids stay unfiltered on purpose: a bid
+   already placed outlives a coverage edit (a coverage change applies to
+   future matching only). */
 function openCampaigns(S) {
-  return S.campaigns.filter(function (c) { return c.stage === 'open' || c.stage === 'closing'; })
+  return biddableCampaigns().filter(function (c) { return c.stage === 'open' || c.stage === 'closing'; })
     .sort(function (a, b) { return closeAt(a) - closeAt(b); });
 }
 
 function approachingCampaigns(S) {
-  return S.campaigns.filter(function (c) { return c.stage === 'planned' || c.stage === 'announced'; })
+  return biddableCampaigns().filter(function (c) { return c.stage === 'planned' || c.stage === 'announced'; })
     .sort(function (a, b) { return openAt(a) - openAt(b); });
 }
 

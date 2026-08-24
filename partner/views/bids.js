@@ -39,10 +39,10 @@ export function render() {
   S.campaigns.forEach(function (c) { byId[c.id] = c; });
 
   var rows = list.map(function (b) {
-    var c = byId[b.campaignId] || {};
+    var c = byId[b.campaignId || b.campaign] || {};
     var confirmed = b.state === 'won' && c.confirmed != null ? String(c.confirmed) : '·';
     return '<tr>'
-      + '<td>' + esc(c.region || b.campaignId) + '</td>'
+      + '<td>' + esc(c.region || b.campaignId || b.campaign) + '</td>'
       + '<td class="num">' + (b.placedAt ? esc(fmtDate(b.placedAt)) : '·') + '</td>'
       + '<td class="num">' + bidLine(b) + (b.version > 1 ? ' <small class="capnote">v' + b.version + '</small>' : '') + '</td>'
       + '<td>' + pill(b.state) + '</td>'
@@ -91,9 +91,9 @@ export function mount() {
     var head = 'Cohort,Placed,Bid,Version,Result,Confirmed\n';
     var lines = Object.keys(S.bids).map(function (k) {
       var b = S.bids[k];
-      var c = byId[b.campaignId] || {};
+      var c = byId[b.campaignId || b.campaign] || {};
       return [
-        csv(c.region || b.campaignId),
+        csv(c.region || b.campaignId || b.campaign),
         b.placedAt ? new Date(b.placedAt).toISOString().slice(0, 10) : '',
         csv((b.tiers || []).map(function (t) { return '$' + t.effectivePrice + ' ' + t.name; }).join(' | ')),
         b.version || 1,

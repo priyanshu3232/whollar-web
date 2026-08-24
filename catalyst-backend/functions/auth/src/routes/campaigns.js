@@ -31,6 +31,8 @@
 
 const datastore = require('../lib/datastore');
 const audit = require('../lib/audit');
+const seats = require('../lib/seats');
+const users = require('../lib/users');
 const catalog = require('../lib/catalog');
 const siteconfig = require('../lib/siteconfig');
 const guards = require('../lib/guards');
@@ -47,16 +49,29 @@ const { JOIN_STATUS } = catalog;
  * ------------------------------------------------------------------ */
 
 /**
- * Every membership row, or null when the table cannot be read, which above
- * all means "not created in the console yet". The distinction matters: the
- * dashboards must keep working on seed numbers before the table exists, so
- * "no rows" and "no table" are different answers, not both `[]`.
+ * Membership rows for the named campaigns, or null when the table cannot be
+ * read, which above all means "not created in the console yet". The
+ * distinction matters: the dashboards must keep working on seed numbers
+ * before the table exists, so "no rows" and "no table" are different answers,
+ * not both `[]`.
+ *
+ * One read PER CAMPAIGN, never a full-table scan. queryAll stops silently at
+ * its page budget, and a ROWID-ordered scan spends that budget on the oldest
+ * campaigns first, so with a single scan one busy cohort's volume truncated
+ * every other cohort's count (INV-3: seat and member counts are per
+ * campaign). Scoping the WHERE bounds any truncation to the one campaign.
  */
-async function allRows(catalystApp) {
+async function allRows(catalystApp, campaignIds) {
   try {
-    return await datastore.queryAll(
-      catalystApp, TABLE, ['campaign_id', 'user_id', 'status'], 'ROWID > 0'
-    );
+    const rows = [];
+    for (const id of campaignIds) {
+      const batch = await datastore.queryAll(
+        catalystApp, TABLE, ['campaign_id', 'user_id', 'status'],
+        `campaign_id = ${datastore.lit(id)}`
+      );
+      for (const r of batch) rows.push(r);
+    }
+    return rows;
   } catch {
     return null;
   }
@@ -240,14 +255,32 @@ async function upsert(catalystApp, campaign, user, status) {
       }
       return existing.status;
     }
-    await datastore.insertRow(catalystApp, TABLE, {
+    const row = {
       membership_key: key,
       campaign_id: campaign.id,
       user_id: user.user_id,
       status,
       fsa: user.fsa || null,
       joined_at: datastore.nowDb(),
-    });
+    };
+    try {
+      /* Referral attribution, stamped with the campaign actually joined: the
+         code this member arrived carrying, copied at join time. The referrer's
+         panel total stays a count over users.referral_code; this stamp is what
+         makes a per-campaign attribution answerable at all, and it lands on
+         the row of the campaign the household chose, which may not be the
+         referrer's own cohort. Read here rather than from the session user,
+         whose projection deliberately stays narrow. */
+      const rec = await users.findById(catalystApp, user.user_id);
+      await datastore.insertRow(catalystApp, TABLE, {
+        ...row, referral_code: (rec && rec.referral_code) || null,
+      });
+    } catch (stampErr) {
+      /* The column ships after the code: until the operator adds
+         campaign_members.referral_code in the console, the plain row is the
+         join and nothing is lost but the stamp. */
+      await datastore.insertRow(catalystApp, TABLE, row);
+    }
     return null;
   } catch (err) {
     throw new AppError('SERVER_ERROR',
@@ -273,7 +306,7 @@ function mount(router) {
   router.get('/campaigns', wrap(async (req, res) => {
     const user = requireMember(req);
     const cat = await catalog.load(req.catalyst);
-    const rows = await allRows(req.catalyst);
+    const rows = await allRows(req.catalyst, visible(cat.list).map((c) => c.id));
     const counts = rows ? tally(rows) : {};
     const mineBy = {};
     if (rows) {
@@ -367,9 +400,11 @@ function mount(router) {
     const closed = (closesAt && now >= closesAt)
       || campaign.kind === 'closed' || campaign.kind === 'archived';
 
+    /* serverTime on every exit: this is the endpoint a household polls
+       against closesAt, so the countdown must offset from the server clock. */
     if (!closed) {
       return res.status(200).json({
-        ok: true, sealed: true, closesAt, bidCount: null, offer: null,
+        ok: true, serverTime: now, sealed: true, closesAt, bidCount: null, offer: null,
       });
     }
 
@@ -379,12 +414,12 @@ function mount(router) {
          yet. Distinct from "nobody bid", and the dashboard renders it as such
          rather than telling a household its cohort drew no interest. */
       return res.status(200).json({
-        ok: true, sealed: false, live: false, closesAt, bidCount: null, offer: null,
+        ok: true, serverTime: now, sealed: false, live: false, closesAt, bidCount: null, offer: null,
       });
     }
     if (!rows.length) {
       return res.status(200).json({
-        ok: true, sealed: false, live: true, closesAt, bidCount: 0, offer: null,
+        ok: true, serverTime: now, sealed: false, live: true, closesAt, bidCount: 0, offer: null,
       });
     }
 
@@ -399,7 +434,7 @@ function mount(router) {
       : awards.pickWinner(rows);
     if (!win) {
       return res.status(200).json({
-        ok: true, sealed: false, live: true, closesAt, bidCount: rows.length, offer: null,
+        ok: true, serverTime: now, sealed: false, live: true, closesAt, bidCount: rows.length, offer: null,
       });
     }
 
@@ -419,6 +454,7 @@ function mount(router) {
 
     res.status(200).json({
       ok: true,
+      serverTime: now,
       sealed: false,
       live: true,
       closesAt,
@@ -541,6 +577,63 @@ function mount(router) {
       });
     }
 
+    /* INV-1: one seat per address per vertical. This door predates the seat
+       ledger and used to bypass it, so one household could join N forming
+       cohorts and be counted on N desks at once. A full join now runs the
+       same claim transition as POST /cohorts/:id/join; a waitlist or alert
+       standing is interest, not a seat, and stays ledger-free. */
+    if (status === 'joined') {
+      const addressId = seats.addressIdFor(user);
+      const vertical = seats.VERTICAL_DEFAULT;
+      const now = Date.now();
+      const closeAt = campaign.dates && campaign.dates.announce_at;
+      if (closeAt && now >= closeAt) {
+        throw new AppError('JOIN_CLOSED', 'Joining has closed on this cohort.', {
+          logDetail: `join refused: ${campaign.id} window shut`,
+        });
+      }
+      let existing = null;
+      let ledgerReadable = true;
+      try {
+        existing = seats.publicClaim(await seats.getClaim(req.catalyst, addressId, vertical));
+      } catch {
+        /* Ledger unreadable means the whole seat system is down, and refusing
+           here would close the one door that still works. The next successful
+           seat write re-establishes the invariant. Reads degrade; the guard
+           below still refuses whenever a held seat CAN be seen. */
+        ledgerReadable = false;
+      }
+      if (existing && existing.status === 'active' && existing.cohort_id !== campaign.id) {
+        const held = cat.byId.get(existing.cohort_id);
+        audit.recordAsync(req.catalyst, req, {
+          type: 'seat.move.blocked', outcome: 'success', userId: user.user_id,
+          email: user.email_normalized,
+          detail: { from_cohort: existing.cohort_id, to_cohort: campaign.id, via: 'campaigns.join' },
+        });
+        throw new AppError('SEAT_HELD',
+          held ? `You are already in ${held.region}.` : 'This address already holds a cohort seat.', {
+            logDetail: `join refused: address holds ${existing.cohort_id}`,
+            extra: { held_cohort: held ? { id: held.id, region: held.region, sub: held.sub } : null },
+          });
+      }
+      if (ledgerReadable && (!existing || existing.status !== 'active')) {
+        const counter = await seats.counterFor(req.catalyst, campaign.id);
+        const count = counter ? counter.roster_count : (campaign.seedMembers || 0);
+        if (campaign.target && count >= campaign.target) {
+          throw new AppError('ROSTER_FULL', `${campaign.region} is full for this round.`, {
+            logDetail: `join refused: ${campaign.id} at target`,
+          });
+        }
+        await seats.transition(req.catalyst, {
+          user, addressId, vertical,
+          action: existing && existing.cohort_id === campaign.id ? 'rejoin' : 'join',
+          fromCohortId: null, toCohortId: campaign.id,
+          reason: null, requestId: seats.cleanRequestId(req.get('Idempotency-Key')),
+        });
+        await seats.recount(req.catalyst, campaign.id);
+      }
+    }
+
     const was = await upsert(req.catalyst, campaign, user, status);
     audit.recordAsync(req.catalyst, req, {
       type: 'campaign.join',
@@ -550,11 +643,13 @@ function mount(router) {
       detail: { campaign: campaign.id, status, was },
     });
 
-    const rows = await allRows(req.catalyst);
+    const rows = await allRows(req.catalyst, [campaign.id]);
     const counts = rows ? tally(rows) : {};
+    const now = Date.now();
     res.status(200).json({
       ok: true,
-      campaign: publicCampaign(campaign, counts, { status }),
+      serverTime: now,
+      campaign: publicCampaign(campaign, counts, { status }, now),
     });
   }));
 
@@ -568,6 +663,38 @@ function mount(router) {
     const cat = await catalog.load(req.catalyst);
     const campaign = campaignFrom(cat, req.body);
     const key = `${campaign.id}:${user.user_id}`;
+
+    /* INV-1's other half: if this address's seat is on this cohort, the
+       ledger releases it under the same rules as POST /cohorts/:id/leave, or
+       refuses the same way once the roster sealed. Without this, a leave
+       through the old door dropped the snapshot row but kept the claim
+       active, stranding the address behind SEAT_HELD everywhere. A waitlist
+       or alert row has no seat and keeps the old idempotent path. */
+    try {
+      const addressId = seats.addressIdFor(user);
+      const claim = seats.publicClaim(
+        await seats.getClaim(req.catalyst, addressId, seats.VERTICAL_DEFAULT));
+      if (claim && claim.status === 'active' && claim.cohort_id === campaign.id) {
+        const now = Date.now();
+        const closeAt = campaign.dates && campaign.dates.announce_at;
+        if (!(campaign.kind === 'forming' && (!closeAt || now < closeAt))) {
+          throw new AppError('SEAL_RACE',
+            `${campaign.region} sealed while this page was open. Nothing is owed and you are not committed to switch.`, {
+              logDetail: `leave refused: ${campaign.id} past join window`,
+            });
+        }
+        await seats.transition(req.catalyst, {
+          user, addressId, vertical: seats.VERTICAL_DEFAULT,
+          action: 'leave', fromCohortId: campaign.id, toCohortId: null,
+          reason: null, requestId: seats.cleanRequestId(req.get('Idempotency-Key')),
+        });
+        await seats.recount(req.catalyst, campaign.id);
+        await seats.applyHysteresis(req.catalyst, campaign.id);
+      }
+    } catch (err) {
+      if (err instanceof AppError) throw err;
+      // Ledger unreadable: same degradation as the join guard above.
+    }
 
     try {
       const existing = await datastore.findBy(
@@ -586,11 +713,13 @@ function mount(router) {
       detail: { campaign: campaign.id },
     });
 
-    const rows = await allRows(req.catalyst);
+    const rows = await allRows(req.catalyst, [campaign.id]);
     const counts = rows ? tally(rows) : {};
+    const now = Date.now();
     res.status(200).json({
       ok: true,
-      campaign: publicCampaign(campaign, counts, undefined),
+      serverTime: now,
+      campaign: publicCampaign(campaign, counts, undefined, now),
     });
   }));
 
@@ -627,11 +756,13 @@ function mount(router) {
       detail: { campaign: campaign.id },
     });
 
-    const rows = await allRows(req.catalyst);
+    const rows = await allRows(req.catalyst, [campaign.id]);
     const counts = rows ? tally(rows) : {};
+    const now = Date.now();
     res.status(200).json({
       ok: true,
-      campaign: publicCampaign(campaign, counts, { status }),
+      serverTime: now,
+      campaign: publicCampaign(campaign, counts, { status }, now),
     });
   }));
 
@@ -651,7 +782,7 @@ function mount(router) {
   router.get('/provider/campaigns', wrap(async (req, res) => {
     requireProvider(req);
     const cat = await catalog.load(req.catalyst);
-    const rows = await allRows(req.catalyst);
+    const rows = await allRows(req.catalyst, visible(cat.list).map((c) => c.id));
     const counts = rows ? tally(rows) : {};
     const enabled = await siteconfig.getValue(req.catalyst, 'bidding_enabled') !== false;
 

@@ -407,7 +407,8 @@ tr.exp + tr.dwr{display:table-row}
 .ceform{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;max-width:560px}
 .ceform label{font-size:11px;font-weight:700;color:var(--sub);display:block;margin-bottom:4px}
 .ceform select{width:100%;font:inherit;font-size:13px;background:#fff;border:1.5px solid var(--line);border-radius:9px;padding:8px 10px}
-.locked td{opacity:.55}
+/* A locked row reads at full ink like every other row: the gold coverage tag
+   in its action cell is the lock signal, so the desk and Coming cohorts match. */
 .lockedtag{font-size:11px;font-weight:700;color:var(--gold-deep)}
 
 

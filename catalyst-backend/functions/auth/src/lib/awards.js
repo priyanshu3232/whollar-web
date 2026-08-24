@@ -43,6 +43,7 @@
  */
 
 const datastore = require('./datastore');
+const bids = require('./bids');
 const { ms } = require('./envelope');
 
 const AWARDS = 'campaign_awards';
@@ -159,7 +160,10 @@ async function seal(catalystApp, campaign, bidRows, now = Date.now()) {
     await datastore.insertRow(catalystApp, AWARDS, {
       award_key: campaign.id,
       campaign_id: campaign.id,
-      org_id: win.org_id,
+      /* bid_key is campaign:org, so the org is recoverable even from a row
+         read with an older projection that lacked org_id. The column is
+         mandatory here: undefined does not seal, it fails the insert. */
+      org_id: win.org_id || String(win.bid_key || '').split(':').slice(1).join(':') || null,
       bid_key: win.bid_key,
       price: win.price,
       bid_count: (bidRows || []).length,
@@ -167,13 +171,35 @@ async function seal(catalystApp, campaign, bidRows, now = Date.now()) {
       awarded_by: 'auto',
       awarded_at: datastore.toDb(new Date(now)),
     });
-  } catch {
+  } catch (err) {
     /* Raced, or the table is not created yet. Re-read: if somebody else won
        the race their row is the award, and if the table is missing this
-       returns null and the caller renders the unsealed state. */
+       returns null and the caller renders the unsealed state. Logged because
+       a third cause, a bad column value, once hid here for a month. */
+    console.warn(JSON.stringify({
+      at: 'awards.seal', campaign: campaign.id,
+      error: String((err && err.message) || err).slice(0, 200),
+    }));
     return findByCampaign(catalystApp, campaign.id);
   }
   return findByCampaign(catalystApp, campaign.id);
+}
+
+/**
+ * The award for one campaign, sealing it first when the close has passed and
+ * nobody sealed yet. This is the ONLY sanctioned way for a /provider route to
+ * reach a seal: the all-orgs bid read happens inside this module and only the
+ * single award row leaves it, so competitors' sealed rows never sit in a
+ * partner request's scope (sealed-bid privacy). Award-first, so the read that
+ * runs every time is the cheap one and the all-orgs read runs once in the
+ * life of the cohort.
+ */
+async function sealFromCampaign(catalystApp, campaign, now = Date.now()) {
+  const existing = await findByCampaign(catalystApp, campaign.id);
+  if (existing) return existing;
+  if (!isClosed(campaign, now)) return null;
+  const bidRows = await bids.campaignBidRows(catalystApp, campaign.id);
+  return seal(catalystApp, campaign, bidRows, now);
 }
 
 /* ------------------------------------------------------------------ *
@@ -241,7 +267,7 @@ function publicAward(row, billing) {
 module.exports = {
   AWARDS, AWARD_COLS, AWARD_COLS_V2, METHODS,
   findByCampaign, rowsForOrg,
-  isClosed, pickWinner, seal,
+  isClosed, pickWinner, seal, sealFromCampaign,
   gateState, gatePassed, release, setCapacity,
   publicAward,
 };

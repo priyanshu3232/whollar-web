@@ -379,6 +379,21 @@ function mount(router) {
       await seats.compensate(req.catalyst, {
         user, addressId, vertical, fromCohortId: from.id, toCohortId: to.id, requestId,
       });
+      /* The compensation swaps the CLAIM back; the snapshot row dropped at
+         the top of the try has to come back too, or the member holds a seat
+         in a cohort whose ledger says they left (INV-3: both campaigns'
+         ledgers must land consistent, win or lose). Best effort like
+         compensate itself: the claim row is the truth either way. */
+      try {
+        await campaigns.upsert(req.catalyst, from, user, 'joined');
+        await seats.recount(req.catalyst, from.id);
+        await seats.recount(req.catalyst, to.id);
+      } catch (restoreErr) {
+        console.error(JSON.stringify({
+          at: 'seat.move.restore', from: from.id, to: to.id,
+          error: String((restoreErr && restoreErr.message) || restoreErr).slice(0, 200),
+        }));
+      }
       throw new AppError('SERVER_ERROR',
         `The move did not complete and your seat stays in ${from.region}. Reference: ${req.id}`, {
           logDetail: `move bookkeeping failed, compensated: ${String((err && err.message) || err).slice(0, 200)}`,

@@ -83,7 +83,6 @@
     /* health */
     biddingPaused: false,
     biddingNotice: null,
-    billing: null,
 
     /* view-local, deliberately in the store so a re-render cannot lose it */
     covEdit: null,        /* region slug being edited inline */
@@ -2998,7 +2997,7 @@
    */
 
   var __ns0 = __require("core/state.js");
-  var get = __ns0.get;
+  var get = __ns0.get, biddableCampaigns = __ns0.biddableCampaigns, termsState = __ns0.termsState;
   var __ns1 = __require("core/format.js");
   var esc = __ns1.esc, plural = __ns1.plural;
   var __ns2 = __require("core/time.js");
@@ -3087,7 +3086,12 @@
     var sealed = Object.keys(S.bids).length > 0;
     return {
       coverage: S.coverage.length > 0,
-      terms: !!(S.application && S.application.cohortTermsAcceptedAt),
+      /* The same fact the bid ticket gates on, read from the same place
+         (contracts.terms), so the checklist and the ticket cannot disagree
+         after a version bump. The application field remains the fallback only
+         while the contracts payload has not answered yet. */
+      terms: termsState() === 'accepted'
+        || (termsState() === 'unknown' && !!(S.application && S.application.cohortTermsAcceptedAt)),
       pay: !!(S.billing && S.billing.method && S.billing.method.onFile),
       brief: sealed || Object.keys(S.briefs).length > 0,
       bid: sealed
@@ -3147,13 +3151,20 @@
   function closeAt(c) { return ((c.dates || {}).bidding_closes_at) || Infinity; }
   function openAt(c) { return ((c.dates || {}).bidding_opens_at) || Infinity; }
 
+  /* Every figure under these two says "in your coverage", so they count the
+     coverage-matched subset, not the whole platform payload: the campaigns list
+     arrives unfiltered by design (the desk shows locked rows), and counting it
+     here told a one-region partner that every open auction in Canada was
+     theirs. Pending results and sealed bids stay unfiltered on purpose: a bid
+     already placed outlives a coverage edit (a coverage change applies to
+     future matching only). */
   function openCampaigns(S) {
-    return S.campaigns.filter(function (c) { return c.stage === 'open' || c.stage === 'closing'; })
+    return biddableCampaigns().filter(function (c) { return c.stage === 'open' || c.stage === 'closing'; })
       .sort(function (a, b) { return closeAt(a) - closeAt(b); });
   }
 
   function approachingCampaigns(S) {
-    return S.campaigns.filter(function (c) { return c.stage === 'planned' || c.stage === 'announced'; })
+    return biddableCampaigns().filter(function (c) { return c.stage === 'planned' || c.stage === 'announced'; })
       .sort(function (a, b) { return openAt(a) - openAt(b); });
   }
 
@@ -4743,7 +4754,10 @@
       + '<td><span class="closecell' + (hot ? ' hot' : '') + '">' + window_ + '</span></td>'
       + '<td>' + yours + '</td>'
       + '<td style="text-align:right">' + action + '</td></tr>'
-      + (open ? expandedRow(a, mine) : '');
+      /* Locked rows never expand: without the guard a coverage flip mid-session
+         left a full pricing form and a live seal button over a cohort the
+         server would refuse anyway. */
+      + (open && unlocked ? expandedRow(a, mine) : '');
   }
 
   function rowClass(unlocked, open) {
@@ -4878,10 +4892,10 @@
     S.campaigns.forEach(function (c) { byId[c.id] = c; });
 
     var rows = list.map(function (b) {
-      var c = byId[b.campaignId] || {};
+      var c = byId[b.campaignId || b.campaign] || {};
       var confirmed = b.state === 'won' && c.confirmed != null ? String(c.confirmed) : '·';
       return '<tr>'
-        + '<td>' + esc(c.region || b.campaignId) + '</td>'
+        + '<td>' + esc(c.region || b.campaignId || b.campaign) + '</td>'
         + '<td class="num">' + (b.placedAt ? esc(fmtDate(b.placedAt)) : '·') + '</td>'
         + '<td class="num">' + bidLine(b) + (b.version > 1 ? ' <small class="capnote">v' + b.version + '</small>' : '') + '</td>'
         + '<td>' + pill(b.state) + '</td>'
@@ -4930,9 +4944,9 @@
       var head = 'Cohort,Placed,Bid,Version,Result,Confirmed\n';
       var lines = Object.keys(S.bids).map(function (k) {
         var b = S.bids[k];
-        var c = byId[b.campaignId] || {};
+        var c = byId[b.campaignId || b.campaign] || {};
         return [
-          csv(c.region || b.campaignId),
+          csv(c.region || b.campaignId || b.campaign),
           b.placedAt ? new Date(b.placedAt).toISOString().slice(0, 10) : '',
           csv((b.tiers || []).map(function (t) { return '$' + t.effectivePrice + ' ' + t.name; }).join(' | ')),
           b.version || 1,
@@ -7927,6 +7941,23 @@
    * loading
    * ------------------------------------------------------------------ */
 
+  function applyCampaignsPayload(r) {
+    check('campaignList', r);
+    (r.campaigns || []).forEach(function (c) { check('campaign', c); });
+    set({
+      campaigns: r.campaigns || [],
+      campaignsLive: r.live !== false,
+      biddingPaused: !!(r.bidding && r.bidding.enabled === false),
+      biddingNotice: (r.bidding && r.bidding.notice) || null
+    });
+  }
+
+  function bidsById(r) {
+    var byId = {};
+    ((r && r.bids) || []).forEach(function (b) { byId[b.campaignId || b.campaign] = b; });
+    return byId;
+  }
+
   /* Each job settles on its own. A partner with coverage but an unreadable
      cohort list still gets the parts that answered, because Promise.all over
      already-caught promises cannot reject. The `live` flag these routes carry
@@ -7951,22 +7982,13 @@
          than the server's. */
       api.campaigns().then(function (r) {
         if (!r) { set({ campaignsLive: false, campaigns: [] }); return; }
-        check('campaignList', r);
-        (r.campaigns || []).forEach(function (c) { check('campaign', c); });
-        set({
-          campaigns: r.campaigns || [],
-          campaignsLive: r.live !== false,
-          biddingPaused: !!(r.bidding && r.bidding.enabled === false),
-          biddingNotice: (r.bidding && r.bidding.notice) || null
-        });
+        applyCampaignsPayload(r);
       }, function (err) { authFailed(err); set('campaignsLive', false); }),
 
       /* An unapproved org may read its own bids, so this is not gated on
          approval. It can 501 while the register is still stubbed. */
       api.bids().then(function (r) {
-        var byId = {};
-        ((r && r.bids) || []).forEach(function (b) { byId[b.campaignId || b.campaign] = b; });
-        set('bids', byId);
+        set('bids', bidsById(r));
       }, function () { set('bids', {}); }),
 
       api.prefs().then(function (p) { set('prefs', p || {}); }, function () { set('prefs', {}); }),
@@ -8080,6 +8102,31 @@
       if (view === 'delivery' && get().delivery == null) loadDelivery();
       var B = get().billing;
       if (view === 'billing' && (!B || B === 'loading' || B.partial)) loadBilling();
+    });
+
+    /* THE CONSOLE USED TO FETCH ONCE AT BOOT AND NEVER AGAIN, so a desk left
+       open kept a live-looking bid button on a cohort that closed hours ago and
+       the partner learned it from a 409. Campaigns and bids re-read when the
+       tab comes back and when the partner lands on a desk-shaped view, and the
+       one-minute throttle keeps tab flips from becoming a metered-read storm.
+       stage stays server-derived either way: this refresh narrows the staleness
+       window, the server's refusal remains the guarantee. */
+    var lastSync = Date.now();
+    function syncDesk() {
+      if (Date.now() - lastSync < 60000) return;
+      lastSync = Date.now();
+      api.campaigns().then(function (r) {
+        if (!r) return;
+        applyCampaignsPayload(r);
+        startTicker();
+      }, function (err) { authFailed(err); });
+      api.bids().then(function (r) { set('bids', bidsById(r)); }, function () {});
+    }
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) syncDesk();
+    });
+    onChange(function (view) {
+      if (view === 'desk' || view === 'overview' || view === 'bids') syncDesk();
     });
 
     /* Paint from the local record first so the chrome is never empty, then

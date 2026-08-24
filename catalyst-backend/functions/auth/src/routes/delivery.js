@@ -38,7 +38,6 @@
  */
 
 const catalog = require('../lib/catalog');
-const bids = require('../lib/bids');
 const awards = require('../lib/awards');
 const orders = require('../lib/orders');
 const billing = require('../lib/billing');
@@ -88,8 +87,9 @@ async function requireWon(req, context) {
   const campaign = cat.byId.get(String(req.params.id || ''));
   if (!campaign) throw notFound('That cohort is not on your board.');
 
-  const bidRows = await bids.campaignBidRows(req.catalyst, campaign.id);
-  const award = await awards.seal(req.catalyst, campaign, bidRows);
+  /* Sealed-bid privacy: the all-orgs read stays inside lib/awards.js, so no
+     competitor's row ever enters this partner-scoped request. */
+  const award = await awards.sealFromCampaign(req.catalyst, campaign);
   if (!award || award.org_id !== context.orgId) {
     throw notFound('That cohort is not on your board.');
   }

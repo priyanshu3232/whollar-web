@@ -80,6 +80,23 @@ function renderAll() {
  * loading
  * ------------------------------------------------------------------ */
 
+function applyCampaignsPayload(r) {
+  check('campaignList', r);
+  (r.campaigns || []).forEach(function (c) { check('campaign', c); });
+  set({
+    campaigns: r.campaigns || [],
+    campaignsLive: r.live !== false,
+    biddingPaused: !!(r.bidding && r.bidding.enabled === false),
+    biddingNotice: (r.bidding && r.bidding.notice) || null
+  });
+}
+
+function bidsById(r) {
+  var byId = {};
+  ((r && r.bids) || []).forEach(function (b) { byId[b.campaignId || b.campaign] = b; });
+  return byId;
+}
+
 /* Each job settles on its own. A partner with coverage but an unreadable
    cohort list still gets the parts that answered, because Promise.all over
    already-caught promises cannot reject. The `live` flag these routes carry
@@ -104,22 +121,13 @@ function loadAll(appRead) {
        than the server's. */
     api.campaigns().then(function (r) {
       if (!r) { set({ campaignsLive: false, campaigns: [] }); return; }
-      check('campaignList', r);
-      (r.campaigns || []).forEach(function (c) { check('campaign', c); });
-      set({
-        campaigns: r.campaigns || [],
-        campaignsLive: r.live !== false,
-        biddingPaused: !!(r.bidding && r.bidding.enabled === false),
-        biddingNotice: (r.bidding && r.bidding.notice) || null
-      });
+      applyCampaignsPayload(r);
     }, function (err) { authFailed(err); set('campaignsLive', false); }),
 
     /* An unapproved org may read its own bids, so this is not gated on
        approval. It can 501 while the register is still stubbed. */
     api.bids().then(function (r) {
-      var byId = {};
-      ((r && r.bids) || []).forEach(function (b) { byId[b.campaignId || b.campaign] = b; });
-      set('bids', byId);
+      set('bids', bidsById(r));
     }, function () { set('bids', {}); }),
 
     api.prefs().then(function (p) { set('prefs', p || {}); }, function () { set('prefs', {}); }),
@@ -233,6 +241,31 @@ function start(partner) {
     if (view === 'delivery' && get().delivery == null) loadDelivery();
     var B = get().billing;
     if (view === 'billing' && (!B || B === 'loading' || B.partial)) loadBilling();
+  });
+
+  /* THE CONSOLE USED TO FETCH ONCE AT BOOT AND NEVER AGAIN, so a desk left
+     open kept a live-looking bid button on a cohort that closed hours ago and
+     the partner learned it from a 409. Campaigns and bids re-read when the
+     tab comes back and when the partner lands on a desk-shaped view, and the
+     one-minute throttle keeps tab flips from becoming a metered-read storm.
+     stage stays server-derived either way: this refresh narrows the staleness
+     window, the server's refusal remains the guarantee. */
+  var lastSync = Date.now();
+  function syncDesk() {
+    if (Date.now() - lastSync < 60000) return;
+    lastSync = Date.now();
+    api.campaigns().then(function (r) {
+      if (!r) return;
+      applyCampaignsPayload(r);
+      startTicker();
+    }, function (err) { authFailed(err); });
+    api.bids().then(function (r) { set('bids', bidsById(r)); }, function () {});
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) syncDesk();
+  });
+  onChange(function (view) {
+    if (view === 'desk' || view === 'overview' || view === 'bids') syncDesk();
   });
 
   /* Paint from the local record first so the chrome is never empty, then

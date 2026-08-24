@@ -97,7 +97,9 @@ async function requireActiveCoverage(catalystApp, orgId, campaign) {
  * validated against the number the partner is looking at.
  */
 async function householdCount(catalystApp, campaign) {
-  const rows = await allRows(catalystApp);
+  // INV-3: this cohort's count comes from this cohort's rows alone, so
+  // another campaign's volume can never shrink the cap being validated.
+  const rows = await allRows(catalystApp, [campaign.id]);
   const t = rows ? tally(rows) : {};
   const signups = (t[campaign.id] && t[campaign.id].signups) || 0;
   return campaign.seedHouseholds + signups;
@@ -270,7 +272,7 @@ function mount(router) {
       });
     }
 
-    const memberRows = await allRows(req.catalyst);
+    const memberRows = await allRows(req.catalyst, [campaign.id]);
     const counts = memberRows ? tally(memberRows) : {};
     const enabled = await siteconfig.getValue(req.catalyst, 'bidding_enabled') !== false;
     /* One clock reading for stage and serverTime, the same rule
@@ -353,11 +355,10 @@ function mount(router) {
       const campaign = cat.byId.get(id);
       if (!campaign || !awards.isClosed(campaign)) continue;
       /* eslint-disable no-await-in-loop */
-      let award = await awards.findByCampaign(req.catalyst, id);
-      if (!award) {
-        const all = await bids.campaignBidRows(req.catalyst, id);
-        award = await awards.seal(req.catalyst, campaign, all);
-      }
+      /* Sealed-bid privacy: the all-orgs read stays inside lib/awards.js, so
+         no competitor's row ever enters this partner-scoped request. The
+         award-first economy this loop used to spell out lives there now. */
+      const award = await awards.sealFromCampaign(req.catalyst, campaign);
       /* eslint-enable no-await-in-loop */
       if (award) decided[id] = award;
     }

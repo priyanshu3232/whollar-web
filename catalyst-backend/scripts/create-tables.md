@@ -277,6 +277,7 @@ fallback `src/lib/catalog.js` uses whenever the table is missing or empty.
 | `status` | Var Char | 16 | | ✅ | | `joined` \| `waitlist` \| `alert`: **a snapshot of the click**, see below |
 | `fsa` | Var Char | 3 | | | | snapshot of `users.fsa` at join time |
 | `joined_at` | DateTime | - | | ✅ | | |
+| `referral_code` | Var Char | 64 | | | | snapshot of `users.referral_code` at join time: the code this member was referred by, stamped with the campaign they actually joined. **Added 2026-08-24 for multi-campaign attribution**: until the column exists the insert falls back to the plain row and only the stamp is lost |
 
 `status` records what joining meant **at the moment it was clicked**:
 `JOIN_STATUS` maps a `forming` cohort to `joined` and a `planned` or `waitlist`

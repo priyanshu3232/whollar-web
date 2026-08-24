@@ -169,6 +169,11 @@ const TABLES = Object.freeze({
     // where they moved later.
     fsa:            'varchar(3)',
     joined_at:      'datetime required',
+    // Snapshot of users.referral_code at join time: the code this member was
+    // referred by, stamped with the campaign they actually joined, which is
+    // what makes referral attribution per campaign answerable. Optional, and
+    // the insert falls back to the plain row until the console has it.
+    referral_code:  'varchar(64)',
   },
   site_config: {
     // Editable site information: prices, thresholds, notices, feature flags:
@@ -393,6 +398,109 @@ const TABLES = Object.freeze({
     published:         'boolean',
     partner_announced: 'boolean',
     updated_at:        'datetime',
+  },
+  // Delivery and billing chain: create-tables.md section 21. Declared here so
+  // /health/diagnostics can verify the chain the same way it verifies auth:
+  // these four went undeclared for a while and a mis-built column surfaced as
+  // a silently unsealed award rather than a red diagnostics row.
+  campaign_awards: {
+    award_key:               'varchar(64) unique required', // the campaign_id: one award per cohort under a race
+    campaign_id:             'varchar(64) required',
+    org_id:                  'varchar(64) required',
+    bid_key:                 'varchar(200) required',
+    price:                   'varchar(16)',
+    bid_count:               'int',
+    method:                  'varchar(24) required',  // 'lowest_headline' | 'admin'
+    awarded_by:              'varchar(64)',
+    awarded_at:              'datetime required',
+    gate_at:                 'datetime',
+    gate_by:                 'varchar(64)',
+    install_capacity_weekly: 'int',
+    consent_ack:             'varchar(8)',
+    settled_at:              'datetime',
+  },
+  provider_orders: {
+    // The only table holding a household address against a partner, and only
+    // because that household ticked the release when it accepted.
+    order_key:      'varchar(200) unique required', // `${campaign_id}:${user_id}`
+    order_no:       'varchar(24) required',         // random, never sequential
+    campaign_id:    'varchar(64) required',
+    org_id:         'varchar(64) required',
+    member_user_id: 'varchar(64) required',         // never sent to the partner
+    state:          'varchar(16) required',         // acc|bkd|act|rel|noshow|access|linefail
+    fsa:            'varchar(8)',
+    address_line:   'varchar(200) required',
+    slot_at:        'datetime',
+    note:           'varchar(200)',
+    release_reason: 'varchar(32)',
+    activated_at:   'datetime',
+    dispute_state:  'varchar(16)',
+    dispute_note:   'varchar(400)',
+    disputed_at:    'datetime',
+    created_at:     'datetime required',
+    updated_at:     'datetime required',
+  },
+  provider_billing: {
+    org_id:          'varchar(64) unique required', // one arrangement per partner, not per cohort
+    method:          'varchar(16) required',        // 'invoice'
+    billing_email:   'varchar(255) required',
+    billing_contact: 'varchar(120)',
+    state:           'varchar(16) required',        // 'active' | 'retired'
+    added_by:        'varchar(64)',
+    added_at:        'datetime required',
+    updated_at:      'datetime',
+  },
+  provider_statements: {
+    // Settlement records only; accruing is the absence of a row.
+    statement_key:   'varchar(200) unique required', // `${campaign_id}:${org_id}`: statements settle per cohort
+    campaign_id:     'varchar(64) required',
+    org_id:          'varchar(64) required',
+    state:           'varchar(16) required',          // issued | paid | disputed
+    activated_count: 'int',
+    fee_each:        'varchar(16)',
+    subtotal:        'varchar(16)',
+    tax:             'varchar(16)',
+    total:           'varchar(16)',
+    issued_at:       'datetime',
+    due_at:          'datetime',
+    paid_at:         'datetime',
+  },
+  // Product interest survey: create-tables.md section 23.
+  product_interest: {
+    interest_key: 'varchar(130) unique required', // `${user_id}:${product}`
+    user_id:      'varchar(64) required',
+    product:      'varchar(32) required',
+    answers:      'text required',
+    keep_posted:  'varchar(3) required',
+    email:        'varchar(190)',
+    fsa:          'varchar(3)',
+    source_page:  'varchar(120)',
+    submitted_at: 'datetime required',
+  },
+  // Share and referral telemetry: create-tables.md section 25. Both are
+  // write-only; a missing table degrades to a console warning, so this
+  // declaration is the only place a mis-build becomes visible.
+  invite_click: {
+    token:       'varchar(16)',
+    token_valid: 'varchar(8) required',
+    landed_at:   'datetime required',
+    first_touch: 'varchar(8)',
+    ip_hash:     'varchar(128)',
+    ua_hash:     'varchar(128)',
+  },
+  share_event: {
+    event:          'varchar(32) required',
+    member_id:      'varchar(64)',
+    cohort_id:      'varchar(64)',
+    stage_at_share: 'varchar(24)',
+    channel:        'varchar(24)',
+    placement:      'varchar(24)',
+    tier:           'varchar(12)',
+    target:         'varchar(12)',
+    reason:         'varchar(24)',
+    created_at:     'datetime required',
+    ip_hash:        'varchar(128)',
+    ua_hash:        'varchar(128)',
   },
 });
 

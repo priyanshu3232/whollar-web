@@ -707,6 +707,36 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .rn.now i::after{background:var(--accent)}
 .rn.now span{color:var(--ink);font-weight:700}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(44,106,78,.35)}55%{box-shadow:0 0 0 8px rgba(44,106,78,0)}}
+/* Mobile: the journey as a vertical timeline, the shape a thumb scrolls. The
+   horizontal rail and the dates row collapse into one list; #panel sits in the
+   markup between the timeline's two halves (#mtlA up to and including the live
+   step, #mtlB the rest), so the live step's detail reads as part of the
+   timeline without the panel ever moving in the DOM. */
+.mtl{display:none}
+.ms{position:relative;display:flex;align-items:flex-start;gap:13px;padding-bottom:20px}
+.ms::before{content:"";position:absolute;left:11px;top:27px;bottom:-2px;width:3px;background:var(--line);border-radius:2px}
+.mtl--b .ms:last-child{padding-bottom:6px}
+.mtl--b .ms:last-child::before{display:none}
+.ms i{flex:none;position:relative;z-index:1;width:25px;height:25px;border-radius:50%;background:#fff;border:3px solid var(--line);display:grid;place-items:center}
+.ms i::after{content:"";width:9px;height:9px;border-radius:50%;background:transparent}
+.ms.past i{border-color:var(--accent);background:var(--accent)}
+.ms.past i::after{content:"\2713";width:auto;height:auto;border-radius:0;background:none;color:#fff;font-size:12px;font-weight:800;line-height:1}
+.ms.now i{border-color:var(--accent-deep)}
+.ms.now i::after{background:var(--accent-deep)}
+.ms__c{flex:1;min-width:0}
+.ms__c b{display:block;font-size:15px;font-weight:700;color:#949E95;line-height:1.35}
+.ms.past .ms__c b{color:var(--ink)}
+.ms.now .ms__c b{color:var(--accent-deep);font-size:17px;font-weight:800}
+.ms__c span{display:block;font-size:12.5px;color:#B3BBB2;margin-top:2px;line-height:1.45}
+.ms.past .ms__c span,.ms.now .ms__c span{color:var(--sub)}
+.ms em{font-style:normal;flex:none;font-size:12px;font-weight:600;color:#949E95;margin-top:4px}
+.ms.now em{color:var(--accent-deep);font-weight:700}
+@media (max-width:680px){
+  section[aria-label="Your campaign"] .rail,section[aria-label="Your campaign"] .tl{display:none}
+  .mtl{display:block}
+  #panel{position:relative;margin:0 0 20px 38px}
+  #panel::before{content:"";position:absolute;left:-27px;top:-8px;bottom:-16px;width:3px;background:var(--line);border-radius:2px}
+}
 /* No min-height. It was holding the panel at 236px in the states whose copy
    is three lines, which put a dead beige rectangle inside the tallest card on
    the page. The panel is the card's content, and content sizes to itself. */
@@ -1334,6 +1364,14 @@ body.npopen{overflow:hidden}
 .mx{margin-left:auto;font-size:22px;line-height:1;color:var(--sub);padding:4px 9px;border-radius:9px}
 .mx:hover{background:#EDE8DB}
 .msub{font-size:13.5px;color:var(--sub);margin:6px 0 4px;max-width:56ch}
+/* "Why it's free": the money flow as four numbered steps. The circled number
+   is decoration; the bold line carries the claim, the small line the how. */
+.wf-steps{display:flex;flex-direction:column;gap:13px;margin:16px 0 2px}
+.wf-step{display:flex;gap:12px;align-items:flex-start}
+.wf-step i{flex:none;width:26px;height:26px;border-radius:50%;background:var(--mint);color:var(--accent-deep);font-style:normal;font-weight:800;font-size:13px;display:grid;place-items:center;margin-top:1px}
+.wf-step b{display:block;font-size:13.5px;color:var(--ink);line-height:1.4}
+.wf-step span{display:block;font-size:12.5px;color:var(--sub);line-height:1.5;margin-top:2px}
+.wf-note{margin-top:15px;background:var(--mint);border-left:3px solid var(--accent);border-radius:0 10px 10px 0;padding:10px 13px;font-size:12.5px;color:var(--ink);line-height:1.5}
 .plabel{display:block;font-size:12px;font-weight:700;color:var(--ink);margin:15px 0 7px}
 .plabel .opt{font-weight:600;color:#949E95;font-size:11px}
 .pchips button{border:1.5px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;background:#fff;color:#3A453E;cursor:pointer}
@@ -1644,7 +1682,12 @@ body.npopen{overflow:hidden}
                  change or an affordance swap is announced. Painted by
                  paintSeatLedger(); hidden until there is a seat to describe. -->
             <div class="seatledger" id="seatledger" aria-live="polite" hidden></div>
+            <!-- Mobile-only vertical timeline, painted by render() from the same
+                 stage index as the rail. Split in two so #panel lands under the
+                 live step. Empty and display:none on desktop. -->
+            <div class="mtl" id="mtlA" role="list" aria-label="Cohort journey"></div>
             <div class="panel" id="panel" aria-live="polite"></div>
+            <div class="mtl mtl--b" id="mtlB" role="list" aria-label="Cohort journey, later steps"></div>
             <div class="tl">
               <h4>Your dates</h4>
               <div class="tl__row">
@@ -3025,8 +3068,12 @@ function fmtSpeed(v){
    owns that row, because "added" there means a file, not a number. */
 function setFld(k,text){
   $$('[data-fld="'+k+'"]').forEach(function(el){
+    /* A span mid-edit belongs to its editor, not to this repaint. Opening a
+       native select fires a window blur/focus bounce, and the focus handler
+       repaints the bill: without this guard that repaint tears the editor out
+       from under the open dropdown. commit/cancel drop the class themselves. */
+    if(el.classList.contains('editing'))return;
     var li=el.closest('li'),t=li&&li.querySelector('.tick');
-    el.classList.remove('editing');
     el.textContent=text==null?'Add':text;
     if(t){t.className=text==null?'tick no':'tick ok';t.innerHTML=text==null?'&#10007;':'&#10003;';}
   });
@@ -3179,7 +3226,7 @@ function refreshCliff(){
 paintCliff();
 paintBill();
 window.addEventListener('storage',function(e){if(!e.key||e.key==='whollar.member')refreshCliff()});
-document.addEventListener('visibilitychange',function(){if(!document.hidden)refreshCliff()});
+document.addEventListener('visibilitychange',function(){if(!document.hidden){refreshCliff();loadReferral();}});
 window.addEventListener('focus',refreshCliff);
 
 /* ---------- add my bill: upload -> OCR extract -> review -> save ----------
@@ -3555,10 +3602,11 @@ window.addEventListener('focus',refreshCliff);
     function commit(){
       if(done)return;done=true;
       var res=cfg.read(el);
+      val.classList.remove('editing');
       if(res.error){toast(res.error);paintBill();return;}
       savePatch(fld,res.value);
     }
-    function cancel(){if(done)return;done=true;paintBill();}
+    function cancel(){if(done)return;done=true;val.classList.remove('editing');paintBill();}
     el.addEventListener('keydown',function(e){
       if(e.key==='Enter'){e.preventDefault();commit();}
       else if(e.key==='Escape'){e.preventDefault();cancel();}
@@ -3954,6 +4002,36 @@ function paintCampHead(){
   var c=CAMPLIVE?joinedCamp():null;
   if(c)el.textContent=c.region+(c.sub?' · '+c.sub:'');
 }
+/* The mobile timeline's rungs: label, the one-line reading of each step, and
+   which date tile carries its date. The dates are read back out of the .tn2
+   spans paintDates already fills, hidden on mobile but still in the DOM, so
+   the rail, the dates row and this list can never disagree. */
+var MTL=[
+  ['Forming',function(){var c=CAMPLIVE?joinedCamp():null;return c?'You’re in the '+c.region+' cohort':'Households joining · one seat per address'},null],
+  ['Locked','Cohort closes · roster is final','close'],
+  ['Bidding','Bidding window · providers compete','bid'],
+  ['Offers','Offer deadline · review your options','offer'],
+  ['Confirm','Accept your household’s offer',null],
+  ['Switching','Provider switch is handled for you','switch'],
+  ['Done','Your household is switched',null]
+];
+function mtlHTML(idx){
+  var a=[],b=[];
+  MTL.forEach(function(m,i){
+    var sub=typeof m[1]==='function'?m[1]():m[1];
+    var date;
+    if(i===idx)date='Today';
+    else{
+      var el=m[2]?$('.tn2[data-t="'+m[2]+'"] span'):null;
+      date=el?el.textContent:(i>idx?'To come':'');
+    }
+    var h='<div class="ms'+(i<idx?' past':i===idx?' now':'')+'" role="listitem"><i></i>'
+      +'<div class="ms__c"><b>'+esc(m[0])+'</b><span>'+esc(sub)+'</span></div>'
+      +(date?'<em>'+esc(date)+'</em>':'')+'</div>';
+    (i<=idx?a:b).push(h);
+  });
+  return [a.join(''),b.join('')];
+}
 function render(){
   /* Visitor states paint #visitor-home and skip the campaign card entirely. */
   if(routeVisitor()){paintHistory();return}
@@ -3965,6 +4043,12 @@ function render(){
     if(i===idx)n.classList.add('now');
   });
   $('#railfill').style.width=(idx/(STATES.length-1)*100)+'%';
+  /* After the tn2 dates are on the page (paintDates runs before render), and
+     keyed by content through paintOnce: a date landing later changes the HTML
+     and repaints, an identical pass touches nothing. */
+  var mt=mtlHTML(idx);
+  paintOnce('mtlA',$('#mtlA'),mt[0]);
+  paintOnce('mtlB',$('#mtlB'),mt[1]);
   var pill=$('#statepill');
   pill.textContent=PILL[S.state];
   pill.className='statepill'+((S.state==='confirm'||S.state==='closing'||S.state==='passed'||S.state==='short')?' warm':'');
@@ -4066,7 +4150,10 @@ var REF=null;
    copies of this text drifted apart once already; one builder is the fix. */
 function refCountText(){
   if(!REF)return 'Your code is loading…';
-  if(!REF.code)return 'Your code will appear here shortly.';
+  /* An account can hold the opaque token with no legacy WHL- code: the token
+     IS its code, and this line stalling on .code alone read "will appear
+     shortly" forever beside a working link. */
+  if(!REF.code&&!REF.token)return 'Your code will appear here shortly.';
   var t;
   if(!REF.joined)t='Nobody has joined with your code yet. Share your link and this counts them.';
   else if(REF.joined===1)t='1 person has joined with your code so far.';
@@ -4262,6 +4349,7 @@ function applyCampaign(sc){
      deriveState() and paintDates() read one object, and left untouched when
      the field is absent so an older deployment degrades to `kind`. */
   if(sc.stage)c.stage=sc.stage;
+  if(sc.stageLabel)c.stageLabel=sc.stageLabel;
   if(sc.dates)c.dates=sc.dates;
   if(sc.next!==undefined)c.next=sc.next;
   /* The member's own decision, as the server restored it: the switch order
@@ -4302,11 +4390,14 @@ function paintHistory(){
          be in one of them: joining a cohort whose kind is 'planned' derives
          'waitlist', which is not in STATES. That rendered "Your cohort ·
          undefined". Name the standing instead of leaking the gap. */
-      tag='<span class="rtag live">Your cohort · '+esc(PILL[S.state]||'Not open yet')+'</span>';
+      /* This ROW'S cohort's stage, not the page's: S.state belongs to
+         joinedCamp(), and a second membership row wearing it showed the wrong
+         campaign's stage and gained or lost its leave button by it. */
+      tag='<span class="rtag live">Your cohort · '+esc(c.stageLabel||PILL[S.state]||'Not open yet')+'</span>';
       /* No count here either: the tag beside it already says where the cohort
          stands, and this row is the same fill figure the tiles stopped showing. */
       cnt='';
-      if(S.state==='forming')act='<button class="ccleave" type="button" data-leave="'+c.id+'">Leave this cohort</button>';
+      if((c.stage||S.state)==='forming')act='<button class="ccleave" type="button" data-leave="'+c.id+'">Leave this cohort</button>';
     }else if(c.you==='waitlist'){
       tag='<span class="rtag live">You’re on the waitlist</span>';
       cnt='';
@@ -4346,6 +4437,22 @@ function doJoinLegacy(id,btn){
     campRepaint();doneToast();
   },function(err){
     if(offlineish(err)){localApply();campRepaint();doneToast();return}
+    /* The legacy door now runs the same seat guard as the seat routes, so the
+       same refusals can come back through it and deserve the same surfaces:
+       the conflict sheet for a held seat, a plain sentence for a shut window. */
+    if(err.code==='SEAT_HELD'){
+      if(btn){btn.disabled=false}
+      if(err.extra&&err.extra.held_cohort)applyCampaign(err.extra.held_cohort);
+      seatRefresh();
+      seatConflictOpen(c.id);
+      return;
+    }
+    if(err.code==='JOIN_CLOSED'||err.code==='ROSTER_FULL'){
+      if(btn){btn.disabled=false}
+      toast(err.message||'Joining has closed on this cohort.',5000);
+      seatRefresh();campRepaint();
+      return;
+    }
     campRepaint();toast(err.message||'That didn’t save. Please try again.');
   });
 }
@@ -4452,7 +4559,91 @@ document.addEventListener('change',function(e){
    Same rule as the feedback modal: nothing on this card claims success until
    the server confirmed it. The export is assembled by GET /me/export and saved
    by the browser as a file the member keeps, right now, in this tab: no email
-   leg, no copy parked on a server to fetch later. */
+   leg, no copy parked on a server to fetch later.
+   The file is a self-contained HTML report rather than bare JSON: a member
+   opens it and reads it. The raw JSON travels inside it under "Machine-readable
+   copy", so the portable form PIPEDA cares about is never lost. Every value is
+   escaped on the way in: the file reopens in a browser, and half of what is in
+   it was typed by people. The renderers below are shape-blind on purpose,
+   because /me/export grows a key whenever a table does, and a report that only
+   prints the keys it was written for would silently drop the new ones. */
+function expEsc(s){return String(s).replace(/[&<>"']/g,function(c){return c==='&'?'&amp;':c==='<'?'&lt;':c==='>'?'&gt;':c==='"'?'&quot;':'&#39;'})}
+function expLabel(k){
+  var s=String(k).replace(/_/g,' ').replace(/([a-z0-9])([A-Z])/g,'$1 $2').toLowerCase();
+  return s.charAt(0).toUpperCase()+s.slice(1);
+}
+function expVal(v){
+  if(v==null||v==='')return '<span class="na">Not provided</span>';
+  if(v===true)return 'Yes';
+  if(v===false)return 'No';
+  if(Array.isArray(v)){
+    if(!v.length)return '<span class="na">None</span>';
+    if(typeof v[0]==='object'&&v[0]!==null)return v.map(function(x){return '<div class="nest">'+expKV(x)+'</div>'}).join('');
+    return expEsc(v.join(', '));
+  }
+  if(typeof v==='object')return '<div class="nest">'+expKV(v)+'</div>';
+  return expEsc(v);
+}
+function expKV(obj){
+  var keys=Object.keys(obj||{});
+  if(!keys.length)return '<p class="na">None recorded.</p>';
+  return '<table class="kv">'+keys.map(function(k){return '<tr><th>'+expEsc(expLabel(k))+'</th><td>'+expVal(obj[k])+'</td></tr>'}).join('')+'</table>';
+}
+function expRows(list,empty){
+  if(!list||!list.length)return '<p class="na">'+expEsc(empty)+'</p>';
+  return list.map(function(row){
+    /* Event payloads arrive as JSON strings; parsed, they read as fields. */
+    var r={};Object.keys(row).forEach(function(k){
+      var v=row[k];
+      if(typeof v==='string'&&(v.charAt(0)==='{'||v.charAt(0)==='[')){try{v=JSON.parse(v)}catch(e2){}}
+      r[k]=v;
+    });
+    return '<div class="row">'+expKV(r)+'</div>';
+  }).join('');
+}
+function exportReport(data){
+  var acct=(data&&data.account)||{};
+  var when=String((data&&data.exportedAt)||'').replace('T',' ').slice(0,16);
+  function sec(t,body){return '<section><h2>'+expEsc(t)+'</h2>'+body+'</section>'}
+  return '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+  +'<meta name="viewport" content="width=device-width,initial-scale=1">'
+  +'<title>Whollar data export</title>'
+  +'<style>'
+  +'*{margin:0;padding:0;box-sizing:border-box}'
+  +'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#FAF8F3;color:#2B3A33;font-size:15px;line-height:1.55;padding:34px 18px}'
+  +'main{max-width:680px;margin:0 auto}'
+  +'header{margin-bottom:22px}'
+  +'.brand{font-weight:800;font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:#178A5A}'
+  +'h1{font-size:28px;margin:6px 0 10px}'
+  +'.meta{font-size:13px;color:#5B655C;max-width:60ch}'
+  +'section{background:#fff;border:1px solid #E4E0D3;border-radius:14px;padding:20px 22px;margin-bottom:14px}'
+  +'h2{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#178A5A;margin-bottom:12px}'
+  +'table.kv{width:100%;border-collapse:collapse}'
+  +'.kv th{width:38%;text-align:left;vertical-align:top;font-weight:600;font-size:13px;color:#5B655C;padding:7px 12px 7px 0}'
+  +'.kv td{vertical-align:top;font-size:14px;padding:7px 0;word-break:break-word}'
+  +'.kv tr+tr th,.kv tr+tr td{border-top:1px solid #F0EDE3}'
+  +'.nest{border-left:2px solid #E4F4EC;padding-left:12px;margin:4px 0}'
+  +'.row+.row{border-top:1px solid #F0EDE3;margin-top:10px;padding-top:10px}'
+  +'.na{color:#949E95;font-style:italic;font-size:13px}'
+  +'details{margin:6px 0 18px}'
+  +'summary{cursor:pointer;font-size:13px;font-weight:600;color:#178A5A}'
+  +'pre{margin-top:10px;background:#F3F1E9;border:1px solid #E4E0D3;border-radius:10px;padding:14px;font-size:11.5px;line-height:1.5;overflow-x:auto}'
+  +'footer{font-size:12.5px;color:#949E95;padding-bottom:20px}'
+  +'@media print{body{background:#fff}section{border-color:#ccc}}'
+  +'</style></head><body><main>'
+  +'<header><span class="brand">Whollar</span><h1>Your data export</h1>'
+  +'<p class="meta">Prepared for '+expEsc(acct.email||'you')+(when?', '+expEsc(when)+' UTC':'')+'.</p>'
+  +'<p class="meta">Everything Whollar holds about this account, in one file. No copy of this file stays on a server.</p></header>'
+  +sec('Account',expKV(acct))
+  +sec('Your bill',data&&data.bill?expKV(data.bill):'<p class="na">No bill on file yet.</p>')
+  +sec('Cohorts',expRows(data&&data.campaigns,'You have not joined a cohort yet.'))
+  +sec('Consents',expRows(data&&data.consents,'No consent records.'))
+  +sec('Preferences',expKV(data&&data.preferences))
+  +sec('Feedback and notes',expRows(data&&data.feedback,'Nothing recorded.'))
+  +'<details><summary>Machine-readable copy (JSON)</summary><pre>'+expEsc(JSON.stringify(data,null,2))+'</pre></details>'
+  +'<footer>Exported from your Whollar dashboard. To remove all of it, use Delete my account on the same card this came from.</footer>'
+  +'</main></body></html>';
+}
 var DLBUSY=false;
 function downloadData(btn){
   if(DLBUSY)return;
@@ -4462,13 +4653,13 @@ function downloadData(btn){
   W.session.exportData().then(function(data){
     restore();
     var stamp=String((data&&data.exportedAt)||'').slice(0,10)||'export';
-    var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    var blob=new Blob([exportReport(data)],{type:'text/html'});
     var url=URL.createObjectURL(blob);
     var a=document.createElement('a');
-    a.href=url;a.download='whollar-data-'+stamp+'.json';
+    a.href=url;a.download='whollar-data-'+stamp+'.html';
     document.body.appendChild(a);a.click();a.remove();
     setTimeout(function(){URL.revokeObjectURL(url)},4000);
-    toast('Saved. Everything we hold about you, in one file.');
+    toast('Saved. Everything we hold about you, in one readable file.');
   },function(e){
     restore();
     toast((e&&e.message)||'Your export could not be prepared. Please try again.');
@@ -5837,7 +6028,7 @@ function rvArriveX(){
      and ?from=dashboard is what tells that page to keep the member in the
      signed-in lane: their account email instead of an email box, and a way
      back here when the result lands. */
-  +'<a class="btn terra" id="cf-open" href="/bill-checkup?from=dashboard">Check if I’m overpaying</a>'
+  +'<a class="btn terra" id="cf-open" data-ckgate href="/bill-checkup?from=dashboard">Check if I’m overpaying</a>'
   +'</div></div>'
   +'</section>'
   /* THE COHORT IS THE PRODUCT, so it is on screen before the checkup is done.
@@ -6007,7 +6198,7 @@ function checkupPromptHTML(){
   +'<p class="cardnote">'+(thin
     ?'What we hold came from your join details: a few fields, with no bill behind them. The checkup is nine questions and your actual bill, and it is what turns a held spot into a number providers can bid against.'
     :'Nine questions and your actual bill. It is how we work out what your household should be paying, and what your cohort asks for on your behalf.')+'</p>'
-  +'<a class="btn terra" href="/bill-checkup?from=dashboard">Check if I’m overpaying</a>'
+  +'<a class="btn terra" data-ckgate href="/bill-checkup?from=dashboard">Check if I’m overpaying</a>'
   +'</section>';
 }
 
@@ -6117,8 +6308,11 @@ function ccCard(c,feat,ids){
      every other open cohort labelled for what pressing it means: a move, not
      a join. The sheet that opens on the tap is the second line of defence. */
   var heldElsewhere=c.joinable&&!mine&&seatHeldId()&&seatHeldId()!==c.id;
+  /* THE CARD'S OWN COHORT, not the page's. S.state belongs to joinedCamp():
+     a waitlist standing on a second cohort wearing the seated cohort's stage
+     pill asserted the wrong campaign's stage on the wrong card. */
   var badge=mine
-    ? '<span class="badge live">Your cohort · '+esc(PILL[S.state]||'In play')+'</span>'
+    ? '<span class="badge live">Your cohort · '+esc(c.you==='waitlist'?'Waitlist':(c.stageLabel||PILL[S.state]||'In play'))+'</span>'
     : heldElsewhere
       ? '<span class="badge">You hold another seat · Move here</span>'
       : '<span class="badge '+b[0]+'">'+esc(b[1])+'</span>';
@@ -6155,22 +6349,21 @@ function ccCard(c,feat,ids){
      the whole-card target are mutually exclusive by `joinable`, which is what
      keeps a button out of a button.
 
-     `arrive` IS THE ONE STATE WHERE WIDENING IT IS SAFE, and it is widened all
-     the way: every joinable cohort, not the featured one. The paragraph above
-     is about a click that JOINS, and the fear in it is real, a household in the
-     wrong region by a mispress. A click in `arrive` cannot join anything. It
-     can only open the gate that asks for their numbers, which is a dialog they
-     read and close. Three inert tiles beside one live one is the worse lie: a
-     member presses the region they actually live in, nothing happens, and the
-     page has told them the cohort is not for them.
-
-     `result` is unchanged, featured only, because there the press is the join.
-     See openCheckupGate. */
-  /* `heldElsewhere` widens the gate the same way `arrive` does, and for the
-     same reason the long comment above allows it there: this press cannot
-     join anything. It opens the conflict sheet, a dialog the member reads
-     and closes, and the actual move is confirmed inside it. */
-  var choose=(!mine&&c.joinable&&(PICKANY||heldElsewhere||S.state==='arrive'||(c===feat&&S.state==='result')));
+     EVERY VISITOR STATE IS NOW WIDENED ALL THE WAY: every joinable cohort,
+     not the featured one. The paragraph above is about a click that JOINS,
+     and the fear in it is real, a household in the wrong region by a
+     mispress. But no press here commits anything: `arrive` opens the
+     numbers gate, and `result` opens the profile gate and then the join
+     dialog, which names the region pressed and only joins from its own
+     save button. Three inert tiles beside one live one is the worse lie: a
+     member presses the region they actually live in, nothing happens, and
+     the page has told them the cohort is not for them. `waitlist` was the
+     silent third case, a member whose own region is gathering pressing an
+     OPEN cohort next door and getting nothing: same widening, same reason. */
+  /* `heldElsewhere` widens the gate the same way, and for the same reason:
+     this press cannot join anything. It opens the conflict sheet, a dialog
+     the member reads and closes, and the actual move is confirmed inside it. */
+  var choose=(!mine&&c.joinable&&(PICKANY||heldElsewhere||VIS.indexOf(S.state)>-1));
   /* #cc-first and #regmono stay on the featured card in the Home row. They are the
      handles qa-dashboard.mjs reads to assert that this row shows the server's
      cohorts and not four regions from the markup, which is the whole point of
@@ -6216,8 +6409,13 @@ function renderRegions(){
    all happen on /bill-checkup. Coming back here, applyDerived() reads the bill
    that landed and the card flips from "arrive" to "result" on its own. */
 document.addEventListener('click',function(e){
-  if(e.target.closest('[data-act="whyfree"]')){toast('Providers pay Whollar only when a switch completes. You never pay, and you’re never obligated.',6000);return}
+  if(e.target.closest('[data-act="whyfree"]')){openWhyFree();return}
   if(e.target.closest('[data-act="invite"]')){shareRef();return}
+  /* The card CTA opens the gate instead of quietly swapping the page: the
+     checkup is an ask, and it deserves the member's whole attention before
+     the navigation. The anchor inside the modal is the only way forward. */
+  var ckg=e.target.closest('[data-ckgate]');
+  if(ckg){e.preventDefault();openCheckupIntro();return}
   /* THE BELL PROMISED A TEXT AND RECORDED NOTHING.
      This read the cohort from joinedCamp(), then fell through to a bare toast
      when there wasn't one. But the loudest place this button appears is
@@ -6467,6 +6665,28 @@ function openCheckupGate(id){
   +'<a class="btn terra" id="gate-go" href="/bill-checkup?from=dashboard" style="width:100%;justify-content:center;margin-top:4px">Check if I\u2019m overpaying</a>'
   +'<p class="fnote" style="text-align:center">Two minutes, free and private. We\u2019ll bring you straight back to <b>'+esc(where)+'</b> when your result lands.</p>',true);
   var go=$('#gate-go');if(go)go.focus();
+}
+/* Same gate, no cohort attached: the "Check if I\u2019m overpaying" cards open
+   this before the page changes under the member. One press forward, one out. */
+function openCheckupIntro(){
+  openModal('<div class="mhead"><h3>Your numbers first</h3><button class="mx" type="button" data-mclose aria-label="Close">\u00d7</button></div>'
+  +'<p class="msub">Everything this dashboard can do for you is priced against what your household actually pays today. That starts with your bill: who you\u2019re with, what it costs, and when your promo ends.</p>'
+  +'<a class="btn terra" id="gate-go" href="/bill-checkup?from=dashboard" style="width:100%;justify-content:center;margin-top:4px">Check if I\u2019m overpaying</a>'
+  +'<p class="fnote" style="text-align:center">Two minutes, free and private. Your result lands right back here.</p>',true);
+  var go=$('#gate-go');if(go)go.focus();
+}
+/* "Why it\u2019s free", answered properly: the toast this replaces fit one
+   sentence, and the honest answer is a money flow with four steps in it. */
+function openWhyFree(){
+  openModal('<div class="mhead"><h3>Why it\u2019s free</h3><button class="mx" type="button" data-mclose aria-label="Close">\u00d7</button></div>'
+  +'<p class="msub">You never pay Whollar. Providers do, and only after a switch actually completes.</p>'
+  +'<div class="wf-steps">'
+  +'<div class="wf-step"><i>1</i><div><b>Households pool by region</b><span>One household has no leverage. A cohort of households, renewing together, is business worth competing for.</span></div></div>'
+  +'<div class="wf-step"><i>2</i><div><b>Providers bid sealed for the whole cohort</b><span>Each provider puts in its best offer without seeing anyone else\u2019s, so the first bid has to be the sharp one.</span></div></div>'
+  +'<div class="wf-step"><i>3</i><div><b>You take the winning offer, or you pass</b><span>Joining never obligates you. Passing costs nothing and changes nothing about your current service.</span></div></div>'
+  +'<div class="wf-step"><i>4</i><div><b>The winning provider pays Whollar</b><span>A success fee, charged only once your switch completes and your new line is live and working.</span></div></div>'
+  +'</div>'
+  +'<div class="wf-note">That fee never touches your price: the offer you accept is exactly what you pay, and there is nothing to cancel if you walk away.</div>');
 }
 /* ---------- coming back with the numbers ----------
    Fires once, and only when BOTH halves are true: the bill has landed (it can
@@ -7836,7 +8056,10 @@ render=function(){
 };
 try{paintSeatLedger();paintSeatNotice()}catch(e){}
 seatRefresh();
-setInterval(function(){if(!document.hidden)seatRefresh()},120000);
+/* loadReferral rides the same beat: the referrer's count moves when someone
+   ELSE verifies, which no event on this page announces, and a panel that only
+   read once per page load repainted a frozen number forever. */
+setInterval(function(){if(!document.hidden){seatRefresh();loadReferral();}},120000);
 
 /* For the QA harness only, same rule as WhollarShare. */
 window.WhollarSeat={refresh:seatRefresh,exit:seatExitOpen,conflict:seatConflictOpen,

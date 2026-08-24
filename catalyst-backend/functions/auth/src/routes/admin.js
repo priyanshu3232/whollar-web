@@ -47,6 +47,8 @@ const ratelimit = require('../lib/ratelimit');
 const siteconfig = require('../lib/siteconfig');
 const catalog = require('../lib/catalog');
 const places = require('../lib/places');
+const bids = require('../lib/bids');
+const awards = require('../lib/awards');
 const campaigns = require('./campaigns');
 const desk = require('./desk');
 const { wrap, badRequest, unauthorized, forbidden, AppError } = require('../lib/errors');
@@ -357,8 +359,8 @@ function mount(router, cfg) {
       }
     }
 
-    const memberRows = await campaigns.allRows(c);
     const cat = await catalog.load(c, { fresh: true });
+    const memberRows = await campaigns.allRows(c, cat.list.map((k) => k.id));
     const tallies = memberRows ? campaigns.tally(memberRows) : {};
 
     res.status(200).json({
@@ -464,7 +466,7 @@ function mount(router, cfg) {
   router.get('/admin/campaigns', wrap(async (req, res) => {
     requireAdmin(req);
     const cat = await catalog.load(req.catalyst, { fresh: true });
-    const memberRows = await campaigns.allRows(req.catalyst);
+    const memberRows = await campaigns.allRows(req.catalyst, cat.list.map((c) => c.id));
     const tallies = memberRows ? campaigns.tally(memberRows) : {};
     res.status(200).json({
       ok: true,
@@ -480,6 +482,9 @@ function mount(router, cfg) {
           watching: t.watching,
           bidding_open: Boolean(c.biddingOpen),
           sort_order: c.sortOrder,
+          /* Epoch ms per calendar column, so the console can render and edit
+             the schedule it could previously only see in ZCQL. */
+          dates: c.dates || {},
         };
       }),
     });
@@ -551,7 +556,38 @@ function mount(router, cfg) {
         out.brief_json = s;
       }
     }
+    /* The seven calendar columns that drive every derived stage. Accepted as
+       epoch ms or an ISO date string; null clears one. These used to be
+       settable only by hand-pasted ZCQL, which left a concurrent campaign's
+       whole schedule outside validation and outside the audit trail; each
+       campaign's calendar is its own, so this write never touches another
+       campaign's clock. */
+    for (const k of catalog.DATE_COLUMNS) {
+      if (!has(k)) continue;
+      if (body[k] === null || body[k] === '') { out[k] = null; continue; }
+      const d = new Date(body[k]);
+      if (Number.isNaN(d.getTime())) {
+        throw badRequest(`${k} must be a date (epoch ms or ISO), or null to clear it.`);
+      }
+      out[k] = datastore.toDb(d);
+    }
     return out;
+  }
+
+  /** The calendar must read in ladder order wherever two rungs are both set. */
+  function assertCalendarOrder(merged) {
+    let prev = null;
+    for (const k of catalog.DATE_COLUMNS) {
+      const v = merged[k];
+      if (v == null || v === '') continue;
+      const parsed = datastore.fromDb(v);
+      if (!parsed) continue;
+      const t = parsed.getTime();
+      if (prev && t < prev.t) {
+        throw badRequest(`${k} lands before ${prev.k}; the calendar must read in lifecycle order.`);
+      }
+      prev = { k, t };
+    }
   }
 
   /** Audit-safe copy of campaign fields: the brief blob becomes its length. */
@@ -588,6 +624,7 @@ function mount(router, cfg) {
       throw badRequest(`kind must be one of ${catalog.KINDS.join(' | ')}.`);
     }
     const fields = campaignFields(body);
+    assertCalendarOrder(fields);
 
     let existing = null;
     try {
@@ -611,6 +648,9 @@ function mount(router, cfg) {
         bidding_open: Boolean(fields.bidding_open),
         sort_order: fields.sort_order || 0,
         ...(fields.brief_json !== undefined ? { brief_json: fields.brief_json } : {}),
+        ...Object.fromEntries(catalog.DATE_COLUMNS
+          .filter((k) => fields[k] !== undefined)
+          .map((k) => [k, fields[k]])),
         updated_by: admin.user_id,
         updated_at: datastore.nowDb(),
       });
@@ -647,6 +687,14 @@ function mount(router, cfg) {
 
     const before = {};
     for (const k of Object.keys(fields)) before[k] = row[k];
+
+    /* Order is judged over the MERGED calendar: an edit that moves one rung
+       must still read in ladder order against the rungs it does not touch. */
+    const mergedDates = {};
+    for (const k of catalog.DATE_COLUMNS) {
+      mergedDates[k] = fields[k] !== undefined ? fields[k] : row[k];
+    }
+    assertCalendarOrder(mergedDates);
 
     await datastore.updateRow(req.catalyst, catalog.TABLE, {
       ROWID: row.ROWID, ...fields,
@@ -712,6 +760,68 @@ function mount(router, cfg) {
     });
 
     res.status(200).json({ ok: true, id, kind: to });
+  }));
+
+  /**
+   * The sealed-bids review, one campaign at a time.
+   *
+   * STAFF EYES ONLY, and scoped hard to the one campaign in the path: the
+   * response never carries another campaign's row, so reviewing cohort A can
+   * not read or leak cohort B (sealed-bid privacy is a partner-facing rule;
+   * the operator running the auction reviews all of one cohort's bids, which
+   * is the review this endpoint exists for). Labelled with the campaign's
+   * region and id so the console can title the modal unambiguously.
+   */
+  router.get('/admin/campaigns/:id/bids', wrap(async (req, res) => {
+    requireAdmin(req);
+    const id = cleanId(req.params.id, 'campaign id');
+    const cat = await catalog.load(req.catalyst, { fresh: true });
+    const campaign = cat.byId.get(id);
+    if (!campaign) throw badRequest('That campaign is not in the campaigns table.');
+
+    const rows = await bids.campaignBidRows(req.catalyst, id);
+    const award = await awards.findByCampaign(req.catalyst, id);
+
+    /* One org-name read per distinct org on the cohort. */
+    const names = {};
+    for (const r of rows || []) {
+      const orgId = r.org_id || String(r.bid_key || '').split(':').slice(1).join(':');
+      if (!orgId || names[orgId] !== undefined) continue;
+      try {
+        /* eslint-disable-next-line no-await-in-loop */
+        const org = await datastore.findBy(req.catalyst, orgs.ORGS, 'org_id', orgId, ['legal_name']);
+        names[orgId] = (org && org.legal_name) || null;
+      } catch {
+        names[orgId] = null;
+      }
+    }
+
+    res.status(200).json({
+      ok: true,
+      campaign: { id: campaign.id, region: campaign.region, sub: campaign.sub || '', kind: campaign.kind },
+      live: rows !== null,
+      award: award ? {
+        org_id: award.org_id, bid_key: award.bid_key, price: award.price,
+        method: award.method, awarded_at: award.awarded_at,
+      } : null,
+      bids: (rows || []).map((r) => {
+        const orgId = r.org_id || String(r.bid_key || '').split(':').slice(1).join(':');
+        return {
+          bid_key: r.bid_key,
+          org_id: orgId,
+          org_name: names[orgId] || null,
+          price: r.price,
+          status: r.status,
+          revision_count: r.revision_count || 1,
+          receipt_no: r.receipt_no || null,
+          guarantee_months: r.guarantee_months || null,
+          commitment_cap: r.commitment_cap || null,
+          submitted_at: r.submitted_at || null,
+          last_revised_at: r.last_revised_at || null,
+          won: Boolean(award && award.bid_key === r.bid_key),
+        };
+      }),
+    });
   }));
 
   /**

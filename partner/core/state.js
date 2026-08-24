@@ -58,7 +58,6 @@ var state = {
   /* health */
   biddingPaused: false,
   biddingNotice: null,
-  billing: null,
 
   /* view-local, deliberately in the store so a re-render cannot lose it */
   covEdit: null,        /* region slug being edited inline */

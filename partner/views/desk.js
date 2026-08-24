@@ -156,7 +156,10 @@ function row(a, unlocked) {
     + '<td><span class="closecell' + (hot ? ' hot' : '') + '">' + window_ + '</span></td>'
     + '<td>' + yours + '</td>'
     + '<td style="text-align:right">' + action + '</td></tr>'
-    + (open ? expandedRow(a, mine) : '');
+    /* Locked rows never expand: without the guard a coverage flip mid-session
+       left a full pricing form and a live seal button over a cohort the
+       server would refuse anyway. */
+    + (open && unlocked ? expandedRow(a, mine) : '');
 }
 
 function rowClass(unlocked, open) {

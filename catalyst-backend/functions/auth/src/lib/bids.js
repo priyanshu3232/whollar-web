@@ -65,7 +65,10 @@ const LABEL_BANNED = /today only|limited time|expires|last chance|hurry|act now|
    `guarantee_months`), and naming a column here is what makes it mandatory to
    create, so they are not named. A table that still has them reads fine; a
    table created today does not need them. */
-const BID_COLS = Object.freeze(['bid_key', 'campaign_id', 'price', 'status', 'updated_at']);
+/* org_id is load-bearing beyond display: awards.seal() writes the winning
+   row's org into campaign_awards.org_id, a mandatory column, so a projection
+   without it makes every seal insert fail and no award ever exists. */
+const BID_COLS = Object.freeze(['bid_key', 'campaign_id', 'org_id', 'price', 'status', 'updated_at']);
 const BID_COLS_V2 = Object.freeze(BID_COLS.concat(['tiers', 'guarantee_months',
   'after_mode', 'after_line', 'equipment', 'rental_monthly', 'extra_pod_monthly',
   'reduction_presentation', 'mechanism_label', 'commitment_cap', 'revision_count',
@@ -352,10 +355,13 @@ async function bidRows(catalystApp, orgId) {
 /**
  * Every head row on ONE campaign, across all orgs. Null when unreadable.
  *
- * The only reader is the member-facing offer route, and it is the only place
- * in the system where bids from different orgs are compared. It is safe there
- * and nowhere else: a member sees one winning offer, a partner never sees
- * another partner's bid. Do not reach for this from a /provider route.
+ * Three sanctioned readers and no others: the member-facing offer route, the
+ * one place bids from different orgs are compared for a household;
+ * awards.sealFromCampaign, which compares them to seal and lets only the
+ * award row out; and the admin sealed-bids review, which is staff-only and
+ * campaign-scoped. It is safe there and nowhere else: a member sees one
+ * winning offer, a partner never sees another partner's bid. Do not reach for
+ * this from a /provider route; go through awards.sealFromCampaign.
  */
 async function campaignBidRows(catalystApp, campaignId) {
   const where = `campaign_id = ${datastore.lit(campaignId)}`;
