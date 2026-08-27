@@ -27,11 +27,11 @@ import { api } from '../core/api.js';
 import { esc } from '../core/format.js';
 import { fmtDate, fmtStamp } from '../core/time.js';
 import { toast, failed } from '../core/toast.js';
-import { on } from '../core/actions.js';
+import { on, onAnyClick } from '../core/actions.js';
 import { go } from '../core/router.js';
 import { open as openModal, close as closeModal } from '../core/modal.js';
 import { authFailed } from '../core/session.js';
-import { APP_TASK, APP_TASK_COPY } from '../core/contract.js';
+import { APP_TASK } from '../core/contract.js';
 import { gateRow } from '../components/gate.js';
 import { applicationTasks, progress } from '../components/tasks.js';
 
@@ -213,6 +213,12 @@ export function checklistHTML() {
  * rendered as an inline label jammed against a 20-character box. The classes
  * here (.mfield, .fhint, .req) are new and carry those rules.
  *
+ * The hint is behind an "i" control beside the title, not printed under the
+ * input: four fields with four lines of small print under them read as a form
+ * with eight fields. The `.fhint` line under the input still exists, empty and
+ * hidden, and is what markField() writes a validation message into, so a
+ * problem still lands under the input it belongs to.
+ *
  * @param {string} id
  * @param {string} label
  * @param {string} value
@@ -226,25 +232,52 @@ export function checklistHTML() {
 function field(id, label, value, o) {
   o = o || {};
   var action = o.action == null ? 'app:blur' : o.action;
+  var hintId = id + '-hint';
   return '<div class="mfield' + (o.wide ? ' wide' : '') + '">'
-    + '<label for="' + id + '">' + esc(label)
+    + '<div class="flab">'
+    + '<label for="' + id + '">' + esc(label) + '</label>'
+    + (o.hint
+      ? '<button class="ihint" type="button" data-action="app:hint" data-for="' + hintId + '"'
+        + ' aria-expanded="false" aria-controls="' + hintId + '" aria-label="About ' + esc(label) + '">i</button>'
+      : '')
     + (o.required ? '<span class="req">required</span>' : '<span class="opt2">optional now</span>')
-    + '</label>'
+    + (o.hint ? '<div class="ipop" id="' + hintId + '" hidden>' + esc(o.hint) + '</div>' : '')
+    + '</div>'
     + '<input type="' + esc(o.type || 'text') + '" id="' + id + '"' + (o.mono ? ' class="mono"' : '')
     + ' value="' + esc(value || '') + '"'
     + ' placeholder="' + esc(o.placeholder || '') + '"'
     + ' autocomplete="' + esc(o.autocomplete || 'off') + '" spellcheck="false"'
     + (o.required ? ' aria-required="true"' : '')
+    + (o.hint ? ' aria-describedby="' + hintId + '"' : '')
     + (action ? ' data-action="' + esc(action) + '"' : '') + '>'
-    + (o.hint ? '<small class="fhint">' + esc(o.hint) + '</small>' : '')
+    + '<small class="fhint" hidden></small>'
     + '</div>';
+}
+
+/** Open one hint, or close it if it is the one open. Only one is ever open:
+    two popovers on a two-column form overlap each other. */
+function toggleHint(btn) {
+  var pop = document.getElementById(btn.getAttribute('data-for'));
+  if (!pop) return;
+  var wasOpen = !pop.hidden;
+  closeHints();
+  if (!wasOpen) {
+    pop.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+  }
+}
+
+function closeHints() {
+  var open = document.querySelectorAll('.ipop:not([hidden])');
+  for (var i = 0; i < open.length; i++) open[i].hidden = true;
+  var btns = document.querySelectorAll('.ihint[aria-expanded="true"]');
+  for (var j = 0; j < btns.length; j++) btns[j].setAttribute('aria-expanded', 'false');
 }
 
 function registrationModal() {
   var app = get().application || {};
   return '<div class="mhead"><h3>Registration details</h3>'
     + '<button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
-    + '<p class="msub">Checked once, quietly, against the CRTC register. Nothing here is shown to households or to other partners.</p>'
     + '<div class="mform">'
     + field('ap-legal', 'Legal entity', app.legalName, {
       required: true, autocomplete: 'organization',
@@ -257,7 +290,7 @@ function registrationModal() {
     })
     + field('ap-crtc', 'CRTC registration number', app.crtcRegistration, {
       required: true, mono: true, placeholder: '1234567890',
-      hint: 'From your registration confirmation. We check it, you do not have to be certain.'
+      hint: 'From your registration confirmation.'
     })
     + field('ap-bn', 'Business number', app.businessNumber, {
       mono: true, placeholder: '123456789RC0001',
@@ -266,7 +299,6 @@ function registrationModal() {
     + '</div>'
     + '<div class="mfoot">'
     + '<p class="savedot" id="ap-saved" hidden>Saved</p>'
-    + '<span class="mfnote" id="ap-foot">Saved as you go. Closing this will not lose it.</span>'
     + '<button class="btn" type="button" data-action="app:reg-save">Save details</button>'
     + '</div>';
 }
@@ -396,7 +428,6 @@ function referenceModal() {
   var onFile = !!(app.tasks && app.tasks.reference === 'submitted');
   return '<div class="mhead"><h3>One operating reference</h3>'
     + '<button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
-    + '<p class="msub">' + esc(APP_TASK_COPY.reference[1]) + '</p>'
     + '<div class="mform">'
     + field('ap-refn', 'Name and role', '', {
       required: true, action: '', autocomplete: 'name',
@@ -410,9 +441,7 @@ function referenceModal() {
     })
     + '</div>'
     + '<div class="mfoot">'
-    + '<span class="mfnote">' + (onFile
-      ? 'A reference is already on file. Saving another replaces it.'
-      : 'Contacted once, told exactly why, never on any list.') + '</span>'
+    + (onFile ? '<span class="mfnote">A reference is already on file. Saving another replaces it.</span>' : '')
     + '<button class="btn" type="button" data-action="app:ref-save">Save reference</button>'
     + '</div>';
 }
@@ -641,6 +670,14 @@ export function mount() {
     saveRegistration(null, true);
   });
 
+  on('click', 'app:hint', function (el) { toggleHint(el); });
+  /* A hint closes when attention moves anywhere but its own control or its
+     own text, the same rule the coverage combobox follows. */
+  onAnyClick(function (e) {
+    if (!e.target.closest) return;
+    if (!e.target.closest('.ihint') && !e.target.closest('.ipop')) closeHints();
+  });
+
   on('click', 'app:reg-save', function (el) { saveRegistration(el, false); });
 
   on('change', 'app:agr-toggle', function (el) {
@@ -751,12 +788,8 @@ function markField(id, message) {
   input.setAttribute('aria-invalid', message ? 'true' : 'false');
   var hint = wrap.querySelector('.fhint');
   if (!hint) return;
-  if (message) {
-    if (!hint.hasAttribute('data-hint')) hint.setAttribute('data-hint', hint.textContent);
-    hint.textContent = message;
-  } else if (hint.hasAttribute('data-hint')) {
-    hint.textContent = hint.getAttribute('data-hint');
-  }
+  hint.textContent = message || '';
+  hint.hidden = !message;
 }
 
 function saveRegistration(btn, quiet) {
@@ -780,18 +813,10 @@ function saveRegistration(btn, quiet) {
   }).then(function () {
     if (btn) { W.busy(btn, false); closeModal(); toast('Registration details saved. The register check starts now.'); }
     else {
-      /* The indicator takes the footer note's place rather than sitting beside
-         it: two lines of small print, one of which is only sometimes there,
-         reads as a layout that moved. */
       var dot = document.getElementById('ap-saved');
-      var note = document.getElementById('ap-foot');
       if (dot) {
         dot.hidden = false;
-        if (note) note.hidden = true;
-        setTimeout(function () {
-          dot.hidden = true;
-          if (note) note.hidden = false;
-        }, 2000);
+        setTimeout(function () { dot.hidden = true; }, 2000);
       }
     }
     reload();
