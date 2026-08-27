@@ -4447,17 +4447,17 @@ function campRepaint(){render()}
 /* The endpoint not existing yet (404) or being unreachable degrades to the
    local demo rather than a dead button; a real refusal shows its message. */
 function offlineish(err){return !err||err.code==='NETWORK'||err.status===404}
-function doJoin(id,btn){
-  var c=campById(id);if(!c||!c.joinable)return;
+function doJoin(id,btn,fail){
+  var c=campById(id);if(!c||!c.joinable){fail&&fail(null);return}
   if(c.you==='joined'||c.you==='waitlist')return;
   /* Forming cohorts go through the seat claim so one address can never hold
      two. Anything else (waitlist, planned) is a place on a list, not a seat,
      and keeps the original path. So does everything if the seat routes are
      not deployed yet: seatJoin falls back into this legacy body. */
-  if(c.kind==='forming'&&!SEATBROKEN){seatJoin(c,btn);return}
-  doJoinLegacy(id,btn);
+  if(c.kind==='forming'&&!SEATBROKEN){seatJoin(c,btn,fail);return}
+  doJoinLegacy(id,btn,fail);
 }
-function doJoinLegacy(id,btn){
+function doJoinLegacy(id,btn,fail){
   var c=campById(id);if(!c||!c.joinable)return;
   if(btn){btn.disabled=true;btn.textContent=c.kind==='forming'?'Joining…':'Adding you…'}
   var localApply=function(){c.you=c.kind==='forming'?'joined':'waitlist';c.members++;c.households++};
@@ -4479,15 +4479,18 @@ function doJoinLegacy(id,btn){
       if(err.extra&&err.extra.held_cohort)applyCampaign(err.extra.held_cohort);
       seatRefresh();
       seatConflictOpen(c.id);
+      fail&&fail(err);
       return;
     }
     if(err.code==='JOIN_CLOSED'||err.code==='ROSTER_FULL'){
       if(btn){btn.disabled=false}
       toast(err.message||'Joining has closed on this cohort.',5000);
       seatRefresh();campRepaint();
+      fail&&fail(err);
       return;
     }
     campRepaint();toast(err.message||'That didn’t save. Please try again.');
+    fail&&fail(err);
   });
 }
 function doLeave(id){
@@ -6888,10 +6891,27 @@ document.addEventListener('click',function(e){
   }
   closeModal();
   if(!wasJoined){
+    /* OPTIMISTIC, AND NOW REVERSIBLE. These three lines run before the join
+       has been accepted, which is right: the rail should move on the click,
+       not a round trip later. What was wrong is that nothing undid them. A
+       refusal (SEAT_HELD from a seat this address already holds, a shut
+       window, a full roster) left the page reading "You joined" over a cohort
+       the server had not put anyone in, and the member found out by
+       reloading. The page now reports a join only as long as the join is
+       still possible, and rolls the whole optimistic set back the moment the
+       server says no. The refusal's own surface, the conflict sheet or the
+       toast, has already been raised by doJoin. */
     S.joined=true;OPTJOIN=true;
     var le=(CHOSEN&&campById(CHOSEN))||featuredCamp();
-    EXTRA.push(['Today','You joined '+(le?le.region+(le.sub?' · '+le.sub:''):'your cohort')+', preferences on file']);
-    if(le&&le.you!=='joined'&&le.you!=='waitlist')doJoin(le.id);
+    var line=['Today','You joined '+(le?le.region+(le.sub?' · '+le.sub:''):'your cohort')+', preferences on file'];
+    EXTRA.push(line);
+    var rollback=function(){
+      S.joined=false;OPTJOIN=false;
+      var at=EXTRA.indexOf(line);if(at>-1)EXTRA.splice(at,1);
+      S.state=deriveState();
+      render();
+    };
+    if(le&&le.you!=='joined'&&le.you!=='waitlist')doJoin(le.id,null,rollback);
     S.state=deriveState();
     render();
   }else{
@@ -8044,7 +8064,7 @@ function seatMoveCommit(toId,fromId,btn){
 }
 
 /* ---------- joining through the seat ---------- */
-function seatJoin(c,btn){
+function seatJoin(c,btn,fail){
   if(btn){btn.disabled=true;btn.textContent='Joining…'}
   seatApi('POST','/cohorts/'+encodeURIComponent(c.id)+'/join',{source:'direct'})
   .then(function(r){
@@ -8062,17 +8082,20 @@ function seatJoin(c,btn){
       if(err.extra&&err.extra.held_cohort)applyCampaign(err.extra.held_cohort);
       seatRefresh();
       seatConflictOpen(c.id);
+      fail&&fail(err);
       return;
     }
     if(err.code==='JOIN_CLOSED'||err.code==='ROSTER_FULL'){
       if(btn){btn.disabled=false}
       toast(err.message||'Joining has closed on this cohort.',5000);
       seatRefresh();campRepaint();
+      fail&&fail(err);
       return;
     }
-    if(seatOffline(err)){SEATBROKEN=true;doJoinLegacy(c.id,btn);return}
+    if(seatOffline(err)){SEATBROKEN=true;doJoinLegacy(c.id,btn,fail);return}
     if(btn){btn.disabled=false;btn.textContent='Join'}
     toast(err.message||'That didn’t save. Please try again.',5000);
+    fail&&fail(err);
   });
 }
 
