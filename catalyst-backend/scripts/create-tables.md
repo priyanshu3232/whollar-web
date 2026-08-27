@@ -1060,15 +1060,18 @@ both. If it does exist, add them:
 
 | Field | Value |
 |---|---|
-| Folder name | `partner-documents` |
+| Folder name | `partner_documents`. Underscore, not hyphen: the console allows only letters, numbers and `_` in a folder name. The code never reads the name, only the id |
 | Public access | **off**. These are CRTC registration letters and incorporation documents |
 
 Copy the folder **id** from the folder's detail page. It is a number.
 
 ### 22c. Two environment variables, in **both** environments
 
-**Catalyst console → Settings → Environment Variables**, for Development and
-for Production, then redeploy the `auth` function so it reads them.
+**Catalyst console → Whollar → Serverless → Functions → `auth` → Configuration
+→ Environment Variables**, the same list the SMTP and CORS variables live in
+(`scripts/auth-env-setup.md`). Variables are per function, not per project.
+Set them in every environment the project has, then redeploy the `auth`
+function so it reads them.
 
 | Name | Value | Notes |
 |---|---|---|
@@ -1102,7 +1105,7 @@ SELECT event_type, outcome, CREATEDTIME FROM auth_events
 WHERE event_type = 'provider.application.document.upload' LIMIT 5;
 ```
 
-The file itself appears in the `partner-documents` folder under
+The file itself appears in the `partner_documents` folder under
 `${org_id}-${kind}-${uuid}.${ext}`, never under the partner's own filename.
 
 ---
