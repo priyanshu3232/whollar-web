@@ -140,6 +140,57 @@ async function findEventByRequestId(catalystApp, claimKey, requestId) {
 }
 
 /**
+ * The highest version this claim key has ever reached, read from the event
+ * table's own keys.
+ *
+ * WHY THIS EXISTS. `version` is normally read off the claim row, and the
+ * claim row is a projection of this table: delete it and the counter restarts
+ * at 0 while every `<claim_key>:<n>` it ever wrote is still here, append only
+ * and unique. The next join then computes `:1`, collides with the `:1` from
+ * months ago, and the catch below reports "Cohort seats are not available
+ * right now. Please try again shortly." to a member for whom shortly will
+ * never arrive. That is not hypothetical: it is what a campaigns reset did on
+ * 2026-08-27, once for every account that had ever held a seat.
+ *
+ * There is no `version` column to take a MAX of, by design (see
+ * create-tables.md 26b): the version IS the event_key suffix, because the
+ * unique constraint on that key is the serialization point. So the suffixes
+ * are what this reads.
+ *
+ * CONSULTED ONLY WHEN THE CLAIM ROW IS MISSING, and that restriction is the
+ * whole safety argument. Reading it on every transition would let a writer
+ * see an event a concurrent writer had inserted but not yet projected onto
+ * the claim, jump the sequence past it, and insert a key nobody was
+ * contending for: both writers would succeed and the loser would overwrite
+ * the winner's claim. With a claim row present the old strict behaviour is
+ * unchanged, and two writers still meet on the same key. With no claim row
+ * they both read the same maximum here and still meet on the same key. The
+ * unique constraint decides in both cases.
+ *
+ * Returns 0 when the table cannot be read, which restores the previous
+ * behaviour exactly: the insert below is what fails loudly, not this.
+ */
+async function highestEventVersion(catalystApp, claimKey) {
+  try {
+    const rows = await datastore.queryAll(
+      catalystApp, EVENT_TABLE, ['event_key'],
+      `claim_key = ${datastore.lit(claimKey)}`
+    );
+    const prefix = `${claimKey}:`;
+    let top = 0;
+    for (const r of rows) {
+      const k = String((r && r.event_key) || '');
+      if (!k.startsWith(prefix)) continue;
+      const n = Number(k.slice(prefix.length));
+      if (Number.isInteger(n) && n > top) top = n;
+    }
+    return top;
+  } catch {
+    return 0;
+  }
+}
+
+/**
  * One transition, serialized by the event insert.
  *
  * Returns the fresh claim wire shape. Throws AppError('CONFLICT') with
@@ -156,7 +207,10 @@ async function transition(catalystApp, {
   }
   const key = claimKeyFor(addressId, vertical);
   const existing = await getClaim(catalystApp, addressId, vertical);
-  const version = existing ? (Number(existing.version) || 0) : 0;
+  /* No claim row is not the same as no history: see highestEventVersion. */
+  const version = existing
+    ? (Number(existing.version) || 0)
+    : await highestEventVersion(catalystApp, key);
   const nextVersion = version + 1;
   const now = datastore.nowDb();
 

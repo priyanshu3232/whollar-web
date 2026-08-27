@@ -81,7 +81,29 @@ DELETE FROM cohort_counter WHERE cohort_id = '<slug>';
 DELETE FROM campaigns WHERE campaign_id = '<slug>';
 ```
 
-`seat_events` is an append-only audit trail and stays. Repeat the four for each
+`claim_event` is an append-only audit trail and stays. **It is named
+`claim_event`, not `seat_events`,** and the difference is not cosmetic: an
+earlier draft of this line named a table that does not exist, so nobody
+checked what leaving it behind would do.
+
+What it does, before the 2026-08-27 fix to `lib/seats.js`, is strand every
+address that had ever held a seat. `version` was read off the `seat_claim`
+row, so deleting that row restarted the counter at 0 while the `<claim_key>:1`
+this table already held stayed unique and append-only. The next join computed
+`:1`, lost to the constraint, and the member was told "Cohort seats are not
+available right now. Please try again shortly." on every attempt, forever,
+over a cohort card still reading Open.
+
+`seats.js` now falls back to the highest `event_key` suffix for that claim key
+whenever the claim row is missing, so the sequence heals and this table is
+genuinely safe to leave. On an environment running older code it is not: there,
+delete the events for each affected claim key too, one statement each.
+
+```sql
+DELETE FROM claim_event WHERE claim_key = '<user_id>/1:internet';
+```
+
+Repeat the four for each
 slug from step 1.
 
 ## 4. Archive, for any campaign that carries a bid
