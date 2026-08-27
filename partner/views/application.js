@@ -31,6 +31,7 @@ import { on } from '../core/actions.js';
 import { go } from '../core/router.js';
 import { open as openModal, close as closeModal } from '../core/modal.js';
 import { authFailed } from '../core/session.js';
+import { APP_TASK, APP_TASK_COPY } from '../core/contract.js';
 import { gateRow } from '../components/gate.js';
 import { applicationTasks, progress } from '../components/tasks.js';
 
@@ -43,6 +44,10 @@ export function render() {
   if (!host) return;
   var app = get().application;
 
+  /* Not reached on a normal boot: load() seeds the record before the read
+     starts, so the frame paints the review card straight away. Kept for the
+     one path that empties it, a boot read that failed, which app.js hands to
+     the console a moment later anyway. */
   if (!app) {
     host.innerHTML = '<section class="card" style="max-width:640px;margin:0 auto">'
       + '<div class="empty"><h3>Reading your application</h3>'
@@ -212,20 +217,25 @@ export function checklistHTML() {
  * @param {string} label
  * @param {string} value
  * @param {{hint?:string, required?:boolean, mono?:boolean, wide?:boolean,
- *          placeholder?:string, autocomplete?:string}} [o]
+ *          placeholder?:string, autocomplete?:string, type?:string,
+ *          action?:string}} [o]
+ *   `action` is the change handler, `app:blur` unless told otherwise. That
+ *   default is the registration autosave, so a field in any other modal must
+ *   pass its own or pass '' to carry none.
  */
 function field(id, label, value, o) {
   o = o || {};
+  var action = o.action == null ? 'app:blur' : o.action;
   return '<div class="mfield' + (o.wide ? ' wide' : '') + '">'
     + '<label for="' + id + '">' + esc(label)
     + (o.required ? '<span class="req">required</span>' : '<span class="opt2">optional now</span>')
     + '</label>'
-    + '<input type="text" id="' + id + '"' + (o.mono ? ' class="mono"' : '')
+    + '<input type="' + esc(o.type || 'text') + '" id="' + id + '"' + (o.mono ? ' class="mono"' : '')
     + ' value="' + esc(value || '') + '"'
     + ' placeholder="' + esc(o.placeholder || '') + '"'
     + ' autocomplete="' + esc(o.autocomplete || 'off') + '" spellcheck="false"'
     + (o.required ? ' aria-required="true"' : '')
-    + ' data-action="app:blur">'
+    + (action ? ' data-action="' + esc(action) + '"' : '') + '>'
     + (o.hint ? '<small class="fhint">' + esc(o.hint) + '</small>' : '')
     + '</div>';
 }
@@ -376,15 +386,35 @@ function agreementModal() {
     + '<button class="btn" type="button" id="ap-agrgo" data-action="app:agr-save" disabled style="width:100%;justify-content:center;margin-top:12px">Sign</button>';
 }
 
+/* Same form system as registration, so the two modals a reviewer opens back
+   to back read as one surface. The saved reference is never on the wire (the
+   server keeps it off the application record on purpose), so the fields open
+   empty every time; when one is already on file the footer says so, and that
+   saving again replaces it. */
 function referenceModal() {
+  var app = get().application || {};
+  var onFile = !!(app.tasks && app.tasks.reference === 'submitted');
   return '<div class="mhead"><h3>One operating reference</h3>'
     + '<button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
-    + '<p class="msub">Contacted once, told exactly why, never added to any list.</p>'
-    + '<div class="two">'
-    + '<div><label for="ap-refn">Name and role</label><input type="text" id="ap-refn" placeholder="e.g. wholesale account manager"></div>'
-    + '<div><label for="ap-refe">Email</label><input type="text" id="ap-refe" placeholder="name@company.ca"></div>'
+    + '<p class="msub">' + esc(APP_TASK_COPY.reference[1]) + '</p>'
+    + '<div class="mform">'
+    + field('ap-refn', 'Name and role', '', {
+      required: true, action: '', autocomplete: 'name',
+      placeholder: 'Jordan Lee, account manager',
+      hint: 'Their name, then how they know your work.'
+    })
+    + field('ap-refe', 'Email', '', {
+      required: true, action: '', type: 'email', autocomplete: 'email',
+      placeholder: 'jordan@company.ca',
+      hint: 'A work address, where one exists.'
+    })
     + '</div>'
-    + '<button class="btn" type="button" data-action="app:ref-save" style="width:100%;justify-content:center;margin-top:14px">Save reference</button>';
+    + '<div class="mfoot">'
+    + '<span class="mfnote">' + (onFile
+      ? 'A reference is already on file. Saving another replaces it.'
+      : 'Contacted once, told exactly why, never on any list.') + '</span>'
+    + '<button class="btn" type="button" data-action="app:ref-save">Save reference</button>'
+    + '</div>';
 }
 
 /* Documents is deliberately absent: it needs its drop listeners wired and its
@@ -401,19 +431,65 @@ var MODALS = {
  * ------------------------------------------------------------------ */
 
 /** Re-read the application after any write, so task state comes from the
-    server rather than from an optimistic guess made here. */
-function reload() {
+    server rather than from an optimistic guess made here.
+
+    `boot` marks the first read. A failure there clears the hinted record as
+    well, because a guess the server has just declined to confirm is not
+    something to leave on screen; a failure after a write leaves the last
+    confirmed record where it is. */
+function reload(boot) {
   return api.application().then(function (r) {
     set({ application: r, applicationLoaded: true });
+    rememberHint(r);
     maybeSubmit();
     return r;
   }, function (err) {
     authFailed(err);
     /* Settled, with nothing. The frame reads this to stop gating, which is
        what hands a partner the console when the route is not deployed yet. */
-    set('applicationLoaded', true);
+    set(boot ? { application: null, applicationLoaded: true } : { applicationLoaded: true });
     return null;
   });
+}
+
+/* THE FIRST PAINT. The read is one round trip, and on a cold Catalyst function
+   that is seconds, during which the frame showed a card that said "reading
+   your application" and then swapped it for the real one in front of the
+   partner. A new account meets this on its very first visit, one click after
+   the welcome screen.
+
+   Same treatment as approvedHint in core/session.js: the server's last answer
+   is remembered on the local record, the frame paints from it at boot, and the
+   read corrects it one round trip later. A brand new account has no answer to
+   remember and does not need one: nothing is done, which is exactly what the
+   server is about to say, so the blank draft record paints and the correction
+   changes nothing visible. A hint, not a permission: every write still goes
+   through a session-gated route, and the server derives state either way.
+
+   Only what the card reads is kept. The registration fields stay off the local
+   record; the modal that needs them opens well after the read has answered. */
+var HINT_KEYS = ['state', 'tasks', 'operatingName', 'submittedAt', 'decisionDueAt',
+  'reapplyAfter', 'decisionNote', 'reviewNote'];
+
+function blankApplication() {
+  var tasks = {};
+  APP_TASK.forEach(function (k) { tasks[k] = 'empty'; });
+  return { state: 'draft', tasks: tasks };
+}
+
+function rememberHint(r) {
+  var W = window.WHOLLAR;
+  if (!W || !W.partner || !r || !r.tasks) return;
+  var hint = {};
+  HINT_KEYS.forEach(function (k) { if (r[k] != null) hint[k] = r[k]; });
+  W.partner.patch({ applicationHint: hint });
+}
+
+function hintedApplication() {
+  var W = window.WHOLLAR;
+  var rec = W && W.partner ? W.partner.read() : null;
+  var h = rec && rec.applicationHint;
+  return h && h.tasks && typeof h.tasks === 'object' ? h : blankApplication();
 }
 
 /* The single most important transition in the pending experience: the moment
@@ -586,7 +662,16 @@ export function mount() {
 
   on('click', 'app:ref-save', function (el) {
     var name = valueOf('ap-refn'), email = valueOf('ap-refe');
-    if (!name || !email) { toast('Name and email, then we are set.'); return; }
+    var bad = [];
+    if (!name) bad.push('ap-refn');
+    if (!email || !EMAIL_SHAPE.test(email)) bad.push('ap-refe');
+    markBad(['ap-refn', 'ap-refe'], bad);
+    if (bad.length) {
+      toast(email && bad.length === 1 && bad[0] === 'ap-refe'
+        ? 'That email does not look complete.'
+        : 'Name and email, then we are set.');
+      return;
+    }
     var W = window.WHOLLAR;
     if (!W.busy(el, true, 'Saving')) return;
     api.applicationReference({ nameRole: name, email: email })
@@ -636,6 +721,23 @@ export function mount() {
 function valueOf(id) {
   var el = document.getElementById(id);
   return el ? el.value.trim() : '';
+}
+
+/* Loose on purpose: one @, something either side, a dot after it. The server
+   validates for real; this only stops a partner saving a name in the email box
+   and finding out later. */
+var EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Set .bad on the fields in `bad`, clear it on the rest of `ids`, and put
+    focus on the first bad one so the correction is one keystroke away. */
+function markBad(ids, bad) {
+  ids.forEach(function (id) {
+    var el = document.getElementById(id);
+    var wrap = el && el.closest('.mfield');
+    if (wrap) wrap.classList.toggle('bad', bad.indexOf(id) !== -1);
+  });
+  var first = bad.length && document.getElementById(bad[0]);
+  if (first) first.focus();
 }
 
 /** Mark or clear one field. The message goes under the input it belongs to,
@@ -700,7 +802,9 @@ function saveRegistration(btn, quiet) {
   });
 }
 
-/** Called by the boot path once, and after approval changes. */
+/** Called by the boot path once. Paints from the hinted record first, so the
+    frame never opens on a loading card, then reads. */
 export function load() {
-  return reload();
+  if (!get().application) set('application', hintedApplication());
+  return reload(true);
 }
