@@ -1,5 +1,14 @@
 # Campaign table cleanup: close and archive everything, 2026-08-25
 
+> **SUPERSEDED 2026-08-27** by [CAMPAIGN_RESET_2026-08-27.md](CAMPAIGN_RESET_2026-08-27.md).
+> The catalog hold this document describes is removed: both dashboards read the
+> `campaigns` table again, so a cohort created in ZCQL reaches both surfaces.
+> The inventory and the duplicate analysis below still stand and are what the
+> reset acts on. Three of the four faults it names are fixed in code: the member
+> tile takes its badge from the server's stage, the desk copy no longer claims a
+> coverage filter that does not exist, and an undated auction no longer reads as
+> `bidding` to a household while reading as `announced` to a partner.
+
 ## What this is, and what I could not do
 
 Every card in the two lists you pasted came from the **server**. There is no seed

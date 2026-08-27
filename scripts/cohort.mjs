@@ -694,7 +694,10 @@ function cmdVerify() {
   console.log('\n  The calendar, which changes the stage label and can close a bid window:\n');
   console.log(`  SELECT campaign_id, announce_at, bidding_opens_at, bidding_closes_at, offers_at,`);
   console.log(`         decision_at, switch_window_at, reconcile_at FROM campaigns${where};`);
-  console.log('\n  Real joins, which are added to seed_members on both surfaces:\n');
+  /* NOT added to a seed. lib/cohorts.js counts the two membership tables at
+     read time and adds no baseline, so this query IS the number both surfaces
+     show. seed_members survives as a column and is read by nothing. */
+  console.log('\n  Real joins, which ARE the count both surfaces show:\n');
   console.log(`  SELECT campaign_id, status FROM campaign_members${where};`);
   console.log('\n  Which partners the cohort can reach:\n');
   console.log('  SELECT org_id, region, status FROM provider_coverage;');

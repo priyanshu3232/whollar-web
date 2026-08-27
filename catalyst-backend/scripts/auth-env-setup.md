@@ -55,6 +55,19 @@ full: see `GOOGLE_REDIRECT_URI` below.
 lists. The apex stays in `ALLOWED_ORIGINS` because a 308 preserves the method and
 body of a POST, so a request can legitimately arrive having started there.
 
+**`ALLOWED_ORIGINS` IS THE ONE ROW THAT GROWS. Read the live value in the
+console, never this table.** It is Phase 0 setup, not an inventory, and origins
+have been appended to it since: `https://admin.whollar.ca` for the admin console
+(ADMIN_CONSOLE_RUNBOOK) and `https://whollar-staging-1w.vercel.app` for staging,
+confirmed present 2026-08-27. Anything missing from it fails only on WRITES, and
+only with "That request could not be verified": GET is exempt from the origin
+check, so a surface whose origin is absent reads perfectly and refuses every
+button, which does not look like a configuration problem from the browser.
+
+Per-deployment preview URLs (`https://whollar-<hash>-whollar1.vercel.app`) must
+never be added: they rotate on every push, so the entry is dead by the next
+commit. `whollar-staging-1w` is the stable alias and is the one to allow.
+
 ### Console quirks that will waste your afternoon
 
 The Catalyst console validates what you type into the environment-variable

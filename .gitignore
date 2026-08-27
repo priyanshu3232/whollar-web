@@ -25,3 +25,7 @@ custom-skills/
 # rows, not code: the one that prompted this line was provider_orgs, i.e. real
 # partner companies. Never commit one.
 catalyst-backend/Export_*.zip
+
+# Local QA screenshots. Working files, not site source, and cleanUrls would
+# otherwise serve them verbatim at /private/tmp-shots/.
+private/

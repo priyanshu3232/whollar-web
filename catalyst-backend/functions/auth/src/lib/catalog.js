@@ -244,7 +244,17 @@ function memberStageOf(campaign, now = Date.now()) {
      which is what the client used to guess at on its own. */
   const dated = MEMBER_GATES.some(([col]) => d[col]) || d.bidding_closes_at;
   if (!dated) {
-    if (campaign && campaign.kind === 'auction') return 'bidding';
+    /* An auction with no calendar reads its own window flag, exactly as
+       stageOf does one screen up. Returning 'bidding' unconditionally told a
+       household sealed bidding was under way on a cohort whose window had
+       never been opened, while the partner desk read the same row as
+       `announced` and filed it under Coming cohorts. One row, two surfaces,
+       opposite stories. Joining has shut either way, because JOIN_STATUS has
+       no entry for `auction`, so 'locked' is what the household is actually
+       in: the roster is final and bidding has not started. */
+    if (campaign && campaign.kind === 'auction') {
+      return campaign.biddingOpen ? 'bidding' : 'locked';
+    }
     return 'forming';
   }
   return stage;

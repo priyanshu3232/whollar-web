@@ -49,13 +49,22 @@ export function render() {
 
   var rows = live.map(function (a) {
     return row(a, active[regionSlug(a.coverageRegion || a.region)]);
-  }).join('') || '<tr><td colspan="6">' + liveNote(S) + '</td></tr>';
+  }).join('');
 
   host.innerHTML = '<section class="card" style="padding-top:14px">'
     + '<div class="twrap"><table class="tbl" aria-label="Open auctions">'
     + '<thead><tr><th>Cohort</th><th class="num">Households</th><th>Stage</th><th>Window</th><th>Your bid</th><th></th></tr></thead>'
-    + '<tbody>' + rows + '</tbody></table></div>'
-    + '<p class="fnote">You see a cohort because it sits inside your declared coverage. You never see another partner’s bid, their count, or whether they bid at all.</p>'
+    + '<tbody>' + rows + areaRows(1, 4, 6, live.length) + '</tbody></table></div>'
+    + (live.length ? '' : liveNote(S))
+    /* WHAT THIS LINE USED TO CLAIM WAS FALSE. It read "You see a cohort
+       because it sits inside your declared coverage", and there is no
+       coverage filter anywhere in /provider/campaigns: every partner is sent
+       every visible cohort, and coverage decides whether a row can be
+       EXPANDED, not whether it is listed. A partner reading the old sentence
+       beside a region they had never declared concluded their coverage was
+       wrong. Listed against biddable is the true distinction, so it is the
+       one the desk states. */
+    + '<p class="fnote">Every cohort we are running is listed here. You can bid on the ones inside your declared coverage; the rest stay locked. You never see another partner\u2019s bid, their count, or whether they bid at all.</p>'
     + '</section>'
     + planned(coming);
 
@@ -64,6 +73,27 @@ export function render() {
   refreshScn();
 
   startTicker();
+}
+
+/* AREAS: the empty half of a table.
+   Owner's call 2026-08-27, kept: a desk with nothing on it holds its spaces
+   open and labels them rather than collapsing to a header row. Areas 1 to 4
+   are the open-auction slots and 5 to 8 the coming ones, so every space on the
+   desk has one number and no two share it.
+
+   A COHORT TAKES A SLOT. `filled` is how many real rows were already written
+   above, and only the remainder is drawn grey, so four cohorts leave no boxes
+   and one cohort leaves three. An area row carries no campaign id, no region,
+   no household count, no stage and no bid control: nothing here can be
+   opened, priced or sealed, and no partner reads a number that is not one. */
+function areaRows(from, to, cols, filled) {
+  var out = '';
+  for (var n = from + (filled || 0); n <= to; n++) {
+    out += '<tr class="arearow"><td><span class="rg">Area ' + n + '</span></td>';
+    for (var c = 1; c < cols; c++) out += '<td>\u00a0</td>';
+    out += '</tr>';
+  }
+  return out;
 }
 
 function isComing(a) { return a.stage === 'planned' || a.stage === 'announced'; }
@@ -110,15 +140,13 @@ function planned(coming) {
              partner never reads interest as a roster. */
           : 'Gathering' + (a.waitlist ? ' · ' + a.waitlist + ' on the list' : '')))
       + '</td></tr>';
-  }).join('')
-    || '<tr><td colspan="3"><p class="fnote" style="margin:6px 0 2px">'
-      + 'Nothing is forming in your coverage yet. A cohort forms when enough households in one area reach their promo cliff together, and it lands here before it opens for bids.</p></td></tr>';
+  }).join('');
 
   return '<section class="card" style="margin-top:16px" aria-label="Planned cohorts">'
-    + '<span class="eyebrow">Planned in your coverage</span><h3>Coming cohorts</h3>'
+    + '<span class="eyebrow">Forming now</span><h3>Coming cohorts</h3>'
     + '<div class="twrap"><table class="tbl">'
     + '<thead><tr><th>Cohort</th><th class="num">Expected bidding</th><th>Status</th></tr></thead>'
-    + '<tbody>' + rows + '</tbody></table></div>'
+    + '<tbody>' + rows + areaRows(5, 8, 3, coming.length) + '</tbody></table></div>'
     + '<p class="fnote">Expected dates are estimates; they firm up the day a cohort locks and is announced.</p>'
     + '</section>';
 }

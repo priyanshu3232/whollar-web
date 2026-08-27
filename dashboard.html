@@ -1498,6 +1498,9 @@ div.cc:hover{box-shadow:none;transform:none}
   .sxs__box{transform:translate(-50%,-50%) scale(1)}
 }
 .cc--next{box-shadow:inset 0 0 0 1.5px var(--terra)}
+/* An area box is a placeholder, not an affordance: same footprint, no lift. */
+.cc--area:hover{box-shadow:none;transform:none}
+.cc--area .cc__b b{color:var(--sub);font-weight:650}
 </style>
 </head>
 <body>
@@ -1665,10 +1668,11 @@ div.cc:hover{box-shadow:none;transform:none}
             <div class="camp__head">
               <div>
                 <span class="eyebrow">Your campaign</span>
-                <!-- Repainted by paintCampHead() from the campaign the member
-                     actually joined. The seed text is what a member sees only
-                     until the first campaigns answer lands. -->
-                <h3 id="campname">London East &middot; Autumn cohort</h3>
+                <!-- AREA 1. Owner's call 2026-08-27: no campaign name on this
+                     dashboard, hardcoded or server sent. paintCampHead() holds
+                     the label; the name that belongs here comes back when the
+                     brief for this space arrives. -->
+                <h3 id="campname">Area 1</h3>
                 <p class="sub">Households pooled by region and renewal timing, bid on as one.</p>
               </div>
               <span class="statepill" id="statepill">Forming</span>
@@ -2114,8 +2118,8 @@ div.cc:hover{box-shadow:none;transform:none}
           </div>
           <div class="pmeta">
             <h2>Priya M. <span class="pctchip" id="pctchip"></span></h2>
-            <p class="psub">Member since July 2026 &middot; London East (N5Y)</p>
-            <div class="pchips"><span>Founding member</span><span>Autumn cohort</span><span>Spot: Strong</span></div>
+            <p class="psub">Member since July 2026</p>
+            <div class="pchips"><span>Founding member</span><span>Spot: Strong</span></div>
           </div>
           <button class="tlink" type="button" id="pf-signout">Sign out</button>
         </div>
@@ -2135,7 +2139,7 @@ div.cc:hover{box-shadow:none;transform:none}
                 <li><span>Name</span><b>Priya M.</b><button class="tlink" type="button" data-edit="name">Edit</button></li>
                 <li><span>Email</span><b>priya@example.ca</b><button class="tlink" type="button" data-edit="email">Edit</button></li>
                 <li><span>Mobile</span><b>+1 519 &middot;&middot;&middot; &middot;&middot;42</b><button class="tlink" type="button" data-edit="mobile">Edit</button></li>
-                <li><span>Region</span><b>London East (N5Y)</b><button class="tlink" type="button" data-edit="region">Edit</button></li>
+                <li><span>Region</span><b></b><button class="tlink" type="button" data-edit="region">Edit</button></li>
               </ul>
             </section>
           </div>
@@ -2156,10 +2160,11 @@ div.cc:hover{box-shadow:none;transform:none}
               <button class="tlink" type="button" id="dl-data" style="margin-top:8px">Download my data &rarr;</button><br>
               <button class="tlink" type="button" id="del-acct">Delete my account &rarr;</button>
             </section>
-            <section class="card" aria-label="Your region">
+            <!-- AREA 10. Empty on purpose: the box keeps its place in the rail
+                 and carries no region until this space is briefed. -->
+            <section class="card" aria-label="Area 10">
               <span class="eyebrow">Your region</span>
-              <h3>London East</h3>
-              <p class="cardnote">One launch per region. Yours is the active cohort, timed to your renewal month.</p>
+              <h3>Area 10</h3>
             </section>
           </aside>
         </div>
@@ -2341,7 +2346,7 @@ var FEED_STEPS=[
    and these are the lines it shows. Gated on TOURED so that no real member ever
    meets an invented one. */
 var DEMO_FEED={
-  forming:[['Aug 4','Cohort opened for London East']],
+  forming:[['Aug 4','Cohort opened']],
   locked:[['Sep 12','Cohort locked, joining closed']],
   bidding:[['Sep 15','3 providers joined the auction'],['Sep 15','Bidding opened, bids sealed']],
   offers:[['Sep 17','Bidding closed: 3 offers in']],
@@ -2359,7 +2364,7 @@ function feedItems(){
   }else{
     var c=CAMPLIVE?joinedCamp():null;
     if(c){
-      out.push(['Today','You’re in the '+c.region+' cohort']);
+      out.push(['Today','You\u2019re in the '+c.region+' cohort']);
       var d=c.dates||{},now=Date.now()+SKEW;
       FEED_STEPS.forEach(function(s){
         var at=d[s[0]];
@@ -2615,10 +2620,25 @@ function regionArtKey(name){
   return REGION_ART_KEYS.length?REGION_ART_KEYS[artHash(s)%REGION_ART_KEYS.length]:null;
 }
 /* Badge per lifecycle kind, for a cohort that is not the member's own. The
-   member's own card names their stage instead. */
+   member's own card names their stage instead.
+
+   THE FALLBACK ONLY. The label a tile carries comes from the SERVER's member
+   stage (CCSTAGE below); this map is what a payload without one falls back
+   to, which is the pre-stage API and nothing a live server sends.
+
+   It had to stop being the first answer. `kind` alone put "Sealed bidding" on
+   every auction row whatever its calendar said, while the partner desk read
+   the server's stage and filed the same cohort under Coming. One cohort, two
+   surfaces, opposite stories, and the browser deriving the stage is the thing
+   the standing rules forbid. */
 var CCBADGE={forming:['live','Open to join'],planned:['soon','Opens after this round'],
  waitlist:['soon','Waitlist forming'],auction:['soon','Sealed bidding'],
  closed:['soon','Offers out'],archived:['soon','Closed']};
+/* The server's member stage, in the tile's words. Same seven stages
+   lib/catalog.js MEMBER_STAGES names, so adding one there without a line here
+   falls back to the label the server sent rather than to silence. */
+var CCSTAGE={forming:'Open to join',locked:'Joining closed',bidding:'Sealed bidding',
+ offers:'Offers out',confirm:'Confirming',switching:'Switching',done:'Closed'};
 var BLOGS=[
   ['The $487 problem: why most Canadians overpay for internet and never say a word','5 min','overpaying-internet-canada'],
   ['The promo cliff: why your internet bill quietly climbs after 12 to 24 months','6 min','internet-price-increase-promo-cliff'],
@@ -4017,15 +4037,20 @@ var TPL={forming:tplForming,locked:tplLocked,bidding:tplBidding,offers:tplOffers
    the name it belongs to now does too. */
 function paintCampHead(){
   var el=$('#campname');if(!el)return;
+  /* THE COHORT THIS MEMBER JOINED, or the area label until one exists. The
+     name is never invented: it comes from the campaign record the server sent
+     for the membership this household actually holds, so an empty answer
+     leaves the space labelled rather than filled with a region nobody joined.
+     The markup's own seed is 'Area 1' for that reason. */
   var c=CAMPLIVE?joinedCamp():null;
-  if(c)el.textContent=c.region+(c.sub?' · '+c.sub:'');
+  el.textContent=c?(c.region+(c.sub?' \u00b7 '+c.sub:'')):'Area 1';
 }
 /* The mobile timeline's rungs: label, the one-line reading of each step, and
    which date tile carries its date. The dates are read back out of the .tn2
    spans paintDates already fills, hidden on mobile but still in the DOM, so
    the rail, the dates row and this list can never disagree. */
 var MTL=[
-  ['Forming',function(){var c=CAMPLIVE?joinedCamp():null;return c?'You’re in the '+c.region+' cohort':'Households joining · one seat per address'},null],
+  ['Forming',function(){var c=CAMPLIVE?joinedCamp():null;return c?'You\u2019re in the '+c.region+' cohort':'Households joining \u00b7 one seat per address'},null],
   ['Locked','Cohort closes · roster is final','close'],
   ['Bidding','Bidding window · providers compete','bid'],
   ['Offers','Offer deadline · review your options','offer'],
@@ -6261,7 +6286,13 @@ function routeVisitor(){
    from the campaign record, so creating a cohort in the Data Store is the whole
    act of putting it on this row. */
 function ccArt(c){
-  var a=REGION_ART[regionArtKey(c.region)];
+  /* EVERY COHORT GETS A PICTURE. regionArtKey() hashes any region name onto
+     one of the photos we hold, so a cohort created in ZCQL is illustrated the
+     moment its row exists, with no art step and no per-region mapping to add.
+     The id is the fallback for a row whose region is blank: a mint block on a
+     live cohort reads as a card that failed to load. The art is decoration and
+     never claims to be the place, which is the 2026-08-18 owner's call above. */
+  var a=REGION_ART[regionArtKey(c.region||c.id||'')];
   if(!a)return '<span class="cc__art"></span>';
   return '<span class="cc__art"><img src="/images/regions/'+a[0]+'.webp" srcset="/images/regions/'+a[0]
    +'.webp 1x, /images/regions/'+a[0]+'@2x.webp 2x" alt="'+esc(a[1])
@@ -6320,7 +6351,11 @@ function campsRanked(){
    assert the row is painted from the server's answer. */
 function ccCard(c,feat,ids){
   var mine=c.you==='joined'||c.you==='waitlist';
+  /* Tone from `kind`, which is a fact about the row and not a derivation;
+     WORDS from the server's stage, so this tile and the partner desk are
+     reading the same answer about the same cohort. */
   var b=CCBADGE[c.kind]||CCBADGE.planned;
+  if(c.stage)b=[b[0],CCSTAGE[c.stage]||c.stageLabel||b[1]];
   /* R5: the conflict is surfaced BEFORE the tap. A member holding a seat sees
      every other open cohort labelled for what pressing it means: a move, not
      a join. The sheet that opens on the tap is the second line of defence. */
@@ -6403,15 +6438,46 @@ function ccCard(c,feat,ids){
    +'<span class="m">'+esc(ccSub(c))+'</span></span>'
    +(choose?'</button>':'</div>');
 }
+/* AREAS, NOT COHORTS.
+   Owner's call 2026-08-27: every campaign name comes off this dashboard, the
+   hardcoded ones and the server's alike, and the spaces they sat in keep their
+   exact size with nothing in them but a label. The labels are the handles the
+   next brief points at.
+
+   THIS INVENTS NO COHORT. An area box carries no id, no region, no count, no
+   stage, no badge and no join, so the standing rule is not bent: a campaign
+   card still comes only from the server, and right now there is no campaign
+   card at all. CAMPS, CAMPLIVE and the whole join path below are untouched and
+   still read the server; they simply have no sink on this row.
+
+   Home row is Areas 2 to 5, the View all grid is Areas 6 to 9, so every box on
+   the surface has one number and no two boxes share it. */
+function areaBox(n){
+  return '<div class="cc cc--area"><span class="cc__art"></span>'
+   +'<span class="cc__b"><b>Area '+n+'</b><span class="m"></span></span></div>';
+}
+/* The four slots on Home are Areas 2 to 5 and the four in the View all grid
+   are Areas 6 to 9, so every space on the surface has one number and no two
+   share it. A cohort the server sent TAKES a slot and renders as a real card;
+   the slots it has not reached stay grey. So an empty catalog is four grey
+   boxes, one cohort is a card and three boxes, and nothing on this row is ever
+   invented: `ranked` comes from CAMPS, CAMPS comes from GET /campaigns, and
+   the boxes carry no id, no region, no count, no stage and no join. */
+function ccSlots(list,feat,ids,from){
+  var out=list.map(function(c){return ccCard(c,feat,ids)});
+  for(var n=out.length;n<4;n++)out.push(areaBox(from+n));
+  return out.join('');
+}
 function renderRegions(){
   var row=$('#crow'),all=$('#cgrid');if(!row)return;
-  /* The View all link is only an offer when there is something behind it. Four
-     cohorts or fewer and the row already IS the whole list. */
+  /* View all always leads somewhere now: cohorts where there are any, Areas 6
+     to 9 where there are not. Hiding it would take a space away rather than
+     empty it. */
   var va=$('#viewall');
-  if(va)va.hidden=CAMPS.length<=4;
+  if(va)va.hidden=false;
   if(!CAMPASKED&&!CAMPS.length){
-    /* Nothing has answered yet. A skeleton, because "no cohorts open" before
-       the server has spoken is the seed array's lie with the sign flipped. */
+    /* Nothing has answered yet. A skeleton, because four grey boxes before the
+       server has spoken says "no cohorts" in the one moment nobody has asked. */
     var wait='<div class="cc cc--wait" aria-busy="true"><span class="cc__art"></span><span class="cc__b">'
      +'<b>Finding cohorts near you</b><span class="m">One moment.</span></span></div>';
     paintOnce('regions',row,wait);
@@ -6426,22 +6492,12 @@ function renderRegions(){
       if(!CAMPSERVED[c.id])console.warn('[whollar] campaign card without a live campaign_id:',c.id,'source='+CAMPSOURCE);
     });
   }
-  if(!CAMPS.length){
-    /* Answered and empty is a real answer: the catalog has no visible cohort.
-       Say so rather than leaving a blank row that reads as a failed load. */
-    var none='<div class="cc"><span class="cc__art"></span><span class="cc__b">'
-     +'<b>No cohorts open yet</b><span class="m">We open one region at a time.</span>'
-     +'<span class="mono">We’ll text you the day yours does</span></span></div>';
-    paintOnce('regions',row,none);
-    paintOnce('regions-all',all,none);
-    return;
-  }
   var feat=featuredCamp(),ranked=campsRanked();
   /* FOUR on Home, ranked; every one of them in the campaigns view behind View
      all, in the same order, off the same list. Two sinks, one renderer: a card
      cannot say one thing on Home and another there. */
-  paintOnce('regions',row,ranked.slice(0,4).map(function(c){return ccCard(c,feat,true)}).join(''));
-  paintOnce('regions-all',all,ranked.map(function(c){return ccCard(c,feat,false)}).join(''));
+  paintOnce('regions',row,ccSlots(ranked.slice(0,4),feat,true,2));
+  paintOnce('regions-all',all,ccSlots(ranked,feat,false,6));
 }
 
 /* ---------- visitor events ----------
@@ -7221,8 +7277,9 @@ function shareCohort(){
     return region+(tail?' '+tail:'');
   };
   if(c)return {id:c.id||null,region:c.region||'',name:join(c.region||'',c.sub)};
-  if(typeof DEMO!=='undefined'&&DEMO&&VIS.indexOf(S.state)<0)
-    return {id:null,region:'London East',name:'London East Autumn'};
+  /* The demo tour used to hand back a literal London East cohort here. A
+     fixture name is still a name, so it is gone and the tour shares the
+     no-cohort copy like any other member without one. */
   return null;
 }
 

@@ -166,6 +166,10 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .twrap{overflow-x:auto}
 .rg{font-family:var(--disp);font-weight:750;font-size:14px;white-space:nowrap}
 .rg small{display:block;font-family:var(--body);font-weight:500;font-size:11.5px;color:var(--sub)}
+/* An area row is a held-open space, not a cohort: no hover, muted label. */
+.arearow td{height:44px}
+.arearow:hover td{background:transparent}
+.arearow .rg{color:var(--sub);font-weight:650}
 .minirail{display:flex;align-items:center;gap:0;min-width:118px}
 .mr{width:9px;height:9px;border-radius:50%;background:#fff;border:2px solid var(--line);flex:none}
 .mrl{flex:1;height:2px;background:var(--line);min-width:8px}

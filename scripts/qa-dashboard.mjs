@@ -223,7 +223,12 @@ console.log('\n6. a degraded read paints the server\'s list and fabricates nothi
   const s = await snapshot(p);
   ok(s.lane === 'visitor', 'live:false does not fabricate a cohort either');
   const row = await p.evaluate(() => (document.querySelector('#crow') || {}).innerText || '');
-  ok(/No cohorts open yet/.test(row), 'and an empty list paints the empty state, not four invented regions');
+  /* An empty catalog is four LABELLED, EMPTY slots. Owner's call 2026-08-27:
+     the row holds its spaces open rather than collapsing, and a cohort the
+     server sends takes one. The slot carries no id, no region, no count and
+     no join, so this assertion is still the same one it always was: whatever
+     paints here when the server sent nothing, it is not a cohort. */
+  ok(/Area 2/.test(row), `and an empty list paints labelled empty slots, not four invented regions (${row.replace(/\s+/g, ' ').slice(0, 60)})`);
   ok(!/London East|Windsor|Kingston|Chatham/.test(row), 'none of the old seed regions appear');
   await c.close();
   const c2 = await ctx(browser, { campaigns: [camp('kleinburg', 'Kleinburg', 'Autumn cohort', { members: 2 })], live: false });

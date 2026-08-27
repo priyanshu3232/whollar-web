@@ -187,7 +187,16 @@ test('member stage: a two minute calendar advances every step', () => {
 test('member stage without a calendar falls back to kind, never to a guess', () => {
   assert.equal(catalog.memberStageOf({ kind: 'forming', dates: {} }, T), 'forming');
   assert.equal(catalog.memberStageOf({ kind: 'planned', dates: {} }, T), 'forming');
-  assert.equal(catalog.memberStageOf({ kind: 'auction', dates: {} }, T), 'bidding');
+  /* An undated auction reads its own window flag, and BOTH stage functions
+     read it the same way. The pair below is the real assertion: this case used
+     to answer 'bidding' unconditionally, so a cohort whose window had never
+     been opened told the household sealed bidding was under way while the
+     partner desk filed the very same row under Coming cohorts. */
+  assert.equal(catalog.memberStageOf({ kind: 'auction', biddingOpen: true, dates: {} }, T), 'bidding');
+  assert.equal(catalog.stageOf({ kind: 'auction', biddingOpen: true, dates: {} }, T), 'open');
+  assert.equal(catalog.memberStageOf({ kind: 'auction', biddingOpen: false, dates: {} }, T), 'locked',
+    'joining has shut and bidding has not started: neither surface may say bidding');
+  assert.equal(catalog.stageOf({ kind: 'auction', biddingOpen: false, dates: {} }, T), 'announced');
   assert.equal(catalog.memberStageOf({ kind: 'closed', dates: FULL }, T), 'done',
     'an admin close outranks the calendar');
   assert.equal(catalog.memberStageOf({ kind: 'archived', dates: {} }, T), 'done');
