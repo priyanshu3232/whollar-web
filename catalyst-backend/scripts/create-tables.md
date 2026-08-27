@@ -1635,3 +1635,63 @@ before assuming; both are expected to be fine.
 This project's Data Store already holds the marketing-site tables written by
 `formSubmit` (waitlist, bill checkup, deep read, partner applications) and
 `CrmSyncQueue`. None of the tables above overlap with them. Leave them alone.
+
+## 27. Cohort stage notices: `campaign_notices`
+
+One row per campaign per stage announced, and the unique key is the whole
+mechanism.
+
+**Why this table exists.** A cohort's stage is derived, never stored, and it is
+moved by writing a date into the `campaigns` row. A row written by hand in ZCQL
+runs no code at all, so nothing in this stack notices a cohort reaching
+`bidding`. There is no event to hang an email on and no cron to poll for one.
+`lib/notices.js` therefore compares on read: every dashboard load already
+computes each cohort's stage, and this table is the record of which of those
+stages have already been mailed.
+
+**The unique constraint IS the race guard.** The notice row is written BEFORE a
+single email goes out, so two overlapping sweeps collide on `notice_key` and
+the loser sends nothing. That ordering is deliberate and not symmetric: crash
+after claiming and some households miss one letter, crash after sending and
+every household gets it twice on the next read. For a letter that goes to a
+whole cohort at once, missing beats duplicating.
+
+**Seeding.** A campaign with no rows here has never been swept, so its current
+stage is recorded without sending. Without that, every cohort already at
+`bidding` mails its whole roster the minute this deploys, announcing a step
+those households watched happen days ago.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `notice_key` | Var Char | 130 | ✅ | ✅ | **derived**: `` `${campaign_id}:${stage}` ``. The flattened composite (rule 4) and the race guard. **The Unique flag is not optional here**: without it the same letter goes out on every concurrent read |
+| `campaign_id` | Var Char | 64 | | ✅ | catalog slug |
+| `stage` | Var Char | 16 | | ✅ | a member stage: `forming` \| `locked` \| `bidding` \| `offers` \| `confirm` \| `switching` \| `done` |
+| `sent_count` | Int | - | | | how many were delivered. A convenience for the operator; the row's existence is the fact that matters |
+| `sent_at` | DateTime | - | | ✅ | when the claim was taken |
+
+### Gate checks, in the ZCQL tab
+
+Prove the unique flag actually took, because everything rests on it. The second
+insert must be **refused**:
+
+```sql
+INSERT INTO campaign_notices (notice_key, campaign_id, stage, sent_count, sent_at) VALUES ('gate-test:bidding', 'gate-test', 'bidding', 0, '2026-08-27 00:00:00');
+```
+
+```sql
+INSERT INTO campaign_notices (notice_key, campaign_id, stage, sent_count, sent_at) VALUES ('gate-test:bidding', 'gate-test', 'bidding', 0, '2026-08-27 00:00:01');
+```
+
+If the second one succeeds, the Unique flag is not set and every household will
+be mailed repeatedly. Fix it before going near a live cohort. Then clean up:
+
+```sql
+DELETE FROM campaign_notices WHERE campaign_id = 'gate-test';
+```
+
+To re-send a stage during testing, delete its row and let the next read
+re-announce it:
+
+```sql
+DELETE FROM campaign_notices WHERE notice_key = 'scarborough-east:bidding';
+```

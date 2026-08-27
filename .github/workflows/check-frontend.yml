@@ -152,6 +152,17 @@ jobs:
       - name: Multi-campaign and cohort sync tests
         run: node scripts/test-multicampaign.mjs
 
+      # Cohort stage notices. A stage is derived and moved by writing a date,
+      # so nothing in the stack observes a transition: lib/notices.js compares
+      # on read against a ledger of what has been announced. N-3 is the one
+      # that matters, because the read path fires this on EVERY dashboard load
+      # and a second sweep at the same stage must send nothing at all. N-4
+      # holds the recipient list to catalog.standingOf rather than the stored
+      # status, which is the difference between mailing a household that
+      # joined while its region was still gathering and never mailing it.
+      - name: Cohort stage notice tests
+        run: node scripts/test-notices.mjs
+
       # The route guards. These decide whether an unapproved organisation can
       # place a bid, and they were copy-pasted across four route files before
       # being extracted into lib/guards.js. This is what stops the fifth copy.

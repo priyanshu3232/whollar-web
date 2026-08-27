@@ -47,6 +47,7 @@ const ratelimit = require('../lib/ratelimit');
 const siteconfig = require('../lib/siteconfig');
 const catalog = require('../lib/catalog');
 const cohorts = require('../lib/cohorts');
+const notices = require('../lib/notices');
 const seats = require('../lib/seats');
 const places = require('../lib/places');
 const bids = require('../lib/bids');
@@ -528,6 +529,31 @@ function mount(router, cfg) {
    * never render but a count could silently include. Bounded by queryAll's
    * page budget, which is stated in the payload rather than hidden.
    */
+  /**
+   * Force a stage-notice pass, and WAIT for it.
+   *
+   * The same sweep every dashboard read fires, run on demand and answered with
+   * its result. It exists for the case the read path cannot cover: an operator
+   * moving a cohort through its stages with nobody else on the site, where
+   * there is no dashboard load to trigger anything. Also the honest way to see
+   * what a stage change actually mailed, since the read path deliberately
+   * throws that number away.
+   *
+   * Idempotent, because the sweep is: a stage already announced is skipped on
+   * the unique constraint, so pressing this twice sends nothing twice.
+   */
+  router.post('/admin/campaigns/notices/sweep', wrap(async (req, res) => {
+    requireAdmin(req);
+    cohorts.invalidate();
+    const { states, serverTime } = await cohorts.list(req.catalyst, { fresh: true });
+    const result = await notices.sweep(req.catalyst, cfg, states, serverTime);
+    audit.recordAsync(req.catalyst, req, {
+      type: 'admin.campaign.notices', outcome: 'success',
+      detail: result,
+    });
+    res.status(200).json({ ok: true, serverTime, ...result });
+  }));
+
   router.get('/admin/campaigns/reconcile', wrap(async (req, res) => {
     requireAdmin(req);
     const c = req.catalyst;

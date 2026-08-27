@@ -154,6 +154,19 @@ const TABLES = Object.freeze({
     source:           'varchar(32) required',
     updated_at:       'datetime required',
   },
+  campaign_notices: {
+    // One row per (campaign, stage) announced to its households. The unique
+    // key is the whole mechanism: lib/notices.js writes this row BEFORE it
+    // sends a single email, so two concurrent sweeps collide here and the
+    // loser sends nothing. Claim before send is deliberate and asymmetric:
+    // a crash after claiming costs some households one letter, a crash after
+    // sending costs every household a duplicate on the next read.
+    notice_key:  'varchar(130) unique required', // `${campaign_id}:${stage}`
+    campaign_id: 'varchar(64) required',
+    stage:       'varchar(16) required',
+    sent_count:  'int',
+    sent_at:     'datetime required',
+  },
   campaign_members: {
     // One row per (campaign, member) relationship, whatever its strength:
     // 'joined' a forming cohort, 'waitlist' for a region still gathering, or

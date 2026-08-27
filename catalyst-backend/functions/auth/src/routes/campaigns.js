@@ -39,6 +39,7 @@ const cohorts = require('../lib/cohorts');
 const siteconfig = require('../lib/siteconfig');
 const guards = require('../lib/guards');
 const bids = require('../lib/bids');
+const notices = require('../lib/notices');
 const awards = require('../lib/awards');
 const orders = require('../lib/orders');
 const { wrap, badRequest, AppError } = require('../lib/errors');
@@ -212,7 +213,7 @@ async function upsert(catalystApp, campaign, user, status) {
  * Routes
  * ------------------------------------------------------------------ */
 
-function mount(router) {
+function mount(router, cfg) {
   /**
    * The campaigns a member can see, with live counts and their own standing.
    * -> { ok, live, campaigns }
@@ -227,6 +228,13 @@ function mount(router) {
        visible campaign at a single instant; /provider/campaigns calls the
        same function, so the two surfaces cannot disagree about a cohort. */
     const { source, live, serverTime: now, states } = await cohorts.list(req.catalyst);
+    /* STAGE NOTICES, off the same states this response is built from. Nothing
+       in this stack notices a cohort moving: the stage is derived, and the
+       write that moves it is a date in a row. So the read compares against the
+       ledger of what has been announced and mails the difference. Fired and
+       forgotten: a household waiting on a hundred outbound emails before its
+       own dashboard paints would be a poor trade. See lib/notices.js. */
+    notices.sweepAsync(req.catalyst, cfg, states, now);
     const mineBy = await mineRows(req.catalyst, user.user_id);
     /* THE MEMBER'S OWN DECISION, RESTORED. An accepted offer is an order row
        and the row is the record: without this field a household that accepted
@@ -686,6 +694,10 @@ function mount(router) {
        two campaigns in one answer are never staged a millisecond apart, and
        serverTime is the instant the stages were computed at. */
     const { source, live, serverTime: now, states } = await cohorts.list(req.catalyst);
+    /* A partner opening the desk sweeps too. The letters go to households, not
+       to partners: this is simply the other surface that already knows every
+       cohort's stage, and a cohort whose members are asleep still moves. */
+    notices.sweepAsync(req.catalyst, cfg, states, now);
     res.status(200).json({
       ok: true,
       serverTime: now,

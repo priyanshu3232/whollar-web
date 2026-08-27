@@ -244,7 +244,7 @@ function buildApp(cfg) {
   meRoutes.mount(router);
   ratingRoutes.mount(router);
   interestRoutes.mount(router);
-  campaignRoutes.mount(router);
+  campaignRoutes.mount(router, cfg);
   deskRoutes.mount(router);
   applicationRoutes.mount(router);
   contractRoutes.mount(router);

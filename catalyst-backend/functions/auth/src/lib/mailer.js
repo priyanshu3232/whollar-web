@@ -578,9 +578,118 @@ function providerDecisionEmail({ approved, orgName, reason, appBaseUrl, firstNam
   return { subject: `About ${name}'s Whollar partner application`, text, html };
 }
 
+
+/* ------------------------------------------------------------------ *
+ * The cohort stage email
+ * ------------------------------------------------------------------ */
+
+/**
+ * One email per stage a cohort reaches, to every household in it.
+ *
+ * SEVEN STAGES, SEVEN LETTERS, ONE TEMPLATE. The vocabulary is the member's
+ * (lib/catalog.js MEMBER_STAGES), not the partner's: a household is told what
+ * has happened to its own cohort and what, if anything, it now has to do. The
+ * two surfaces already share one derived stage, and this shares it too, so an
+ * email can never announce a step the dashboard disagrees with.
+ *
+ * `doing` is the honest half. Four of the seven stages ask nothing of the
+ * household, and saying so plainly is better than manufacturing an action:
+ * an email that ends "no action needed" is one the next email is still
+ * trusted after.
+ */
+const STAGE_MAIL = Object.freeze({
+  forming: {
+    subject: (r) => `${r} is gathering`,
+    lead: (r) => `Your cohort in ${r} is open and gathering households.`,
+    body: 'The more households join before it locks, the more a partner is bidding for, and the better the price they put forward.',
+    doing: 'Nothing to do. We will write again the day joining closes.',
+  },
+  locked: {
+    subject: (r) => `${r} is locked, and the brief is fixed`,
+    lead: (r) => `Joining has closed on ${r}. Your cohort's roster is final.`,
+    body: 'Partners now receive the brief: how many households, which area, and what you asked for. Nothing about you personally goes to any of them.',
+    doing: 'Nothing to do. Sealed bidding opens next.',
+  },
+  bidding: {
+    subject: (r) => `Sealed bidding is live for ${r}`,
+    lead: (r) => `Partners are bidding for ${r} now, and every bid is sealed.`,
+    body: 'No partner can see another partner\u2019s price, their count, or whether they bid at all. That is what makes them price against your cohort rather than against each other\u2019s guesses.',
+    doing: 'Nothing to do. We will send you the winning offer when bidding closes.',
+  },
+  offers: {
+    subject: (r) => `Your offer for ${r} is in`,
+    lead: (r) => `Bidding has closed on ${r} and the winning offer is on your dashboard.`,
+    body: 'One offer, the lowest headline price your cohort drew. Compare it against your own bill, which is the only comparison that matters.',
+    doing: 'Open your dashboard to read it. Accepting is what creates your switch order, and nothing is charged for switching.',
+  },
+  confirm: {
+    subject: (r) => `Confirmations are closing for ${r}`,
+    lead: (r) => `The window to accept your offer for ${r} is closing.`,
+    body: 'Households that have accepted are counted for the install schedule. Households that have not simply stay where they are, and nothing is owed either way.',
+    doing: 'If you want the offer, accept it on your dashboard before the deadline.',
+  },
+  switching: {
+    subject: (r) => `Installs are running for ${r}`,
+    lead: (r) => `Your cohort in ${r} has reached its switch window.`,
+    body: 'Your partner books your visit from here and carries out the line test. You are not billed for switching, and your old service stays up until the new line passes.',
+    doing: 'Watch for your installer to get in touch. Reply to this email if anything looks wrong.',
+  },
+  done: {
+    subject: (r) => `${r} is complete`,
+    lead: (r) => `Your cohort in ${r} has finished and the final counts have settled.`,
+    body: 'Thank you for going in with your neighbours. A cohort only works because enough households moved at once, and yours did.',
+    doing: 'Nothing to do. We will tell you when a new cohort opens near you.',
+  },
+});
+
+/**
+ * The letter for one household about one stage.
+ *
+ * `when` is the next dated moment on the cohort's calendar, printed only when
+ * the row actually carries one. A cohort with a partial calendar says less
+ * rather than inventing a date, for the same reason the dashboard does.
+ */
+function cohortStageEmail({ stage, region, sub, firstName, appBaseUrl, when }) {
+  const copy = STAGE_MAIL[stage];
+  if (!copy) return null;
+
+  const place = String(region || 'your area').slice(0, 100);
+  const label = sub ? `${place}, ${String(sub).slice(0, 100)}` : place;
+  const base = String(appBaseUrl || '').replace(/\/+$/, '');
+  const link = `${base}/dashboard`;
+  const dated = when ? `Next: ${formatWhen(when)}.` : '';
+
+  const text = [
+    greeting(firstName),
+    '',
+    copy.lead(label),
+    '',
+    copy.body,
+    '',
+    copy.doing,
+    dated,
+    '',
+    `Your dashboard: ${link}`,
+    '',
+    'Whollar',
+  ].filter((l) => l !== '').join('\n');
+
+  const html = renderCard([
+    `      <p style="${S.p}">${escapeHtml(greeting(firstName))}</p>`,
+    `      <p style="${S.p}">${escapeHtml(copy.lead(label))}</p>`,
+    `      <p style="${S.sub}">${escapeHtml(copy.body)}</p>`,
+    `      <p style="${S.p}">${escapeHtml(copy.doing)}</p>`,
+    dated ? `      <p style="${S.sub}">${escapeHtml(dated)}</p>` : '',
+    `      <p style="${S.p}"><a href="${escapeHtml(link)}" style="${S.link}">Open your dashboard</a></p>`,
+    `      <p style="${S.signoff}">Whollar</p>`,
+  ].filter(Boolean).join('\n'));
+
+  return { subject: copy.subject(place), text, html };
+}
+
 module.exports = {
   send, transportName, otpEmail, existingAccountEmail,
   passwordResetEmail, passwordChangedEmail, noAccountEmail,
-  providerDecisionEmail,
+  providerDecisionEmail, cohortStageEmail, STAGE_MAIL,
   escapeHtml, DEFAULT_API_BASE,
 };
