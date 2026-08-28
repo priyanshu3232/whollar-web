@@ -20,7 +20,7 @@ wire contract, for no gain. See "What to build instead" at the end.
 
 | Concern | Where | Status |
 |---|---|---|
-| Award / winner sealing | `lib/awards.js` | implemented, correct |
+| Price book and per-tier awards | `lib/awards.js` | implemented, correct, rewritten 2026-08-28 |
 | Roster gate: billing, capacity, consent | `lib/awards.js`, `routes/delivery.js` | implemented, gaps below |
 | Switch orders and the state machine | `lib/orders.js` | implemented, correct |
 | Order creation at acceptance | `routes/campaigns.js` | implemented, correct |
@@ -80,13 +80,17 @@ Three are already answered by shipped code.
 - **HS1, who releases: open.** Shipped behaviour is partner self-serve with
   `gate_by` and `gate_at` stamped. There is no admin release. Recommend
   keeping self-serve and adding the admin action.
-- **HS3, the roster field set: open, and the brief asks for more, not less.**
-  What is released today is `address_line` plus `fsa`, and nothing else. The
-  brief's proposed set adds household name, contact channel, tier, effective
-  price and install notes. None of those columns exist and none are collected
-  at acceptance. Structural opinion: add the contact channel only. A partner
-  phoning to book is the actual workflow; the other three are either already on
-  the offer or not needed to complete an install.
+- **HS3, the roster field set: partly answered, and narrower than it was.**
+  The price book work of 2026-08-28 added `tier` and `price` to
+  `provider_orders` (runbook section 30c) and both are emitted by
+  `publicOrder`, so the roster now carries the accepted speed and the price it
+  was accepted at. A partner could not book a visit without knowing what to
+  install, so this was not optional. What is released today is therefore
+  `address_line`, `fsa`, `tier` and `price`. Still open from the brief's
+  proposed set: household name, contact channel, install notes. Structural
+  opinion unchanged: add the contact channel only. A partner phoning to book is
+  the actual workflow, and the other two are not needed to complete an
+  install.
 - **HS5(a), household cancellation after a deposit: open, and unanswerable as
   posed.** There is no deposit concept anywhere in the backend. Someone has to
   say what the deposit is before the policy can be written.
@@ -138,5 +142,25 @@ case, not a data model.
 
 That reframes the work from a rewrite into roughly nine additions, of which
 item 1 should ship on its own and immediately.
+
+## Amendment, 2026-08-28
+
+`lib/awards.js` was rewritten after this audit was written, from a single
+cohort winner into a per-tier price book. Bids are now compared per speed tier,
+a cohort can be won by several partners at once, and the award grain moved from
+`campaign_id` to `${campaign_id}:${org_id}`. That adds `campaign_price_books`,
+`campaign_awards.tiers_won`, and `tier` and `price` on `provider_orders`,
+covered by runbook sections 30a to 30e.
+
+What it does NOT change: the roster gate still hangs off the award row, one
+gate per partner per cohort rather than one per tier, and every gap listed below
+survives the rewrite unchanged. The gate is still not stage-guarded, release is
+still not idempotent, gate progress is still one write, and `provider_statements`
+is still never written. Only the HS3 line and the awards row in the table above
+have been amended.
+
+The 2026-08-28 tree was verified after the rewrite: backend syntax clean, no
+references to the removed `seal`, `pickWinner` or `findByCampaign`, and all
+nine build gates and sixteen test suites green.
 
 Blocked on HS1, HS3 and HS5(a).
