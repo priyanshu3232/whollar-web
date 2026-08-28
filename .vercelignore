@@ -139,3 +139,11 @@ docs/console/cohort-launch-guide.pdf
 # the source at /docs/console/cohort-stage-ladder and serve the PDF beside it.
 docs/console/cohort-stage-ladder.html
 docs/console/cohort-stage-ladder.pdf
+
+# The Phase 0 delivery audit. Same reason as the two guides above, and one more
+# besides: docs/ IS deployed, and this file names internal tables, internal
+# columns, and an erasure gap that is live and not yet fixed. A .md publishes
+# verbatim at its own path, so without this line the audit would be readable at
+# /docs/DELIVERY_AUDIT.md by anyone. It stays in the repo and in git history,
+# which is where it is useful, and off the site, which is where it is not.
+docs/DELIVERY_AUDIT.md
