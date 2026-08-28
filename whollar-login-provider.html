@@ -429,7 +429,10 @@ button{font-family:var(--body)}
 
           <div class="field" id="fp-confirm-f">
             <label for="fp-confirm">Confirm new password</label>
-            <input id="fp-confirm" type="password" autocomplete="new-password" placeholder="Type it again" maxlength="128">
+            <div class="inwrap">
+              <input id="fp-confirm" type="password" autocomplete="new-password" placeholder="Type it again" maxlength="128">
+              <button type="button" class="peek" data-peek="fp-confirm">Show</button>
+            </div>
             <div class="err-inline" id="fp-confirm-err" role="alert" style="display:none">Those two passwords don't match.</div>
           </div>
 
