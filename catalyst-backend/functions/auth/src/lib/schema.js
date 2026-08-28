@@ -285,6 +285,10 @@ const TABLES = Object.freeze({
     extra_pod_monthly:      'varchar(16)',
     reduction_presentation: 'varchar(16)',
     mechanism_label:        'varchar(64)',
+    // The sealed custom mix (create-tables.md section 28): per tier, the
+    // prices in cents, the gap, and each named row's cents. JSON. Written
+    // only on a custom bid, so the column's absence fails custom bids alone.
+    discount_mix:           'text',
     commitment_cap:         'int',
     revision_count:         'int',
     receipt_no:             'varchar(32)',

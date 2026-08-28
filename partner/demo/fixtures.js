@@ -456,6 +456,37 @@
     }
   };
 
+  /* A sealed CUSTOM bid with a mix per tier: what the improve form has to
+     hydrate from, exactly as sealed. The cents are what lib/mixmath.js lands
+     on for these shares (500 Mbps, gap $30.00 at 60/40; 1 Gig, gap $35.00 on
+     one row), because the fixture is the executable contract for publicBid()
+     and the snapshot is the record households read. */
+  var MIXED_BID = bidIn('sealed', {
+    reductionPresentation: 'custom', mechanismLabel: 'Member discount, Promotional credit',
+    discountMix: {
+      applyToAll: false,
+      tiers: [
+        { tier: '500 Mbps', stickerCents: 8600, effectiveCents: 5600, gapCents: 3000, mix: [
+          { type: 'member', label: 'Member discount', sharePct: '60', amountCents: 1800, periodStartMo: 0, periodEndMo: 24 },
+          { type: 'promo', label: 'Promotional credit', sharePct: '40', amountCents: 1200, periodStartMo: 0, periodEndMo: 24 }
+        ] },
+        { tier: '1 Gig', stickerCents: 9900, effectiveCents: 6400, gapCents: 3500, mix: [
+          { type: 'own', label: 'Neighbourhood build rate', sharePct: '100', amountCents: 3500, periodStartMo: 0, periodEndMo: 24 }
+        ] }
+      ]
+    }
+  });
+  S.mixed = {
+    label: 'Bid sealed with a custom mix, per tier',
+    view: 'desk',
+    me: APPROVED_ME, application: APPROVED_APP,
+    coverage: coverage(COV_ACTIVE),
+    campaigns: { ok: true, serverTime: NOW, live: true, campaigns: [campaign('kw', 'Scarborough East', 'closing', { bidding_closes_at: at(1) })] },
+    bids: { ok: true, serverTime: NOW, live: true, bids: [MIXED_BID] },
+    brief: brief(campaign('kw', 'Scarborough East', 'closing', { bidding_closes_at: at(1) }), MIXED_BID),
+    bidResult: sealedReceipt('improved', 2, 'WB-77AB', { version: 2 })
+  };
+
   S.offersout = {
     label: 'Offers out, nothing to do',
     view: 'desk',

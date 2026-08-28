@@ -757,6 +757,23 @@ tr.exp + tr.dwr{display:table-row}
 .mixrow em{font-style:normal;font-family:var(--mono);font-size:10.5px;color:var(--sub)}
 .mixrow b{margin-left:auto;font-family:var(--disp);font-size:13.5px;white-space:nowrap}
 .mixwarn{margin:8px 0 0;font-size:11.5px;line-height:1.5;color:#8C3B1B;font-weight:600}
-.mixcalc .consent{margin-top:12px;padding-top:11px;border-top:1px dashed var(--line)}
-.mixcalc .consent span{font-size:12px}
+.mixerr{margin:8px 0 0;font-size:11.5px;line-height:1.5;color:#8C3B1B;font-weight:600}
+.mixnote{margin:8px 0 0;font-size:11.5px;line-height:1.5;color:var(--sub)}
+/* The apply-to-all box: the checkbox row convention (.consent), pulled up
+   under the block label so it reads as the first control of the mix. */
+.mixall{margin:0 0 10px}
+.mixed{margin-bottom:10px}
+.mixhead{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-size:11.5px;font-weight:700;color:var(--ink);margin:0 0 4px}
+.mixhead em{font-style:normal;font-family:var(--mono);font-size:10.5px;font-weight:600;color:var(--sub)}
+.mixt th:nth-child(1){width:50%}
+.mixt th:nth-child(2){width:42%}
+.mixt th:nth-child(3){width:8%}
+.mamtv{display:block;font-family:var(--mono);font-size:10.5px;color:var(--sub);margin-top:4px;line-height:1.4}
+.mixt .mamt[readonly]{background:#F6F3EA;color:var(--sub)}
+.mrow.bad .mamt,.mrow.bad .mown{border-color:#8C3B1B}
+.mixtier{margin-top:4px}
+.mixtier .mixrow.sub{padding:4px 0 4px 10px;border-top:0;font-size:12px}
+.mixtier .mixrow.sub b{font-size:12.5px}
+.mixtier .mixrow.tot{border-top:1px dashed var(--line);font-size:12px}
+.mixtier .mixrow.tot b{font-size:12.5px}
 @media (max-width:940px){.mixgrid{grid-template-columns:1fr}}

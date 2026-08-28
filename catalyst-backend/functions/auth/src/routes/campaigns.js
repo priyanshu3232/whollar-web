@@ -395,6 +395,18 @@ function mount(router, cfg) {
         committedHouseholds: pub.committedHouseholds,
         reference: pub.reference,
         tiers: pub.tiers,
+        /* The named parts of the reduction, per tier, in the cents the seal
+           recorded. Labels and money only: a household reads what a step is
+           called and what it is worth, never the share arithmetic behind it,
+           and never a figure this route worked out for itself. */
+        mix: pub.discountMix ? pub.discountMix.tiers.map((t) => ({
+          tier: t.tier,
+          reductionCents: t.gapCents,
+          mix: (t.mix || []).map((r) => ({
+            label: r.label, amountCents: r.amountCents,
+            periodStartMo: r.periodStartMo, periodEndMo: r.periodEndMo,
+          })),
+        })) : null,
       },
     });
   }));

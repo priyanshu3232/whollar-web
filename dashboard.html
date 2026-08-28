@@ -1397,6 +1397,7 @@ div.cc:hover{box-shadow:none;transform:none}
 .duocell .dl{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--sub)}
 .duocell b{font-family:var(--disp);font-size:26px}
 .duocell .ds{font-size:12.5px;color:var(--sub)}
+.duocell .mixline{color:var(--accent-deep);font-weight:600}
 .duocell.now{background:#F7F3E8}
 .duocell.win{background:var(--mint);border-color:var(--accent)}
 .duocell.win b{color:var(--accent-deep)}
@@ -2435,6 +2436,18 @@ function applyOffer(r){
   WIN.after=o.afterLine||'no scheduled change';
   WIN.inc=EQUIP[o.equipment]||WIN.inc;
   if(o.equipment==='rent'&&o.rentalMonthly)WIN.inc='Modem rental '+money(Number(o.rentalMonthly))+'/mo';
+  /* The named parts of the reduction on the tier this offer quotes, in the
+     cents the seal recorded. Read as label and amount only: the household
+     sees what each step is called and what it is worth, and this page never
+     works a figure out for itself. Null on every other reduction read. */
+  WIN.mix=null;
+  if(o.mix&&o.mix.length){
+    var mt=null;
+    for(var mi=0;mi<o.mix.length;mi++){if(o.mix[mi]&&o.mix[mi].tier===o.speed){mt=o.mix[mi];break}}
+    if(mt&&mt.mix&&mt.mix.length){
+      WIN.mix=mt.mix.map(function(m){return {label:String(m.label||''),cents:Math.round(Number(m.amountCents)||0)}});
+    }
+  }
   if(typeof r.bidCount==='number')WIN.bids=r.bidCount;
   OFFERS[0]={id:'a',name:WIN.name,price:n,speed:WIN.speed,
     term:o.guaranteeMonths?(o.guaranteeMonths+' months'):'No term',note:WIN.inc};
@@ -3931,7 +3944,7 @@ function tplOffers(){
   +'<p class="p">'+(WIN.bids===1?'One partner bid':'Multiple partners bid')+', sealed. This was the best against the cohort\u2019s standard terms, and it\u2019s the same offer for every household in it.</p>'
   +'<div class="duo">'
   +'<div class="duocell now"><span class="dl">Your bill today</span><b>'+money(S.member.bill)+'/mo</b><span class="ds">'+esc(c.prov||'Your provider')+(c.speed?' \u00b7 '+esc(c.speed):'')+'</span><span class="ds">'+(c.promo&&c.promo!=='Not sure'?'Resets around '+esc(c.promo):'Promo reset not set')+'</span></div>'
-  +'<div class="duocell win"><span class="dl">'+esc(WIN.name)+'</span><b>'+money(o.price)+'/mo</b><span class="ds">'+esc(WIN.speed)+' \u00b7 '+esc(WIN.guar.toLowerCase())+'</span><span class="ds">'+esc(WIN.after)+'</span><span class="ds">'+esc(WIN.inc)+'</span><span class="savetag">saves '+money(save)+'/mo</span></div>'
+  +'<div class="duocell win"><span class="dl">'+esc(WIN.name)+'</span><b>'+money(o.price)+'/mo</b><span class="ds">'+esc(WIN.speed)+' \u00b7 '+esc(WIN.guar.toLowerCase())+'</span><span class="ds">'+esc(WIN.after)+'</span><span class="ds">'+esc(WIN.inc)+'</span>'+mixLines()+'<span class="savetag">saves '+money(save)+'/mo</span></div>'
   +'</div>'
   /* The offer stands until confirmations lock, which is decision_at on the
      cohort's own calendar. This was the literal "Sep 24". */
@@ -3943,6 +3956,13 @@ function tplOffers(){
   +'<button class="btn terra" type="button" data-take="a">Take this offer</button>'
   +'<button class="btn ghost" type="button" data-act="pass">Pass on it</button>'
   +'<button class="finelink" type="button" data-act="whopart">Who is '+esc(WIN.name)+'?</button></div>';
+}
+/* The steps the winning partner named inside the reduction, one line each,
+   or nothing when the offer carries none. Cents to dollars is the only
+   arithmetic here, and it is presentation. */
+function mixLines(){
+  if(!WIN.mix||!WIN.mix.length)return '';
+  return '<span class="ds mixline">Includes '+WIN.mix.map(function(m){return esc(m.label)+' '+money(m.cents/100)+'/mo'}).join(' \u00b7 ')+'</span>';
 }
 /* The cohort whose real offer this confirm screen would accept, or null when
    this is the demo tour. Real means: a live joined cohort AND a live offer

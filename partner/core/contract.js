@@ -223,7 +223,11 @@ export var SPECS = {
   bid: {
     campaignId: 'str',
     state: ['enum', ['sealed', 'improved', 'locked', 'won', 'not_selected']],
-    tiers: 'arr'
+    tiers: 'arr',
+    /* The sealed custom mix, or null on every other reduction read. An
+       object, never the shares array the composer holds: the record carries
+       cents per tier, and the ticket hydrates from that. */
+    discountMix: 'obj?'
   },
 
   /* What a place or improve returns: the new head and the sealed receipt. */

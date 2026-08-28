@@ -1698,3 +1698,43 @@ re-announce it:
 ```sql
 DELETE FROM campaign_notices WHERE notice_key = 'scarborough-east:bidding';
 ```
+
+---
+
+## 28. The custom mix: one column to add to `provider_bids`
+
+The custom reduction read used to seal a single derived label and drop the
+mix itself on the floor. It now seals the mix: per tier, the sticker and
+effective prices in cents, the reduction between them, and each named row's
+share and cents. The household offer reads those cents; nothing downstream
+re-derives them.
+
+**Why cents are stored and not only shares.** A share is a percentage of a
+reduction that differs by tier, and a row's dollar figure is the result of a
+largest-remainder split that lands the total on the gap exactly. Storing the
+result means the panel a partner confirmed and the line a household reads are
+the same document, and a later change to the arithmetic cannot rewrite a
+sealed bid.
+
+**Deploy order.** Code deploys safely before the column exists: every read
+tries the widest column list first and falls back, so a bid without a mix is
+unaffected. A CUSTOM bid write names the column, so until it exists, sealing a
+custom mix answers "Bidding is not available right now" and every other
+reduction read seals as before. Create the column, then re-test a custom seal.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `discount_mix` | Text | 10000 | | | JSON, only when `reduction_presentation = custom`: `{"applyToAll": true, "tiers": [{"tier": "300 Mbps", "stickerCents": 10000, "effectiveCents": 5000, "gapCents": 5000, "mix": [{"type": "member", "label": "Member discount", "sharePct": "50", "amountCents": 2500, "periodStartMo": 0, "periodEndMo": 24}, ...]}]}`. A tier whose sticker equals its effective carries an empty `mix`. The same object is inside `bid_revisions.payload` for that revision |
+
+### Gate checks, in the ZCQL tab
+
+After creating the column, seal a custom bid from the console on a test
+cohort and read it back. The row must carry the JSON and the sum of
+`amountCents` on each tier must equal that tier's `gapCents`:
+
+```sql
+SELECT bid_key, reduction_presentation, mechanism_label, discount_mix FROM provider_bids WHERE reduction_presentation = 'custom' LIMIT 5;
+```
+
+Then `GET /api/auth/health/diagnostics` as an admin: `lib/schema.js verify()`
+names the column and must not list it as missing.

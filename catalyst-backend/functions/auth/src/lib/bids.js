@@ -31,6 +31,7 @@
 const crypto = require('crypto');
 const datastore = require('./datastore');
 const { money } = require('./money');
+const mixmath = require('./mixmath');
 const { ms } = require('./envelope');
 const { badRequest } = require('./errors');
 
@@ -51,9 +52,11 @@ const GUARANTEE_MONTHS = Object.freeze([12, 24, 36]);
 
 /* A custom reduction label is free text echoed to households, so it is
    validated rather than merely stored: display charset only, and none of the
-   pressure or condition language the standard cohort terms forbid. */
-const LABEL_RE = /^[A-Za-z0-9][A-Za-z0-9 ,.'&-]{2,39}$/;
-const LABEL_BANNED = /today only|limited time|expires|last chance|hurry|act now|bundle|autopay|auto[- ]pay/i;
+   pressure or condition language the standard cohort terms forbid. The two
+   rules live in lib/mixmath.js (generated from the console's copy) because
+   every line item in a custom mix is held to them as well. */
+const LABEL_RE = mixmath.LABEL_RE;
+const LABEL_BANNED = mixmath.LABEL_BANNED;
 
 /* The head row's columns, in the two-list style desk.js established: tables
    are created by hand, so code and schema deploy separately and in either
@@ -73,6 +76,11 @@ const BID_COLS_V2 = Object.freeze(BID_COLS.concat(['tiers', 'guarantee_months',
   'after_mode', 'after_line', 'equipment', 'rental_monthly', 'extra_pod_monthly',
   'reduction_presentation', 'mechanism_label', 'commitment_cap', 'revision_count',
   'receipt_no', 'payload_hash', 'submitted_at', 'last_revised_at']));
+/* The sealed custom mix (create-tables.md section 28). One JSON column, read
+   ahead of the V2 list and fallen back from, same as V2 is from the base. */
+const BID_COLS_V3 = Object.freeze(BID_COLS_V2.concat(['discount_mix']));
+/* Widest first. A read tries each until one the table can answer. */
+const BID_COL_LISTS = Object.freeze([BID_COLS_V3, BID_COLS_V2, BID_COLS]);
 
 const toInt = (v) => {
   const n = parseInt(v, 10);
@@ -177,6 +185,9 @@ function readBid(body, householdCount) {
       throw badRequest('That label reads as pressure or a condition. The standard terms keep reductions unconditional.');
     }
   }
+  const discountMix = reductionPresentation === 'custom'
+    ? readMix(b.discountMix, tiers, guaranteeMonths)
+    : null;
 
   const equipment = String(b.equipment || '').trim();
   if (EQUIPMENT.indexOf(equipment) < 0) {
@@ -196,10 +207,69 @@ function readBid(body, householdCount) {
     : tiers.map((t) => `$${t.afterPrice} / ${t.name}`).join(', ');
 
   return {
-    tiers, reductionPresentation, mechanismLabel, guaranteeMonths,
+    tiers, reductionPresentation, mechanismLabel, discountMix, guaranteeMonths,
     afterMode, afterLine, equipment, rentalMonthly, extraPodMonthly,
     committedHouseholds,
   };
+}
+
+/**
+ * The custom mix, validated and sealed as cents.
+ *
+ * The body carries shares only: `{ applyToAll, tiers: [{ tier, rows: [{ type,
+ * label, sharePct }] }] }`. The money is computed HERE, by the same
+ * mixmath.tierSnapshot() the console showed the partner, and stored with the
+ * bid, so the household surface reads cents it never has to derive. A tier
+ * whose sticker equals its effective has no reduction to name and seals an
+ * empty mix; every other tier needs rows whose shares total exactly 100%.
+ *
+ * `applyToAll` is recorded as the partner set it, so reopening the terms
+ * restores the editor they used and not merely the numbers.
+ */
+function readMix(raw, tiers, guaranteeMonths) {
+  const m = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : null;
+  if (!m || !Array.isArray(m.tiers)) {
+    throw badRequest('Set the mix that names this reduction: one row per step, shares totalling 100%.');
+  }
+  const byTier = new Map();
+  m.tiers.forEach((t) => {
+    if (t && typeof t.tier === 'string') byTier.set(t.tier.trim(), Array.isArray(t.rows) ? t.rows : []);
+  });
+  const snapTiers = tiers.map((t) => {
+    const gap = mixmath.toCents(t.stickerPrice) - mixmath.toCents(t.effectivePrice);
+    if (gap <= 0) return mixmath.tierSnapshot(t, [], guaranteeMonths);
+    const rows = byTier.get(t.name);
+    if (!rows || !rows.length) {
+      throw badRequest(`Set the mix on ${t.name}: the reduction there needs at least one named row.`);
+    }
+    const clean = rows.map((r) => {
+      const row = r || {};
+      return {
+        type: String(row.type || '').trim(),
+        label: String(row.label || '').trim(),
+        sharePct: String(row.sharePct === undefined || row.sharePct === null ? '' : row.sharePct).trim(),
+      };
+    });
+    const check = mixmath.checkMix(clean);
+    if (!check.ok) throw badRequest(`${t.name}: ${check.problems[0]}`);
+    return mixmath.tierSnapshot(t, clean, guaranteeMonths);
+  });
+  const out = { applyToAll: Boolean(m.applyToAll), tiers: snapTiers };
+  /* The column is Text 10000. Six tiers of five rows is under half that;
+     anything past it is not a mix a partner typed. */
+  if (JSON.stringify(out).length > 10000) throw badRequest('That mix is too long to seal.');
+  return out;
+}
+
+/** A stored discount_mix JSON as the sealed object, or null. */
+function parseMix(raw) {
+  if (!raw) return null;
+  try {
+    const m = JSON.parse(raw);
+    return m && typeof m === 'object' && Array.isArray(m.tiers) ? m : null;
+  } catch {
+    return null;
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -217,6 +287,9 @@ function draftPayload(campaignId, d) {
     tiers: d.tiers,
     reductionPresentation: d.reductionPresentation,
     mechanismLabel: d.mechanismLabel,
+    /* Present only on a custom bid, so the bytes of every other bid, and
+       therefore its hash, are what they were before the mix could seal. */
+    ...(d.discountMix ? { discountMix: d.discountMix } : {}),
     guaranteeMonths: d.guaranteeMonths,
     afterMode: d.afterMode,
     afterLine: d.afterLine,
@@ -314,6 +387,7 @@ function publicBid(row) {
     tiers,
     reductionPresentation: row.reduction_presentation || null,
     mechanismLabel: row.mechanism_label || null,
+    discountMix: parseMix(row.discount_mix),
     guaranteeMonths: toInt(row.guarantee_months),
     afterMode: row.after_mode || null,
     afterLine: row.after_line || null,
@@ -338,18 +412,27 @@ function headDraft(row) {
  * Reads
  * ------------------------------------------------------------------ */
 
+/**
+ * Try each column list, widest first, until the table answers. Null when
+ * none does. Tables are created by hand, so a column named here may not
+ * exist yet, and asking for it throws; this is the fallback that turns that
+ * into a narrower read rather than an unreadable table.
+ */
+async function firstReadable(read) {
+  for (const cols of BID_COL_LISTS) {
+    try {
+      return await read(cols);
+    } catch {
+      /* next, narrower list */
+    }
+  }
+  return null;
+}
+
 /** Every head row for an org, or null when the table is unreadable. */
 async function bidRows(catalystApp, orgId) {
   const where = `org_id = ${datastore.lit(orgId)}`;
-  try {
-    return await datastore.queryAll(catalystApp, BIDS, BID_COLS_V2, where);
-  } catch {
-    try {
-      return await datastore.queryAll(catalystApp, BIDS, BID_COLS, where);
-    } catch {
-      return null;
-    }
-  }
+  return firstReadable((cols) => datastore.queryAll(catalystApp, BIDS, cols, where));
 }
 
 /**
@@ -365,28 +448,12 @@ async function bidRows(catalystApp, orgId) {
  */
 async function campaignBidRows(catalystApp, campaignId) {
   const where = `campaign_id = ${datastore.lit(campaignId)}`;
-  try {
-    return await datastore.queryAll(catalystApp, BIDS, BID_COLS_V2, where);
-  } catch {
-    try {
-      return await datastore.queryAll(catalystApp, BIDS, BID_COLS, where);
-    } catch {
-      return null;
-    }
-  }
+  return firstReadable((cols) => datastore.queryAll(catalystApp, BIDS, cols, where));
 }
 
 /** The org's head row for one campaign, or null. Extended columns first. */
 async function headRow(catalystApp, bidKey) {
-  try {
-    return await datastore.findBy(catalystApp, BIDS, 'bid_key', bidKey, ['ROWID'].concat(BID_COLS_V2));
-  } catch {
-    try {
-      return await datastore.findBy(catalystApp, BIDS, 'bid_key', bidKey, ['ROWID'].concat(BID_COLS));
-    } catch {
-      return null;
-    }
-  }
+  return firstReadable((cols) => datastore.findBy(catalystApp, BIDS, 'bid_key', bidKey, ['ROWID'].concat(cols)));
 }
 
 /** All revision rows for a bid key, ascending. Throws if the table is absent. */
@@ -442,7 +509,7 @@ async function sealRevision(catalystApp, { bidKey, campaignId, orgId, userId, pa
 }
 
 module.exports = {
-  BIDS, REVISIONS, BID_COLS, BID_COLS_V2,
+  BIDS, REVISIONS, BID_COLS, BID_COLS_V2, BID_COLS_V3, parseMix,
   TIER_NAMES, TECHS, REDUCTION, EQUIPMENT, AFTER_MODE, GUARANTEE_MONTHS,
   readBid, draftPayload, hashPayload, receiptNo,
   improvementProblems, publicBid, headDraft,

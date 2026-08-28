@@ -35,6 +35,7 @@ const FILES = [
   'partner/core/places.js',
   'partner/core/toast.js',
   'partner/core/modal.js',
+  'partner/core/mixmath.js',
   'partner/components/banner.js',
   'partner/components/emptystate.js',
   'partner/components/gate.js',
@@ -54,7 +55,10 @@ const FILES = [
   'partner/demo/fixtures.js',
   'scripts/qa-console.mjs',
   'scripts/test-places.mjs',
+  'scripts/test-mixmath.mjs',
+  'scripts/test-bid-mix.mjs',
   'scripts/build-console.mjs',
+  'scripts/build-mixmath.mjs',
 
   /* Not console files, but written after this gate existed and clean on day
      one, which is the only condition for being in this list. They are also the

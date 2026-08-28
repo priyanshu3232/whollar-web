@@ -104,9 +104,21 @@ async function householdCount(catalystApp, campaign) {
   return (await cohorts.seatCount(catalystApp, campaign)).seats;
 }
 
-/** The head-row fields one sealing writes. Shared by place and improve. */
-function headFields(draft, sealed, payloadHash, receivedAt) {
+/**
+ * The head-row fields one sealing writes. Shared by place and improve.
+ *
+ * `discount_mix` is named only when there is one to write, or when the head
+ * being improved carried one that this revision drops. The column is created
+ * by hand (create-tables.md section 28), and naming it on every write would
+ * make every bid, custom or not, fail until it exists; naming it only on a
+ * custom bid confines that window to the bids that need it.
+ */
+function headFields(draft, sealed, payloadHash, receivedAt, head) {
+  const mixField = draft.discountMix
+    ? { discount_mix: JSON.stringify(draft.discountMix) }
+    : (head && head.discount_mix ? { discount_mix: null } : {});
   return {
+    ...mixField,
     /* The lowest tier's effective price doubles as the legacy headline
        `price`, so readers of the original flat shape keep working. */
     price: draft.tiers[0].effectivePrice,
@@ -560,7 +572,7 @@ function mount(router) {
         });
     }
 
-    const fields = headFields(draft, sealed, payloadHash, receivedAt);
+    const fields = headFields(draft, sealed, payloadHash, receivedAt, head);
     try {
       await datastore.updateRow(req.catalyst, BIDS, {
         ROWID: head.ROWID, status: 'improved', ...fields,

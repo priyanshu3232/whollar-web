@@ -20,8 +20,9 @@
  * all 11 views, four widths, the burger's two behaviours, the completeness of
  * the 67-endpoint register, all 20 fixture states, the fixture layer declining
  * to install off localhost, the bid ticket (seven-column tier table, consent
- * gate, a sealed place round-trip), the custom mix with its schedule, its
- * arithmetic across the guarantee and its second confirmation, the sealed receipt with no withdraw path
+ * gate, a sealed place round-trip), the custom mix as shares of the reduction
+ * (per tier or shared, cents that add up, the seal body and the seed that
+ * carries it forward, a sealed mix reopening as sealed), the sealed receipt with no withdraw path
  * anywhere, the my-bids record with its nudge and result pills, and the
  * contracts registry with its terms gate on the desk, the landing view an
  * unapproved partner arrives on with no hash, the four ticket panels a cohort
@@ -643,7 +644,7 @@ console.log('\n16. the ticket: seven columns, consent gates the seal, place roun
   await c.close();
 }
 
-console.log('\n16b. the custom mix: a schedule, its arithmetic, and a second confirmation');
+console.log('\n16b. the custom mix: shares of the reduction, per tier or shared, and cents that add up');
 {
   const c = await ctx(browser, { record: REC, me: APPROVED });
   const p = await c.newPage();
@@ -653,76 +654,221 @@ console.log('\n16b. the custom mix: a schedule, its arithmetic, and a second con
   await p.click('[data-action="desk:open"]');
   await p.waitForTimeout(150);
 
-  ok(!(await p.locator('.mixw').isVisible()), 'the mix stays hidden until custom is chosen');
-  ok(await p.locator('.bmech option[value="custom"]').innerText() === 'Custom, choose your mix',
-    'the custom option names the mix, not a wording box');
+  /* Type into a price or share, then blur: the change event is what writes
+     the draft and repaints. */
+  const type = async (sel, value) => { await p.locator(sel).fill(value); await p.locator(sel).blur(); await p.waitForTimeout(160); };
+  const panel = async () => p.locator('.mixsum').innerText();
+  const form = async () => p.locator('.bidform').innerText();
 
+  ok(!(await p.locator('.mixw').isVisible()), 'the mix stays hidden until custom is chosen');
   await p.selectOption('.bmech', 'custom');
   await p.waitForTimeout(150);
-  ok(await p.locator('.mixw').isVisible(), 'choosing custom opens the schedule');
-  ok(await p.locator('.bmechtxt').count() === 0, 'and the old single wording box is gone');
+  ok(await p.locator('.mixw').isVisible(), 'choosing custom opens the mix');
+  ok(await p.locator('.bmixok').count() === 0, 'the effective-price confirmation box is gone: a valid mix reconciles by construction');
+  ok(await p.locator('.mper').count() === 0, 'and so is the period column: every row runs the whole guarantee');
 
+  /* One shared mix by default, one row carrying the whole reduction. */
+  ok(await p.locator('.bmixall').isChecked(), 'apply-to-all opens ticked');
+  ok(await p.locator('.mixed[data-scope="shared"]').count() === 1 && await p.locator('.mixed[data-scope]').count() === 1,
+    'one editor, the shared one');
   const head = await p.locator('.mixt thead').innerText();
-  ok(/discount type/i.test(head) && /discount, \$ \/mo/i.test(head) && /valid time period/i.test(head),
-    'three columns: type, amount, window');
+  ok(/discount type/i.test(head) && /share of reduction, %/i.test(head), 'columns: type, share of the reduction');
   ok(await p.locator('.mrow').count() === 1, 'it opens on one row');
-
-  /* The default row states the gap the tier row beside it already states, so
-     the mix and the prices agree before anything is typed. */
-  let sum = await p.locator('.mixsum').innerText();
+  ok(await p.locator('.mrow .mamt').inputValue() === '100' && await p.locator('.mrow .mamt').getAttribute('readonly') !== null,
+    'a single row is locked at 100%');
+  ok(/One row carries the whole reduction/.test(await p.locator('.mrow').innerText()), 'and says why');
+  let sum = await panel();
   ok(/24-month guarantee/i.test(sum), 'the panel is scoped to the whole guarantee');
-  ok(/\$720/.test(sum) && /\$30 \/mo/.test(sum), 'total and average reduction across the term ($720, $30/mo)');
-  ok(/\$56 \/mo/.test(sum), 'and the effective monthly price it implies ($56)');
-  ok(!/averages to a different figure/.test(sum), 'no mismatch to flag when the mix agrees with the effective price');
+  ok(/reduction \$30\.00 \/mo/.test(sum) && /\$720\.00/.test(sum), 'the tier row states its reduction and the total across the term ($30.00, $720.00)');
+  ok(!/off sticker/i.test(await form()) && !/averages to a different figure/.test(await form()),
+    'no "% off sticker" and no mismatch state anywhere in the form');
 
-  /* Two steps stack. */
+  /* The motivating defect: sticker $100, effective $50, two rows of 50. */
+  await type('.trow .tsticker', '100');
+  await type('.trow .teff', '50');
   await p.click('[data-action="ticket:mixadd"]');
-  await p.waitForTimeout(120);
-  ok(await p.locator('.mrow').count() === 2, 'a second discount can be added');
-  await p.locator('.mrow:nth-child(2) .mamt').fill('12');
-  await p.locator('.mrow:nth-child(2) .mamt').blur();
   await p.waitForTimeout(150);
-  sum = await p.locator('.mixsum').innerText();
-  ok(/\$1,008/.test(sum), 'the second step is carried into the total');
-  ok(/averages to a different figure/.test(sum), 'and a mix that no longer matches the effective price says so');
+  ok(await p.locator('.mrow').count() === 2, 'a second discount can be added');
+  ok(await p.locator('.mrow >> nth=0 >> .mamt').getAttribute('readonly') === null, 'and the first row unlocks');
+  await type('.mrow >> nth=0 >> .mamt', '50');
+  await type('.mrow >> nth=1 >> .mamt', '50');
+  sum = await panel();
+  ok((sum.match(/\$25\.00 \/mo/g) || []).length === 2, '50/50 of a $50 gap is $25.00 and $25.00');
+  ok(!/\$0\.00 \/mo/.test(sum) && !/100% off/.test(await form()), 'no $0 tier and no "100% off sticker" anywhere');
+  ok(/50% · \$25\.00 \/mo/.test(await p.locator('.mrow >> nth=0 >> .mamtv').innerText()), 'each share shows its money inline');
 
-  /* A partner may word a row themselves; the text only appears on that row. */
-  await p.selectOption('.mrow:nth-child(2) .mtype', 'own');
-  await p.waitForTimeout(120);
-  ok(await p.locator('.mrow:nth-child(2) .mown').isVisible(), 'the own-wording box opens on its row');
-  ok(!(await p.locator('.mrow:nth-child(1) .mown').isVisible()), 'and only on its row');
-
-  /* The seal needs BOTH the consent sentence and the effective-price
-     confirmation, because they are statements about different numbers. */
+  /* Over 100 blocks the seal, with the arithmetic in the copy. */
   await p.click('.bconsent');
   await p.waitForTimeout(120);
-  ok(await p.locator('[data-action="ticket:place"][disabled]').count() === 1,
-    'consent alone does not seal a custom mix');
-  await p.click('.bmixok');
-  await p.waitForTimeout(150);
-  ok(await p.locator('[data-action="ticket:place"]:not([disabled])').count() === 1,
-    'confirming the effective price enables the seal');
+  ok(await p.locator('[data-action="ticket:place"]:not([disabled])').count() === 1, 'consent with a valid mix enables the seal');
+  await type('.mrow >> nth=0 >> .mamt', '60');
+  sum = await panel();
+  ok(/Your mix adds to 110% of the reduction\. Remove 10%\./.test(sum), 'a 60/50 mix says it adds to 110% and to remove 10%');
+  ok(await p.locator('[data-action="ticket:place"][disabled]').count() === 1, 'and the seal is blocked while it does');
+  ok(await p.locator('.mixsum').getAttribute('aria-live') === 'polite', 'the panel announces its states');
+  await type('.mrow >> nth=0 >> .mamt', '41');
+  await type('.mrow >> nth=1 >> .mamt', '41');
+  ok(/Your mix covers 82% of the reduction\. Add 18% more\./.test(await panel()), 'under 100 says what is missing');
+  await type('.mrow >> nth=1 >> .mamt', '');
+  ok(/Every row needs a share above zero, or remove the row\./.test(await panel()), 'an empty share is named');
+  ok(await p.locator('.mrow >> nth=1').evaluate(el => el.classList.contains('bad')), 'and its row is marked');
 
-  /* Shortening the guarantee retires the windows that ran past it, and the
-     rows that were on one fall back rather than silently collapsing to the
-     shortest window in the list. */
+  /* The motivating example: $100 sticker, $80 effective, 50/50 is $10 and $10. */
+  await type('.mrow >> nth=0 >> .mamt', '50');
+  await type('.mrow >> nth=1 >> .mamt', '50');
+  await type('.trow .teff', '80');
+  sum = await panel();
+  ok(/reduction \$20\.00 \/mo/.test(sum) && (sum.match(/\$10\.00 \/mo/g) || []).length === 2, '$100 sticker, $80 effective, 50/50: two $10.00 line items');
+  ok(await p.locator('[data-action="ticket:place"]:not([disabled])').count() === 1, 'seal enabled');
+
+  /* A second tier under one shared mix: same shares, its own dollars. */
+  await type('.mrow >> nth=0 >> .mamt', '70');
+  await type('.mrow >> nth=1 >> .mamt', '30');
+  await p.click('[data-action="ticket:add"]');
+  await p.waitForTimeout(160);
+  ok(await p.locator('.trow').count() === 2, 'a second tier (100 Mbps, $65 sticker, $44 effective)');
+  sum = await panel();
+  ok(/\$14\.00 \/mo/.test(sum) && /\$6\.00 \/mo/.test(sum), '70/30 of the $20 gap is $14.00 and $6.00');
+  ok(/\$14\.70 \/mo/.test(sum) && /\$6\.30 \/mo/.test(sum), 'and of the $21 gap is $14.70 and $6.30, to the cent');
+  ok(/500 Mbps \$14\.00 · 100 Mbps \$14\.70 \/mo/.test(await p.locator('.mrow >> nth=0 >> .mamtv').innerText()),
+    'the shared editor shows each tier\u2019s dollars on the row');
+
+  /* Per tier. */
+  await p.click('.bmixall');
+  await p.waitForTimeout(160);
+  ok(!(await p.locator('.bmixall').isChecked()), 'unticking needs no dialog');
+  ok(await p.locator('.mixed[data-scope]').count() === 2 && await p.locator('.mixed[data-scope="shared"]').count() === 0,
+    'one editor per tier');
+  const heads = await p.locator('.mixhead').allInnerTexts();
+  ok(/500 Mbps/.test(heads[0]) && /reduction \$20\.00 \/mo/.test(heads[0]) && /100 Mbps/.test(heads[1]) && /reduction \$21\.00 \/mo/.test(heads[1]),
+    'each headed by its tier and its live reduction, in table order');
+  ok(await p.locator('.mixed[data-scope] >> nth=1 >> .mrow').count() === 2, 'each tier opened on a copy of the shared mix');
+  await p.click('.mixed[data-scope] >> nth=1 >> [data-action="ticket:mixrm"] >> nth=1');
+  await p.waitForTimeout(160);
+  ok(await p.locator('.mixed[data-scope] >> nth=1 >> .mrow').count() === 1
+    && await p.locator('.mixed[data-scope] >> nth=1 >> .mamt').inputValue() === '100',
+    'removing down to one row locks it back at 100%');
+  sum = await panel();
+  ok(/\$21\.00 \/mo/.test(sum) && /\$14\.00 \/mo/.test(sum) && !/\$14\.70/.test(sum), 'the two tiers now carry different mixes');
+
+  /* Ticking apply-to-all asks first, every time, and says what it replaces. */
+  await p.click('.bmixall');
+  await p.waitForTimeout(160);
+  ok(await p.locator('#modal').isVisible() && /Apply one mix to all tiers\?/.test(await p.locator('#modal').innerText()),
+    'ticking it opens the dialog');
+  ok(/500 Mbps and 100 Mbps/.test(await p.locator('#modal').innerText()), 'which names the tiers being replaced');
+  await p.click('#modal [data-mclose]');
+  await p.waitForTimeout(160);
+  ok(!(await p.locator('#modal').isVisible()) && !(await p.locator('.bmixall').isChecked()) && await p.locator('.mixed[data-scope]').count() === 2,
+    'keeping them leaves the per-tier editors and the box unticked');
+  await p.click('.bmixall');
+  await p.waitForTimeout(160);
+  await p.click('[data-action="ticket:mixall-yes"]');
+  await p.waitForTimeout(160);
+  ok(await p.locator('.bmixall').isChecked() && await p.locator('.mixed[data-scope="shared"]').count() === 1, 'replacing returns the one shared editor');
+  ok(/\$14\.70 \/mo/.test(await panel()), 'and the shared 70/30 applies to every tier again');
+  await p.click('.bmixall');
+  await p.waitForTimeout(160);
+  ok(await p.locator('.mixed[data-scope] >> nth=1 >> .mrow').count() === 1, 'unticking again restores the per-tier edit from session memory');
+
+  /* Guarantee length moves the totals; the mix needs no clamping. */
   await p.selectOption('.bguar', '12');
   await p.waitForTimeout(200);
-  const windows = await p.locator('.mrow:nth-child(1) .mper option').allInnerTexts();
-  ok(windows.length === 3 && windows.every(w => !/24|36/.test(w)),
-    'a 12 month guarantee offers only windows that close inside it');
-  ok(await p.locator('.mrow:nth-child(1) .mper').inputValue() === '0-12',
-    'and a row that ran to 24 falls back to the widest window that still fits');
+  sum = await panel();
+  ok(/12-month guarantee/i.test(sum) && /\$240\.00/.test(sum) && /\$252\.00/.test(sum), 'a 12 month guarantee totals $240.00 and $252.00');
 
-  /* Leaving custom puts the schedule away without losing the bid. */
+  /* Gap zero and a negative gap, each on its own tier. */
+  await type('.trow >> nth=1 >> .teff', '65');
+  ok(/no reduction to name/.test(await panel()) && await p.locator('.mixed[data-scope]').count() === 1,
+    'sticker equal to effective is a note, not an error, and that tier has no editor');
+  ok(await p.locator('[data-action="ticket:place"]:not([disabled])').count() === 1, 'the other tier still seals');
+  await type('.trow >> nth=1 >> .teff', '70');
+  ok(/cannot sit above sticker/.test(await panel()) && await p.locator('[data-action="ticket:place"][disabled]').count() === 1,
+    'effective above sticker is an error on that tier and blocks the seal');
+  await type('.trow >> nth=1 >> .teff', '44');
+
+  /* Leaving custom puts the mix away without losing it. */
   await p.selectOption('.bmech', 'member');
   await p.waitForTimeout(150);
-  ok(!(await p.locator('.mixw').isVisible()), 'leaving custom puts the schedule away');
-  ok(await p.locator('[data-action="ticket:place"]:not([disabled])').count() === 1,
-    'and the seal no longer waits on a confirmation about a mix nobody is offering');
+  ok(!(await p.locator('.mixw').isVisible()) && await p.locator('[data-action="ticket:place"]:not([disabled])').count() === 1,
+    'leaving custom hides the mix and consent alone seals');
+  await p.selectOption('.bmech', 'custom');
+  await p.waitForTimeout(150);
+  ok(!(await p.locator('.bmixall').isChecked()) && await p.locator('.mixed[data-scope] >> nth=1 >> .mrow').count() === 1,
+    'coming back finds the per-tier mix as it was');
+
+  /* Seal: the body carries shares per tier, and the seed carries the mix
+     forward to the next form, per tier exactly as set. */
+  await p.evaluate(() => {
+    const api = window.WHOLLAR.console.api;
+    const orig = api.bidPlace;
+    window.__sent = null;
+    api.bidPlace = function (b) { window.__sent = JSON.parse(JSON.stringify(b)); return orig.apply(this, arguments); };
+  });
+  await p.click('[data-action="ticket:place"]');
+  await p.waitForTimeout(250);
+  const sent = await p.evaluate(() => window.__sent);
+  ok(sent && sent.discountMix && sent.discountMix.applyToAll === false && sent.discountMix.tiers.length === 2,
+    'the seal body carries the mix per tier');
+  ok(sent && sent.discountMix.tiers[0].rows.length === 2 && sent.discountMix.tiers[1].rows.length === 1
+    && sent.discountMix.tiers[0].rows.map(r => r.sharePct).join('/') === '70/30',
+    'shares only: 70/30 on one tier, a single row on the other, no money in the body');
+  ok(sent && sent.mechanismLabel === 'Member discount, Promotional credit', 'and the derived label beside it');
+  const seed = await p.evaluate(() => JSON.parse(localStorage.getItem('whollar.partner.bidseed') || 'null'));
+  ok(seed && seed.draft && seed.draft.mix && seed.draft.mix.applyToAll === false && seed.draft.mix.perTierByName['100 Mbps'].length === 1,
+    'the stored seed keeps the per-tier mix, keyed by tier name');
+  await p.goto(`${BASE}/partner?fixture=open`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(120);
+  await p.click('[data-action="desk:open"]');
+  await p.waitForTimeout(200);
+  ok(/Filled in from the terms you last sealed/.test(await form()), 'the next form opens on the sealed terms');
+  ok(await p.locator('.bmech').inputValue() === 'custom' && !(await p.locator('.bmixall').isChecked()),
+    'custom, per tier, as it was sealed');
+  ok(await p.locator('.mixed[data-scope]').count() === 2
+    && await p.locator('.mixed[data-scope] >> nth=0 >> .mamt >> nth=0').inputValue() === '70'
+    && await p.locator('.mixed[data-scope] >> nth=1 >> .mrow').count() === 1,
+    'both mixes hydrated, 70/30 and the single row');
   await c.close();
 }
 
+console.log('\n16d. a sealed custom mix reopens for improvement exactly as sealed');
+{
+  const c = await ctx(browser, { record: REC, me: APPROVED });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/partner?fixture=mixed`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(120);
+  await p.click('[data-action="desk:open"]');
+  await p.waitForTimeout(150);
+  ok(/reduction reads as Member discount, Promotional credit/.test(await p.locator('.tkt').innerText()), 'the receipt names the mix');
+  await p.click('[data-action="ticket:improve"]');
+  await p.waitForTimeout(200);
+  ok(await p.locator('.bmech').inputValue() === 'custom' && !(await p.locator('.bmixall').isChecked()), 'the improve form opens custom, per tier');
+  ok(await p.locator('.mixed[data-scope]').count() === 2, 'one editor per sealed tier');
+  const shares = await p.locator('.mixed[data-scope] >> nth=0 >> .mamt').evaluateAll(els => els.map(e => e.value));
+  ok(shares.join('/') === '60/40', '500 Mbps hydrates its 60/40');
+  ok(await p.locator('.mixed[data-scope] >> nth=1 >> .mtype').inputValue() === 'own'
+    && await p.locator('.mixed[data-scope] >> nth=1 >> .mown').inputValue() === 'Neighbourhood build rate',
+    '1 Gig hydrates its own-worded single row');
+  const sum = await p.locator('.mixsum').innerText();
+  ok(/\$18\.00 \/mo/.test(sum) && /\$12\.00 \/mo/.test(sum) && /\$35\.00 \/mo/.test(sum), 'and the panel shows the sealed cents');
+
+  /* Four widths with the per-tier editors open: nothing overflows and the
+     apply-to-all row spans the block edge to edge. */
+  for (const w of [1280, 940, 768, 390]) {
+    await p.setViewportSize({ width: w, height: 900 });
+    await p.waitForTimeout(150);
+    const over = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    ok(over <= 1, `${w}px: no horizontal overflow with the mix open (${over})`);
+    const widths = await p.evaluate(() => {
+      const a = document.querySelector('.mixall').getBoundingClientRect();
+      const b = document.querySelector('.mixw').getBoundingClientRect();
+      return [Math.round(a.width), Math.round(b.width)];
+    });
+    ok(Math.abs(widths[0] - widths[1]) <= 2, `${w}px: the apply-to-all row spans the mix block (${widths[0]} of ${widths[1]})`);
+  }
+  await c.close();
+}
 console.log('\n16c. terms carry to the next cohort, and nothing binding carries with them');
 {
   const c = await ctx(browser, { record: REC, me: APPROVED });

@@ -447,7 +447,11 @@
     bid: {
       campaignId: 'str',
       state: ['enum', ['sealed', 'improved', 'locked', 'won', 'not_selected']],
-      tiers: 'arr'
+      tiers: 'arr',
+      /* The sealed custom mix, or null on every other reduction read. An
+         object, never the shares array the composer holds: the record carries
+         cents per tier, and the ticket hydrates from that. */
+      discountMix: 'obj?'
     },
 
     /* What a place or improve returns: the new head and the sealed receipt. */
@@ -3616,6 +3620,281 @@
   };
 
   /* ==================================================================
+     core/mixmath.js
+     ================================================================== */
+  __defs["core/mixmath.js"] = function (__exports, __require, root) {
+  /* The custom mix: shares of the reduction, turned into cents that add up.
+   *
+   * THE MIX ALLOCATES THE GAP, NOT THE STICKER. A tier has a sticker price (the
+   * rate card) and an effective price (what the cohort pays), and the reduction
+   * between them is a fixed number of cents. A custom mix names that reduction
+   * in parts: each row claims a share of it, the shares total 100%, and the
+   * effective price the partner typed is never recomputed from the mix. So a
+   * valid mix always reconciles to the effective price by construction, which
+   * is why there is no "the mix averages to a different figure" state here.
+   *
+   * An earlier version read each row as a percentage OFF STICKER, so two rows of
+   * 50% came to 100% off and a $0 tier. That is the defect this module replaces.
+   *
+   * ONE SOURCE, TWO RUNTIMES. The console composes the mix and shows the money
+   * live; the server validates the same rows and seals the same cents. Both must
+   * land on the same cent, so this file is the only place the arithmetic lives:
+   * scripts/build-mixmath.mjs emits the CommonJS copy the Catalyst function
+   * requires, and its --check gate keeps the two identical. No imports here, on
+   * purpose: the generator is a text transform and the module has to stand
+   * alone.
+   *
+   * ALL MONEY IS INTEGER CENTS. Shares are integer tenths of a percent (33.3%
+   * is 333). Nothing in here touches a float where a cent is decided.
+   */
+
+  var MIX_MAX_ROWS = 5;
+
+  /* The reduction reads offered on the ticket minus 'none', which is the absence
+     of a breakdown and cannot be a line in one, plus a row the partner words
+     themselves. */
+  var MIX_TYPES = ['member', 'promo', 'cash', 'own'];
+
+  var MIX_TYPE_LABEL = {
+    member: 'Whollar member discount',
+    promo: 'Promotional credit',
+    cash: 'Monthly cashback',
+    own: 'Other, your wording'
+  };
+
+  /* The name households see on the line item. 'own' takes the partner's label. */
+  var MIX_TYPE_SHORT = {
+    member: 'Member discount',
+    promo: 'Promotional credit',
+    cash: 'Monthly cashback',
+    own: ''
+  };
+
+  /* A line-item label is free text echoed to households, so it is validated
+     rather than merely stored: display charset only, and none of the pressure
+     or condition language the standard cohort terms forbid. The server applies
+     the same two rules to the derived mechanism label. */
+  var LABEL_RE = /^[A-Za-z0-9][A-Za-z0-9 ,.'&-]{2,39}$/;
+  var LABEL_BANNED = /today only|limited time|expires|last chance|hurry|act now|bundle|autopay|auto[- ]pay/i;
+
+  /** A canonical money string ("56.00", "86") or number, as integer cents. Null when it is not money. */
+  function toCents(v) {
+    if (v === null || v === undefined || v === '') return null;
+    var n = Number(String(v).replace(/[$,\s]/g, ''));
+    if (!isFinite(n)) return null;
+    return Math.round(n * 100);
+  }
+
+  /** Integer cents as a two-decimal string, "25.00". */
+  function centsStr(c) {
+    var n = Math.round(Number(c) || 0);
+    var neg = n < 0;
+    n = Math.abs(n);
+    var whole = Math.floor(n / 100);
+    var frac = n % 100;
+    return (neg ? '-' : '') + String(whole) + '.' + (frac < 10 ? '0' : '') + String(frac);
+  }
+
+  /**
+   * A typed share as integer tenths of a percent, or null when it is not one.
+   *
+   * One decimal place at most, 0 to 100 inclusive. A comma is read as the
+   * decimal mark too, so a partner on a fr-CA keyboard is not told 33,3 is not
+   * a number. Anything else (a second decimal, a sign, letters, empty) is null,
+   * and the caller decides what to say about it.
+   */
+  function shareTenths(v) {
+    if (v === null || v === undefined) return null;
+    var s = String(v).trim().replace(',', '.');
+    if (!/^[0-9]{1,3}(\.[0-9])?$/.test(s)) return null;
+    var t = Math.round(Number(s) * 10);
+    if (t < 0 || t > 1000) return null;
+    return t;
+  }
+
+  /** Tenths as the figure a partner reads: 333 -> "33.3", 500 -> "50". */
+  function fmtShare(t) {
+    var n = Math.round(Number(t) || 0);
+    var whole = Math.floor(Math.abs(n) / 10);
+    var tenth = Math.abs(n) % 10;
+    return (n < 0 ? '-' : '') + String(whole) + (tenth ? '.' + String(tenth) : '');
+  }
+
+  /** The line-item name a row carries: the partner's wording on 'own', the type's short name otherwise. */
+  function rowLabel(r) {
+    if (!r) return '';
+    if (r.type === 'own') return String(r.label || '').trim();
+    return MIX_TYPE_SHORT[r.type] || '';
+  }
+
+  /**
+   * Split `gapCents` across rows by their shares, in whole cents, exactly.
+   *
+   * Largest remainder: each row takes the floor of its share, then the cents
+   * that flooring left over go one at a time to the rows with the largest
+   * fractional remainder, ties broken by row order. When the shares total 100%
+   * the amounts total the gap, every time, whatever the gap. When they do not,
+   * the floors are returned as they are: the live panel still shows a partner
+   * what each row comes to while the sum is being corrected, and nothing seals
+   * until it is.
+   */
+  function allocate(gapCents, tenthsList) {
+    var gap = Math.max(0, Math.round(Number(gapCents) || 0));
+    var list = tenthsList || [];
+    var n = list.length;
+    var floors = [];
+    var rems = [];
+    var total = 0;
+    var placed = 0;
+    var i;
+    for (i = 0; i < n; i++) {
+      var t = Math.max(0, Math.round(Number(list[i]) || 0));
+      var raw = gap * t;
+      floors[i] = Math.floor(raw / 1000);
+      rems[i] = raw % 1000;
+      total += t;
+      placed += floors[i];
+    }
+    if (total !== 1000 || n === 0) return floors;
+    var order = [];
+    for (i = 0; i < n; i++) order.push(i);
+    order.sort(function (a, b) { return rems[b] - rems[a] || a - b; });
+    var left = gap - placed;
+    for (i = 0; i < left; i++) floors[order[i % n]] += 1;
+    return floors;
+  }
+
+  /**
+   * Whether these rows are a mix that can seal, and what to say if not.
+   *
+   *   rows      [{ type, label, sharePct }], sharePct as typed
+   *   returns   { ok, sumTenths, rows: [{ tenths, problem }], problems, warnings }
+   *
+   * Problems block the seal; warnings do not. A single row carries the whole
+   * reduction whatever its share input says, because the console locks that
+   * input at 100 and the server should not refuse what the console could not
+   * type. The copy is here, not in the views, so the console and the server's
+   * 400 say the same sentence.
+   */
+  function checkMix(rows) {
+    var out = { ok: true, sumTenths: 0, rows: [], problems: [], warnings: [] };
+    var list = rows || [];
+    if (!list.length) {
+      out.ok = false;
+      out.problems.push('Give the mix at least one discount.');
+      return out;
+    }
+    if (list.length > MIX_MAX_ROWS) {
+      out.ok = false;
+      out.problems.push('A mix carries at most ' + MIX_MAX_ROWS + ' discounts.');
+    }
+    var single = list.length === 1;
+    var seen = {};
+    var dup = false;
+    var rowProblems = [];
+    list.forEach(function (r) {
+      var row = r || {};
+      var t = single ? 1000 : shareTenths(row.sharePct);
+      var problem = null;
+      if (t === null) {
+        problem = String(row.sharePct === undefined || row.sharePct === null ? '' : row.sharePct).trim() === ''
+          ? 'Every row needs a share above zero, or remove the row.'
+          : 'Enter each share as a number from 0.1 to 100, with one decimal at most.';
+      } else if (t === 0) {
+        problem = 'Every row needs a share above zero, or remove the row.';
+      }
+      if (MIX_TYPES.indexOf(row.type) < 0) {
+        problem = problem || 'Pick a discount type on every row.';
+      }
+      var name = rowLabel(row);
+      if (row.type === 'own') {
+        if (!name) problem = problem || 'Give this discount a name households will see.';
+        else if (!LABEL_RE.test(name)) problem = problem || 'Name this discount in 3 to 40 plain characters.';
+        else if (LABEL_BANNED.test(name)) problem = problem || 'That name reads as pressure or a condition. The standard terms keep reductions unconditional.';
+      }
+      var key = name.toLowerCase();
+      if (key) {
+        if (seen[key]) dup = true;
+        seen[key] = true;
+      }
+      out.rows.push({ tenths: t === null ? 0 : t, problem: problem });
+      out.sumTenths += t === null ? 0 : t;
+      if (problem && rowProblems.indexOf(problem) < 0) rowProblems.push(problem);
+    });
+    if (!single && out.sumTenths !== 1000) {
+      out.ok = false;
+      out.problems.push(out.sumTenths < 1000
+        ? 'Your mix covers ' + fmtShare(out.sumTenths) + '% of the reduction. Add ' + fmtShare(1000 - out.sumTenths) + '% more.'
+        : 'Your mix adds to ' + fmtShare(out.sumTenths) + '% of the reduction. Remove ' + fmtShare(out.sumTenths - 1000) + '%.');
+    }
+    if (rowProblems.length) {
+      out.ok = false;
+      rowProblems.forEach(function (p) { out.problems.push(p); });
+    }
+    if (dup) out.warnings.push('Two rows share the same name; households will see them as separate line items.');
+    return out;
+  }
+
+  /**
+   * The sealed snapshot for one tier: the prices in cents, the gap, and each
+   * row's cents. This is the record households read, so the money is stored
+   * and never re-derived downstream.
+   *
+   *   tier   { name, stickerPrice, effectivePrice }
+   *   rows   [{ type, label, sharePct }], already through checkMix
+   *   guar   guarantee months; every row runs the whole guarantee
+   *
+   * A tier whose sticker equals its effective has nothing to name: gapCents is
+   * 0 and the mix is empty, which is a state and not an error. A negative gap is
+   * a Price by service error upstream and is reported as gapCents < 0 with an
+   * empty mix, so a caller can disable the editor for that tier.
+   */
+  function tierSnapshot(tier, rows, guar) {
+    var t = tier || {};
+    var sticker = toCents(t.stickerPrice) || 0;
+    var effective = toCents(t.effectivePrice) || 0;
+    var gap = sticker - effective;
+    var months = Number(guar) || 24;
+    var snap = { tier: t.name || '', stickerCents: sticker, effectiveCents: effective, gapCents: gap, mix: [] };
+    if (gap <= 0) return snap;
+    var list = rows || [];
+    var single = list.length === 1;
+    var tenths = list.map(function (r) {
+      var v = single ? 1000 : shareTenths((r || {}).sharePct);
+      return v === null ? 0 : v;
+    });
+    var amounts = allocate(gap, tenths);
+    snap.mix = list.map(function (r, i) {
+      var row = r || {};
+      return {
+        type: row.type,
+        label: rowLabel(row),
+        sharePct: fmtShare(tenths[i]),
+        amountCents: amounts[i],
+        periodStartMo: 0,
+        periodEndMo: months
+      };
+    });
+    return snap;
+  }
+
+  __exports.MIX_MAX_ROWS = MIX_MAX_ROWS;
+  __exports.MIX_TYPES = MIX_TYPES;
+  __exports.MIX_TYPE_LABEL = MIX_TYPE_LABEL;
+  __exports.MIX_TYPE_SHORT = MIX_TYPE_SHORT;
+  __exports.LABEL_RE = LABEL_RE;
+  __exports.LABEL_BANNED = LABEL_BANNED;
+  __exports.toCents = toCents;
+  __exports.centsStr = centsStr;
+  __exports.shareTenths = shareTenths;
+  __exports.fmtShare = fmtShare;
+  __exports.rowLabel = rowLabel;
+  __exports.allocate = allocate;
+  __exports.checkMix = checkMix;
+  __exports.tierSnapshot = tierSnapshot;
+  };
+
+  /* ==================================================================
      views/ticket.js
      ================================================================== */
   __defs["views/ticket.js"] = function (__exports, __require, root) {
@@ -3663,6 +3942,10 @@
   var TIER_NAMES = __ns6.TIER_NAMES, TECH = __ns6.TECH, TECH_LABEL = __ns6.TECH_LABEL, REDUCTION_LABEL = __ns6.REDUCTION_LABEL;
   var __ns7 = __require("core/bidseed.js");
   var readSeed = __ns7.readSeed, writeSeed = __ns7.writeSeed;
+  var __ns8 = __require("core/modal.js");
+  var openModal = __ns8.open, closeModal = __ns8.close;
+  var __ns9 = __require("core/mixmath.js");
+  var MIX_TYPES = __ns9.MIX_TYPES, MIX_TYPE_LABEL = __ns9.MIX_TYPE_LABEL, MIX_MAX_ROWS = __ns9.MIX_MAX_ROWS, checkMix = __ns9.checkMix, tierSnapshot = __ns9.tierSnapshot, rowLabel = __ns9.rowLabel, fmtShare = __ns9.fmtShare, centsStr = __ns9.centsStr;
 
   /* Suggested prices per tier, from the prototype (SUGG / SUGGUP / SUGGSTICKER,
      lines 2142-2143 and 2563). Suggestions only: everything is editable and the
@@ -3675,80 +3958,134 @@
    * the custom mix
    * ------------------------------------------------------------------ *
    *
-   * 'Custom' used to be one free-text label. It is now a schedule: a discount
-   * type, a percentage off the sticker price, and the window it runs for, one row
-   * per step, so a partner whose reduction changes at month 6 or month 12 can say
-   * so on the face of the bid instead of averaging it into a single effective
-   * price.
+   * 'Custom' is a mix: the reduction between a tier's sticker and its effective
+   * price, split into named parts. Each row claims a SHARE OF THAT REDUCTION,
+   * the shares total 100%, and the arithmetic (core/mixmath.js, one source for
+   * the console and the server) turns each share into cents per tier. The
+   * effective price the partner typed is never recomputed from the mix, so a
+   * valid mix reconciles to it by construction, and there is nothing for a
+   * partner to confirm about a figure the form did not invent.
    *
-   * THE MIX IS IN PERCENT, NOT DOLLARS. A rate card has several tiers at several
-   * sticker prices, and one dollar figure off all of them is a different offer on
-   * each: $22 off is 34% of a $65 tier and 16% of a $135 one. A percentage is the
-   * one figure that means the same thing on every row, so the schedule carries
-   * the percentage and the arithmetic turns it into dollars per tier, against
-   * that tier's own sticker.
+   * It used to be a percentage OFF STICKER per row, so two rows of 50%, which is
+   * what a partner means by "split it 50/50", came to 100% off and a $0 tier.
+   * Shares of the gap are the figure that means the same thing on every tier:
+   * the gap differs by tier, so the same shares are different dollars on each
+   * tier automatically.
    *
-   * The types are the reduction reads offered above minus 'none', which is the
-   * absence of a breakdown and cannot be a line in one, plus a row the partner
-   * words themselves.
+   * ONE MIX, OR ONE PER TIER. The state is { applyToAll, shared, perTier }.
+   * With applyToAll on, `shared` is the mix and applies to every tier; off,
+   * each tier row has its own list in `perTier`, keyed by the tier row's rid, a
+   * client-only id, so a mix follows its row through a dropdown change and two
+   * rows that happen to name the same tier stay distinct. Both branches are
+   * kept for the session so toggling restores what was typed; only the branch
+   * in force is sealed.
    *
-   * NOT YET SEALED. lib/bids.js readBid() still takes a single mechanismLabel
-   * and knows nothing about a schedule, so mixLabel() derives a label the server
-   * accepts and the schedule itself does not survive the seal. Persisting it
-   * needs a discount_mix column on provider_bids and its validation; until then
-   * this is the composer, not the record.
+   * EVERY ROW RUNS THE WHOLE GUARANTEE. A row that stopped at month 12 of a
+   * 24-month guarantee would make the household's price change at month 13,
+   * which contradicts the single effective price the consent line promises and
+   * the per-tier comparison the improvement rule makes. The sealed record still
+   * carries periodStartMo 0 and periodEndMo = guarantee on every row, so the
+   * shape is ready if that ever changes.
+   *
+   * SEALED. The body sends shares; lib/bids.js readBid() recomputes the cents
+   * with the same mixmath and stores the snapshot in provider_bids.discount_mix
+   * and in the revision payload. The improve form and the next cohort's form
+   * hydrate from that snapshot, per-tier or shared exactly as it was set.
    */
-  var MIX_TYPES = ['member', 'promo', 'cash', 'own'];
-  /* Shorter than the reduction select above on purpose: the period column
-     already states the expiry, so 'expiry stated' would be the table repeating
-     the column beside it. */
-  var MIX_TYPE_LABEL = {
-    member: 'Whollar member discount',
-    promo: 'Promotional credit',
-    cash: 'Monthly cashback',
-    own: 'Other, your wording'
-  };
-  /* Short forms, for the label the seal carries. Kept clear of the pressure and
-     condition words lib/bids.js LABEL_BANNED refuses. */
-  var MIX_TYPE_SHORT = {
-    member: 'Member discount', promo: 'Promotional credit', cash: 'Monthly cashback', own: ''
-  };
-  /* Windows, in months from the start of service. Only those that close inside
-     the guarantee are offered: a discount running past the guaranteed price is a
-     promise about a price this bid does not make. */
-  var MIX_PERIODS = [[0, 6], [0, 12], [0, 24], [0, 36], [6, 12], [12, 24], [24, 36]];
 
-  function periodLabel(p) { return p[0] + ' to ' + p[1] + ' months'; }
+  function newRid() {
+    return 'r' + Math.random().toString(36).slice(2, 8);
+  }
+
+  function defaultRow() { return { type: 'member', label: '', sharePct: '100' }; }
+  function copyRow(r) {
+    var x = r || {};
+    return { type: x.type, label: x.label || '', sharePct: String(x.sharePct === undefined || x.sharePct === null ? '' : x.sharePct) };
+  }
+  function copyRows(rows) { return (rows || []).map(copyRow); }
+  function defaultMix() { return { applyToAll: true, shared: [defaultRow()], perTier: {} }; }
+
+  /** Every tier row carries a rid; rows read back from a seed or a seal get one here. */
+  function withRids(tiers) {
+    return (tiers || []).map(function (t) {
+      if (t.rid) return t;
+      var c = {};
+      for (var k in t) if (Object.prototype.hasOwnProperty.call(t, k)) c[k] = t[k];
+      c.rid = newRid();
+      return c;
+    });
+  }
+
+  /** The rows in force for one tier row (rid null reads the shared mix). */
+  function rowsFor(mix, rid) {
+    var m = mix || defaultMix();
+    if (m.applyToAll !== false) return m.shared && m.shared.length ? m.shared : [defaultRow()];
+    var own = m.perTier && m.perTier[rid];
+    return own && own.length ? own : [defaultRow()];
+  }
+
+  function isAll(t) { return !(t.mix && t.mix.applyToAll === false); }
 
   /**
-   * The window a row renders on, given the windows a guarantee leaves standing.
+   * Every tier's snapshot and check, and whether the whole mix can seal.
+   * -> { ok, problem, tiers: [{ tier, rid, snap, check }] }
    *
-   * Shortening the guarantee retires the windows that ran past it, and a select
-   * with nothing selected shows its first option, which would silently move
-   * every row to the shortest window in the list. So fall back to the widest
-   * window that still starts where this row started.
+   * Computed whether or not custom is the chosen read, because the block is
+   * rendered hidden under the other reads and has to be right when it opens.
+   * Callers gate on reductionPresentation.
    */
-  function windowFor(r, fits, guar) {
-    var pick = null;
-    fits.forEach(function (p) { if (Number(r.from) === p[0] && Number(r.to) === p[1]) pick = p; });
-    if (!pick) fits.forEach(function (p) { if (Number(r.from) === p[0]) pick = p; });
-    return pick || fits[fits.length - 1] || [0, guar];
+  function mixStatus(t) {
+    var out = { ok: true, problem: null, tiers: [] };
+    var all = isAll(t);
+    var any = false;
+    (t.tiers || []).forEach(function (tier) {
+      var rows = rowsFor(t.mix, tier.rid);
+      var snap = tierSnapshot(tier, rows, t.guaranteeMonths || 24);
+      var check = snap.gapCents > 0 ? checkMix(rows) : null;
+      if (snap.gapCents > 0) any = true;
+      if (snap.gapCents < 0) {
+        out.ok = false;
+        out.problem = out.problem || ('Effective price cannot sit above sticker on ' + tier.name + '.');
+      } else if (check && !check.ok) {
+        out.ok = false;
+        out.problem = out.problem || ((all ? '' : tier.name + ': ') + check.problems[0]);
+      }
+      out.tiers.push({ tier: tier, rid: tier.rid, snap: snap, check: check });
+    });
+    if (out.tiers.length && !any && out.ok) {
+      out.ok = false;
+      out.problem = 'Sticker and effective match on every tier, so there is no reduction to name. Choose "Effective price only, no breakdown".';
+    }
+    return out;
   }
 
-  /** Amount rounded to cents and rendered by the shared money(). */
-  function cash(n) {
-    return money(String(Math.round((Number(n) || 0) * 100) / 100));
+  /** Whether the seal may proceed as far as the mix is concerned. */
+  function mixOk(t) {
+    return t.reductionPresentation !== 'custom' || mixStatus(t).ok;
   }
 
-  /** A percentage at one decimal, with a trailing '.0' dropped. */
-  function pct(n) {
-    var v = Math.round((Number(n) || 0) * 10) / 10;
-    return (v % 1 === 0 ? String(v) : v.toFixed(1)) + '%';
+  /** "$1,470.00", always two decimals: these are line items households read. */
+  function dollars(c) {
+    var s = centsStr(c);
+    var neg = s.charAt(0) === '-';
+    var parts = (neg ? s.slice(1) : s).split('.');
+    return (neg ? '-$' : '$') + parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + parts[1];
   }
 
-  /** What one row takes off a sticker price, in dollars per month. */
-  function rowOff(r, stk) {
-    return (Number(stk) || 0) * (Number(r.percentOff) || 0) / 100;
+  /** What each row of an editor comes to, per tier it applies to: "50% · $25.00 /mo". */
+  function amountTexts(scope, rows, st) {
+    var check = checkMix(rows);
+    var tiers = st.tiers.filter(function (x) {
+      return x.snap.gapCents > 0 && (scope === 'shared' || x.rid === scope);
+    });
+    return rows.map(function (r, i) {
+      var t = check.rows[i] ? check.rows[i].tenths : 0;
+      var per = tiers.map(function (x) {
+        var row = x.snap.mix[i];
+        return (tiers.length > 1 ? x.tier.name + ' ' : '') + dollars(row ? row.amountCents : 0);
+      });
+      return fmtShare(t) + '%' + (per.length ? ' · ' + per.join(' · ') + ' /mo' : '');
+    });
   }
 
   /* ------------------------------------------------------------------ *
@@ -3787,7 +4124,7 @@
     var topts = TECH.map(function (c) {
       return '<option value="' + c + '"' + (c === (t.technology || 'cable') ? ' selected' : '') + '>' + TECH_LABEL[c] + '</option>';
     }).join('');
-    return '<tr class="trow" data-i="' + i + '">'
+    return '<tr class="trow" data-i="' + i + '" data-rid="' + esc(t.rid || '') + '">'
       + '<td><select class="tname" data-action="ticket:field">' + opts + '</select></td>'
       + '<td><input type="text" class="tup" data-action="ticket:field" value="' + esc(t.uploadMbps || '') + '"></td>'
       + '<td><select class="ttech" data-action="ticket:field">' + topts + '</select></td>'
@@ -3797,95 +4134,92 @@
       + '<td>' + (i > 0 ? '<button type="button" class="trm" data-action="ticket:rm" data-i="' + i + '" aria-label="Remove tier">×</button>' : '') + '</td></tr>';
   }
 
-  /** One row of the mix: type, amount, window. Same table furniture as the tiers. */
-  function mixRowHTML(r, i, guar) {
+  /**
+   * One row of the mix: type (with the partner's own wording when chosen), the
+   * share, and what that share comes to. Same table furniture as the tiers.
+   *
+   * A single row carries the whole reduction, so its share is shown as 100 and
+   * locked: there is nothing to split. The lock releases the moment a second
+   * row exists.
+   */
+  function mixRowHTML(r, i, scope, amountText, problem, single) {
     var topts = MIX_TYPES.map(function (k) {
       return '<option value="' + k + '"' + (k === r.type ? ' selected' : '') + '>' + MIX_TYPE_LABEL[k] + '</option>';
     }).join('');
-    var fits = MIX_PERIODS.filter(function (p) { return p[1] <= guar; });
-    var pick = windowFor(r, fits, guar);
-    var popts = fits.map(function (p) {
-      var on = pick[0] === p[0] && pick[1] === p[1];
-      return '<option value="' + p[0] + '-' + p[1] + '"' + (on ? ' selected' : '') + '>' + periodLabel(p) + '</option>';
-    }).join('');
-    return '<tr class="mrow" data-i="' + i + '">'
-      + '<td><select class="mtype" data-action="ticket:field">' + topts + '</select>'
-      + '<input type="text" class="mown" data-action="ticket:field" placeholder="e.g. Neighbourhood build rate" maxlength="40" value="'
+    return '<tr class="mrow' + (problem ? ' bad' : '') + '" data-i="' + i + '">'
+      + '<td><select class="mtype" data-action="ticket:field" aria-label="Discount type">' + topts + '</select>'
+      + '<input type="text" class="mown" data-action="ticket:field" placeholder="e.g. Neighbourhood build rate" maxlength="40" aria-label="Discount name households will see" value="'
       + esc(r.label || '') + '"' + (r.type === 'own' ? '' : ' hidden') + '></td>'
-      + '<td><input type="number" class="mamt" data-action="ticket:field" value="' + esc(r.percentOff || '') + '" min="0" max="100" step="1"></td>'
-      + '<td><select class="mper" data-action="ticket:field">' + popts + '</select></td>'
-      + '<td>' + (i > 0 ? '<button type="button" class="trm" data-action="ticket:mixrm" data-i="' + i + '" aria-label="Remove discount">×</button>' : '') + '</td></tr>';
+      + '<td><input type="number" class="mamt" data-action="ticket:field" value="' + esc(single ? '100' : (r.sharePct || '')) + '" min="0" max="100" step="0.1" inputmode="decimal" aria-label="Share of the reduction, percent"' + (single ? ' readonly' : '') + '>'
+      + '<small class="mamtv">' + esc(amountText || '') + '</small>'
+      + (single ? '<small class="hint">One row carries the whole reduction.</small>' : '') + '</td>'
+      + '<td>' + (single ? '' : '<button type="button" class="trm" data-action="ticket:mixrm" data-scope="' + esc(scope) + '" data-i="' + i + '" aria-label="Remove discount">×</button>') + '</td></tr>';
   }
+
+  /** One editor: the rows of one mix, shared or for one tier. */
+  function mixEditorHTML(scope, rows, head, st) {
+    var check = checkMix(rows);
+    var texts = amountTexts(scope, rows, st);
+    var single = rows.length === 1;
+    return '<div class="mixed" data-scope="' + esc(scope) + '">'
+      + (head ? '<div class="mixhead">' + head + '</div>' : '')
+      + '<table class="tiert mixt"><thead><tr><th>Discount type</th><th>Share of reduction, %</th><th></th></tr></thead><tbody class="mixbody">'
+      + rows.map(function (r, i) { return mixRowHTML(r, i, scope, texts[i], check.rows[i] && check.rows[i].problem, single); }).join('')
+      + '</tbody></table>'
+      + (rows.length < MIX_MAX_ROWS
+        ? '<button type="button" class="taddrow" data-action="ticket:mixadd" data-scope="' + esc(scope) + '">+ Add another discount</button>'
+        : '<small class="hint">A mix carries at most ' + MIX_MAX_ROWS + ' discounts.</small>')
+      + '</div>';
+  }
+
+  function noteHTML(cls, text) { return '<p class="' + cls + '">' + esc(text) + '</p>'; }
 
   /**
-   * What the mix comes to over the whole guarantee, and what that makes the
-   * average effective price per tier.
+   * The arithmetic on the right: per tier, the prices, the reduction, each named
+   * line item in the cents the seal will record, and the total across the
+   * guarantee. Validation states live here too, once when one mix applies to
+   * every tier and under each tier otherwise.
    *
-   * The schedule is in percent, so the dollars are per tier: each row takes its
-   * percentage off THAT tier's sticker, for the months it runs. The percentage is
-   * the one figure common to every tier, so the header states the weighted
-   * average percentage and each tier row states the money it comes to.
-   *
-   * The tier table already carries an effective price, so the two can disagree:
-   * a partner can schedule 40% off for six months and still type $56 effective.
-   * Neither is wrong on its own, so this states both and names the tiers where
-   * they part company. Households are shown the effective price either way,
-   * which is why the confirmation below asks about that number specifically.
+   * No average, no "% off sticker": the mix is a decomposition of a reduction
+   * the tier row already states, so there is nothing to average and nothing
+   * that can disagree with the effective price.
    */
-  function mixSummaryHTML(tiers, mix, guar) {
-    var months = guar || 24;
-    /* Percent-months: the weighted average percentage over the guarantee, which
-       comes out the same on every tier and so belongs above the per-tier rows. */
-    var pctMonths = 0;
-    mix.forEach(function (r) {
-      var from = Math.min(Number(r.from) || 0, months);
-      var to = Math.min(Number(r.to) || 0, months);
-      if (to > from) pctMonths += (Number(r.percentOff) || 0) * (to - from);
-    });
-    var avgPct = months ? pctMonths / months : 0;
-
-    /* A month where the rows running together come to more than the sticker is
-       not a price, so count those months rather than clamping in silence. */
-    var over = 0;
-    for (var m = 0; m < months; m++) {
-      var at = 0;
-      mix.forEach(function (r) {
-        if (m >= (Number(r.from) || 0) && m < (Number(r.to) || 0)) at += Number(r.percentOff) || 0;
-      });
-      if (at > 100) over++;
+  function mixSummaryHTML(t, st) {
+    var months = t.guaranteeMonths || 24;
+    var all = isAll(t);
+    var html = '<h4>Across the ' + months + '-month guarantee</h4>';
+    if (all) {
+      var shared = checkMix(rowsFor(t.mix, null));
+      html += shared.problems.map(function (p) { return noteHTML('mixerr', p); }).join('')
+        + shared.warnings.map(function (w) { return noteHTML('mixwarn', w); }).join('');
     }
-
-    var off = [];
-    var rows = tiers.map(function (t) {
-      var stk = Number(t.stickerPrice) || 0;
-      var eff = Number(t.effectivePrice) || 0;
-      var total = 0;
-      mix.forEach(function (r) {
-        var from = Math.min(Number(r.from) || 0, months);
-        var to = Math.min(Number(r.to) || 0, months);
-        if (to > from) total += rowOff(r, stk) * (to - from);
-      });
-      var avgOff = months ? total / months : 0;
-      var avgEff = Math.max(0, stk - avgOff);
-      if (stk && Math.abs(avgEff - eff) > 0.5) off.push(t.name);
-      return '<div class="mixrow"><span>' + esc(t.name || 'Tier') + '</span>'
-        + '<em>sticker ' + cash(stk) + ', less ' + cash(avgOff) + ' /mo, '
-        + money(String(Math.round(total))) + ' total</em>'
-        + '<b>' + cash(avgEff) + ' /mo</b></div>';
-    }).join('');
-
-    return '<h4>Across the ' + months + '-month guarantee</h4>'
-      + '<div class="mixrow"><span>Average discount</span><b>' + pct(avgPct) + ' off sticker</b></div>'
-      + rows
-      + (over
-        ? '<p class="mixwarn">The rows running together take more than the sticker price in '
-          + over + (over === 1 ? ' month' : ' months') + '. Trim the percentages so no month passes 100%.</p>'
-        : '')
-      + (off.length
-        ? '<p class="mixwarn">The mix averages to a different figure than the effective price entered on '
-          + esc(off.join(', ')) + '. Households are shown the effective price.</p>'
-        : '');
+    st.tiers.forEach(function (x) {
+      var s = x.snap;
+      html += '<div class="mixtier"><div class="mixrow"><span>' + esc(x.tier.name || 'Tier') + '</span>'
+        + '<em>sticker ' + dollars(s.stickerCents) + ' · effective ' + dollars(s.effectiveCents) + '</em>'
+        + '<b>' + (s.gapCents > 0 ? 'reduction ' + dollars(s.gapCents) + ' /mo' : (s.gapCents === 0 ? 'no reduction' : '')) + '</b></div>';
+      if (s.gapCents < 0) {
+        html += noteHTML('mixerr', 'Effective price cannot sit above sticker on this tier. Fix the price row first.');
+      } else if (s.gapCents === 0) {
+        html += noteHTML('mixnote', 'Sticker and effective match on this tier, so there is no reduction to name.');
+      } else {
+        s.mix.forEach(function (r) {
+          html += '<div class="mixrow sub"><span>' + esc(r.label || 'Unnamed discount') + '</span><em>' + esc(r.sharePct) + '%</em><b>' + dollars(r.amountCents) + ' /mo</b></div>';
+        });
+        s.mix.forEach(function (r) {
+          if (r.amountCents === 0) html += noteHTML('mixwarn', (r.label || 'One step') + ' rounds to $0 /mo at this gap.');
+        });
+        html += '<div class="mixrow tot"><span>Across ' + months + ' months</span><b>' + dollars(s.gapCents) + ' /mo · ' + dollars(s.gapCents * months) + '</b></div>';
+        if (!all && x.check) {
+          html += x.check.problems.map(function (p) { return noteHTML('mixerr', p); }).join('')
+            + x.check.warnings.map(function (w) { return noteHTML('mixwarn', w); }).join('');
+        }
+      }
+      html += '</div>';
+    });
+    return html;
   }
+
 
   /* ------------------------------------------------------------------ *
    * carrying terms forward
@@ -3895,8 +4229,8 @@
    * open the next form, and every one of them is editable before it is sealed.
    *
    * WHAT IS NOT CARRIED, and why each one:
-   *   consent, mixConfirmed   affirmations about THIS cohort's numbers. A bid is
-   *                           sealed and binding; a pre-ticked box is a bid
+   *   consent                 an affirmation about THIS cohort's numbers. A bid
+   *                           is sealed and binding; a pre-ticked box is a bid
    *                           nobody agreed to. Always false on a seeded form.
    *   committedHouseholds     capped at the new cohort's size. 64 households
    *                           committed on a cohort of 20 is not a preference
@@ -3906,9 +4240,10 @@
    * THREE SOURCES, in order. The session's last seal, then the stored copy from
    * a previous session, then the most recent sealed bid the server returned.
    * The third exists because the first two are local and can be absent on a new
-   * machine; it is weaker than the others only in that a sealed head carries no
-   * discount schedule, so a custom mix comes back as the one row mixFromBid can
-   * reconstruct. See core/bidseed.js.
+   * machine. All three carry the mix: a seal from before discount_mix existed
+   * comes back as one row wearing the sealed label, and a stored seed from
+   * before the mix became shares of the gap is not carried at all, because its
+   * numbers meant something else. See core/bidseed.js.
    * ------------------------------------------------------------------ */
 
   /** The campaign-agnostic half of a draft: what carries to the next cohort. */
@@ -3923,9 +4258,7 @@
       }),
       reductionPresentation: d.reductionPresentation || 'member',
       mechanismLabel: d.mechanismLabel || '',
-      discountMix: (d.discountMix || []).map(function (r) {
-        return { type: r.type, label: r.label || '', percentOff: String(r.percentOff || ''), from: r.from, to: r.to };
-      }),
+      mix: seedMix(d),
       guaranteeMonths: d.guaranteeMonths || 24,
       afterMode: d.afterMode || 'none',
       equipment: d.equipment || 'inc',
@@ -3947,24 +4280,49 @@
       if (!best || at > best.at) best = { at: at, bid: b, campaignId: k };
     }
     if (!best) return null;
-    var m = best.bid;
     var a = campaignById(best.campaignId);
+    /* The same reading the improve form makes of a sealed head, so a seed from
+       the server and a seed from the session agree on what a mix looks like. */
+    var d = draftFromBid(a || { id: best.campaignId, households: 0 }, best.bid);
     return {
-      draft: seedFromDraft({
-        tiers: m.tiers,
-        reductionPresentation: m.reductionPresentation || 'member',
-        mechanismLabel: m.mechanismLabel || '',
-        discountMix: mixFromBid(m),
-        guaranteeMonths: m.guaranteeMonths,
-        afterMode: m.afterMode,
-        equipment: m.equipment,
-        rentalMonthly: m.rentalMonthly,
-        extraPodMonthly: m.extraPodMonthly,
-        committedHouseholds: m.committedHouseholds
-      }),
+      draft: seedFromDraft(d),
       from: a ? (a.region || null) : null,
       savedAt: best.at || 0
     };
+  }
+
+  /**
+   * The mix as a seed carries it: per-tier lists keyed by TIER NAME, because a
+   * rid is a session id and the next form's rows will have new ones.
+   */
+  function seedMix(d) {
+    var m = d.mix || defaultMix();
+    var byName = {};
+    (d.tiers || []).forEach(function (t) {
+      if (m.perTier && m.perTier[t.rid] && t.name) byName[t.name] = copyRows(m.perTier[t.rid]);
+    });
+    return { applyToAll: m.applyToAll !== false, shared: copyRows(m.shared && m.shared.length ? m.shared : [defaultRow()]), perTierByName: byName };
+  }
+
+  /**
+   * A seed's mix back onto a draft's tier rows. A seed written while a row was
+   * a percentage off sticker (it carried `discountMix` rows with `percentOff`)
+   * is not carried: 50 meant something else then, and a form that opened on the
+   * old number would be a wrong bid wearing a familiar face. Those open on the
+   * default single row.
+   */
+  function mixFromSeed(sm, tiers) {
+    var out = defaultMix();
+    if (!sm || !sm.shared || !sm.shared.length) return out;
+    var legacy = sm.shared.some(function (r) { return r && Object.prototype.hasOwnProperty.call(r, 'percentOff'); });
+    if (legacy) return out;
+    out.applyToAll = sm.applyToAll !== false;
+    out.shared = copyRows(sm.shared);
+    var byName = sm.perTierByName || {};
+    (tiers || []).forEach(function (t) {
+      if (byName[t.name] && byName[t.name].length) out.perTier[t.rid] = copyRows(byName[t.name]);
+    });
+    return out;
   }
 
   /**
@@ -3993,17 +4351,10 @@
     var d = defaultDraft(a);
     if (!seed || !seed.draft || !(seed.draft.tiers || []).length) return d;
     var s = seed.draft;
-    d.tiers = s.tiers.map(function (t) { return { name: t.name, uploadMbps: t.uploadMbps, technology: t.technology, stickerPrice: t.stickerPrice, effectivePrice: t.effectivePrice, afterPrice: t.afterPrice }; });
+    d.tiers = withRids(s.tiers.map(function (t) { return { name: t.name, uploadMbps: t.uploadMbps, technology: t.technology, stickerPrice: t.stickerPrice, effectivePrice: t.effectivePrice, afterPrice: t.afterPrice }; }));
     d.reductionPresentation = s.reductionPresentation;
     d.mechanismLabel = s.mechanismLabel;
-    if ((s.discountMix || []).length) {
-      /* percentOff only. A seed written while the mix was in dollars carries an
-         `amount`, and $22 read as 22% is a different offer on every tier, so an
-         old row opens with an empty percentage rather than a wrong one. */
-      d.discountMix = s.discountMix.map(function (r) {
-        return { type: r.type, label: r.label, percentOff: String(r.percentOff || ''), from: r.from, to: r.to };
-      });
-    }
+    d.mix = mixFromSeed(s.mix, d.tiers);
     d.guaranteeMonths = s.guaranteeMonths;
     d.afterMode = s.afterMode;
     d.equipment = s.equipment;
@@ -4014,7 +4365,6 @@
     d.committedHouseholds = cap ? (want ? Math.min(want, cap) : cap) : (want || 1);
     /* Never carried: see the note above. */
     d.consent = false;
-    d.mixConfirmed = false;
     d.seeded = { from: seed.from || null, savedAt: seed.savedAt || 0 };
     return d;
   }
@@ -4026,14 +4376,11 @@
       improve: false,
       consent: false,
       error: null,
-      tiers: [{ name: '500 Mbps', uploadMbps: '50', technology: 'cable', stickerPrice: '86', effectivePrice: '56', afterPrice: '69' }],
+      tiers: [{ rid: newRid(), name: '500 Mbps', uploadMbps: '50', technology: 'cable', stickerPrice: '86', effectivePrice: '56', afterPrice: '69' }],
       reductionPresentation: 'member',
       mechanismLabel: '',
-      /* One row, running the full guarantee, at the share of sticker the tier
-         row above already comes to (86 down to 56 is 35% off), so the mix opens
-         agreeing with the prices beside it. */
-      discountMix: [{ type: 'member', label: '', percentOff: '35', from: 0, to: 24 }],
-      mixConfirmed: false,
+      /* One row carrying the whole reduction, applied to every tier. */
+      mix: defaultMix(),
       guaranteeMonths: 24,
       afterMode: 'none',
       equipment: 'inc',
@@ -4043,45 +4390,56 @@
     };
   }
 
-  function mixFromBid(m) {
-    var t0 = (m.tiers || [])[0] || {};
-    var stk = Number(t0.stickerPrice) || 0;
-    var gap = Math.max(0, stk - (Number(t0.effectivePrice) || 0));
-    /* The sealed head is in dollars and the schedule is in percent, so the first
-       tier's gap is read back as a share of its own sticker. */
-    var share = stk && gap ? Math.round((gap / stk) * 1000) / 10 : 0;
-    return [{
-      type: m.mechanismLabel ? 'own' : 'member',
-      label: m.mechanismLabel || '',
-      percentOff: share ? String(share) : '',
-      from: 0,
-      to: m.guaranteeMonths || 24
-    }];
+  /**
+   * The mix a sealed head carries, onto a draft's tier rows.
+   *
+   * The seal is the record: cents per tier, and whether one mix applied to all.
+   * Hydration takes the shares and the mode back, matching tiers by name, so
+   * reopening sealed terms shows the editor the partner used. A head from before
+   * discount_mix existed carries only the derived label; that comes back as one
+   * row wearing the label, a starting point rather than a claim about what was
+   * sealed.
+   */
+  function mixFromSealed(snap, tiers, m) {
+    var out = defaultMix();
+    if (!snap || !snap.tiers || !snap.tiers.length) {
+      if (m && m.reductionPresentation === 'custom' && m.mechanismLabel) {
+        out.shared = [{ type: 'own', label: m.mechanismLabel, sharePct: '100' }];
+      }
+      return out;
+    }
+    out.applyToAll = snap.applyToAll !== false;
+    var first = null;
+    snap.tiers.forEach(function (ts) {
+      var rows = (ts.mix || []).map(function (r) {
+        return { type: r.type, label: r.type === 'own' ? (r.label || '') : '', sharePct: String(r.sharePct || '') };
+      });
+      if (!rows.length) return;
+      if (!first) first = rows;
+      (tiers || []).forEach(function (t) { if (t.name === ts.tier) out.perTier[t.rid] = copyRows(rows); });
+    });
+    if (first) out.shared = copyRows(first);
+    return out;
   }
 
   /** A draft prefilled from the sealed head, for the improve form. */
   function draftFromBid(a, m) {
+    var tiers = withRids((m.tiers || []).map(function (t) {
+      return {
+        name: t.name, uploadMbps: t.uploadMbps || '', technology: (t.technology || 'cable').toLowerCase(),
+        stickerPrice: String(t.stickerPrice || ''), effectivePrice: String(t.effectivePrice || ''),
+        afterPrice: t.afterPrice ? String(t.afterPrice) : ''
+      };
+    }));
     return {
       campaignId: a.id,
       improve: true,
       consent: false,
       error: null,
-      tiers: (m.tiers || []).map(function (t) {
-        return {
-          name: t.name, uploadMbps: t.uploadMbps || '', technology: (t.technology || 'cable').toLowerCase(),
-          stickerPrice: String(t.stickerPrice || ''), effectivePrice: String(t.effectivePrice || ''),
-          afterPrice: t.afterPrice ? String(t.afterPrice) : ''
-        };
-      }),
+      tiers: tiers,
       reductionPresentation: m.reductionPresentation || 'member',
       mechanismLabel: m.mechanismLabel || '',
-      /* A sealed head carries the derived label and no schedule, because the
-         server has nowhere to keep one yet. Reconstruct a single row from what
-         did survive: the partner's own wording, the gap on the first tier, and
-         the whole guarantee. It is a starting point for the improvement, not a
-         claim about what was sealed. */
-      discountMix: mixFromBid(m),
-      mixConfirmed: false,
+      mix: mixFromSealed(m.discountMix, tiers, m),
       guaranteeMonths: m.guaranteeMonths || 24,
       afterMode: m.afterMode || 'none',
       equipment: m.equipment || 'inc',
@@ -4228,28 +4586,55 @@
   }
 
   /**
-   * The mix block: the schedule on the left, its arithmetic on the right.
+   * The mix block: the editors on the left, the arithmetic on the right.
    *
    * Rendered always and hidden unless 'custom' is chosen, the same
    * hidden-attribute reveal the rental cell and the after column already use, so
-   * a select change repaints from the draft rather than poking at the DOM.
+   * a select change repaints from the draft rather than poking at the DOM, and
+   * a mix typed, put away behind another read, and brought back is still there.
+   *
+   * The apply-to-all box comes first and spans the block: one editor when it is
+   * ticked, one per tier row otherwise, in the order of the Price by service
+   * table, each headed by its tier and its live reduction.
    */
   function mixHTML(t) {
-    var guar = t.guaranteeMonths || 24;
-    var mix = t.discountMix && t.discountMix.length
-      ? t.discountMix
-      : [{ type: 'member', label: '', percentOff: '', from: 0, to: guar }];
+    var st = mixStatus(t);
+    var all = isAll(t);
+    var editors;
+    if (all) {
+      editors = mixEditorHTML('shared', rowsFor(t.mix, null), 'Your mix <em>applies to all tiers</em>', st);
+    } else {
+      editors = st.tiers.map(function (x) {
+        var head = esc(x.tier.name || 'Tier') + (x.snap.gapCents > 0 ? ' <em>reduction ' + dollars(x.snap.gapCents) + ' /mo</em>' : '');
+        if (x.snap.gapCents === 0) {
+          return '<div class="mixed"><div class="mixhead">' + head + '</div>'
+            + noteHTML('mixnote', 'Sticker and effective match on this tier, so there is no reduction to name.') + '</div>';
+        }
+        if (x.snap.gapCents < 0) {
+          return '<div class="mixed"><div class="mixhead">' + head + '</div>'
+            + noteHTML('mixerr', 'Effective price cannot sit above sticker on this tier. Fix the price row first.') + '</div>';
+        }
+        return mixEditorHTML(x.rid, rowsFor(t.mix, x.rid), head, st);
+      }).join('');
+    }
     return '<div class="mixw"' + (t.reductionPresentation === 'custom' ? '' : ' hidden') + '>'
-      + '<label class="blk">Your mix <small class="lsub">one row per step, each a percentage off sticker, so a reduction that changes partway through says so</small></label>'
-      + '<div class="mixgrid"><div>'
-      + '<table class="tiert mixt"><thead><tr><th>Discount type</th><th>Discount, %</th><th>Valid time period</th><th></th></tr></thead><tbody class="mixbody">'
-      + mix.map(function (r, i) { return mixRowHTML(r, i, guar); }).join('')
-      + '</tbody></table>'
-      + '<button type="button" class="taddrow" data-action="ticket:mixadd">+ Add another discount</button></div>'
-      + '<div class="mixcalc"><div class="mixsum">' + mixSummaryHTML(t.tiers || [], mix, guar) + '</div>'
-      + '<label class="consent"><input type="checkbox" class="bmixok" data-action="ticket:field"' + (t.mixConfirmed ? ' checked' : '') + '>'
-      + '<span>I confirm the effective monthly price each tier reaches under this mix, for the whole guarantee.</span></label>'
-      + '</div></div></div>';
+      + '<label class="blk">Your mix <small class="lsub">one row per step, each a percentage of the reduction between sticker and effective</small></label>'
+      + '<label class="consent mixall"><input type="checkbox" class="bmixall" data-action="ticket:mixall"' + (all ? ' checked' : '') + '>'
+      + '<span>Apply this mix to all tiers</span></label>'
+      + '<div class="mixgrid"><div>' + editors + '</div>'
+      + '<div class="mixcalc"><div class="mixsum" aria-live="polite">' + mixSummaryHTML(t, st) + '</div></div></div></div>';
+  }
+
+  /** The dialog behind ticking apply-to-all: it replaces what was set per tier. */
+  function applyAllModalHTML(names) {
+    var list = names.length > 1
+      ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1]
+      : (names[0] || 'this tier');
+    return '<div class="mhead"><h3>Apply one mix to all tiers?</h3></div>'
+      + '<p class="msub">This replaces the mix set on ' + esc(list) + ' with the shared mix. What you set per tier stays in this session until you seal, so unticking the box brings it back.</p>'
+      + '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">'
+      + '<button class="btn" type="button" data-action="ticket:mixall-yes">Replace with one mix</button>'
+      + '<button class="btn ghost" type="button" data-mclose>Keep per-tier mixes</button></div>';
   }
 
   function formHTML(a, data, t, improving) {
@@ -4283,9 +4668,9 @@
     } else if (closed) {
       button = '<button class="btn" type="button" disabled>Bidding closed</button>';
     } else {
-      /* A custom mix has its own confirmation, because the number it asks about
-         (the effective price each tier averages to) is not on the consent line. */
-      var ready = t.consent && (t.reductionPresentation !== 'custom' || t.mixConfirmed);
+      /* A custom mix seals only when its shares add up on every tier; the
+         server refuses it otherwise, so the button says so first. */
+      var ready = t.consent && mixOk(t);
       button = '<button class="btn" type="button" data-action="ticket:place" data-id="' + esc(a.id) + '"'
         + (ready ? '' : ' disabled') + '>'
         + (improving ? 'Seal the improvement' : 'Place sealed bid') + '</button>';
@@ -4341,37 +4726,68 @@
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
 
-  /** The schedule rows, as typed. Order is display order, which is the order
-      the windows were laid out in, so it is worth keeping. */
-  function readMix(form) {
-    return $$('.mrow', form).map(function (tr) {
-      var per = String($('.mper', tr).value || '0-0').split('-');
+  /** One editor's rows, as typed. Order is display order. */
+  function readRows(editor) {
+    return $$('.mrow', editor).map(function (tr) {
       return {
         type: $('.mtype', tr).value,
         label: String(($('.mown', tr) || {}).value || '').trim(),
-        percentOff: String($('.mamt', tr).value || '').trim(),
-        from: parseInt(per[0], 10) || 0,
-        to: parseInt(per[1], 10) || 0
+        sharePct: String($('.mamt', tr).value || '').trim()
       };
     });
   }
 
   /**
-   * The one label a sealed custom bid can still carry, derived from the mix.
-   *
-   * This exists because the server has nowhere to put a schedule: readBid()
-   * takes a single mechanismLabel of 3 to 40 plain characters and refuses the
-   * pressure language the standard terms forbid. So the distinct type names of
-   * the live rows are joined, stripped to the accepted charset, and cut back to
-   * the first name if that runs long. When discount_mix lands on provider_bids
-   * this becomes a display convenience instead of the whole record.
+   * The mix state from the DOM, with the branch that is not on screen carried
+   * from the previous draft: only the editors in force are rendered, and the
+   * other branch is session memory so toggling the box restores it.
    */
-  function mixLabel(mix) {
+  function readMixState(form, prev) {
+    var pm = prev && prev.mix ? prev.mix : null;
+    var box = $('.bmixall', form);
+    /* The shared list is carried as stored, not through rowsFor(): in per-tier
+       mode rowsFor() answers per tier, and the shared mix has to survive that
+       mode untouched so ticking the box brings back what was set. */
+    var st = {
+      applyToAll: box ? box.checked : (pm ? pm.applyToAll !== false : true),
+      shared: pm && pm.shared && pm.shared.length ? copyRows(pm.shared) : [defaultRow()],
+      perTier: {}
+    };
+    if (pm && pm.perTier) {
+      for (var k in pm.perTier) {
+        if (Object.prototype.hasOwnProperty.call(pm.perTier, k)) st.perTier[k] = copyRows(pm.perTier[k]);
+      }
+    }
+    $$('.mixed[data-scope]', form).forEach(function (ed) {
+      var scope = ed.getAttribute('data-scope');
+      var rows = readRows(ed);
+      if (!rows.length) return;
+      if (scope === 'shared') st.shared = rows;
+      else st.perTier[scope] = rows;
+    });
+    return st;
+  }
+
+  /** The rows a bid's single derived label is read from: the shared mix, or the first tier with one. */
+  function labelRows(tiers, mix) {
+    if (!mix || mix.applyToAll !== false) return rowsFor(mix, null);
+    for (var i = 0; i < tiers.length; i++) {
+      var rows = mix.perTier && mix.perTier[tiers[i].rid];
+      if (rows && rows.length) return rows;
+    }
+    return rowsFor(mix, null);
+  }
+
+  /**
+   * The single label a custom bid carries beside its mix: the distinct line-item
+   * names joined, stripped to the accepted charset, and cut back to the first
+   * name if that runs long. readBid() still validates it as it always did; the
+   * mix itself is the record and this is the display convenience.
+   */
+  function mixLabel(rows) {
     var parts = [];
-    mix.forEach(function (r) {
-      if (!(Number(r.percentOff) > 0 && r.to > r.from)) return;
-      var n = String(r.type === 'own' ? r.label : (MIX_TYPE_SHORT[r.type] || ''))
-        .replace(/[^A-Za-z0-9 ,.'&-]/g, '').trim();
+    (rows || []).forEach(function (r) {
+      var n = rowLabel(r).replace(/[^A-Za-z0-9 ,.'&-]/g, '').trim();
       if (n && parts.indexOf(n) < 0) parts.push(n);
     });
     var joined = parts.join(', ');
@@ -4379,11 +4795,22 @@
     return joined.slice(0, 40).trim();
   }
 
+  /** The mix as the body sends it: shares per tier, the server does the money. */
+  function wireMix(d) {
+    return {
+      applyToAll: isAll(d),
+      tiers: (d.tiers || []).map(function (t) {
+        return { tier: t.name, rows: copyRows(rowsFor(d.mix, t.rid)) };
+      })
+    };
+  }
+
   /**
    * DOM to draft. The DOM is the source of truth at submit time; the store's
-   * copy exists so repaints between edits restore what was typed.
+   * copy exists so repaints between edits restore what was typed, and `prev`
+   * is that copy, read for the mix branch the DOM is not showing.
    */
-  function readTicket(form, a) {
+  function readTicket(form, a, prev) {
     var bad = null;
     var tiers = $$('.trow', form).map(function (tr) {
       var stk = $('.tsticker', tr).value;
@@ -4392,6 +4819,7 @@
         bad = 'Effective price cannot sit above sticker on ' + $('.tname', tr).value + '.';
       }
       return {
+        rid: tr.getAttribute('data-rid') || newRid(),
         name: $('.tname', tr).value,
         uploadMbps: String($('.tup', tr).value || '').trim(),
         technology: $('.ttech', tr).value,
@@ -4403,14 +4831,13 @@
     if (!tiers.length) bad = bad || 'Add at least one tier to the bid.';
 
     var mech = $('.bmech', form) ? $('.bmech', form).value : 'member';
-    var mix = readMix(form);
+    var guar = parseInt($('.bguar', form).value, 10);
+    var mix = readMixState(form, prev);
+    var mechanismLabel = '';
     if (mech === 'custom') {
-      var live = mix.filter(function (r) { return Number(r.percentOff) > 0 && r.to > r.from; });
-      var unnamed = live.filter(function (r) { return r.type === 'own' && r.label.length < 3; });
-      var overs = mix.filter(function (r) { return Number(r.percentOff) > 100; });
-      if (!live.length) bad = bad || 'Give the mix at least one discount with a percentage and a period.';
-      else if (overs.length) bad = bad || 'A discount cannot take more than 100% off the sticker price.';
-      else if (unnamed.length) bad = bad || 'Name the discount you worded yourself, in 3 to 40 plain characters.';
+      var st = mixStatus({ tiers: tiers, mix: mix, guaranteeMonths: guar });
+      if (!st.ok) bad = bad || st.problem;
+      mechanismLabel = mixLabel(labelRows(tiers, mix));
     }
 
     var commitMax = a && a.households ? a.households : Infinity;
@@ -4421,10 +4848,9 @@
       campaignId: a ? a.id : null,
       tiers: tiers,
       reductionPresentation: mech,
-      mechanismLabel: mech === 'custom' ? mixLabel(mix) : '',
-      discountMix: mix,
-      mixConfirmed: Boolean($('.bmixok', form) && $('.bmixok', form).checked),
-      guaranteeMonths: parseInt($('.bguar', form).value, 10),
+      mechanismLabel: mechanismLabel,
+      mix: mix,
+      guaranteeMonths: guar,
       afterMode: $('.bafter', form).value,
       equipment: $('.bequip', form).value,
       rentalMonthly: String($('.brent', form) ? $('.brent', form).value : '').trim(),
@@ -4507,17 +4933,37 @@
   /**
    * Recompute the mix arithmetic from the open form, in place.
    *
-   * Only the summary block is rewritten, never the schedule table and never the
-   * confirmation checkbox: a keystroke in an amount must not repaint the input
-   * it was typed into, and it must not quietly clear a box the partner ticked.
+   * The summary block is rewritten and each row's inline dollar figure and error
+   * state are updated, but never the inputs themselves: a keystroke in a share
+   * must not repaint the input it was typed into. The seal button follows the
+   * same read, so a share corrected on the keyboard enables it without waiting
+   * for a blur.
    */
   function refreshMix() {
     var form = $('.bidform');
     if (!form) return;
     var sum = $('.mixsum', form);
     if (!sum) return;
-    var d = readTicket(form, null);
-    sum.innerHTML = mixSummaryHTML(d.tiers, d.discountMix, d.guaranteeMonths);
+    var S = get();
+    var id = form.getAttribute('data-bid');
+    var prev = S.ticketDraft && S.ticketDraft.campaignId === id ? S.ticketDraft : null;
+    var d = readTicket(form, campaignById(id), prev);
+    var st = mixStatus(d);
+    sum.innerHTML = mixSummaryHTML(d, st);
+    $$('.mixed[data-scope]', form).forEach(function (ed) {
+      var scope = ed.getAttribute('data-scope');
+      var rows = scope === 'shared' ? rowsFor(d.mix, null) : rowsFor(d.mix, scope);
+      var texts = amountTexts(scope, rows, st);
+      var check = checkMix(rows);
+      $$('.mrow', ed).forEach(function (tr, i) {
+        var v = $('.mamtv', tr);
+        if (v) v.textContent = texts[i] || '';
+        if (check.rows[i] && check.rows[i].problem) tr.classList.add('bad');
+        else tr.classList.remove('bad');
+      });
+    });
+    var btn = $('[data-action="ticket:place"]', form);
+    if (btn) btn.disabled = !(d.consent && mixOk(d));
   }
 
   /* ------------------------------------------------------------------ *
@@ -4537,8 +4983,8 @@
     var a = campaignById(form.getAttribute('data-bid'));
     if (!a) return null;
     var S = get();
-    var d = readTicket(form, a);
     var prev = S.ticketDraft && S.ticketDraft.campaignId === a.id ? S.ticketDraft : null;
+    var d = readTicket(form, a, prev);
     d.improve = Boolean(prev && prev.improve);
     /* The banner has to survive the first edit, and the first edit is where the
        draft is born: until then the form on screen came from openingDraft(),
@@ -4573,43 +5019,57 @@
       var next = null;
       TIER_NAMES.forEach(function (n) { if (!next && !used[n]) next = n; });
       if (!next) return;
+      var rid = newRid();
       d.tiers.push({
+        rid: rid,
         name: next, uploadMbps: SUGGUP[next] || '', technology: 'cable',
         stickerPrice: String(SUGGSTICKER[next] || ''), effectivePrice: String(SUGG[next] || ''),
         afterPrice: String(Math.round(((SUGG[next] || 0) + 13) * 2) / 2)
       });
+      /* Under one shared mix the new tier inherits it by construction; under
+         per-tier mixes it starts on the single row carrying the whole reduction. */
+      if (!isAll(d)) d.mix.perTier[rid] = [defaultRow()];
       set('ticketDraft', d);
       refreshScn();
+      refreshMix();
     });
 
     on('click', 'ticket:rm', function (el) {
       var d = draftFromForm(el);
       if (!d) return;
-      var i = parseInt(el.getAttribute('data-i'), 10);
       /* The draft was read from the CURRENT DOM, where zero-priced rows are
-         filtered out; remove by matching the row's tier name instead of index
-         arithmetic over a filtered list. */
+         filtered out; remove by the row's rid rather than by index arithmetic
+         over a filtered list. Its per-tier mix goes with it, so nothing orphaned
+         reaches the seal. */
       var tr = el.closest('.trow');
-      var name = tr ? $('.tname', tr).value : null;
-      d.tiers = d.tiers.filter(function (t, j) { return name ? t.name !== name : j !== i; });
+      var rid = tr ? tr.getAttribute('data-rid') : null;
+      var i = parseInt(el.getAttribute('data-i'), 10);
+      d.tiers = d.tiers.filter(function (t, j) { return rid ? t.rid !== rid : j !== i; });
       if (!d.tiers.length) return;
+      if (rid && d.mix.perTier) delete d.mix.perTier[rid];
       set('ticketDraft', d);
       refreshScn();
+      refreshMix();
     });
+
+    /** The list an editor's scope names, created on the draft if it has to be. */
+    function scopeRows(d, scope) {
+      if (scope === 'shared') {
+        if (!d.mix.shared || !d.mix.shared.length) d.mix.shared = [defaultRow()];
+        return d.mix.shared;
+      }
+      if (!d.mix.perTier[scope] || !d.mix.perTier[scope].length) d.mix.perTier[scope] = [defaultRow()];
+      return d.mix.perTier[scope];
+    }
 
     on('click', 'ticket:mixadd', function (el) {
       var d = draftFromForm(el);
       if (!d) return;
-      var guar = d.guaranteeMonths || 24;
-      /* The new window starts where the last one ended, so a schedule reads as
-         steps. When the last row already runs the whole guarantee there is no
-         next step and the row lands on the same window, which is fine: two
-         reductions running together is a legitimate mix too. */
-      var last = d.discountMix[d.discountMix.length - 1];
-      var from = last && last.to < guar ? last.to : 0;
-      var fits = MIX_PERIODS.filter(function (p) { return p[0] === from && p[1] <= guar; });
-      var win = fits.length ? fits[fits.length - 1] : [0, guar];
-      d.discountMix.push({ type: 'promo', label: '', percentOff: '', from: win[0], to: win[1] });
+      var rows = scopeRows(d, el.getAttribute('data-scope') || 'shared');
+      if (rows.length >= MIX_MAX_ROWS) return;
+      /* The first row was locked at 100 while it stood alone; now both are
+         editable and the shares have to be made to add up. */
+      rows.push({ type: 'promo', label: '', sharePct: '' });
       set('ticketDraft', d);
       refreshMix();
     });
@@ -4617,9 +5077,48 @@
     on('click', 'ticket:mixrm', function (el) {
       var d = draftFromForm(el);
       if (!d) return;
+      var scope = el.getAttribute('data-scope') || 'shared';
       var i = parseInt(el.getAttribute('data-i'), 10);
-      d.discountMix = d.discountMix.filter(function (r, j) { return j !== i; });
-      if (!d.discountMix.length) return;
+      var rows = scopeRows(d, scope).filter(function (r, j) { return j !== i; });
+      if (!rows.length) return;
+      /* Down to one row: it carries the whole reduction again. */
+      if (rows.length === 1) rows[0].sharePct = '100';
+      if (scope === 'shared') d.mix.shared = rows; else d.mix.perTier[scope] = rows;
+      set('ticketDraft', d);
+      refreshMix();
+    });
+
+    /* The apply-to-all box. Ticking it replaces every per-tier mix with the
+       shared one, so it asks first, every time: the box is reverted until the
+       dialog answers, and the draft does not move. Unticking needs no dialog,
+       because nothing is lost: each tier opens on the mix it had in this
+       session, or on a copy of the shared one if it never had its own. */
+    on('change', 'ticket:mixall', function (el) {
+      if (el.checked) {
+        el.checked = false;
+        var d = draftFromForm(el);
+        if (!d) return;
+        openModal(applyAllModalHTML(d.tiers.map(function (t) { return t.name; })));
+        return;
+      }
+      var d2 = draftFromForm(el);
+      if (!d2) return;
+      d2.mix.applyToAll = false;
+      d2.tiers.forEach(function (t) {
+        if (!d2.mix.perTier[t.rid] || !d2.mix.perTier[t.rid].length) d2.mix.perTier[t.rid] = copyRows(d2.mix.shared);
+      });
+      set('ticketDraft', d2);
+      refreshMix();
+    });
+
+    on('click', 'ticket:mixall-yes', function () {
+      var form = $('.bidform');
+      closeModal();
+      if (!form) return;
+      var d = draftFromForm(form);
+      if (!d) return;
+      d.mix.applyToAll = true;
+      if (!d.mix.shared || !d.mix.shared.length) d.mix.shared = copyRows(labelRows(d.tiers, d.mix));
       set('ticketDraft', d);
       refreshMix();
     });
@@ -4648,8 +5147,8 @@
       var a = id && campaignById(id);
       if (!form || !a) return;
 
-      var d = readTicket(form, a);
       var prev = S.ticketDraft && S.ticketDraft.campaignId === id ? S.ticketDraft : null;
+      var d = readTicket(form, a, prev);
       var improve = Boolean(prev && prev.improve);
       /* Whatever refuses the bid, the banner it was filled in from stays put. */
       d.seeded = prev ? (prev.seeded || null) : seedBanner();
@@ -4669,9 +5168,9 @@
         mechanismLabel: d.mechanismLabel || undefined,
         guaranteeMonths: d.guaranteeMonths,
         afterMode: d.afterMode,
-        /* Sent, and dropped by readBid() until provider_bids carries a column
-           for it. The label above is what the seal keeps today. */
-        discountMix: d.reductionPresentation === 'custom' ? d.discountMix : undefined,
+        /* Shares only. readBid() recomputes the cents with the same arithmetic
+           the panel showed and seals the snapshot; nothing here sends money. */
+        discountMix: d.reductionPresentation === 'custom' ? wireMix(d) : undefined,
         equipment: d.equipment,
         rentalMonthly: d.equipment === 'rent' ? d.rentalMonthly : undefined,
         extraPodMonthly: d.extraPodMonthly,
@@ -4685,8 +5184,8 @@
         for (var k in cur) { if (Object.prototype.hasOwnProperty.call(cur, k)) bids[k] = cur[k]; }
         if (r && r.bid) bids[id] = r.bid;
         /* These terms are now the starting point for the next cohort. Written
-           from the draft that was actually sealed, not from the response: the
-           response is a head row and drops the discount schedule. */
+           from the draft that was actually sealed, which carries the mix exactly
+           as it was set, per tier or shared. */
         var seed = { draft: seedFromDraft(d), from: a.region || null, savedAt: Date.now() };
         writeSeed((S.org && S.org.orgId) || null, seed.draft, seed.from);
         set({ bids: bids, ticketDraft: null, ticketSeed: seed });
