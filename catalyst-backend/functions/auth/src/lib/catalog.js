@@ -37,6 +37,25 @@ const COLUMNS = ['campaign_id', 'region', 'sub', 'kind', 'target',
   'announce_at', 'bidding_opens_at', 'bidding_closes_at', 'offers_at',
   'decision_at', 'switch_window_at', 'reconcile_at'];
 
+/* The catalog's own column ladder, and the reason it needs one.
+ *
+ * Tables here are created by hand, so code and schema deploy separately and in
+ * either order. lib/orders.js, lib/awards.js and lib/billing.js all carry a
+ * ladder for that reason. This module did not, and it is the worst place to
+ * lack one: a single absent column throws inside queryAll(), load() catches it
+ * and falls back to the CODE catalog, and the code catalog is suppressed on
+ * every non-admin route by design. So one missing column does not degrade a
+ * field, it empties the bid desk, the delivery cohort picker and every member
+ * surface at once, and says "we could not read the cohort list" while every
+ * row sits intact in the table.
+ *
+ * That is exactly what adding `fsas` to the projection did on 2026-08-29,
+ * before section 29a had been run in the console.
+ *
+ * WIDEST FIRST, and the base list is what a cohort cannot be read without. */
+const COLUMNS_MIN = Object.freeze(COLUMNS.filter((c) => c !== 'fsas'));
+const COLUMN_LISTS = Object.freeze([COLUMNS, COLUMNS_MIN]);
+
 const KINDS = Object.freeze(['planned', 'waitlist', 'forming', 'auction', 'closed', 'archived']);
 
 /** The seven dates that make up a cohort's calendar, in order. */
@@ -349,14 +368,21 @@ async function load(catalystApp, { fresh = false } = {}) {
   if (!fresh && memo.result && now - memo.at < MEMO_MS) return memo.result;
 
   let list = null;
-  try {
-    const rows = await datastore.queryAll(catalystApp, TABLE, COLUMNS, 'ROWID > 0');
-    if (rows && rows.length) {
-      list = rows.map(fromRow).sort((a, b) =>
-        (a.sortOrder - b.sortOrder) || String(a.id).localeCompare(String(b.id)));
+  for (const cols of COLUMN_LISTS) {
+    try {
+      /* eslint-disable-next-line no-await-in-loop */
+      const rows = await datastore.queryAll(catalystApp, TABLE, cols, 'ROWID > 0');
+      if (rows && rows.length) {
+        list = rows.map(fromRow).sort((a, b) =>
+          (a.sortOrder - b.sortOrder) || String(a.id).localeCompare(String(b.id)));
+      }
+      /* Read succeeded. An EMPTY table is a real answer and falls through to
+         the code catalog below, exactly as it did before; it is not a reason
+         to retry with a narrower projection. */
+      break;
+    } catch {
+      list = null;
     }
-  } catch {
-    list = null;
   }
 
   const source = list ? 'table' : 'code';
@@ -374,7 +400,7 @@ async function load(catalystApp, { fresh = false } = {}) {
 }
 
 module.exports = {
-  TABLE, COLUMNS, DATE_COLUMNS, KINDS, JOIN_STATUS, ID_RE, TRANSITIONS, CODE_CATALOG,
+  TABLE, COLUMNS, COLUMNS_MIN, DATE_COLUMNS, KINDS, JOIN_STATUS, ID_RE, TRANSITIONS, CODE_CATALOG,
   STAGES, STAGE_LABEL, CLOSING_WINDOW_MS,
   MEMBER_STAGES, MEMBER_STAGE_LABEL, GATHERING,
   load, invalidate, fromRow, isTruthyDb, standingOf,
