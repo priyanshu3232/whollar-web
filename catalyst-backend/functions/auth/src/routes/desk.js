@@ -368,17 +368,29 @@ function mount(router) {
       /* eslint-disable no-await-in-loop */
       /* Sealed-bid privacy: the all-orgs read stays inside lib/awards.js, so
          no competitor's row ever enters this partner-scoped request. The
-         award-first economy this loop used to spell out lives there now. */
-      const award = await awards.sealFromCampaign(req.catalyst, campaign);
+         award-first economy this loop used to spell out lives there now, and
+         so does the distinction between "you won nothing" and "nothing has
+         been decided yet", which a bare award row cannot express. */
+      const result = await awards.resultForOrg(req.catalyst, campaign, context.orgId);
       /* eslint-enable no-await-in-loop */
-      if (award) decided[id] = award;
+      if (result.decided) decided[id] = result;
     }
     envelope.ok(res, {
       live: rows !== null,
       bids: (rows || []).map((row) => {
         const pub = bids.publicBid(row);
-        const award = decided[row.campaign_id];
-        if (award) pub.state = award.org_id === context.orgId ? 'won' : 'not_selected';
+        const result = decided[row.campaign_id];
+        if (result) {
+          /* A COHORT IS NOW WON TIER BY TIER, so winning is a list and not a
+             flag: this bid may have taken 100 Mbps and lost 1 Gig on the same
+             cohort. `tiersWon` is this partner's own result and the ONLY tier
+             fact that crosses to a /provider route. Never the book, never
+             another partner's price or tier, not even as a redacted row: a
+             partner that could see which tiers it lost would learn exactly
+             where a competitor undercut it. */
+          pub.state = result.tiersWon.length ? 'won' : 'not_selected';
+          pub.tiersWon = result.tiersWon;
+        }
         return pub;
       }),
     });

@@ -13,7 +13,7 @@
      the visitor is, because a Google sign-in lands here with a cookie and an
      empty localStorage. Synchronous and in the head so the guard at the foot of
      the body can rely on it. -->
-<script src="/js/whollar-core.js?v=20260823a"></script>
+<script src="/js/whollar-core.js?v=20260828b"></script>
 <script src="/js/whollar-select.js?v=20260818"></script>
 <!-- The same savings engine /bill-checkup runs, so the deal signal band states
      the checkup's verdict rather than a second opinion about the same bill.
@@ -1392,16 +1392,38 @@ div.cc:hover{box-shadow:none;transform:none}
 .prefls li::before{content:"";position:absolute;left:0;top:7px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
 .urgent{background:#F8EDE0;border:1px solid #E7CFB9;border-radius:12px;padding:11px 14px;font-size:13.5px;color:#6E4630;margin-bottom:14px}
 .savedbox{background:var(--mint);border:1px solid #CBDCC9;border-radius:12px;padding:12px 15px;font-size:13.5px;color:#2E3A33;margin:10px 0}
-.duo{display:grid;grid-template-columns:1fr 1.25fr;gap:12px;margin:14px 0 4px}
-.duocell{border:1.5px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:3px;position:relative}
-.duocell .dl{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--sub)}
-.duocell b{font-family:var(--disp);font-size:26px}
-.duocell .ds{font-size:12.5px;color:var(--sub)}
-.duocell .mixline{color:var(--accent-deep);font-weight:600}
-.duocell.now{background:#F7F3E8}
-.duocell.win{background:var(--mint);border-color:var(--accent)}
-.duocell.win b{color:var(--accent-deep)}
-.savetag{position:absolute;top:-11px;right:12px;background:var(--terra);color:#fff;font-size:11px;font-weight:700;border-radius:999px;padding:3px 11px}
+/* ---------- the offers stage: the cohort's price book ----------
+   Three cards, the middle one the tier this household prefers. The grid is
+   1fr 1.18fr 1fr so the preferred tier reads as the subject WITHOUT the two
+   neighbours becoming footnotes: the whole point of showing them is that a
+   household can take the cheaper flank, and a card it cannot read is a card it
+   cannot choose. */
+.ctx{display:flex;gap:10px;flex-wrap:wrap;align-items:baseline;background:#F7F3E8;border:1px solid var(--line);border-radius:13px;padding:11px 15px;margin:14px 0 10px;font-size:13px;color:var(--sub)}
+.ctx b{color:var(--ink);font-weight:600}
+.ctx .mono{font-family:var(--mono);font-size:12.5px}
+.pickline{font-size:12.5px;color:var(--sub);margin:0 0 14px}
+.pickline b{color:var(--ink);font-weight:600}
+.obook{display:grid;grid-template-columns:1fr 1.18fr 1fr;gap:12px;align-items:stretch;margin:0 0 4px}
+.ocard{position:relative;display:flex;flex-direction:column;gap:2px;border:1.5px solid var(--line);border-radius:16px;background:#FCFBF7;padding:17px 16px 15px;cursor:pointer;text-align:left;transition:border-color .15s,box-shadow .15s}
+.ocard:hover{border-color:var(--accent)}
+.ocard.sel{border-color:var(--accent-deep);background:var(--mint);box-shadow:0 14px 30px -18px rgba(10,32,24,.35)}
+.ocard .tag{position:absolute;top:-11px;left:14px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;background:var(--terra);color:#fff;border-radius:999px;padding:4px 10px}
+.ocard .spd{font-size:12.5px;font-weight:700;color:var(--accent-deep)}
+.ocard .price{font-family:var(--disp);font-weight:800;font-size:28px;letter-spacing:-.02em;line-height:1.12;margin-top:2px}
+.ocard .price small{font-size:13px;font-weight:700;color:var(--sub)}
+.ocard .prov{font-size:12px;color:var(--sub)}
+.ocard .prov b{color:var(--ink);font-weight:600}
+.ocard ul{list-style:none;margin:9px 0 0;padding:9px 0 0;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:5px}
+.ocard li{font-size:11.5px;color:var(--sub);line-height:1.45}
+.ocard li.mixline{color:var(--accent-deep);font-weight:600}
+.ocard .delta{margin-top:auto;padding-top:10px;font-family:var(--mono);font-size:11px;color:var(--accent-deep)}
+/* A tier above the household's current bill is said in warn colour and never
+   hidden. A card that quietly drops its comparison when the comparison is
+   unflattering is the one card nobody can trust. */
+.ocard .delta.up{color:#8C3B1B}
+.ocard .ring{position:absolute;top:13px;right:13px;width:18px;height:18px;border-radius:50%;border:2px solid #C9CFC7;background:#fff}
+.ocard.sel .ring{border-color:var(--accent-deep);background:var(--accent-deep);box-shadow:inset 0 0 0 3.5px #fff}
+.ocard:focus-visible{outline:2px solid var(--accent-deep);outline-offset:2px}
 .savehero{text-align:center;padding:6px 2px}
 .bignum{display:block;font-family:var(--disp);font-size:40px;color:var(--accent-deep);margin:8px 0 2px}
 .subnum{display:block;font-size:14px;color:var(--sub);margin-bottom:12px}
@@ -1434,7 +1456,9 @@ div.cc:hover{box-shadow:none;transform:none}
 .inv.p2 .tot b{color:#8C4622}
 .inv-cap{font-size:10.5px;color:#949E95;text-align:center;margin-top:9px;line-height:1.5}
 @media (max-width:760px){.arr2{grid-template-columns:1fr}}
-@media (max-width:640px){.duo{grid-template-columns:1fr}}
+/* Single column, and the household's own tier first: on a phone the card that
+   is not scrolled to might as well not exist. */
+@media (max-width:640px){.obook{grid-template-columns:1fr}.ocard.mid{order:-1}}
 /* ---------- cohort seats: ledger, notice band, sheets ---------- */
 .seatledger{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
   border:1px solid var(--line);border-radius:13px;background:#fff;padding:11px 15px;margin:14px 0 2px}
@@ -2314,7 +2338,11 @@ var mobile=function(){return window.innerWidth<=920};
 
 /* ---------- demo state ---------- */
 var STATES=['forming','locked','bidding','offers','confirm','switching','done'];
-var S={state:'forming',deposit:10,chosen:null,member:{bill:92}};
+/* `tier` is the household's pick among the three cards: a TIER NAME from the
+   book, which is also what the accept posts. It replaced `chosen`, an id into
+   a three-row fixture, which is why every screen past the choice used to name
+   the same invented partner. */
+var S={state:'forming',deposit:10,tier:null,member:{bill:92}};
 var OFFERS=[
   {id:'a',name:'Provider A',price:54.5,speed:'500 Mbps',term:'24 months',note:'Install included'},
   {id:'b',name:'Provider B',price:58,speed:'1 Gig',term:'24 months',note:'Modem included'},
@@ -2404,6 +2432,170 @@ S.joined=false;S.checkup=null;S.prefs=null;S.pass=null;
 var WIN={name:'Northline Internet',price:54.5,speed:'500 Mbps',guar:'Price guaranteed 24 months',
  after:'$69 regular rate after, told up front',inc:'Install, modem and in-home WiFi included',bids:3};
 
+/* ---------- the cohort's price book ----------
+   THE RESULT OF AN AUCTION IS A BOOK, NOT A WINNER. Bids are compared per
+   speed tier: for each tier at least one partner quoted, the lowest effective
+   price wins it. So one cohort's three offers can carry three partner names,
+   and a household sees the winner at its own tier plus its two neighbours.
+   Every household picking the same speed still pays the same price, which is
+   the property that makes a cohort a cohort rather than a shopping list.
+
+   The prices are the SERVER'S, always. This file slices which three entries a
+   household sees; it never computes, adjusts or infers one. See
+   lib/awards.js buildBook() for the rule and its tie-breaks. */
+var BOOK=[];
+var BOOKLIVE=false;
+
+/* MIRRORS lib/bids.js TIER_NAMES, wire value for wire value. If you change one
+   change both: a tier name this page does not know is a tier it cannot centre
+   a window on, and the household silently gets somebody else's three speeds. */
+var TIERS=['100 Mbps','300 Mbps','500 Mbps','1 Gig','1.5 Gig','2.5 Gig'];
+var TIERMBPS={'100 Mbps':100,'300 Mbps':300,'500 Mbps':500,'1 Gig':1000,'1.5 Gig':1500,'2.5 Gig':2500};
+
+/* THE DEMO TOUR'S BOOK, and nothing else's. Two partners on purpose, because a
+   one-partner fixture would demonstrate the old single-winner screen and hide
+   the whole point of the new one. bookNow() below is what keeps this away from
+   a real cohort: a live cohort renders the server's book or renders nothing. */
+var DEMOBOOK=[
+ {tier:'100 Mbps',price:'44.50',partner:'Northline Internet',guaranteeMonths:24,afterPrice:'59.00',equipment:'inc',mix:null},
+ {tier:'300 Mbps',price:'49.50',partner:'Northline Internet',guaranteeMonths:24,afterPrice:'64.00',equipment:'inc',mix:null},
+ {tier:'500 Mbps',price:'54.50',partner:'Northline Internet',guaranteeMonths:24,afterPrice:'69.00',equipment:'inc',mix:null},
+ {tier:'1 Gig',price:'62.00',partner:'Calder Fibre',guaranteeMonths:24,afterPrice:'78.00',equipment:'inc',mix:null},
+ {tier:'1.5 Gig',price:'71.00',partner:'Calder Fibre',guaranteeMonths:24,afterPrice:'86.00',equipment:'inc',mix:null},
+ {tier:'2.5 Gig',price:'88.00',partner:'Northline Internet',guaranteeMonths:24,afterPrice:'104.00',equipment:'inc',mix:null}
+];
+
+/* The book these cards render.
+
+   A LIVE COHORT RENDERS THE SERVER'S BOOK OR RENDERS NOTHING. The demo fixture
+   above belongs to the demo tour, which has no cohort behind it. Painting it
+   over a joined cohort whose book has not arrived is how a household reads
+   invented prices as its own offer, which is the exact failure the old WIN
+   fixture caused for every cohort that was not London East. */
+function bookNow(){
+  if(BOOKLIVE)return BOOK;
+  return (CAMPLIVE&&joinedCamp())?[]:DEMOBOOK;
+}
+
+/* Mbps behind a worded speed ("500 Mbps", "1 Gbps", "1 Gig"), or null. */
+function speedMbps(v){
+  if(v==null||v==='')return null;
+  var m=String(v).match(/([\d.]+)\s*(g|m)/i);
+  if(!m)return null;
+  var n=parseFloat(m[1]);
+  if(!isFinite(n))return null;
+  return /^g/i.test(m[2])?n*1000:n;
+}
+/* The ladder tier a raw speed sits at: the highest tier at or below it, and
+   the lowest tier when it is under all of them. Returns a LADDER name, which
+   may be a tier nobody bid; bookWindow() is what resolves that. */
+function tierForSpeed(v){
+  var n=speedMbps(v);
+  if(n===null)return null;
+  var best=TIERS[0];
+  for(var i=0;i<TIERS.length;i++){if(TIERMBPS[TIERS[i]]<=n)best=TIERS[i]}
+  return best;
+}
+
+/* The tier this household's window centres on, and the tier that keeps the
+   "your pick" tag however the household moves its selection.
+
+   The order is deliberate. The preference chip is an explicit answer and beats
+   the bill; "keep what I have" and no answer at all both mean the speed on the
+   bill, which is a fact and not a guess; and the median only runs when nothing
+   is known, where any tier is as wrong as any other and the middle at least
+   shows both neighbours. */
+function prefTier(bk){
+  if(!bk.length)return null;
+  var p=S.prefs||{};
+  /* The chip's own literal is "Move up to 1 Gig". If that copy changes, change
+     this with it, and routes/campaigns.js preferredTier() too. */
+  if(p.speed==='up')return '1 Gig';
+  if(p.speed==='cheap'){
+    return bk.slice().sort(function(a,b){return Number(a.price)-Number(b.price)})[0].tier;
+  }
+  var mine=tierForSpeed((S.checkup||{}).speed);
+  if(mine)return mine;
+  return bk[Math.floor((bk.length-1)/2)].tier;
+}
+
+/* Three consecutive entries OF THE BOOK, centred on `tier` and clamped at both
+   ends: the lowest tier shows the first three, the highest the last three.
+
+   The window is over the book and NOT over the ladder, so a tier nobody bid is
+   skipped rather than painted as an empty card. When the household's own tier
+   is one of the ones nobody bid, the window centres on the nearest tier that
+   exists and `nearest` carries its name, so the screen can say what happened
+   instead of quietly showing three speeds the household never asked about. */
+function bookWindow(bk,tier){
+  if(!bk.length)return {cards:[],centre:null,nearest:null};
+  var i=-1,nearest=null,k;
+  for(k=0;k<bk.length;k++){if(bk[k].tier===tier){i=k;break}}
+  if(i<0){
+    var want=TIERS.indexOf(tier),bestd=1e9;
+    if(want>-1){
+      for(k=0;k<bk.length;k++){
+        var d=Math.abs(TIERS.indexOf(bk[k].tier)-want);
+        if(d<bestd){bestd=d;i=k}
+      }
+    }
+    if(i<0)i=Math.floor((bk.length-1)/2);
+    nearest=bk[i].tier;
+  }
+  var lo=Math.max(0,Math.min(i-1,bk.length-3));
+  return {cards:bk.slice(lo,lo+3),centre:bk[i].tier,nearest:nearest};
+}
+
+/* The entry the household has selected: its own choice while that choice is
+   still on screen, else the tier the window centres on. A selection that has
+   scrolled out of the window is not silently kept, because the CTA would then
+   name a card nobody can see. */
+function chosenEntry(){
+  var bk=bookNow();
+  if(!bk.length)return null;
+  var w=bookWindow(bk,prefTier(bk)),i;
+  for(i=0;i<w.cards.length;i++){if(w.cards[i].tier===S.tier)return w.cards[i]}
+  for(i=0;i<w.cards.length;i++){if(w.cards[i].tier===w.centre)return w.cards[i]}
+  return w.cards[0]||null;
+}
+
+/* The chosen offer in the shape the confirm, switching and done screens read.
+   ONE SOURCE. Those three screens used to filter a hard-coded OFFERS fixture
+   by an id the take button set, so every screen after the choice named
+   "Provider A" whatever the household had actually taken. They now name the
+   tier and the partner the book says it took. */
+function chosenOffer(){
+  var e=chosenEntry();
+  if(e)return {name:e.partner||'your winning partner',price:Number(e.price),speed:e.tier,entry:e};
+  /* Unreachable in practice: an empty book returns early from tplOffers, and
+     the demo tour always has one. Neutral rather than the fixture's "Provider
+     A", because a screen that names a partner nobody bid is the failure this
+     whole change exists to end. */
+  return {name:'your winning partner',price:S.member.bill,speed:'',entry:null};
+}
+
+/* One book entry's three facts, as list items. Guarantee, after-rate and
+   equipment, each said the way the sealed bid said it and never summarised. */
+function entryFacts(e){
+  var out=[];
+  out.push(e.guaranteeMonths?('Price guaranteed '+e.guaranteeMonths+' months'):'No term');
+  out.push(e.afterPrice
+    ? (money(Number(e.afterPrice))+' regular rate after, told up front')
+    : 'No scheduled change to this price');
+  var inc=EQUIP[e.equipment]||EQUIP.inc;
+  if(e.equipment==='rent'&&e.rentalMonthly)inc='Modem rental '+money(Number(e.rentalMonthly))+'/mo';
+  out.push(inc);
+  var li=out.map(function(t){return '<li>'+esc(t)+'</li>'}).join('');
+  /* The named parts of the reduction on this tier, in the cents the seal
+     recorded. Presentation only: cents to dollars is the whole arithmetic. */
+  if(e.mix&&e.mix.rows&&e.mix.rows.length){
+    li+='<li class="mixline">Includes '+e.mix.rows.map(function(m){
+      return esc(m.label)+' '+money(Math.round(Number(m.amountCents)||0)/100)+'/mo';
+    }).join(' \u00b7 ')+'</li>';
+  }
+  return li;
+}
+
 /* ---------- the real winning offer ----------
    WIN and OFFERS above are the prototype's fixtures: Northline Internet at
    $54.50, three partners at the table. They stayed on screen for every cohort,
@@ -2426,7 +2618,15 @@ var EQUIP={inc:'Install, modem and in-home WiFi included',
 var OFFERSTATES=['offers','confirm','switching','done'];
 var OFFERLIVE=false;
 function applyOffer(r){
-  if(!r||r.sealed||!r.offer)return false;
+  /* THE BOOK LANDS FIRST, and separately from the single offer beside it: the
+     cards render from the book, and `offer` is only the entry the server
+     centres on. A book with entries is a live cohort's answer even if the
+     legacy offer object ever stopped arriving. */
+  if(r&&!r.sealed&&r.book&&r.book.length){
+    BOOK=r.book.slice();
+    BOOKLIVE=true;
+  }
+  if(!r||r.sealed||!r.offer)return BOOKLIVE;
   var o=r.offer,n=Number(o.price);
   if(!isFinite(n))return false;
   WIN.name=o.partner||'Your winning partner';
@@ -2436,18 +2636,11 @@ function applyOffer(r){
   WIN.after=o.afterLine||'no scheduled change';
   WIN.inc=EQUIP[o.equipment]||WIN.inc;
   if(o.equipment==='rent'&&o.rentalMonthly)WIN.inc='Modem rental '+money(Number(o.rentalMonthly))+'/mo';
-  /* The named parts of the reduction on the tier this offer quotes, in the
-     cents the seal recorded. Read as label and amount only: the household
-     sees what each step is called and what it is worth, and this page never
-     works a figure out for itself. Null on every other reduction read. */
-  WIN.mix=null;
-  if(o.mix&&o.mix.length){
-    var mt=null;
-    for(var mi=0;mi<o.mix.length;mi++){if(o.mix[mi]&&o.mix[mi].tier===o.speed){mt=o.mix[mi];break}}
-    if(mt&&mt.mix&&mt.mix.length){
-      WIN.mix=mt.mix.map(function(m){return {label:String(m.label||''),cents:Math.round(Number(m.amountCents)||0)}});
-    }
-  }
+  /* The reduction's named parts are NOT read off this object any more. They
+     are per tier, so they ride on each book entry and entryFacts() renders
+     the ones belonging to the card it is drawing. One offer cannot carry six
+     tiers' worth of mix, which is what the old single-tier lookup here was
+     quietly working around. */
   if(typeof r.bidCount==='number')WIN.bids=r.bidCount;
   OFFERS[0]={id:'a',name:WIN.name,price:n,speed:WIN.speed,
     term:o.guaranteeMonths?(o.guaranteeMonths+' months'):'No term',note:WIN.inc};
@@ -2483,6 +2676,24 @@ var CAMPASKED=false;
 /* `source` from the last answer: 'table' or 'code'. The server sends an empty
    list for 'code', so this is diagnostic only, for the dev warning below. */
 var CAMPSOURCE=null;
+/* THE MEMBER'S OWN GEOGRAPHY, AS THE SERVER ANSWERED IT, and deliberately not
+   MEMBER.fsa. MEMBER is a localStorage projection this page writes itself, so
+   reading eligibility off it would let a stale or edited local record decide
+   which cohort is offered. These two come down with the campaign list, beside
+   the eligibility the server computed from them, and they are only ever read
+   to choose WHICH CARD to render. Nothing here decides a join: every join door
+   recomputes eligibility server side and refuses on its own answer. */
+/* The campaigns refetch, published out of the block it is declared in. The
+   poller lives inside `if (W.session.campaignsList)`, this file is strict, so
+   a function declaration there is block scoped and invisible to everything
+   below. Anything that changes what the server would answer (a postal code,
+   above all) has to be able to ask again. */
+var CAMPPULL=null;
+var MEMBERFSA=null;
+/* present | invalid | missing. Three states that all look like "no cohort" and
+   need three different cards: a postal code we have, one we can no longer
+   parse, and none at all. */
+var POSTALSTATE=null;
 /* THE DEV-ONLY GHOST GUARD. The ids the server last named. renderRegions()
    warns in the console, on local and preview hosts only, if a card is about
    to paint for an id not in this set, which is the exact shape of the bug the
@@ -3930,39 +4141,85 @@ function tplBidding(){
    records why. The dead branch is gone rather than given a button, because two
    ways to decline one offer is two records of the same decision. */
 function tplOffers(){
-  var o=OFFERS[0];var save=S.member.bill-o.price;
+  var bk=bookNow();
   var c=S.checkup||{};
-  return '<h3>Your cohort\u2019s winning offer is in</h3>'
-  /* NOT THE COUNT. "3 partners bid" reads as a number the household can weigh
-     the offer by, and it is the wrong number for that: how many partners bid
-     says nothing about whether the winning one is good, and a cohort that drew
-     two strong bids is not worse than one that drew five. It is also the figure
-     the demo constant fakes hardest. One bid is still said plainly, because
-     "multiple" over a single bid would be the same overclaim in the other
-     direction. WIN.bids is still the server's bidCount, and still what decides
-     which of the two this is. */
-  +'<p class="p">'+(WIN.bids===1?'One partner bid':'Multiple partners bid')+', sealed. This was the best against the cohort\u2019s standard terms, and it\u2019s the same offer for every household in it.</p>'
-  +'<div class="duo">'
-  +'<div class="duocell now"><span class="dl">Your bill today</span><b>'+money(S.member.bill)+'/mo</b><span class="ds">'+esc(c.prov||'Your provider')+(c.speed?' \u00b7 '+esc(c.speed):'')+'</span><span class="ds">'+(c.promo&&c.promo!=='Not sure'?'Resets around '+esc(c.promo):'Promo reset not set')+'</span></div>'
-  +'<div class="duocell win"><span class="dl">'+esc(WIN.name)+'</span><b>'+money(o.price)+'/mo</b><span class="ds">'+esc(WIN.speed)+' \u00b7 '+esc(WIN.guar.toLowerCase())+'</span><span class="ds">'+esc(WIN.after)+'</span><span class="ds">'+esc(WIN.inc)+'</span>'+mixLines()+'<span class="savetag">saves '+money(save)+'/mo</span></div>'
-  +'</div>'
+  if(!bk.length){
+    /* A joined cohort whose book the server has not answered. Nothing is
+       invented here. The household is told exactly what is known, which is
+       that the window shut and the prices are not readable yet, and no card
+       paints until they are. */
+    return '<h3>Bidding has closed on your cohort</h3>'
+    +'<p class="p">The sealed prices are not readable yet. Nothing is decided by this screen, and your speeds and their prices appear here the moment they are.</p>';
+  }
+  var pref=prefTier(bk);
+  var w=bookWindow(bk,pref);
+  var sel=chosenEntry();
+  var bids=WIN.bids;
+
+  /* THE COUNT IS SAID AGAIN, and this reverses a deliberate earlier decision
+     that it should not be. The old panel argued that "3 partners bid" reads as
+     a number the household weighs the offer by, and it was right while there
+     was one offer: how many bid says nothing about whether the winner is good.
+     The book changes what the sentence is doing. It is no longer a quality
+     claim, it is the explanation for the thing directly beneath it, which is
+     three cards that can carry three different partner names. Without the
+     count that reads as a bug. One bid is still said plainly. */
+  var lede=(bids===1?'One partner bid':bids+' partners bid')+', sealed.';
+
+  var out='<h3>Your cohort\u2019s offers are in</h3>'
+  +'<p class="p"><b>'+esc(lede)+'</b> The lowest bid won each speed, so your choices below may come from different partners. Every household picking the same speed pays the same price.</p>';
+
+  /* The household's own bill, which every delta on every card is measured
+     against, said once above them rather than repeated three times. */
+  out+='<div class="ctx"><span>Your bill today <b>'+money(S.member.bill)+'/mo</b>'
+    +' \u00b7 <span class="mono">'+esc(c.prov||'your provider')+(c.speed?' \u00b7 '+esc(c.speed):'')+'</span>'
+    +(c.promo&&c.promo!=='Not sure'?' \u00b7 resets around <b>'+esc(c.promo)+'</b>':'')
+    +'</span></div>';
+
+  /* Which speed the window is centred on and why. The speed is NOT editable
+     here: it is a preference, it shapes the brief partners bid against, and a
+     control that changed it at the moment of the offer would let a household
+     rewrite the question after seeing the answer. */
+  out+='<p class="pickline">'+(w.nearest
+    ? 'Nobody bid <b>'+esc(pref)+'</b> this round, so these are the speeds around the closest one, <b>'+esc(w.nearest)+'</b>.'
+    : 'Showing the prices around your pick, <b>'+esc(pref)+'</b>. Change it in your preferences.')
+    +'</p>';
+
+  /* A radiogroup, not a list of buttons: the cards are one choice with three
+     answers, and a screen reader has to be told that rather than left to infer
+     it from the styling of whichever one is green. */
+  out+='<div class="obook" role="radiogroup" aria-label="Your cohort\u2019s offers by speed">'
+  +w.cards.map(function(e){
+    var isPref=e.tier===w.centre,isSel=Boolean(sel&&e.tier===sel.tier);
+    var d=S.member.bill-Number(e.price);
+    return '<button type="button" class="ocard'+(isPref?' mid':'')+(isSel?' sel':'')+'"'
+      +' data-tier="'+esc(e.tier)+'" role="radio" aria-checked="'+(isSel?'true':'false')+'">'
+      +(isPref?'<span class="tag">Your pick \u00b7 best bid</span>':'')
+      +'<span class="ring" aria-hidden="true"></span>'
+      +'<span class="spd">'+esc(e.tier)+'</span>'
+      +'<span class="price">'+money(Number(e.price))+'<small>/mo</small></span>'
+      +'<span class="prov">won by <b>'+esc(e.partner||'your winning partner')+'</b></span>'
+      +'<ul>'+entryFacts(e)+'</ul>'
+      /* Never hidden and never softened when the answer is unflattering: a
+         faster tier can cost more than the bill today, and a household that
+         finds that out after accepting found it out from us last. */
+      +'<span class="delta'+(d<0?' up':'')+'">'+(d>=0?'\u2212 '+money(d):'+ '+money(-d))+' vs your bill today</span>'
+      +'</button>';
+  }).join('')
+  +'</div>';
+
   /* The offer stands until confirmations lock, which is decision_at on the
      cohort's own calendar. This was the literal "Sep 24". */
-  +'<div class="oblig"><b>You\u2019re never obligated.</b> Take it with a '+dep()+' refundable deposit, or pass and pay nothing, ever.'+(function(){
+  out+='<div class="oblig"><b>You\u2019re never obligated.</b> Take one with a '+dep()+' refundable deposit, or pass and pay nothing, ever.'+(function(){
     var jc=CAMPLIVE?joinedCamp():null,dd=jc&&jc.dates&&jc.dates.decision_at;
     return dd?' It stands until <b>'+esc(dstamp(dd))+'</b>.':'';
-  })()+'</div>'
-  +'<div style="margin-top:13px;display:flex;gap:10px;flex-wrap:wrap">'
-  +'<button class="btn terra" type="button" data-take="a">Take this offer</button>'
+  })()+'</div>';
+
+  out+='<div style="margin-top:13px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">'
+  +'<button class="btn terra" type="button" data-take="'+esc(sel?sel.tier:'')+'">Take '+esc(sel?sel.tier:'this offer')+(sel?' at '+money(Number(sel.price))+'/mo':'')+'</button>'
   +'<button class="btn ghost" type="button" data-act="pass">Pass on it</button>'
-  +'<button class="finelink" type="button" data-act="whopart">Who is '+esc(WIN.name)+'?</button></div>';
-}
-/* The steps the winning partner named inside the reduction, one line each,
-   or nothing when the offer carries none. Cents to dollars is the only
-   arithmetic here, and it is presentation. */
-function mixLines(){
-  if(!WIN.mix||!WIN.mix.length)return '';
-  return '<span class="ds mixline">Includes '+WIN.mix.map(function(m){return esc(m.label)+' '+money(m.cents/100)+'/mo'}).join(' \u00b7 ')+'</span>';
+  +'<button class="finelink" type="button" data-act="whopart">Who is '+esc((sel&&sel.partner)||'your winning partner')+'?</button></div>';
+  return out;
 }
 /* The cohort whose real offer this confirm screen would accept, or null when
    this is the demo tour. Real means: a live joined cohort AND a live offer
@@ -3973,7 +4230,7 @@ function liveAccept(){
   return (c&&OFFERLIVE&&W&&W.session&&W.session.campaignOfferAccept)?c:null;
 }
 function tplConfirm(){
-  var o=OFFERS.filter(function(x){return x.id===S.chosen})[0]||OFFERS[0];
+  var o=chosenOffer();
   var save=S.member.bill-o.price;
   /* THE REAL CONFIRM IS THE ACCEPT. POST /campaigns/:id/offer/accept wants
      exactly two things, a service address and the consent to release it, so
@@ -4011,7 +4268,7 @@ function tplConfirm(){
   +'<button class="finelink" type="button" data-act="backoffers">Back to offers</button>';
 }
 function tplSwitching(){
-  var o=OFFERS.filter(function(x){return x.id===S.chosen})[0]||OFFERS[0];
+  var o=chosenOffer();
   /* A REAL ORDER SHOWS ITS OWN TRUTH. The demo's "Wednesday, October 8" was a
      fixture, and painting it over a real acceptance promises a visit nobody
      booked. The order state is what is known: accepted means the partner has
@@ -4037,7 +4294,7 @@ function tplSwitching(){
   +'</div>';
 }
 function tplDone(){
-  var o=OFFERS.filter(function(x){return x.id===S.chosen})[0]||OFFERS[0];
+  var o=chosenOffer();
   var save=S.member.bill-o.price;
   return '<h3>Switched. That\u2019s the whole point.</h3>'
   +'<div class="donebox">'
@@ -4134,7 +4391,13 @@ function render(){
 }
 function go(state){
   S.state=state;
-  if((state==='confirm'||state==='switching'||state==='done')&&!S.chosen)S.chosen='a';
+  /* A later stage reached without a pick centres on the household's own tier,
+     which is what chosenEntry() falls back to anyway. Nothing is defaulted to
+     a partner name here: the old 'a' was the first row of a fixture. */
+  if((state==='confirm'||state==='switching'||state==='done')&&!S.tier){
+    var _e=chosenEntry();
+    if(_e)S.tier=_e.tier;
+  }
   /* Demo jumps into member states need the member-side fixtures a real member
      would have accumulated; never fabricate them outside ?demo=1. */
   if(DEMO&&VIS.indexOf(state)<0&&!S.joined){
@@ -4150,12 +4413,21 @@ $('#panel').addEventListener('click',function(e){
   var t=e.target.closest('button');if(!t)return;
   var take=t.getAttribute('data-take');
   var act=t.getAttribute('data-act');
+  /* Choosing a card is not taking the offer. It moves the selection, which
+     re-renders the CTA and the "who is" link from the entry now selected, and
+     it persists nothing at all. The card is itself a <button>, so the
+     delegate above has already resolved a click on any span inside it. */
+  if(t.classList.contains('ocard')&&t.getAttribute('data-tier')){
+    S.tier=t.getAttribute('data-tier');
+    render();
+    return;
+  }
   /* Taking the offer is navigation, not the decision: the persisted write is
-     the confirm button below, which posts the accept with the address and the
-     consent the server requires. Before that button is pressed a reload
-     honestly returns to Offers, because nothing has been decided yet.
+     the confirm button below, which posts the accept with the address, the
+     tier and the consent the server requires. Before that button is pressed a
+     reload honestly returns to Offers, because nothing has been decided yet.
      `advance` keeps the confirm screen up against the poll meanwhile. */
-  if(take){S.chosen=take;advance('confirm');go('confirm');return}
+  if(take){S.tier=take;advance('confirm');go('confirm');return}
   if(act==='backoffers'){ADVANCED=null;PASSLOCK=false;go('offers');return}
   /* `invite` used to be handled HERE ONLY, on #panel, which is the member lane.
      rvWaitlist puts the same button in #visitor-home, outside this listener, so
@@ -4174,7 +4446,10 @@ $('#panel').addEventListener('click',function(e){
     if(lc){
       var ad=(($('#svcaddr')||{}).value||'').trim();
       t.disabled=true;t.textContent='Confirming\u2026';
-      W.session.campaignOfferAccept(lc.id,{address:ad,consent:true}).then(function(r){
+      /* The tier travels with the accept: the cohort's speeds can belong to
+         different partners, so this is what decides whose install this is. */
+      var pick=chosenEntry();
+      W.session.campaignOfferAccept(lc.id,{address:ad,tier:(pick&&pick.tier)||'',consent:true}).then(function(r){
         lc.yourOrder={orderNo:(r&&r.orderNo)||null,state:'acc'};
         advance('switching');go('switching');openSavings();
         toast((r&&r.note)||'Accepted. Nothing is charged for switching, and your installer books the visit from here.',6000);
@@ -4362,6 +4637,45 @@ $('#mrcta').addEventListener('click',function(){
    changes parent. */
 /* ---------- campaigns: cards, sheet, joins ---------- */
 function campById(id){for(var i=0;i<CAMPS.length;i++)if(CAMPS[i].id===id)return CAMPS[i];return null}
+/* ---------- eligibility, as read rather than as decided ----------
+   Every function here is a projection of the server's `eligibility` string.
+   None of them computes one. The difference matters on the one screen where
+   it would be tempting: a card that decided for itself would show a join
+   button the server refuses, and the member would meet an error where the
+   page had just made a promise. */
+function eligOf(c){return (c&&c.eligibility)||null}
+/* Which cohorts a press may actually reach. `unscoped` is a campaign with no
+   postal code areas set, which is every campaign written before coverage
+   existed and is open to everyone: it behaves exactly as this page behaved
+   before, which is the whole point of the migration. */
+function canJoinCamp(c){
+  var e=eligOf(c);
+  if(!e)return Boolean(c&&c.joinable);   /* older server: `joinable` alone */
+  return e==='eligible'||e==='unscoped'||e==='already_joined';
+}
+/* An "Open to you" claim is made for `eligible` ALONE. On an unscoped cohort
+   it would be claiming a match this stack has not got: the cohort covers no
+   areas, so it is open to this household the way it is open to everybody. */
+function isOpenToYou(c){return eligOf(c)==='eligible'}
+/* Ordered the way a household reads down: mine, then what I can join, then
+   what is being bid on where I live, then everything else. Geography beats
+   lifecycle here, which is the change: a forming cohort in another province
+   used to outrank a sealed one on this member's own street. */
+function eligRank(c){
+  var e=eligOf(c);
+  if(c.you==='joined'||c.you==='waitlist')return 0;
+  if(e==='eligible')return 1;
+  if(e==='joins_closed')return 2;
+  /* NO ANSWER AT ALL is a deployment older than eligibility, not a refusal.
+     It ranks the way this row ranked before coverage existed: joinable first,
+     everything else after, and the featured tile falls to the server's own
+     sort_order, which is what CAMPS[0] used to mean. Ranking it alongside
+     not_in_area would empty the tile on every surface running an older
+     function, which is the one failure a degradation path may not have. */
+  if(!e)return c.joinable?1:3;
+  if(e==='unscoped')return 3;
+  return 4;
+}
 /* THE SERVER'S LIST IS THE WHOLE ANSWER, including its silences. A campaign
    the last answer did not name is one that archived, or one this page invented,
    and either way it leaves, taking its `you` with it. There is no seed to
@@ -4399,6 +4713,14 @@ function applyCampaign(sc){
      auction stops being joinable. Reading this from the seed alone left a join
      button live on a locked cohort, where its only possible answer was a 400. */
   if(sc.joinable!==undefined)c.joinable=Boolean(sc.joinable);
+  /* SERVER-OWNED, exactly like `stage`. eligible | already_joined |
+     joins_closed | not_in_area | unscoped. The page renders it and never
+     derives it: a card computing its own eligibility from MEMBER.fsa would be
+     a second answer to a question the join route settles on its own. Left
+     untouched when absent so an older deployment degrades to `joinable`, which
+     is the pre-eligibility behaviour. */
+  if(sc.eligibility)c.eligibility=sc.eligibility;
+  if(sc.nearbyTier!==undefined)c.nearbyTier=sc.nearbyTier;
   /* Server-owned stage and calendar. Carried onto the local record so
      deriveState() and paintDates() read one object, and left untouched when
      the field is absent so an older deployment degrades to `kind`. */
@@ -4418,8 +4740,32 @@ function applyCampaign(sc){
 function featuredCamp(){
   var mine=CAMPLIVE?joinedCamp():null;
   if(mine)return mine;
-  for(var i=0;i<CAMPS.length;i++)if(CAMPS[i].joinable)return CAMPS[i];
-  return CAMPS[0]||null;
+  /* WHERE THIS HOUSEHOLD LIVES CHOOSES THE TILE. This walked the list for the
+     first `joinable` cohort and then fell back to CAMPS[0], which was right
+     while every cohort was open to everyone: it made the tile an ops decision
+     through sort_order. It is not right once cohorts have postal code areas,
+     because the first joinable cohort in the catalog is now very often one
+     this member cannot join, and the tile would offer it anyway.
+
+     The order is the honest one: a cohort open to your postal code, then one
+     in your area that has moved past joining (which is a truer answer than
+     "nothing open near you"), then an unscoped cohort, which is the
+     pre-coverage behaviour and the state every live campaign is in until an
+     operator scopes it. Nothing else is promoted: a cohort somewhere else is
+     readable in the rail and is not the answer to "what is open near me".
+
+     Ties inside a rank go to the nearer one, then to the server's sort_order,
+     which is what the index tiebreak preserves. */
+  var best=null,bestKey=null;
+  for(var i=0;i<CAMPS.length;i++){
+    var c=CAMPS[i],r=eligRank(c);
+    if(r>3)continue;                       /* not_in_area is never featured */
+    if(r===2&&!c.region)continue;
+    var key=[r,(c.nearbyTier===undefined?3:c.nearbyTier),i];
+    if(!bestKey||key[0]<bestKey[0]||(key[0]===bestKey[0]&&(key[1]<bestKey[1]
+      ||(key[1]===bestKey[1]&&key[2]<bestKey[2])))){best=c;bestKey=key}
+  }
+  return best;
 }
 /* A sync of the featured cohort's household count onto S.cohort stood here,
    so that the locked panel and the offer panel could quote it.
@@ -4467,8 +4813,31 @@ function campRepaint(){render()}
 /* The endpoint not existing yet (404) or being unreachable degrades to the
    local demo rather than a dead button; a real refusal shows its message. */
 function offlineish(err){return !err||err.code==='NETWORK'||err.status===404}
+/* THE SERVER'S REFUSALS ABOUT GEOGRAPHY, given their own surfaces. Neither of
+   these is an error the member did anything to cause, and neither has a retry:
+   one needs a postal code, the other needs a different cohort or a corrected
+   address. A toast saying "that didn't save" would be true and useless. */
+function joinGeoRefusal(c,err){
+  if(!err)return false;
+  if(err.code==='POSTAL_MISSING'){openPostalEdit(c?c.id:null);return true}
+  if(err.code==='NOT_IN_AREA'){
+    /* Repaint first: the card that was pressed was showing an eligibility the
+       server has just contradicted, and leaving it live would offer the same
+       refusal again on the next press. */
+    if(c)c.eligibility='not_in_area';
+    campRepaint();
+    openNotInArea(c?c.id:null);
+    return true;
+  }
+  return false;
+}
 function doJoin(id,btn,fail){
-  var c=campById(id);if(!c||!c.joinable){fail&&fail(null);return}
+  var c=campById(id);
+  /* The first line of defence and never the only one: guards.requireEligible
+     runs on every join door and decides. This stops a press that could only
+     ever answer 403 from spending a round trip to find that out. */
+  if(c&&!canJoinCamp(c)&&eligOf(c)==='not_in_area'){openNotInArea(c.id);fail&&fail(null);return}
+  if(!c||!c.joinable){fail&&fail(null);return}
   if(c.you==='joined'||c.you==='waitlist')return;
   /* Forming cohorts go through the seat claim so one address can never hold
      two. Anything else (waitlist, planned) is a place on a list, not a seat,
@@ -4499,6 +4868,11 @@ function doJoinLegacy(id,btn,fail){
       if(err.extra&&err.extra.held_cohort)applyCampaign(err.extra.held_cohort);
       seatRefresh();
       seatConflictOpen(c.id);
+      fail&&fail(err);
+      return;
+    }
+    if(joinGeoRefusal(c,err)){
+      if(btn){btn.disabled=false}
       fail&&fail(err);
       return;
     }
@@ -6137,6 +6511,36 @@ function openCohortHTML(le,ck,nobill){
     +'<span class="eyebrow">Open in your area</span><h3>Finding cohorts near you</h3>'
     +'<p class="cardnote">One moment while we check what is open in your region.</p></section>';
   }
+  /* NO POSTAL CODE, NO GEOGRAPHY, AND THEREFORE NO HONEST ANSWER about what
+     is open near this household. "Nothing open near you yet" said to somebody
+     we cannot place is a claim about a place we do not know, and it is the one
+     card here that is a lie rather than a gap. The postal code is also the
+     one thing the member can fix in ten seconds. */
+  if(POSTALSTATE&&POSTALSTATE!=='present'){
+    return '<section class="card" aria-label="Your area">'
+    +'<span class="eyebrow">Your area</span><h3>Add your postal code to see cohorts</h3>'
+    +'<p class="cardnote">Cohorts open by postal code. Add yours and this shows what’s forming where you live.</p>'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">'
+    +'<button class="btn terra" type="button" data-act="setpostal">Add postal code</button>'
+    +'<button class="btn ghost" type="button" data-act="whyfree">Why it’s free</button>'
+    +'</div></section>';
+  }
+  /* THE COHORT IS IN YOUR AREA AND HAS MOVED PAST JOINING. Shown rather than
+     collapsed into "nothing open near you", because a household whose own
+     region ran a cohort last month is owed the more specific answer: the
+     region is live, this round is closed, the next one shows here. Saying
+     nothing open would be technically true and would read as "we have never
+     heard of your street". */
+  if(le&&eligOf(le)==='joins_closed'){
+    return '<section class="card" aria-label="Your area">'
+    +'<span class="eyebrow">Your area</span><h3>'+esc(le.region||le.id)+' is past its join window</h3>'
+    +'<p class="cardnote">This cohort has moved into '+esc(String(le.stageLabel||'sealed bidding').toLowerCase())
+    +'. The next cohort for your postal code will show here when it opens.</p>'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">'
+    +'<button class="btn terra" type="button" data-act="wnotify">Text me the day the next one opens</button>'
+    +'<button class="btn ghost" type="button" data-choose="'+esc(le.id)+'">See the cohort</button>'
+    +'</div></section>';
+  }
   if(!le||!le.joinable){
     /* No cohort is open to this household. Saying nothing here would leave the
        result card ending on a diagnosis with no next step. */
@@ -6182,9 +6586,18 @@ function openCohortHTML(le,ck,nobill){
   }else{
     elig='Your reset is around '+esc(ck.promo)+' · we time bidding to close before it.';
   }
+  /* THE HEADING NAMES THE MATCH when there is one to name. An `eligible`
+     answer means the server compared this household's own FSA against this
+     cohort's coverage and they met, so the card can say so; an `unscoped`
+     one means the cohort covers no areas yet and the card says what it has
+     always said, which is the region and its calendar. Two headings rather
+     than one because the second must never make the first's claim. */
+  var own=isOpenToYou(le);
   return '<section class="card" aria-label="Cohort you can join">'
-  +'<span class="eyebrow">Open in your area</span><h3>'+esc(le.region||le.id)
-  +(le.sub?' · '+esc(le.sub):'')+'</h3>'
+  +'<span class="eyebrow">Open in your area</span><h3>'
+  +(own?esc(le.region||le.id)+' is open to your postal code'
+       :esc(le.region||le.id)+(le.sub?' · '+esc(le.sub):''))+'</h3>'
+  +(own?'<p class="cardnote">Your postal code is inside this cohort. Join and you’re counted when providers bid. No obligation to take any offer.</p>':'')
   +'<p class="cardnote">'+line+'</p>'
   +'<div class="elig">'+elig+'</div>'
   +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">'
@@ -6361,9 +6774,22 @@ function ccRank(c){
   if(c.kind==='waitlist')return 4;
   return 5;
 }
+/* GEOGRAPHY FIRST, THEN LIFECYCLE, THEN THE SERVER'S ORDER.
+   The row used to rank on `kind` alone, which was the right argument while a
+   cohort's kind was the only thing that differed between two cards. It is the
+   wrong one now: a forming cohort in another province outranked a sealed one
+   on this member's own street, and the household read a row that was sorted by
+   something it cannot act on.
+
+   VISIBILITY IS UNCHANGED. Every campaign the server sent is still in this
+   list and still readable; this decides the ORDER and nothing else, which is
+   also why eligRank and not canJoinCamp: a cohort in your area that has closed
+   ranks above an open one three cities over, because it is the more useful
+   thing for you to know about. */
 function campsRanked(){
-  return CAMPS.map(function(c,i){return [c,i,ccRank(c)]})
-    .sort(function(a,b){return a[2]-b[2]||a[1]-b[1]})
+  return CAMPS.map(function(c,i){return [c,i,eligRank(c),
+      (c.nearbyTier===undefined?3:c.nearbyTier),ccRank(c)]})
+    .sort(function(a,b){return a[2]-b[2]||a[3]-b[3]||a[4]-b[4]||a[1]-b[1]})
     .map(function(x){return x[0]});
 }
 /* `ids` because #cc-first and #regmono must stay unique: the same cards are
@@ -6386,14 +6812,37 @@ function ccCard(c,feat,ids){
   /* THE CARD'S OWN COHORT, not the page's. S.state belongs to joinedCamp():
      a waitlist standing on a second cohort wearing the seated cohort's stage
      pill asserted the wrong campaign's stage on the wrong card. */
+  /* "Open to you" IS THE ONLY GEOGRAPHY CLAIM ON A CARD, and it is made for
+     `eligible` alone: a cohort with no postal code areas set is open to this
+     household the way it is open to everyone, and a pill saying otherwise
+     would be asserting a match nothing computed. There is deliberately no
+     "not in your area" pill: three of four cards would carry it, the row
+     would read as a wall of refusals, and the cohort's own page says it
+     properly with a way out. The absence of the green pill is the signal. */
   var badge=mine
     ? '<span class="badge live">Your cohort · '+esc(c.you==='waitlist'?'Waitlist':(c.stageLabel||PILL[S.state]||'In play'))+'</span>'
-    : heldElsewhere
-      ? '<span class="badge">You hold another seat · Move here</span>'
-      : '<span class="badge '+b[0]+'">'+esc(b[1])+'</span>';
+    : isOpenToYou(c)
+      ? '<span class="badge live">Open to you</span>'
+      : heldElsewhere
+        ? '<span class="badge">You hold another seat · Move here</span>'
+        : '<span class="badge '+b[0]+'">'+esc(b[1])+'</span>';
+  /* A COHORT SOMEWHERE ELSE IS STILL A CARD. Visibility never depended on
+     eligibility and it still does not: the press opens the cohort's own
+     explanation and a way to correct a postal code, which is what a household
+     that has moved actually needs. A dead tile with no reason on it is the one
+     thing this must not be.
+
+     DECIDED HERE, ABOVE THE BELL, and that placement is load-bearing. The bell
+     and the whole-card target used to be mutually exclusive by `joinable`
+     alone, which is what kept a <button> out of a <button>; a not-in-area
+     cohort is not joinable, so it grew a bell AND a target, the parser closed
+     the outer button at the inner one, and the card's own name and subtitle
+     ended up outside the card. It renders as an empty pill. The dialog behind
+     the press offers the same bell in words, so nothing is lost. */
+  var away=(!mine&&eligOf(c)==='not_in_area');
   /* A bell belongs on a cohort nobody can join yet. On one at auction it would
      offer to text the member about a window that has already shut. */
-  var bell=(!mine&&!c.joinable&&c.kind!=='auction'&&c.kind!=='closed'&&c.region)
+  var bell=(!mine&&!away&&!c.joinable&&c.kind!=='auction'&&c.kind!=='closed'&&c.region)
     ? '<button class="bell" type="button" data-bell="'+esc(c.region)+'" aria-label="Notify me when '
       +esc(c.region)+' opens"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/>'
       +'<path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>'
@@ -6444,7 +6893,11 @@ function ccCard(c,feat,ids){
      fell between them: a waitlist standing derives a `forming` page state,
      which is not a visitor state, and no seat means `heldElsewhere` is false,
      so every other open cohort was an inert tile with a hover shadow. */
-  var choose=(!mine&&c.joinable&&(PICKANY||heldElsewhere||!seatHeldId()||VIS.indexOf(S.state)>-1));
+  /* AND THE LAST GATE IS GEOGRAPHY. Everything above widens the press so a
+     member can reach any cohort they could act on; this narrows it back to the
+     cohorts they can. A press that could only ever answer 403 is not a press. */
+  var choose=(!mine&&c.joinable&&canJoinCamp(c)
+    &&(PICKANY||heldElsewhere||!seatHeldId()||VIS.indexOf(S.state)>-1));
   /* #cc-first and #regmono stay on the featured card in the Home row. They are the
      handles qa-dashboard.mjs reads to assert that this row shows the server's
      cohorts and not four regions from the markup, which is the whole point of
@@ -6455,11 +6908,13 @@ function ccCard(c,feat,ids){
   var next=(typeof SEATTARGET!=='undefined'&&SEATTARGET===c.id&&!mine)?' cc--next':'';
   var open=choose
     ? '<button class="cc'+next+'" type="button" data-choose="'+esc(c.id)+'"'+(mark?' id="cc-first"':'')+'>'
-    : '<div class="cc'+next+'"'+(mark?' id="cc-first"':'')+'>';
+    : away
+      ? '<button class="cc'+next+'" type="button" data-away="'+esc(c.id)+'"'+(mark?' id="cc-first"':'')+'>'
+      : '<div class="cc'+next+'"'+(mark?' id="cc-first"':'')+'>';
   return open+badge+bell+ccArt(c)
    +'<span class="cc__b"'+(mark?' id="regmono"':'')+'><b>'+esc(c.region||c.id)+'</b>'
    +'<span class="m">'+esc(ccSub(c))+'</span></span>'
-   +(choose?'</button>':'</div>');
+   +((choose||away)?'</button>':'</div>');
 }
 /* AREAS, NOT COHORTS.
    Owner's call 2026-08-27: every campaign name comes off this dashboard, the
@@ -6602,8 +7057,151 @@ document.addEventListener('click',function(e){
        across; resumeIntent picks it up when they land back here with a bill. */
     joinNext(CHOSEN);return;
   }
+  /* A COHORT SOMEWHERE ELSE, PRESSED. The card is readable and always was;
+     this is the sentence that goes with it and the one thing a household in
+     this position can actually do about it. */
+  var aw=e.target.closest('[data-away]');
+  if(aw){openNotInArea(aw.getAttribute('data-away'));return}
+  if(e.target.closest('[data-act="setpostal"]')){openPostalEdit(null);return}
+  var cp=e.target.closest('[data-postal]');
+  if(cp){openPostalEdit(cp.getAttribute('data-postal')||null);return}
 });
 var CHOSEN=null;
+
+/* ---------- a cohort that is not this household's ----------
+   THE COPY ANCHORS ON THE SERVICE ADDRESS, deliberately: "where your internet
+   is delivered". A prompt that read "enter the postal code for this cohort"
+   would be an invitation to type an address the household does not live at,
+   and the cohort would then be built out of people a partner cannot install a
+   line for. Written as a correction path for movers, which is who it is for.
+
+   THE FSA LIST IS NOT SHOWN, on this or any member surface. A household that
+   could read a cohort's coverage could work out where every other cohort is
+   not, and the useful half of that (is it mine?) is already answered above.
+
+   NO DISABLED JOIN BUTTON ANYWHERE. A greyed button with no explanation is the
+   worst version of this screen; this dialog is the only version of it. */
+function openNotInArea(id){
+  var c=id?campById(id):null;
+  var where=(c&&(c.region||c.id))||'This cohort';
+  openModal('<div class="mhead"><h3>This cohort isn\u2019t in your area</h3>'
+  +'<button class="mx" type="button" data-mclose aria-label="Close">\u00d7</button></div>'
+  +'<p class="msub">'+esc(where)+' is open to a different postal code than the one on your profile. '
+  +'If you\u2019ve moved, or your internet is delivered somewhere else, update your postal code and come back. '
+  +'If you\u2019re staying put, your own cohort shows on your dashboard the day it opens.</p>'
+  +'<button class="btn terra" type="button" data-postal="'+esc(c?c.id:'')+'" style="width:100%;justify-content:center;margin-top:4px">Change my postal code</button>'
+  +'<button class="btn ghost" type="button" data-act="wnotify" style="width:100%;justify-content:center;margin-top:10px">Text me when my area opens</button>'
+  +'<button class="btn ghost" type="button" data-act="invite" style="width:100%;justify-content:center;margin-top:10px">Share your link</button>'
+  +'<p class="fnote" style="text-align:center">A referral counts wherever your friend lives: theirs speeds up their own region, and yours strengthens the cohort here.</p>',true);
+}
+
+/* ---------- the postal code, changed from wherever the member is ----------
+   ONE FIELD, AND EVERY REFUSAL COMES FROM THE SERVER. The page does not decide
+   whether this change leaves a cohort, whether the cohort has sealed, or
+   whether the member has changed it too often today: it sends the value and
+   renders whichever of those answers comes back. A client that decided any of
+   them would be a client that could be wrong about a seat.
+
+   `back` is the campaign the member was reading when they pressed. The server
+   validates it against its own published slugs and recomputes eligibility
+   against the SAVED row, so the page cannot land them on a join button the
+   join route would refuse. */
+var POSTALSAVING=false;
+function postalErr(m){
+  var el=$('#pe-err');
+  if(el){el.textContent=m;el.hidden=false}else toast(m);
+}
+function openPostalEdit(back,confirmCohort){
+  var cur=(MEMBER&&MEMBER.postal)||'';
+  var head=confirmCohort?'Changing your postal code leaves your cohort':'Your postal code';
+  var sub=confirmCohort
+    ? esc(confirmCohort.region)+' covers your current postal code, not the new one. Save the change and you\u2019ll leave the cohort. Your new postal code\u2019s cohort shows on your dashboard when it opens.'
+    : 'Cohorts open by postal code, and this is the one where your internet is delivered rather than where your post goes.';
+  openModal('<div class="mhead"><h3>'+esc(head)+'</h3>'
+  +'<button class="mx" type="button" data-mclose aria-label="Close">\u00d7</button></div>'
+  +'<p class="msub">'+sub+'</p>'
+  +'<label class="plabel" for="pe-in">Postal code</label>'
+  +'<input class="minput" id="pe-in" type="text" autocomplete="postal-code" maxlength="7" placeholder="N5Y 2T6" value="'+esc(cur)+'">'
+  +'<p class="whl-fielderr" id="pe-err" role="alert" hidden></p>'
+  +'<button class="btn terra" type="button" id="pe-save" style="width:100%;justify-content:center;margin-top:16px">'
+  +(confirmCohort?'Save and leave cohort':'Save postal code')+'</button>'
+  +(confirmCohort?'<button class="btn ghost" type="button" data-mclose style="width:100%;justify-content:center;margin-top:10px">Keep my postal code</button>':'')
+  +'<p class="fnote" style="text-align:center">Your address is never shown to a partner. They bid against a count and a region, never a name or a door.</p>',true);
+  var el=$('#pe-in');
+  if(el){
+    el.addEventListener('input',function(){el.value=W.formatPostal(el.value)});
+    el.focus();
+  }
+  PEBACK=back||null;
+  PECONFIRM=confirmCohort||null;
+  if(confirmCohort&&PEVALUE&&el)el.value=PEVALUE;
+}
+var PEBACK=null,PECONFIRM=null,PEVALUE=null;
+document.addEventListener('click',function(e){
+  var btn=e.target.closest('#pe-save');
+  if(!btn||POSTALSAVING)return;
+  var el=$('#pe-in');
+  var raw=String((el&&el.value)||'').trim();
+  /* Validated here to save a round trip on a typo, and by lib/geo.js on the
+     server, which is the one that decides. scripts/test-geo.mjs holds the two
+     to the same table of cases so a field can never accept what a save
+     refuses. */
+  var parsed=W.normalizePostal(raw);
+  if(parsed.error){
+    postalErr('That doesn\u2019t look like a Canadian postal code. Check it and try again.');
+    if(el)el.focus();
+    return;
+  }
+  if(!(W&&W.session&&W.session.profileSave)){
+    postalErr('We could not save that just now. Please try again in a moment.');return;
+  }
+  PEVALUE=parsed.display;
+  var label=btn.textContent;
+  POSTALSAVING=true;btn.disabled=true;btn.textContent='Saving\u2026';
+  var payload={postalCode:parsed.display};
+  if(PEBACK)payload.returnTo=PEBACK;
+  if(PECONFIRM)payload.confirmLeaveCohort=true;
+  W.session.profileSave(payload).then(function(resp){
+    POSTALSAVING=false;
+    MEMBER=W.member.patch((resp&&resp.user)||{postal:parsed.display,fsa:parsed.fsa})||MEMBER;
+    MEMBERFSA=parsed.fsa;POSTALSTATE='present';
+    var landed=resp&&resp.returnTo;
+    var leftName=resp&&resp.leftCohort&&resp.leftCohort.region;
+    closeModal();
+    paintAccount();
+    /* THE PAGE DOES NOT DECIDE WHAT CHANGED. Refetch, because eligibility for
+       every cohort has just moved and this page holds the old answers for all
+       of them. The confirmation line below is the one thing said locally, and
+       it only repeats what the server just answered about the cohort the
+       member was reading. */
+    var say=function(){
+      if(leftName){toast('Postal code updated. You\u2019ve left '+leftName+'.',5000);return}
+      if(!landed){toast('Postal code updated.');return}
+      if(landed.eligibility==='eligible'||landed.eligibility==='unscoped'){
+        toast('Postal code updated. This cohort is open to you.',5000);
+      }else if(landed.eligibility==='joins_closed'){
+        toast('Postal code updated. This cohort isn\u2019t taking new households right now.',5000);
+      }else{
+        /* Deliberately NOT reopened into the field. A member who has just
+           answered a question twice is not asking to be asked a third time. */
+        toast('Postal code updated. This cohort is still open to a different postal code.',5000);
+      }
+    };
+    if(CAMPPULL)CAMPPULL().then(say,say);else say();
+    PEBACK=null;PECONFIRM=null;
+  },function(er){
+    POSTALSAVING=false;btn.disabled=false;btn.textContent=label;
+    if(er&&er.code==='FORBIDDEN'){W.member.clear();toSignIn();return}
+    /* The one refusal that is not an error: the change is legal and it costs
+       a cohort, so the same dialog reopens carrying the consequence and a
+       second button. The server named the cohort; this does not look it up. */
+    if(er&&er.extra&&er.extra.reason==='leave_cohort_required'&&er.extra.cohort){
+      openPostalEdit(PEBACK,er.extra.cohort);
+      return;
+    }
+    postalErr((er&&er.message)||'We could not save that just now. Please try again in a moment.');
+  });
+});
 
 /* ---------- the join gate: numbers before a cohort ----------
    POST /campaigns/join does NOT require a bill, deliberately: the seal, not the
@@ -7041,13 +7639,15 @@ TPL.closing=tplClosing;TPL.passed=tplPassed;TPL.short=tplShort;
 
 /* ---------- savings dialog after the deposit ---------- */
 function openSavings(){
-  var o=OFFERS.filter(function(x){return x.id===S.chosen})[0]||OFFERS[0];
+  var o=chosenOffer(),e=o.entry;
   var mo=S.member.bill-o.price;
   openModal('<div class="savehero"><span class="eyebrow" style="color:#8C4622">Locked in <span class="demochip">demo numbers</span></span>'
   +'<b class="bignum">'+money(mo)+'/mo less</b>'
   +'<span class="subnum">about '+money(Math.round(mo*12))+' over the next year</span>'
-  +'<ul class="saverows"><li>Your bill: '+money(S.member.bill)+' → <b>'+money(o.price)+'/mo</b> · '+esc(WIN.guar.toLowerCase())+'</li>'
-  +'<li>'+esc(WIN.after)+'</li>'
+  /* The guarantee and the after-rate of the tier THIS household took, not of
+     whichever bid happened to be the cohort's cheapest. */
+  +'<ul class="saverows"><li>Your bill: '+money(S.member.bill)+' → <b>'+money(o.price)+'/mo</b> \u00b7 '+esc(o.speed)+(e&&e.guaranteeMonths?', price guaranteed '+e.guaranteeMonths+' months':'')+'</li>'
+  +'<li>'+esc(e&&e.afterPrice?money(Number(e.afterPrice))+' regular rate after, told up front':'No scheduled change to this price')+'</li>'
   +'<li>Your '+dep()+' deposit is credited to your first bill</li></ul>'
   +'<button class="btn terra" type="button" data-mclose style="width:100%;justify-content:center;margin-top:14px">See what happens next</button></div>');
 }
@@ -7100,7 +7700,7 @@ if(DEMO){
   });
   $('#rst').addEventListener('click',function(){
     TOURED=false;OPTJOIN=false;
-    S.chosen=null;S.deposit=10;S.joined=false;S.checkup=null;S.prefs=null;S.pass=null;
+    S.tier=null;S.deposit=10;S.joined=false;S.checkup=null;S.prefs=null;S.pass=null;
     EXTRA.length=0;$('#cfg-dep').value=10;cdSecs=26*3600+14*60+9;
     applyDerived();nav('dashboard');
   });
@@ -7163,6 +7763,9 @@ if(W&&W.session&&W.session.campaignsList){
   /* SKEW is declared beside CAMPS, not here: the countdown reads it too. */
   var POLL_SLOW=120000, POLL_FAST=15000;
   var campTimer=null;
+  /* Published so anything outside this block can ask the server again. See
+     CAMPPULL beside CAMPS: a postal code change moves eligibility on every
+     card at once and this page holds the old answer for all of them. */
   function nextPollDelay(){
     var c=CAMPLIVE?joinedCamp():null;
     if(!c)return POLL_SLOW;
@@ -7173,6 +7776,7 @@ if(W&&W.session&&W.session.campaignsList){
     var away=n-(Date.now()+SKEW);
     return away>0&&away<POLL_SLOW?Math.max(5000,away+1000):POLL_SLOW;
   }
+  CAMPPULL=function(){return pullCampaigns()};
   function pullCampaigns(){
     return W.session.campaignsList().then(function(r){
       if(!r)return;
@@ -7180,6 +7784,8 @@ if(W&&W.session&&W.session.campaignsList){
       CAMPLIVE=Boolean(r.live);
       CAMPASKED=true;
       CAMPSOURCE=r.source||null;
+      if(r.memberFsa!==undefined)MEMBERFSA=r.memberFsa;
+      if(r.postalCodeState)POSTALSTATE=r.postalCodeState;
       var before=S.state;
       /* After applying, not before: applyCampaign creates records for ids it
          has never seen, so the drop has to run once the server's own rows are
@@ -8102,6 +8708,15 @@ function seatJoin(c,btn,fail){
       if(err.extra&&err.extra.held_cohort)applyCampaign(err.extra.held_cohort);
       seatRefresh();
       seatConflictOpen(c.id);
+      fail&&fail(err);
+      return;
+    }
+    /* THE SAME TWO REFUSALS, THROUGH THE SAME SURFACES. Both join doors run
+       guards.requireEligible, so both can answer these, and a member must not
+       get a dialog through one door and a toast through the other for the
+       same fact about the same cohort. */
+    if(joinGeoRefusal(c,err)){
+      if(btn){btn.disabled=false}
       fail&&fail(err);
       return;
     }

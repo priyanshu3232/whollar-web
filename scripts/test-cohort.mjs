@@ -290,7 +290,11 @@ const CALENDAR_DATE = {
 };
 
 test('seed emits one INSERT per cohort, carrying every column catalog reads', () => {
-  const { out, code } = run('seed', ...IDS);
+  /* --fsas is passed so the gate can still be what it is for: a column
+     catalog.js reads and this command forgets is a column that reads back
+     null on every dashboard, and the only way to prove it is not forgotten is
+     to give it a value. The unscoped case is the test below. */
+  const { out, code } = run('seed', ...IDS, '--fsas', 'M2M,M2N');
   assert.equal(code, 0);
   const rows = seededRows(out);
   assert.equal(rows.length, IDS.length);
@@ -304,8 +308,35 @@ test('seed emits one INSERT per cohort, carrying every column catalog reads', ()
     if (omitted.has(col)) continue;
     assert.ok(out.includes(col), `seed INSERT is missing ${col}`);
   }
+  assert.ok(out.includes("'M2M,M2N'"), 'the FSA list is not sorted and deduplicated into the statement');
   assert.doesNotMatch(out, /NULL/, 'seed emitted a NULL, which it omits the column for instead');
   assert.doesNotMatch(out, /''/, "seed emitted an empty literal, which it omits the column for instead");
+});
+
+test('a seeded batch with no FSAs omits the column rather than writing NULL', () => {
+  /* An unscoped cohort is open to every household in Canada. That is the
+     pre-coverage behaviour and it is deliberately still reachable from here,
+     because this command is also how a row gets repaired; what it must not do
+     is look like a decision somebody made. The column is absent, and
+     /admin/campaigns/reconcile is what says so out loud. */
+  const { out, code } = run('seed', ...IDS);
+  assert.equal(code, 0);
+  assert.doesNotMatch(out, /\bfsas\b/, 'an unscoped seed named the column anyway');
+  assert.doesNotMatch(out, /NULL/, 'and it must not be a NULL either');
+});
+
+test('the cohort generator refuses an FSA nobody lives in', () => {
+  /* The same refusal POST /admin/campaigns gives, because this command
+     produces a statement somebody pastes into a window with write access and
+     it is the one path with no server in front of it. A cohort scoped to M9Z
+     refuses every household that tries to join it and looks exactly like a
+     cohort nobody wants. */
+  const bad = run('new', 'test-bad-fsa', '--region', 'North York Central', '--fsas', 'M9Z');
+  assert.notEqual(bad.code, 0);
+  assert.match(bad.out, /not in the FSA reference/);
+  const malformed = run('new', 'test-bad-fsa', '--region', 'North York Central', '--fsas', 'M2NN');
+  assert.notEqual(malformed.code, 0);
+  assert.match(malformed.out, /not shaped like an FSA/);
 });
 
 /* The featured cohort on /dashboard is the LOWEST sort_order: catalog.load()

@@ -50,6 +50,8 @@ const cohorts = require('../lib/cohorts');
 const notices = require('../lib/notices');
 const seats = require('../lib/seats');
 const places = require('../lib/places');
+const geo = require('../lib/geo');
+const fsaref = require('../lib/fsaref');
 const bids = require('../lib/bids');
 const awards = require('../lib/awards');
 const campaigns = require('./campaigns');
@@ -595,8 +597,20 @@ function mount(router, cfg) {
         households_partner: partner.households,
         seat_claims: claims, joined_rows: joinedRows, roster_count_stored: stored,
         count_live: s.countLive,
+        fsas: s.fsas,
       };
       rows.push(row);
+
+      /* THE UNSCOPED LIST, and the reason this drift report is where it goes.
+         A campaign taking joins with no FSA set is open to every household in
+         Canada. That is the pre-coverage behaviour and it is deliberately not
+         broken by the deploy (geo.eligibilityOf says why), but it is a state
+         that should end, and a state that ends only if somebody can see it.
+         Nothing else on any surface says which cohorts are still in it. */
+      if (s.joinable && !s.fsas.length) {
+        mismatches.push({ kind: 'unscoped_campaign', campaign: s.id,
+          detail: `${s.region} takes joins and covers no FSAs, so every household in Canada is eligible for it. Set its postal code areas.` });
+      }
 
       if (member.households !== partner.households) {
         mismatches.push({ kind: 'surface_count', campaign: s.id,
@@ -707,6 +721,51 @@ function mount(router, cfg) {
       }
       out.region = places.canonical(r);
     }
+    if (has('fsas')) {
+      /**
+       * THE MEMBER KEY, and the second half of a cohort's geography. `region`
+       * above decides which partners may bid; this decides which households
+       * may join. Neither derives the other and both are typed by an operator,
+       * so both are a vocabulary rather than a text box.
+       *
+       * VALIDATED AGAINST THE REFERENCE, one entry at a time, because the
+       * failure of a bad FSA is the same silent one a bad region name has: a
+       * cohort scoped to M9Z renders perfectly, counts nothing, and refuses
+       * every household that tries to join, and it is indistinguishable from a
+       * region nobody wants. A typo has to be a 400 while somebody is looking
+       * at it.
+       *
+       * The reference is GeoNames by way of js/whollar-fsa-cities.js and it is
+       * NOT the authoritative Canada Post file, which is why it gates only
+       * this path and never a household's own postal code. See lib/fsaref.js.
+       */
+      const raw = body.fsas === null ? '' : String(body.fsas);
+      if (raw.length > 4000) throw badRequest('That is more FSAs than a cohort can cover.');
+      const parts = raw.split(/[^A-Za-z0-9]+/).filter(Boolean);
+      const bad = [];
+      const unknown = [];
+      for (const part of parts) {
+        if (!geo.isFsa(part)) bad.push(part.toUpperCase().slice(0, 8));
+        else if (!fsaref.has(part)) unknown.push(part.toUpperCase());
+      }
+      if (bad.length) {
+        throw badRequest(
+          `${bad.slice(0, 5).join(', ')} ${bad.length === 1 ? 'is not' : 'are not'} shaped like an FSA. `
+          + 'An FSA is three characters: a letter, a digit, a letter, e.g. M2N.',
+          { logDetail: `campaign fsas malformed: ${bad.length}` }
+        );
+      }
+      if (unknown.length) {
+        throw badRequest(
+          `${unknown.slice(0, 5).join(', ')} ${unknown.length === 1 ? 'is' : 'are'} not in the FSA reference. `
+          + 'Check the code. The reference is js/whollar-fsa-cities.js.',
+          { logDetail: `campaign fsas unknown: ${unknown.length}` }
+        );
+      }
+      /* Stored sorted and deduplicated, so two saves of the same coverage in
+         a different order are the same string and the audit diff is empty. */
+      out.fsas = geo.formatFsaList(parts) || null;
+    }
     if (has('sub')) out.sub = String(body.sub || '').trim().slice(0, 100);
     if (has('target')) out.target = body.target === null ? null : int('target', body.target, 1, 1000000);
     if (has('seed_members')) out.seed_members = int('seed_members', body.seed_members, 0, 1000000);
@@ -772,6 +831,57 @@ function mount(router, cfg) {
     return out;
   };
 
+  /**
+   * A cohort that takes joins must say who it takes them from.
+   *
+   * A campaign in a joinable kind with no FSA set is open to EVERYBODY, which
+   * is what every campaign was before coverage existed and what every one of
+   * them still is until an operator scopes it (geo.eligibilityOf says why that
+   * ramp is deliberate). This gate is the other end of the ramp: no NEW cohort
+   * can be created unscoped, and none can be moved into a joinable kind
+   * unscoped, so the unscoped set only ever shrinks.
+   *
+   * Refused as a CONFLICT rather than a validation error: the body is fine,
+   * the state of the campaign is what says no.
+   */
+  function assertScoped(kind, fsas, id) {
+    if (!catalog.JOIN_STATUS[kind]) return;
+    if (geo.parseFsaList(fsas).length) return;
+    throw new AppError('CONFLICT',
+      `Add at least one FSA before opening ${id} to households. `
+      + 'A cohort with no postal code areas is open to everyone, which is not a cohort.', {
+        logDetail: `campaign ${id} joinable with no fsas`,
+        extra: { reason: 'no_fsas' },
+      });
+  }
+
+  /**
+   * Which other campaigns already cover any of these FSAs.
+   *
+   * A WARNING AND NOT A REFUSAL. Two cohorts sharing an FSA is a real
+   * configuration: a region that fills and reopens for a second round, or two
+   * renewal windows in one area. The households there will see both, ordered
+   * by whichever closes first, which is a defensible thing to show and a
+   * terrible thing to do by accident. So the operator is told, and decides.
+   */
+  async function overlapWith(catalystApp, id, fsas) {
+    const mine = geo.parseFsaList(fsas);
+    if (!mine.length) return [];
+    const cat = await catalog.load(catalystApp, { fresh: true });
+    const out = [];
+    for (const c of cat.list) {
+      if (c.id === id || c.kind === 'archived') continue;
+      const shared = (c.fsas || []).filter((f) => mine.includes(f));
+      if (shared.length) out.push({ campaign: c.id, region: c.region, fsas: shared });
+    }
+    return out;
+  }
+
+  /** The operator-facing sentence for an overlap, or null. */
+  const overlapNote = (rows) => (rows.length
+    ? rows.map((r) => `${r.region} already covers ${r.fsas.join(', ')}. Members there will see both.`).join(' ')
+    : null);
+
   const campaignsWriteError = (err) => new AppError('SERVER_ERROR',
     'Campaigns are not writable right now: has the campaigns table been created?', {
       logDetail: `campaigns write failed: ${String((err && err.message) || err).slice(0, 200)}`,
@@ -798,6 +908,7 @@ function mount(router, cfg) {
     }
     const fields = campaignFields(body);
     assertCalendarOrder(fields);
+    assertScoped(kind, fields.fsas, id);
 
     let existing = null;
     try {
@@ -820,6 +931,7 @@ function mount(router, cfg) {
         seed_households: fields.seed_households || 0,
         bidding_open: Boolean(fields.bidding_open),
         sort_order: fields.sort_order || 0,
+        ...(fields.fsas !== undefined ? { fsas: fields.fsas } : {}),
         ...(fields.brief_json !== undefined ? { brief_json: fields.brief_json } : {}),
         ...Object.fromEntries(catalog.DATE_COLUMNS
           .filter((k) => fields[k] !== undefined)
@@ -838,7 +950,7 @@ function mount(router, cfg) {
       detail: { campaign: id, kind, ...auditableCampaignFields(fields) },
     });
 
-    res.status(200).json({ ok: true, id });
+    res.status(200).json({ ok: true, id, warning: overlapNote(await overlapWith(req.catalyst, id, fields.fsas)) });
   }));
 
   router.put('/admin/campaigns/:id', wrap(async (req, res) => {
@@ -869,6 +981,12 @@ function mount(router, cfg) {
     }
     assertCalendarOrder(mergedDates);
 
+    /* Clearing the coverage of a cohort that is currently taking joins is the
+       same act as opening an unscoped one, so it takes the same refusal. The
+       row's OWN kind, not a body field: kind moves through the transition
+       route and never through here. */
+    if (fields.fsas !== undefined) assertScoped(row.kind, fields.fsas, id);
+
     await datastore.updateRow(req.catalyst, catalog.TABLE, {
       ROWID: row.ROWID, ...fields,
       updated_by: admin.user_id, updated_at: datastore.nowDb(),
@@ -885,7 +1003,67 @@ function mount(router, cfg) {
       },
     });
 
-    res.status(200).json({ ok: true, id });
+    res.status(200).json({
+      ok: true, id,
+      warning: fields.fsas === undefined
+        ? null
+        : overlapNote(await overlapWith(req.catalyst, id, fields.fsas)),
+    });
+  }));
+
+  /**
+   * One campaign's coverage, with the real number of households in each FSA.
+   * -> { ok, id, region, fsas: [{ fsa, city, province, members }], overlap }
+   *
+   * THE NUMBER IS A COUNT OF ROWS, taken at read time against users.fsa, and
+   * it is the only figure on this screen. An operator scoping a cohort is
+   * deciding whether an area has anybody in it, and a seed, an estimate or a
+   * population figure would answer a different question convincingly. Where a
+   * count cannot be read it is null and the console says so, rather than a
+   * zero that reads as an answer.
+   *
+   * Capped, because this is one scoped query per FSA and an operator who
+   * pastes a province's worth of them should get a refusal rather than a
+   * timeout.
+   */
+  const COVERAGE_COUNT_MAX = 40;
+
+  router.get('/admin/campaigns/:id/coverage', wrap(async (req, res) => {
+    requireAdmin(req);
+    const id = cleanId(req.params.id, 'campaign id');
+    const cat = await catalog.load(req.catalyst, { fresh: true });
+    const campaign = cat.byId.get(id);
+    if (!campaign) throw badRequest('That campaign is not in the campaigns table.');
+
+    const list = campaign.fsas || [];
+    const counted = list.slice(0, COVERAGE_COUNT_MAX);
+    const out = [];
+    for (const fsa of counted) {
+      const place = fsaref.lookup(fsa);
+      let members = null;
+      try {
+        members = (await datastore.queryAll(req.catalyst, users.USERS, ['user_id'],
+          `fsa = ${datastore.lit(fsa)}`)).length;
+      } catch {
+        members = null;
+      }
+      out.push({
+        fsa,
+        city: place ? place.city : null,
+        province: place ? place.province : null,
+        members,
+      });
+    }
+
+    res.status(200).json({
+      ok: true,
+      id,
+      region: campaign.region,
+      fsas: out,
+      /* Named so the console cannot render a partial list as a whole one. */
+      notCounted: list.slice(COVERAGE_COUNT_MAX),
+      overlap: await overlapWith(req.catalyst, id, list.join(',')),
+    });
   }));
 
   /**
@@ -904,7 +1082,7 @@ function mount(router, cfg) {
     let row;
     try {
       row = await datastore.findBy(req.catalyst, catalog.TABLE, 'campaign_id', id,
-        ['ROWID', 'kind', 'bidding_open']);
+        ['ROWID', 'kind', 'bidding_open', 'fsas']);
     } catch (err) {
       throw campaignsWriteError(err);
     }
@@ -918,6 +1096,11 @@ function mount(router, cfg) {
       throw new AppError('CONFLICT',
         `A ${from} campaign cannot move to ${to}. Legal moves: ${legal.join(', ') || 'none'}.`);
     }
+
+    /* Opening a cohort to households is the moment its coverage has to exist:
+       every other rung of the ladder can carry an empty FSA set harmlessly,
+       and this one cannot. */
+    assertScoped(to, row.fsas, id);
 
     const fields = { ROWID: row.ROWID, kind: to, updated_by: admin.user_id, updated_at: datastore.nowDb() };
     // Leaving auction always closes the bid window; entering it never opens
@@ -953,7 +1136,20 @@ function mount(router, cfg) {
     if (!campaign) throw badRequest('That campaign is not in the campaigns table.');
 
     const rows = await bids.campaignBidRows(req.catalyst, id);
-    const award = await awards.findByCampaign(req.catalyst, id);
+
+    /* THE REVIEW IS A MATRIX NOW: tiers down, partners across. A cohort is won
+       tier by tier, so "who won" is a column of answers rather than one, and an
+       operator comparing bids needs to see the same grid the rule works on.
+
+       `sealed` is the recorded book when the cohort has closed and somebody has
+       read it. `computed` is what the rule says the book would be from the rows
+       in hand, and it is shown for an OPEN cohort too, where it is a preview
+       and nothing more. They are separate keys on purpose: an operator must be
+       able to see when a sealed book and the current rows disagree, which is
+       exactly what a late price correction looks like, and collapsing them
+       into one field is how that goes unnoticed. */
+    const sealedBook = await awards.bookFor(req.catalyst, id);
+    const computedBook = awards.buildBook(rows || []);
 
     /* One org-name read per distinct org on the cohort. */
     const names = {};
@@ -973,10 +1169,23 @@ function mount(router, cfg) {
       ok: true,
       campaign: { id: campaign.id, region: campaign.region, sub: campaign.sub || '', kind: campaign.kind },
       live: rows !== null,
-      award: award ? {
-        org_id: award.org_id, bid_key: award.bid_key, price: award.price,
-        method: award.method, awarded_at: award.awarded_at,
-      } : null,
+      /* Staff eyes only, and one campaign at a time. The org id travels here
+         and nowhere partner-facing. */
+      book: {
+        sealed: sealedBook ? sealedBook.map((e) => ({
+          tier: e.tier, price: e.price, org_id: e.orgId,
+          org_name: names[e.orgId] || null, bid_key: e.bidKey,
+        })) : null,
+        computed: computedBook.map((e) => ({
+          tier: e.tier, price: e.price, org_id: e.orgId,
+          org_name: names[e.orgId] || null, bid_key: e.bidKey,
+        })),
+        /* True when the rows in hand no longer produce the sealed book. Not an
+           error: a sealed book is the promise already made to households, and
+           it wins. It is surfaced so an operator can see that it happened. */
+        drifted: Boolean(sealedBook) && JSON.stringify(sealedBook.map((e) => [e.tier, e.price, e.orgId]))
+          !== JSON.stringify(computedBook.map((e) => [e.tier, e.price, e.orgId])),
+      },
       bids: (rows || []).map((r) => {
         const orgId = r.org_id || String(r.bid_key || '').split(':').slice(1).join(':');
         return {
@@ -991,7 +1200,12 @@ function mount(router, cfg) {
           commitment_cap: r.commitment_cap || null,
           submitted_at: r.submitted_at || null,
           last_revised_at: r.last_revised_at || null,
-          won: Boolean(award && award.bid_key === r.bid_key),
+          /* WHICH TIERS THIS BID TOOK, from the sealed book when there is one
+             and the computed preview otherwise. A bid can win some tiers and
+             lose others on one cohort, so a boolean cannot say what happened. */
+          won_tiers: (sealedBook || computedBook)
+            .filter((e) => e.bidKey === r.bid_key)
+            .map((e) => e.tier),
         };
       }),
     });

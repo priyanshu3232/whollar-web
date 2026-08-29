@@ -41,6 +41,8 @@
 
 const datastore = require('./datastore');
 const catalog = require('./catalog');
+const geo = require('./geo');
+const fsaref = require('./fsaref');
 
 const MEMBERS_TABLE = 'campaign_members';
 const CLAIM_TABLE = 'seat_claim';
@@ -112,6 +114,26 @@ async function countRows(catalystApp, campaign) {
 const visible = (list) => list.filter((c) => c.kind !== 'archived');
 
 /**
+ * Is this cohort taking new households at `now`?
+ *
+ * The two halves both matter and they fail differently. `JOIN_STATUS` says
+ * whether the KIND admits anyone at all (a forming cohort takes seats, a
+ * waitlist or planned region takes names, an auction takes nobody);
+ * `announce_at` is the moment the roster is fixed and the brief goes to
+ * partners, which is what "joining closes" means to a household. A cohort can
+ * be the right kind and past its date, and it is shut.
+ *
+ * The clock is the caller's, passed in, for the reason catalog.stageOf states:
+ * a stage read against a second clock reading is a stage that can disagree
+ * with the count beside it.
+ */
+function joinsOpen(campaign, now) {
+  if (!campaign || !catalog.JOIN_STATUS[campaign.kind]) return false;
+  const closeAt = campaign.dates && campaign.dates.announce_at;
+  return !closeAt || now < closeAt;
+}
+
+/**
  * One campaign's canonical state at `now`: the catalog row, the count, and
  * both derived stages. Everything a surface renders is a projection of this
  * object, so two surfaces cannot disagree about whether a cohort is open.
@@ -123,12 +145,22 @@ function state(campaign, count, now) {
   return {
     id: campaign.id,
     region: campaign.region,
+    /* The member key. Never sent to a partner: forPartner() below is the
+       whole list of what crosses the aisle, and a cohort's FSA set would
+       hand a bidder the map of where its households live. */
+    fsas: campaign.fsas || [],
     sub: campaign.sub || '',
     kind: campaign.kind,
     target: campaign.target,
     biddingOpen: Boolean(campaign.biddingOpen),
     sortOrder: campaign.sortOrder || 0,
-    joinable: Boolean(catalog.JOIN_STATUS[campaign.kind]),
+    /* KIND AND THE WINDOW, not kind alone. `joinable` used to answer from
+       JOIN_STATUS by itself, so a cohort whose announce_at had passed still
+       arrived at the dashboard with joinable:true and rendered a live join
+       button whose only possible answer was the 409 both join routes throw.
+       Narrowing it here can only ever close a door: every write path still
+       re-checks its own window, and this decides display and eligibility. */
+    joinable: joinsOpen(campaign, now),
     seats: c.seats,
     waitlist: c.waitlist,
     watching: c.watching,
@@ -177,11 +209,42 @@ async function list(catalystApp, { fresh = false, includeArchived = false } = {}
  * Projections
  * ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ *
+ * Eligibility
+ * ------------------------------------------------------------------ */
+
+/**
+ * What this cohort is to THIS household: eligible, already joined, closed to
+ * new joins, or somewhere else. One of geo.eligibilityOf's five answers.
+ *
+ * COMPUTED HERE, ON THE SERVER, EVERY READ, and re-computed on the write path
+ * by guards.requireEligible against this same function. The client is told the
+ * answer so it can render the right card; it is never asked for it, and a
+ * body claiming `eligibility: "eligible"` changes nothing about what the join
+ * routes do. Same contract as `stage`.
+ *
+ * `mine` counts as already_joined for every standing, a bell included: a
+ * household that asked to be told when a region opens has a relationship with
+ * that cohort, and offering it "this is not your area" would be a worse answer
+ * than the one its own alert row already gives.
+ */
+function eligibilityFor(s, memberFsa, mine) {
+  return geo.eligibilityOf(
+    { fsas: s.fsas }, memberFsa || null, s.joinable, Boolean(mine)
+  );
+}
+
 /**
  * What a member's dashboard renders. `mine` is this member's membership row
  * or undefined. `households` is the same number the partner is shown.
+ *
+ * `memberFsa` is this household's own forward sortation area, derived from
+ * their postal code by lib/users.js on write and never accepted from a
+ * request. Passing it is what turns the campaign list from "every cohort,
+ * joinable by anyone" into "yours, and everyone else's to read".
  */
-function forMember(s, mine) {
+function forMember(s, mine, memberFsa) {
+  const eligibility = eligibilityFor(s, memberFsa, mine);
   return {
     id: s.id,
     region: s.region,
@@ -193,6 +256,13 @@ function forMember(s, mine) {
     waitlist: s.waitlist,
     watching: s.watching,
     joinable: s.joinable,
+    /* Which cohort a household may actually take a seat in. `joinable` is a
+       fact about the cohort; this is a fact about the pair. The dashboard
+       needs both: a cohort can be open and not yours, and it still renders,
+       readable, because visibility never depends on eligibility. */
+    eligibility,
+    /* The rail's ORDER, not a permission. See geo.nearbyTier. */
+    nearbyTier: geo.nearbyTier({ fsas: s.fsas }, memberFsa || null, eligibility, fsaref),
     /* DERIVED, not the stored status. See catalog.standingOf. */
     you: mine ? catalog.standingOf(mine.status, s.campaign) : null,
     stage: s.memberStage,
@@ -242,6 +312,6 @@ function memberVisible(s) {
 
 module.exports = {
   MEMO_MS, MEMBERS_TABLE, CLAIM_TABLE,
-  seatCount, invalidate, list, state, visible,
-  forMember, forPartner, partnerBiddable, memberVisible,
+  seatCount, invalidate, list, state, visible, joinsOpen,
+  forMember, forPartner, partnerBiddable, memberVisible, eligibilityFor,
 };

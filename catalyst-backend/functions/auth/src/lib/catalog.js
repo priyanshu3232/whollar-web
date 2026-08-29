@@ -24,11 +24,15 @@
  */
 
 const datastore = require('./datastore');
+const geo = require('./geo');
 
 const TABLE = 'campaigns';
 const COLUMNS = ['campaign_id', 'region', 'sub', 'kind', 'target',
   'seed_members', 'seed_households', 'bidding_open', 'sort_order',
   'updated_by', 'updated_at',
+  /* The MEMBER key. See lib/geo.js: `region` is the partner's join and
+     this is the household's, and neither derives the other. */
+  'fsas',
   /* The auction calendar. See STAGES below. */
   'announce_at', 'bidding_opens_at', 'bidding_closes_at', 'offers_at',
   'decision_at', 'switch_window_at', 'reconcile_at'];
@@ -107,6 +111,13 @@ function fromRow(row) {
     seedHouseholds: toInt(row.seed_households) || 0,
     biddingOpen: isTruthyDb(row.bidding_open),
     sortOrder: toInt(row.sort_order) || 0,
+    /* The FSAs this cohort covers, parsed leniently: a hand-edited row with
+       one bad entry loses that entry, not the whole catalog. routes/admin.js
+       refuses it loudly on the write, where a human can fix it. An EMPTY set
+       means unscoped, which is what every campaign created before this column
+       existed is; geo.eligibilityOf explains why that is permissive and how
+       it is being closed off. */
+    fsas: geo.parseFsaList(row.fsas),
     /* Epoch ms, converted here so nothing downstream ever meets Catalyst's
        zone-less date string. Null where the column is absent, which is the
        normal state for a campaign whose calendar has not been set. */
@@ -352,7 +363,7 @@ async function load(catalystApp, { fresh = false } = {}) {
   /* The code fallback carries an empty calendar so every consumer sees the
      same shape. stageOf() then answers from `kind` and `bidding_open` alone,
      which is exactly the pre-calendar behaviour. */
-  const effective = list || CODE_CATALOG.map((c) => ({ ...c, dates: {} }));
+  const effective = list || CODE_CATALOG.map((c) => ({ ...c, dates: {}, fsas: [] }));
   const result = {
     list: effective,
     byId: new Map(effective.map((c) => [c.id, c])),

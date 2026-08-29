@@ -81,8 +81,19 @@ async function buildStatements(req, context) {
     (byCampaign[r.campaign_id] || (byCampaign[r.campaign_id] = [])).push(r);
   });
 
+  /* ONE STATEMENT PER COHORT, defensively. An award row is one per (cohort,
+     org) now that a cohort can be won tier by tier, so this should already be
+     true. It is asserted rather than assumed because the failure is silent and
+     expensive in the wrong direction: a duplicate row here bills a partner
+     twice for one cohort, and the first anyone would know is the invoice. */
+  const seenCampaign = new Set();
   const statements = (awardRows || [])
     .filter((a) => byId.get(a.campaign_id))
+    .filter((a) => {
+      if (seenCampaign.has(a.campaign_id)) return false;
+      seenCampaign.add(a.campaign_id);
+      return true;
+    })
     .map((a) => billing.statementFor({
       campaign: byId.get(a.campaign_id),
       rows: byCampaign[a.campaign_id] || [],

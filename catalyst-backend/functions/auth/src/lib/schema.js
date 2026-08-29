@@ -45,6 +45,14 @@ const TABLES = Object.freeze({
     postal_code:      'varchar(10)',
     fsa:              'varchar(3)',
     province_code:    'varchar(2)',
+    // When the postal code last moved, and which surface moved it:
+    // signup | checkup_claim | profile_edit | operator. Both OPTIONAL: they
+    // are an audit nicety on a change the site takes either way, and
+    // routes/me.js drops them and retries when the columns are absent, so the
+    // feature works the day it deploys and gains its trail the day an
+    // operator adds them. See POSTAL_META_COLUMNS there.
+    postal_code_updated_at: 'datetime',
+    postal_code_source:     'varchar(24)',
     phone:            'varchar(32)',
     referral_code:    'varchar(64)',
     last_login_at:    'datetime',
@@ -218,6 +226,18 @@ const TABLES = Object.freeze({
     seed_households: 'int',
     bidding_open:    'boolean', // only meaningful while kind = auction
     sort_order:      'int',
+    // THE MEMBER KEY. A comma-separated list of forward sortation areas, e.g.
+    // "M2M,M2N,M2R". `region` above is the PARTNER key and decides who may
+    // bid; this decides which households may join, and neither derives the
+    // other. One column rather than a campaign_fsas table: a cohort holds a
+    // couple of dozen at most, the audit trail is already in auth_events, and
+    // the grandfathering case is answered by campaign_members.fsa, the
+    // snapshot taken at join time. See lib/geo.js.
+    // OPTIONAL, and an empty value means UNSCOPED: open to everyone, which is
+    // what every campaign written before this column was. routes/admin.js
+    // refuses to open a new one unscoped and /admin/campaigns/reconcile lists
+    // the ones that still are.
+    fsas:            'varchar(4000)',
     updated_by:      'varchar(64)',
     updated_at:      'datetime',
     // The auction calendar. All seven are OPTIONAL: a cohort with no dates
@@ -421,13 +441,16 @@ const TABLES = Object.freeze({
   // these four went undeclared for a while and a mis-built column surfaced as
   // a silently unsealed award rather than a red diagnostics row.
   campaign_awards: {
-    award_key:               'varchar(64) unique required', // the campaign_id: one award per cohort under a race
+    // The grain is (cohort, org), not (cohort, tier): a cohort is won tier by
+    // tier, and a partner that won four tiers still has ONE roster to release.
+    award_key:               'varchar(64) unique required', // `${campaign_id}:${org_id}`, unique under a race
     campaign_id:             'varchar(64) required',
     org_id:                  'varchar(64) required',
     bid_key:                 'varchar(200) required',
-    price:                   'varchar(16)',
+    price:                   'varchar(16)',            // the lowest tier price THIS org won
+    tiers_won:               'text(1000)',             // JSON array of tier names, section 30b
     bid_count:               'int',
-    method:                  'varchar(24) required',  // 'lowest_headline' | 'admin'
+    method:                  'varchar(24) required',  // 'lowest_per_tier' | 'admin'
     awarded_by:              'varchar(64)',
     awarded_at:              'datetime required',
     gate_at:                 'datetime',
@@ -435,6 +458,17 @@ const TABLES = Object.freeze({
     install_capacity_weekly: 'int',
     consent_ack:             'varchar(8)',
     settled_at:              'datetime',
+  },
+  campaign_price_books: {
+    // The sealed price book: for every tier at least one partner quoted, the
+    // lowest effective price, recorded once so two readers agree and a late
+    // write cannot re-price a tier a household has already been shown.
+    book_key:    'varchar(64) unique required',  // the campaign_id, unique under a race
+    campaign_id: 'varchar(64) required',
+    book_json:   'text(10000) required',         // ascending by tier; a tier nobody bid is absent
+    bid_count:   'int',
+    method:      'varchar(24) required',         // 'lowest_per_tier' | 'admin'
+    sealed_at:   'datetime required',
   },
   provider_orders: {
     // The only table holding a household address against a partner, and only
@@ -450,6 +484,10 @@ const TABLES = Object.freeze({
     slot_at:        'datetime',
     note:           'varchar(200)',
     release_reason: 'varchar(32)',
+    // Which speed the household accepted, and the book price it accepted at.
+    // The partner cannot book an install without the first. Section 30c.
+    tier:           'varchar(24)',
+    price:          'varchar(16)',                  // money is a string everywhere here
     activated_at:   'datetime',
     dispute_state:  'varchar(16)',
     dispute_note:   'varchar(400)',

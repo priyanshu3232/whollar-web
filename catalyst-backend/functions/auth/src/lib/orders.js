@@ -78,6 +78,26 @@ const ORDER_COLS = Object.freeze(['order_key', 'order_no', 'campaign_id', 'org_i
 /* The statement side. Tried first, and absent on a table created before
    billing shipped, which reads as "no line has ever been disputed". */
 const ORDER_COLS_V2 = Object.freeze(ORDER_COLS.concat(['dispute_state', 'dispute_note', 'disputed_at']));
+/* WHICH SPEED WAS ACCEPTED, and the book price it was accepted at
+   (create-tables.md section 30c). Mandatory to the partner, who cannot book an
+   install without knowing what to install, and absent on an order created
+   before the price book, which reads as the cohort's single winner. Widest
+   first, same fallback ladder as everything else here. */
+const ORDER_COLS_V3 = Object.freeze(ORDER_COLS_V2.concat(['tier', 'price']));
+const ORDER_COL_LISTS = Object.freeze([ORDER_COLS_V3, ORDER_COLS_V2, ORDER_COLS]);
+
+/** The first column list this table can answer, or null when none can. */
+async function firstReadable(read) {
+  for (const cols of ORDER_COL_LISTS) {
+    try {
+      /* eslint-disable-next-line no-await-in-loop */
+      return await read(cols);
+    } catch {
+      /* try the next narrower projection */
+    }
+  }
+  return null;
+}
 
 const toInt = (v) => {
   const n = parseInt(v, 10);
@@ -144,16 +164,8 @@ function requireTransition(from, to) {
  * Reads
  * ------------------------------------------------------------------ */
 
-async function rowsWhere(catalystApp, where) {
-  try {
-    return await datastore.queryAll(catalystApp, ORDERS, ORDER_COLS_V2, where);
-  } catch {
-    try {
-      return await datastore.queryAll(catalystApp, ORDERS, ORDER_COLS, where);
-    } catch {
-      return null;
-    }
-  }
+function rowsWhere(catalystApp, where) {
+  return firstReadable((cols) => datastore.queryAll(catalystApp, ORDERS, cols, where));
 }
 
 /** Every order on one cohort for one org. Null when unreadable. */
@@ -169,16 +181,8 @@ function rowsForOrg(catalystApp, orgId) {
 
 /** One order by its key, scoped to the org that holds it. */
 async function findByKey(catalystApp, orgId, key) {
-  let row = null;
-  try {
-    row = await datastore.findBy(catalystApp, ORDERS, 'order_key', key, ['ROWID'].concat(ORDER_COLS_V2));
-  } catch {
-    try {
-      row = await datastore.findBy(catalystApp, ORDERS, 'order_key', key, ['ROWID'].concat(ORDER_COLS));
-    } catch {
-      return null;
-    }
-  }
+  const row = await firstReadable((cols) => datastore.findBy(catalystApp, ORDERS,
+    'order_key', key, ['ROWID'].concat(cols)));
   /* Another org's order answers exactly like an order that does not exist.
      The route turns this into a 404, never a 403: a 403 confirms there is
      something there. */
@@ -195,13 +199,13 @@ async function findByKey(catalystApp, orgId, key) {
  * `order_key`, which is campaign and member: accepting twice is one order, and
  * a retried request is not a second household.
  */
-async function create(catalystApp, { campaignId, orgId, memberUserId, fsa, address, at }) {
+async function create(catalystApp, { campaignId, orgId, memberUserId, fsa, address, tier, price, at }) {
   const key = `${campaignId}:${memberUserId}`.slice(0, 200);
   const existing = await findAnyByKey(catalystApp, key);
   if (existing) return existing;
 
   const stamp = datastore.toDb(new Date(at || Date.now()));
-  await datastore.insertRow(catalystApp, ORDERS, {
+  const base = {
     order_key: key,
     order_no: orderNo(),
     campaign_id: campaignId,
@@ -212,21 +216,31 @@ async function create(catalystApp, { campaignId, orgId, memberUserId, fsa, addre
     address_line: address,
     created_at: stamp,
     updated_at: stamp,
-  });
+  };
+  try {
+    await datastore.insertRow(catalystApp, ORDERS, Object.assign({
+      tier: tier || null,
+      price: price || null,
+    }, base));
+  } catch (err) {
+    /* The two price-book columns may not exist yet. An order without them is
+       far better than a household whose acceptance failed, so the row still
+       goes in: the partner is told which cohort and which household, and the
+       speed is recoverable from the sealed book until the columns land.
+       Logged, because the other cause of a refused insert here is a real one. */
+    console.warn(JSON.stringify({
+      at: 'orders.create', campaign: campaignId,
+      error: String((err && err.message) || err).slice(0, 200),
+    }));
+    await datastore.insertRow(catalystApp, ORDERS, base);
+  }
   return findAnyByKey(catalystApp, key);
 }
 
 /** The org-blind read, for the creation path, which knows the org already. */
-async function findAnyByKey(catalystApp, key) {
-  try {
-    return await datastore.findBy(catalystApp, ORDERS, 'order_key', key, ['ROWID'].concat(ORDER_COLS_V2));
-  } catch {
-    try {
-      return await datastore.findBy(catalystApp, ORDERS, 'order_key', key, ['ROWID'].concat(ORDER_COLS));
-    } catch {
-      return null;
-    }
-  }
+function findAnyByKey(catalystApp, key) {
+  return firstReadable((cols) => datastore.findBy(catalystApp, ORDERS, 'order_key', key,
+    ['ROWID'].concat(cols)));
 }
 
 /** Apply a checked move. `patch` carries only the columns that state needs. */
@@ -281,6 +295,11 @@ function publicOrder(row) {
     slotAt: ms(row.slot_at),
     note: row.note || null,
     releaseReason: row.release_reason || null,
+    /* The speed this household accepted, and the book price it accepted at.
+       Without the tier the partner books a visit without knowing what to
+       install. Null on an order that predates the price book. */
+    tier: row.tier || null,
+    price: row.price || null,
     activatedAt: ms(row.activated_at),
     disputeState: row.dispute_state || null,
     createdAt: ms(row.created_at),
@@ -299,7 +318,7 @@ function sortForBoard(rows) {
 }
 
 module.exports = {
-  ORDERS, ORDER_COLS, ORDER_COLS_V2,
+  ORDERS, ORDER_COLS, ORDER_COLS_V2, ORDER_COLS_V3,
   STATES, EXCEPTIONS, RELEASE_REASONS, TRANSITIONS, RANK,
   orderNo, readFsa, readAddress, readSlot, requireTransition,
   rowsForCampaign, rowsForOrg, findByKey, findAnyByKey,

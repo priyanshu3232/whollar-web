@@ -88,9 +88,12 @@ async function requireWon(req, context) {
   if (!campaign) throw notFound('That cohort is not on your board.');
 
   /* Sealed-bid privacy: the all-orgs read stays inside lib/awards.js, so no
-     competitor's row ever enters this partner-scoped request. */
-  const award = await awards.sealFromCampaign(req.catalyst, campaign);
-  if (!award || award.org_id !== context.orgId) {
+     competitor's row ever enters this partner-scoped request. The org is
+     passed in rather than filtered out afterwards, because a cohort can now be
+     won by several partners at once: asking for "the award" and comparing it
+     to this org would hand back somebody else's row to compare against. */
+  const award = await awards.sealFromCampaign(req.catalyst, campaign, context.orgId);
+  if (!award) {
     throw notFound('That cohort is not on your board.');
   }
   return { campaign, award };
@@ -175,7 +178,7 @@ function mount(router) {
     });
 
     const rows = await orders.rowsForCampaign(req.catalyst, context.orgId, campaign.id);
-    const fresh = await awards.findByCampaign(req.catalyst, campaign.id);
+    const fresh = await awards.findForOrg(req.catalyst, campaign.id, context.orgId);
     return ok(res, {
       award: awards.publicAward(fresh || award, bill),
       counts: orders.counts(rows || []),
@@ -267,9 +270,9 @@ function mount(router) {
     const row = await orders.findByKey(req.catalyst, context.orgId, String(req.params.key || ''));
     if (!row) throw notFound('That order is not on your board.');
 
-    const award = await awards.findByCampaign(req.catalyst, row.campaign_id);
+    const award = await awards.findForOrg(req.catalyst, row.campaign_id, context.orgId);
     const bill = await billing.methodFor(req.catalyst, context.orgId);
-    if (!award || award.org_id !== context.orgId || !awards.gatePassed(award, bill)) {
+    if (!award || !awards.gatePassed(award, bill)) {
       /* The gate is not merely a view filter: without it there is no authority
          to act on the household either. */
       throw notFound('That order is not on your board.');

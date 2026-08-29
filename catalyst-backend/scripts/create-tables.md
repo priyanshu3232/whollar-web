@@ -1738,3 +1738,282 @@ SELECT bid_key, reduction_presentation, mechanism_label, discount_mix FROM provi
 
 Then `GET /api/auth/health/diagnostics` as an admin: `lib/schema.js verify()`
 names the column and must not list it as missing.
+
+## 29. Campaign eligibility by FSA: one column on `campaigns`, two on `users`
+
+A campaign is now scoped to the postal code areas it covers. Which partners
+may bid on a cohort is still decided by its **region name**, exactly as it
+was: `requireActiveCoverage()` matches `slug(coverage.region)` to
+`slug(campaign.region)` and `lib/places.js` is the vocabulary both sides are
+held to. Nothing in this section touches that. What is new is the other key:
+which **households** may join, decided by the FSA, the first three characters
+of a member's postal code.
+
+Two keys, two audiences, one row. Neither derives the other: an FSA does not
+know which of Toronto's twenty region names it sits inside, and a region name
+is a label an operator chose.
+
+**Why one column and not a `campaign_fsas` table.** A cohort covers between
+one and a couple of dozen FSAs and the set changes when an operator decides it
+does. A table would buy a per-FSA audit trail at the cost of a second read
+inside `lib/cohorts.js`, a uniqueness constraint the Data Store cannot express
+without the constraint-insert dance on every save, and a soft-delete column.
+The audit trail already exists in `auth_events`, which records the before and
+after of every campaign write. The one case a `removed_at` column would answer,
+a household grandfathered into a cohort whose coverage later changed, is
+answered by `campaign_members.fsa`, the snapshot taken at join time, which has
+existed since that table did.
+
+**Deploy order, and the one thing to watch.** Code deploys safely before the
+column exists: `lib/catalog.js` reads it through the same column list every
+other field uses and an absent column parses as an empty set.
+
+**An empty FSA set means UNSCOPED, which means open to everyone.** This is
+deliberate and it is the migration. Every campaign that exists today has no
+FSA set, and reading an empty set as "nobody is eligible" would, on the deploy
+that shipped it, close every live cohort to every household at once: the
+dashboards would render, the counts would hold, and joining would simply stop
+working with no error anywhere. So the permissive reading is kept, and closed
+off from the other end instead:
+
+- `POST /admin/campaigns` refuses to create a campaign in a joinable kind
+  (`forming`, `waitlist`, `planned`) with no FSAs.
+- `POST /admin/campaigns/:id/transition` refuses to move one into a joinable
+  kind with no FSAs.
+- `PUT /admin/campaigns/:id` refuses to clear the FSAs of one already taking
+  joins.
+- `GET /admin/campaigns/reconcile` lists every campaign still unscoped, under
+  `mismatches[].kind = 'unscoped_campaign'`.
+
+So the unscoped set only ever shrinks, and it is visible while it does. **Scope
+the live campaigns before announcing this feature**: until then every household
+in Canada is eligible for every open cohort, which is exactly what is true
+today.
+
+### 29a. One column to add to `campaigns`
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `fsas` | Text | 4000 | | | Comma-separated, uppercase, sorted, e.g. `M2M,M2N,M2R`. Written sorted and deduplicated by `routes/admin.js` so two saves of the same coverage produce the same string and an audit diff of an unchanged set is empty. Every entry is validated against `lib/fsaref.js` on the write path; a malformed or unknown FSA is a 400 while an operator is looking at it. Empty means unscoped, above |
+
+### 29b. Two columns to add to `users`
+
+Both optional, both an audit nicety rather than a dependency: `routes/me.js`
+writes them and, if the write fails because they do not exist, drops them and
+retries so the postal code change itself still lands. Same trade as
+`campaign_members.referral_code`.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `postal_code_updated_at` | DateTime | | | | When the postal code last changed |
+| `postal_code_source` | Text | 24 | | | `signup` \| `checkup_claim` \| `profile_edit` \| `operator` |
+
+### 29c. Gate checks, in the ZCQL tab
+
+Scope one campaign from the admin console, then read it back. The column must
+hold the sorted list, and the campaign must still carry its region name:
+
+```sql
+SELECT campaign_id, region, kind, fsas FROM campaigns LIMIT 20;
+```
+
+Every campaign taking joins must have a non-empty `fsas`. This is the query
+behind the reconcile report's `unscoped_campaign` rows, and it should return
+nothing once the live campaigns are scoped:
+
+```sql
+SELECT campaign_id, region, kind FROM campaigns WHERE kind IN ('forming','waitlist','planned') AND fsas IS NULL LIMIT 50;
+```
+
+Households whose stored postal code this stack can no longer parse. They see
+the "add your postal code" card rather than an empty dashboard, and this is
+the count of them. It is a report, not a migration: nothing rewrites anybody's
+row:
+
+```sql
+SELECT COUNT(ROWID) FROM users WHERE user_type = 'member' AND fsa IS NULL AND postal_code IS NOT NULL;
+```
+
+Then a join, end to end. Sign in as a member whose FSA is **not** in a scoped
+campaign's list and `POST /api/auth/campaigns/join` naming it: the answer must
+be `403 NOT_IN_AREA`, and it must be the same answer when the request body
+carries `"eligibility": "eligible"`. Then `POST /api/auth/cohorts/<id>/join`
+for the same pair: the same refusal, because both doors call
+`guards.requireEligible` and there is no third.
+
+Finally `GET /api/auth/health/diagnostics` as an admin: `lib/schema.js
+verify()` names all three columns and must not list them as missing.
+
+## 30. The price book: one new table, three columns
+
+The cohort's result stops being a single winning bid and becomes a **price
+book**: for each speed tier, the lowest effective price among every sealed bid
+that quoted it. A household sees the winner at its own tier plus the tier above
+and the tier below, so a cohort's three offers can come from three partners and
+every household picking the same speed still pays the same price.
+
+That changes what an award **is**. It used to be one row per cohort, because a
+cohort had one winner. A cohort can now be won by several partners at once, and
+the roster gate has to stay one per partner per cohort, so the award row's grain
+moves from *the cohort's winner* to *this partner's award on this cohort*.
+
+**NOTHING HERE HAS TO HAPPEN BEFORE THE DEPLOY.** New code looks an award up by
+`campaign_id:org_id`, and every row created before the price book is keyed on
+`campaign_id` alone. Rather than make that a migration you have to land first,
+`awards.findForOrg` reads the old key second and rewrites the row in place on
+the way past, keeping its roster gate, its capacity and its consent. So the
+backfill in 30d is a tidy-up, not a prerequisite, which is the right shape for a
+migration nobody can run inside a transaction.
+
+The one case worth knowing about: the old rule awarded the lowest headline
+price, and under the per-tier rule that partner can win no tier at all. Their
+award is **kept, not revoked**, re-keyed with an empty `tiers_won`, and a line
+goes in the log saying so. Taking the cohort off their board would strand real
+orders for a rule that changed after they were placed.
+
+### 30a. `campaign_price_books` (new table)
+
+One row per cohort: the whole book, sealed once. Sealed on the first read after
+the cohort closes, by whichever surface reads it first, exactly as the award
+was: there is no cron in this stack, so nothing can be scheduled for the moment
+of a close, and the unique `book_key` is what makes two concurrent readers
+produce one book.
+
+The book is stored rather than derived on each read for the reason the award was
+recorded in the first place: two readers a second apart must agree, and a late
+write or a price correction must never silently re-award a tier a household has
+already been shown.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `book_key` | Var Char | 64 | ✅ | ✅ | the `campaign_id`. A cohort is booked once, and the unique constraint is what enforces that under a race. Same pattern as `award_key` |
+| `campaign_id` | Var Char | 64 | | ✅ | |
+| `book_json` | Text | 10000 | | ✅ | the sealed book, ascending by tier, one entry per tier that drew at least one bid. Shape below |
+| `bid_count` | Int | - | | | how many sealed bids the cohort drew. Already public to households as `bidCount`; no partner learns anything else about another |
+| `method` | Var Char | 24 | | ✅ | `lowest_per_tier` \| `admin`. `admin` exists so a corrected book is distinguishable from a computed one, in the record and not only in an audit line |
+| `sealed_at` | DateTime | - | | ✅ | |
+
+`book_json` holds one entry per tier, ascending in the order of the standard
+ladder in `lib/bids.js` (`100 Mbps, 300 Mbps, 500 Mbps, 1 Gig, 1.5 Gig,
+2.5 Gig`). A tier nobody bid is **absent**, not null, so a household's
+three-wide window skips to the next tier that has a winner:
+
+```json
+[{"tier":"100 Mbps","price":"50.00","orgId":"org_...","bidKey":"cmp_...:org_...",
+  "afterPrice":"65.00","afterLine":"$65 / 100 Mbps","guaranteeMonths":24,
+  "equipment":"inc","rentalMonthly":null,"technology":"fibre","uploadMbps":"30",
+  "commitment":120,"mix":null}]
+```
+
+The partner's **legal name is not stored here**. It is resolved from
+`provider_orgs` at read time, the way the single award already resolved it: a
+name can change, and a book that froze one would keep telling households an old
+one.
+
+### 30b. One column to add to `campaign_awards`
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `tiers_won` | Text | 1000 | | | JSON array of tier names this partner holds on this cohort, e.g. `["100 Mbps","1 Gig"]`. Six names is under 70 bytes; the width is slack, not need |
+
+Two existing columns keep their name and change their meaning. Neither is a
+console edit, both are worth knowing when you read a row:
+
+- `award_key` becomes `${campaign_id}:${org_id}`. **The unique flag stays on**,
+  and it is now what makes one partner's award on one cohort single.
+- `price` becomes the lowest tier price *this partner* won, not the cohort's
+  headline. Still Var Char: money is a string everywhere here.
+
+The three roster-gate columns (`gate_at`, `install_capacity_weekly`,
+`consent_ack`) do not move and do not change. One partner, one cohort, one gate,
+even when that partner won four tiers.
+
+### 30c. Two columns to add to `provider_orders`
+
+The household now chooses which tier it accepts, so the order has to carry it.
+Without these the partner books an install without knowing the speed, and the
+statement cannot say what was sold.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `tier` | Var Char | 24 | | | the tier name the household accepted, from the standard ladder. Absent on an order created before the price book, which reads as the cohort's single winner |
+| `price` | Var Char | 16 | | | the book price for that tier at acceptance, frozen. **Var Char, not a number column**: money is a string everywhere here, and the Int column has no cents |
+
+Both are optional rather than mandatory so the code deploys safely in either
+order against them: a read tries the wider column list first and falls back, the
+pattern `provider_bids` already uses for `discount_mix`. Only `award_key` has an
+order that matters, and that is the backfill below.
+
+### 30d. The backfill, optional, in the ZCQL tab
+
+Only worth doing to leave the table tidy, and only if it has rows at all. If
+this returns nothing, skip the rest of 30d entirely:
+
+```sql
+SELECT ROWID, award_key, campaign_id, org_id, price FROM campaign_awards LIMIT 200;
+```
+
+For each row, set `award_key` to `campaign_id:org_id` and `tiers_won` to the
+tier that award actually won. The old award was the lowest headline price, which
+is the lowest tier the winning bid quoted, so read it off that bid:
+
+```sql
+SELECT bid_key, org_id, price, tiers FROM provider_bids WHERE campaign_id = '<campaign_id>';
+```
+
+Then one UPDATE per row, by ROWID. ZCQL has no reliable string concatenation, so
+the composite key is typed out rather than computed:
+
+```sql
+UPDATE campaign_awards SET award_key = '<campaign_id>:<org_id>', tiers_won = '["100 Mbps"]' WHERE ROWID = <rowid>;
+```
+
+Verify no row is left on the old key. Every `award_key` must contain a colon:
+
+```sql
+SELECT ROWID, award_key, campaign_id, org_id, tiers_won FROM campaign_awards LIMIT 200;
+```
+
+Rows you leave alone are repaired by the first read that touches them, so a
+partially finished backfill is a fine place to stop.
+
+### 30e. Gate checks, in the ZCQL tab
+
+The new table answers at all:
+
+```sql
+SELECT ROWID FROM campaign_price_books LIMIT 1;
+```
+
+Then close a test cohort and read its offer as a joined member
+(`GET /api/auth/campaigns/<id>/offer`). The response must carry a `book` array,
+and the first read must have sealed the row:
+
+```sql
+SELECT book_key, campaign_id, bid_count, method, sealed_at FROM campaign_price_books LIMIT 5;
+```
+
+Read it twice and confirm `sealed_at` does not move: the second read must find
+the row, not write a new one. Then confirm the derived awards, one row per
+partner that won at least one tier, all on composite keys:
+
+```sql
+SELECT award_key, campaign_id, org_id, price, tiers_won, method FROM campaign_awards LIMIT 50;
+```
+
+The two-partner case is the one worth building on purpose: seal two bids on one
+cohort where each is cheapest at a different tier, close it, and confirm
+`campaign_awards` has **two** rows and neither partner's desk response names the
+other. A partner may see its own `tiersWon` and nothing else: not the book, not
+another partner's price, not a redacted row.
+
+Accept an offer at a tier that is **not** the cheapest, and confirm the order
+went to the partner that won *that* tier:
+
+```sql
+SELECT order_key, campaign_id, org_id, tier, price, state FROM provider_orders LIMIT 20;
+```
+
+Finally `GET /api/auth/health/diagnostics` as an admin: `lib/schema.js verify()`
+names the new table and the three new columns, and must not list them as
+missing.

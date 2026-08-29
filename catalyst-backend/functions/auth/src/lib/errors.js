@@ -31,6 +31,13 @@ const CODES = Object.freeze({
   SEAL_RACE:        409,
   JOIN_CLOSED:      409,
   ROSTER_FULL:      409,
+  /* Cohort geography, for the same reason. A household refused because the
+     cohort covers somewhere else has a next step (correct the postal code, or
+     wait for its own region) and a household with no postal code on file has a
+     different one (add it). Both render as their own card; neither is a dead
+     error, and neither may be told apart by reading the message. */
+  NOT_IN_AREA:      403,
+  POSTAL_MISSING:   409,
   RATE_LIMITED:     429,
   SERVER_ERROR:     500,
   NOT_IMPLEMENTED:  501,

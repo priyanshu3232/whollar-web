@@ -273,6 +273,37 @@ jobs:
       - name: The coverage vocabulary and everything that names a region
         run: node --test scripts/test-places.mjs
 
+      # The OTHER half of a cohort's geography. `region` above is the partner
+      # key; the FSA set is the member key, and the reference an operator's
+      # FSAs are validated against is generated from the browser's copy for the
+      # same reason the coverage vocabulary is.
+      - name: The backend copy of the FSA reference is current
+        run: node scripts/build-fsa-ref.mjs --check
+
+      # Eligibility can fail silently in BOTH directions: too tight closes a
+      # live cohort to the households it was built for, too loose puts the
+      # wrong end of the province on a partner's desk, and neither looks broken
+      # from any screen. Both ends are pinned, and so is the agreement between
+      # the browser's postal normalizer and the server's.
+      - name: Postal codes, FSA sets and who may join what
+        run: node --test scripts/test-geo.mjs
+
+      # Where a campaign's FSA set comes FROM. This one cannot re-derive: the
+      # boundary file is 300MB and this job is install-free. What it proves is
+      # that the committed candidate sets still match the committed mapping,
+      # that every region in them is one a partner can declare coverage in, and
+      # that every FSA in them is one in the reference. Re-derivation is a
+      # --derive run by a human with the sources on disk, and its diff is the
+      # review.
+      - name: Derived region coverage matches its mapping
+        run: node scripts/build-geo-regions.mjs --check
+
+      # The geometry the derivation rests on: a projection, a shoelace, a
+      # point-in-polygon and a sampled intersection, all written by hand
+      # because the alternative is a dependency in an install-free gate.
+      - name: Boundary geometry unit tests
+        run: node --test scripts/test-geometry.mjs
+
       # Em dashes and the banned terminology, scoped to the console files where
       # the count is currently zero. Scoped rather than repo-wide on purpose:
       # older pages carry hundreds of em dashes, and a gate that is red on day

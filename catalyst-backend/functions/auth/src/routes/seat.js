@@ -206,6 +206,21 @@ function mount(router) {
     const existingRow = await seats.getClaim(req.catalyst, addressId, vertical);
     const existing = seats.publicClaim(existingRow);
 
+    /* THE SAME GEOGRAPHY GATE THE OTHER DOOR RUNS. This route arrived after
+       POST /campaigns/join and is the one a deep link from an email reaches,
+       so an eligibility check written only over there would be a check with a
+       hole in it that nothing about either route would show. guards.js is
+       where both read it from.
+
+       Held after the window check and before any write, so a household outside
+       the area is told the honest reason rather than "joining has closed",
+       and so nothing is spent finding that out. An address already holding
+       this cohort's seat passes: the branch below returns it idempotently, and
+       a member must not lose a seat because a coverage edit moved under it. */
+    guards.requireEligible(target, user, now, {
+      mine: existing && existing.status === 'active' && existing.cohort_id === target.id,
+    });
+
     if (existing && existing.status === 'active') {
       if (existing.cohort_id === target.id) {
         const counter = await cohorts.seatCount(req.catalyst, target.id);
@@ -357,6 +372,12 @@ function mount(router) {
         extra: { cohort: cohortShape(to, now, null) },
       });
     }
+    /* A move is a join into `to`, so it takes the join's geography gate. The
+       seat being held elsewhere is not a licence to land it anywhere: without
+       this, a household could reach a cohort through move that /cohorts/:id/join
+       and /campaigns/join would both have refused. `mine` is deliberately
+       false, because this address's standing is in `from`, not here. */
+    guards.requireEligible(to, user, now, { mine: false });
     const toCounter = await cohorts.seatCount(req.catalyst, to.id);
     if (rosterFull(to, toCounter)) {
       throw new AppError('ROSTER_FULL', `${to.region} is full for this round.`, {

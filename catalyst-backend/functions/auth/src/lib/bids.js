@@ -68,9 +68,10 @@ const LABEL_BANNED = mixmath.LABEL_BANNED;
    `guarantee_months`), and naming a column here is what makes it mandatory to
    create, so they are not named. A table that still has them reads fine; a
    table created today does not need them. */
-/* org_id is load-bearing beyond display: awards.seal() writes the winning
-   row's org into campaign_awards.org_id, a mandatory column, so a projection
-   without it makes every seal insert fail and no award ever exists. */
+/* org_id is load-bearing beyond display: lib/awards.js buildBook() keys every
+   book entry on it and sealAwards() writes it into campaign_awards.org_id, a
+   mandatory column, so a projection without it makes every seal insert fail
+   and no award ever exists. */
 const BID_COLS = Object.freeze(['bid_key', 'campaign_id', 'org_id', 'price', 'status', 'updated_at']);
 const BID_COLS_V2 = Object.freeze(BID_COLS.concat(['tiers', 'guarantee_months',
   'after_mode', 'after_line', 'equipment', 'rental_monthly', 'extra_pod_monthly',

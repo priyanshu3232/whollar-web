@@ -122,6 +122,32 @@
     };
   };
 
+  /* The SERVER'S contract, in the browser: the exact shape and the exact
+     rules of lib/geo.js normalizePostalCode, so a field can validate inline
+     without the page deciding anything.
+
+     THE SERVER RESULT ALWAYS WINS. This exists to save a round trip on a
+     typo, never to decide a cohort: eligibility is computed on the read from
+     the member row and re-computed on every write by guards.requireEligible,
+     and neither reads anything a browser sent. What this file must not do is
+     DISAGREE with the server, because a field that accepts what the save
+     refuses is a field with no message that could explain itself.
+     scripts/test-geo.mjs runs both against the same table of cases.
+
+     parsePostal above is the older, richer read used by the checkup, which
+     answers on three characters and resolves a province. This is the strict
+     six-character one, and both enforce the same character rules from the
+     same PC_A and PC_L classes. */
+  W.normalizePostal = function (raw) {
+    var s = String(raw == null ? '' : raw).toUpperCase().replace(/[\s-]+/g, '');
+    if (s.length !== 6 || !RE_FULL.test(s)) return { error: 'invalid_postal_code' };
+    return {
+      postal_code: s,
+      fsa: s.slice(0, 3),
+      display: s.slice(0, 3) + ' ' + s.slice(3)
+    };
+  };
+
   /* Display formatter for a postal-code input: uppercase, strip junk, insert
      the single space after the FSA. Safe to call on every keystroke. */
   W.formatPostal = function (raw) {
@@ -1477,6 +1503,19 @@
           'Something went wrong. Please try again.');
         e.code = (b && b.error && b.error.code) || 'SERVER_ERROR';
         e.status = r.status;
+        /* THE REST OF THE REFUSAL, which a caller often needs to act at all.
+           lib/errors.js merges an AppError's `extra` INTO the error object, so
+           the wire shape is { code, message, reason, cohort, ... }: the code
+           says what kind of no it is and these say what to do about it. This
+           dropped everything but the code and the message, so a route that
+           answered "this change leaves North York Central, confirm?" reached
+           the page as a bare sentence with no cohort and no reason, and the
+           only thing a caller could do with it was print it.
+
+           The seat lane has always kept them (seatApi in dashboard.html does
+           exactly this) and the two are now the same contract, which matters
+           because both join doors can now return the same refusals. */
+        e.extra = (b && b.error) || {};
         throw e;
       });
     }, function () {
@@ -1736,6 +1775,12 @@
     campaignOfferAccept: function (id, body) {
       return authPost('/campaigns/' + encodeURIComponent(id) + '/offer/accept', {
         address: (body && body.address) || '',
+        /* WHICH SPEED, and therefore which partner. A cohort is won tier by
+         * tier, so the tier is what decides who delivers this install. The
+         * name is all that travels: the server resolves the partner and the
+         * price from its own sealed book, never from this body.
+         */
+        tier: (body && body.tier) || '',
         consent: Boolean(body && body.consent)
       });
     },
@@ -2011,6 +2056,7 @@
           if (r.ok) return b || {};
           var e = new Error((b && b.error && b.error.message) || 'Please sign in again.');
           e.code = (b && b.error && b.error.code) || 'SERVER_ERROR';
+          e.extra = (b && b.error) || {};
           e.status = r.status;
           throw e;
         });
@@ -2105,6 +2151,7 @@
           var e = new Error((b && b.error && b.error.message) ||
             'Your export could not be prepared. Please try again.');
           e.code = (b && b.error && b.error.code) || 'SERVER_ERROR';
+          e.extra = (b && b.error) || {};
           throw e;
         });
       }, function () {
