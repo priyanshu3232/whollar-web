@@ -470,6 +470,19 @@ const TABLES = Object.freeze({
     method:      'varchar(24) required',         // 'lowest_per_tier' | 'admin'
     sealed_at:   'datetime required',
   },
+  household_offers: {
+    // What one household was shown: the three cards of the sealed book its
+    // window landed on, recorded on the first read after the seal and never
+    // rewritten. The audit record for "what did you show me". Section 31.
+    offer_key:   'varchar(130) unique required', // `${campaign_id}:${user_id}`, unique under a race
+    campaign_id: 'varchar(64) required',
+    user_id:     'varchar(64) required',         // never sent to a partner
+    speed_mbps:  'varchar(16)',                  // the bill speed as read; null when none
+    centre_tier: 'varchar(24)',                  // the book tier the window centred on
+    window_rule: 'varchar(40) required',         // which branch of the window rule produced the cards
+    cards_json:  'text(4000) required',          // [{tier, orgId, bidKey, price, position}], [] when none
+    offered_at:  'datetime required',
+  },
   provider_orders: {
     // The only table holding a household address against a partner, and only
     // because that household ticked the release when it accepted.
@@ -488,6 +501,9 @@ const TABLES = Object.freeze({
     // The partner cannot book an install without the first. Section 30c.
     tier:           'varchar(24)',
     price:          'varchar(16)',                  // money is a string everywhere here
+    // The mobile number the household gave at acceptance for the install
+    // visit, +1 and ten digits. Read by the delivering partner only. Section 31.
+    phone:          'varchar(24)',
     activated_at:   'datetime',
     dispute_state:  'varchar(16)',
     dispute_note:   'varchar(400)',

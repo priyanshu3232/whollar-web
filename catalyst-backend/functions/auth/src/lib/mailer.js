@@ -620,7 +620,7 @@ const STAGE_MAIL = Object.freeze({
     subject: (r) => `Your offer for ${r} is in`,
     lead: (r) => `Bidding has closed on ${r} and the winning offer is on your dashboard.`,
     body: 'One offer, the lowest headline price your cohort drew. Compare it against your own bill, which is the only comparison that matters.',
-    doing: 'Open your dashboard to read it. Accepting is what creates your switch order, and nothing is charged for switching.',
+    doing: 'Open your dashboard to read it. Accepting is what creates your switch order: you pick your install day and arrival window as you accept, and nothing is charged for switching.',
   },
   confirm: {
     subject: (r) => `Confirmations are closing for ${r}`,
@@ -631,8 +631,8 @@ const STAGE_MAIL = Object.freeze({
   switching: {
     subject: (r) => `Installs are running for ${r}`,
     lead: (r) => `Your cohort in ${r} has reached its switch window.`,
-    body: 'Your partner books your visit from here and carries out the line test. You are not billed for switching, and your old service stays up until the new line passes.',
-    doing: 'Watch for your installer to get in touch. Reply to this email if anything looks wrong.',
+    body: 'Your installer has the day and arrival window you picked when you accepted, and carries out the line test on the visit. You are not billed for switching, and your old service stays up until the new line passes.',
+    doing: 'Keep the mobile number you gave reachable on the day. Reply to this email if anything looks wrong.',
   },
   done: {
     subject: (r) => `${r} is complete`,

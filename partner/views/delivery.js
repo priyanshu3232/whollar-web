@@ -93,7 +93,7 @@ function waiting(S) {
   if (sealed) {
     return '<section class="card"><span class="eyebrow">If ' + esc(sealed.region) + ' confirms you</span>'
       + '<h3>Day one looks like this</h3>'
-      + '<p class="cardnote">Every household that accepted, with an order number, the install slot they picked, and a state that becomes a statement line only when the line tests clean.</p>'
+      + '<p class="cardnote">Every household that accepted, with an order number, the install day and window they picked, the number to call on the day, and a state that becomes a statement line only when the line tests clean.</p>'
       + '<div class="ghostwrap"><div class="twrap ghost"><table class="tbl rtbl">'
       + '<thead><tr><th>Order</th><th>Install</th><th>State</th><th>Next</th></tr></thead><tbody>'
       + '<tr><td class="mono">WHL-••••-C</td><td>Household picks</td><td>To book</td><td>Awaiting slot</td></tr>'
@@ -187,7 +187,7 @@ function board(S, c) {
   var k = c.counts;
   var tiles = '<div class="tiles om4">'
     + tile('Accepted', k.total, 'addresses released to you at acceptance')
-    + tile('Booked', k.booked, k.acc ? k.acc + ' awaiting a slot' : 'every household has a date')
+    + tile('Booked', k.booked, k.acc ? k.acc + ' awaiting a slot' : 'every household picked a day')
     + tile('Activated', k.act, 'line test clean, the fee accrues here', k.act ? 'hotn' : '')
     + tile('Exceptions', k.exceptions,
       k.noshow + ' no-show, ' + k.access + ' access denied, ' + k.linefail + ' line test failed',
@@ -230,7 +230,10 @@ function row(o) {
   return '<tr>'
     + '<td class="mono" style="font-size:12px">' + esc(o.orderNo || '·')
     + '<small style="display:block;font-family:var(--body);font-size:11px;color:var(--sub)">'
-    + esc([o.fsa, o.address].filter(Boolean).join(' · ')) + '</small></td>'
+    + esc([o.fsa, o.address].filter(Boolean).join(' · '))
+    /* The mobile number the household gave for the visit, beside the address
+       it gave it for. Same consent, same reader, same row. */
+    + (o.phone ? '<br>' + esc(o.phone) : '') + '</small></td>'
     + '<td style="font-size:12.5px;white-space:nowrap">'
     + (o.slotAt ? esc(fmtDate(o.slotAt) + ', ' + fmtTime(o.slotAt)) : '·') + '</td>'
     + '<td><span class="pill ' + PILL[o.state] + '">' + esc(ORDER_LABEL[o.state] || o.state) + '</span>'
@@ -460,7 +463,9 @@ function exceptionModal(key) {
 }
 
 function releaseModal(key) {
-  var opts = RELEASE_REASON.map(function (r) {
+  /* The household's own reason is not a partner's to pick: it is written by
+     the household's pass alone, and the server refuses it here. */
+  var opts = RELEASE_REASON.filter(function (r) { return r !== 'household_passed'; }).map(function (r) {
     return '<option value="' + r + '">' + esc(RELEASE_LABEL[r]) + '</option>';
   }).join('');
   return head('Release this household')

@@ -1107,16 +1107,30 @@ console.log('\n12. taking the offer posts the accept, and a reload restores it')
   await p.click('#panel [data-take]');
   await p.waitForTimeout(300);
   ok(await p.locator('#svcaddr').count() === 1, 'the live confirm screen asks for the service address');
+  ok(await p.locator('#svcphone').count() === 1, 'and the mobile number for the installer');
+  ok(await p.locator('.slotday').count() === 15, 'and offers fifteen install days');
+  ok(await p.locator('.slotwin').count() === 3, 'in three arrival windows');
   ok(await p.evaluate(() => document.querySelector('#paydep').disabled), 'the confirm button starts disarmed');
   await p.fill('#svcaddr', '12 Maple Street, Kleinburg');
   await p.click('#consent');
   await p.waitForTimeout(150);
-  ok(await p.evaluate(() => !document.querySelector('#paydep').disabled), 'address plus consent arms it');
+  ok(await p.evaluate(() => document.querySelector('#paydep').disabled), 'address plus consent alone does not arm it');
+  await p.fill('#svcphone', '416 555 0123');
+  await p.click('.slotday:not([disabled]) >> nth=2');
+  await p.click('.slotwin[data-win="pm"]');
+  await p.waitForTimeout(150);
+  ok(await p.evaluate(() => document.querySelector('.slotday.sel') && document.querySelector('.slotwin.sel[data-win="pm"]')), 'the picked day and window read as selected');
+  ok(await p.evaluate(() => !document.querySelector('#paydep').disabled), 'number, day and window arm it');
+  const dayMs = await p.evaluate(() => Number(document.querySelector('.slotday.sel').getAttribute('data-day')));
   await p.click('#paydep');
   await p.waitForTimeout(700);
   ok(accepted !== null, 'the accept reaches the server');
   ok(accepted && accepted.consent === true, 'with the consent tick');
   ok(accepted && accepted.address === '12 Maple Street, Kleinburg', `and the address (${accepted && accepted.address})`);
+  ok(accepted && accepted.phone === '416 555 0123', `and the number (${accepted && accepted.phone})`);
+  ok(accepted && accepted.slotWindow === 'pm', `and the window (${accepted && accepted.slotWindow})`);
+  ok(accepted && new Date(accepted.slotAt).getHours() === 12 && accepted.slotAt > dayMs && accepted.slotAt - dayMs < 24 * 3600 * 1000,
+    `and the slot is noon on the picked day (${accepted && new Date(accepted.slotAt).toString()})`);
   const panel = (await p.locator('#panel').innerText());
   ok(/concierge has it from here/i.test(panel), 'the panel moves to switching');
   ok(panel.includes('WHL-77AB-C'), 'and names the order');
@@ -1124,7 +1138,7 @@ console.log('\n12. taking the offer posts the accept, and a reload restores it')
 }
 {
   const c = await ctx(browser, {
-    campaigns: [{ ...OFFERCAMP, yourOrder: { orderNo: 'WHL-77AB-C', state: 'acc' } }],
+    campaigns: [{ ...OFFERCAMP, yourOrder: { orderNo: 'WHL-77AB-C', state: 'bkd', slotAt: new Date(2026, 8, 3, 8).getTime() } }],
   });
   await c.route('**/api/auth/campaigns/*/offer', r => r.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify(OFFERBODY),
@@ -1136,6 +1150,7 @@ console.log('\n12. taking the offer posts the accept, and a reload restores it')
   const panel = (await p.locator('#panel').innerText());
   ok(/concierge has it from here/i.test(panel), 'a fresh load lands on switching, not Offers');
   ok(panel.includes('WHL-77AB-C'), 'still naming the order');
+  ok(/Booked for Thu, September 3, morning \(8am to 12pm\)/.test(panel), `and the day and window it booked (${(panel.match(/Booked for[^.]*/) || [''])[0]})`);
   ok(await p.evaluate(() => !document.querySelector('#panel [data-take]')), 'and the take button is gone');
   await c.close();
 }

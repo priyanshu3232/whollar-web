@@ -1766,15 +1766,24 @@
     campaignNotify: function (id) { return authPost('/campaigns/notify', { campaign: id }); },
 
     /**
-     * Accept the cohort's winning offer: the consent tick plus the service
-     * address, which is the only pair the server takes and the only moment a
-     * household address ever leaves this browser. Creates the switch order,
-     * idempotently: a double tap is one order. Button path, so it REJECTS
-     * with the server's message. Resolves { ok, accepted, orderNo, note }.
+     * Accept the cohort's winning offer, which is also booking the install:
+     * the consent tick, the service address, the mobile number the installer
+     * calls, and the day and arrival window the household picked. This is the
+     * only moment a household's address or number ever leaves this browser.
+     * Creates the switch order, idempotently: a double tap is one order.
+     * Button path, so it REJECTS with the server's message.
+     * Resolves { ok, accepted, orderNo, state, slotAt, note }.
      */
     campaignOfferAccept: function (id, body) {
       return authPost('/campaigns/' + encodeURIComponent(id) + '/offer/accept', {
         address: (body && body.address) || '',
+        phone: (body && body.phone) || '',
+        /* Epoch ms of the arrival window's start, offset from the serverTime
+         * the dashboard captured, and the window's key. The server refuses a
+         * day outside its own fifteen-day booking window.
+         */
+        slotAt: (body && body.slotAt) || 0,
+        slotWindow: (body && body.slotWindow) || '',
         /* WHICH SPEED, and therefore which partner. A cohort is won tier by
          * tier, so the tier is what decides who delivers this install. The
          * name is all that travels: the server resolves the partner and the

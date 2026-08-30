@@ -154,6 +154,30 @@ function planned(coming) {
 function closeAt(a) { return (a.dates && a.dates.bidding_closes_at) || a.nextAt || Infinity; }
 function sortByClock(a, b) { return closeAt(a) - closeAt(b); }
 
+/**
+ * The result pill, and what it says beside it. A cohort is won TIER BY TIER,
+ * so during Offers the pill reads "Sealed" with the tiers this bid took (or
+ * "not selected") and the households confirmed so far; after the decision
+ * deadline it reads "Won · N confirmed" or "Not selected". Every figure is
+ * this partner's own: `tiersWon` and `confirmed` come from its own bid row
+ * and never name another partner, price or household.
+ */
+export function resultPill(a, mine) {
+  var decided = mine.state === 'won' || mine.state === 'not_selected';
+  if (!decided) return '<span class="pill sealed">Sealed</span>';
+  var won = (mine.tiersWon || []).length > 0;
+  var conf = mine.confirmed != null ? Number(mine.confirmed) : null;
+  var confLine = conf != null ? conf + ' confirmed' : '';
+  if (a.stage === 'decided') {
+    return won
+      ? '<span class="pill won">Won' + (confLine ? ' · ' + esc(confLine) : '') + '</span>'
+      : '<span class="pill lost">Not selected</span>';
+  }
+  var tiers = won ? 'won ' + esc((mine.tiersWon || []).join(', ')) : 'not selected';
+  return '<span class="pill ' + (won ? 'won' : 'lost') + '">Sealed · ' + tiers + '</span>'
+    + (won && confLine ? ' <small class="capnote">' + esc(confLine) + '</small>' : '');
+}
+
 function row(a, unlocked) {
   var d = a.dates || {};
   var mine = get().bids[a.id];
@@ -168,9 +192,7 @@ function row(a, unlocked) {
         : 'Closed ' + fmtDate(d.decision_at)));
 
   var yours = mine
-    ? '<span class="pill ' + (mine.state === 'won' ? 'won' : (mine.state === 'not_selected' ? 'lost' : 'sealed')) + '">'
-      + esc({ won: 'Won', not_selected: 'Not selected', locked: 'Sealed', sealed: 'Sealed', improved: 'Sealed' }[mine.state] || 'Sealed')
-      + '</span>'
+    ? resultPill(a, mine)
     : '<span class="mono" style="color:#949E95">·</span>';
 
   /* A cohort in a region that has not verified is visible but locked, and the

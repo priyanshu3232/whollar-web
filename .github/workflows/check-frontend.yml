@@ -266,6 +266,21 @@ jobs:
       - name: A custom mix seals as cents through readBid
         run: node --test scripts/test-bid-mix.mjs
 
+      # The speed ladder, same trade again: a bid is validated against it, the
+      # price book is keyed on it, and a household's window snaps to it. One
+      # source in partner/core/tiers.js, generated into the Catalyst function,
+      # and the dashboard's hand-kept mirror held to it by test.
+      - name: The backend copy of the speed ladder is current
+        run: node scripts/build-tiers.mjs --check
+
+      - name: The speed ladder snaps the same way in every runtime
+        run: node --test scripts/test-tiers.mjs
+
+      # The vocabulary on the price book surfaces: no em dash, none of the
+      # banned nouns, and no "auction" on anything a household reads.
+      - name: The price book surfaces keep the vocabulary
+        run: node scripts/check-terms.mjs --check
+
       # The declarable vocabulary. Coverage is a controlled list now, and this
       # is the half of that the browser cannot enforce: a fixture, a seed or a
       # campaign naming a region the vocabulary does not have renders perfectly

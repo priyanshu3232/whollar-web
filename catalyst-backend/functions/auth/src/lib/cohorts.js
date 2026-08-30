@@ -43,17 +43,39 @@ const datastore = require('./datastore');
 const catalog = require('./catalog');
 const geo = require('./geo');
 const fsaref = require('./fsaref');
+const tiers = require('./tiers');
 
 const MEMBERS_TABLE = 'campaign_members';
 const CLAIM_TABLE = 'seat_claim';
+const BILLS_TABLE = 'member_bills';
 
 const MEMO_MS = 60 * 1000;
 const memo = new Map();
 
-/** Forget one campaign's count, or every campaign's when no id is given. */
+/* The speed demand profile is said only once this many households have a
+   readable speed on file. Under that a partner could read a single household's
+   speed off the brief; over it the line is a distribution. Not a site_config
+   row, because it is a privacy floor and not a business setting. */
+const DEMAND_MIN_N = 5;
+/* And per cell: a tier with fewer households than this is folded into
+   `other`, because a cell of one on a brief, or on the book the winning
+   partner reads, is one household's speed by name. */
+const DEMAND_MIN_CELL = 3;
+/* Bills are read one household at a time (ZCQL has no IN, and a scan of
+   member_bills spends the page budget on every household in the country to
+   count one cohort's). A cohort past this size is answered live:false rather
+   than read in the thousands. */
+const DEMAND_MAX_HOUSEHOLDS = 300;
+const DEMAND_BATCH = 5;
+
+/** Forget one campaign's count and demand, or every campaign's when no id is given. */
 function invalidate(campaignId) {
-  if (campaignId) memo.delete(String(campaignId));
-  else memo.clear();
+  if (campaignId) {
+    memo.delete(String(campaignId));
+    memo.delete(`demand:${campaignId}`);
+  } else {
+    memo.clear();
+  }
 }
 
 /**
@@ -78,7 +100,12 @@ async function seatCount(catalystApp, campaignOrId) {
   return count;
 }
 
-async function countRows(catalystApp, campaign) {
+/**
+ * The households standing in one cohort, as a set of user ids, plus the two
+ * side counts. The one read behind both the seat count and the speed demand,
+ * so the two can never count a different roster.
+ */
+async function rosterRows(catalystApp, campaign) {
   const joined = new Set();
   let waitlist = 0;
   let watching = 0;
@@ -103,7 +130,97 @@ async function countRows(catalystApp, campaign) {
   } catch {
     live = false;
   }
-  return { seats: joined.size, waitlist, watching, live };
+  return { joined, waitlist, watching, live };
+}
+
+async function countRows(catalystApp, campaign) {
+  const r = await rosterRows(catalystApp, campaign);
+  return { seats: r.joined.size, waitlist: r.waitlist, watching: r.watching, live: r.live };
+}
+
+/* ------------------------------------------------------------------ *
+ * Speed demand
+ * ------------------------------------------------------------------ */
+
+/**
+ * How many households in one cohort sit at each speed tier, from the speed on
+ * each household's bill (member_bills.download_speed, the checkup's answer)
+ * snapped onto the ladder by lib/tiers.js. Feeds the partner brief's "Speed
+ * demand" line and the demand count the price book records per tier.
+ *
+ *   -> { households, known, unknown, tiers: [[label, n], ...] | null, live }
+ *
+ * `tiers` is in ladder order, zero cells omitted, and NULL until DEMAND_MIN_N
+ * households have a readable speed: below that the line is not said at all.
+ * A speed that is missing, "0" (the checkup's "Not sure") or under the lowest
+ * rung is `unknown`, never a tier: nothing here rounds an unknown up to a
+ * claim. Memoized with the seat count and invalidated with it.
+ */
+async function speedDemand(catalystApp, campaignOrId) {
+  const campaign = typeof campaignOrId === 'string'
+    ? (await catalog.load(catalystApp)).byId.get(campaignOrId) || { id: campaignOrId, kind: 'planned' }
+    : campaignOrId;
+  const key = `demand:${campaign.id}`;
+  const hit = memo.get(key);
+  const now = Date.now();
+  if (hit && now - hit.at < MEMO_MS) return hit.demand;
+  const demand = await demandRows(catalystApp, campaign);
+  memo.set(key, { at: now, demand });
+  return demand;
+}
+
+async function demandRows(catalystApp, campaign) {
+  const roster = await rosterRows(catalystApp, campaign);
+  const ids = Array.from(roster.joined);
+  const out = {
+    households: ids.length, known: 0, unknown: 0, other: 0, tiers: null, live: roster.live,
+  };
+  if (ids.length > DEMAND_MAX_HOUSEHOLDS) {
+    out.live = false;
+    return out;
+  }
+
+  const byTier = new Map();
+  const readOne = async (userId) => {
+    try {
+      return await datastore.findBy(catalystApp, BILLS_TABLE, 'user_id', userId,
+        ['user_id', 'download_speed']);
+    } catch {
+      out.live = false;
+      return null;
+    }
+  };
+  for (let i = 0; i < ids.length; i += DEMAND_BATCH) {
+    /* eslint-disable-next-line no-await-in-loop */
+    const rows = await Promise.all(ids.slice(i, i + DEMAND_BATCH).map(readOne));
+    for (const row of rows) {
+      const tier = tiers.tierForSpeed(row && row.download_speed);
+      if (!tier) {
+        out.unknown += 1;
+      } else {
+        out.known += 1;
+        byTier.set(tier, (byTier.get(tier) || 0) + 1);
+      }
+    }
+  }
+
+  if (out.known >= DEMAND_MIN_N) {
+    out.tiers = [];
+    tiers.TIER_NAMES.filter((t) => byTier.has(t)).forEach((t) => {
+      const n = byTier.get(t);
+      if (n >= DEMAND_MIN_CELL) out.tiers.push([t, n]);
+      else out.other += n;
+    });
+  }
+  return out;
+}
+
+/** The per-tier count map a demand profile carries, or null when it is not said. */
+function demandByTier(demand) {
+  if (!demand || !Array.isArray(demand.tiers)) return null;
+  const map = {};
+  demand.tiers.forEach(([t, n]) => { map[t] = n; });
+  return map;
 }
 
 /* ------------------------------------------------------------------ *
@@ -311,7 +428,7 @@ function memberVisible(s) {
 }
 
 module.exports = {
-  MEMO_MS, MEMBERS_TABLE, CLAIM_TABLE,
-  seatCount, invalidate, list, state, visible, joinsOpen,
+  MEMO_MS, MEMBERS_TABLE, CLAIM_TABLE, DEMAND_MIN_N, DEMAND_MIN_CELL,
+  seatCount, speedDemand, demandByTier, invalidate, list, state, visible, joinsOpen,
   forMember, forPartner, partnerBiddable, memberVisible, eligibilityFor,
 };

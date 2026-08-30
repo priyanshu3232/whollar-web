@@ -40,8 +40,9 @@ const REVISIONS = 'bid_revisions';
 
 /* The standard tier ladder. Server-owned: a bid names tiers from this list so
    two partners' offers on one cohort are comparable line by line, which is
-   what lets households read them side by side. */
-const TIER_NAMES = Object.freeze(['100 Mbps', '300 Mbps', '500 Mbps', '1 Gig', '1.5 Gig', '2.5 Gig']);
+   what lets households read them side by side. One source for every runtime:
+   lib/tiers.js is generated from partner/core/tiers.js. */
+const { TIER_NAMES } = require('./tiers');
 
 /* Mirrors partner/core/contract.js. If you change one, change both. */
 const TECHS = Object.freeze(['cable', 'fibre', 'dsl', 'fwa']);
@@ -107,7 +108,7 @@ function readBid(body, householdCount) {
     throw badRequest('Add at least one tier to the bid.');
   }
   if (b.tiers.length > TIER_NAMES.length) {
-    throw badRequest('A bid carries at most six tiers, one per standard speed.');
+    throw badRequest(`A bid carries at most ${TIER_NAMES.length} tiers, one per standard speed.`);
   }
 
   const afterMode = String(b.afterMode || '').trim();

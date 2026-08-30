@@ -1894,8 +1894,8 @@ already been shown.
 | `sealed_at` | DateTime | - | | ✅ | |
 
 `book_json` holds one entry per tier, ascending in the order of the standard
-ladder in `lib/bids.js` (`100 Mbps, 300 Mbps, 500 Mbps, 1 Gig, 1.5 Gig,
-2.5 Gig`). A tier nobody bid is **absent**, not null, so a household's
+ladder in `lib/bids.js` (`50 Mbps, 100 Mbps, 300 Mbps, 500 Mbps, 1 Gig,
+1.5 Gig, 2.5 Gig`). A tier nobody bid is **absent**, not null, so a household's
 three-wide window skips to the next tier that has a winner:
 
 ```json
@@ -2017,3 +2017,101 @@ SELECT order_key, campaign_id, org_id, tier, price, state FROM provider_orders L
 Finally `GET /api/auth/health/diagnostics` as an admin: `lib/schema.js verify()`
 names the new table and the three new columns, and must not list them as
 missing.
+
+## 31. The booking at acceptance: one column to add to `provider_orders`
+
+A household now books its install as it accepts: a day inside the next fifteen
+days, one of three arrival windows, and the mobile number the crew calls on the
+day. The order lands on the partner's board already `bkd`, with `slot_at` set
+and a `note` naming the window. Only the number needs a column.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `phone` | Var Char | 24 | | | ✅ | `+1` and ten digits, as `lib/orders.js readPhone` normalises it. Given at acceptance for the install visit and nothing else. Read by the delivering partner only, on the same row, under the same consent, as the address |
+
+Optional rather than mandatory, so the code deploys safely in either order:
+reads try the wider column list first and fall back (`ORDER_COLS_V4` down to
+`ORDER_COLS`), the same ladder as section 30c. **Until this column exists the
+number is not lost**: the insert falls back and writes it into `note`, which the
+same partner reads on the same board row. Add the column so it stops riding in
+prose.
+
+No new state and no new transition: an accept with a slot inserts straight into
+`bkd`, which `TRANSITIONS` already allows out of. The partner's Rebook,
+Activate, exception and release moves are unchanged.
+
+### 31a. Gate checks, in the ZCQL tab
+
+Accept an offer from the dashboard with a day and window picked, then confirm
+the row arrived booked, with the slot and the number:
+
+```sql
+SELECT order_key, state, slot_at, phone, note FROM provider_orders LIMIT 20;
+```
+
+`state` must read `bkd` and `slot_at` must be the window's start on the day
+picked. Then open the partner's Delivery view: the household's row must show
+the day, the window's start time, the address and the number, and the Booked
+tile must count it.
+
+Set an install capacity of 1 on that cohort's roster gate and accept a second
+household in the same week: the accept must be refused with "That week is full
+with this partner", and a third household's confirm screen must show that
+week's days greyed out.
+
+Finally `GET /api/auth/health/diagnostics` as an admin: `lib/schema.js verify()`
+names `phone` and must not list it as missing.
+
+## 32. The household's window: `household_offers` (new table)
+
+A household is shown three cards of the sealed price book: its own speed and
+the two beside it. Which three depends on the household (the speed on its bill,
+its preference chip), and until this table nothing recorded the answer: the
+dashboard sliced the window on every render, so a bill edited after the
+decision silently re-centred the cards under a choice already made, and "what
+did you show me" had no record. Now `lib/offers.js` writes one row per
+household per cohort on the first offer read after the seal, and never
+rewrites it.
+
+**Nothing here has to happen before the deploy.** Without the table the offer
+route computes the same window and answers it with `recorded:false`; the
+household sees its cards and only the audit line is missing. Create it and the
+next read records.
+
+### 32a. `household_offers` (new table)
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `offer_key` | Var Char | 130 | ✅ | ✅ | | `${campaign_id}:${user_id}`. The unique flag is the race guard: two readers on the same household write one row |
+| `campaign_id` | Var Char | 64 | | ✅ | | |
+| `user_id` | Var Char | 64 | | ✅ | ✅ | never sent to a partner |
+| `speed_mbps` | Var Char | 16 | | | | the bill speed as it was read, `"0"` is the checkup's Not sure, empty when no bill |
+| `centre_tier` | Var Char | 24 | | | | the book tier the window centred on |
+| `window_rule` | Var Char | 40 | | ✅ | | which branch produced the cards, e.g. `bill:centred`, `bill:nearest:end_low`, `unknown:end_low`, `pref_up:end_high`, `none` |
+| `cards_json` | Text | 4000 | | ✅ | | `[{tier, orgId, bidKey, price, position}]`, position `below`, `current`, `above`, or one card with `none` |
+| `offered_at` | DateTime | - | | ✅ | | |
+
+Every `price` in `cards_json` is the seal's string, copied from `book_json`,
+never recomputed.
+
+### 32b. Gate checks, in the ZCQL tab
+
+```sql
+SELECT ROWID FROM household_offers LIMIT 1;
+```
+
+Then read a closed cohort's offer as a joined member
+(`GET /api/auth/campaigns/<id>/offer`): the response carries `offers.cards`
+with `offers.recorded: true`, and one row exists:
+
+```sql
+SELECT offer_key, centre_tier, window_rule, offered_at FROM household_offers LIMIT 5;
+```
+
+Read it twice and confirm `offered_at` does not move. Change the member's bill
+speed on the checkup and read again: the cards must NOT change, because the
+record is the record. Then run the insert twice by hand and the second must
+fail: if it does not, `offer_key` was created without Unique.
+
+Finally `GET /api/auth/health/diagnostics` as an admin: `lib/schema.js verify()`
+names `household_offers` and must not list it as missing.

@@ -13,7 +13,7 @@
      the visitor is, because a Google sign-in lands here with a cookie and an
      empty localStorage. Synchronous and in the head so the guard at the foot of
      the body can rely on it. -->
-<script src="/js/whollar-core.js?v=20260828b"></script>
+<script src="/js/whollar-core.js?v=20260829a"></script>
 <script src="/js/whollar-select.js?v=20260818"></script>
 <!-- The same savings engine /bill-checkup runs, so the deal signal band states
      the checkup's verdict rather than a second opinion about the same bill.
@@ -774,7 +774,22 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 .confbox .row{display:flex;justify-content:space-between;gap:12px;font-size:14px;padding:6px 0;border-bottom:1px dashed var(--line)}
 .confbox .row:last-child{border-bottom:0}
 .confbox .row b{font-family:var(--mono)}
-.consent{display:flex;gap:11px;align-items:flex-start;font-size:13.5px;color:#3A453E;margin:13px 0;max-width:62ch}
+.slotdays{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:2px}
+.slotday{font:inherit;line-height:1.2;padding:7px 4px;border:1.5px solid var(--line);border-radius:10px;background:#fff;cursor:pointer;text-align:center;color:var(--ink);transition:border-color .15s}
+.slotday small{display:block;font-size:11px;color:#3A453E}
+.slotday b{display:block;font-family:var(--mono);font-size:15px;margin:1px 0}
+.slotday:hover:not(:disabled),.slotwin:hover{border-color:var(--accent)}
+.slotday.sel,.slotwin.sel{border-color:var(--accent-deep);background:var(--mint);box-shadow:inset 0 0 0 1px var(--accent-deep)}
+.slotday:disabled{opacity:.42;cursor:not-allowed}
+.slotday:disabled b{text-decoration:line-through}
+.slotday:focus-visible,.slotwin:focus-visible{outline:2px solid var(--accent-deep);outline-offset:2px}
+.slotwins{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:2px}
+.slotwin{font:inherit;font-size:13px;font-weight:650;padding:9px 6px;border:1.5px solid var(--line);border-radius:10px;background:#fff;cursor:pointer;text-align:center;color:var(--ink);transition:border-color .15s}
+.slotwin small{display:block;font-size:11px;font-weight:500;color:#3A453E;margin-top:2px}
+@media(max-width:520px){.slotdays{grid-template-columns:repeat(3,1fr)}}
+.consent{display:flex;width:100%;gap:11px;align-items:flex-start;font-size:13.5px;font-weight:400;color:#3A453E;margin:13px 0;max-width:none}
+.consent span{flex:1;font-weight:400;max-width:none}
+.ocard .tag.step{background:#EEF2EF;color:#3A453E}
 .consent input{width:18px;height:18px;accent-color:var(--accent);margin-top:2px;flex:none}
 .finelink{font-size:13px;color:var(--sub);font-weight:500;margin-left:14px}
 .checks{display:flex;flex-direction:column;gap:11px;margin:15px 0}
@@ -1951,7 +1966,7 @@ div.cc:hover{box-shadow:none;transform:none}
                           </div>
                           <p>The CCTS logged 19,157 complaints between August 2025 and January 2026, up 61%. Billing was the top issue.</p>
                           <p>That's the symptom. The cause is structural: internet has no posted price, so every household negotiates alone, out of sight of every other household. Two homes on the same street, same 1 Gbps plan, can sit $40 apart, and neither is told.</p>
-                          <p>Whollar groups households by serviceability signature and runs a sealed reverse auction. Providers bid for the whole cohort on price, guarantee length and contract flexibility. Households pick the winner.</p>
+                          <p>Whollar groups households by serviceability signature and runs a sealed bidding round. Partners bid for the whole cohort on price, guarantee length and contract flexibility. Households pick the winner.</p>
                           <p class="tags">#CanadianTelecom #CRTC</p>
                           <img src="/images/social/whollar-cover.webp" alt="" width="900" height="300" loading="lazy" decoding="async">
                           <div class="liacts"><span>&#128077; Like</span><span>&#128172; Comment</span><span>&#128257; Repost</span><span>&#10148; Send</span></div>
@@ -2342,7 +2357,10 @@ var STATES=['forming','locked','bidding','offers','confirm','switching','done'];
    book, which is also what the accept posts. It replaced `chosen`, an id into
    a three-row fixture, which is why every screen past the choice used to name
    the same invented partner. */
-var S={state:'forming',deposit:10,tier:null,member:{bill:92}};
+var S={state:'forming',deposit:10,tier:null,member:{bill:92},
+  /* THE BOOKING THE HOUSEHOLD IS TYPING on the confirm screen. Held here and
+     not in the template, so a poll repaint restores it instead of wiping it. */
+  book:{day:null,win:null,phone:'',addr:'',consent:false}};
 var OFFERS=[
   {id:'a',name:'Provider A',price:54.5,speed:'500 Mbps',term:'24 months',note:'Install included'},
   {id:'b',name:'Provider B',price:58,speed:'1 Gig',term:'24 months',note:'Modem included'},
@@ -2377,7 +2395,7 @@ var FEED_STEPS=[
 var DEMO_FEED={
   forming:[['Aug 4','Cohort opened']],
   locked:[['Sep 12','Cohort locked, joining closed']],
-  bidding:[['Sep 15','3 providers joined the auction'],['Sep 15','Bidding opened, bids sealed']],
+  bidding:[['Sep 15','3 partners joined the sealed round'],['Sep 15','Bidding opened, bids sealed']],
   offers:[['Sep 17','Bidding closed: 3 offers in']],
   confirm:[['Today','You chose an offer']],
   switching:[['Today','Deposit placed, your concierge started the switch']],
@@ -2445,12 +2463,60 @@ var WIN={name:'Northline Internet',price:54.5,speed:'500 Mbps',guar:'Price guara
    lib/awards.js buildBook() for the rule and its tie-breaks. */
 var BOOK=[];
 var BOOKLIVE=false;
+/* THE RECORDED WINDOW. GET /campaigns/:id/offer now answers `offers`: the
+   three cards this household was shown, chosen on the server from the speed
+   on its bill and its chip, and written once to household_offers. A live
+   cohort renders THESE cards; bookWindow() below is the demo tour's slice and
+   the fallback for a backend that predates the record. */
+var CARDS=null;
+var CARDSLIVE=false;
 
 /* MIRRORS lib/bids.js TIER_NAMES, wire value for wire value. If you change one
    change both: a tier name this page does not know is a tier it cannot centre
    a window on, and the household silently gets somebody else's three speeds. */
-var TIERS=['100 Mbps','300 Mbps','500 Mbps','1 Gig','1.5 Gig','2.5 Gig'];
-var TIERMBPS={'100 Mbps':100,'300 Mbps':300,'500 Mbps':500,'1 Gig':1000,'1.5 Gig':1500,'2.5 Gig':2500};
+var TIERS=['50 Mbps','100 Mbps','300 Mbps','500 Mbps','1 Gig','1.5 Gig','2.5 Gig'];
+var TIERMBPS={'50 Mbps':50,'100 Mbps':100,'300 Mbps':300,'500 Mbps':500,'1 Gig':1000,'1.5 Gig':1500,'2.5 Gig':2500};
+
+/* MIRRORS lib/orders.js SLOT_WINDOW_DAYS / SLOT_WINDOWS, wire value for wire
+   value. If you change one change both: a window key the server does not know
+   is an accept it refuses, and a day count that differs is a picker offering
+   days the server will not take. */
+var SLOTDAYS=15;
+var SLOTWINS=[
+  {key:'am',name:'Morning',hours:'8am to 12pm',hour:8},
+  {key:'pm',name:'Afternoon',hours:'12pm to 4pm',hour:12},
+  {key:'eve',name:'Evening',hours:'4pm to 7pm',hour:16}
+];
+var DAYNAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+/* Monday 00:00 UTC of the week holding `at`. Mirrors lib/orders.js weekStart,
+   because the server's "full week" stamps are made the same way and a greyed
+   day has to be the day the accept would refuse. */
+function weekStart(at){var d=new Date(at),back=(d.getUTCDay()+6)%7;return Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()-back)}
+/* The fifteen days a household may book, from tomorrow, drawn off the server
+   clock (SKEW) and never a bare Date.now(). Each carries its local midnight,
+   which is what the arrival window's hour is set on. */
+function bookDays(entry){
+  var full={};((entry&&entry.fullWeeks)||[]).forEach(function(w){full[Number(w)]=true});
+  var out=[],base=new Date(Date.now()+SKEW);base.setHours(0,0,0,0);
+  for(var i=1;i<=SLOTDAYS;i++){
+    var d=new Date(base.getTime());d.setDate(base.getDate()+i);
+    /* Bucketed on local NOON, not midnight: midnight east of UTC is still the
+       previous UTC date, and the day would grey a week late. Noon is the same
+       UTC date in every zone within twelve hours. */
+    out.push({ms:d.getTime(),wd:DAYNAMES[d.getDay()],day:d.getDate(),mon:MONFULL[d.getMonth()].slice(0,3),full:Boolean(full[weekStart(d.getTime()+43200000)])});
+  }
+  return out;
+}
+function slotWin(key){for(var i=0;i<SLOTWINS.length;i++)if(SLOTWINS[i].key===key)return SLOTWINS[i];return null}
+/* Which window a booked slot's hour falls in, for reading a slot back. */
+function slotWinOf(ms){var h=new Date(ms).getHours(),best=SLOTWINS[0];SLOTWINS.forEach(function(w){if(h>=w.hour)best=w});return best}
+function fmtSlot(ms){var d=new Date(ms),w=slotWinOf(ms);return DAYNAMES[d.getDay()]+', '+MONFULL[d.getMonth()]+' '+d.getDate()+', '+w.name.toLowerCase()+' ('+w.hours+')'}
+/* The slot the household has picked, as epoch ms of the window's start, or 0.
+   setHours rather than adding hours, so a DST day is still the right hour. */
+function slotAtMs(){var w=slotWin(S.book.win);if(!S.book.day||!w)return 0;var d=new Date(S.book.day);d.setHours(w.hour,0,0,0);return d.getTime()}
+/* Ten North American digits, with or without a leading 1: the same test the
+   server's readPhone runs, so the button never arms on a number it refuses. */
+function phoneOk(v){var d=String(v||'').replace(/\D/g,'');if(d.length===11&&d.charAt(0)==='1')d=d.slice(1);return d.length===10&&/^[2-9]/.test(d)&&/^[2-9]/.test(d.slice(3))}
 
 /* THE DEMO TOUR'S BOOK, and nothing else's. Two partners on purpose, because a
    one-partner fixture would demonstrate the old single-winner screen and hide
@@ -2487,12 +2553,16 @@ function speedMbps(v){
   return /^g/i.test(m[2])?n*1000:n;
 }
 /* The ladder tier a raw speed sits at: the highest tier at or below it, and
-   the lowest tier when it is under all of them. Returns a LADDER name, which
-   may be a tier nobody bid; bookWindow() is what resolves that. */
+   NULL when it is under all of them or not a positive number. The checkup
+   sends "0" for "Not sure", and the earlier floor turned that into a
+   confident claim to want the lowest rung. Returns a LADDER name, which may be
+   a tier nobody bid; bookWindow() is what resolves that. Mirrors
+   partner/core/tiers.js tierForSpeed; scripts/test-tiers.mjs holds the two
+   to the same answers. */
 function tierForSpeed(v){
   var n=speedMbps(v);
-  if(n===null)return null;
-  var best=TIERS[0];
+  if(n===null||n<=0)return null;
+  var best=null;
   for(var i=0;i<TIERS.length;i++){if(TIERMBPS[TIERS[i]]<=n)best=TIERS[i]}
   return best;
 }
@@ -2502,21 +2572,20 @@ function tierForSpeed(v){
 
    The order is deliberate. The preference chip is an explicit answer and beats
    the bill; "keep what I have" and no answer at all both mean the speed on the
-   bill, which is a fact and not a guess; and the median only runs when nothing
-   is known, where any tier is as wrong as any other and the middle at least
-   shows both neighbours. */
+   bill, which is a fact and not a guess; and when nothing is known the window
+   opens on the cheapest entry, so a household with no speed on file reads the
+   three lowest prices rather than a guess at the middle. Same rule as
+   lib/offers.js centreFor() on the server, which is what a live cohort
+   renders; this copy serves the demo tour. */
 function prefTier(bk){
   if(!bk.length)return null;
   var p=S.prefs||{};
   /* The chip's own literal is "Move up to 1 Gig". If that copy changes, change
-     this with it, and routes/campaigns.js preferredTier() too. */
+     this with it, and lib/offers.js centreFor() too. */
   if(p.speed==='up')return '1 Gig';
-  if(p.speed==='cheap'){
-    return bk.slice().sort(function(a,b){return Number(a.price)-Number(b.price)})[0].tier;
-  }
-  var mine=tierForSpeed((S.checkup||{}).speed);
+  var mine=p.speed==='cheap'?null:tierForSpeed((S.checkup||{}).speed);
   if(mine)return mine;
-  return bk[Math.floor((bk.length-1)/2)].tier;
+  return bk.slice().sort(function(a,b){return Number(a.price)-Number(b.price)})[0].tier;
 }
 
 /* Three consecutive entries OF THE BOOK, centred on `tier` and clamped at both
@@ -2550,10 +2619,23 @@ function bookWindow(bk,tier){
    still on screen, else the tier the window centres on. A selection that has
    scrolled out of the window is not silently kept, because the CTA would then
    name a card nobody can see. */
+/* The three cards on screen: the server's recorded window for a live cohort,
+   the demo slice otherwise. One source for tplOffers and chosenEntry, so the
+   CTA can never name a card that is not painted. A recorded card carries the
+   seal's price; the facts beside it are the book entry's, merged server side. */
+function liveWindow(bk){
+  if(CARDSLIVE&&CARDS){
+    var cards=(CARDS.cards||[]).filter(function(c){return c&&c.position!=='none'&&c.tier});
+    return {cards:cards,centre:CARDS.centre||null,nearest:CARDS.nearest||null,recorded:true,rule:CARDS.rule||null};
+  }
+  var w=bookWindow(bk,prefTier(bk));
+  w.recorded=false;
+  return w;
+}
 function chosenEntry(){
   var bk=bookNow();
   if(!bk.length)return null;
-  var w=bookWindow(bk,prefTier(bk)),i;
+  var w=liveWindow(bk),i;
   for(i=0;i<w.cards.length;i++){if(w.cards[i].tier===S.tier)return w.cards[i]}
   for(i=0;i<w.cards.length;i++){if(w.cards[i].tier===w.centre)return w.cards[i]}
   return w.cards[0]||null;
@@ -2626,6 +2708,11 @@ function applyOffer(r){
     BOOK=r.book.slice();
     BOOKLIVE=true;
   }
+  if(r&&!r.sealed&&r.offers&&r.offers.cards&&r.offers.cards.length){
+    CARDS=r.offers;
+    CARDSLIVE=true;
+  }
+  if(r&&r.decisionAt){S.decisionAt=r.decisionAt}
   if(!r||r.sealed||!r.offer)return BOOKLIVE;
   var o=r.offer,n=Number(o.price);
   if(!isFinite(n))return false;
@@ -2941,7 +3028,7 @@ function dealSignal(){
     eyebrow:'Your deal signal',
     headline:'We’re still pinpointing your reset.',
     body:'Add your promo end date (it’s on your bill’s “Savings” line) and we’ll time your cohort to close bidding before the jump.',
-    circleValue:'–',circleLabel:'months to reset',
+    circleValue:'·',circleLabel:'months to reset',
     pips:['f','f','f','f','w','',''],arcFrac:0,timeline:'Not set',
     title:'Add your promo end date to see your reset'
   };
@@ -4101,7 +4188,7 @@ function cdStop(){if(cdTimer){clearInterval(cdTimer);cdTimer=null}}
 /* ---------- panel templates ---------- */
 function tplForming(){
   return '<h3>Forming: the more of you, the sharper the bid</h3>'
-  +'<p class="p">Cohorts get bid on when providers can see real demand. Every neighbour who joins strengthens the number your whole cohort gets, and the auction opens once the cohort is deep enough to price properly.</p>'
+  +'<p class="p">Cohorts get bid on when providers can see real demand. Every neighbour who joins strengthens the number your whole cohort gets, and sealed bidding opens once the cohort is deep enough to price properly.</p>'
   +'<div style="margin-top:15px"><button class="btn" type="button" data-act="invite">Invite a neighbour</button></div>';
 }
 function tplLocked(){
@@ -4114,7 +4201,7 @@ function tplLocked(){
   var c=CAMPLIVE?joinedCamp():null;
   var at=c&&c.dates&&c.dates.bidding_opens_at;
   return '<h3>Locked: your cohort is sealed</h3>'
-  +'<p class="p">Your cohort is closed and the auction brief is with providers: how many households, which speeds, and the renewal window. Never your names, your current providers, or what you pay today.</p>'
+  +'<p class="p">Your cohort is closed and the brief is with partners: how many households, which speeds, and the renewal window. Never your names, your current providers, or what you pay today.</p>'
   +'<p class="p">'+(at
     ? 'Bidding opens <b>'+esc(dlong(at))+'</b>. We\u2019ll text you when it does.'
     : 'We\u2019ll text you the day bidding opens.')+'</p>';
@@ -4151,10 +4238,19 @@ function tplOffers(){
     return '<h3>Bidding has closed on your cohort</h3>'
     +'<p class="p">The sealed prices are not readable yet. Nothing is decided by this screen, and your speeds and their prices appear here the moment they are.</p>';
   }
+  var w=liveWindow(bk);
+  /* The tier the household asked for, from its bill and chip: the same rule
+     the server centres on, so the sentence below can name it when the book
+     had to move to the nearest entry. */
   var pref=prefTier(bk);
-  var w=bookWindow(bk,pref);
   var sel=chosenEntry();
   var bids=WIN.bids;
+  if(w.recorded&&!w.cards.length){
+    /* The record says no card resolved: the book has entries and none of
+       them landed at a speed this household can be shown. Said plainly. */
+    return '<h3>No sealed bid landed at your speed this round</h3>'
+    +'<p class="p">Partners bid sealed, by speed, and none of the sealed bids on your cohort fits your speed. Nothing is owed and nothing changes; you roll into the next cohort with your spot and preferences intact.</p>';
+  }
 
   /* THE COUNT IS SAID AGAIN, and this reverses a deliberate earlier decision
      that it should not be. The old panel argued that "3 partners bid" reads as
@@ -4167,7 +4263,7 @@ function tplOffers(){
   var lede=(bids===1?'One partner bid':bids+' partners bid')+', sealed.';
 
   var out='<h3>Your cohort\u2019s offers are in</h3>'
-  +'<p class="p"><b>'+esc(lede)+'</b> The lowest bid won each speed, so your choices below may come from different partners. Every household picking the same speed pays the same price.</p>';
+  +'<p class="p"><b>'+esc(lede)+'</b> Partners bid sealed, by speed. Each card is the lowest sealed bid at that speed. Take one, or stay put and pay nothing, ever.</p>';
 
   /* The household's own bill, which every delta on every card is measured
      against, said once above them rather than repeated three times. */
@@ -4182,19 +4278,27 @@ function tplOffers(){
      rewrite the question after seeing the answer. */
   out+='<p class="pickline">'+(w.nearest
     ? 'Nobody bid <b>'+esc(pref)+'</b> this round, so these are the speeds around the closest one, <b>'+esc(w.nearest)+'</b>.'
-    : 'Showing the prices around your pick, <b>'+esc(pref)+'</b>. Change it in your preferences.')
+    : (w.rule&&/^unknown/.test(w.rule)
+      ? 'No speed on your bill yet, so these are the three lowest prices. Add your bill and the cards centre on your speed.'
+      : 'Showing the prices around your speed, <b>'+esc(pref)+'</b>. Change it in your preferences.'))
     +'</p>';
 
   /* A radiogroup, not a list of buttons: the cards are one choice with three
      answers, and a screen reader has to be told that rather than left to infer
      it from the styling of whichever one is green. */
   out+='<div class="obook" role="radiogroup" aria-label="Your cohort\u2019s offers by speed">'
-  +w.cards.map(function(e){
+  +w.cards.map(function(e,ci){
     var isPref=e.tier===w.centre,isSel=Boolean(sel&&e.tier===sel.tier);
     var d=S.member.bill-Number(e.price);
+    /* The chip says where the card sits against the household's own speed,
+       never that it is the best: every card is the lowest sealed bid at its
+       speed, and the intro says so once. */
+    var pos=e.position||(isPref?'current':(ci<w.cards.map(function(x){return x.tier}).indexOf(w.centre)?'below':'above'));
+    var chip=pos==='current'?'<span class="tag">Your speed</span>'
+      :(pos==='below'?'<span class="tag step">Step down</span>':'<span class="tag step">Step up</span>');
     return '<button type="button" class="ocard'+(isPref?' mid':'')+(isSel?' sel':'')+'"'
       +' data-tier="'+esc(e.tier)+'" role="radio" aria-checked="'+(isSel?'true':'false')+'">'
-      +(isPref?'<span class="tag">Your pick \u00b7 best bid</span>':'')
+      +chip
       +'<span class="ring" aria-hidden="true"></span>'
       +'<span class="spd">'+esc(e.tier)+'</span>'
       +'<span class="price">'+money(Number(e.price))+'<small>/mo</small></span>'
@@ -4210,7 +4314,9 @@ function tplOffers(){
 
   /* The offer stands until confirmations lock, which is decision_at on the
      cohort's own calendar. This was the literal "Sep 24". */
-  out+='<div class="oblig"><b>You\u2019re never obligated.</b> Take one with a '+dep()+' refundable deposit, or pass and pay nothing, ever.'+(function(){
+  out+='<div class="oblig"><b>You\u2019re never obligated.</b> '+(liveAccept()
+    ?'Nothing is charged for switching, and you can change your pick or pass until confirmations lock.'
+    :'Take one with a '+dep()+' refundable deposit, or pass and pay nothing, ever.')+(function(){
     var jc=CAMPLIVE?joinedCamp():null,dd=jc&&jc.dates&&jc.dates.decision_at;
     return dd?' It stands until <b>'+esc(dstamp(dd))+'</b>.':'';
   })()+'</div>';
@@ -4240,18 +4346,42 @@ function tplConfirm(){
      would repeat to their bank. The demo tour below keeps the deposit
      narrative it always had. */
   if(liveAccept()){
+    var e=o.entry||{},days=bookDays(e),cap=Number(e.capacityWeekly)||0;
+    var pace=cap
+      ?esc(o.name)+' runs '+cap+' install'+(cap===1?'':'s')+' a week in your area. A greyed day sits in a week that is already full.'
+      :'Your installer calls the number above if the window has to move.';
     return '<h3>Confirm your switch</h3>'
-    +'<p class="p">Your yes is what makes the cohort price real: partners priced against confirmed households, and confirming is what books this number for yours.</p>'
+    +'<p class="p">Your yes is what makes the cohort price real: partners priced against confirmed households, and confirming is what books this number for yours, and books the install visit with it.</p>'
     +'<div class="confbox">'
     +'<div class="row"><span>Your pick</span><b>'+esc(o.name)+'</b></div>'
     +'<div class="row"><span>New bill</span><b>'+money(o.price)+'/mo &middot; '+esc(o.speed)+'</b></div>'
     +'<div class="row"><span>Against your current bill</span><b>saves '+money(save)+'/mo</b></div>'
     +'<div class="row"><span>To pay today</span><b>Nothing. Switching never costs you anything.</b></div>'
     +'</div>'
-    +'<label class="plabel" for="svcaddr" style="margin-top:12px">Service address for the install</label>'
+    +'<label class="plabel" for="svcaddr" style="margin-top:12px">Exact service address for the install</label>'
     +'<input class="minput" id="svcaddr" type="text" autocomplete="street-address" maxlength="180" placeholder="Street address, unit, city">'
-    +'<p class="fnote">Your address goes to '+esc(o.name)+' and nobody else, for this install and nothing else.</p>'
-    +'<label class="consent"><input type="checkbox" id="consent"><span>I\u2019m happy for my service address to go to '+esc(o.name)+' so this install can be booked.</span></label>'
+    +'<label class="plabel" for="svcphone">Mobile number for the installer</label>'
+    +'<input class="minput" id="svcphone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="416 555 0123">'
+    +'<p class="fnote">Your address and number go to '+esc(o.name)+' and nobody else, for this install and nothing else.</p>'
+    /* THE VISIT IS BOOKED HERE. Fifteen days from tomorrow, off the server
+       clock, and three arrival windows. Which one is picked lives in S.book
+       and is painted on by restoreBook(), never by this template: see there. */
+    +'<label class="plabel">Install day <span class="opt">any of the next '+SLOTDAYS+' days</span></label>'
+    +'<div class="slotdays" role="radiogroup" aria-label="Install day">'
+    +days.map(function(d){
+      return '<button type="button" class="slotday'+(d.full?' full':'')+'" role="radio" aria-checked="false" data-day="'+d.ms+'"'
+        +(d.full?' disabled title="That week is full with '+esc(o.name)+'"':'')
+        +'><small>'+d.wd+'</small><b>'+d.day+'</b><small>'+d.mon+'</small></button>';
+    }).join('')
+    +'</div>'
+    +'<label class="plabel">Arrival window</label>'
+    +'<div class="slotwins" role="radiogroup" aria-label="Arrival window">'
+    +SLOTWINS.map(function(w){
+      return '<button type="button" class="slotwin" role="radio" aria-checked="false" data-win="'+w.key+'">'+w.name+'<small>'+w.hours+'</small></button>';
+    }).join('')
+    +'</div>'
+    +'<p class="fnote">'+pace+'</p>'
+    +'<label class="consent"><input type="checkbox" id="consent"><span>I\u2019m happy for my service address and mobile number to go to '+esc(o.name)+' so this install can be booked.</span></label>'
     +'<button class="btn terra" type="button" id="paydep" disabled>Confirm my switch</button>'
     +'<button class="finelink" type="button" data-act="backoffers">Back to offers</button>';
   }
@@ -4277,11 +4407,16 @@ function tplSwitching(){
   var oc=CAMPLIVE?joinedCamp():null,ord=oc&&oc.yourOrder;
   if(ord){
     var booked=ord.state==='bkd'||ord.state==='act';
+    /* The day the household picked, said back to it. A slot is a fact the
+       server holds, so it is read off the order and never off S.book. */
+    var slotLine=booked&&ord.slotAt
+      ?'Booked for '+esc(fmtSlot(ord.slotAt))+'. Your installer has your address and number.'
+      :(booked?'Booked. The visit window is confirmed by text.':'Your installer proposes visit times by text.');
     return '<h3>Your concierge has it from here</h3>'
     +'<p class="p">You do nothing. We confirm each step by text, and your old plan only ends once the new one works.</p>'
     +'<div class="checks">'
     +'<div class="check dn"><i>&#10003;</i><span>'+esc(o.name)+' notified<small>'+(ord.orderNo?'Order '+esc(ord.orderNo)+' &middot; your':'Your')+' cohort rate is on file.</small></span></div>'
-    +'<div class="check '+(booked?'dn':'on')+'"><i>'+(booked?'&#10003;':'&bull;')+'</i><span>Install booked<small>'+(booked?'Booked. The visit window is confirmed by text.':'Your installer proposes visit times by text.')+'</small></span></div>'
+    +'<div class="check '+(booked?'dn':'on')+'"><i>'+(booked?'&#10003;':'&bull;')+'</i><span>Install booked<small>'+slotLine+'</small></span></div>'
     +'<div class="check td"><i>&middot;</i><span>Old plan closed<small>Only after your new connection is live.</small></span></div>'
     +'</div>';
   }
@@ -4301,7 +4436,7 @@ function tplDone(){
   +'<span class="big">'+money(o.price)+'/mo</span>'
   +'<span style="font-size:14px;color:#3A453E">'+o.name+' &middot; '+o.speed+'<br>Saving <b>'+money(save)+'/mo</b> against your old bill.</span>'
   +'</div>'
-  +'<p class="p">Your '+dep()+' deposit is credited to your first bill. We\u2019ll flag your next promo cliff about two months out, for this and any bill you add.</p>';
+  +'<p class="p">'+(liveAccept()?'Nothing was charged for switching.':'Your '+dep()+' deposit is credited to your first bill.')+' We\u2019ll flag your next promo cliff about two months out, for this and any bill you add.</p>';
 }
 var TPL={forming:tplForming,locked:tplLocked,bidding:tplBidding,offers:tplOffers,confirm:tplConfirm,switching:tplSwitching,done:tplDone};
 
@@ -4380,6 +4515,7 @@ function render(){
     cdStop();
     paintOnce('panel',$('#panel'),panelHTML);
     if(S.state==='bidding')cdStart();
+    if(S.state==='confirm')restoreBook();
   }
   $$('.tn2').forEach(function(t){t.classList.remove('hot')});
   var hot=$('.tn2[data-t="'+TL[S.state]+'"]');
@@ -4427,6 +4563,11 @@ $('#panel').addEventListener('click',function(e){
      tier and the consent the server requires. Before that button is pressed a
      reload honestly returns to Offers, because nothing has been decided yet.
      `advance` keeps the confirm screen up against the poll meanwhile. */
+  /* Picking a day or a window moves S.book and repaints the selection in
+     place. No render(): the template does not change, so the typed address
+     and number stay where they are. */
+  if(t.classList.contains('slotday')){if(t.disabled)return;S.book.day=Number(t.getAttribute('data-day'));restoreBook();return}
+  if(t.classList.contains('slotwin')){S.book.win=t.getAttribute('data-win');restoreBook();return}
   if(take){S.tier=take;advance('confirm');go('confirm');return}
   if(act==='backoffers'){ADVANCED=null;PASSLOCK=false;go('offers');return}
   /* `invite` used to be handled HERE ONLY, on #panel, which is the member lane.
@@ -4444,13 +4585,17 @@ $('#panel').addEventListener('click',function(e){
        be shown. The demo tour keeps its deposit theatre, clearly below. */
     var lc=liveAccept();
     if(lc){
-      var ad=(($('#svcaddr')||{}).value||'').trim();
+      var ad=(($('#svcaddr')||{}).value||S.book.addr||'').trim();
+      var ph=(($('#svcphone')||{}).value||S.book.phone||'').trim();
+      var at=slotAtMs();
       t.disabled=true;t.textContent='Confirming\u2026';
       /* The tier travels with the accept: the cohort's speeds can belong to
-         different partners, so this is what decides whose install this is. */
+         different partners, so this is what decides whose install this is.
+         The day, the window and the number travel with it: the accept IS the
+         booking, and the order lands on the partner's board already booked. */
       var pick=chosenEntry();
-      W.session.campaignOfferAccept(lc.id,{address:ad,tier:(pick&&pick.tier)||'',consent:true}).then(function(r){
-        lc.yourOrder={orderNo:(r&&r.orderNo)||null,state:'acc'};
+      W.session.campaignOfferAccept(lc.id,{address:ad,phone:ph,slotAt:at,slotWindow:S.book.win||'',tier:(pick&&pick.tier)||'',consent:true}).then(function(r){
+        lc.yourOrder={orderNo:(r&&r.orderNo)||null,state:(r&&r.state)||'bkd',slotAt:(r&&r.slotAt)||at||null};
         advance('switching');go('switching');openSavings();
         toast((r&&r.note)||'Accepted. Nothing is charged for switching, and your installer books the visit from here.',6000);
       },function(err){
@@ -4466,16 +4611,44 @@ $('#panel').addEventListener('click',function(e){
    enough for the server to take (its own floor is six characters). */
 function confirmGate(){
   var b=$('#paydep');if(!b)return;
-  var cb=$('#consent'),ad=$('#svcaddr');
+  var cb=$('#consent'),ad=$('#svcaddr'),ph=$('#svcphone');
   var ok=Boolean(cb&&cb.checked);
   if(ad)ok=ok&&ad.value.trim().length>=6;
+  if(ph)ok=ok&&phoneOk(ph.value);
+  /* A day and a window, both, on the live screen only: the demo tour has no
+     picker and no server to book with. */
+  if($('.slotdays'))ok=ok&&Boolean(S.book.day&&S.book.win);
   b.disabled=!ok;
 }
+/* THE CONFIRM SCREEN'S STATE LIVES IN S.book, NOT IN ITS TEMPLATE. A template
+   that carried the typed values would be a different string on every
+   keystroke, and the 15 second campaigns poll would repaint the panel and
+   drop the caret mid-word. So the template is constant, the DOM holds what
+   was typed, and this puts S.book back after any genuine repaint: the offer
+   changing, or a week filling up under the picker. A day that has since
+   filled is unpicked rather than sent, because the server would refuse it. */
+function restoreBook(){
+  var a=$('#svcaddr'),p=$('#svcphone'),c=$('#consent');
+  if(a&&a.value!==S.book.addr)a.value=S.book.addr;
+  if(p&&p.value!==S.book.phone)p.value=S.book.phone;
+  if(c&&c.checked!==S.book.consent)c.checked=S.book.consent;
+  $$('.slotday').forEach(function(b){
+    var on=Number(b.getAttribute('data-day'))===S.book.day;
+    if(on&&b.disabled){S.book.day=null;on=false}
+    b.classList.toggle('sel',on);b.setAttribute('aria-checked',on?'true':'false');
+  });
+  $$('.slotwin').forEach(function(b){
+    var on=b.getAttribute('data-win')===S.book.win;
+    b.classList.toggle('sel',on);b.setAttribute('aria-checked',on?'true':'false');
+  });
+  confirmGate();
+}
 $('#panel').addEventListener('change',function(e){
-  if(e.target.id==='consent')confirmGate();
+  if(e.target.id==='consent'){S.book.consent=e.target.checked;confirmGate()}
 });
 $('#panel').addEventListener('input',function(e){
-  if(e.target.id==='svcaddr')confirmGate();
+  if(e.target.id==='svcaddr'){S.book.addr=e.target.value;confirmGate()}
+  if(e.target.id==='svcphone'){S.book.phone=e.target.value;confirmGate()}
 });
 /* ---------- referral: one code, from the server, everywhere on the page ----
    REF holds what GET /me/referral answered. Null until it answers, and null
@@ -5148,9 +5321,9 @@ document.addEventListener('keydown',function(e){
 /* resources tiles: image, category, deck, read time, alt (from /blog/ index, same order as BLOGS) */
 var KMETA=[
   ['the-487-problem','Saving money','The cheaper plan is already running on the same cables. Here is why almost nobody asks for it, and why that is not your fault.','~6 min read','A man slumped over a desk scattered with banknotes and coins'],
-  ['promo-cliff','Saving money','The number that won you as a customer was never the number you were going to keep paying.','~5 min read','Stacks of coins climbing in steps beneath a rising green arrow'],
-  ['whole-street-switch','How it works','One household has no leverage. A thousand households have an auction.','~5 min read','A quiet residential street of houses at sunset'],
-  ['same-cable','Saving money','A reseller sells you the incumbent’s own line for a fraction of the price. Here is the math.','~5 min read','An overhead view of a customer paying cash and receiving an itemized receipt'],
+  ['promo-cliff','Saving money','The number that won you as a customer was never the number you were going to keep paying.','~5 min read','Stacks of coins climbing in steps beneath a rising green arrow'], /* terms:allow: the incumbent's own word for us */
+  ['whole-street-switch','How it works','One household has no leverage. A thousand households have a sealed round.','~5 min read','A quiet residential street of houses at sunset'],
+  ['same-cable','Saving money','A reseller sells you the incumbent’s own line for a fraction of the price. Here is the math.','~5 min read','An overhead view of a customer paying cash and receiving an itemized receipt'], /* terms:allow: the incumbent's own word for us */
   ['where-the-money-goes','Explainers','63 cents of every retail dollar never stays with the company you pay.','~5 min read','Ascending stacks of gold coins beneath a rising arrow'],
   ['negotiate-your-bill','Saving money','The retention script that works, the leverage that matters, and the ceiling nobody mentions.','~6 min read','A man mid-conversation on a corded desk phone, gesturing with one hand'],
   ['win-back-offer','Explainers','The discount only appears when you try to leave. That timing is the whole story.','~5 min read','A call-centre agent wearing a headset at a bank of monitors'],
@@ -7301,7 +7474,7 @@ function openProfileGate(id){
      three fields is the kind of small lie this page is being cleared of. */
   var head=need.length===1?'One detail first':(need.length===2?'Two details first':'A few details first');
   openModal('<div class="mhead"><h3>'+head+'</h3><button class="mx" type="button" data-mclose aria-label="Close">\u00d7</button></div>'
-  +'<p class="msub">A cohort is a street, not a mailing list: your postal code is what puts you in <b>'+esc(where)+'</b> rather than beside it, and the number is where each step of the auction is texted to you.</p>'
+  +'<p class="msub">A cohort is a street, not a mailing list: your postal code is what puts you in <b>'+esc(where)+'</b> rather than beside it, and the number is where each step of the sealed round is texted to you.</p>'
   +rows
   +'<p class="whl-fielderr" id="pg-err" role="alert" hidden></p>'
   +'<button class="btn terra" type="button" id="pg-save" style="width:100%;justify-content:center;margin-top:16px">Save and continue</button>'
@@ -7477,7 +7650,7 @@ function openPrefs(edit){
   var joining=(CHOSEN&&campById(CHOSEN))||featuredCamp();
   var joinLabel='Join '+(joining&&(joining.region||joining.id)||'this cohort')+' · free';
   openModal('<div class="mhead"><h3>'+(edit?'Your preferences':'Six quick questions')+'</h3><button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
-  +'<p class="msub">Bids fit better when partners know what the cohort actually wants. This shapes the auction; it never obligates you.</p>'
+  +'<p class="msub">Bids fit better when partners know what the cohort actually wants. This shapes the sealed round; it never obligates you.</p>'
   +'<label class="plabel">When would you actually switch?</label>'
   +'<div class="pchips" id="pf-when">'+chip('win','As soon as my cohort wins',p.when==='win'||!p.when)+chip('cliff','Only near my promo cliff',p.when==='cliff')+chip('watch','Just watching for now',p.when==='watch')+'</div>'
   +'<label class="plabel">Speed you want</label>'
@@ -7560,7 +7733,7 @@ document.addEventListener('click',function(e){if(e.target.closest('#editprefs'))
 /* ---------- pass flow ---------- */
 function openPass(){
   openModal('<div class="mhead"><h3>Passing is a fine answer</h3><button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
-  +'<p class="msub">Nothing changes and nothing is owed. One question, because it makes the next auction sharper: why pass?</p>'
+  +'<p class="msub">Nothing changes and nothing is owed. One question, because it makes the next sealed round sharper: why pass?</p>'
   +'<div class="pchips pvert" id="ps-why">'
   +chip('stay','Happy enough with '+esc((S.checkup||{}).prov||'my provider'),true)
   +chip('save','They came back with a better offer when I mentioned leaving')
@@ -7593,7 +7766,13 @@ document.addEventListener('click',function(e){
        reverts to the offer and says why. */
     var pc=CAMPLIVE?joinedCamp():null;
     PASSLOCK=true;
-    if(pc&&pc.stage==='offers'&&W&&W.session&&W.session.campaignLeave){
+    /* ONE PASS, ONE WRITE. When the seat ledger is live the listener below
+       posts /cohorts/:id/pass, which releases the seat, drops the membership
+       and releases an accepted order in one server call; firing the legacy
+       leave door beside it made two writes race, and the leave refused with
+       SEAL_RACE on a closed cohort and rolled the pass back. */
+    var seatPass=Boolean(SEATLIVE&&seatHeldCamp());
+    if(pc&&pc.stage==='offers'&&!seatPass&&W&&W.session&&W.session.campaignLeave){
       S.pass.persisting=true;
       W.session.campaignLeave(pc.id).then(function(){
         if(S.pass)S.pass.left=true;
@@ -7631,7 +7810,7 @@ function tplClosing(){
 }
 function tplShort(){
   return '<h3>This window didn’t fill</h3>'
-  +'<p class="p">We hold the line because a thin cohort gets thin bids, and a mediocre first offer helps nobody. So we don’t auction it: <b>everyone rolls into the Winter cohort automatically</b>, spot and preferences intact.</p>'
+  +'<p class="p">We hold the line because a thin cohort gets thin bids, and a mediocre first offer helps nobody. So we don’t put it to sealed bids: <b>everyone rolls into the Winter cohort automatically</b>, spot and preferences intact.</p>'
   +'<p class="p">Winter opens <b>Nov 3</b>, and your cliff watch runs meanwhile. The fastest way to make Winter certain is the button below.</p>'
   +'<div style="margin-top:12px"><button class="btn" type="button" data-act="invite">Invite a neighbour</button></div>';
 }
@@ -7648,7 +7827,7 @@ function openSavings(){
      whichever bid happened to be the cohort's cheapest. */
   +'<ul class="saverows"><li>Your bill: '+money(S.member.bill)+' → <b>'+money(o.price)+'/mo</b> \u00b7 '+esc(o.speed)+(e&&e.guaranteeMonths?', price guaranteed '+e.guaranteeMonths+' months':'')+'</li>'
   +'<li>'+esc(e&&e.afterPrice?money(Number(e.afterPrice))+' regular rate after, told up front':'No scheduled change to this price')+'</li>'
-  +'<li>Your '+dep()+' deposit is credited to your first bill</li></ul>'
+  +(liveAccept()?'':'<li>Your '+dep()+' deposit is credited to your first bill</li>')+'</ul>'
   +'<button class="btn terra" type="button" data-mclose style="width:100%;justify-content:center;margin-top:14px">See what happens next</button></div>');
 }
 
@@ -8444,8 +8623,8 @@ function paintSeatLedger(){
       +'<div class="sl__right"><button class="btn ghost" type="button" data-seatpass="'+esc(c.id)+'">Pass on this round</button></div>';
   }else if(aff==='cancel'){
     html='<div class="sl__left"><span class="sl__dot"></span><span class="sl__lines">'
-      +'<b>Confirmation window</b>'
-      +'<span class="m">Back out, deposit returned. The controls are on the panel above.</span></span></div>';
+      +'<b>Confirmations locked</b>'
+      +'<span class="m">Your installer books from here. Changes now go through your concierge.</span></span></div>';
   }else if(aff==='concierge'){
     html='<div class="sl__left"><span class="sl__dot"></span><span class="sl__lines">'
       +'<b>Your switch is in motion</b>'
@@ -8793,11 +8972,19 @@ document.addEventListener('click',function(e){
   if(!e.target.closest('#ps-go'))return;
   var c=seatHeldCamp();
   if(c&&SEATLIVE&&seatAffordance()==='pass'){
-    seatApi('POST','/cohorts/'+encodeURIComponent(c.id)+'/pass',{}).then(function(r){
+    if(S.pass)S.pass.persisting=true;
+    seatApi('POST','/cohorts/'+encodeURIComponent(c.id)+'/pass',{reason:(S.pass&&S.pass.why)||null}).then(function(r){
       SEAT={claim:r.claim,cohort:null,affordance:'none',rejoin_until:null};
+      if(S.pass){S.pass.persisting=false;S.pass.left=true}
       paintSeatLedger();
-      toast('Passed. Nothing changes and nothing is owed.',5000);
-    },function(){/* the demo flow already told the member; the claim releases on the next sync */});
+      toast(r&&r.released?'Passed. Your accepted offer is released and nothing is owed.':'Passed. Nothing changes and nothing is owed.',5000);
+    },function(err){
+      /* A pass the server never heard is not a pass. */
+      PASSLOCK=false;ADVANCED=null;
+      if(S.pass){S.pass.persisting=false;S.pass.left=false}
+      go('offers');
+      toast((err&&err.message)||'Your pass didn\u2019t reach the server, so nothing changed. The offer is still yours to take or pass.',6000);
+    });
   }
 });
 

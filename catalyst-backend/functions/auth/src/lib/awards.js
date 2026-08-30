@@ -55,6 +55,7 @@
 
 const datastore = require('./datastore');
 const bids = require('./bids');
+const cohorts = require('./cohorts');
 const { ms } = require('./envelope');
 
 const AWARDS = 'campaign_awards';
@@ -157,9 +158,19 @@ function afterRank(afterPrice) {
  * mean inventing which speed its flat price was for, and the whole point of
  * the book is that the price at a speed is the price a partner bid for that
  * speed.
+ *
+ * `demand` is the cohort's speed demand profile (lib/cohorts.js speedDemand),
+ * optional. Each entry records how many households sat at its tier at the
+ * seal (`demandCount`, null when the profile was under the privacy floor),
+ * how many partners bid it (`bidCount`) and which tie rule decided it
+ * (`tieRule`, null when the price alone did). Demand is RECORDED, NOT A GATE:
+ * a tier somebody bid and nobody asked for stays in the book, because a
+ * household stepping up may still take it, and the partner who won it is
+ * told plainly that no household sat there.
  */
-function buildBook(rows) {
+function buildBook(rows, demand) {
   const byTier = new Map();
+  const demandMap = cohorts.demandByTier(demand);
 
   (rows || []).forEach((row) => {
     const pub = bids.publicBid(row);
@@ -217,8 +228,25 @@ function buildBook(rows) {
         || (b.commitment - a.commitment)
         || (a.placedAt - b.placedAt)
         || a.bidKey.localeCompare(b.bidKey));
-      return list[0].entry;
+      return Object.assign(list[0].entry, {
+        bidCount: list.length,
+        tieRule: tieRuleFor(list[0], list[1]),
+        demandCount: demandMap ? (demandMap[tier] || 0) : null,
+      });
     });
+}
+
+/**
+ * Which step of the tie order separated the winner from the runner-up, or
+ * null when the price alone did (including a tier with one bidder). Recorded
+ * on the entry so a tie is auditable from the book rather than re-derived.
+ */
+function tieRuleFor(first, second) {
+  if (!second || first.price !== second.price) return null;
+  if (first.after !== second.after) return 'after_rate';
+  if (first.commitment !== second.commitment) return 'commitment';
+  if (first.placedAt !== second.placedAt) return 'earlier_seal';
+  return 'bid_key';
 }
 
 /** One tier's entry from a book, or null. The accept path's only lookup. */
@@ -490,15 +518,26 @@ async function sealBook(catalystApp, campaign, bidRows, now = Date.now()) {
   if (existing) return parseBook(existing);
   if (!isClosed(campaign, now)) return null;
 
-  const book = buildBook(bidRows);
+  /* The demand profile at the seal, recorded per tier. Read here and not
+     passed in: it is needed once in the life of a cohort, and every caller
+     would otherwise fetch it on every read to hand it to a seal that has
+     nothing left to do. An unreadable profile seals as null counts. */
+  let demand = null;
+  try {
+    demand = await cohorts.speedDemand(catalystApp, campaign);
+  } catch {
+    demand = null;
+  }
+  const book = buildBook(bidRows, demand);
   if (!book.length) return null;
   const bidCount = (bidRows || []).length;
+  const bookJson = JSON.stringify(book);
 
   try {
     await datastore.insertRow(catalystApp, BOOKS, {
       book_key: campaign.id,
       campaign_id: campaign.id,
-      book_json: JSON.stringify(book),
+      book_json: bookJson,
       bid_count: bidCount,
       method: 'lowest_per_tier',
       sealed_at: datastore.toDb(new Date(now)),
@@ -507,20 +546,40 @@ async function sealBook(catalystApp, campaign, bidRows, now = Date.now()) {
     /* Raced, or the table is not created yet. Logged because a third cause, a
        bad column value, once hid here for a month. Re-read: if somebody else
        won the race their row is the book, and the awards below are idempotent
-       so running them again costs a read and changes nothing. */
+       so running them again costs a read and changes nothing. A second seal
+       attempt on a sealed cohort lands here too, and refuses: the record
+       already on the row is the book, whatever this reader computed. */
+    const raced = await bookRowFor(catalystApp, campaign.id);
     console.warn(JSON.stringify({
       at: 'awards.sealBook', campaign: campaign.id,
+      note: raced ? 'second seal attempt refused, book already sealed' : 'insert failed, no book',
       error: String((err && err.message) || err).slice(0, 200),
     }));
-    const raced = await bookRowFor(catalystApp, campaign.id);
     if (!raced) return null;
     const racedBook = parseBook(raced);
     await sealAwards(catalystApp, campaign, racedBook, toInt(raced.bid_count), now);
     return racedBook;
   }
 
-  await sealAwards(catalystApp, campaign, book, bidCount, now);
-  return book;
+  /* Read back and assert. The record is what every household will be shown,
+     so the record wins over what was computed: a row that came back different
+     (a column truncation, say) is logged and served as written. */
+  const back = await bookRowFor(catalystApp, campaign.id);
+  const stored = back ? parseBook(back) : [];
+  if (!back || back.book_json !== bookJson) {
+    console.warn(JSON.stringify({
+      at: 'awards.sealBook', campaign: campaign.id,
+      note: stored.length ? 'readback mismatch after insert' : 'readback unreadable after insert, serving the computed book',
+      storedLength: back ? String(back.book_json || '').length : 0, computedLength: bookJson.length,
+    }));
+  }
+  /* The record wins when it is a record. A row that came back unparseable
+     (a clipped book_json, say) must not seal the cohort as "nobody won":
+     the computed book stands for this read, loudly, and the row is the
+     thing a human has to look at. */
+  const sealed = stored.length ? stored : book;
+  await sealAwards(catalystApp, campaign, sealed, bidCount, now);
+  return sealed;
 }
 
 /**
@@ -547,29 +606,59 @@ async function sealBook(catalystApp, campaign, bidRows, now = Date.now()) {
  */
 async function resultForOrg(catalystApp, campaign, orgId, now = Date.now()) {
   const existing = await findForOrg(catalystApp, campaign.id, orgId);
-  if (existing) return { decided: true, award: existing, tiersWon: tiersWon(existing) };
+  if (existing) {
+    const bookRow = await bookRowFor(catalystApp, campaign.id);
+    return {
+      decided: true, award: existing, tiersWon: tiersWon(existing),
+      wonEntries: wonEntriesFor(parseBook(bookRow), orgId),
+    };
+  }
 
+  const none = { decided: false, award: null, tiersWon: [], wonEntries: [] };
   let bookRow = await bookRowFor(catalystApp, campaign.id);
   if (!bookRow) {
-    if (!isClosed(campaign, now)) return { decided: false, award: null, tiersWon: [] };
+    if (!isClosed(campaign, now)) return none;
     const bidRows = await bids.campaignBidRows(catalystApp, campaign.id);
     await sealBook(catalystApp, campaign, bidRows, now);
     bookRow = await bookRowFor(catalystApp, campaign.id);
-    if (!bookRow) return { decided: false, award: null, tiersWon: [] };
+    if (!bookRow) return none;
   }
 
   const book = parseBook(bookRow);
   /* Decided, and this org holds none of it. A definite answer, and the
      cheapest one: no bid read, and none needed. */
   if (!book.some((e) => e && String(e.orgId) === String(orgId))) {
-    return { decided: true, award: null, tiersWon: [] };
+    return { decided: true, award: null, tiersWon: [], wonEntries: [] };
   }
 
   /* Sealed, but this org's award row is missing. Heal it rather than leave a
      partner locked out of a cohort the book says they won. */
   await sealAwards(catalystApp, campaign, book, toInt(bookRow.bid_count), now);
   const healed = await findForOrg(catalystApp, campaign.id, orgId);
-  return { decided: true, award: healed, tiersWon: tiersWon(healed) };
+  return {
+    decided: true, award: healed, tiersWon: tiersWon(healed),
+    wonEntries: wonEntriesFor(book, orgId),
+  };
+}
+
+/**
+ * This org's own entries of a book, and nothing of anyone else's: the tier,
+ * its own price, and how many households sat there. The one slice of the
+ * book a /provider route may carry, cut here so no caller holds the whole
+ * book in a partner's scope.
+ */
+function wonEntriesFor(book, orgId) {
+  /* `bidCount` and `tieRule` stay in the book. How many partners bid a tier,
+     and that a rival matched this price to the cent, are facts about other
+     partners' bids, which no /provider route may carry (CLAUDE.md). The
+     demand count is about households and crosses. */
+  return (book || [])
+    .filter((e) => e && String(e.orgId) === String(orgId))
+    .map((e) => ({
+      tier: e.tier,
+      price: e.price,
+      demandCount: e.demandCount == null ? null : toInt(e.demandCount),
+    }));
 }
 
 /** This org's award row on one cohort, or null. The row-only door, for the
@@ -648,7 +737,7 @@ function publicAward(row, billing) {
 
 module.exports = {
   AWARDS, BOOKS, AWARD_COLS, AWARD_COLS_V2, AWARD_COLS_V3, BOOK_COLS, METHODS,
-  buildBook, entryFor, parseBook, mixForTier,
+  buildBook, tieRuleFor, entryFor, parseBook, mixForTier, wonEntriesFor,
   bookFor, bookRowFor, findForOrg, rowsForOrg, tiersWon,
   isClosed, sealBook, sealAwards, sealFromCampaign, resultForOrg,
   gateState, gatePassed, release, setCapacity,

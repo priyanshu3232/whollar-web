@@ -31,6 +31,7 @@ const CODES = Object.freeze({
   SEAL_RACE:        409,
   JOIN_CLOSED:      409,
   ROSTER_FULL:      409,
+  DECISIONS_LOCKED: 409,
   /* Cohort geography, for the same reason. A household refused because the
      cohort covers somewhere else has a next step (correct the postal code, or
      wait for its own region) and a household with no postal code on file has a
