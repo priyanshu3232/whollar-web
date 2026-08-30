@@ -956,7 +956,7 @@ img,svg{display:block}
 
 /* provider logo strip */
 .whl-logos{background:#FAF8F3;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:30px 0;overflow:hidden;position:relative}
-.whl-logos__label{text-align:center;color:#7a8893;font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;margin:0 0 22px}
+.whl-logos__label{text-align:center;color:#7a8893;font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;margin:0 0 22px;position:relative;z-index:3}
 .whl-logos__track{display:flex;align-items:center;gap:72px;width:max-content;animation:whl-logo-scroll 90s linear infinite;will-change:transform}
 .whl-logos:hover .whl-logos__track{animation-play-state:paused}
 .whl-logos__track img{height:32px;width:auto;flex-shrink:0;opacity:.78;filter:grayscale(.2);transition:opacity .2s var(--ease),filter .2s var(--ease)}
@@ -1431,9 +1431,34 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .sf-wrap .sf-phone-col{display:none}
   .sf-wrap .sf-problem-grid{grid-template-columns:1fr;gap:22px}
   .sf-wrap .sf-mobile-sub{display:block;color:var(--ink-soft,#54625B);font-size:16px;line-height:1.5;margin:0 0 26px}
-  .sf-mobile-cards{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:2px 0 6px;align-items:stretch}
+  .sf-mobile-cards{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:2px 0 6px;align-items:center;perspective:900px}
   .sf-mobile-cards::-webkit-scrollbar{display:none}
-  .sf-mcard{flex:0 0 86%;scroll-snap-align:center;box-sizing:border-box;background:#1B4D3E;border-radius:22px;padding:22px 20px;display:flex;flex-direction:column}
+  /* --sf-d is written by the scroll handler: 0 for the card under the centre of
+     the track, rising to 1 for one a full slide away. Everything below reads it,
+     so the depth is one number and the CSS decides what it looks like. */
+  .sf-mcard{flex:0 0 100%;scroll-snap-align:center;box-sizing:border-box;background:#1B4D3E;
+    border-radius:22px;padding:22px 20px;display:flex;flex-direction:column;
+    --sf-d:1;--sf-s:0;
+    /* --sf-s carries the SIGN as well, so a card can lean towards the middle: the one
+       on the right turns its right edge away, the one on the left its left edge, and
+       the centred card comes out flat at 0. No transition on any of this - the values
+       are rewritten every scroll frame, so a transition would only lag the finger. */
+    /* the shrink pulls a neighbour's inner edge away from the screen edge, and the
+       tilt narrows it further - together they hid the peek completely. The translate
+       pulls it back towards the middle so roughly a thumb's width still shows. */
+    transform:translateX(calc(var(--sf-s) * -11%)) rotateY(calc(var(--sf-s) * 13deg)) scale(calc(1 - .16 * var(--sf-d)));
+    opacity:calc(1 - .48 * var(--sf-d));
+    box-shadow:0 calc(5px + 20px * (1 - var(--sf-d))) calc(14px + 34px * (1 - var(--sf-d))) rgba(9,32,24,calc(.14 + .26 * (1 - var(--sf-d))));
+    will-change:transform,opacity}
+  /* the depth is decoration: without it the track is still a plain snap carousel */
+  @media (prefers-reduced-motion:reduce){
+    .sf-mcard{transform:none;opacity:1;transition:none}
+  }
+  /* position, and a way to step the deck without swiping */
+  .sf-dots{display:flex;justify-content:center;align-items:center;gap:7px;margin-top:15px}
+  .sf-dot{width:7px;height:7px;border-radius:100px;background:rgba(27,77,62,.2);
+    transition:width .25s var(--ease),background .25s var(--ease);cursor:pointer}
+  .sf-dot.is-on{width:22px;background:#1B4D3E}
   .sf-mcard__head{display:flex;align-items:center;gap:11px;margin-bottom:16px}
   .sf-mcard__snoo{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;line-height:0}
   .sf-mcard__meta{display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -1573,6 +1598,13 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .whl-how + .whl-section{padding-top:40px}
   .whl-talk{padding:40px 0 44px}
   .whl-logos{padding:22px 0}
+  /* the strip edges fade the scrolling track, but the label sits in that same
+     90px band and was washing out at both ends on a 375px screen; it also wrapped
+     mid-phrase. Narrower tracking keeps it on one line inside the clear middle. */
+  /* sized off the viewport so it grows on a 430px phone without wrapping on a
+     360px one: the phrase is ~27.7x the font size at this tracking, and the
+     clamp keeps that under the width at both ends */
+  .whl-logos__label{font-size:clamp(11.5px,3.2vw,14px);letter-spacing:.04em;font-weight:700;color:var(--ink-2);padding:0 12px}
   /* a 46px heading margin plus the layout gap left a hole between every section
      heading and its content: worth ~74px before the FAQ list alone */
   .whl-head{margin-bottom:22px}
@@ -1604,16 +1636,28 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .whl-burger[aria-expanded="true"] span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
 
   .whl-mobnav{
-    position:fixed;inset:0;width:100%;height:100dvh;max-height:none;overflow:auto;
-    display:flex;flex-direction:column;gap:0;padding:86px 24px calc(40px + env(safe-area-inset-bottom));
-    background:var(--paper,#FAF8F3);border:none;box-shadow:none;border-radius:0;
+    /* a right-hand panel, not a full sheet: about a third of the page stays
+       visible and dimmed behind it, so the menu reads as a layer over the
+       page rather than a separate screen you have navigated to */
+    position:fixed;inset:0 0 0 auto;width:68%;min-width:248px;max-width:320px;
+    height:100dvh;max-height:none;overflow:auto;
+    display:flex;flex-direction:column;gap:0;padding:86px 20px calc(40px + env(safe-area-inset-bottom));
+    background:var(--paper,#FAF8F3);border:none;box-shadow:-16px 0 40px rgba(14,42,32,.18);border-radius:0;
     transform:translateX(100%);transition:transform .3s cubic-bezier(.16,1,.3,1);
     visibility:visible;opacity:1;z-index:120;
   }
   .whl-mobnav.is-open{transform:translateX(0)}
+  /* the dimmed third of the page. It is a sibling of the header, so the header's
+     z-index:130 keeps both the panel and the close button above it. */
+  .whl-mobnav__scrim{
+    position:fixed;inset:0;z-index:115;background:rgba(14,42,32,.42);
+    opacity:0;visibility:hidden;transition:opacity .3s ease,visibility .3s ease;
+    -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);border:none;padding:0;
+  }
+  .whl-mobnav__scrim.is-open{opacity:1;visibility:visible}
   .whl-mobnav a[data-mobnav-link]:not(.whl-btn){
-    font-family:var(--disp);font-size:26px;font-weight:600;letter-spacing:-.01em;color:var(--ink);
-    padding:18px 2px;border-bottom:1px solid var(--line);text-decoration:none;
+    font-family:var(--disp);font-size:20px;font-weight:600;letter-spacing:-.01em;color:var(--ink);
+    padding:14px 2px;border-bottom:1px solid var(--line);text-decoration:none;
     opacity:0;transform:translateY(10px);transition:opacity .3s ease,transform .3s cubic-bezier(.16,1,.3,1)}
   .whl-mobnav.is-open a[data-mobnav-link]:not(.whl-btn){opacity:1;transform:none}
   .whl-mobnav.is-open a:nth-child(1){transition-delay:.06s}
@@ -1706,7 +1750,9 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .sf-wrap .pain-sec{padding:18px 0 26px}
   .sf-wrap .pain-wrap{padding:0 20px 8px}
   .sf-wrap .pain-wrap h2{margin-bottom:12px}
-  .sf-mobile-cards{margin:0 -20px;padding:2px 20px 6px}
+  /* 11% each side is the room the first and last card need to reach the centre of
+     the track; it is also the gap the neighbouring cards peek through */
+  .sf-mobile-cards{margin:0 -20px;padding:2px 11% 6px}
 
   /* compact pain tiles: all four visible at once */
   .sf-wrap .sf-tiles{gap:10px}
@@ -1999,6 +2045,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
     <a class="whl-btn whl-btn--outline whl-btn--block" href="/whollar-login-consumer" data-mobnav-link="">Log in</a><a class="whl-btn whl-btn--block" href="/MobileVersion/join-the-first-cohort-mobile" data-mobnav-link="">Join the First Cohort</a>
   </nav>
 </header>
+<button class="whl-mobnav__scrim" type="button" data-mobnav-scrim aria-label="Close menu" tabindex="-1"></button>
 
 <!-- HERO (mobile: animated dark) -->
 <section id="whero" aria-label="Stop paying the loyalty tax">
@@ -2284,6 +2331,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
 
       <!-- Mobile: reddit cards as an auto-advancing L→R carousel (phone frame hidden ≤640px) -->
       <div class="sf-mobile-cards" id="sf-mobile-cards" aria-hidden="true"></div>
+      <div class="sf-dots" id="sf-dots" aria-hidden="true"></div>
 
       <!-- Right: tiles -->
       <div class="sf-tiles" id="sf-tiles"></div>
@@ -2344,7 +2392,45 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
     function stop(){ if(timer){clearInterval(timer);timer=null;} }
     function pauseNow(){ paused=true; clearTimeout(resumeT); resumeT=setTimeout(function(){paused=false;},6500); }
     ['touchstart','pointerdown','wheel'].forEach(function(ev){ wrap.addEventListener(ev,pauseNow,{passive:true}); });
+    /* Depth pass. Writes how far each card sits from the centre of the track as a
+       0..1 number and lets the CSS decide what that looks like, so the scale, fade
+       and shadow stay in the stylesheet. One rAF per scroll frame: the debounced
+       block below still owns `idx`, this only paints. */
+    var depthRAF=null;
+    /* Dots double as the position readout and as a way to step the deck without
+       swiping. The whole carousel is aria-hidden, so these are spans, not buttons:
+       a focusable control inside aria-hidden content is a trap for anyone on a
+       keyboard or a screen reader. */
+    var dotWrap=document.getElementById('sf-dots'), dots=[];
+    function buildDots(){
+      if(!dotWrap) return;
+      dotWrap.innerHTML=new Array(cards().length+1).join('<span class="sf-dot"></span>');
+      dots=[].slice.call(dotWrap.querySelectorAll('.sf-dot'));
+      dots.forEach(function(dot,i){ dot.addEventListener('click',function(){ pauseNow(); go(i); }); });
+    }
+    function paintDepth(){
+      depthRAF=null;
+      var c=cards(); if(!c.length) return;
+      var mid=wrap.scrollLeft+wrap.clientWidth/2;
+      /* one step of the track is a slide plus the gap, so a neighbour reads exactly 1 */
+      var span=c[0].offsetWidth+14;
+      var near=0, nd=1e9;
+      for(var i=0;i<c.length;i++){
+        var cc=c[i].offsetLeft+c[i].offsetWidth/2;
+        var raw=(cc-mid)/span, d=Math.abs(raw);
+        c[i].style.setProperty('--sf-d', Math.min(1,d).toFixed(3));
+        c[i].style.setProperty('--sf-s', Math.max(-1,Math.min(1,raw)).toFixed(3));
+        if(d<nd){ nd=d; near=i; }
+      }
+      for(var j=0;j<dots.length;j++) dots[j].classList.toggle('is-on', j===near);
+    }
+    function queueDepth(){ if(depthRAF==null) depthRAF=requestAnimationFrame(paintDepth); }
+    buildDots();
+    queueDepth();
+    window.addEventListener('resize',queueDepth,{passive:true});
+
     wrap.addEventListener('scroll',function(){
+      queueDepth();
       clearTimeout(scrollT);
       scrollT=setTimeout(function(){
         var c=cards(), mid=wrap.scrollLeft+wrap.clientWidth/2, best=0, bd=1e9;
@@ -3802,12 +3888,15 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
   /* mobile nav toggle */
   var burger = document.querySelector('[data-burger]');
   var mobnav = document.querySelector('[data-mobnav]');
+  var scrim = document.querySelector('[data-mobnav-scrim]');
   if(burger && mobnav){
     function setNav(open){
       mobnav.classList.toggle('is-open', open);
+      if(scrim){ scrim.classList.toggle('is-open', open); scrim.tabIndex = open ? 0 : -1; }
       burger.setAttribute('aria-expanded', open ? 'true':'false');
       burger.setAttribute('aria-label', open ? 'Close menu':'Open menu');
     }
+    if(scrim) scrim.addEventListener('click', function(){ setNav(false); });
     burger.addEventListener('click', function(){ setNav(!mobnav.classList.contains('is-open')); });
     mobnav.querySelectorAll('[data-mobnav-link]').forEach(function(a){ a.addEventListener('click', function(){ setNav(false); }); });
     window.addEventListener('resize', function(){ if(window.innerWidth > 880) setNav(false); });
@@ -4201,6 +4290,10 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
   function syncLock(){ document.body.classList.toggle('whl-noscroll', mobnav && mobnav.classList.contains('is-open')); }
   if(burger){ burger.addEventListener('click', function(){ setTimeout(syncLock, 0); }); }
   if(mobnav){ mobnav.querySelectorAll('[data-mobnav-link]').forEach(function(a){ a.addEventListener('click', function(){ setTimeout(syncLock,0); }); }); }
+  /* closing by tapping the dimmed page is a third way out of the menu, and it has
+     to release the lock too or the page below is left frozen */
+  var lockScrim = document.querySelector('[data-mobnav-scrim]');
+  if(lockScrim){ lockScrim.addEventListener('click', function(){ setTimeout(syncLock,0); }); }
   /* close on Escape */
   document.addEventListener('keydown', function(e){ if(e.key==='Escape' && mobnav && mobnav.classList.contains('is-open') && burger){ burger.click(); } });
 
