@@ -39,6 +39,7 @@
 const catalog = require('../lib/catalog');
 const datastore = require('../lib/datastore');
 const seats = require('../lib/seats');
+const orders = require('../lib/orders');
 const cohorts = require('../lib/cohorts');
 const guards = require('../lib/guards');
 const audit = require('../lib/audit');
@@ -454,18 +455,35 @@ function mount(router) {
     const now = Date.now();
     const requestId = seats.cleanRequestId(req.get('Idempotency-Key'));
 
-    const row = await seats.getClaim(req.catalyst, addressId, vertical);
-    const claim = seats.publicClaim(row);
-    if (!claim || claim.status !== 'active' || claim.cohort_id !== cohort.id) {
-      return ok(res, {
-        claim, cohort: cohortShape(cohort, now, null),
-        open_alternatives: openAlternatives(cat, now, cohort.id),
+    /* CONFIRMATIONS LOCK AT decision_at. The member ladder's `confirm` stage
+       BEGINS there (lib/catalog.js MEMBER_GATES), so "offers" is the whole
+       window in which a pass is honest, an accepted order included: a
+       household may take a card and then pass on it, until the deadline. */
+    const stage = catalog.memberStageOf(cohort, now);
+    const decisionAt = (cohort.dates && cohort.dates.decision_at) || null;
+    if (decisionAt && now >= decisionAt) {
+      throw new AppError('DECISIONS_LOCKED', 'Confirmations have locked on this cohort. Your installer books from here.', {
+        logDetail: `pass refused: ${cohort.id} decisions locked`,
       });
     }
-    const stage = catalog.memberStageOf(cohort, now);
     if (stage !== 'offers') {
       throw new AppError('CONFLICT', 'There is no offer on the table to pass on yet.', {
         logDetail: `pass refused: ${cohort.id} stage=${stage}`,
+      });
+    }
+
+    const row = await seats.getClaim(req.catalyst, addressId, vertical);
+    const claim = seats.publicClaim(row);
+    if (!claim || claim.status !== 'active' || claim.cohort_id !== cohort.id) {
+      /* No seat on this cohort, but an order may still stand (a household
+         that joined before the ledger, or whose seat moved another way):
+         the pass releases it and drops the membership, which is the whole
+         act for such a household. */
+      const released = await releaseOrder(req, cohort, user, now);
+      if (released) await dropMembershipRow(req.catalyst, cohort.id, user.user_id);
+      return ok(res, {
+        claim, released, cohort: cohortShape(cohort, now, null),
+        open_alternatives: openAlternatives(cat, now, cohort.id),
       });
     }
 
@@ -478,6 +496,22 @@ function mount(router) {
     await dropMembershipRow(req.catalyst, cohort.id, user.user_id);
     await seats.recount(req.catalyst, cohort.id);
 
+    /* THE ORDER RELEASES LAST. The seat move is the write that can refuse
+       (a race, an idempotency conflict); releasing the order before it
+       would hand the partner a loss while the household was told nothing
+       changed. Done here, the household has left; a release that fails
+       leaves an order for a departed household on the board, which is
+       logged and visible, not silent. */
+    let released = false;
+    try {
+      released = await releaseOrder(req, cohort, user, now);
+    } catch (err) {
+      console.warn(JSON.stringify({
+        at: 'seat.pass', cohort: cohort.id, note: 'order release failed after the seat moved',
+        error: String((err && err.message) || err).slice(0, 200),
+      }));
+    }
+
     audit.recordAsync(req.catalyst, req, {
       type: 'seat.pass', outcome: 'success', userId: user.user_id,
       email: user.email_normalized,
@@ -486,10 +520,34 @@ function mount(router) {
 
     return ok(res, {
       claim: fresh,
+      released,
       cohort: cohortShape(cohort, now, await cohorts.seatCount(req.catalyst, cohort.id)),
       open_alternatives: openAlternatives(cat, now, cohort.id),
     });
   }));
+}
+
+/**
+ * Release this household's order on this cohort, if one stands. True when a
+ * row moved to 'rel'. A row the partner has already served refuses through
+ * orders.requireTransition, which is the right answer: a household cannot
+ * pass on a line that is live. Unreadable table is "no order", not an error.
+ */
+async function releaseOrder(req, cohort, user, now) {
+  let row = null;
+  try {
+    row = await orders.findAnyByKey(req.catalyst, `${cohort.id}:${user.user_id}`.slice(0, 200));
+  } catch {
+    row = null;
+  }
+  if (!row || row.state === 'rel') return false;
+  await orders.releaseByHousehold(req.catalyst, row, now);
+  audit.recordAsync(req.catalyst, req, {
+    type: 'offer.pass', outcome: 'success', userId: user.user_id,
+    email: user.email_normalized,
+    detail: { cohort: cohort.id, org: row.org_id, tier: row.tier || null, from: row.state },
+  });
+  return true;
 }
 
 module.exports = { mount, affordanceFor, joinWindowOpen, cohortShape };

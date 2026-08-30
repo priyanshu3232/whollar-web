@@ -475,6 +475,291 @@ async function main() {
   tableOf('campaigns').push(...saved);
   catalog.invalidate(); cohorts.invalidate();
 
+
+  /* ---------------------------------------------------------------- *
+   * The price book, tier by tier: award, window, confirmed count.
+   * Four partners on one cohort, forty-three households with a speed on
+   * their bills, and the brief's acceptance tests adapted to the decisions
+   * of 2026-08-29 (labels as ids, money as strings, demand recorded and not
+   * gating, accept = confirmed, changes until decision_at).
+   * ---------------------------------------------------------------- */
+  const awards = backend('lib/awards.js');
+  const ordersLib = backend('lib/orders.js');
+  const offersLib = backend('lib/offers.js');
+
+  const tiersBody = (campaign, tiers, cap, over = {}) => ({
+    campaign,
+    tiers: tiers.map(([name, price, after]) => Object.assign({
+      name, uploadMbps: '50', technology: 'fibre', stickerPrice: String(Number(price) + 20), effectivePrice: String(price),
+    }, after ? { afterPrice: String(after) } : {})),
+    guaranteeMonths: 24, afterMode: over.afterMode || 'none', reductionPresentation: 'member',
+    equipment: 'inc', committedHouseholds: cap,
+  });
+  const acceptBody = (tier) => ({
+    tier, address: '12 Main Street, Toronto', consent: true, phone: '4165550123',
+    slotAt: NOW + 3 * D, slotWindow: 'am',
+  });
+
+  /* One cohort, four partners, the households. `seedCohort` builds the same
+     shape twice (camp-f and camp-g) so section 20 can prove isolation. */
+  function seedCohort(id, region, prefix) {
+    insert('campaigns', campaignRow(id, region, 'auction', {
+      bidding_opens_at: ds.toDb(new Date(NOW - 2 * H)),
+      bidding_closes_at: ds.toDb(new Date(NOW + 2 * H)),
+      decision_at: ds.toDb(new Date(NOW + 2 * D)),
+    }));
+    const slug = region.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    for (const org of ['org-p1', 'org-p2', 'org-p3', 'org-p4']) {
+      insert('provider_coverage', { coverage_key: `${org}:${slug}`, org_id: org, region, techs: 'fibre', status: 'active', updated_at: ds.nowDb() });
+    }
+    /* Speeds on file: 20 at 100, 15 at 300, 3 at 150 (snap to 100), 2 at 500,
+       2 "Not sure", 1 with no bill. 43 households, 40 with a readable speed. */
+    const speeds = [].concat(
+      Array(20).fill('100'), Array(15).fill('300'), Array(3).fill('150'),
+      Array(2).fill('500'), Array(2).fill('0'), [null],
+    );
+    const members = speeds.map((speed, i) => {
+      const uid = `${prefix}${String(i + 1).padStart(2, '0')}`;
+      const u = userRow(uid, 'member');
+      insert('campaign_members', {
+        membership_key: `${id}:${uid}`, campaign_id: id, user_id: uid,
+        status: 'joined', fsa: 'M9C', joined_at: ds.nowDb(),
+      });
+      if (speed !== null) {
+        insert('member_bills', { user_id: uid, download_speed: speed, source: 'checkup', updated_at: ds.nowDb() });
+      }
+      return { user: u, speed };
+    });
+    cohorts.invalidate(id);
+    return members;
+  }
+
+  insert('provider_orgs', { org_id: 'org-p3', legal_name: 'Cedar Fibre', email_domain: 'cedarfibre.ca', approval_status: 'approved' });
+  insert('provider_orgs', { org_id: 'org-p4', legal_name: 'Lakeshore Net', email_domain: 'lakeshore.ca', approval_status: 'approved' });
+  const P3U = userRow('p3u', 'provider');
+  const P4U = userRow('p4u', 'provider');
+  insert('provider_users', { user_id: 'p3u', org_id: 'org-p3', role: 'admin' });
+  insert('provider_users', { user_id: 'p4u', org_id: 'org-p4', role: 'admin' });
+  for (const [org, by] of [['org-p3', 'p3u'], ['org-p4', 'p4u']]) {
+    insert('provider_terms', {
+      acceptance_key: `${org}:cohort_terms:v1`, org_id: org, doc_type: 'cohort_terms',
+      doc_version: 'v1', accepted_at: ds.nowDb(), accepted_by: by,
+    });
+  }
+
+  /* The four bids. P3 is lowest at 100 and 500, P1 at 300, P2 at 1 Gig where
+     P4 ties on price and loses on the after-rate. P4 wins nothing. */
+  async function placeFour(id) {
+    const place = (u, body) => invoke(R['POST /provider/bids'], makeReq(u, { body }));
+    let x = await place(P1U, tiersBody(id, [['100 Mbps', 60], ['300 Mbps', 55], ['500 Mbps', 80], ['1 Gig', 95]], 15));
+    ok(x.status === 200, `P1 places four tiers on ${id} (${x.status} ${x.body.error ? x.body.error.message : ''})`);
+    x = await place(P2U, tiersBody(id, [['300 Mbps', 58], ['1 Gig', 85]], 15));
+    ok(x.status === 200, `P2 places two tiers (${x.status})`);
+    x = await place(P3U, tiersBody(id, [['100 Mbps', 45], ['500 Mbps', 70]], 15));
+    ok(x.status === 200, `P3 places two tiers (${x.status})`);
+    x = await place(P4U, tiersBody(id, [['100 Mbps', 50, 65], ['300 Mbps', 60, 75], ['500 Mbps', 75, 90], ['1 Gig', 85, 100]], 15, { afterMode: 'new' }));
+    ok(x.status === 200, `P4 places four tiers with a scheduled rise (${x.status} ${x.body.error ? x.body.error.message : ''})`);
+    const row = tableOf('campaigns').find((c) => c.campaign_id === id);
+    row.bidding_closes_at = ds.toDb(new Date(NOW - 60 * 1000));
+    catalog.invalidate(); cohorts.invalidate(id);
+  }
+
+  console.log('\n11. four partners, four tiers: the book awards each tier to its lowest sealed bid');
+  const F = seedCohort('camp-f', 'Riverside', 'f');
+  await placeFour('camp-f');
+  const byUid = (uid) => F.find((m) => m.user.user_id === uid).user;
+  r = await invoke(R['GET /campaigns/:id/offer'], makeReq(byUid('f01'), { params: { id: 'camp-f' } }));
+  ok(r.status === 200 && Array.isArray(r.body.book) && r.body.book.length === 4, `the first read seals a four-tier book (${r.status}, ${r.body.book && r.body.book.length})`);
+  const bookRow = tableOf('campaign_price_books').find((b) => b.campaign_id === 'camp-f');
+  const book = bookRow ? JSON.parse(bookRow.book_json) : [];
+  const byTier = {}; book.forEach((e) => { byTier[e.tier] = e; });
+  ok(byTier['100 Mbps'] && byTier['100 Mbps'].orgId === 'org-p3' && byTier['100 Mbps'].price === '45', `100 Mbps went to P3 at $45 (${byTier['100 Mbps'] && byTier['100 Mbps'].orgId})`);
+  ok(byTier['300 Mbps'] && byTier['300 Mbps'].orgId === 'org-p1' && byTier['300 Mbps'].price === '55', '300 Mbps went to P1 at $55');
+  ok(byTier['500 Mbps'] && byTier['500 Mbps'].orgId === 'org-p3' && byTier['500 Mbps'].price === '70', '500 Mbps went to P3 at $70');
+  ok(byTier['1 Gig'] && byTier['1 Gig'].orgId === 'org-p2' && byTier['1 Gig'].price === '85', '1 Gig went to P2 at $85');
+  ok(byTier['1 Gig'] && byTier['1 Gig'].tieRule === 'after_rate', `the 1 Gig tie was decided on the after-rate (${byTier['1 Gig'] && byTier['1 Gig'].tieRule})`);
+  ok(byTier['100 Mbps'].tieRule === null && byTier['100 Mbps'].bidCount === 3, `100 Mbps: no tie, three bidders (${byTier['100 Mbps'].bidCount})`);
+  const fAwards = tableOf('campaign_awards').filter((a) => a.campaign_id === 'camp-f');
+  ok(fAwards.length === 3 && !fAwards.some((a) => a.org_id === 'org-p4'), `three award rows, none for P4 (${fAwards.map((a) => a.org_id).sort().join(',')})`);
+  ok(fAwards.every((a) => a.award_key === `camp-f:${a.org_id}`), 'every award sits on the composite key');
+
+  console.log('\n12. demand is recorded per tier, and a tier nobody asked for stays in the book');
+  const demand = await cohorts.speedDemand(fakeApp, 'camp-f');
+  ok(demand.households === 43 && demand.known === 40 && demand.unknown === 3, `43 households, 40 with a readable speed (${demand.households}/${demand.known}/${demand.unknown})`);
+  const dmap = Object.fromEntries(demand.tiers || []);
+  ok(dmap['100 Mbps'] === 23 && dmap['300 Mbps'] === 15 && dmap['500 Mbps'] === undefined && demand.other === 2 && dmap['1 Gig'] === undefined, `100:23 (150 snaps down), 300:15, the two at 500 folded into other, no 1 Gig (${JSON.stringify(demand.tiers)}, other ${demand.other})`);
+  ok(byTier['1 Gig'].demandCount === 0 && byTier['100 Mbps'].demandCount === 23, `the book records demand per tier and keeps the undemanded tier (${byTier['1 Gig'].demandCount}, ${byTier['100 Mbps'].demandCount})`);
+  r = await invoke(R['GET /provider/campaigns/:id/brief'], makeReq(P1U, { params: { id: 'camp-f' } }));
+  ok(r.status === 200 && Array.isArray(r.body.brief.speedDemand) && r.body.brief.speedDemandKnown === 40, 'the brief carries the measured demand');
+  ok(!blobOf(r.body).includes('f01') && !blobOf(r.body).includes('f43'), 'and no household id');
+  const smallDemand = await cohorts.speedDemand(fakeApp, 'camp-a');
+  ok(smallDemand.tiers === null, `a cohort under the floor says nothing (${smallDemand.known} known)`);
+
+  console.log('\n13. the household window: three cards of the book, recorded once');
+  const windowOf = async (uid) => {
+    const x = await invoke(R['GET /campaigns/:id/offer'], makeReq(byUid(uid), { params: { id: 'camp-f' } }));
+    return x.body.offers;
+  };
+  let w = await windowOf('f21');   /* speed 300 */
+  ok(w && w.cards.map((c) => c.tier).join('|') === '100 Mbps|300 Mbps|500 Mbps' && w.rule === 'bill:centred', `300 Mbps household: 100|300|500, centred (${w && w.rule})`);
+  ok(w && w.cards.map((c) => c.position).join('|') === 'below|current|above', 'positions below, current, above');
+  ok(w && w.cards[1].partner === 'NorthGrid Fibre' && w.cards[0].partner === 'Cedar Fibre', 'and two partner names on one window');
+  w = await windowOf('f36');       /* speed 150 */
+  ok(w && w.centre === '100 Mbps' && w.rule === 'bill:end_low' && w.cards[0].position === 'current', `150 Mbps snaps to 100 and clamps low (${w && w.rule})`);
+  w = await windowOf('f39');       /* speed 500 */
+  ok(w && w.cards.map((c) => c.tier).join('|') === '300 Mbps|500 Mbps|1 Gig' && w.rule === 'bill:centred', `500 Mbps household: 300|500|1 Gig (${w && w.rule})`);
+  w = await windowOf('f41');       /* speed "0", Not sure */
+  ok(w && w.rule === 'unknown:end_low' && w.centre === '100 Mbps', `"Not sure" opens on the cheapest, never the lowest rung as a claim (${w && w.rule})`);
+  w = await windowOf('f43');       /* no bill */
+  ok(w && w.rule === 'unknown:end_low', `no bill on file: the three cheapest (${w && w.rule})`);
+  const rec = tableOf('household_offers').filter((o) => o.campaign_id === 'camp-f');
+  ok(rec.length === 6, `six households read, six rows recorded (${rec.length})`);
+  const f21 = rec.find((o) => o.user_id === 'f21');
+  const before = f21 && f21.offered_at;
+  tableOf('member_bills').find((b) => b.user_id === 'f21').download_speed = '1000';
+  cohorts.invalidate('camp-f');
+  w = await windowOf('f21');
+  ok(w && w.recorded && w.cards[1].tier === '300 Mbps' && f21.offered_at === before, 'a bill edited after the offer does not move the recorded cards');
+  ok(rec.every((o) => JSON.parse(o.cards_json).every((c) => c.position === 'none' || c.price === byTier[c.tier].price)), 'every recorded price is the seal\'s string, byte for byte');
+
+  console.log('\n14. confirmed counts: 20 to P3 at 100 Mbps, 15 to P1 at 300 Mbps');
+  const accept = (uid, tier) => invoke(R['POST /campaigns/:id/offer/accept'], makeReq(byUid(uid), { params: { id: 'camp-f' }, body: acceptBody(tier) }));
+  let allOk = true;
+  for (let i = 1; i <= 20; i++) { const x = await accept(`f${String(i).padStart(2, '0')}`, '100 Mbps'); if (x.status !== 200) { allOk = false; console.log('     accept failed', x.status, x.body.error && x.body.error.message); break; } }
+  for (let i = 21; i <= 35; i++) { const x = await accept(`f${String(i).padStart(2, '0')}`, '300 Mbps'); if (x.status !== 200) { allOk = false; console.log('     accept failed', x.status, x.body.error && x.body.error.message); break; } }
+  ok(allOk, 'thirty-five accepts land');
+  const fOrders = tableOf('provider_orders').filter((o) => o.campaign_id === 'camp-f');
+  ok(fOrders.length === 35, `thirty-five order rows, one per household (${fOrders.length})`);
+  ok(fOrders.every((o) => o.price === byTier[o.tier].price), 'every order price is the book\'s string');
+  const bidsAs = async (u) => (await invoke(R['GET /provider/bids'], makeReq(u))).body.bids.find((b) => b.campaignId === 'camp-f');
+  let b3 = await bidsAs(P3U); let b1 = await bidsAs(P1U); let b2 = await bidsAs(P2U); let b4 = await bidsAs(P4U);
+  ok(b3 && b3.state === 'won' && b3.confirmed === 20, `P3: won, 20 confirmed (${b3 && b3.confirmed})`);
+  ok(b1 && b1.state === 'won' && b1.confirmed === 15, `P1: won, 15 confirmed (${b1 && b1.confirmed})`);
+  ok(b2 && b2.state === 'won' && b2.confirmed === 0 && b2.tiersWon.join() === '1 Gig', `P2: won 1 Gig, 0 confirmed (${b2 && b2.confirmed})`);
+  ok(b4 && b4.state === 'not_selected' && b4.confirmed === undefined && b4.won === undefined, 'P4: not selected, no count, no tier table');
+  ok(b3.won.find((t) => t.tier === '100 Mbps').confirmed === 20 && b3.won.find((t) => t.tier === '500 Mbps').confirmed === 0, 'P3\'s per-tier table: 20 at 100, 0 at 500');
+  ok(b3.won.find((t) => t.tier === '100 Mbps').demandCount === 23 && b3.won.every((t) => t.bidCount === undefined && t.tieRule === undefined), 'with the tier\'s demand, and nothing about other partners\' bids');
+  const direct = await ordersLib.confirmedCount(fakeApp, 'camp-f', 'org-p3');
+  ok(direct.confirmed === 20 && direct.byTier['100 Mbps'] === 20, 'the direct count agrees');
+  insert('provider_orders', { order_key: 'camp-f:ghost', order_no: 'WHL-0000-C', campaign_id: 'camp-f', org_id: 'org-p3', member_user_id: 'ghost', state: 'acc', address_line: 'x', tier: '100 Mbps', price: '45', created_at: ds.nowDb(), updated_at: ds.nowDb() });
+  ok((await ordersLib.confirmedCount(fakeApp, 'camp-f', 'org-p3')).confirmed === 20, 'a row written behind the memo is not seen for a minute');
+  ordersLib.invalidateConfirmed('camp-f', 'org-p3');
+  ok((await ordersLib.confirmedCount(fakeApp, 'camp-f', 'org-p3')).confirmed === 21, 'and is seen the moment the pair is invalidated');
+  const ghostIdx = tableOf('provider_orders').findIndex((o) => o.order_key === 'camp-f:ghost');
+  tableOf('provider_orders').splice(ghostIdx, 1);
+  ordersLib.invalidateConfirmed('camp-f', 'org-p3');
+
+  console.log('\n15. change of pick: one row moves by ROWID, and the counts move with it');
+  const f05 = tableOf('provider_orders').find((o) => o.order_key === 'camp-f:f05');
+  const rowid = f05.ROWID;
+  const newSlot = NOW + 9 * D;
+  r = await invoke(R['POST /campaigns/:id/offer/accept'], makeReq(byUid('f05'), { params: { id: 'camp-f' }, body: Object.assign(acceptBody('300 Mbps'), { slotAt: newSlot, slotWindow: 'pm', phone: '4165550199' }) }));
+  ok(r.status === 200 && r.body.tier === '300 Mbps' && r.body.partner === 'NorthGrid Fibre', `the re-accept answers the new tier and partner (${r.status} ${r.body.tier} ${r.body.partner})`);
+  const moved = tableOf('provider_orders').filter((o) => o.order_key === 'camp-f:f05');
+  ok(moved.length === 1 && moved[0].ROWID === rowid && moved[0].org_id === 'org-p1' && moved[0].tier === '300 Mbps' && moved[0].price === '55', 'one row, same ROWID, now P1 at 300 Mbps for $55');
+  ok(ds.toDb(new Date(newSlot)) === moved[0].slot_at && moved[0].phone === '+14165550199' && /afternoon/.test(moved[0].note || ''), `and it carries the day, window and number the household just gave (${moved[0].slot_at}, ${moved[0].phone})`);
+  b3 = await bidsAs(P3U); b1 = await bidsAs(P1U);
+  ok(b3.confirmed === 19 && b1.confirmed === 16, `P3 19, P1 16 (${b3.confirmed}, ${b1.confirmed})`);
+  r = await accept('f05', '300 Mbps');
+  ok(r.status === 200 && tableOf('provider_orders').filter((o) => o.order_key === 'camp-f:f05').length === 1, 'the same pick again is idempotent');
+  r = await accept('f05', '2.5 Gig');
+  ok(r.status === 400, `a tier outside the book is refused (${r.status})`);
+  r = await accept('f05', '1 Gig');
+  ok(r.status === 400, `a tier outside the recorded window is refused (${r.status})`);
+  /* The harness replaces a row object on update, so find it again. */
+  const liveRow = () => tableOf('provider_orders').find((o) => o.order_key === 'camp-f:f05');
+  liveRow().state = 'act';
+  r = await accept('f05', '100 Mbps');
+  ok(r.status === 409, `a live line cannot be re-picked (${r.status})`);
+  ok(liveRow().org_id === 'org-p1' && liveRow().tier === '300 Mbps', 'and the row did not move');
+  liveRow().state = 'bkd';
+
+  console.log('\n16. pass after accept releases the order and decrements');
+  r = await invoke(R['POST /cohorts/:id/pass'], makeReq(byUid('f06'), { params: { id: 'camp-f' }, body: {} }));
+  ok(r.status === 200 && r.body.released === true, `the pass lands and says it released an order (${r.status} ${r.body.released})`);
+  const f06 = tableOf('provider_orders').find((o) => o.order_key === 'camp-f:f06');
+  ok(f06 && f06.state === 'rel' && f06.release_reason === 'household_passed', `the order is released with the household reason (${f06 && f06.state}, ${f06 && f06.release_reason})`);
+  ok(!tableOf('campaign_members').some((m) => m.membership_key === 'camp-f:f06'), 'and the membership row is gone');
+  b3 = await bidsAs(P3U);
+  ok(b3.confirmed === 18, `P3 now 18 (${b3.confirmed})`);
+  r = await invoke(R['POST /cohorts/:id/pass'], makeReq(byUid('f06'), { params: { id: 'camp-f' }, body: {} }));
+  ok(r.status === 200 && r.body.released === false, 'a second pass releases nothing more');
+  insert('campaign_members', { membership_key: 'camp-f:f06', campaign_id: 'camp-f', user_id: 'f06', status: 'joined', fsa: 'M9C', joined_at: ds.nowDb() });
+  r = await accept('f06', '100 Mbps');
+  ok(r.status === 409 && /passed/.test(r.body.error.message), `a released order is not re-accepted as a booking (${r.status})`);
+  ok(ordersLib.PARTNER_RELEASE_REASONS.indexOf('household_passed') < 0 && ordersLib.RELEASE_REASONS.indexOf('household_passed') >= 0, 'the household reason is not a partner reason');
+  let threw = false;
+  try { ordersLib.requireTransition('bkd', 'bkd'); } catch { threw = true; }
+  ok(!threw, 'a partner can rebook a household-booked order');
+  const pacific4pm = Date.UTC(2026, 0, 12, 0, 0);   /* Sun Jan 11 16:00 PST */
+  ok(ordersLib.bookedInWeek([{ state: 'bkd', slot_at: ds.toDb(new Date(pacific4pm)) }], Date.UTC(2026, 0, 7, 20, 0)) === 1, 'a Pacific Sunday-evening slot counts in its own local week');
+  const kept = { ROWID: 'x', campaign_id: 'camp-f', org_id: 'org-p1', note: 'Booked by the household at acceptance: morning. Mobile +14165550123.' };
+  const seen = [];
+  const fakeStore = { datastore() { return { table() { return { updateRow(r) { seen.push(r); return Promise.resolve(r); } }; } }; } };
+  await ordersLib.move(fakeStore, kept, 'bkd', { note: 'Rebooked, household confirmed' });
+  ok(/Mobile \+14165550123/.test(seen[0].note), `a partner rebook carries the number riding in the note (${seen[0].note})`);
+
+  console.log('\n17. confirmations lock at decision_at');
+  const fRow = tableOf('campaigns').find((c) => c.campaign_id === 'camp-f');
+  fRow.decision_at = ds.toDb(new Date(NOW - 60 * 1000));
+  catalog.invalidate();
+  r = await accept('f07', '300 Mbps');
+  ok(r.status === 409 && r.body.error.code === 'DECISIONS_LOCKED', `accept after decision_at is 409 DECISIONS_LOCKED (${r.status} ${r.body.error && r.body.error.code})`);
+  r = await invoke(R['POST /cohorts/:id/pass'], makeReq(byUid('f07'), { params: { id: 'camp-f' }, body: {} }));
+  ok(r.status === 409 && r.body.error.code === 'DECISIONS_LOCKED', `and so is a pass (${r.status})`);
+  ok(tableOf('provider_orders').find((o) => o.order_key === 'camp-f:f07').state !== 'rel', 'f07\'s order stands');
+  fRow.decision_at = ds.toDb(new Date(NOW + 2 * D));
+  catalog.invalidate();
+
+  console.log('\n18. the seal is idempotent: a second run writes nothing');
+  const fCampaign = (await catalog.load(fakeApp)).byId.get('camp-f');
+  const fBids = tableOf('provider_bids').filter((b) => b.campaign_id === 'camp-f');
+  const again = await awards.sealBook(fakeApp, fCampaign, fBids);
+  const bookRows = tableOf('campaign_price_books').filter((b) => b.campaign_id === 'camp-f');
+  ok(bookRows.length === 1 && bookRows[0].book_json === bookRow.book_json, 'one book row, byte-identical');
+  ok(JSON.stringify(again) === bookRow.book_json, 'and the second call answers the recorded book');
+  ok(tableOf('campaign_awards').filter((a) => a.campaign_id === 'camp-f').length === 3, 'award rows unchanged');
+
+  console.log('\n19. privacy: P4\'s result carries nothing of P1, P2, P3 or any household');
+  r = await invoke(R['GET /provider/bids'], makeReq(P4U));
+  blob = blobOf(r.body);
+  ok(!blob.includes('org-p1') && !blob.includes('org-p2') && !blob.includes('org-p3'), 'no other org id');
+  ok(!/"price":"(45|55|70)"/.test(blob) && !blob.includes('NorthGrid') && !blob.includes('Cedar') && !blob.includes('Maple'), 'no other partner\'s price or name');
+  ok(!/f\d\d/.test(blob) && !blob.includes('Main Street') && !blob.includes('4165550123'), 'no household id, address or number');
+  ok(!blob.includes('tieRule') && !blob.includes('book_json'), 'and not the book');
+  r = await invoke(R['GET /provider/bids'], makeReq(P3U));
+  blob = blobOf(r.body);
+  ok(!blob.includes('org-p1') && !blob.includes('"55"') && !blob.includes('NorthGrid'), 'a winner sees its own tiers and nobody else\'s');
+  r = await invoke(R['GET /campaigns/:id/offer'], makeReq(byUid('f21'), { params: { id: 'camp-f' } }));
+  ok(!blobOf(r.body).includes('org-p'), 'a household sees partner names, never org ids');
+
+  console.log('\n20. two cohorts overlapping: every count and window is the same as in isolation');
+  const snapF = JSON.stringify({
+    orders: tableOf('provider_orders').filter((o) => o.campaign_id === 'camp-f'),
+    offers: tableOf('household_offers').filter((o) => o.campaign_id === 'camp-f'),
+    book: tableOf('campaign_price_books').filter((o) => o.campaign_id === 'camp-f'),
+  });
+  const f3 = (await bidsAs(P3U)).confirmed;
+  const G = seedCohort('camp-g', 'Harbourfront', 'g');
+  await placeFour('camp-g');
+  const gUid = (uid) => G.find((m) => m.user.user_id === uid).user;
+  r = await invoke(R['GET /campaigns/:id/offer'], makeReq(gUid('g21'), { params: { id: 'camp-g' } }));
+  ok(r.status === 200 && r.body.offers.cards.map((c) => c.tier).join('|') === '100 Mbps|300 Mbps|500 Mbps', 'camp-g seals its own book and windows');
+  for (let i = 1; i <= 5; i++) await invoke(R['POST /campaigns/:id/offer/accept'], makeReq(gUid(`g${String(i).padStart(2, '0')}`), { params: { id: 'camp-g' }, body: acceptBody('100 Mbps') }));
+  const p3bids = (await invoke(R['GET /provider/bids'], makeReq(P3U))).body.bids;
+  const gConf = p3bids.find((b) => b.campaignId === 'camp-g').confirmed;
+  const fConf = p3bids.find((b) => b.campaignId === 'camp-f').confirmed;
+  ok(gConf === 5 && fConf === f3, `P3 reads 5 on camp-g and still ${f3} on camp-f (${gConf}, ${fConf})`);
+  const snapF2 = JSON.stringify({
+    orders: tableOf('provider_orders').filter((o) => o.campaign_id === 'camp-f'),
+    offers: tableOf('household_offers').filter((o) => o.campaign_id === 'camp-f'),
+    book: tableOf('campaign_price_books').filter((o) => o.campaign_id === 'camp-f'),
+  });
+  ok(snapF === snapF2, 'camp-f\'s rows are byte-identical through all of it');
+  const gDemand = await cohorts.speedDemand(fakeApp, 'camp-g');
+  ok(gDemand.households === 43 && JSON.stringify(gDemand.tiers) === JSON.stringify(demand.tiers), 'and camp-g\'s demand profile equals camp-f\'s, counted from its own rows');
+  ok(typeof offersLib.windowFor === 'function' && offersLib.windowFor([], '100 Mbps').cards.length === 0, 'an empty book yields no cards');
+
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
 }

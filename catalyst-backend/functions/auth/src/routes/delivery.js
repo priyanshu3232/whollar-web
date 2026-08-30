@@ -399,7 +399,7 @@ function mount(router) {
     const { row } = await requireOrder(req, context);
 
     const reason = String((req.body || {}).reason || '').trim();
-    if (orders.RELEASE_REASONS.indexOf(reason) < 0) {
+    if (orders.PARTNER_RELEASE_REASONS.indexOf(reason) < 0) {
       throw badRequest('Pick a release reason. It feeds your serviceability figure, so it cannot be free text.');
     }
     orders.requireTransition(row.state, 'rel');

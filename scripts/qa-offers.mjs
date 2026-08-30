@@ -32,11 +32,15 @@ const REC = { emailKey: 'ada@example.com', email: 'ada@example.com', firstName: 
   lastName: 'Lovelace', phone: '(416) 555 0134', postal: 'M5S 2J7', fsa: 'M5S', provinceCode: 'ON' };
 const DAY = 86400000;
 
-/* The worked example from the brief, mapped onto the SIX-tier ladder this
-   stack actually has (lib/bids.js TIER_NAMES). Partner A is cheapest at the
-   bottom three, partner B at 1 Gig and 1.5 Gig, A again at the top: the point
-   is that one household's three cards carry two partner names. */
+/* The worked example from the brief, mapped onto the SEVEN-tier ladder this
+   stack actually has (partner/core/tiers.js TIER_NAMES). Partner A is cheapest
+   at the bottom four, partner B at 1 Gig and 1.5 Gig, A again at the top: the
+   point is that one household's three cards carry two partner names. The
+   mocked offer carries no `offers` record, so this drives the dashboard's own
+   window slice, which is the demo tour's path and the fallback for a backend
+   that predates household_offers. */
 const BOOK = [
+  { tier: '50 Mbps', price: '45.00', partner: 'Provider A', guaranteeMonths: 24, afterPrice: '60.00', equipment: 'inc', mix: null },
   { tier: '100 Mbps', price: '50.00', partner: 'Provider A', guaranteeMonths: 24, afterPrice: '65.00', equipment: 'inc', mix: null },
   { tier: '300 Mbps', price: '65.00', partner: 'Provider A', guaranteeMonths: 24, afterPrice: '80.00', equipment: 'inc', mix: null },
   { tier: '500 Mbps', price: '70.00', partner: 'Provider A', guaranteeMonths: 24, afterPrice: '85.00', equipment: 'inc', mix: null },
@@ -109,7 +113,9 @@ const cards = (p) => p.evaluate(() => Array.from(document.querySelectorAll('.oca
   partner: (el.querySelector('.prov') || {}).textContent || '',
   delta: (el.querySelector('.delta') || {}).textContent || '',
   up: !!(el.querySelector('.delta.up')),
-  tagged: !!el.querySelector('.tag'),
+  /* Every card carries a position chip now; the household's own tier is the
+     one whose chip is not a step. */
+  tagged: !!el.querySelector('.tag:not(.step)'),
   selected: el.getAttribute('aria-checked') === 'true',
   role: el.getAttribute('role'),
 })));
@@ -145,10 +151,10 @@ console.log('\n1. the window is three entries of the book, centred on the househ
 
 console.log('\n2. the window clamps at both ends');
 {
-  const c = await ctx(browser, { speed: 100 });
+  const c = await ctx(browser, { speed: 50 });
   const p = await open(c);
   const cs = await cards(p);
-  ok(cs.map(x => x.tier).join('|') === '100 Mbps|300 Mbps|500 Mbps', `lowest tier shows the first three (${cs.map(x => x.tier).join('|')})`);
+  ok(cs.map(x => x.tier).join('|') === '50 Mbps|100 Mbps|300 Mbps', `lowest tier shows the first three (${cs.map(x => x.tier).join('|')})`);
   ok(cs[0].tagged, 'and the tag is on the first card, not the middle');
   await c.close();
 }
@@ -185,6 +191,9 @@ console.log('\n4. the accept posts the tier that was chosen, not the cheapest');
   await p.click('.ocard[data-tier="1 Gig"]');
   await p.click('[data-take]');
   await p.fill('#svcaddr', '14 Wellington Street, London');
+  await p.fill('#svcphone', '519 555 0142');
+  await p.click('.slotday:not([disabled]) >> nth=0');
+  await p.click('.slotwin[data-win="am"]');
   await p.check('#consent');
   await p.click('#paydep');
   await p.waitForTimeout(600);

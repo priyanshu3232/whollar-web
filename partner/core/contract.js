@@ -11,6 +11,8 @@
  * response, which is the only place those show up.
  */
 
+import { TIER_NAMES as LADDER_TIER_NAMES } from './tiers.js';
+
 /* ------------------------------------------------------------------
    ENUMS
 
@@ -93,7 +95,7 @@ export var GUARANTEE_MONTHS = Object.freeze([12, 24, 36]);
    lib/bids.js TIER_NAMES / TECHS: tiers come from one server-owned list so two
    partners' offers on a cohort are comparable line by line. Wire values are
    the canonical lowercase codes; TECH_LABEL is how the console displays them. */
-export var TIER_NAMES = Object.freeze(['100 Mbps', '300 Mbps', '500 Mbps', '1 Gig', '1.5 Gig', '2.5 Gig']);
+export var TIER_NAMES = LADDER_TIER_NAMES;
 export var TECH = Object.freeze(['cable', 'fibre', 'dsl', 'fwa']);
 export var TECH_LABEL = Object.freeze({
   cable: 'Cable', fibre: 'Fibre', dsl: 'DSL', fwa: 'Fixed wireless'
@@ -120,13 +122,17 @@ export var ORDER_RANK = Object.freeze({
    serviceability accuracy figure on the performance page, which feeds future
    briefs. Free text would make that number unbuildable. */
 export var RELEASE_REASON = Object.freeze([
-  'no_plant', 'building_access', 'speed_tier_unavailable', 'household_cancelled'
+  'no_plant', 'building_access', 'speed_tier_unavailable', 'household_cancelled',
+  'household_passed'
 ]);
 export var RELEASE_LABEL = Object.freeze({
   no_plant: 'No plant at address',
   building_access: 'Building access not in place',
   speed_tier_unavailable: 'Speed tier not available here',
-  household_cancelled: 'Household cancelled the install'
+  household_cancelled: 'Household cancelled the install',
+  /* Written by the household's own pass before confirmations locked, never
+     by a partner: the order was accepted and then withdrawn on the dashboard. */
+  household_passed: 'Household passed before confirmations locked'
 });
 
 /* Why a declared region failed serviceability. Same reasoning as the release

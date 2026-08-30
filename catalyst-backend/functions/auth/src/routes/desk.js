@@ -41,6 +41,7 @@ const audit = require('../lib/audit');
 const envelope = require('../lib/envelope');
 const bids = require('../lib/bids');
 const awards = require('../lib/awards');
+const orders = require('../lib/orders');
 const terms = require('../lib/terms');
 const places = require('../lib/places');
 const cohorts = require('../lib/cohorts');
@@ -307,6 +308,12 @@ function mount(router) {
 
     const fee = await siteconfig.getValue(req.catalyst, 'success_fee');
 
+    /* The measured profile: households at each speed tier, from the speed on
+       their bills, said only past the privacy floor (lib/cohorts.js). Takes
+       precedence over the hand-pasted brief_json mix in the console because
+       it is counted, and the other is estimated. */
+    const demand = await cohorts.speedDemand(req.catalyst, campaign);
+
     const covRows = await coverageRows(req.catalyst, context.orgId);
     const covRow = (covRows || []).find((r) => slug(r.region) === slug(campaign.region));
     const head = await bids.headRow(req.catalyst, `${campaign.id}:${context.orgId}`);
@@ -319,6 +326,11 @@ function mount(router) {
         households: pub.households,
         renewalWindow: mix.renewalWindow || null,
         speedMix: Array.isArray(mix.speedMix) ? mix.speedMix : null,
+        /* [[tier, households], ...] in ladder order, or null under the floor. */
+        speedDemand: demand.tiers,
+        speedDemandKnown: demand.known,
+        speedDemandOther: demand.other,
+        speedDemandLive: demand.live,
         plantMix: Array.isArray(mix.plantMix) ? mix.plantMix : null,
         successFee: fee != null ? String(fee) : null,
       },
@@ -362,6 +374,7 @@ function mount(router) {
        lookup is the one that runs every time and the expensive one runs once
        in the life of the cohort. */
     const decided = {};
+    const confirmed = {};
     for (const id of new Set((rows || []).map((r) => r.campaign_id))) {
       const campaign = cat.byId.get(id);
       if (!campaign || !awards.isClosed(campaign)) continue;
@@ -372,8 +385,13 @@ function mount(router) {
          so does the distinction between "you won nothing" and "nothing has
          been decided yet", which a bare award row cannot express. */
       const result = await awards.resultForOrg(req.catalyst, campaign, context.orgId);
+      if (result.decided) {
+        decided[id] = result;
+        if (result.tiersWon.length) {
+          confirmed[id] = await orders.confirmedCount(req.catalyst, id, context.orgId);
+        }
+      }
       /* eslint-enable no-await-in-loop */
-      if (result.decided) decided[id] = result;
     }
     envelope.ok(res, {
       live: rows !== null,
@@ -390,6 +408,27 @@ function mount(router) {
              where a competitor undercut it. */
           pub.state = result.tiersWon.length ? 'won' : 'not_selected';
           pub.tiersWon = result.tiersWon;
+          /* This partner's own result, tier by tier: its price, how many bid
+             that speed, how many households sat there, and how many have
+             confirmed it so far. Every figure is about this org alone; the
+             count is a memoized read of this org's own orders on this cohort
+             (lib/orders.js confirmedCount), never a stored counter. */
+          if (result.tiersWon.length) {
+            const count = confirmed[row.campaign_id] || { confirmed: 0, byTier: {}, live: false };
+            /* A legacy award with no book row has tiers and no entries: the
+               table still lists them, with the count and no price. */
+            const entries = result.wonEntries.length
+              ? result.wonEntries
+              : result.tiersWon.map((t) => ({ tier: t, price: null, demandCount: null }));
+            pub.won = entries.map((e) => ({
+              tier: e.tier,
+              price: e.price,
+              demandCount: e.demandCount,
+              confirmed: count.byTier[e.tier] || 0,
+            }));
+            pub.confirmed = count.confirmed;
+            pub.confirmedLive = count.live;
+          }
         }
         return pub;
       }),

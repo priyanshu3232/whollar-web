@@ -395,6 +395,18 @@
   function bidIn(state, over) {
     var b = {}; for (var k in SEALED_BID) b[k] = SEALED_BID[k];
     b.state = state;
+    /* A decided bid carries its own result the way GET /provider/bids answers
+       it: the tiers this bid took, the confirmed count, and the per-tier
+       breakdown. Nothing about any other partner. */
+    if (state === 'won') {
+      b.tiersWon = ['500 Mbps', '1 Gig'];
+      b.confirmed = 41;
+      b.won = [
+        { tier: '500 Mbps', price: '56', demandCount: 26, confirmed: 24 },
+        { tier: '1 Gig', price: '64', demandCount: 27, confirmed: 17 }
+      ];
+    }
+    if (state === 'not_selected') b.tiersWon = [];
     for (var k2 in (over || {})) b[k2] = over[k2];
     return b;
   }
