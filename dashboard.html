@@ -1523,6 +1523,18 @@ div.cc:hover{box-shadow:none;transform:none}
   border-radius:999px;padding:6px 13px;cursor:pointer}
 .sxs__chip[aria-pressed="true"]{border-color:var(--accent);background:var(--mint);color:var(--accent-deep)}
 .sxs__actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px}
+.sxs__actions[hidden]{display:none}
+/* The warning that names what a pass gives up. Terracotta because it is the
+   one paragraph in the sheet a household must not skim. */
+.sxs__warn{border:1.5px solid #E7CFB9;background:linear-gradient(180deg,#fff 0%,var(--terra-soft) 190%);
+  border-radius:13px;padding:12px 14px;margin:0 0 16px}
+.sxs__warn b{display:block;font-family:var(--disp);font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px}
+.sxs__warn p{margin:0;font-size:13px;color:var(--sub);line-height:1.5}
+/* Step two of the two-step confirm. Hidden until the first press, so the
+   destructive act is never one click from an idle pointer. */
+.sxs__step{border-top:1px solid var(--line);margin-top:14px;padding-top:14px}
+.sxs__step[hidden]{display:none}
+.sxs__step p{margin:0 0 12px;font-size:13px;color:var(--ink);line-height:1.5}
 .sxs__foot{font-size:12px;color:var(--sub);margin:14px 0 0;text-align:center}
 .sxs__swap{display:flex;align-items:stretch;gap:10px;margin:0 0 16px}
 .sxs__seat{flex:1;border-radius:13px;padding:11px 13px;border:1.5px solid var(--accent);background:linear-gradient(180deg,#fff 0%,var(--mint) 170%)}
@@ -4325,6 +4337,13 @@ function tplOffers(){
   +'<button class="btn terra" type="button" data-take="'+esc(sel?sel.tier:'')+'">Take '+esc(sel?sel.tier:'this offer')+(sel?' at '+money(Number(sel.price))+'/mo':'')+'</button>'
   +'<button class="btn ghost" type="button" data-act="pass">Pass on it</button>'
   +'<button class="finelink" type="button" data-act="whopart">Who is '+esc((sel&&sel.partner)||'your winning partner')+'?</button></div>';
+  /* THE WAY OUT, ON THE SCREEN THE OFFER IS ON. "Pass on it" beside it is the
+     same write; this line is for the household whose reason is not the offer
+     but the cohort, and it says where that leads. Deliberately a text link on
+     its own row: it must not compete with the two buttons above it. */
+  out+='<p class="fnote" style="margin-top:11px" data-testid="offers-leave-cohort-row">'
+    +'Not interested in these offers? <button class="tlink" type="button" data-offersleave>Leave this cohort</button>'
+    +' and your address frees up the same day for another one.</p>';
   return out;
 }
 /* The cohort whose real offer this confirm screen would accept, or null when
@@ -6997,7 +7016,14 @@ function ccCard(c,feat,ids){
     : isOpenToYou(c)
       ? '<span class="badge live">Open to you</span>'
       : heldElsewhere
-        ? '<span class="badge">You hold another seat · Move here</span>'
+        /* THE BADGE PROMISES WHAT THE SHEET WILL ACTUALLY OFFER. It used to
+           say "Move here" on every held-seat card, including at the offers
+           stage where a move is impossible and the sheet answers with a bell.
+           A badge that names one act and a dialog that offers another is the
+           card lying about the press. Three words, three states. */
+        ? '<span class="badge">You hold another seat · '
+          +esc(seatExitMode()==='move'?'Move here':seatExitMode()==='pass'?'Leave and join':'Sealed until the offer')
+          +'</span>'
         : '<span class="badge '+b[0]+'">'+esc(b[1])+'</span>';
   /* A COHORT SOMEWHERE ELSE IS STILL A CARD. Visibility never depended on
      eligibility and it still does not: the press opens the cohort's own
@@ -7079,8 +7105,12 @@ function ccCard(c,feat,ids){
   /* After a two-step leave, the intended target card is promoted so the
      second step is unmissable. Terracotta trim, cleared on the next hold. */
   var next=(typeof SEATTARGET!=='undefined'&&SEATTARGET===c.id&&!mine)?' cc--next':'';
+  /* The card the member is being carried to after a leave. It is the landing
+     surface of the round trip, so it is the thing the round-trip test asserts
+     on rather than a toast that has already faded. */
+  var nextTag=next?' data-testid="join-after-leave-flow"':'';
   var open=choose
-    ? '<button class="cc'+next+'" type="button" data-choose="'+esc(c.id)+'"'+(mark?' id="cc-first"':'')+'>'
+    ? '<button class="cc'+next+'" type="button" data-choose="'+esc(c.id)+'"'+nextTag+(mark?' id="cc-first"':'')+'>'
     : away
       ? '<button class="cc'+next+'" type="button" data-away="'+esc(c.id)+'"'+(mark?' id="cc-first"':'')+'>'
       : '<div class="cc'+next+'"'+(mark?' id="cc-first"':'')+'>';
@@ -7732,8 +7762,18 @@ document.addEventListener('click',function(e){if(e.target.closest('#editprefs'))
 
 /* ---------- pass flow ---------- */
 function openPass(){
+  /* Same sentence as the conflict sheet's warning and from the same source:
+     the server's standing_order. A household reading one of these two screens
+     must not be told less than the other about the same act. */
+  var po=(typeof seatOrder==='function')?seatOrder():null;
+  var pwarn=po
+    ? '<p class="msub" data-testid="leave-offer-warning"><b>This declines the offer you accepted</b>'
+      +(po.tier?' ('+esc(po.tier)+(po.price?' at '+money(Number(po.price))+'/mo':'')+')':'')
+      +'. Nothing is charged, your partner is told you passed, and it does not come back.</p>'
+    : '';
   openModal('<div class="mhead"><h3>Passing is a fine answer</h3><button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
   +'<p class="msub">Nothing changes and nothing is owed. One question, because it makes the next sealed round sharper: why pass?</p>'
+  +pwarn
   +'<div class="pchips pvert" id="ps-why">'
   +chip('stay','Happy enough with '+esc((S.checkup||{}).prov||'my provider'),true)
   +chip('save','They came back with a better offer when I mentioned leaving')
@@ -8669,7 +8709,7 @@ function seatSheetBuild(){
   seatSheetEl=document.createElement('div');
   seatSheetEl.className='sxs';
   seatSheetEl.innerHTML='<div class="sxs__scrim" data-stsclose></div>'
-    +'<div class="sxs__box" role="dialog" aria-modal="true" aria-labelledby="sxs-title">'
+    +'<div class="sxs__box" role="dialog" aria-modal="true" aria-labelledby="sxs-title" data-testid="leave-confirm-modal">'
     +'<button class="sxs__x" type="button" data-stsclose aria-label="Close">×</button>'
     +'<div id="sxs-body"></div></div>';
   document.body.appendChild(seatSheetEl);
@@ -8698,7 +8738,11 @@ function seatSheetOpen(html,trig,focusSel){
 }
 function seatSheetClose(reason){
   if(!seatSheetEl||!seatSheetEl.classList.contains('is-open'))return;
-  if(seatSheetEl.getAttribute('data-kind')==='exit'&&reason!=='commit')sTrack('seat_exit_abandon');
+  var kind=seatSheetEl.getAttribute('data-kind');
+  if(kind==='exit'&&reason!=='commit')sTrack('seat_exit_abandon');
+  if(kind==='conflict'&&reason!=='commit'&&reason!=='refused'&&reason!=='hold'&&reason!=='twostep'){
+    sTrack('seat_conflict_abandon',{armed:Boolean($sts('[data-stsstep]')&&!$sts('[data-stsstep]').hidden)});
+  }
   seatSheetEl.classList.remove('in');seatSheetEl.classList.remove('is-open');
   seatSheetEl.removeAttribute('data-kind');
   document.body.style.overflow='';
@@ -8797,16 +8841,58 @@ function seatSealRace(err){
 }
 
 /* ---------- the conflict sheet ---------- */
+/**
+ * WHICH EXIT THIS COHORT HAS RIGHT NOW, from the server's affordance and
+ * nothing else. Three answers, because there are three:
+ *
+ *   'move'  forming and open. One swap on one claim row, nothing at stake.
+ *   'pass'  the offer is in. The exit exists and always did (POST
+ *           /cohorts/:id/pass), and it is what makes "you are never
+ *           obligated to accept" true. It declines the offer, so it is
+ *           confirmed in two steps and warned about by name.
+ *   'wait'  locked or bidding. Founding partners are pricing against this
+ *           exact roster and it cannot change under them; the household is
+ *           not committed to anything and the wait is dated.
+ *
+ * The old sheet had two, and folded 'pass' into 'wait': a household at the
+ * offers stage was offered a bell and told to come back on a date that had
+ * already passed, while the release it needed sat one call away on the
+ * ledger behind it. That is the bug this branch exists to close.
+ */
+function seatExitMode(){
+  var aff=seatAffordance();
+  if(aff==='leave')return 'move';
+  if(aff==='pass')return 'pass';
+  return 'wait';
+}
+/** The order this household holds on its cohort, as the server reported it. */
+function seatOrder(){
+  return (SEATLIVE&&SEAT&&SEAT.standing_order)?SEAT.standing_order:null;
+}
 function seatConflictOpen(toId){
   var a=seatHeldCamp(),b=campById(toId);
   if(!a||!b){if(b)joinNext(toId);return}
   var ra=a.region||a.id,rb=b.region||b.id;
-  var movable=seatAffordance()==='leave';
+  var mode=seatExitMode();
   var arrow='<svg class="sxs__arrow" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
   var offersStr=seatFmtD(a.dates&&a.dates.offers_at);
-  var body=movable
+  var body=mode==='move'
     ?'A household holds one seat. Founding partners bid against a roster of real addresses, so the same address cannot be counted in two cohorts at once. '+esc(ra)+' is still forming, so the move is one step.'
-    :esc(ra)+' is sealed and with founding partners. Its roster cannot change now, so your address stays counted there until the offer lands and you decide.';
+    :mode==='pass'
+      ?'The offer is in for '+esc(ra)+'. You are not obligated to take it, and leaving frees your address the same day, so '+esc(rb)+' is open to you today.'
+      :esc(ra)+' is sealed and with founding partners. Its roster cannot change now, so your address stays counted there until the offer lands and you decide.';
+  /* The warning, and it is the whole reason this variant is two steps. Which
+     sentence it carries is the server's answer, never a guess: a household
+     that accepted has something real to lose and is told exactly what, and a
+     household that has not is told the milder, truer thing. */
+  var ord=seatOrder();
+  var warn=mode!=='pass'?'':'<div class="sxs__warn" data-testid="leave-offer-warning">'
+    +'<b>Leaving declines your '+esc(ra)+' offer.</b>'
+    +'<p>'+(ord
+      ?'You accepted '+esc(ord.tier||'this offer')+(ord.price?' at '+money(Number(ord.price))+'/mo':'')
+        +'. Leaving releases it, your partner is told you passed, and nothing is charged. It does not come back.'
+      :'Nothing is charged and nothing is owed. The offer closes when you leave and it does not come back, even if you rejoin later.')
+    +'</p></div>';
   var html='<span class="sxs__eyebrow">One cohort at a time</span>'
     +'<h3 id="sxs-title">You are already in '+esc(ra)+'</h3>'
     +'<p class="sxs__lede">'+body+'</p>'
@@ -8815,18 +8901,98 @@ function seatConflictOpen(toId){
     +arrow
     +'<div class="sxs__seat is-target"><span class="m">You tapped</span><b>'+esc(rb)+'</b><span class="m">'+esc(ccSub(b)||b.sub||'')+'</span></div>'
     +'</div>'
-    +'<div class="sxs__actions">'
-    +(movable
+    +warn
+    +'<div class="sxs__actions" data-stsactions>'
+    +(mode==='move'
       ?'<button class="btn ghost" type="button" data-stsclose>Stay in '+esc(ra)+'</button>'
-       +'<button class="btn terra" type="button" data-stsmove="'+esc(b.id)+'" data-stsfrom="'+esc(a.id)+'">Move me to '+esc(rb)+'</button>'
-      :'<button class="btn ghost" type="button" data-stsclose>Stay in '+esc(ra)+'</button>'
-       +'<button class="btn terra" type="button" data-stshold="'+esc(b.id)+'">Hold '+esc(rb)+' for me</button>')
+       +'<button class="btn terra" type="button" data-testid="leave-and-join-cta" data-stsmove="'+esc(b.id)+'" data-stsfrom="'+esc(a.id)+'">Move me to '+esc(rb)+'</button>'
+      :mode==='pass'
+        ?'<button class="btn ghost" type="button" data-stsclose>Keep my offer</button>'
+         +'<button class="btn terra" type="button" data-testid="leave-and-join-cta" data-stsarm="'+esc(b.id)+'" data-stsfrom="'+esc(a.id)+'">Leave and join '+esc(rb)+'</button>'
+        :'<button class="btn ghost" type="button" data-stsclose>Stay in '+esc(ra)+'</button>'
+         +'<button class="btn terra" type="button" data-stshold="'+esc(b.id)+'">Hold '+esc(rb)+' for me</button>')
     +'</div>'
-    +(movable
+    /* Step two. Present in the markup and hidden, not built on the press, so
+       the sheet's height does not jump and the focus trap already knows about
+       it. Revealed by [data-stsarm]; the first press commits nothing. */
+    +(mode==='pass'
+      ?'<div class="sxs__step" data-stsstep hidden>'
+       +'<p>Last check. This declines the '+esc(ra)+' offer and puts your address in '+esc(rb)+'. There is no undo.</p>'
+       +'<div class="sxs__actions">'
+       +'<button class="btn ghost" type="button" data-stsdisarm>Keep my offer</button>'
+       +'<button class="btn terra" type="button" data-testid="leave-confirm-button" data-stspassmove="'+esc(b.id)+'" data-stsfrom="'+esc(a.id)+'">Yes, leave '+esc(ra)+'</button>'
+       +'</div></div>'
+      :'')
+    +(mode==='move'
       ?'<p class="sxs__foot">Prefer to do it in two steps? <button class="tlink" type="button" data-ststwostep="'+esc(a.id)+'" data-ststarget="'+esc(b.id)+'">Leave '+esc(ra)+' first</button>, then choose '+esc(rb)+' from the row.</p>'
-      :'<p class="sxs__foot">'+(offersStr?'If you pass on the '+esc(ra)+' offer on '+esc(offersStr)+', your address frees up the same day and '+esc(rb)+' will still be forming.':'When the '+esc(ra)+' offer lands, passing frees your address the same day.')+'</p>');
+      :mode==='pass'
+        ?'<p class="sxs__foot">Your bill checkup, your promo cliff watch and any referral credit stay exactly as they are.</p>'
+        :'<p class="sxs__foot">'+(offersStr?'If you pass on the '+esc(ra)+' offer on '+esc(offersStr)+', your address frees up the same day and '+esc(rb)+' will still be forming.':'When the '+esc(ra)+' offer lands, passing frees your address the same day.')+'</p>');
   seatSheetOpen(html,null,'.sxs__actions button');
-  sTrack('seat_move_blocked',{from_cohort:a.id,to_cohort:b.id,movable:movable});
+  seatSheetEl.setAttribute('data-kind','conflict');
+  sTrack('seat_move_blocked',{from_cohort:a.id,to_cohort:b.id,movable:mode==='move',mode:mode});
+}
+/** Reveal step two. Nothing is written and nothing is decided by this. */
+function seatArm(on){
+  var step=$sts('[data-stsstep]'),acts=$sts('[data-stsactions]');
+  if(!step||!acts)return;
+  step.hidden=!on;acts.hidden=Boolean(on);
+  var focus=on?step.querySelector('[data-stspassmove]'):acts.querySelector('[data-stsarm]');
+  if(focus)focus.focus();
+}
+/**
+ * Leave at the offers stage and land in the target's join flow: one gesture,
+ * two writes, in the only safe order.
+ *
+ * The pass goes FIRST and the join follows it, never the reverse and never
+ * both at once. The server holds one claim row per address, so a join sent
+ * before the pass lands is refused by the same SEAT_HELD this sheet exists to
+ * resolve. And if the join then fails (the target filled, the window shut,
+ * the network went), the household is seatless and told so plainly: it chose
+ * that with the offer named in front of it, which is what the two steps
+ * above are for. Rolling the pass back would put a household into a cohort it
+ * had just declined an offer from.
+ */
+function seatPassMove(toId,fromId,btn){
+  var a=campById(fromId)||seatHeldCamp(),b=campById(toId);
+  if(!a||!b)return;
+  var ra=a.region||a.id,rb=b.region||b.id;
+  if(btn){btn.disabled=true;btn.textContent='Leaving '+ra+'…'}
+  seatApi('POST','/cohorts/'+encodeURIComponent(a.id)+'/pass',{reason:'other_cohort'})
+  .then(function(r){
+    SEAT={claim:r.claim,cohort:null,affordance:'none',rejoin_until:null,standing_order:null};
+    if(a.you==='joined'){a.members=Math.max(0,a.members-1);a.households=Math.max(0,a.households-1)}
+    a.you=null;
+    /* The offers panel must not still be offering a take button on a cohort
+       this household has just left. Same lock the pass sheet sets. */
+    PASSLOCK=true;ADVANCED=null;
+    if(S.pass)S.pass.left=true;
+    seatLeftWrite(null);
+    SEATTARGET=b.id;
+    seatSheetClose('commit');
+    campRepaint();paintSeatLedger();paintSeatNotice();
+    toast(r&&r.released
+      ?('You left '+ra+' and your offer is released. Nothing is owed. Joining '+rb+' now.')
+      :('You left '+ra+'. Nothing is owed. Joining '+rb+' now.'),5000);
+    sTrack('seat_pass_move',{from_cohort:a.id,to_cohort:b.id});
+    /* THE ROUND TRIP. doJoin runs the same seat claim the row's own press
+       runs, so the join that follows a pass is not a special path that could
+       drift from the ordinary one. */
+    doJoin(b.id,null,function(){
+      /* The join refused. The seat is genuinely released; say so rather than
+         leave the member reading a promoted card that will not take them. */
+      seatRefresh();campRepaint();
+    });
+  },function(err){
+    if(err.code==='DECISIONS_LOCKED'||err.code==='CONFLICT'){
+      seatSheetClose('refused');
+      toast(err.message||'That cohort moved on while this page was open.',6000);
+      seatRefresh();campRepaint();
+      return;
+    }
+    if(btn){btn.disabled=false;btn.textContent='Yes, leave '+ra}
+    toast(err.message||'That didn\u2019t save, so nothing changed. Your offer is still yours to take or leave.',6000);
+  });
 }
 function seatMoveCommit(toId,fromId,btn){
   var a=campById(fromId),b=campById(toId);if(!a||!b)return;
@@ -8927,6 +9093,11 @@ document.addEventListener('click',function(e){
   }
   if((t=e.target.closest('[data-stsleave]'))){seatExitCommit(t.getAttribute('data-stsleave'),t);return}
   if((t=e.target.closest('[data-stsmove]'))){seatMoveCommit(t.getAttribute('data-stsmove'),t.getAttribute('data-stsfrom'),t);return}
+  if(e.target.closest('[data-stsarm]')){seatArm(true);return}
+  if(e.target.closest('[data-stsdisarm]')){seatArm(false);return}
+  if((t=e.target.closest('[data-stspassmove]'))){
+    seatPassMove(t.getAttribute('data-stspassmove'),t.getAttribute('data-stsfrom'),t);return;
+  }
   if((t=e.target.closest('[data-stshold]'))){
     var hb=campById(t.getAttribute('data-stshold'));
     seatSheetClose('hold');
@@ -8951,6 +9122,14 @@ document.addEventListener('click',function(e){
   if((t=e.target.closest('[data-seatpass]'))){
     /* The demo pass sheet already exists; the seat release rides along when
        the member confirms in it (see the #ps-go listener below). */
+    if(typeof openPass==='function')openPass();
+    return;
+  }
+  /* The offers panel's own exit. ONE WRITE, NOT A FOURTH: it opens the same
+     pass sheet the ledger opens, so there is exactly one release at the
+     offers stage and every surface that offers it offers the same one. */
+  if(e.target.closest('[data-offersleave]')){
+    sTrack('offers_leave_intent',{campaign:seatHeldId()});
     if(typeof openPass==='function')openPass();
     return;
   }

@@ -63,7 +63,7 @@ const camp = () => {
 };
 
 const accepts = [];
-async function ctx(browser, { book = BOOK, speed = 500, monthly = 92, viewport } = {}) {
+async function ctx(browser, { book = BOOK, speed = 500, monthly = 92, viewport, seatOrder = null } = {}) {
   const c = await browser.newContext({ viewport: viewport || { width: 1360, height: 1100 } });
   await c.route('**/api/auth/**', r => r.fulfill({
     status: 200, contentType: 'application/json',
@@ -90,6 +90,19 @@ async function ctx(browser, { book = BOOK, speed = 500, monthly = 92, viewport }
     return r.fulfill({ status: 200, contentType: 'application/json',
       body: JSON.stringify({ ok: true, accepted: true, orderNo: 'WHL-7Q2M-C', tier: 'x', note: 'Accepted.' }) });
   });
+  await c.route('**/api/auth/me/seat*', r => r.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({
+      ok: true, serverTime: Date.now(),
+      claim: { address_id: 'u1/1', vertical: 'internet', cohort_id: 'london-east',
+        status: 'active', version: 4, claimed_at: Date.now() - 30 * DAY, released_at: null },
+      cohort: { id: 'london-east', region: 'London East', stage: 'offers',
+        join_close_at: Date.now() - 30 * DAY, roster_count: 112, target: 100,
+        dates: camp().dates, closing: false },
+      affordance: 'pass', rejoin_until: null,
+      standing_order: seatOrder,
+    }),
+  }));
   await c.route('**/api/auth/me/bill', r => r.fulfill({
     status: 200, contentType: 'application/json',
     body: JSON.stringify({ ok: true, bill: { provider: 'Rogers', monthly, speed, promoEndsOn: null } }),
@@ -258,6 +271,45 @@ console.log('\n8. 390px: one column, the household tier first, no sideways scrol
   ok(r.oneCol, 'cards stack in one column');
   ok(r.firstTier === '500 Mbps', `the household tier is first (${r.firstTier})`);
   ok(r.overflow <= 0, `no horizontal overflow (${r.overflow}px)`);
+  await c.close();
+}
+
+/* The way out, on the screen the offer is on. A household is never obligated
+   to accept, and the offers panel is where that promise is read, so it is
+   where the exit has to be reachable from. Low prominence on purpose: this
+   must not compete with the two buttons above it. */
+console.log('\n9. the offers panel carries a secondary exit from the cohort');
+{
+  const c = await ctx(browser, { speed: 500, seatOrder: { state: 'acc', tier: '500 Mbps', price: '70.00' } });
+  const p = await open(c);
+  const row = await p.evaluate(() => {
+    const el = document.querySelector('[data-testid="offers-leave-cohort-row"]');
+    if (!el) return null;
+    const link = el.querySelector('[data-offersleave]');
+    const take = document.querySelector('[data-take]');
+    return {
+      text: el.textContent,
+      isLink: !!link && link.classList.contains('tlink'),
+      belowTake: !!take && el.getBoundingClientRect().top > take.getBoundingClientRect().top,
+      fontSmaller: parseFloat(getComputedStyle(link).fontSize) < parseFloat(getComputedStyle(take).fontSize) + 0.5,
+    };
+  });
+  ok(!!row, 'the row is on the offers panel');
+  ok(row && /Not interested in these offers\?/.test(row.text), 'it asks the household\u2019s own question');
+  ok(row && /frees up the same day/.test(row.text), 'it says what leaving actually does');
+  ok(row && row.isLink, 'it is a text link, not a third button');
+  ok(row && row.belowTake, 'it sits below the take button, never above it');
+  ok(row && row.fontSmaller, 'it is set smaller than the primary action');
+  await p.click('[data-offersleave]');
+  await p.waitForTimeout(250);
+  const sheet = await p.evaluate(() => ({
+    open: !!document.querySelector('.modal.is-open, #modal:not([hidden])') || /Passing is a fine answer/.test(document.body.innerText),
+    warn: (document.querySelector('[data-testid="leave-offer-warning"]') || {}).textContent || '',
+  }));
+  ok(sheet.open, 'it opens the one exit this stage has, not a fourth one');
+  ok(/500 Mbps/.test(sheet.warn) && /\$70/.test(sheet.warn),
+    'and that exit names the accepted offer it would decline');
+  ok(/does not come back/.test(sheet.warn), 'and says the offer does not return');
   await c.close();
 }
 

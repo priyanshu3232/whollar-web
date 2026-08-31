@@ -52,6 +52,13 @@ const requireMember = (req) => guards.requireMember(req, '/cohorts');
 
 const MOVE_MAX = 3;              // moves per address per rolling day
 const MOVE_WINDOW_SEC = 86400;
+/* Leaves per address per rolling day, on a budget of their OWN. Sharing one
+   with the move would mean three moves in the morning could stop a household
+   giving its seat back in the afternoon, and a seat you cannot give back is
+   the thing this whole feature exists not to be. Passing is deliberately not
+   limited at all: see the note on the pass route. */
+const LEAVE_MAX = 3;
+const LEAVE_WINDOW_SEC = 86400;
 const CLOSING_WINDOW_MS = 48 * 3600 * 1000; // the "closing" chip, presentational
 
 /* ------------------------------------------------------------------ *
@@ -175,11 +182,24 @@ function mount(router) {
       c = cat.byId.get(claim.cohort_id) || null;
       if (c) cohort = cohortShape(c, now, await cohorts.seatCount(req.catalyst, c.id));
     }
+    const affordance = affordanceFor(claim, c, now);
     return ok(res, {
       claim,
       cohort,
-      affordance: affordanceFor(claim, c, now),
+      affordance,
       rejoin_until: cohort ? cohort.join_close_at : null,
+      /* WHAT A PASS WOULD ACTUALLY GIVE UP. The dashboard has to warn a
+         household before it releases a seat at the offers stage, and a
+         warning it composed itself would be a guess: only the server knows
+         whether an order stands. Null means nothing is outstanding, and the
+         copy says the milder thing.
+
+         READ ONLY WHERE A PASS IS OFFERED. This endpoint is polled every two
+         minutes by every open dashboard, and at every other stage the answer
+         is known without asking: before offers no order can exist, and after
+         confirmations lock the exit is a person, not a button. One keyed read
+         on the one screen that spends it. */
+      standing_order: (c && affordance === 'pass') ? await standingOrder(req, c, user) : null,
     });
   }));
 
@@ -303,6 +323,19 @@ function mount(router) {
         email: user.email_normalized, detail: { route: 'leave', cohort: cohort.id },
       });
       throw sealRace(cohort, now, await cohorts.seatCount(req.catalyst, cohort.id));
+    }
+
+    /* Roster stability, same shape as the move limit and on its own budget.
+       Charged HERE and not at the top: a leave that is a no-op (no seat on
+       this cohort) and a leave the seal refuses both return above without
+       spending anything, so the budget only ever counts leaves that happen. */
+    if (!await ratelimit.withinLimitFor(req.catalyst, req, addressId,
+      { key: 'seat.leave', max: LEAVE_MAX, windowSec: LEAVE_WINDOW_SEC })) {
+      throw new AppError('RATE_LIMITED',
+        `That is three cohort changes today. Your seat stays in ${cohort.region} and you can leave again tomorrow.`, {
+          logDetail: `seat.leave rate limit for ${addressId}`,
+          headers: { 'Retry-After': String(LEAVE_WINDOW_SEC) },
+        });
     }
 
     const { claim: fresh } = await seats.transition(req.catalyst, {
@@ -445,6 +478,13 @@ function mount(router) {
   /**
    * Pass on the round. The honest exit at the offers stage: releases the
    * claim the same day and says what is still forming. R4.
+   *
+   * DELIBERATELY UNLIMITED. Leave and move carry a three-a-day budget because
+   * cycling between forming rosters churns the number partners price against.
+   * A pass is not that: it is the one act that makes "you are never obligated
+   * to accept" true, it can only happen once per cohort per household, and a
+   * household told "you have passed too often today" while an offer sits on
+   * its dashboard has been told the promise has a quota. It does not.
    */
   router.post('/cohorts/:id/pass', wrap(async (req, res) => {
     const user = requireMember(req);
@@ -525,6 +565,27 @@ function mount(router) {
       open_alternatives: openAlternatives(cat, now, cohort.id),
     });
   }));
+}
+
+/**
+ * The order this household holds on this cohort, reduced to the three facts a
+ * warning needs: whether it stands, what speed, what price.
+ *
+ * Read fresh on every /me/seat rather than cached, because the whole point of
+ * it is the sentence "passing releases the offer you accepted" and that
+ * sentence must not be printed against an order a partner already released.
+ * A released or unreadable row is null, which the copy reads as "no offer
+ * outstanding": the milder warning, and the true one.
+ */
+async function standingOrder(req, cohort, user) {
+  let row = null;
+  try {
+    row = await orders.findAnyByKey(req.catalyst, `${cohort.id}:${user.user_id}`.slice(0, 200));
+  } catch {
+    return null;
+  }
+  if (!row || row.state === 'rel' || row.state === 'act') return null;
+  return { state: row.state, tier: row.tier || null, price: row.price || null };
 }
 
 /**

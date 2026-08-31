@@ -796,6 +796,51 @@ function mount(router, cfg) {
       }
     }
 
+    /* THE LAST GATE, AND IT IS THE SEAT LEDGER, NOT THE SNAPSHOT ROW.
+     *
+     * The membership read at the top of this route is many Data Store calls
+     * old by now: the sealed book, the recorded window and the capacity check
+     * all happen between. A household that passed in another tab in that
+     * interval would land an accepted order under a released claim, and the
+     * partner's board would carry a line for a household the ledger says is
+     * gone. That is exactly the state the pass route's ordering exists to
+     * prevent, and it prevents it in one direction only.
+     *
+     * So the claim is re-read HERE, immediately before the write, and the
+     * accept refuses when the seat is no longer on this cohort. The pass
+     * releases the claim FIRST (seats.transition), then drops the membership,
+     * then releases any order, so this check sees a pass that has begun even
+     * before the row this route opened on has gone.
+     *
+     * It is a narrowing, not a lock: Catalyst has no compare and swap, so a
+     * pass that lands between this read and the create below still wins the
+     * ledger and loses the order. The pass's own order release covers that
+     * ordering, and what is left is the millisecond between these two calls
+     * rather than the seconds this route spends above. An unreadable ledger
+     * does not refuse an accept: seats.getClaim throws, and a household must
+     * not lose an offer to a table outage.
+     */
+    try {
+      const held = seats.publicClaim(
+        await seats.getClaim(req.catalyst, seats.addressIdFor(user), seats.VERTICAL_DEFAULT));
+      if (held && held.status !== 'active') {
+        throw new AppError('CONFLICT',
+          'You left this cohort while this page was open, so the offer is closed. Nothing is owed.', {
+            logDetail: `accept refused: claim released campaign=${campaign.id}`,
+          });
+      }
+      if (held && held.cohort_id && held.cohort_id !== campaign.id) {
+        throw new AppError('CONFLICT',
+          'Your seat has moved to another cohort, so this offer is closed. Nothing is owed.', {
+            logDetail: `accept refused: claim holds ${held.cohort_id}, accept on ${campaign.id}`,
+          });
+      }
+    } catch (err) {
+      if (err instanceof AppError && err.code === 'CONFLICT') throw err;
+      /* Ledger unreadable, or no claim row at all (a household that joined
+         before the ledger existed). Neither is a reason to refuse an offer. */
+    }
+
     let row;
     let changed = null;
     if (repick) {
