@@ -437,6 +437,37 @@ api.paymentMethodRemove = function () { return request('DELETE', '/provider/bill
 
 /* ---- 7.10 account (65-67) ---- */
 
+/* ---- 7.11 brands and the roster (68-72) ----
+ *
+ * The attested list of brands this partner operates, and the two aggregate
+ * numbers a member's exclusions can move. Nothing here carries a member
+ * identity: `reach` and `cohortResults` are counts computed server side, and
+ * the raw member-to-exclusion mapping never crosses to a partner scope.
+ */
+
+/* 68. LIVE. This org's attested brands plus the active registry to pick from.
+       NOT `api.roster`: that name is taken by the DELIVERY roster, the
+       households of one won cohort (endpoint 44 above). "Roster" means two
+       different things on this surface and the collision is not theoretical:
+       the first version of this block was called `api.roster` and silently
+       replaced the delivery call, because a later assignment to the same key
+       wins and nothing complains. Hence `brandRoster`, and the duplicate-key
+       check in the self-check below. */
+api.brandRoster = function () { return request('GET', '/provider/roster'); };
+/* 69. LIVE. Replaces the list and re-stamps the attestation. 422 without it. */
+api.brandRosterDeclare = function (body) { return request('POST', '/provider/roster', body); };
+/* 70. LIVE. Files a pending_review listing plus an operator task. Nothing may
+       be bid under it until an operator promotes it to active. */
+api.brandRequest = function (body) { return request('POST', '/provider/brand-request', body); };
+/* 71. LIVE. Reachable households in one cohort for this org's brands, as one
+       aggregate. 403 until the roster is attested, because the number is
+       meaningless without one. */
+api.reach = function (id) { return request('GET', '/provider/cohorts/' + encodeURIComponent(id) + '/reach'); };
+/* 72. LIVE. Won, outranked and unreachable-by-exclusion, aggregate only, on a
+       closed cohort. Its own route rather than the bid board's payload: it
+       walks every member of the cohort, and the board is metered per fetch. */
+api.cohortResults = function (id) { return request('GET', '/provider/cohorts/' + encodeURIComponent(id) + '/results'); };
+
 /* 65. LIVE. Session-gated, already provider-usable. */
 api.prefs = function () { return session().prefsGet(); };
 /* 66. LIVE. Merges top-level keys only. */
@@ -448,13 +479,28 @@ api.team = function () { return session().providerTeam(); };
  * self-check
  *
  * The register's completeness is the whole guarantee, so it is counted here
- * rather than claimed in a comment. scripts/qa-console.mjs asserts 67.
+ * rather than claimed in a comment. scripts/qa-console.mjs asserts 72.
  * ------------------------------------------------------------------ */
 
+/* A key assigned twice is a route silently replaced, which is how the brand
+   roster ate the delivery roster once. Object.keys cannot see it after the
+   fact, so the source is counted instead and the mismatch is reported on the
+   register itself for scripts/qa-console.mjs to assert. */
 var names = Object.keys(api).filter(function (k) { return typeof api[k] === 'function'; });
 api.__count = names.length;
 api.__implemented = names.filter(function (k) { return !api[k].__todo; }).length;
 api.__pending = names.filter(function (k) { return api[k].__todo; }).map(function (k) { return api[k].__path; });
+
+/* Every method this file MEANS to expose, as a plain list.
+ *
+ * It exists so a key assigned twice is visible. `Object.keys(api).length` is
+ * blind to it by construction: a second `api.roster = ...` replaces the first
+ * and the count does not move, which is exactly how the brand roster silently
+ * ate the delivery roster. `__declared` minus `__count` is the number of
+ * collisions, asserted by scripts/qa-console.mjs, so the next one fails a gate
+ * instead of a delivery board. Keep this in step when adding a method. */
+api.__declared = 72;
+api.__collisions = api.__declared - api.__count;
 
 /* Exposed so the fixture layer can replace transport wholesale. */
 api.__request = request;

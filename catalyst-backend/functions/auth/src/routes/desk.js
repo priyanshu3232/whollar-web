@@ -40,12 +40,14 @@ const siteconfig = require('../lib/siteconfig');
 const audit = require('../lib/audit');
 const envelope = require('../lib/envelope');
 const bids = require('../lib/bids');
+const events = require('../lib/notify/events');
 const awards = require('../lib/awards');
 const orders = require('../lib/orders');
 const terms = require('../lib/terms');
 const places = require('../lib/places');
 const cohorts = require('../lib/cohorts');
 const { requireBiddingOpen } = require('./campaigns');
+const rosters = require('../lib/rosters');
 const { requirePartner: guardPartner, requireApproved } = require('../lib/guards');
 const { wrap, badRequest, forbidden, AppError } = require('../lib/errors');
 const application = require('./application');
@@ -60,6 +62,67 @@ const TECHS = new Set(['cable', 'fibre', 'fwa', 'dsl']);
    one exception noted there: the "still under review" message lost an em dash,
    which the house style forbids in anything a partner reads. */
 const requirePartner = (req) => guardPartner(req, 'a /provider desk route');
+
+/**
+ * Write a head row with the brand columns, and without them if the table has
+ * not got them yet.
+ *
+ * `provider_bids.brand_id` and the roster tables are separate schema objects
+ * created by hand, so either can exist without the other. A partner whose
+ * roster is live can therefore name a valid brand on a table with no column to
+ * put it in, and an insert naming an unknown column is refused outright. One
+ * retry without the two columns keeps the bid landing: the brand is then
+ * recovered for exclusion matching from the org's primary declared brand, the
+ * same fallback every bid sealed before the column uses.
+ */
+async function writeHead(write, row, brandCols) {
+  if (!brandCols) return write(row);
+  try {
+    return await write(Object.assign({}, row, brandCols));
+  } catch (err) {
+    try {
+      return await write(row);
+    } catch {
+      throw err;
+    }
+  }
+}
+
+/**
+ * The brand a bid is made under, validated, or null when this deployment has
+ * no roster tables yet.
+ *
+ *   -> { brandId, providerId, viaDistributorId } | null
+ *
+ * SECTION 5.5 AND 6.3, AND THE ONE GATE FOR BOTH. `rosters.canBidAs` refuses a
+ * brand that is not active, not on the submitting org's attested roster, or,
+ * for a distributor submission, whose provider is not on the distributor's
+ * attested serving map. It throws the section 13 copy; nothing here softens it.
+ *
+ * A BID THAT NAMES NO BRAND IS STILL ACCEPTED, and that is deliberate rather
+ * than lax. The brand column and the roster tables are created by hand and
+ * this code deploys separately from them, so requiring a brand today would
+ * close the live auction until an operator finished a schema change. A
+ * brandless bid is attributed to its org's primary declared brand by
+ * lib/awards.js, so a member's exclusion still bites on it. Once every partner
+ * has attested a roster, `requireBrandOnBids` in create-tables.md section 34e
+ * is the flip to make this mandatory.
+ */
+async function brandForBid(req, context, body) {
+  const named = String((body || {}).brand_id || '').trim();
+  const via = String((body || {}).submitted_via_distributor_id || '').trim() || null;
+  if (!named) {
+    if (via) {
+      throw badRequest('Name the brand this bid is made under.', {
+        logDetail: 'distributor submission with no brand_id',
+      });
+    }
+    return null;
+  }
+  return rosters.canBidAs(req.catalyst, {
+    orgId: context.orgId, brandId: named, distributorId: via,
+  });
+}
 
 const str = (v, max) => {
   const s = String(v == null ? '' : v).trim().slice(0, max);
@@ -390,6 +453,37 @@ function mount(router) {
         if (result.tiersWon.length) {
           confirmed[id] = await orders.confirmedCount(req.catalyst, id, context.orgId);
         }
+        /* THE RESULT LETTERS, ON READ.
+         *
+         * Sealing happens on read in this codebase because there is no cron
+         * (lib/awards.js says so at the top), and the letter follows the seal
+         * for the same reason. The outbox key is per (campaign, org, tier), so
+         * every subsequent board load enqueues nothing: the deduplication is
+         * the table's, not a flag anybody has to remember to set.
+         *
+         * SCOPED TO THIS ORG. `result` is already this partner's own result
+         * and the only tier fact allowed across a /provider route. Emitting
+         * for every org from one partner's request would be cheap and would
+         * mean a partner's request reading every other partner's outcome,
+         * which is the thing the whole file is careful about.
+         *
+         * The gap this leaves: a partner who never opens the console never
+         * hears. That is the same gap every read-triggered path here has, and
+         * POST /admin/notify/drain plus a scheduled trigger is what closes it.
+         */
+        const bidTiers = (bids.publicBid(rows.find((r) => r.campaign_id === id) || {}).tiers || [])
+          .map((t) => t.name).filter(Boolean);
+        const won = new Set(result.tiersWon);
+        for (const tier of result.tiersWon) {
+          await events.tierAwarded(req, {
+            campaign, orgId: context.orgId, tier,
+            householdCount: confirmed[id] || null,
+          });
+        }
+        for (const tier of bidTiers) {
+          if (won.has(tier)) continue;
+          await events.tierNotAwarded(req, { campaign, orgId: context.orgId, tier });
+        }
       }
       /* eslint-enable no-await-in-loop */
     }
@@ -470,6 +564,11 @@ function mount(router) {
     await terms.requireAccepted(req.catalyst, context.orgId);
 
     const draft = bids.readBid(body, await householdCount(req.catalyst, campaign));
+    /* Which brand this bid is made under, checked against the attested roster
+       before anything is sealed. A refusal here must land before the revision
+       write, because a revision is append-only and a bid sealed under a brand
+       the partner cannot claim has no clean way back out. */
+    const brand = await brandForBid(req, context, body);
 
     const key = `${campaign.id}:${context.orgId}`;
     if (await bids.headRow(req.catalyst, key)) {
@@ -503,15 +602,22 @@ function mount(router) {
 
     const fields = headFields(draft, sealed, payloadHash, receivedAt);
     try {
-      await datastore.insertRow(req.catalyst, BIDS, {
-        bid_key: key,
-        campaign_id: campaign.id,
-        org_id: context.orgId,
-        user_id: user.user_id,
-        status: 'sealed',
-        submitted_at: datastore.toDb(new Date(receivedAt)),
-        ...fields,
-      });
+      await writeHead(
+        (row) => datastore.insertRow(req.catalyst, BIDS, row),
+        {
+          bid_key: key,
+          campaign_id: campaign.id,
+          org_id: context.orgId,
+          user_id: user.user_id,
+          status: 'sealed',
+          submitted_at: datastore.toDb(new Date(receivedAt)),
+          ...fields,
+        },
+        brand ? {
+          brand_id: brand.brandId,
+          submitted_via_distributor_id: brand.viaDistributorId,
+        } : null
+      );
     } catch (err) {
       /* The sealed record exists; only the convenience head failed. If a
          concurrent place won the bid_key, say so; the orphan revision stays
@@ -538,6 +644,19 @@ function mount(router) {
       email: user.email_normalized,
       /* No prices in the detail. The sealed record is the record. */
       detail: { org_id: context.orgId, campaign: campaign.id, revision: sealed.revisionNo, receipt: sealed.receipt },
+    });
+
+    /* The receipt, in writing. Their own bid and nothing else: not the number
+       of bidders, not whether they are cheapest, not whether anybody else bid
+       at all. A receipt that hinted at the field would make the seal
+       decorative. */
+    await events.bidSealed(req, {
+      campaign,
+      orgId: context.orgId,
+      receiptNo: sealed.receipt,
+      revisionNo: sealed.revisionNo,
+      sealedAt: receivedAt,
+      closesAt: (campaign.dates && campaign.dates.bidding_closes_at) || null,
     });
 
     const pb = bids.publicBid({
@@ -598,6 +717,18 @@ function mount(router) {
       });
     }
 
+    /* An improvement may restate the brand, and it is validated exactly as a
+       place is. It may not MOVE a sealed bid to a different brand: the bid was
+       compared against, and possibly excluded by, households under the brand
+       it named, so changing it would retroactively change who the bid was
+       from. A brand that differs from the head's is refused. */
+    const brand = await brandForBid(req, context, req.body);
+    if (brand && head.brand_id && head.brand_id !== brand.brandId) {
+      throw badRequest('A sealed bid cannot change the brand it was made under. Place a bid under the other brand instead.', {
+        logDetail: `improve tried to move brand from ${head.brand_id} to ${brand.brandId}`,
+      });
+    }
+
     const problems = bids.improvementProblems(bids.headDraft(head), draft);
     if (problems.length) {
       throw badRequest('An improvement must be at least as good on every tier: '
@@ -625,9 +756,14 @@ function mount(router) {
 
     const fields = headFields(draft, sealed, payloadHash, receivedAt, head);
     try {
-      await datastore.updateRow(req.catalyst, BIDS, {
-        ROWID: head.ROWID, status: 'improved', ...fields,
-      });
+      await writeHead(
+        (row) => datastore.updateRow(req.catalyst, BIDS, row),
+        { ROWID: head.ROWID, status: 'improved', ...fields },
+        brand ? {
+          brand_id: brand.brandId,
+          submitted_via_distributor_id: brand.viaDistributorId,
+        } : null
+      );
     } catch (err) {
       throw new AppError('SERVER_ERROR',
         'Bidding is not available right now. Please try again shortly.', {
@@ -641,6 +777,18 @@ function mount(router) {
       userId: user.user_id,
       email: user.email_normalized,
       detail: { org_id: context.orgId, campaign: campaign.id, revision: sealed.revisionNo, receipt: sealed.receipt },
+    });
+
+    /* Same receipt letter as a first seal, and the revision number is what
+       makes it a different one: the event key carries it, so every genuine
+       improvement is a new letter and a retried submit is not. */
+    await events.bidSealed(req, {
+      campaign,
+      orgId: context.orgId,
+      receiptNo: sealed.receipt,
+      revisionNo: sealed.revisionNo,
+      sealedAt: receivedAt,
+      closesAt: (campaign.dates && campaign.dates.bidding_closes_at) || null,
     });
 
     const pb = bids.publicBid(Object.assign({}, head, fields, {

@@ -265,6 +265,34 @@ function mixEditorHTML(scope, rows, head, st) {
 function noteHTML(cls, text) { return '<p class="' + cls + '">' + esc(text) + '</p>'; }
 
 /**
+ * The reachable-household line, section 5.4, or nothing.
+ *
+ * ONE AGGREGATE AND NOTHING ELSE. Not which households, not how many excluded
+ * which brand, not whether a rival is reachable where this partner is not. The
+ * number exists because bidding against volume that cannot be won damages
+ * partner trust and the fee model both: a partner who prices for 300
+ * households and can reach 240 has been quoted the wrong market.
+ *
+ * Rendered only when the server has answered. An absent or unavailable reach
+ * read says nothing at all rather than guessing the cohort's full size, which
+ * would be the one wrong number worse than no number.
+ */
+function reachHTML(a) {
+  var S = get();
+  var r = (S.reach || {})[a.id];
+  if (!r || r.available === false) return '';
+  if (r.reachable_households == null || r.total_households == null) return '';
+  var line = 'Reachable households in this cohort for your brands: '
+    + r.reachable_households + ' of ' + r.total_households;
+  return '<p class="cardnote" data-testid="prov-reach-line">' + esc(line)
+    + (r.reachable_households < r.total_households
+      ? ' <small class="hint">Some households have excluded a brand you operate. Your bid is never shown to them.</small>'
+      : '')
+    + '</p>';
+}
+
+
+/**
  * The arithmetic on the right: per tier, the prices, the reduction, each named
  * line item in the cents the seal will record, and the total across the
  * guarantee. Validation states live here too, once when one mix applies to
@@ -836,6 +864,7 @@ function formHTML(a, data, t, improving) {
           + 'Nothing is sent until you seal, every field is editable, and your commitment has been set to this cohort\u2019s size. '
           + '<button class="tlink" type="button" data-action="ticket:fresh" data-id="' + esc(a.id) + '">Start from blank terms</button></div>'
         : ''))
+    + reachHTML(a)
     + '<label class="blk">Price by service <small class="lsub">sticker is your rate card; effective is what the cohort pays</small></label>'
     + '<table class="tiert t7"><thead><tr><th>Tier</th><th>Upload, Mbps</th><th>Technology</th><th>Sticker /mo</th><th>Effective /mo</th><th class="tac">After</th><th></th></tr></thead><tbody class="tierbody">'
     + rows

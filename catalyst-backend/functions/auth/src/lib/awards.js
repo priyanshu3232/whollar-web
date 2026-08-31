@@ -41,6 +41,17 @@
  * book, and no book is a fact the console renders as itself rather than as a
  * loss.
  *
+ * ONE EXCEPTION TO THE EQUAL-PRICE PROPERTY, ADDED WITH MEMBER EXCLUSIONS.
+ * "Every household picking the same speed pays the same price" now holds for
+ * every household that did not exclude the partner holding that price. A
+ * member who names a provider they will not hear from has their book rebuilt
+ * from their eligible bids only (`bookForMember`), so two households at 500
+ * Mbps can be shown different prices, and the one with the exclusion may be
+ * shown the higher. That is the member's own instruction being honoured at its
+ * real cost, not a defect, and it is confined to members who asked: a member
+ * with no exclusions is not filtered at all and reads the sealed cohort book
+ * unchanged.
+ *
  * ONE PARTNER, ONE COHORT, ONE GATE. The award row's grain is (cohort, org),
  * not (cohort, tier): a partner that won four tiers has one roster to release
  * and one confidentiality acknowledgement to give, not four. `award_key` is
@@ -247,6 +258,181 @@ function tieRuleFor(first, second) {
   if (first.commitment !== second.commitment) return 'commitment';
   if (first.placedAt !== second.placedAt) return 'earlier_seal';
   return 'bid_key';
+}
+
+/* ------------------------------------------------------------------ *
+ * The per-member filter: where a member's exclusions become binding
+ * ------------------------------------------------------------------ */
+
+/**
+ * A bid's brand, or null when it cannot be established.
+ *
+ * Two sources, in order. A bid sealed after create-tables.md section 34e
+ * carries its own `brand_id`, which is the brand the partner named at
+ * submission and the only fully trustworthy answer. A bid sealed BEFORE that
+ * column existed carries none, and is attributed to its org's primary
+ * declared brand from `brandMap`.
+ *
+ * The fallback exists so an exclusion bites on historical bids too. Without
+ * it, every bid predating the column would be brandless, and a brandless bid
+ * cannot be checked against an exclusion: the household that excluded Bell in
+ * September would receive Bell's August bid on the next cohort to close,
+ * which is precisely the promise this feature makes.
+ */
+function brandOfBid(row, brandMap) {
+  if (!row) return null;
+  if (row.brand_id) return String(row.brand_id);
+  const orgId = row.org_id
+    || String(row.bid_key || '').split(':').slice(1).join(':')
+    || null;
+  if (!orgId || !brandMap) return null;
+  return brandMap.get(String(orgId)) || null;
+}
+
+/** The audit statuses one bid can carry in a member's resolution. */
+const BID_STATUS = Object.freeze(['eligible', 'skipped_excluded_brand',
+  'invalidated_brand_inactive', 'skipped_unresolved_brand']);
+
+/**
+ * Split a cohort's bids into the ones eligible for ONE member and the ones
+ * that are not, with the reason recorded for each.
+ *
+ *   eligibleRows(rows, { excluded, brandMap, statusOf })
+ *     -> { eligible: [row], audit: [{ bidKey, orgId, brandId, status }] }
+ *
+ * `excluded` is the member's effective exclusion set (lib/exclusions.js).
+ * `brandMap` attributes brandless historical bids. `statusOf` answers the
+ * registry status of a brand id, for edge case 13.
+ *
+ * TWO FILTERS WITH DIFFERENT REACH, and the split is the whole safety
+ * argument, so it is worth stating plainly.
+ *
+ *   THE BRAND-STATUS FILTER RUNS FOR EVERY MEMBER. Edge case 13: a brand
+ *   retired between submission and resolution is skipped for everyone, not
+ *   only for members holding exclusions. An operator retiring a brand is
+ *   saying it must not reach households any more, and honouring that for some
+ *   households and not others would make what a member is shown depend on
+ *   whether they happen to have excluded something unrelated.
+ *
+ *   THE EXCLUSION FILTER RUNS ONLY FOR A MEMBER WHO HOLDS EXCLUSIONS, which
+ *   is a shortcut but not merely an optimisation: it means this feature cannot
+ *   cost an offer to a member who never asked for anything.
+ *
+ * AN UNRESOLVABLE BRAND IS TREATED DIFFERENTLY BY THE TWO, for the same
+ * reason. If the brand behind a bid cannot be established:
+ *
+ *   for a member WITH exclusions it is skipped, because whether it is excluded
+ *   cannot be established either, and the two mistakes are not symmetric.
+ *   Passing it through may deliver an offer the household explicitly refused,
+ *   which is the one outcome they were promised is impossible; skipping it
+ *   costs an offer they may have wanted. The reversible mistake is the one to
+ *   make.
+ *
+ *   for a member with NO exclusions it is kept, because there is no promise to
+ *   keep and dropping it would cost an offer to protect nobody. Only a brand
+ *   POSITIVELY known to be inactive is skipped for them.
+ *
+ * NOTE ON WHAT THIS DOES NOT DO. It does not invalidate the bid, and it does
+ * not touch the sealed cohort book. A sealed bid is binding and there is no
+ * withdraw path at any layer (CLAUDE.md), so a retired brand's bid stays in
+ * the record and stays in the partner-facing book; what changes is only which
+ * bids a member's own book is cut from. "Invalidated" in the audit means
+ * invalidated for routing, never unsealed.
+ */
+function eligibleRows(rows, { excluded, brandMap = null, statusOf = null } = {}) {
+  const list = rows || [];
+  const set = excluded instanceof Set ? excluded : new Set(excluded || []);
+  const filtering = set.size > 0;
+
+  const eligible = [];
+  const audit = [];
+  list.forEach((row) => {
+    /* Resolution is skipped entirely when there is nothing to resolve for: no
+       exclusions to check and no status filter possible without a registry. */
+    const brandId = (filtering || statusOf) ? brandOfBid(row, brandMap) : null;
+    const record = {
+      bidKey: row.bid_key || null,
+      orgId: row.org_id || null,
+      brandId: brandId || null,
+      status: 'eligible',
+    };
+
+    const known = brandId && statusOf ? statusOf(brandId) : null;
+    if (known && known !== 'active') {
+      record.status = 'invalidated_brand_inactive';
+    } else if (filtering && !brandId) {
+      record.status = 'skipped_unresolved_brand';
+    } else if (filtering && set.has(brandId)) {
+      record.status = 'skipped_excluded_brand';
+    }
+
+    audit.push(record);
+    if (record.status === 'eligible') eligible.push(row);
+  });
+
+  return { eligible, audit };
+}
+
+/**
+ * The price book as ONE MEMBER sees it: built from that member's eligible
+ * bids only.
+ *
+ *   -> { book, audit, filtered }
+ *
+ * THIS IS THE WHOLE OF SECTION 9, and it is a different shape from the one
+ * the brief describes, deliberately. The brief ranks a cohort's bids by price
+ * and awards a member the top eligible one. This cohort's result is not a
+ * winner but a BOOK: for each speed tier, the lowest effective price among
+ * the bids that quoted it, so three tiers can belong to three partners and a
+ * household is shown its own tier and its two neighbours. Ranking flat by
+ * price would throw that away and quote a household a speed it did not ask
+ * for, which is the failure the book was built to fix.
+ *
+ * Filtering the member's bid set and REBUILDING the book preserves both: the
+ * brief's canonical scenario holds exactly (a member who excluded the cheapest
+ * brand at their tier is shown the next eligible bid at that tier, at its own
+ * price and never re-priced), and it generalises across tiers, which a flat
+ * ranking cannot.
+ *
+ * The tiebreak is `buildBook`'s existing ladder (after-rate, then commitment,
+ * then earlier seal, then bid key) and NOT the brief's "earliest submission".
+ * CONFIRM-EXCL-08 asks for one tiebreak rule system-wide; there already is
+ * one, it is richer, it is shipped, and adopting the brief's default would
+ * silently change which partner wins live cohorts that have nothing to do
+ * with exclusions.
+ *
+ * THE COHORT PRICE CAN NOW DIVERGE BETWEEN TWO HOUSEHOLDS AT ONE SPEED. That
+ * is a real departure from the invariant recorded at the top of this file, and
+ * it is intended: an exclusion is the member's own instruction, and honouring
+ * it may cost them the cheapest price on their tier. The cohort price remains
+ * the price for every household that did not exclude the partner holding it.
+ */
+function bookForMember(bidRows, demand, opts = {}) {
+  const split = eligibleRows(bidRows, opts);
+  const filtered = split.eligible.length !== (bidRows || []).length;
+  return {
+    book: buildBook(split.eligible, demand),
+    audit: split.audit,
+    filtered,
+  };
+}
+
+/**
+ * Mark up a member's audit with what the rebuilt book actually did with each
+ * eligible bid: `awarded` when it holds a tier of the member's book,
+ * `outranked` when it was eligible and holds none.
+ *
+ * Section 9.2 wants an ordered ranked list per member. A book has no single
+ * winner, so "awarded" here means "won at least one tier of this member's
+ * book", which is the honest translation and the one the console can explain.
+ */
+function auditWithOutcome(audit, book) {
+  const won = new Set((book || []).map((e) => e && e.bidKey).filter(Boolean));
+  return (audit || []).map((r) => Object.assign({}, r, {
+    status: r.status === 'eligible'
+      ? (won.has(r.bidKey) ? 'awarded' : 'outranked')
+      : r.status,
+  }));
 }
 
 /** One tier's entry from a book, or null. The accept path's only lookup. */
@@ -738,6 +924,7 @@ function publicAward(row, billing) {
 module.exports = {
   AWARDS, BOOKS, AWARD_COLS, AWARD_COLS_V2, AWARD_COLS_V3, BOOK_COLS, METHODS,
   buildBook, tieRuleFor, entryFor, parseBook, mixForTier, wonEntriesFor,
+  BID_STATUS, brandOfBid, eligibleRows, bookForMember, auditWithOutcome,
   bookFor, bookRowFor, findForOrg, rowsForOrg, tiersWon,
   isClosed, sealBook, sealAwards, sealFromCampaign, resultForOrg,
   gateState, gatePassed, release, setCapacity,

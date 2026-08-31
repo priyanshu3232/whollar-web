@@ -13,7 +13,7 @@
      the visitor is, because a Google sign-in lands here with a cookie and an
      empty localStorage. Synchronous and in the head so the guard at the foot of
      the body can rely on it. -->
-<script src="/js/whollar-core.js?v=20260829a"></script>
+<script src="/js/whollar-core.js?v=20260831a"></script>
 <script src="/js/whollar-select.js?v=20260818"></script>
 <!-- The same savings engine /bill-checkup runs, so the deal signal band states
      the checkup's verdict rather than a second opinion about the same bill.
@@ -1523,6 +1523,18 @@ div.cc:hover{box-shadow:none;transform:none}
   border-radius:999px;padding:6px 13px;cursor:pointer}
 .sxs__chip[aria-pressed="true"]{border-color:var(--accent);background:var(--mint);color:var(--accent-deep)}
 .sxs__actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px}
+.sxs__actions[hidden]{display:none}
+/* The warning that names what a pass gives up. Terracotta because it is the
+   one paragraph in the sheet a household must not skim. */
+.sxs__warn{border:1.5px solid #E7CFB9;background:linear-gradient(180deg,#fff 0%,var(--terra-soft) 190%);
+  border-radius:13px;padding:12px 14px;margin:0 0 16px}
+.sxs__warn b{display:block;font-family:var(--disp);font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px}
+.sxs__warn p{margin:0;font-size:13px;color:var(--sub);line-height:1.5}
+/* Step two of the two-step confirm. Hidden until the first press, so the
+   destructive act is never one click from an idle pointer. */
+.sxs__step{border-top:1px solid var(--line);margin-top:14px;padding-top:14px}
+.sxs__step[hidden]{display:none}
+.sxs__step p{margin:0 0 12px;font-size:13px;color:var(--ink);line-height:1.5}
 .sxs__foot{font-size:12px;color:var(--sub);margin:14px 0 0;text-align:center}
 .sxs__swap{display:flex;align-items:stretch;gap:10px;margin:0 0 16px}
 .sxs__seat{flex:1;border-radius:13px;padding:11px 13px;border:1.5px solid var(--accent);background:linear-gradient(180deg,#fff 0%,var(--mint) 170%)}
@@ -2187,11 +2199,22 @@ div.cc:hover{box-shadow:none;transform:none}
             <section class="card" aria-label="Notifications">
               <span class="eyebrow">Notifications</span>
               <h3>How we reach you</h3>
-              <label class="tog"><input type="checkbox" checked><i></i><span>Text me at every campaign step</span></label>
-              <label class="tog"><input type="checkbox" checked><i></i><span>Promo cliff reminders</span></label>
-              <label class="tog"><input type="checkbox" checked><i></i><span>Outage updates for my area</span></label>
-              <label class="tog"><input type="checkbox"><i></i><span>New region openings</span></label>
-              <p class="fnote">The texts are how you'll know to look; this dashboard is where they land.</p>
+              <label class="tog"><input type="checkbox" id="nt-promo_cliff" data-notify="promo_cliff" checked><i></i><span>Promo cliff reminders</span></label>
+              <label class="tog"><input type="checkbox" id="nt-outage" data-notify="outage" checked><i></i><span>Outage updates for my area</span></label>
+              <label class="tog"><input type="checkbox" id="nt-region_openings" data-notify="region_openings"><i></i><span>New region openings</span></label>
+              <p class="fnote" id="nt-note">Email about a cohort you have joined always arrives, and so does anything about your account: that is the service you signed up for, not marketing. Everything above is yours to switch off, here or from the link in any email.</p>
+            </section>
+            <!-- Excluded providers, section 4.4. Painted by paintExclCard():
+                 the markup here is the empty state, because a card that ships
+                 with example chips is a card that lies for the length of one
+                 render. -->
+            <section class="card" aria-label="Excluded providers" data-testid="dash-excl-card">
+              <span class="eyebrow">Excluded providers</span>
+              <h3>Who will never reach you</h3>
+              <div id="excl-card-body">
+                <p class="cardnote">You have not excluded any providers. If there is a provider you never want to hear from, set it here.</p>
+              </div>
+              <button class="tlink" type="button" id="excl-manage" data-testid="dash-excl-manage" style="margin-top:8px">Manage exclusions &rarr;</button>
             </section>
             <section class="card" aria-label="Your data">
               <span class="eyebrow">Your data</span>
@@ -2217,7 +2240,7 @@ div.cc:hover{box-shadow:none;transform:none}
           <div class="card tile">
             <span class="eyebrow">Your concierge</span>
             <h4>Email us, and we answer</h4>
-            <p class="tn">Switching questions, bill questions, or just what happens next. Weekdays, usually within the hour. Once your cohort is live we text you at each step, and a reply to any of those reaches the same person.</p>
+            <p class="tn">Switching questions, bill questions, or just what happens next. Weekdays, usually within the hour. Once your cohort is live we email you at each step, and a reply to any of those reaches the same person.</p>
             <!-- Anchors, not buttons wired to location.href. An address you can
                  copy, open in a new tab, or hand to a screen reader as the link
                  it is; and it still works if the script never runs.
@@ -3003,7 +3026,7 @@ function parsePromoEnd(raw){
    colours can never disagree about how urgent this is:
 
      EARLY        > 6 months   green   informational; soft "30 to 60%" figure
-     APPROACHING  2–6 months   amber   prepare; the figure hardens to "up to
+     APPROACHING  2 to 6 mo    amber   prepare; the figure hardens to "up to
                                        100%, full rate", because under six
                                        months the real stakes are near
      IMMINENT     < 2 months   red     act now; counts weeks, then days
@@ -4140,6 +4163,13 @@ function nav(view){
   $$('#pnav button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-view')===view)});
   var pp=$('#paneprof'); if(pp)pp.classList.toggle('on',view==='profile');
   if(mobile())app.classList.remove('paneopen');
+  /* The excluded-providers card reads on first open of the profile view, not at
+     boot: most sessions never open it, and the registry read is one more
+     request on every dashboard load for a list that changes rarely. */
+  if(view==='profile'){
+    if(EXCL.loaded)paintExclCard();
+    else loadExclusions().then(paintExclCard);
+  }
   window.scrollTo(0,0);
 }
 $('#pnav').addEventListener('click',function(e){
@@ -4203,8 +4233,8 @@ function tplLocked(){
   return '<h3>Locked: your cohort is sealed</h3>'
   +'<p class="p">Your cohort is closed and the brief is with partners: how many households, which speeds, and the renewal window. Never your names, your current providers, or what you pay today.</p>'
   +'<p class="p">'+(at
-    ? 'Bidding opens <b>'+esc(dlong(at))+'</b>. We\u2019ll text you when it does.'
-    : 'We\u2019ll text you the day bidding opens.')+'</p>';
+    ? 'Bidding opens <b>'+esc(dlong(at))+'</b>. We\u2019ll email you when it does.'
+    : 'We\u2019ll email you the day bidding opens.')+'</p>';
 }
 function tplBidding(){
   var rows=[['#2C6A4E','Provider A'],['#5B7290','Provider B'],['#C08A3E','Provider C']].map(function(r){
@@ -4325,6 +4355,13 @@ function tplOffers(){
   +'<button class="btn terra" type="button" data-take="'+esc(sel?sel.tier:'')+'">Take '+esc(sel?sel.tier:'this offer')+(sel?' at '+money(Number(sel.price))+'/mo':'')+'</button>'
   +'<button class="btn ghost" type="button" data-act="pass">Pass on it</button>'
   +'<button class="finelink" type="button" data-act="whopart">Who is '+esc((sel&&sel.partner)||'your winning partner')+'?</button></div>';
+  /* THE WAY OUT, ON THE SCREEN THE OFFER IS ON. "Pass on it" beside it is the
+     same write; this line is for the household whose reason is not the offer
+     but the cohort, and it says where that leads. Deliberately a text link on
+     its own row: it must not compete with the two buttons above it. */
+  out+='<p class="fnote" style="margin-top:11px" data-testid="offers-leave-cohort-row">'
+    +'Not interested in these offers? <button class="tlink" type="button" data-offersleave>Leave this cohort</button>'
+    +' and your address frees up the same day for another one.</p>';
   return out;
 }
 /* The cohort whose real offer this confirm screen would accept, or null when
@@ -4977,7 +5014,7 @@ function paintHistory(){
       act='<button class="ccleave" type="button" data-leave="'+c.id+'">Leave the waitlist</button>';
     }else{
       tag='<span class="rtag">Opening-day alert set</span>';
-      cnt='We’ll text you the day it opens';
+      cnt='We’ll email you the day it opens';
     }
     return '<div class="rrow"><span><b>'+esc(c.region)+'</b><span class="sub">'+esc(c.sub)+'</span>'+tag+'</span><span class="cnt">'+cnt+'</span><span class="act">'+act+'</span></div>';
   }).join('');
@@ -5025,8 +5062,8 @@ function doJoinLegacy(id,btn,fail){
   var localApply=function(){c.you=c.kind==='forming'?'joined':'waitlist';c.members++;c.households++};
   var doneToast=function(){
     toast(c.kind==='forming'
-      ?('You’re in. We’ll text you as '+c.region+' reaches each step.')
-      :('You’re on the '+c.region+' list. We’ll text you the day it opens.'));
+      ?('You’re in. We’ll email you as '+c.region+' reaches each step.')
+      :('You’re on the '+c.region+' list. We’ll email you the day it opens.'));
   };
   W.session.campaignJoin(id).then(function(r){
     if(r&&r.campaign)applyCampaign(r.campaign);else localApply();
@@ -5102,8 +5139,8 @@ document.addEventListener('click',function(e){
      A region opens; "Mobile cohorts" and "Streaming tracking" are products, and
      telling someone "the day Mobile cohorts opens" reads as a typo. */
   var done=function(){
-    toast(c?('Noted. We\u2019ll text you the day '+name+' opens.')
-           :('Noted. We\u2019ll text you when '+name+' is ready.'));
+    toast(c?('Noted. We\u2019ll email you the day '+name+' opens.')
+           :('Noted. We\u2019ll email you when '+name+' is ready.'));
   };
   if(c&&W&&W.session&&W.session.campaignNotify){
     W.session.campaignNotify(c.id).then(function(r){
@@ -5156,9 +5193,86 @@ function paintChecklist(){
   if(cta)cta.hidden=up;
 }
 paintChecklist();
-document.addEventListener('change',function(e){
-  if(e.target.closest('.tog'))toast('Preference saved.');
-});
+/* ---------- notification settings, live ----------
+   These four toggles were unnamed checkboxes wired to a toast that said
+   "Preference saved." over no write at all: nothing was sent, nothing was
+   stored, and every reload put them back. They now read and write
+   user_prefs.notify through /me/prefs, which is the same blob the unsubscribe
+   link writes, so switching one off here and switching it off from an email
+   are the same act on the same value.
+
+   THE FOURTH TOGGLE IS GONE, deliberately. "Text me at every campaign step"
+   promised SMS, and nothing in this system sends SMS: users.phone is
+   collected and never verified. A toggle over a channel that does not exist
+   is worse than no toggle, because switching it off looks like it did
+   something. Campaign-step email cannot be switched off at all, which the
+   note under the card now says plainly rather than offering a control that
+   would refuse.
+
+   THE DEFAULTS MATCH THE SERVER'S. lib/notify/unsub.js defaults a
+   transactional category on and a commercial one off, because express consent
+   under CASL has to be given and never assumed. The markup ships in that same
+   state so the card does not visibly flip a moment after it loads. */
+(function(){
+  var CATS=['promo_cliff','outage','region_openings'];
+  var DEFAULTS={promo_cliff:true,outage:true,region_openings:false};
+  /* Everything else in the blob is somebody else's key. Read it, keep it,
+     write it back: /me/prefs merges whole top-level keys, so sending a
+     `notify` object built from these three alone would silently drop any
+     other notification preference the account carries. */
+  var LOADED=null;
+  var BUSY=false;
+
+  function el(cat){return document.getElementById('nt-'+cat)}
+  function paint(notify){
+    CATS.forEach(function(c){
+      var i=el(c); if(!i)return;
+      i.checked=Object.prototype.hasOwnProperty.call(notify,c)?!!notify[c]:DEFAULTS[c];
+    });
+  }
+  function current(){
+    var out={};
+    CATS.forEach(function(c){var i=el(c); if(i)out[c]=!!i.checked});
+    return out;
+  }
+
+  if(W&&W.session&&W.session.prefsGet){
+    W.session.prefsGet().then(function(p){
+      LOADED=(p&&p.notify&&typeof p.notify==='object')?p.notify:{};
+      paint(LOADED);
+    },function(){
+      /* Unreadable preferences render their defaults rather than an error:
+         the card is not the reason somebody opened this page. */
+      LOADED={};
+    });
+  }
+
+  document.addEventListener('change',function(e){
+    var input=e.target.closest('[data-notify]');
+    if(!input)return;
+    if(BUSY){input.checked=!input.checked;return}
+    if(!(W&&W.session&&W.session.prefsSave)){
+      input.checked=!input.checked;
+      toast('That could not be saved. Please reload and try again.');
+      return;
+    }
+    BUSY=true;
+    var was=!input.checked;
+    var merged=Object.assign({},LOADED||{},current());
+    W.session.prefsSave({notify:merged}).then(function(r){
+      BUSY=false;
+      LOADED=(r&&r.prefs&&r.prefs.notify)||merged;
+      toast(input.checked?'On. We will email you about that.':'Off. We will not email you about that.');
+    },function(err){
+      /* A preference the server never heard is not a preference. Put the
+         switch back where it was and say so: the toast this replaces said
+         "Preference saved." whatever happened. */
+      BUSY=false;
+      input.checked=was;
+      toast((err&&err.message)||'That did not save. Please try again.');
+    });
+  });
+})();
 /* ---------- your data: export and delete, live ----------
    Same rule as the feedback modal: nothing on this card claims success until
    the server confirmed it. The export is assembled by GET /me/export and saved
@@ -6237,13 +6351,79 @@ document.addEventListener('click',function(e){
   else{$$('button',grp).forEach(function(x){x.classList.remove('on')});c.classList.add('on')}
   if(grp.id==='pf-bundle'){var n=$('#bundlenote');if(n)n.hidden=c.getAttribute('data-v')!=='yes'}
   if(grp.id==='pf-building'){var n2=$('#bldgnote');if(n2)n2.hidden=c.getAttribute('data-v')!=='bulk'}
-  /* Other reveals its own field. Turning it back off clears what was typed, so
-     a name can't be saved from a chip the member just switched off. */
-  if(grp.id==='pf-avoid'&&c.getAttribute('data-v')===AVOIDOTHER){
-    var w=$('#pf-avoidwrap'),f=$('#pf-avoidother'),on=c.classList.contains('on');
-    if(w)w.hidden=!on;
-    if(f){if(on)f.focus();else f.value=''}
+});
+
+/* ---------- the exclusion picker's own events ----------
+   Its chips are not .pchips buttons in the group sense: the set lives in EXCL
+   rather than in the DOM's `.on` classes, because the list re-renders on every
+   search keystroke and a selection held in the markup would be lost with it. */
+document.addEventListener('click',function(e){
+  var c=e.target.closest('[data-excl]');
+  if(!c)return;
+  var id=c.getAttribute('data-excl');
+  var at=EXCL.chosen.indexOf(id);
+  if(at>-1){
+    /* Unticking a parent releases the flankers that were excluded on its
+       behalf, and nothing the member ticked directly. Unticking one they chose
+       themselves leaves the rest of the family alone. */
+    EXCL.chosen.splice(at,1);
+    var p=EXCL.picked.indexOf(id);if(p>-1)EXCL.picked.splice(p,1);
+    if(parentOf(id)===id){
+      flankersOf(id).forEach(function(k){
+        if(EXCL.picked.indexOf(k.brand_id)>-1)return;
+        var kx=EXCL.chosen.indexOf(k.brand_id);
+        if(kx>-1)EXCL.chosen.splice(kx,1);
+      });
+    }
+    exclRepaint();
+    exclFamilyHTML(null);
+    return;
   }
+  EXCL.chosen.push(id);
+  if(EXCL.picked.indexOf(id)<0)EXCL.picked.push(id);
+  /* SECTION 4.2, BOTH DIRECTIONS, AND THE STORED SET MATCHES WHAT IS SHOWN.
+     Ticking a parent excludes its flankers on the member's behalf. Ticking a
+     flanker excludes its parent, because CONFIRM-EXCL-01 ships on "parent
+     checked by default" and a box rendered checked has to correspond to a row
+     that exists: a disclosure showing Bell ticked over a set that does not
+     hold Bell would be the screen telling the member something the server
+     would not honour. Either way the disclosure names what was added and
+     offers the untick, so the member is told rather than finding out later,
+     and either way what they land on is stored as explicit rows. Siblings of a
+     picked flanker are NOT added: they are listed unchecked, which is the
+     asymmetry the brief asks for. */
+  if(parentOf(id)===id){
+    flankersOf(id).forEach(function(k){
+      if(EXCL.chosen.indexOf(k.brand_id)<0)EXCL.chosen.push(k.brand_id);
+    });
+  }else{
+    var top=parentOf(id);
+    if(EXCL.chosen.indexOf(top)<0)EXCL.chosen.push(top);
+  }
+  exclRepaint();
+  exclFamilyHTML(id);
+});
+
+/* The family block's checkboxes: a direct pick either way, because the member
+   is acting on a named brand in front of them. */
+document.addEventListener('change',function(e){
+  var b=e.target.closest('[data-exclfam]');
+  if(!b)return;
+  var id=b.getAttribute('data-exclfam');
+  var at=EXCL.chosen.indexOf(id);
+  if(b.checked){
+    if(at<0)EXCL.chosen.push(id);
+    if(EXCL.picked.indexOf(id)<0)EXCL.picked.push(id);
+  }else{
+    if(at>-1)EXCL.chosen.splice(at,1);
+    var p=EXCL.picked.indexOf(id);if(p>-1)EXCL.picked.splice(p,1);
+  }
+  exclRepaint();
+});
+
+document.addEventListener('input',function(e){
+  if(!e.target.closest('#pf-exclq'))return;
+  exclRepaint(e.target.value);
 });
 function chipVal(id){var b=$('#'+id+' button.on');return b?b.getAttribute('data-v'):null}
 function chipVals(id){return $$('#'+id+' button.on').map(function(b){return b.getAttribute('data-v')})}
@@ -6997,7 +7177,14 @@ function ccCard(c,feat,ids){
     : isOpenToYou(c)
       ? '<span class="badge live">Open to you</span>'
       : heldElsewhere
-        ? '<span class="badge">You hold another seat · Move here</span>'
+        /* THE BADGE PROMISES WHAT THE SHEET WILL ACTUALLY OFFER. It used to
+           say "Move here" on every held-seat card, including at the offers
+           stage where a move is impossible and the sheet answers with a bell.
+           A badge that names one act and a dialog that offers another is the
+           card lying about the press. Three words, three states. */
+        ? '<span class="badge">You hold another seat · '
+          +esc(seatExitMode()==='move'?'Move here':seatExitMode()==='pass'?'Leave and join':'Sealed until the offer')
+          +'</span>'
         : '<span class="badge '+b[0]+'">'+esc(b[1])+'</span>';
   /* A COHORT SOMEWHERE ELSE IS STILL A CARD. Visibility never depended on
      eligibility and it still does not: the press opens the cohort's own
@@ -7079,8 +7266,12 @@ function ccCard(c,feat,ids){
   /* After a two-step leave, the intended target card is promoted so the
      second step is unmissable. Terracotta trim, cleared on the next hold. */
   var next=(typeof SEATTARGET!=='undefined'&&SEATTARGET===c.id&&!mine)?' cc--next':'';
+  /* The card the member is being carried to after a leave. It is the landing
+     surface of the round trip, so it is the thing the round-trip test asserts
+     on rather than a toast that has already faded. */
+  var nextTag=next?' data-testid="join-after-leave-flow"':'';
   var open=choose
-    ? '<button class="cc'+next+'" type="button" data-choose="'+esc(c.id)+'"'+(mark?' id="cc-first"':'')+'>'
+    ? '<button class="cc'+next+'" type="button" data-choose="'+esc(c.id)+'"'+nextTag+(mark?' id="cc-first"':'')+'>'
     : away
       ? '<button class="cc'+next+'" type="button" data-away="'+esc(c.id)+'"'+(mark?' id="cc-first"':'')+'>'
       : '<div class="cc'+next+'"'+(mark?' id="cc-first"':'')+'>';
@@ -7169,7 +7360,7 @@ document.addEventListener('click',function(e){
      openCohortHTML's "nothing open near you yet" card, which renders EXACTLY
      when no cohort is joinable and (in arrive/result) no membership exists, so
      joinedCamp() is null there every time. The member was told "Noted, we'll
-     text you the day your region opens" and no row was written anywhere. That
+     email you the day your region opens" and no row was written anywhere. That
      card is the default state of any region without a cohort yet.
      It also reported success on failure: `.then(done,done)` toasted "Noted"
      when the server had refused.
@@ -7179,7 +7370,7 @@ document.addEventListener('click',function(e){
   var wb=e.target.closest('[data-act="wnotify"]');
   if(wb){
     var c=joinedCamp();
-    var done=function(){toast('Noted. We’ll text you the day '+(c?c.region:'your region')+' opens.')};
+    var done=function(){toast('Noted. We’ll email you the day '+(c?c.region:'your region')+' opens.')};
     if(c&&W&&W.session&&W.session.campaignNotify){
       W.session.campaignNotify(c.id).then(function(r){
         if(r&&r.campaign)applyCampaign(r.campaign);else if(!c.you)c.you='alert';
@@ -7616,30 +7807,348 @@ function resumeIntent(){
    member-writable keys are alerts/interests/notify), and joining London East
    goes through the same doJoin() the campaign cards use. */
 function chip(v,l,on){return '<button type="button" data-v="'+esc(v)+'"'+(on?' class="on"':'')+'>'+l+'</button>'}
-/* The avoid list is the one multi-select, and the only one a member can add to.
-   AVOIDOTHER is a sentinel chip value, never a partner name: it opens the text
-   field and is stripped before the list is saved, so `avoid` stays a plain list
-   of names whether they came from a chip or from typing. */
-var AVOIDNAMED=['Bell','Rogers','Cogeco','TekSavvy','Start.ca'],AVOIDOTHER='__other';
-function avoidExtras(list){
-  return (list||[]).filter(function(n){return n&&n!==AVOIDOTHER&&AVOIDNAMED.indexOf(n)<0});
+
+/* ---------- excluded providers ----------
+   WHAT THIS REPLACED, AND WHY IT HAD TO. The last of the six questions used to
+   be "Partners you'd rather avoid", a chip row plus a free-text field, saved
+   into prefs.interests.avoid as plain names. Its own hint said the quiet part:
+   "This shapes bids, it doesn't bind them: whoever wins, you still see the
+   offer". So a member who named Bell there was told Bell might still reach
+   them, and Bell might.
+
+   An exclusion is the opposite promise, and the two cannot both be on this
+   screen. A named provider now never reaches this household: the server
+   rebuilds this member's price book from eligible bids only, so the offer is
+   not hidden after the fact, it is never made. That is only enforceable
+   against a brand the server can identify, which is why the free-text field is
+   gone: a typed "bel" matches nothing, and a promise that depends on spelling
+   is not a promise. Members pick from the registry, and a flanker brand
+   resolves to its parent so excluding Bell cannot be defeated by bidding as
+   Virgin Plus.
+
+   OLD VALUES ARE SHOWN BACK, NEVER MATCHED. A member who typed names under the
+   old question has them surfaced once, as a prompt to re-pick from the list,
+   because silently dropping what they told us is worse than asking again.
+   `prefs.interests.avoid` is never consulted by any matching path. */
+var EXCL={loaded:false,available:false,registry:[],chosen:[],picked:[],err:null};
+
+/* Fold for search and for matching an old typed name to a listed brand: case
+   and accents both out, so "videotron" finds Vidéotron. Mirrors
+   lib/brands.js fold(); if one changes, change both. */
+function foldName(v){
+  return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
 }
-/* Chips first, then whatever was typed under Other: comma separated, trimmed,
-   deduped case-insensitively so "bell" typed next to the Bell chip is one name. */
-function avoidPicked(){
+
+/**
+ * Old avoid names this member has not yet excluded from the registry, as they
+ * typed or picked them.
+ *
+ * SHOWN, NEVER APPLIED. Pre-ticking these would turn a preference the member
+ * was explicitly told does not bind into a promise that does, without them
+ * saying so. So they are surfaced once as a prompt to re-pick, and a name with
+ * no brand in the registry is surfaced too: "we could not match this" is worth
+ * saying, and silently dropping what they told us is the one thing not to do.
+ */
+function avoidPending(list){
+  var byName={};
+  EXCL.registry.forEach(function(b){byName[foldName(b.display_name)]=b.brand_id});
   var out=[],seen={};
-  var add=function(n){
-    n=String(n||'').trim().replace(/\s+/g,' ').slice(0,40);
-    if(!n||n===AVOIDOTHER)return;
-    var k=n.toLowerCase();if(seen[k])return;seen[k]=1;out.push(n);
-  };
-  chipVals('pf-avoid').forEach(add);
-  (($('#pf-avoidother')||{}).value||'').split(',').forEach(add);
-  return out.slice(0,10);
+  (list||[]).forEach(function(n){
+    if(!n||n==='__other')return;
+    var k=foldName(n);
+    if(!k||seen[k])return;
+    var id=byName[k];
+    if(id&&EXCL.chosen.indexOf(id)>-1)return;
+    seen[k]=1;
+    out.push(String(n).slice(0,40));
+  });
+  return out;
 }
+
+function brandById(id){
+  for(var i=0;i<EXCL.registry.length;i++)if(EXCL.registry[i].brand_id===id)return EXCL.registry[i];
+  return null;
+}
+function brandName(id){var b=brandById(id);return (b&&b.display_name)||id}
+
+/** The active flankers of a parent brand, alphabetical. One level only. */
+function flankersOf(parentId){
+  return EXCL.registry.filter(function(b){return b.parent_brand_id===parentId})
+    .sort(function(a,b){return foldName(a.display_name).localeCompare(foldName(b.display_name))});
+}
+/** The family top for a brand: itself when it is a parent. One hop, never two. */
+function parentOf(id){
+  var b=brandById(id);
+  if(!b||!b.parent_brand_id)return id;
+  return brandById(b.parent_brand_id)?b.parent_brand_id:id;
+}
+
+/** Load the registry and this member's set, once. Never rejects. */
+function loadExclusions(){
+  if(EXCL.loaded||!W||!W.session||!W.session.brands)return Promise.resolve(EXCL);
+  return Promise.all([W.session.brands(),W.session.exclusionsGet()]).then(function(r){
+    var reg=r[0]||{},mine=r[1]||{};
+    EXCL.loaded=true;
+    EXCL.available=reg.available!==false;
+    EXCL.registry=reg.brands||[];
+    EXCL.chosen=(mine.exclusions||[]).map(function(x){return x.brand_id});
+    EXCL.picked=(mine.exclusions||[]).filter(function(x){return x.source!=='family_default'})
+      .map(function(x){return x.brand_id});
+    return EXCL;
+  },function(){EXCL.loaded=true;return EXCL});
+}
+/* ---------- the dashboard card, section 4.4 ----------
+   FAMILY-COLLAPSED FOR DISPLAY ONLY. A member who excluded Bell and both its
+   flankers reads "Bell +2" rather than three chips, because three chips for one
+   decision reads as three decisions. The stored set is still three rows: the
+   collapse is presentation and never touches what is saved, which is the whole
+   reason the set is materialised per brand in the first place. */
+function exclCardHTML(){
+  if(!EXCL.loaded){
+    return '<p class="cardnote">Reading your excluded providers&hellip;</p>';
+  }
+  if(!EXCL.available){
+    return '<p class="cardnote">This opens shortly. Nothing is needed from you yet.</p>';
+  }
+  if(!EXCL.chosen.length){
+    return '<p class="cardnote">You have not excluded any providers. If there is a provider you never want to hear from, set it here.</p>';
+  }
+  /* Group by family top. A family whose parent is NOT excluded stays as its own
+     chips: "Bell +1" over a set that does not include Bell would name a company
+     the member is still open to hearing from. */
+  var groups={},loose=[];
+  EXCL.chosen.forEach(function(id){
+    var top=parentOf(id);
+    if(top===id||EXCL.chosen.indexOf(top)>-1){(groups[top]=groups[top]||[]).push(id)}
+    else loose.push(id);
+  });
+  var chips=[];
+  Object.keys(groups).forEach(function(top){
+    var extra=groups[top].length-1;
+    chips.push(esc(brandName(top))+(extra>0?' +'+extra:''));
+  });
+  loose.forEach(function(id){chips.push(esc(brandName(id)))});
+  return '<div class="pchips">'
+    +chips.map(function(c){return '<button type="button" class="on" disabled>'+c+'</button>'}).join('')
+    +'</div>'
+    +'<p class="fnote">No offer from these reaches you. Bids from them are never shown to you and never win your household.</p>';
+}
+
+function paintExclCard(){
+  var host=$('#excl-card-body');
+  if(!host)return;
+  host.innerHTML=exclCardHTML();
+}
+
+/* The one handle out of this closure, the same shape and for the same reason as
+   window.WhollarSeat below: the exclusion step is opened from two places (the
+   join questions and the rail card) and read by scripts/qa-exclusions.mjs, and
+   a feature reachable only by clicking whichever button happens to be on
+   screen for the current state is a feature that cannot be checked.
+   Deliberately read-only on the set: the harness drives the picker by clicking
+   it, because a test that writes the set directly would pass over a picker
+   that had stopped storing what it displays. */
+window.WhollarExclusions={
+  openStep:function(){return openPrefs(true)},
+  manage:openExclManage,
+  paint:paintExclCard,
+  chosen:function(){return EXCL.chosen.slice()},
+  picked:function(){return EXCL.picked.slice()},
+  available:function(){return !!EXCL.available}
+};
+
+/* The card reads on first paint of the account view, not at boot: most sessions
+   never open it, and it is one more request on every dashboard load for a list
+   that changes a few times a year. */
+document.addEventListener('click',function(e){
+  if(!e.target.closest('#excl-manage'))return;
+  openExclManage();
+});
+
+/**
+ * The manage view, section 4.4: the join-flow picker on its own.
+ *
+ * Same picker, same family rules, same save. Deliberately not a second
+ * implementation: two pickers over one promise is two chances for one of them
+ * to store something the member did not agree to.
+ */
+function openExclManage(){
+  loadExclusions().then(function(){
+    openModal('<div class="mhead"><h3>Excluded providers</h3><button class="mx" type="button" data-mclose aria-label="Close">&times;</button></div>'
+      +exclStepHTML(S.prefs||{})
+      +'<button class="btn terra" type="button" id="excl-save" style="width:100%;justify-content:center;margin-top:16px" data-testid="excl-save">Save</button>'
+      +'<p class="fnote" style="text-align:center">Changes apply to every cohort you are in. An offer already on your dashboard from a provider you exclude here is withdrawn.</p>');
+  });
+}
+
+document.addEventListener('click',function(e){
+  var b=e.target.closest('#excl-save');
+  if(!b)return;
+  b.disabled=true;
+  var label=b.textContent;
+  b.textContent='Saving\u2026';
+  saveExclusions().then(function(r){
+    b.disabled=false;b.textContent=label;
+    if(!r){exclErr('That could not be saved. Nothing was changed.');return}
+    closeModal();
+    paintExclCard();
+    /* One message, and the warning wins it. See saveExclusions. */
+    toast(r.coversAll
+      ? 'Heads up, this covers every provider currently able to serve your area, so you may receive no offers.'
+      : 'Excluded providers saved.', r.coversAll ? 7000 : 2400);
+    /* The offer panel is now stale for this member: a withdrawal or a
+       promotion may have landed. Re-read rather than patch, because the server
+       owns which cards this household holds, and it has just re-cut them as a
+       new version of the recorded window. */
+    pullOffer().then(function(){render()});
+  });
+});
+
+/* ---------- the exclusion step ----------
+   Section 4.1's single skippable screen, rendered as the last of the six
+   questions rather than as its own document: that is where the brief puts it
+   (after cohort confirmation, before final join submission) and it is the one
+   place a member is already deciding about this cohort.
+
+   THE LIST IS THE WHOLE ACTIVE REGISTRY, not the brands serving this area.
+   Scoping it to the local bidders would tell the member who is bidding, which
+   is the sealed part of a sealed auction. An exclusion of a brand that does
+   not serve here simply has no effect until it does. */
+var EXCL_HEADING='Any providers you want to avoid?';
+var EXCL_SUB='Optional. Excluded providers will never be able to send you an offer through Whollar. You can change this any time from your dashboard.';
+var EXCL_SEARCH_PH='Search providers';
+var EXCL_PARENT_LINE='{Parent} also operates these brands. We have excluded them too. Untick any you are open to hearing from.';
+var EXCL_FLANKER_LINE='{Flanker} is operated by {Parent}. Do you also want to exclude {Parent}?';
+
+function exclStepHTML(p){
+  if(!EXCL.available){
+    /* The registry is not created yet. Said plainly rather than rendered as a
+       working picker with nothing in it. */
+    return '<label class="plabel">'+esc(EXCL_HEADING)+'</label>'
+      +'<p class="pfhint">This opens shortly. Nothing is needed from you yet.</p>';
+  }
+  var stale=avoidPending((p||{}).avoid);
+  return '<label class="plabel">'+esc(EXCL_HEADING)+' <span class="opt">optional</span></label>'
+    +'<p class="pfhint" style="margin-top:0">'+esc(EXCL_SUB)+'</p>'
+    +'<input class="minput" id="pf-exclq" type="text" maxlength="64" autocomplete="off"'
+    +' data-testid="excl-search" placeholder="'+esc(EXCL_SEARCH_PH)+'">'
+    +'<div id="pf-exclchips" class="pchips" data-testid="excl-step" style="margin-top:10px">'+exclChipsHTML('')+'</div>'
+    +'<div id="pf-exclfam" data-testid="excl-family-block"></div>'
+    +(stale.length
+      ? '<p class="pfhint">You told us before you would rather avoid '+esc(stale.join(', '))
+        +'. Pick them from the list above if they are there, so we can hold them to it.</p>'
+      : '')
+    +'<p class="fnote" id="pf-exclerr" hidden></p>';
+}
+
+/* The chips: everything chosen first so a long registry never hides a choice,
+   then the search result. `q` under two characters does not narrow, matching
+   the server's own rule (lib/brands.js search) so the two cannot disagree. */
+function exclChipsHTML(q){
+  var f=foldName(q),list=EXCL.registry;
+  var shown=f.length<2?list:list.filter(function(b){return foldName(b.display_name).indexOf(f)>-1});
+  var order=EXCL.chosen.slice();
+  shown.forEach(function(b){if(order.indexOf(b.brand_id)<0)order.push(b.brand_id)});
+  if(!order.length)return '<p class="pfhint">No provider matches that name.</p>';
+  return order.map(function(id){
+    var b=brandById(id);
+    if(!b)return '';
+    var on=EXCL.chosen.indexOf(id)>-1;
+    return '<button type="button" data-excl="'+esc(id)+'" data-testid="excl-chip-'+esc(id)+'"'
+      +(on?' class="on"':'')+' aria-pressed="'+(on?'true':'false')+'">'+esc(b.display_name)+'</button>';
+  }).join('');
+}
+
+/* The family disclosure for the brand just ticked, section 4.2.
+
+   A parent auto-excludes its flankers and says so with untick controls. A
+   flanker offers its parent, checked by default, with the siblings listed
+   unchecked: CONFIRM-EXCL-01 on the brief's default. Either way what the
+   member lands on is stored as explicit rows, so a later registry edit cannot
+   widen the set behind them. */
+function exclFamilyHTML(id){
+  var host=$('#pf-exclfam');
+  if(!host)return;
+  if(!id||EXCL.chosen.indexOf(id)<0){host.innerHTML='';return}
+  var b=brandById(id);
+  if(!b){host.innerHTML='';return}
+  var top=parentOf(id),kids=flankersOf(top);
+  if(!kids.length&&top===id){host.innerHTML='';return}
+
+  function row(bid,on){
+    return '<label class="optrow"><input type="checkbox" data-exclfam="'+esc(bid)+'"'
+      +' data-testid="excl-family-check-'+esc(bid)+'"'+(on?' checked':'')+'>'
+      +'<span>'+esc(brandName(bid))+'</span></label>';
+  }
+
+  if(top===id){
+    /* A parent was ticked. Its flankers are already excluded by the tick
+       handler; this names them and offers the untick. */
+    host.innerHTML='<div class="pfnote">'
+      +esc(EXCL_PARENT_LINE.replace('{Parent}',brandName(top)))+'</div>'
+      +kids.map(function(k){return row(k.brand_id,EXCL.chosen.indexOf(k.brand_id)>-1)}).join('');
+    return;
+  }
+  /* A flanker was ticked. The parent is offered checked; siblings unchecked. */
+  host.innerHTML='<div class="pfnote">'
+    +esc(EXCL_FLANKER_LINE.replace('{Flanker}',brandName(id))
+      .replace(/\{Parent\}/g,brandName(top)))+'</div>'
+    +row(top,EXCL.chosen.indexOf(top)>-1)
+    +kids.filter(function(k){return k.brand_id!==id})
+      .map(function(k){return row(k.brand_id,EXCL.chosen.indexOf(k.brand_id)>-1)}).join('');
+}
+
+function exclRepaint(q){
+  var host=$('#pf-exclchips');
+  if(host)host.innerHTML=exclChipsHTML(q===undefined?(($('#pf-exclq')||{}).value||''):q);
+}
+
+function exclErr(msg){
+  var el=$('#pf-exclerr');
+  if(!el)return;
+  el.textContent=msg||'';
+  el.hidden=!msg;
+}
+
+/**
+ * Write the set. Returns a promise that never rejects, but reports.
+ *
+ * The list sent is the whole active set: this is a replace, not an add, so
+ * removing an exclusion means sending a shorter list.
+ */
+function saveExclusions(){
+  if(!EXCL.available||!W||!W.session||!W.session.exclusionsSave)return Promise.resolve(null);
+  var want=EXCL.chosen.slice(),picked=EXCL.picked.slice();
+  return W.session.exclusionsSave(want,picked).then(function(r){
+    /* THE WARNING IS RETURNED, NOT RAISED HERE. It used to toast from inside
+       this function while the caller toasted "saved" a line later, and the
+       second call overwrote the first: toast() sets textContent on one shared
+       element, so the coverage warning existed for as long as it took the
+       success message to replace it. The caller now picks ONE message, and
+       prefers this one, because "you may receive no offers" is the sentence
+       the member needs and "saved" is the sentence they can infer. */
+    return r;
+  },function(e){
+    toast((e&&e.message)||'We could not save your excluded providers. Nothing was changed.');
+    return null;
+  });
+}
+
+/**
+ * The six questions.
+ *
+ * Loads the brand registry and this member's exclusion set BEFORE painting,
+ * once per session, because the last question is a picker over that registry
+ * and a modal that opens with an empty list and fills in a moment later is a
+ * modal a member scrolls past. `loadExclusions` never rejects and memoizes, so
+ * a second open is synchronous in practice and a failed read paints the step's
+ * "opens shortly" state rather than blocking the other five questions.
+ */
 function openPrefs(edit){
+  loadExclusions().then(function(){paintPrefs(edit)});
+}
+function paintPrefs(edit){
   var p=S.prefs||{};
-  var other=avoidExtras(p.avoid).join(', ');
   /* THE COHORT THIS DIALOG IS ABOUT, resolved exactly the way the save handler
      resolves it: the card that was pressed, else the featured one. The button
      used to read "Join London East · free" as a literal, so a member who
@@ -7663,23 +8172,34 @@ function openPrefs(edit){
   +'<label class="plabel">Your building</label>'
   +'<div class="pchips" id="pf-building">'+chip('house','House',!p.building||p.building==='house')+chip('unit','Condo or apartment, I pick my own internet',p.building==='unit')+chip('bulk','My building controls the internet',p.building==='bulk')+'</div>'
   +'<div class="pfnote" id="bldgnote" '+(p.building==='bulk'?'':'hidden')+'>Then switching runs through your building, not around it. We’ll flag this cohort as informational for you and can talk to your board or landlord: that’s often a hundred households in one decision.</div>'
-  +'<label class="plabel">Partners you’d rather avoid <span class="opt">optional</span></label>'
-  +'<div class="pchips" id="pf-avoid" data-multi="1">'+AVOIDNAMED.map(function(n){return chip(n,n,(p.avoid||[]).indexOf(n)>-1)}).join('')
-   +chip(AVOIDOTHER,'Other',!!other)+'</div>'
-  +'<div id="pf-avoidwrap" style="margin-top:10px"'+(other?'':' hidden')+'><input class="minput" id="pf-avoidother" type="text" maxlength="120"'
-   +' placeholder="Who else? Separate names with commas" value="'+esc(other)+'"></div>'
-  +'<p class="pfhint">This shapes bids, it doesn’t bind them: whoever wins, you still see the offer and you can still say no.</p>'
+  +exclStepHTML(p)
   +'<button class="btn terra" type="button" id="pf-save" style="width:100%;justify-content:center;margin-top:16px">'+(edit?'Save preferences':esc(joinLabel))+'</button>'
   +'<p class="fnote" style="text-align:center">No card, no commitment. A deposit only ever appears if you accept a winning offer later.</p>');
 }
 document.addEventListener('click',function(e){
   if(!e.target.closest('#pf-save'))return;
   var wasJoined=S.joined;
+  /* `avoid` is carried forward untouched rather than rewritten from the new
+     picker. It is the member's own words from the old question, it is never
+     consulted by any matching path, and overwriting it here would destroy the
+     only record of what they originally said. The binding list is the
+     exclusion set, saved separately below. */
   S.prefs={when:chipVal('pf-when'),speed:chipVal('pf-speed'),tech:chipVal('pf-tech'),
-    bundle:chipVal('pf-bundle'),building:chipVal('pf-building'),avoid:avoidPicked()};
+    bundle:chipVal('pf-bundle'),building:chipVal('pf-building'),
+    avoid:(S.prefs&&S.prefs.avoid)||[]};
   if(W&&W.session&&W.session.prefsSave){
     W.session.prefsSave({interests:S.prefs}).then(null,function(){/* kept locally; retried on next save */});
   }
+  /* THE EXCLUSION SAVE IS NOT OPTIMISTIC, unlike the join below it. Everything
+     else on this screen is a preference that shapes a bid; this one is a
+     promise that a named provider will never reach this household, and a
+     picker that says "saved" over a write that went nowhere is exactly the
+     failure the promise cannot survive. So it is awaited, and a failure is
+     reported rather than swallowed. The join is not blocked on it: a member who
+     joins and whose exclusion save failed is a member with no exclusions, which
+     is the state they were in a moment ago, and the dashboard card will show
+     the list is empty. */
+  saveExclusions();
   closeModal();
   if(!wasJoined){
     /* OPTIMISTIC, AND NOW REVERSIBLE. These three lines run before the join
@@ -7732,8 +8252,18 @@ document.addEventListener('click',function(e){if(e.target.closest('#editprefs'))
 
 /* ---------- pass flow ---------- */
 function openPass(){
+  /* Same sentence as the conflict sheet's warning and from the same source:
+     the server's standing_order. A household reading one of these two screens
+     must not be told less than the other about the same act. */
+  var po=(typeof seatOrder==='function')?seatOrder():null;
+  var pwarn=po
+    ? '<p class="msub" data-testid="leave-offer-warning"><b>This declines the offer you accepted</b>'
+      +(po.tier?' ('+esc(po.tier)+(po.price?' at '+money(Number(po.price))+'/mo':'')+')':'')
+      +'. Nothing is charged, your partner is told you passed, and it does not come back.</p>'
+    : '';
   openModal('<div class="mhead"><h3>Passing is a fine answer</h3><button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
   +'<p class="msub">Nothing changes and nothing is owed. One question, because it makes the next sealed round sharper: why pass?</p>'
+  +pwarn
   +'<div class="pchips pvert" id="ps-why">'
   +chip('stay','Happy enough with '+esc((S.checkup||{}).prov||'my provider'),true)
   +chip('save','They came back with a better offer when I mentioned leaving')
@@ -8669,7 +9199,7 @@ function seatSheetBuild(){
   seatSheetEl=document.createElement('div');
   seatSheetEl.className='sxs';
   seatSheetEl.innerHTML='<div class="sxs__scrim" data-stsclose></div>'
-    +'<div class="sxs__box" role="dialog" aria-modal="true" aria-labelledby="sxs-title">'
+    +'<div class="sxs__box" role="dialog" aria-modal="true" aria-labelledby="sxs-title" data-testid="leave-confirm-modal">'
     +'<button class="sxs__x" type="button" data-stsclose aria-label="Close">×</button>'
     +'<div id="sxs-body"></div></div>';
   document.body.appendChild(seatSheetEl);
@@ -8698,7 +9228,11 @@ function seatSheetOpen(html,trig,focusSel){
 }
 function seatSheetClose(reason){
   if(!seatSheetEl||!seatSheetEl.classList.contains('is-open'))return;
-  if(seatSheetEl.getAttribute('data-kind')==='exit'&&reason!=='commit')sTrack('seat_exit_abandon');
+  var kind=seatSheetEl.getAttribute('data-kind');
+  if(kind==='exit'&&reason!=='commit')sTrack('seat_exit_abandon');
+  if(kind==='conflict'&&reason!=='commit'&&reason!=='refused'&&reason!=='hold'&&reason!=='twostep'){
+    sTrack('seat_conflict_abandon',{armed:Boolean($sts('[data-stsstep]')&&!$sts('[data-stsstep]').hidden)});
+  }
   seatSheetEl.classList.remove('in');seatSheetEl.classList.remove('is-open');
   seatSheetEl.removeAttribute('data-kind');
   document.body.style.overflow='';
@@ -8745,7 +9279,7 @@ function seatExitOpen(id,pendingTargetId){
     +'<button class="btn ghost" type="button" data-stsclose>Stay in the cohort</button>'
     +'<button class="btn terra" type="button" data-stsleave="'+esc(c.id)+'">Leave '+esc(region)+'</button>'
     +'</div>'
-    +'<p class="sxs__foot">If you leave and the cohort later fills without you, we will still text you before your promo cliff.</p>';
+    +'<p class="sxs__foot">If you leave and the cohort later fills without you, we will still email you before your promo cliff.</p>';
   seatSheetOpen(html,null,'.sxs__actions button');
   seatSheetEl.setAttribute('data-kind','exit');
   sTrack('seat_exit_intent',{campaign:c.id});
@@ -8797,16 +9331,58 @@ function seatSealRace(err){
 }
 
 /* ---------- the conflict sheet ---------- */
+/**
+ * WHICH EXIT THIS COHORT HAS RIGHT NOW, from the server's affordance and
+ * nothing else. Three answers, because there are three:
+ *
+ *   'move'  forming and open. One swap on one claim row, nothing at stake.
+ *   'pass'  the offer is in. The exit exists and always did (POST
+ *           /cohorts/:id/pass), and it is what makes "you are never
+ *           obligated to accept" true. It declines the offer, so it is
+ *           confirmed in two steps and warned about by name.
+ *   'wait'  locked or bidding. Founding partners are pricing against this
+ *           exact roster and it cannot change under them; the household is
+ *           not committed to anything and the wait is dated.
+ *
+ * The old sheet had two, and folded 'pass' into 'wait': a household at the
+ * offers stage was offered a bell and told to come back on a date that had
+ * already passed, while the release it needed sat one call away on the
+ * ledger behind it. That is the bug this branch exists to close.
+ */
+function seatExitMode(){
+  var aff=seatAffordance();
+  if(aff==='leave')return 'move';
+  if(aff==='pass')return 'pass';
+  return 'wait';
+}
+/** The order this household holds on its cohort, as the server reported it. */
+function seatOrder(){
+  return (SEATLIVE&&SEAT&&SEAT.standing_order)?SEAT.standing_order:null;
+}
 function seatConflictOpen(toId){
   var a=seatHeldCamp(),b=campById(toId);
   if(!a||!b){if(b)joinNext(toId);return}
   var ra=a.region||a.id,rb=b.region||b.id;
-  var movable=seatAffordance()==='leave';
+  var mode=seatExitMode();
   var arrow='<svg class="sxs__arrow" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
   var offersStr=seatFmtD(a.dates&&a.dates.offers_at);
-  var body=movable
+  var body=mode==='move'
     ?'A household holds one seat. Founding partners bid against a roster of real addresses, so the same address cannot be counted in two cohorts at once. '+esc(ra)+' is still forming, so the move is one step.'
-    :esc(ra)+' is sealed and with founding partners. Its roster cannot change now, so your address stays counted there until the offer lands and you decide.';
+    :mode==='pass'
+      ?'The offer is in for '+esc(ra)+'. You are not obligated to take it, and leaving frees your address the same day, so '+esc(rb)+' is open to you today.'
+      :esc(ra)+' is sealed and with founding partners. Its roster cannot change now, so your address stays counted there until the offer lands and you decide.';
+  /* The warning, and it is the whole reason this variant is two steps. Which
+     sentence it carries is the server's answer, never a guess: a household
+     that accepted has something real to lose and is told exactly what, and a
+     household that has not is told the milder, truer thing. */
+  var ord=seatOrder();
+  var warn=mode!=='pass'?'':'<div class="sxs__warn" data-testid="leave-offer-warning">'
+    +'<b>Leaving declines your '+esc(ra)+' offer.</b>'
+    +'<p>'+(ord
+      ?'You accepted '+esc(ord.tier||'this offer')+(ord.price?' at '+money(Number(ord.price))+'/mo':'')
+        +'. Leaving releases it, your partner is told you passed, and nothing is charged. It does not come back.'
+      :'Nothing is charged and nothing is owed. The offer closes when you leave and it does not come back, even if you rejoin later.')
+    +'</p></div>';
   var html='<span class="sxs__eyebrow">One cohort at a time</span>'
     +'<h3 id="sxs-title">You are already in '+esc(ra)+'</h3>'
     +'<p class="sxs__lede">'+body+'</p>'
@@ -8815,18 +9391,98 @@ function seatConflictOpen(toId){
     +arrow
     +'<div class="sxs__seat is-target"><span class="m">You tapped</span><b>'+esc(rb)+'</b><span class="m">'+esc(ccSub(b)||b.sub||'')+'</span></div>'
     +'</div>'
-    +'<div class="sxs__actions">'
-    +(movable
+    +warn
+    +'<div class="sxs__actions" data-stsactions>'
+    +(mode==='move'
       ?'<button class="btn ghost" type="button" data-stsclose>Stay in '+esc(ra)+'</button>'
-       +'<button class="btn terra" type="button" data-stsmove="'+esc(b.id)+'" data-stsfrom="'+esc(a.id)+'">Move me to '+esc(rb)+'</button>'
-      :'<button class="btn ghost" type="button" data-stsclose>Stay in '+esc(ra)+'</button>'
-       +'<button class="btn terra" type="button" data-stshold="'+esc(b.id)+'">Hold '+esc(rb)+' for me</button>')
+       +'<button class="btn terra" type="button" data-testid="leave-and-join-cta" data-stsmove="'+esc(b.id)+'" data-stsfrom="'+esc(a.id)+'">Move me to '+esc(rb)+'</button>'
+      :mode==='pass'
+        ?'<button class="btn ghost" type="button" data-stsclose>Keep my offer</button>'
+         +'<button class="btn terra" type="button" data-testid="leave-and-join-cta" data-stsarm="'+esc(b.id)+'" data-stsfrom="'+esc(a.id)+'">Leave and join '+esc(rb)+'</button>'
+        :'<button class="btn ghost" type="button" data-stsclose>Stay in '+esc(ra)+'</button>'
+         +'<button class="btn terra" type="button" data-stshold="'+esc(b.id)+'">Hold '+esc(rb)+' for me</button>')
     +'</div>'
-    +(movable
+    /* Step two. Present in the markup and hidden, not built on the press, so
+       the sheet's height does not jump and the focus trap already knows about
+       it. Revealed by [data-stsarm]; the first press commits nothing. */
+    +(mode==='pass'
+      ?'<div class="sxs__step" data-stsstep hidden>'
+       +'<p>Last check. This declines the '+esc(ra)+' offer and puts your address in '+esc(rb)+'. There is no undo.</p>'
+       +'<div class="sxs__actions">'
+       +'<button class="btn ghost" type="button" data-stsdisarm>Keep my offer</button>'
+       +'<button class="btn terra" type="button" data-testid="leave-confirm-button" data-stspassmove="'+esc(b.id)+'" data-stsfrom="'+esc(a.id)+'">Yes, leave '+esc(ra)+'</button>'
+       +'</div></div>'
+      :'')
+    +(mode==='move'
       ?'<p class="sxs__foot">Prefer to do it in two steps? <button class="tlink" type="button" data-ststwostep="'+esc(a.id)+'" data-ststarget="'+esc(b.id)+'">Leave '+esc(ra)+' first</button>, then choose '+esc(rb)+' from the row.</p>'
-      :'<p class="sxs__foot">'+(offersStr?'If you pass on the '+esc(ra)+' offer on '+esc(offersStr)+', your address frees up the same day and '+esc(rb)+' will still be forming.':'When the '+esc(ra)+' offer lands, passing frees your address the same day.')+'</p>');
+      :mode==='pass'
+        ?'<p class="sxs__foot">Your bill checkup, your promo cliff watch and any referral credit stay exactly as they are.</p>'
+        :'<p class="sxs__foot">'+(offersStr?'If you pass on the '+esc(ra)+' offer on '+esc(offersStr)+', your address frees up the same day and '+esc(rb)+' will still be forming.':'When the '+esc(ra)+' offer lands, passing frees your address the same day.')+'</p>');
   seatSheetOpen(html,null,'.sxs__actions button');
-  sTrack('seat_move_blocked',{from_cohort:a.id,to_cohort:b.id,movable:movable});
+  seatSheetEl.setAttribute('data-kind','conflict');
+  sTrack('seat_move_blocked',{from_cohort:a.id,to_cohort:b.id,movable:mode==='move',mode:mode});
+}
+/** Reveal step two. Nothing is written and nothing is decided by this. */
+function seatArm(on){
+  var step=$sts('[data-stsstep]'),acts=$sts('[data-stsactions]');
+  if(!step||!acts)return;
+  step.hidden=!on;acts.hidden=Boolean(on);
+  var focus=on?step.querySelector('[data-stspassmove]'):acts.querySelector('[data-stsarm]');
+  if(focus)focus.focus();
+}
+/**
+ * Leave at the offers stage and land in the target's join flow: one gesture,
+ * two writes, in the only safe order.
+ *
+ * The pass goes FIRST and the join follows it, never the reverse and never
+ * both at once. The server holds one claim row per address, so a join sent
+ * before the pass lands is refused by the same SEAT_HELD this sheet exists to
+ * resolve. And if the join then fails (the target filled, the window shut,
+ * the network went), the household is seatless and told so plainly: it chose
+ * that with the offer named in front of it, which is what the two steps
+ * above are for. Rolling the pass back would put a household into a cohort it
+ * had just declined an offer from.
+ */
+function seatPassMove(toId,fromId,btn){
+  var a=campById(fromId)||seatHeldCamp(),b=campById(toId);
+  if(!a||!b)return;
+  var ra=a.region||a.id,rb=b.region||b.id;
+  if(btn){btn.disabled=true;btn.textContent='Leaving '+ra+'…'}
+  seatApi('POST','/cohorts/'+encodeURIComponent(a.id)+'/pass',{reason:'other_cohort'})
+  .then(function(r){
+    SEAT={claim:r.claim,cohort:null,affordance:'none',rejoin_until:null,standing_order:null};
+    if(a.you==='joined'){a.members=Math.max(0,a.members-1);a.households=Math.max(0,a.households-1)}
+    a.you=null;
+    /* The offers panel must not still be offering a take button on a cohort
+       this household has just left. Same lock the pass sheet sets. */
+    PASSLOCK=true;ADVANCED=null;
+    if(S.pass)S.pass.left=true;
+    seatLeftWrite(null);
+    SEATTARGET=b.id;
+    seatSheetClose('commit');
+    campRepaint();paintSeatLedger();paintSeatNotice();
+    toast(r&&r.released
+      ?('You left '+ra+' and your offer is released. Nothing is owed. Joining '+rb+' now.')
+      :('You left '+ra+'. Nothing is owed. Joining '+rb+' now.'),5000);
+    sTrack('seat_pass_move',{from_cohort:a.id,to_cohort:b.id});
+    /* THE ROUND TRIP. doJoin runs the same seat claim the row's own press
+       runs, so the join that follows a pass is not a special path that could
+       drift from the ordinary one. */
+    doJoin(b.id,null,function(){
+      /* The join refused. The seat is genuinely released; say so rather than
+         leave the member reading a promoted card that will not take them. */
+      seatRefresh();campRepaint();
+    });
+  },function(err){
+    if(err.code==='DECISIONS_LOCKED'||err.code==='CONFLICT'){
+      seatSheetClose('refused');
+      toast(err.message||'That cohort moved on while this page was open.',6000);
+      seatRefresh();campRepaint();
+      return;
+    }
+    if(btn){btn.disabled=false;btn.textContent='Yes, leave '+ra}
+    toast(err.message||'That didn\u2019t save, so nothing changed. Your offer is still yours to take or leave.',6000);
+  });
 }
 function seatMoveCommit(toId,fromId,btn){
   var a=campById(fromId),b=campById(toId);if(!a||!b)return;
@@ -8927,6 +9583,11 @@ document.addEventListener('click',function(e){
   }
   if((t=e.target.closest('[data-stsleave]'))){seatExitCommit(t.getAttribute('data-stsleave'),t);return}
   if((t=e.target.closest('[data-stsmove]'))){seatMoveCommit(t.getAttribute('data-stsmove'),t.getAttribute('data-stsfrom'),t);return}
+  if(e.target.closest('[data-stsarm]')){seatArm(true);return}
+  if(e.target.closest('[data-stsdisarm]')){seatArm(false);return}
+  if((t=e.target.closest('[data-stspassmove]'))){
+    seatPassMove(t.getAttribute('data-stspassmove'),t.getAttribute('data-stsfrom'),t);return;
+  }
   if((t=e.target.closest('[data-stshold]'))){
     var hb=campById(t.getAttribute('data-stshold'));
     seatSheetClose('hold');
@@ -8934,7 +9595,7 @@ document.addEventListener('click',function(e){
       W.session.campaignNotify(hb.id).then(function(r){
         if(r&&r.campaign)applyCampaign(r.campaign);else if(!hb.you)hb.you='alert';
         paintHistory();
-        toast('Noted. We’ll text you the day your address frees up and '+(hb.region||hb.id)+' is ready for it.',5000);
+        toast('Noted. We’ll email you the day your address frees up and '+(hb.region||hb.id)+' is ready for it.',5000);
       },function(){toast('Noted.')});
     }
     return;
@@ -8954,6 +9615,14 @@ document.addEventListener('click',function(e){
     if(typeof openPass==='function')openPass();
     return;
   }
+  /* The offers panel's own exit. ONE WRITE, NOT A FOURTH: it opens the same
+     pass sheet the ledger opens, so there is exactly one release at the
+     offers stage and every surface that offers it offers the same one. */
+  if(e.target.closest('[data-offersleave]')){
+    sTrack('offers_leave_intent',{campaign:seatHeldId()});
+    if(typeof openPass==='function')openPass();
+    return;
+  }
   if(e.target.closest('[data-seatwhatif]')){
     openModal('<div class="mhead"><h3>What if I do not want to switch?</h3>'
       +'<button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
@@ -8962,7 +9631,7 @@ document.addEventListener('click',function(e){
   }
   if((t=e.target.closest('[data-seatnotifymove]'))){
     sTrack('seat_move_notify',{campaign:t.getAttribute('data-seatnotifymove')});
-    toast('Noted. We’ll text you when your seat can move again.');
+    toast('Noted. We’ll email you when your seat can move again.');
     return;
   }
 });

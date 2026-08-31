@@ -270,6 +270,26 @@ export function mount() {
        must never prefill another's. */
     set({ openCampaign: id, ticketDraft: null });
     loadBrief(id);
+    loadReach(id);
+  });
+}
+
+/**
+ * How much of this cohort this partner's brands can still reach, section 5.4.
+ *
+ * Read on cohort open and cached per cohort, because it walks every member's
+ * exclusion set server side and the answer barely moves inside a bidding
+ * window. A 403 (no attested roster yet) and a failure are recorded the same
+ * way, as unavailable: the bid form then shows no line at all, which is the
+ * right answer for both. Never a guess at the cohort's full size.
+ */
+function loadReach(id) {
+  var S = get();
+  if ((S.reach || {})[id]) return;
+  api.reach(id).then(function (r) {
+    set('reach', assign(get().reach || {}, id, r));
+  }, function () {
+    set('reach', assign(get().reach || {}, id, { available: false }));
   });
 }
 

@@ -18,7 +18,7 @@
  * COVERS: the four boot-guard paths (signed out, approved, pending, expired),
  * the one that must NOT sign anyone out (a network failure), the router across
  * all 11 views, four widths, the burger's two behaviours, the completeness of
- * the 67-endpoint register, all 20 fixture states, the fixture layer declining
+ * the 72-endpoint register, all 20 fixture states, the fixture layer declining
  * to install off localhost, the bid ticket (seven-column tier table, consent
  * gate, a sealed place round-trip), the custom mix as shares of the reduction
  * (per tier or shared, cents that add up, the seal body and the seed that
@@ -298,9 +298,14 @@ console.log('\n10. the endpoint register is complete');
   await p.goto(`${BASE}/partner`, { waitUntil: 'networkidle' });
   const reg = await p.evaluate(() => {
     const a = window.WHOLLAR.console.api;
-    return { total: a.__count, live: a.__implemented, pending: a.__pending.length };
+    return { total: a.__count, live: a.__implemented, pending: a.__pending.length,
+      collisions: a.__collisions };
   });
-  ok(reg.total === 67, `67 endpoints present (${reg.total})`);
+  ok(reg.total === 72, `72 endpoints present (${reg.total})`);
+  /* Zero collisions. A method assigned twice replaces the first silently and
+     leaves the count unmoved, which is how api.roster (the delivery cohort's
+     households) was once overwritten by the brand roster. */
+  ok(reg.collisions === 0, `no endpoint name is assigned twice (${reg.collisions})`);
   ok(reg.live + reg.pending === reg.total, `every one is either live or a tagged stub (${reg.live} live, ${reg.pending} stubbed)`);
   /* The auction core flipped four stubs live (brief, improve, bid, versions),
      bringing the register to 24, and the contracts registry flipped two more

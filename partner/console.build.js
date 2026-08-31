@@ -64,6 +64,19 @@
     bids: {},             /* keyed by campaign id */
     briefs: {},           /* GET .../brief payloads keyed by campaign id;
                              'loading' while in flight, { failed: true } on error */
+    reach: {},            /* GET .../reach keyed by campaign id: how much of the
+                             cohort this org's brands can still reach once member
+                             exclusions are applied. One aggregate per cohort and
+                             never a member identity. { available: false } covers
+                             both a failure and a 403 for no attested roster,
+                             because the bid form renders no line for either. */
+
+    /* the brands this org operates */
+    roster: null,         /* GET /provider/roster, null until it answers */
+    rosterLoaded: false,  /* answered at all, which is not the same as non-null:
+                             "we could not read your roster" and "you have
+                             declared nothing" are different sentences and only
+                             one of them asks the partner to act. */
 
     /* what binds them */
     contracts: null,      /* GET /provider/contracts, null until it answers */
@@ -1288,6 +1301,37 @@
 
   /* ---- 7.10 account (65-67) ---- */
 
+  /* ---- 7.11 brands and the roster (68-72) ----
+   *
+   * The attested list of brands this partner operates, and the two aggregate
+   * numbers a member's exclusions can move. Nothing here carries a member
+   * identity: `reach` and `cohortResults` are counts computed server side, and
+   * the raw member-to-exclusion mapping never crosses to a partner scope.
+   */
+
+  /* 68. LIVE. This org's attested brands plus the active registry to pick from.
+         NOT `api.roster`: that name is taken by the DELIVERY roster, the
+         households of one won cohort (endpoint 44 above). "Roster" means two
+         different things on this surface and the collision is not theoretical:
+         the first version of this block was called `api.roster` and silently
+         replaced the delivery call, because a later assignment to the same key
+         wins and nothing complains. Hence `brandRoster`, and the duplicate-key
+         check in the self-check below. */
+  api.brandRoster = function () { return request('GET', '/provider/roster'); };
+  /* 69. LIVE. Replaces the list and re-stamps the attestation. 422 without it. */
+  api.brandRosterDeclare = function (body) { return request('POST', '/provider/roster', body); };
+  /* 70. LIVE. Files a pending_review listing plus an operator task. Nothing may
+         be bid under it until an operator promotes it to active. */
+  api.brandRequest = function (body) { return request('POST', '/provider/brand-request', body); };
+  /* 71. LIVE. Reachable households in one cohort for this org's brands, as one
+         aggregate. 403 until the roster is attested, because the number is
+         meaningless without one. */
+  api.reach = function (id) { return request('GET', '/provider/cohorts/' + encodeURIComponent(id) + '/reach'); };
+  /* 72. LIVE. Won, outranked and unreachable-by-exclusion, aggregate only, on a
+         closed cohort. Its own route rather than the bid board's payload: it
+         walks every member of the cohort, and the board is metered per fetch. */
+  api.cohortResults = function (id) { return request('GET', '/provider/cohorts/' + encodeURIComponent(id) + '/results'); };
+
   /* 65. LIVE. Session-gated, already provider-usable. */
   api.prefs = function () { return session().prefsGet(); };
   /* 66. LIVE. Merges top-level keys only. */
@@ -1299,13 +1343,28 @@
    * self-check
    *
    * The register's completeness is the whole guarantee, so it is counted here
-   * rather than claimed in a comment. scripts/qa-console.mjs asserts 67.
+   * rather than claimed in a comment. scripts/qa-console.mjs asserts 72.
    * ------------------------------------------------------------------ */
 
+  /* A key assigned twice is a route silently replaced, which is how the brand
+     roster ate the delivery roster once. Object.keys cannot see it after the
+     fact, so the source is counted instead and the mismatch is reported on the
+     register itself for scripts/qa-console.mjs to assert. */
   var names = Object.keys(api).filter(function (k) { return typeof api[k] === 'function'; });
   api.__count = names.length;
   api.__implemented = names.filter(function (k) { return !api[k].__todo; }).length;
   api.__pending = names.filter(function (k) { return api[k].__todo; }).map(function (k) { return api[k].__path; });
+
+  /* Every method this file MEANS to expose, as a plain list.
+   *
+   * It exists so a key assigned twice is visible. `Object.keys(api).length` is
+   * blind to it by construction: a second `api.roster = ...` replaces the first
+   * and the count does not move, which is exactly how the brand roster silently
+   * ate the delivery roster. `__declared` minus `__count` is the number of
+   * collisions, asserted by scripts/qa-console.mjs, so the next one fails a gate
+   * instead of a delivery board. Keep this in step when adding a method. */
+  api.__declared = 72;
+  api.__collisions = api.__declared - api.__count;
 
   /* Exposed so the fixture layer can replace transport wholesale. */
   api.__request = request;
@@ -4296,6 +4355,34 @@
   function noteHTML(cls, text) { return '<p class="' + cls + '">' + esc(text) + '</p>'; }
 
   /**
+   * The reachable-household line, section 5.4, or nothing.
+   *
+   * ONE AGGREGATE AND NOTHING ELSE. Not which households, not how many excluded
+   * which brand, not whether a rival is reachable where this partner is not. The
+   * number exists because bidding against volume that cannot be won damages
+   * partner trust and the fee model both: a partner who prices for 300
+   * households and can reach 240 has been quoted the wrong market.
+   *
+   * Rendered only when the server has answered. An absent or unavailable reach
+   * read says nothing at all rather than guessing the cohort's full size, which
+   * would be the one wrong number worse than no number.
+   */
+  function reachHTML(a) {
+    var S = get();
+    var r = (S.reach || {})[a.id];
+    if (!r || r.available === false) return '';
+    if (r.reachable_households == null || r.total_households == null) return '';
+    var line = 'Reachable households in this cohort for your brands: '
+      + r.reachable_households + ' of ' + r.total_households;
+    return '<p class="cardnote" data-testid="prov-reach-line">' + esc(line)
+      + (r.reachable_households < r.total_households
+        ? ' <small class="hint">Some households have excluded a brand you operate. Your bid is never shown to them.</small>'
+        : '')
+      + '</p>';
+  }
+
+
+  /**
    * The arithmetic on the right: per tier, the prices, the reduction, each named
    * line item in the cents the seal will record, and the total across the
    * guarantee. Validation states live here too, once when one mix applies to
@@ -4867,6 +4954,7 @@
             + 'Nothing is sent until you seal, every field is editable, and your commitment has been set to this cohort\u2019s size. '
             + '<button class="tlink" type="button" data-action="ticket:fresh" data-id="' + esc(a.id) + '">Start from blank terms</button></div>'
           : ''))
+      + reachHTML(a)
       + '<label class="blk">Price by service <small class="lsub">sticker is your rate card; effective is what the cohort pays</small></label>'
       + '<table class="tiert t7"><thead><tr><th>Tier</th><th>Upload, Mbps</th><th>Technology</th><th>Sticker /mo</th><th>Effective /mo</th><th class="tac">After</th><th></th></tr></thead><tbody class="tierbody">'
       + rows
@@ -5690,6 +5778,26 @@
          must never prefill another's. */
       set({ openCampaign: id, ticketDraft: null });
       loadBrief(id);
+      loadReach(id);
+    });
+  }
+
+  /**
+   * How much of this cohort this partner's brands can still reach, section 5.4.
+   *
+   * Read on cohort open and cached per cohort, because it walks every member's
+   * exclusion set server side and the answer barely moves inside a bidding
+   * window. A 403 (no attested roster yet) and a failure are recorded the same
+   * way, as unavailable: the bid form then shows no line at all, which is the
+   * right answer for both. Never a guess at the cohort's full size.
+   */
+  function loadReach(id) {
+    var S = get();
+    if ((S.reach || {})[id]) return;
+    api.reach(id).then(function (r) {
+      set('reach', assign(get().reach || {}, id, r));
+    }, function () {
+      set('reach', assign(get().reach || {}, id, { available: false }));
     });
   }
 
@@ -8687,6 +8795,271 @@
   };
 
   /* ==================================================================
+     views/roster.js
+     ================================================================== */
+  __defs["views/roster.js"] = function (__exports, __require, root) {
+  /* The brands you operate, and the attestation that they are all of them.
+   *
+   * WHY A PARTNER IS ASKED THIS AT ALL. A household can name providers it will
+   * not hear from, and that promise is only as good as this system's answer to
+   * "who is Virgin Plus". If a partner can bid under a brand it never declared,
+   * an exclusion is bypassed by omission rather than by intent, and nobody has
+   * to have done anything dishonest for the household to receive the offer it
+   * refused. So the roster is a claim someone signs, and any change re-opens it:
+   * a list that was complete in August is a different claim in November.
+   *
+   * WHAT THIS SCREEN NEVER SHOWS. Not how many households excluded a brand, not
+   * which ones, not whether an exclusion cost this partner a specific cohort.
+   * The reach line on the desk is one aggregate number and this panel carries
+   * none at all: the numbers are on the surfaces where a partner is deciding
+   * what to bid, and a settings screen is not one of them.
+   *
+   * The pending state is real rather than optimistic. A requested brand sits at
+   * "Awaiting verification" and cannot be bid under until an operator promotes
+   * it, because the whole point of the review is that the request is not the
+   * answer.
+   */
+
+  var __ns0 = __require("core/state.js");
+  var get = __ns0.get, set = __ns0.set;
+  var __ns1 = __require("core/api.js");
+  var api = __ns1.api;
+  var __ns2 = __require("core/format.js");
+  var esc = __ns2.esc;
+  var __ns3 = __require("core/time.js");
+  var fmtDate = __ns3.fmtDate;
+  var __ns4 = __require("core/actions.js");
+  var on = __ns4.on;
+  var __ns5 = __require("core/modal.js");
+  var openModal = __ns5.open, closeModal = __ns5.close;
+  var __ns6 = __require("core/toast.js");
+  var toast = __ns6.toast, failed = __ns6.failed;
+  var __ns7 = __require("core/session.js");
+  var authFailed = __ns7.authFailed;
+
+  /* Section 13, verbatim. Changing a word here changes what a partner attested
+     to, so scripts/check-exclusion-copy.mjs holds these to the brief. */
+  var ATTEST = 'We confirm this is the complete list of consumer brands '
+    + 'our organization owns or operates. Bids and offers we submit are made on '
+    + 'behalf of these brands only.';
+
+  var HEADING = 'Brands you operate';
+  var PENDING_LABEL = 'Awaiting verification';
+
+  /** The draft selection while the picker is open, brand ids. Null when closed. */
+  var draft = null;
+
+  function load() {
+    return api.brandRoster().then(function (r) {
+      set({ roster: r, rosterLoaded: true });
+    }).catch(function (e) {
+      if (authFailed(e)) return;
+      set({ roster: null, rosterLoaded: true });
+    });
+  }
+
+  function chip(b, extra) {
+    return '<span class="chip' + (extra ? ' ' + extra : '') + '">' + esc(b.display_name || b.brand_id) + '</span>';
+  }
+
+  function render() {
+    var host = document.getElementById('roster-body');
+    if (!host) return;
+    var S = get();
+    var r = S.roster;
+
+    /* Not loaded, or the route refused. "We could not read your roster" is a
+       different sentence from "you have declared nothing", and the second would
+       be a lie that invites a partner to re-declare a list already on file. */
+    if (!S.rosterLoaded) {
+      host.innerHTML = '<section class="card"><span class="eyebrow">Brands</span>'
+        + '<h3>' + esc(HEADING) + '</h3><p class="cardnote">Reading your roster…</p></section>';
+      return;
+    }
+    if (!r) {
+      host.innerHTML = '<section class="card"><span class="eyebrow">Brands</span>'
+        + '<h3>' + esc(HEADING) + '</h3>'
+        + '<p class="cardnote">We could not read your roster just now. Reload, and tell us if it keeps happening.</p>'
+        + '</section>';
+      return;
+    }
+    if (r.available === false) {
+      host.innerHTML = '<section class="card"><span class="eyebrow">Brands</span>'
+        + '<h3>' + esc(HEADING) + '</h3>'
+        + '<p class="cardnote">Brand declarations open shortly. Nothing is needed from you yet.</p>'
+        + '</section>';
+      return;
+    }
+
+    var mine = r.brands || [];
+    var pending = (r.registry || []).filter(function (b) { return b.status === 'pending_review'; });
+
+    host.innerHTML = '<div class="grid2">'
+      + '<section class="card" aria-label="' + esc(HEADING) + '">'
+      + '<span class="eyebrow">Brands</span><h3>' + esc(HEADING) + '</h3>'
+      + (mine.length
+        ? '<p class="cardnote">Every bid you place names one of these. A household that has excluded one of them will not be sent your offer under it.</p>'
+          + '<div class="chips" data-testid="prov-roster-list">'
+          + mine.map(function (b) { return chip(b); }).join('') + '</div>'
+        : '<p class="cardnote">You have not declared the brands you operate. Until you do, a bid cannot name a brand, and you cannot be matched against a household\'s exclusions.</p>')
+      + (r.attested
+        ? '<p class="fnote">Attested ' + esc(fmtDate(r.attestedAt) || 'on file')
+          + '. Any change to this list asks you to confirm it again.</p>'
+        : '<p class="fnote">Not yet attested.</p>')
+      + '<button class="tlink" type="button" data-action="roster:edit" data-testid="prov-roster-edit" style="margin-top:12px">'
+      + (mine.length ? 'Update your brands' : 'Declare your brands') + ' →</button>'
+      + '</section>'
+      + '<aside class="aside">'
+      + '<section class="card" aria-label="A brand we do not list">'
+      + '<span class="eyebrow">Missing a brand</span><h3>Ask us to list it</h3>'
+      + '<p class="cardnote">If you operate a brand that is not in our list, tell us and we will verify it. You cannot bid under it until we have.</p>'
+      + (pending.length
+        ? '<div class="chips">' + pending.map(function (b) {
+          return chip(b, 'chip-wait') + '<span class="fnote">' + esc(PENDING_LABEL) + '</span>';
+        }).join('') + '</div>'
+        : '')
+      + '<button class="tlink" type="button" data-action="roster:request" style="margin-top:12px">Request a brand listing →</button>'
+      + '</section></aside></div>';
+  }
+
+  /* ------------------------------------------------------------------ *
+   * The picker
+   * ------------------------------------------------------------------ */
+
+  function pickerBody() {
+    var S = get();
+    var r = S.roster || {};
+    var registry = (r.registry || []).filter(function (b) { return b.status !== 'pending_review'; });
+    var chosen = draft || (r.brands || []).map(function (b) { return b.brand_id; });
+
+    /* Parents first, each with its flankers indented under it, so a partner
+       declaring Bell can see what else it is being asked about. The registry
+       is one level deep by construction (lib/brands.js), so this needs no
+       recursion and must not grow any. */
+    var parents = registry.filter(function (b) { return !b.parent_brand_id; });
+    var kids = {};
+    registry.forEach(function (b) {
+      if (!b.parent_brand_id) return;
+      (kids[b.parent_brand_id] = kids[b.parent_brand_id] || []).push(b);
+    });
+
+    function line(b, indent) {
+      var on = chosen.indexOf(b.brand_id) >= 0;
+      return '<label class="optrow' + (indent ? ' optrow-sub' : '') + '">'
+        + '<input type="checkbox" data-brand="' + esc(b.brand_id) + '"'
+        + ' data-testid="prov-roster-check-' + esc(b.brand_id) + '"'
+        + (on ? ' checked' : '') + '>'
+        + '<span>' + esc(b.display_name || b.brand_id) + '</span></label>';
+    }
+
+    return '<h3>' + esc(HEADING) + '</h3>'
+      + '<p class="cardnote">Tick every consumer brand your organization owns or operates.</p>'
+      + '<div class="optlist" data-testid="prov-roster-section">'
+      + parents.map(function (p) {
+        return line(p, false)
+          + (kids[p.brand_id] || []).map(function (k) { return line(k, true); }).join('');
+      }).join('')
+      + '</div>'
+      + '<label class="optrow" style="margin-top:14px">'
+      + '<input type="checkbox" id="roster-attest" data-testid="prov-roster-attest">'
+      + '<span>' + esc(ATTEST) + '</span></label>'
+      + '<div class="mrow" style="margin-top:16px">'
+      + '<button class="btn" type="button" data-action="roster:save" data-testid="prov-roster-save">Save and attest</button>'
+      + '<button class="tlink" type="button" data-action="modal:close">Cancel</button>'
+      + '</div>'
+      + '<p class="fnote" id="roster-err" hidden></p>';
+  }
+
+  function showError(message) {
+    var el = document.getElementById('roster-err');
+    if (!el) return;
+    el.textContent = message;
+    el.hidden = false;
+  }
+
+  function mount() {
+    on('click', 'roster:edit', function () {
+      var S = get();
+      draft = ((S.roster || {}).brands || []).map(function (b) { return b.brand_id; });
+      openModal(pickerBody());
+    });
+
+    on('click', 'roster:save', function () {
+      var box = document.getElementById('roster-attest');
+      var picked = Array.prototype.slice.call(
+        document.querySelectorAll('.optlist input[data-brand]:checked')
+      ).map(function (i) { return i.getAttribute('data-brand'); });
+
+      /* Both refusals are the server's rules, stated here before the round trip
+         so the partner is not told "422" for something the screen could see.
+         The server enforces them regardless: this is a courtesy, not the gate. */
+      if (!picked.length) {
+        showError('Tick at least one brand you operate.');
+        return;
+      }
+      if (!box || !box.checked) {
+        showError('Confirm the list is complete before you save it.');
+        return;
+      }
+
+      api.brandRosterDeclare({ brand_ids: picked, attestation: true }).then(function () {
+        draft = null;
+        closeModal();
+        toast('Brands saved and attested.');
+        return load();
+      }).catch(function (e) {
+        if (authFailed(e)) return;
+        showError((e && e.message) || 'That could not be saved. Try again shortly.');
+      });
+    });
+
+    on('click', 'roster:request', function () {
+      openModal('<h3>Request a brand listing</h3>'
+        + '<p class="cardnote">We verify the brand is yours before it can be bid under.</p>'
+        + '<label class="flab">Brand name, as a household sees it'
+        + '<input class="fin" id="br-name" maxlength="120" autocomplete="off"></label>'
+        + '<label class="flab">A link that shows it is yours'
+        + '<input class="fin" id="br-url" maxlength="500" placeholder="https://" autocomplete="off"></label>'
+        + '<label class="flab">Anything we should know (optional)'
+        + '<textarea class="fin" id="br-note" maxlength="1000" rows="3"></textarea></label>'
+        + '<div class="mrow" style="margin-top:16px">'
+        + '<button class="btn" type="button" data-action="roster:request:send">Send request</button>'
+        + '<button class="tlink" type="button" data-action="modal:close">Cancel</button>'
+        + '</div><p class="fnote" id="roster-err" hidden></p>');
+    });
+
+    on('click', 'roster:request:send', function () {
+      var name = (document.getElementById('br-name') || {}).value || '';
+      var url = (document.getElementById('br-url') || {}).value || '';
+      var note = (document.getElementById('br-note') || {}).value || '';
+      if (String(name).trim().length < 2) {
+        showError('Give the brand name as it appears to a household.');
+        return;
+      }
+      if (!/^https?:\/\//i.test(String(url).trim())) {
+        showError('Give a link that shows the brand is yours.');
+        return;
+      }
+      api.brandRequest({ name: name, evidence_url: url, note: note }).then(function () {
+        closeModal();
+        toast('Request sent. We will verify it and let you know.');
+        return load();
+      }).catch(function (e) {
+        if (authFailed(e)) return;
+        showError((e && e.message) || 'That could not be sent. Try again shortly.');
+      });
+    });
+  }
+
+  __exports.ATTEST = ATTEST;
+  __exports.HEADING = HEADING;
+  __exports.PENDING_LABEL = PENDING_LABEL;
+  __exports.load = load;
+  __exports.render = render;
+  __exports.mount = mount;
+  };
+
+  /* ==================================================================
      views/placeholders.js
      ================================================================== */
   __defs["views/placeholders.js"] = function (__exports, __require, root) {
@@ -8779,8 +9152,10 @@
   var renderDelivery = __ns18.render, mountDelivery = __ns18.mount, loadDelivery = __ns18.load;
   var __ns19 = __require("views/billing.js");
   var renderBilling = __ns19.render, mountBilling = __ns19.mount, loadBilling = __ns19.load, loadMethod = __ns19.loadMethod;
-  var __ns20 = __require("views/placeholders.js");
-  var renderPlaceholders = __ns20.render;
+  var __ns20 = __require("views/roster.js");
+  var renderRoster = __ns20.render, mountRoster = __ns20.mount, loadRoster = __ns20.load;
+  var __ns21 = __require("views/placeholders.js");
+  var renderPlaceholders = __ns21.render;
 
   /* ------------------------------------------------------------------ *
    * render
@@ -8799,6 +9174,7 @@
     renderBilling();
     renderPerformance();
     renderContracts();
+    renderRoster();
     renderPlaceholders();
 
     /* Under review the console is one centred card: no nav pane, no search.
@@ -8962,6 +9338,7 @@
     mountContracts();
     mountDelivery();
     mountBilling();
+    mountRoster();
 
     on('click', 'nav', function (el) { go(el.getAttribute('data-view')); });
 
@@ -8992,6 +9369,10 @@
       if (view === 'delivery' && get().delivery == null) loadDelivery();
       var B = get().billing;
       if (view === 'billing' && (!B || B === 'loading' || B.partial)) loadBilling();
+      /* The roster reads on first open of the account view, not at boot. Most
+         sessions never touch it, and it is one more metered read on every
+         console load for a list that changes a few times a year. */
+      if (view === 'account' && !get().rosterLoaded) loadRoster();
     });
 
     /* THE CONSOLE USED TO FETCH ONCE AT BOOT AND NEVER AGAIN, so a desk left

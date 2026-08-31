@@ -39,6 +39,19 @@ var state = {
   bids: {},             /* keyed by campaign id */
   briefs: {},           /* GET .../brief payloads keyed by campaign id;
                            'loading' while in flight, { failed: true } on error */
+  reach: {},            /* GET .../reach keyed by campaign id: how much of the
+                           cohort this org's brands can still reach once member
+                           exclusions are applied. One aggregate per cohort and
+                           never a member identity. { available: false } covers
+                           both a failure and a 403 for no attested roster,
+                           because the bid form renders no line for either. */
+
+  /* the brands this org operates */
+  roster: null,         /* GET /provider/roster, null until it answers */
+  rosterLoaded: false,  /* answered at all, which is not the same as non-null:
+                           "we could not read your roster" and "you have
+                           declared nothing" are different sentences and only
+                           one of them asks the partner to act. */
 
   /* what binds them */
   contracts: null,      /* GET /provider/contracts, null until it answers */

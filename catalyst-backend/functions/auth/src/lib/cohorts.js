@@ -133,6 +133,51 @@ async function rosterRows(catalystApp, campaign) {
   return { joined, waitlist, watching, live };
 }
 
+/**
+ * The joined members of one cohort, as an array of user ids. Null when the
+ * roster could not be read at all.
+ *
+ * The one read that hands out identities, and it exists for two callers that
+ * both reduce them to a number before anything crosses to a partner: the
+ * reachable count (section 5.4) and the post-award unreachable count (section
+ * 5.6). Nothing may return this list, or any part of it, on a /provider
+ * response. `live` false means at least one of the two roster reads failed, in
+ * which case the count built from it would be an undercount presented as a
+ * fact, so the caller is told nothing rather than something wrong.
+ */
+async function memberIds(catalystApp, campaign) {
+  const r = await rosterRows(catalystApp, campaign);
+  if (!r.live) return null;
+  return Array.from(r.joined);
+}
+
+/**
+ * The cohorts one member belongs to, as an array of campaign ids.
+ *
+ * Used by the full-coverage warning, which has to know which cohorts a
+ * member's exclusions could actually cost them an offer on. Empty on an
+ * unreadable table: a warning that cannot be computed is not shown, which is
+ * the section 7.1 rule that it must never be speculative.
+ */
+async function campaignsForMember(catalystApp, memberId) {
+  const out = new Set();
+  try {
+    const claims = await datastore.queryAll(catalystApp, CLAIM_TABLE, ['cohort_id'],
+      `member_id = ${datastore.lit(memberId)} AND status = 'active'`);
+    for (const r of claims) if (r.cohort_id) out.add(String(r.cohort_id));
+  } catch {
+    /* no claims readable */
+  }
+  try {
+    const rows = await datastore.queryAll(catalystApp, MEMBERS_TABLE, ['campaign_id', 'status'],
+      `user_id = ${datastore.lit(memberId)}`);
+    for (const r of rows) if (r.campaign_id) out.add(String(r.campaign_id));
+  } catch {
+    /* no memberships readable */
+  }
+  return Array.from(out);
+}
+
 async function countRows(catalystApp, campaign) {
   const r = await rosterRows(catalystApp, campaign);
   return { seats: r.joined.size, waitlist: r.waitlist, watching: r.watching, live: r.live };
@@ -430,5 +475,6 @@ function memberVisible(s) {
 module.exports = {
   MEMO_MS, MEMBERS_TABLE, CLAIM_TABLE, DEMAND_MIN_N, DEMAND_MIN_CELL,
   seatCount, speedDemand, demandByTier, invalidate, list, state, visible, joinsOpen,
+  memberIds, campaignsForMember,
   forMember, forPartner, partnerBiddable, memberVisible, eligibilityFor,
 };

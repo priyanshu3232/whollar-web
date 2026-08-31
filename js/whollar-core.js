@@ -1490,9 +1490,14 @@
    * assumption they will be shown verbatim, so pages should show them rather
    * than substituting their own guess at what went wrong.
    */
-  function authPost(path, body) {
+  /* `method` is optional and defaults to POST. PUT exists for one route,
+     /me/exclusions, whose whole contract is "replace the set atomically": a
+     POST there would read as "add these", and the difference matters because
+     the request that removes an exclusion is a request that sends a SHORTER
+     list, not a request that names what to drop. */
+  function authPost(path, body, method) {
     return fetch(W.AUTH_API + path, {
-      method: 'POST',
+      method: method || 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(body)
@@ -2099,6 +2104,64 @@
 
     /** Merge preference keys ('alerts', 'interests', 'notify', 'services'). -> { ok, prefs } */
     prefsSave: function (patch) { return authPost('/me/prefs', patch); },
+
+    /**
+     * The brand registry a member picks exclusions from.
+     * -> { available, brands: [{ brand_id, display_name, parent_brand_id }] }
+     *
+     * Never rejects, and `available:false` is a real answer distinct from an
+     * empty list: the registry table is created by hand, and a picker that
+     * renders zero brands as a working screen is worse than one that says the
+     * step is not open yet. The owner company behind a flanker brand is never
+     * in this payload.
+     */
+    brands: function (query) {
+      var q = query ? '?query=' + encodeURIComponent(String(query).slice(0, 64)) : '';
+      return fetch(W.AUTH_API + '/brands' + q, {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      }).then(function (r) {
+        return r.ok ? r.json().catch(function () { return null; }) : null;
+      }).then(function (b) {
+        return (b && b.ok) ? b : { available: false, brands: [] };
+      }).catch(function () { return { available: false, brands: [] }; });
+    },
+
+    /**
+     * The providers this member has excluded.
+     * -> { available, exclusions: [{ brand_id, display_name, source }] }
+     *
+     * Never rejects, for the same reason as `brands`.
+     */
+    exclusionsGet: function () {
+      return fetch(W.AUTH_API + '/me/exclusions', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      }).then(function (r) {
+        return r.ok ? r.json().catch(function () { return null; }) : null;
+      }).then(function (b) {
+        return (b && b.ok) ? b : { available: false, exclusions: [] };
+      }).catch(function () { return { available: false, exclusions: [] }; });
+    },
+
+    /**
+     * Replace the excluded set. REJECTS on failure, unlike the read.
+     *
+     * The read is decoration and degrades quietly; this is a promise being
+     * made to the household, so a save that went nowhere must not report
+     * success. `picked` names which ids the member chose directly rather than
+     * accepted as a family default, and only ever annotates the record.
+     *
+     * -> { ok, exclusions, coversAll }
+     */
+    exclusionsSave: function (brandIds, picked) {
+      return authPost('/me/exclusions', {
+        brand_ids: brandIds || [],
+        picked: picked || brandIds || []
+      }, 'PUT');
+    },
 
     /** Record feedback: { kind: 'rating'|'outage'|'interest'|'provider-notify',
         payload: {...} }. -> { ok } */

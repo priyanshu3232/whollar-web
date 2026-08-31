@@ -81,8 +81,15 @@ const BID_COLS_V2 = Object.freeze(BID_COLS.concat(['tiers', 'guarantee_months',
 /* The sealed custom mix (create-tables.md section 28). One JSON column, read
    ahead of the V2 list and fallen back from, same as V2 is from the base. */
 const BID_COLS_V3 = Object.freeze(BID_COLS_V2.concat(['discount_mix']));
+/* The brand this bid is made under, and the distributor that submitted it if
+   one did (create-tables.md section 34e). Load-bearing for member exclusions:
+   lib/awards.js resolves a bid to a brand from this column first, and only
+   falls back to the org's primary declared brand when it is absent, which is
+   every bid sealed before the column existed. */
+const BID_COLS_V4 = Object.freeze(BID_COLS_V3.concat(['brand_id',
+  'submitted_via_distributor_id']));
 /* Widest first. A read tries each until one the table can answer. */
-const BID_COL_LISTS = Object.freeze([BID_COLS_V3, BID_COLS_V2, BID_COLS]);
+const BID_COL_LISTS = Object.freeze([BID_COLS_V4, BID_COLS_V3, BID_COLS_V2, BID_COLS]);
 
 const toInt = (v) => {
   const n = parseInt(v, 10);
@@ -511,7 +518,7 @@ async function sealRevision(catalystApp, { bidKey, campaignId, orgId, userId, pa
 }
 
 module.exports = {
-  BIDS, REVISIONS, BID_COLS, BID_COLS_V2, BID_COLS_V3, parseMix,
+  BIDS, REVISIONS, BID_COLS, BID_COLS_V4, BID_COLS_V2, BID_COLS_V3, parseMix,
   TIER_NAMES, TECHS, REDUCTION, EQUIPMENT, AFTER_MODE, GUARANTEE_MONTHS,
   readBid, draftPayload, hashPayload, receiptNo,
   improvementProblems, publicBid, headDraft,

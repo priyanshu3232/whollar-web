@@ -684,6 +684,12 @@
        fixture labelled "Delivery window, exceptions live" that showed no
        delivery window at all. ordersList is derived in install(). */
     roster: 'roster', orders: 'ordersList',
+    /* The BRAND roster and the reach count, section 10.5: a demo console reads
+       fixture rows and never a real exclusion. Unmapped methods reject with
+       501 here, so leaving these out would already have been safe; they are
+       mapped so the panel shows a plausible declaration instead of "we could
+       not read your roster", which reads as broken rather than as a demo. */
+    brandRoster: 'brandRoster', reach: 'reach', cohortResults: 'cohortResults',
     statement: 'statement', statements: 'statement', billingCycle: 'statement',
     performance: 'performance', ratings: 'performance',
     billingStatus: 'billingStatus',
@@ -742,7 +748,34 @@
       prefs: { ok: true, prefs: { notify: {} } },
       prefsSave: { ok: true },
       team: { ok: true, team: [] },
-      signOut: { ok: true }
+      signOut: { ok: true },
+      /* NAMESPACED FIXTURE VALUES, never a real read. The brands are invented
+         names, deliberately not real Canadian carriers: a demo that shows
+         "Bell" beside a household count invites a screenshot that looks like a
+         real partner's real reach. */
+      brandRoster: {
+        ok: true, available: true, attested: true, attestedAt: null,
+        brands: [
+          { brand_id: 'demo-fibrelink', display_name: 'FibreLink', parent_brand_id: null },
+          { brand_id: 'demo-fibrelink-go', display_name: 'FibreLink Go', parent_brand_id: 'demo-fibrelink' }
+        ],
+        registry: [
+          { brand_id: 'demo-fibrelink', display_name: 'FibreLink', parent_brand_id: null, status: 'active' },
+          { brand_id: 'demo-fibrelink-go', display_name: 'FibreLink Go', parent_brand_id: 'demo-fibrelink', status: 'active' },
+          { brand_id: 'demo-northline', display_name: 'Northline', parent_brand_id: null, status: 'active' }
+        ]
+      },
+      brandRosterDeclare: { ok: true, brands: [], attestedAt: null },
+      brandRequest: { ok: true, brand_id: 'demo-pending', status: 'pending_review' },
+      reach: {
+        ok: true, available: true,
+        total_households: 112, reachable_households: 104, snapshot_at: null
+      },
+      cohortResults: {
+        ok: true, available: true,
+        households_won: 61, households_outranked: 43,
+        households_unreachable_exclusions: 8
+      }
     };
 
     Object.keys(api).forEach(function (k) {
