@@ -11,7 +11,7 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, existsSy
 import { join } from 'node:path';
 
 const DOMAIN = 'https://www.whollar.ca';
-const ROUTER_TAG = '<script src="/js/device-router.js?v=20260806a"></script>';
+const ROUTER_TAG = '<script src="/js/device-router.js?v=20260831c"></script>';
 
 const slugs = readdirSync('blog').filter(
   (d) => statSync(join('blog', d)).isDirectory() && existsSync(join('blog', d, 'index.html'))
@@ -52,6 +52,7 @@ for (const slug of slugs) {
   html = html.split('"/waitlist/"').join('"/MobileVersion/join-the-first-cohort-mobile"');
   html = html.split('"/bill-checkup"').join('"/MobileVersion/bill-checkup-mobile"');
   html = html.split('"/blog/*"').join('"/MobileVersion/blog/*"');
+  html = html.split('href="/blog/"').join('href="/MobileVersion/resources-mobile"');
   html = html.split('href="/"').join('href="/MobileVersion/consumer-mobile"');
 
   // 4. Device-router include (inherited from the desktop article when

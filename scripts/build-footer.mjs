@@ -140,7 +140,11 @@ const BLOG_SLUGS = [
   'internet-bill-breakdown-canada', 'negotiate-internet-bill-canada',
   'internet-retention-offer-win-back', 'independent-internet-providers-canada',
   'collective-switching-energy-proof', 'big-three-telecom-canada',
-  'crtc-internet-prices-canada'
+  'crtc-internet-prices-canada', 'cheap-internet-chatham-ontario',
+  'best-internet-toronto',
+  'internet-speed-how-much-need',
+  'rural-internet-ontario',
+  'internet-providers-mississauga'
 ];
 
 /* current: which nav link is marked aria-current on this page. */

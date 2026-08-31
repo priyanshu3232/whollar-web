@@ -35,6 +35,11 @@ const SLUGS = [
   ['whollar-blog-09-energy-proof.html', 'collective-switching-energy-proof'],
   ['whollar-blog-10-big-three.html', 'big-three-telecom-canada'],
   ['whollar-blog-11-crtc-wholesale-retail.html', 'crtc-internet-prices-canada'],
+  ['whollar-blog-12-cheap-internet-chatham.html', 'cheap-internet-chatham-ontario'],
+  ['whollar-blog-13-best-internet-toronto.html', 'best-internet-toronto'],
+  ['whollar-blog-14-internet-speed.html', 'internet-speed-how-much-need'],
+  ['whollar-blog-15-rural-internet-ontario.html', 'rural-internet-ontario'],
+  ['whollar-blog-16-internet-providers-mississauga.html', 'internet-providers-mississauga'],
 ];
 const slugSet = new Set(SLUGS.map(([, s]) => s));
 
@@ -100,7 +105,7 @@ for (const [file, slug] of SLUGS) {
 
   // 4b. device-router include after the viewport meta: articles are mapped to
   // /MobileVersion/blog/<slug> counterparts, so phones must be routed off them.
-  const routerTag = '<script src="/js/device-router.js?v=20260806a"></script>';
+  const routerTag = '<script src="/js/device-router.js?v=20260831c"></script>';
   if (!html.includes(routerTag)) {
     const viewport = html.match(/<meta name="viewport"[^>]*>/);
     if (!viewport) fail(file, 'viewport meta not found');
@@ -166,19 +171,19 @@ const indexHtml = `<!DOCTYPE html>
 </script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="/js/device-router.js?v=20260806a"></script>
+<script src="/js/device-router.js?v=20260831c"></script>
 <title>Resources: plain-language reads on internet pricing in Canada · Whollar</title>
-<meta name="description" content="Eleven plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
+<meta name="description" content="Fifteen plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
 <link rel="canonical" href="${DOMAIN}/blog/">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
 <meta property="og:url" content="${DOMAIN}/blog/">
 <meta property="og:title" content="Resources · Whollar">
-<meta property="og:description" content="Eleven plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
+<meta property="og:description" content="Fifteen plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
 <meta property="og:site_name" content="Whollar">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Resources · Whollar">
-<meta name="twitter:description" content="Eleven plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
+<meta name="twitter:description" content="Fifteen plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -246,7 +251,7 @@ const indexHtml = `<!DOCTYPE html>
   <section class="hero">
     <span class="eyebrow">Resources</span>
     <h1>Reading the fine print, so you do not have to.</h1>
-    <p class="sub">Eleven plain-language reads on internet pricing in Canada: how the bill is built, why the price climbs after the promo, and how collective switching works.</p>
+    <p class="sub">Fifteen plain-language reads on internet pricing in Canada: how the bill is built, why the price climbs after the promo, and how collective switching works.</p>
     <div class="rule"></div>
   </section>
 
