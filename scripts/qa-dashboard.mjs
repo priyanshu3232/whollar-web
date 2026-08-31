@@ -626,7 +626,11 @@ console.log('\n6i. a cohort shows its own dates, and nothing where it has none')
   ok(/^(Aug|Sep|Oct|Nov|Dec|Jan|Feb|Mar|Apr|May|Jun|Jul)/.test(tiles.close || ''),
     `and the one date it does carry is shown (${tiles.close})`);
   ok(!/September 15/.test(panel), 'the locked panel no longer invents a bidding date');
-  ok(/text you the day bidding opens/.test(panel),
+  /* The channel word is the copy's to choose, not this test's: the panel said
+     "text you" when this was written and says "email you" now. What must hold
+     is that it names WHEN it will tell you instead of inventing a date, so the
+     assertion accepts either word and still fails if the promise disappears. */
+  ok(/(text|email) you the day bidding opens/.test(panel),
     'and says what it actually knows instead');
   await c.close();
 }

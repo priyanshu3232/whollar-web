@@ -2983,7 +2983,13 @@ var BLOGS=[
   ['The win-back offer: what the retention desk is really telling you','5 min','internet-retention-offer-win-back'],
   ['Independent, incumbent, or flanker: who actually sells you internet in Canada','6 min','independent-internet-providers-canada'],
   ['1.5 million households already did this. It just was not for internet.','5 min','collective-switching-energy-proof'],
-  ['How three companies came to own most of Canadian internet','7 min','big-three-telecom-canada']
+  ['How three companies came to own most of Canadian internet','7 min','big-three-telecom-canada'],
+  ['The CRTC does not set your internet price. That one sentence explains your bill.','5 min','crtc-internet-prices-canada'],
+  ['Cheap internet in Chatham, Ontario: the map nobody draws honestly','6 min','cheap-internet-chatham-ontario'],
+  ['Best internet in Toronto: how to actually decide','6 min','best-internet-toronto'],
+  ['How much internet speed do you actually need?','6 min','internet-speed-how-much-need'],
+  ['Rural internet in Ontario: every real option, honestly compared','6 min','rural-internet-ontario'],
+  ['Internet providers in Mississauga: the honest map','5 min','internet-providers-mississauga']
 ];
 
 /* ---------- helpers ---------- */
@@ -5443,7 +5449,13 @@ var KMETA=[
   ['win-back-offer','Explainers','The discount only appears when you try to leave. That timing is the whole story.','~5 min read','A call-centre agent wearing a headset at a bank of monitors'],
   ['who-sells-you-internet','Explainers','Half the different-looking brands on the shelf are owned by the companies you are trying to leave.','~6 min read','A shopper deliberating in front of shelves of near-identical jars'],
   ['collective-switching','How it works','Collective switching is not a theory. It moved energy markets for years. Now, internet.','~5 min read','An electricity pylon with power lines fanning out overhead'],
-  ['three-companies','The market','The prices make more sense once you see who owns the pipes.','~6 min read','A telecommunications mast with dish antennas against a clear sky']
+  ['three-companies','The market','The prices make more sense once you see who owns the pipes.','~6 min read','A telecommunications mast with dish antennas against a clear sky'],
+  ['crtc-internet-prices','Explainers','Wholesale is regulated. Retail is not. Once you see the split, Canadian internet pricing finally makes sense.','~5 min read','A payment terminal with a long paper receipt spilling out of it'],
+  ['cheap-internet-chatham','Local guides','The home town of Canada\'s biggest independent searches for cheap internet more than cities ten times its size. Here is the actual answer.','~6 min read','Three children side by side on a sofa, each absorbed in a phone or tablet'],
+  ['best-internet-toronto','Local guides','The honest answer starts with your building, not a brand.','~6 min read','Two friends in Santa hats on a sofa, each looking at a phone'],
+  ['internet-speed','Explainers','Almost certainly less than you are paying for. Here are the real numbers, activity by activity.','~6 min read','A laptop screen showing a speed test result of 531.48 Mbps download'],
+  ['rural-internet-ontario','Local guides','From the last fibre pole to the open sky: what works, what it costs, what to pick.','~6 min read','Utility poles and overhead lines running along a country road past a farmhouse and open fields'],
+  ['internet-providers-mississauga','Local guides','Same wires as Toronto, softer competition, easier wins.','~5 min read','Two technicians in high-visibility vests on a rooftop, one aligning a microwave dish on a mast while the other checks a laptop']
 ];
 /* Where the square crop is not the hero crop, the alt text has to describe what
    the square actually shows. Only the first article needs one so far. */
@@ -5458,8 +5470,8 @@ var RTHUMBALT={'the-487-problem':'A scatter of banknotes across a dark table'};
    IT LIVES HERE, ABOVE THE CALL, and not beside readsItemsHTML() where it
    reads more naturally. `var` hoists the declaration and not the value, so
    declared down there it is `undefined` on this line, and `slice(0, undefined)`
-   is the whole array rather than nothing: ten articles in a four row card, and
-   404s for the six crops that were never cut. Nothing in the CSS counts the
+   is the whole array rather than nothing: sixteen articles in a four row card,
+   and 404s for the twelve crops that were never cut. Nothing in the CSS counts the
    rows (`.reads li` is flex:1 1 0), so this really is the only number. */
 var READS_N=4;
 /* The reads, once, for both lanes. Written at boot because BLOGS and KMETA
@@ -6729,10 +6741,11 @@ function readsRowHTML(b,m){
 /* READS_N is declared beside KMETA, not here, and it has to be: this function
    is called at boot from up there, and `var` hoists the declaration without the
    value. Declared here it would be `undefined` at call time, `slice(0,
-   undefined)` returns the WHOLE array, and all ten articles would render into a
-   four row card, 404ing on the six thumbnail crops that do not exist. That is
-   not a hypothetical; it is what the first version of this did, and
-   qa-dashboard.mjs caught it as six console errors on the demo tour.
+   undefined)` returns the WHOLE array, and all sixteen articles would render into
+   a four row card, 404ing on the twelve thumbnail crops that do not exist. That
+   is not a hypothetical; it is what the first version of this did, back when the
+   list was ten long, and qa-dashboard.mjs caught it as six console errors on the
+   demo tour.
 
    The KMETA guard is the second half of the same care: a row without metadata
    has no thumbnail to point at, so it is skipped rather than rendered broken. */
