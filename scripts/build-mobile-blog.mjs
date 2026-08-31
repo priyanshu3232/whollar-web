@@ -12,6 +12,7 @@ import { join } from 'node:path';
 
 const DOMAIN = 'https://www.whollar.ca';
 const ROUTER_TAG = '<script src="/js/device-router.js?v=20260831c"></script>';
+const RETURN_TAG = '<script src="/js/blog-return.js?v=20260901a" defer></script>';
 
 const slugs = readdirSync('blog').filter(
   (d) => statSync(join('blog', d)).isDirectory() && existsSync(join('blog', d, 'index.html'))
@@ -63,8 +64,18 @@ for (const slug of slugs) {
     html = html.replace(viewport[0], `${viewport[0]}\n${ROUTER_TAG}`);
   }
 
+  // 4b. blog-return include, same inherit-or-insert rule. It has to be here as
+  //     well as on the desktop article: a phone reader arriving from the
+  //     dashboard lands on this copy, whose back link is
+  //     /MobileVersion/resources-mobile, and that page is no more a way back
+  //     into the dashboard than /blog/ is.
+  if (!html.includes(RETURN_TAG)) {
+    html = html.replace(ROUTER_TAG, `${ROUTER_TAG}\n${RETURN_TAG}`);
+  }
+
   // Gates: nothing desktop-namespace may survive outside the canonical/JSON-LD.
   if (html.split(ROUTER_TAG).length - 1 !== 1) fail(slug, 'router include count != 1');
+  if (html.split(RETURN_TAG).length - 1 !== 1) fail(slug, 'blog-return include count != 1');
   if (html.includes('"/waitlist/"')) fail(slug, '/waitlist/ survived');
   if (html.includes('href="/"')) fail(slug, 'root href survived');
   if (/href="\/blog\//.test(html)) fail(slug, 'desktop article href survived');

@@ -11,6 +11,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="/js/device-router.js?v=20260831c"></script>
+<script src="/js/blog-return.js?v=20260901a" defer></script>
 <title>Best internet in Toronto: how to actually decide</title>
 <meta name="description" content="The best internet in Toronto depends on your building more than your brand. The full market map, typical prices by type, and how to decide in minutes.">
 <link rel="canonical" href="https://www.whollar.ca/blog/best-internet-toronto">
@@ -180,16 +181,39 @@
     @keyframes draw{to{stroke-dashoffset:0}}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
   }
-  .invite{margin:40px 0 0;border:1px solid var(--line-2);border-radius:18px;background:linear-gradient(180deg,#fff,#F7FAF7);padding:28px 28px 26px}
-  .invite h3{font-family:'Bricolage Grotesque';font-weight:700;color:var(--ink);font-size:23px;letter-spacing:-.02em;margin:0 0 8px}
-  .invite p{margin:0 0 18px;font-size:18px;color:var(--body);line-height:1.55}
-  .invite .row{display:flex;gap:12px;flex-wrap:wrap}
-  .btn{font-family:'Space Mono';font-size:13px;font-weight:700;letter-spacing:.01em;padding:12px 18px;border-radius:10px;border:1px solid var(--accent);text-decoration:none}
-  .btn.solid{background:var(--accent);color:#fff;border-color:var(--accent)}
-  .btn.solid:hover{background:var(--ink);border-color:var(--ink)}
-  .btn.ghost{background:transparent;color:var(--accent)}
-  .btn.ghost:hover{background:var(--wash)}
-  .fineprint{font-family:'Space Mono';font-size:11.5px;color:var(--muted);margin:14px 0 0;letter-spacing:.01em}
+  /* End-of-article call to action. Interface, not prose: the whole block is set
+     in the display sans so the eye stops on it rather than reading another
+     paragraph, the two actions share one auto-fit grid track so their outer
+     edges line up, and the trust line is a divided footer strip instead of the
+     monospace paragraph it used to be, which was the heaviest element in the
+     card carrying the least important words in it. */
+  .invite{margin:44px 0 0;border:1px solid var(--line-2);border-radius:12px;background:#fff;overflow:hidden;
+    font-family:'Bricolage Grotesque',system-ui,sans-serif}
+  .invite .top{padding:24px 24px 20px}
+  .invite .kicker{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;
+    letter-spacing:.08em;color:var(--accent);margin:0 0 12px}
+  .invite .kicker::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent-2);flex:none}
+  .invite h3{font-family:inherit;font-weight:700;color:var(--ink);font-size:23px;line-height:1.3;letter-spacing:-.02em;margin:0 0 10px}
+  .invite .top p{font-family:inherit;font-size:17.5px;line-height:1.6;color:var(--muted);max-width:52ch;margin:0}
+  .invite .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;padding:0 24px 20px}
+  .invite .btn{display:flex;align-items:center;justify-content:center;gap:8px;height:50px;border-radius:10px;
+    font-family:inherit;font-size:15px;font-weight:600;letter-spacing:0;border:1px solid transparent;
+    text-decoration:none;transition:background .15s ease,border-color .15s ease,color .15s ease}
+  .invite .btn svg{width:17px;height:17px;flex:none}
+  .invite .btn.solid{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .invite .btn.solid:hover{background:var(--ink);border-color:var(--ink)}
+  .invite .btn.ghost{background:transparent;color:var(--accent);border-color:var(--accent-2)}
+  .invite .btn.ghost:hover{background:var(--wash)}
+  .invite .btn:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
+  .invite .trust{display:flex;flex-wrap:wrap;gap:8px 20px;border-top:1px solid var(--line);padding:12px 24px}
+  .invite .trust span{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
+  .invite .trust svg{width:15px;height:15px;flex:none;color:var(--accent-2)}
+  @media(max-width:480px){
+    .invite .top{padding:20px 20px 16px}
+    .invite h3{font-size:19px}
+    .invite .row{padding:0 20px 16px}
+    .invite .trust{flex-direction:column;gap:8px;padding:12px 20px}
+  }
   .faq{margin:56px 0 0;border-top:1px solid var(--line);padding-top:12px}
   .faq h2{margin-top:28px}
   .faq h3{font-family:'Bricolage Grotesque';font-weight:700;color:var(--ink);font-size:20px;letter-spacing:-.01em;margin:30px 0 0}
@@ -313,14 +337,21 @@
       <p>The catch is that the answer expires: promos lapse, buildouts light new streets, and the ranking you computed goes stale within the year. That treadmill is not your failure, it is the design, and it is exactly what pooling was invented for. Whollar's cohorts group Toronto households by region and renewal window and invite every row of the table above to bid for the group, so the moving target becomes the providers' problem instead of yours. The same logic applies next door in Mississauga, where the map is thinner and the case even stronger. Decide well once, then let them re-win you.</p>
 
 <div class="invite">
-        <h3>Your building, your tier, their bids.</h3>
-        <p>GTA cohorts are forming now, pooled by neighbourhood and renewal window. Hold a free spot and the whole table above gets invited to compete for your household, at the speed you actually need.</p>
-        <div class="row">
-          <a class="btn solid" href="/MobileVersion/join-the-first-cohort-mobile">Hold your spot in the first cohort</a>
-          <a class="btn ghost" href="/MobileVersion/bill-checkup-mobile">Run a two-minute checkup</a>
-        </div>
-        <p class="fineprint">Free for households · nothing to buy today · you only act if a bid comes back that you want.</p>
-      </div>
+  <div class="top">
+    <span class="kicker">Next step</span>
+    <h3>Your building, your tier, their bids.</h3>
+    <p>GTA cohorts are forming now, pooled by neighbourhood and renewal window. Hold a free spot and the whole table above gets invited to compete for your household, at the speed you actually need.</p>
+  </div>
+  <div class="row">
+    <a class="btn solid" href="/MobileVersion/join-the-first-cohort-mobile">Hold your spot <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9.5M9 4.5 12.5 8 9 11.5"/></svg></a>
+    <a class="btn ghost" href="/MobileVersion/bill-checkup-mobile"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.6V8l2.3 1.5"/></svg> Run a 2-minute checkup</a>
+  </div>
+  <div class="trust">
+    <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8.4 3.3 3.3L13 5"/></svg>Free for households</span>
+    <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8.4 3.3 3.3L13 5"/></svg>Nothing to buy today</span>
+    <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8.4 3.3 3.3L13 5"/></svg>You only act on a bid you want</span>
+  </div>
+</div>
 
       <figure>
         <div class="figbox">

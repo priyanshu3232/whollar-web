@@ -266,6 +266,13 @@ jobs:
       - name: Device router parses
         run: node --check js/device-router.js
 
+      # The blog return lane: every article and both resources indexes load it,
+      # and none of them load anything else of ours, so a syntax error there is
+      # a silent dead end for a member reading from the dashboard rather than a
+      # visible break.
+      - name: Blog return lane parses
+        run: node --check js/blog-return.js
+
       # The partner console is the one place in this repo with a build step.
       # This single check covers three failures at once, which is why it is
       # first: the module graph still resolves (an unimported or missing module

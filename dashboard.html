@@ -2992,6 +2992,22 @@ var BLOGS=[
   ['Internet providers in Mississauga: the honest map','5 min','internet-providers-mississauga']
 ];
 
+/* THE ONE PLACE AN ARTICLE LINK IS BUILT, and it is stamped.
+
+   The articles live at /blog/<slug>, outside the dashboard, on the public
+   marketing site. Their masthead says "All articles" and used to point at
+   /blog/, the public resources index, which has no route back into a
+   signed-in surface: a member who opened a read from the Knowledge centre was
+   dropped out of the product with nothing to click, and had to type the
+   dashboard URL again to get back.
+
+   ?from=dashboard is how the article learns which lane it is being read in.
+   js/blog-return.js reads the stamp, points the article's back link at
+   /dashboard#knowledge instead of the public index, and then wipes the stamp
+   out of the address bar so a member who copies the URL to a neighbour is not
+   handing them a link back to a login screen. */
+function blogHref(slug){return '/blog/'+slug+'?from=dashboard'}
+
 /* ---------- helpers ---------- */
 function money(v){return '$'+(v%1===0?v:v.toFixed(2))}
 function dep(){return money(S.deposit)}
@@ -4191,6 +4207,30 @@ document.addEventListener('click',function(e){
   var t=e.target.closest('[data-nav]');if(!t)return;
   nav(t.getAttribute('data-nav'));
 });
+
+/* ---------- returning from an article ----------
+   The views are not routed: they are seven sections and a class, and a reload
+   always lands on Home. That is fine while the reader stays inside the
+   dashboard, and wrong the moment they come back into it from somewhere else.
+   The articles are somewhere else: they are static pages on the public site,
+   and their back link (js/blog-return.js) sends a member to /dashboard#knowledge.
+   Without this the reader clicks "All articles", the dashboard loads, and they
+   are on Home wondering where the reading list went.
+
+   An allowlist, not the raw hash: nav() with an unknown name turns every view
+   off and leaves a blank pane. Anything not in the list, including no hash at
+   all, leaves the default view alone. */
+var HASHVIEWS=['dashboard','campaigns','bills','knowledge','history','profile','contact'];
+function navFromHash(){
+  var want=(location.hash||'').replace(/^#/,'');
+  if(HASHVIEWS.indexOf(want)===-1)return;
+  nav(want);
+}
+navFromHash();
+/* Back and forward between two views of the same load, once a hash has put one
+   of them in the URL. Nothing writes the hash on an ordinary click, so a reader
+   who never arrived by hash never sees history entries they did not ask for. */
+window.addEventListener('hashchange',navFromHash);
 
 /* ---------- countdown ---------- */
 /* This counted down from `26*3600+14*60+9`, a literal, so it showed the same
@@ -6267,7 +6307,7 @@ document.addEventListener('keydown',function(e){
 
 $('#klist').innerHTML=BLOGS.map(function(b,i){
   var m=KMETA[i], n=(i<9?'0':'')+(i+1), img='/images/resources/'+m[0];
-  return '<a class="ktile" href="/blog/'+b[2]+'">'
+  return '<a class="ktile" href="'+blogHref(b[2])+'">'
   +'<span class="ktile-media"><img src="'+img+'.webp" srcset="'+img+'.webp 800w, '+img+'@2x.webp 1600w" sizes="(max-width:640px) 100vw, (max-width:1024px) 50vw, 33vw" alt="'+esc(m[4])+'" loading="lazy" decoding="async" width="800" height="533"></span>'
   +'<span class="ktile-body">'
   +'<span class="ktile-top"><span class="knum">'+n+'</span><span class="eyebrow">'+esc(m[1])+'</span></span>'
@@ -6732,7 +6772,7 @@ function referralHTML(){
    holds its geometry before a file arrives and nothing reflows when one does. */
 function readsRowHTML(b,m){
   var img='/images/resources/thumbs/'+m[0];
-  return '<li><a href="/blog/'+b[2]+'">'
+  return '<li><a href="'+blogHref(b[2])+'">'
   +'<span class="rthumb"><img src="'+img+'.webp" srcset="'+img+'.webp 92w, '+img+'@2x.webp 184w"'
   +' sizes="46px" alt="'+esc(RTHUMBALT[m[0]]||m[4])+'" loading="lazy" decoding="async" width="92" height="92"></span>'
   +'<span class="rtxt"><b class="rttl">'+esc(b[0])+'</b>'
