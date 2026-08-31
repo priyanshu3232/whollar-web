@@ -38,7 +38,12 @@
     'independent-internet-providers-canada',
     'collective-switching-energy-proof',
     'big-three-telecom-canada',
-    'crtc-internet-prices-canada'
+    'crtc-internet-prices-canada',
+    'cheap-internet-chatham-ontario',
+    'best-internet-toronto',
+    'internet-speed-how-much-need',
+    'rural-internet-ontario',
+    'internet-providers-mississauga'
   ];
   for (var s = 0; s < BLOG_SLUGS.length; s++) {
     PAIRS.push(['/blog/' + BLOG_SLUGS[s], '/MobileVersion/blog/' + BLOG_SLUGS[s]]);

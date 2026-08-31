@@ -182,7 +182,7 @@ for (const page of PAGES) {
   if (!/rel="canonical"/.test(tHead)) {
     additions.push(`<link rel="canonical" href="${page.canonical}">`);
   }
-  additions.push('<script src="/js/device-router.js?v=20260806a"></script>');
+  additions.push('<script src="/js/device-router.js?v=20260831c"></script>');
   additions.push('<script src="/js/whollar-core.js?v=20260806"></script>');
   const vi = viewport.index + viewport[0].length;
   template = template.slice(0, vi) + '\n' + additions.join('\n') + template.slice(vi);
