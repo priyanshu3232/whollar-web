@@ -147,3 +147,8 @@ docs/console/cohort-stage-ladder.pdf
 # /docs/DELIVERY_AUDIT.md by anyone. It stays in the repo and in git history,
 # which is where it is useful, and off the site, which is where it is not.
 docs/DELIVERY_AUDIT.md
+
+# The admin console v2 brief. docs/ IS deployed, and a .md publishes
+# verbatim at its own path: this one names internal tables, internal columns
+# and open gaps, and is written for staff.
+docs/ADMIN_CONSOLE_V2_BRIEF.md
