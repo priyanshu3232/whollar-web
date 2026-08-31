@@ -223,9 +223,9 @@ function mount(router, cfg) {
       type: 'admin.login.start', outcome: 'success', email,
       detail: {
         delivered,
-        transport: mailer.transportName(cfg),
+        transport: sent.transport || mailer.transportName(cfg),
         outbox_status: sent.status,
-        send_error: sent.status === 'failed' ? 'send_failed' : null,
+        send_error: sent.sendError || null,
       },
     });
 

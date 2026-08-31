@@ -91,9 +91,12 @@ function mount(router, cfg) {
       type: 'otp.start', outcome: 'success', email,
       detail: {
         delivered,
-        transport: mailer.transportName(cfg),
+        /* The carrier that took it, falling back to the configured name when
+           nothing carried it. `transportName(cfg)` alone said "zeptomail" for
+           a year of mail the SMTP fallback was actually sending. */
+        transport: sent.transport || mailer.transportName(cfg),
         outbox_status: sent.status,
-        send_error: sent.status === 'failed' ? (sent.row && sent.row.last_error) || 'send_failed' : null,
+        send_error: sent.sendError || null,
       },
     });
 

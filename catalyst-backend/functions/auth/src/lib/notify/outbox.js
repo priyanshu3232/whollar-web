@@ -315,8 +315,21 @@ function json(ctx) {
  */
 async function write(catalystApp, row) {
   try {
-    await datastore.insertRow(catalystApp, TABLE, row);
-    return { status: row.status, notifyKey: row.notify_key, created: true, row };
+    /* KEEP WHAT THE INSERT HANDS BACK. It carries the ROWID, and the ROWID is
+       the only handle on this row that is certainly usable in the same
+       request.
+     *
+     * Discarding it and re-reading by `notify_key` is what took every email
+     * in the product down on 2026-08-31: the insert reported success, the
+     * read-back a millisecond later returned nothing, and `dispatch` had no
+     * row to send. From outside it looked like a mail problem for a day, and
+     * it never reached a transport at all. Whether that read misses because
+     * ZCQL lags its own write or because the console column truncates a
+     * 64-character key does not matter here: a handle we were given cannot
+     * miss, and a query can. */
+    const created = await datastore.insertRow(catalystApp, TABLE, row);
+    const stored = created && created.ROWID ? { ...row, ...created } : row;
+    return { status: row.status, notifyKey: row.notify_key, created: true, row: stored };
   } catch (err) {
     const existing = await find(catalystApp, row.notify_key).catch(() => null);
     if (existing) return { status: existing.status, notifyKey: row.notify_key, created: false, row: existing };
@@ -475,18 +488,37 @@ async function sendRow(catalystApp, cfg, row, now = Date.now()) {
   const entry = registry.get(row.template_key);
   if (!entry) {
     await setStatus(catalystApp, row, 'failed', `unknown_template:${row.template_key}`, now);
-    return { ok: false };
+    return { ok: false, error: `unknown_template:${row.template_key}` };
   }
 
   /* Claim. A failed claim is not an error: somebody else has it. */
-  if (!await claim(catalystApp, row, now)) return { ok: false, claimed: false };
+  if (!await claim(catalystApp, row, now)) return { ok: false, claimed: false, error: 'not_claimed' };
 
   let ctx;
   try {
     ctx = JSON.parse(row.context || '{}');
   } catch {
     await setStatus(catalystApp, row, 'failed', 'context_unparseable', now);
-    return { ok: false };
+    return { ok: false, error: 'context_unparseable' };
+  }
+
+  /* A CODE THAT HAS OUTLIVED ITS OWN TTL IS NEVER SENT.
+   *
+   * Sign-in codes are the one message where a successful late delivery is
+   * worse than none: the email says "expires in 10 minutes", the challenge
+   * behind it expired hours ago, and the person types it in and is told it is
+   * wrong. Fourteen rows sat queued through the outage this guard was written
+   * beside, every one of them retryable, and the drain that came back would
+   * have posted all fourteen dead codes to real people.
+   *
+   * Read off the row's own age against the TTL the template promised, so it
+   * needs no table and cannot disagree with the copy. */
+  if (entry.priority === 'security' && Number(ctx && ctx.ttl_minutes) > 0) {
+    const bornAt = ms(row.created_at);
+    if (bornAt && now - bornAt > Number(ctx.ttl_minutes) * 60000) {
+      await setStatus(catalystApp, row, 'cancelled', 'code_expired', now);
+      return { ok: false, cancelled: true, error: 'code_expired' };
+    }
   }
 
   /* Still true? A reminder whose deadline has passed, a stage letter whose
@@ -501,7 +533,7 @@ async function sendRow(catalystApp, cfg, row, now = Date.now()) {
     }
     if (!ok) {
       await setStatus(catalystApp, row, 'cancelled', 'no_longer_relevant', now);
-      return { ok: false, cancelled: true };
+      return { ok: false, cancelled: true, error: 'no_longer_relevant' };
     }
   }
 
@@ -511,16 +543,16 @@ async function sendRow(catalystApp, cfg, row, now = Date.now()) {
   const allowed = await suppress.allows(catalystApp, row.recipient_email, entry.casl);
   if (!allowed.allowed) {
     await setStatus(catalystApp, row, 'suppressed', allowed.why, now);
-    return { ok: false, cancelled: true };
+    return { ok: false, cancelled: true, error: allowed.why };
   }
 
   let message;
   try {
     message = await build(catalystApp, cfg, entry, row, ctx);
   } catch (err) {
-    await setStatus(catalystApp, row, 'failed',
-      `render:${String((err && err.message) || err).slice(0, 150)}`, now);
-    return { ok: false };
+    const why = `render:${String((err && err.message) || err).slice(0, 150)}`;
+    await setStatus(catalystApp, row, 'failed', why, now);
+    return { ok: false, error: why };
   }
   if (message.blocked) {
     /* A scrubber hit. The send fails and an operator is told, because a
@@ -534,7 +566,7 @@ async function sendRow(catalystApp, cfg, row, now = Date.now()) {
       hits: message.hits.map((h) => `${h.rule}@${h.where}`),
     }));
     await setStatus(catalystApp, row, 'failed', `scrubbed:${message.hits[0].rule}`, now);
-    return { ok: false, scrubbed: true };
+    return { ok: false, scrubbed: true, error: `scrubbed:${message.hits[0].rule}` };
   }
 
   try {
@@ -565,7 +597,10 @@ async function sendRow(catalystApp, cfg, row, now = Date.now()) {
       updated_at: datastore.toDb(new Date(now)),
       last_error: null,
     });
-    return { ok: true };
+    /* The carrier, not the configured transport. They differ every time the
+       ZeptoMail send fails and SMTP catches it, and that difference is the
+       one an operator most needs to see. */
+    return { ok: true, transport: (result && result.transport) || null };
   } catch (err) {
     const attempts = (Number(row.attempts) || 0) + 1;
     const retryable = err && err.retryable !== false && attempts < MAX_ATTEMPTS;
@@ -583,7 +618,7 @@ async function sendRow(catalystApp, cfg, row, now = Date.now()) {
       earliest_send_at: datastore.toDb(new Date(now + backoffMs(attempts))),
       updated_at: datastore.toDb(new Date(now)),
     });
-    return { ok: false };
+    return { ok: false, error: String((err && err.message) || err).slice(0, 190) };
   }
 }
 
@@ -600,12 +635,17 @@ function backoffMs(attempts) {
  */
 async function claim(catalystApp, row, now = Date.now()) {
   try {
-    await datastore.updateRow(catalystApp, TABLE, {
+    const written = await datastore.updateRow(catalystApp, TABLE, {
       ROWID: row.ROWID, status: 'sending', updated_at: datastore.toDb(new Date(now)),
     });
-    const back = await datastore.findBy(catalystApp, TABLE, 'notify_key',
-      row.notify_key, ['ROWID', 'status']);
-    return Boolean(back && back.status === 'sending');
+    /* Read back by ROWID, not by `notify_key`. Same lesson as `write`: the
+       secondary lookup is the thing that failed in production, and a claim
+       that cannot confirm itself refuses to send. The update's own answer is
+       the fallback, because it is the server's word on the write either way. */
+    const back = await datastore.findBy(catalystApp, TABLE, 'ROWID',
+      row.ROWID, ['ROWID', 'status']).catch(() => null);
+    const seen = back || written;
+    return Boolean(seen && seen.status === 'sending');
   } catch {
     return false;
   }
@@ -809,20 +849,39 @@ async function dispatch(catalystApp, cfg, spec) {
   const queued = await enqueue(catalystApp, cfg, spec);
   const entry = registry.get(spec.templateKey);
 
+  /* WHY THE CALLER GETS `sendError` AND NOT JUST A BOOLEAN.
+   *
+   * Every route that sends a code writes an audit line, and until this
+   * returned the reason, that line read `delivered: false, send_error: null`,
+   * because the only status it could see was the ENQUEUE's. Fourteen failed
+   * sign-in codes in a row said nothing more than "no". A queued row and a
+   * refused relay are not the same fault and must not log the same. */
+  const stalled = (q) => (
+    q.status === 'queued' || q.status === 'held'
+      ? null
+      : (q.row && q.row.last_error) || q.status || null
+  );
+
   if (!entry || entry.priority !== 'security') {
-    return { ...queued, delivered: false, inline: false };
+    return { ...queued, delivered: false, inline: false, transport: null, sendError: stalled(queued) };
   }
   if (queued.status !== 'queued') {
-    return { ...queued, delivered: false, inline: true };
+    return { ...queued, delivered: false, inline: true, transport: null, sendError: stalled(queued) };
   }
 
   const row = queued.row && queued.row.ROWID
     ? queued.row
     : await find(catalystApp, queued.notifyKey);
-  if (!row) return { ...queued, delivered: false, inline: true };
+  if (!row) return { ...queued, delivered: false, inline: true, transport: null, sendError: 'row_not_found' };
 
   const sent = await sendRow(catalystApp, cfg, row, spec.now || Date.now());
-  return { ...queued, delivered: Boolean(sent.ok), inline: true };
+  return {
+    ...queued,
+    delivered: Boolean(sent.ok),
+    inline: true,
+    transport: sent.transport || null,
+    sendError: sent.ok ? null : (sent.error || 'send_failed'),
+  };
 }
 
 /** Fire and forget, for a read path that must not wait on mail. */

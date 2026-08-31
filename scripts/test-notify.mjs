@@ -21,6 +21,10 @@
  *   O-10  the privacy scrubber blocks a partner letter naming another partner
  *   O-11  the webhook suppresses on a hard bounce and a complaint, and drops
  *         an open
+ *   O-21  each transport sends as an address it is actually allowed to use,
+ *         and a failed send tells the caller why
+ *   O-23  a sign-in code that outlived its own TTL is cancelled, never sent
+ *   O-24  a store that cannot find a row it just wrote still sends the code
  *
  * Run: node scripts/test-notify.mjs
  */
@@ -107,8 +111,21 @@ function runSelect(sql) {
   });
 }
 
+/* PRODUCTION, 2026-08-31: `insertRow` reported success and a SELECT by
+   `notify_key` a millisecond later returned nothing, so every inline send had
+   no row to send and no email left the product for a day. Whether the cause
+   was ZCQL lagging its own write or a console column narrower than the
+   64-character key, the store behaved exactly like this. */
+let BLIND_KEY_LOOKUP = false;
+
 const app = {
-  zcql() { return { executeZCQLQuery: async (sql) => runSelect(sql) }; },
+  zcql() {
+    return {
+      executeZCQLQuery: async (sql) => (
+        BLIND_KEY_LOOKUP && /WHERE\s+notify_key\s*=/i.test(sql) ? [] : runSelect(sql)
+      ),
+    };
+  },
   datastore() {
     return {
       table(name) {
@@ -166,7 +183,7 @@ const CFG = {
   FEATURES: { mail: false },
 };
 
-const reset = () => { TABLES = {}; SENT = []; FAIL_NEXT = null; };
+const reset = () => { TABLES = {}; SENT = []; FAIL_NEXT = null; BLIND_KEY_LOOKUP = false; };
 
 const events = backend('lib/notify/events.js');
 const reminders = backend('lib/notify/reminders.js');
@@ -392,7 +409,11 @@ async function run() {
       eventKey: 'lane:blocked',
       recipient: member('u1', 'one@example.ca'),
       campaignId: 'brampton-east',
-      context: { code: '111222', purpose: 'login', ttl_minutes: 10 },
+      /* A TTL wider than STALE_CLAIM_MS on purpose: this row has to survive
+         the wait so that what is being tested is the stale claim and not the
+         expiry guard, which would cancel a ten-minute code fifteen minutes
+         later and quite rightly. */
+      context: { code: '111222', purpose: 'login', ttl_minutes: 45 },
       now: NOON_ET,
     });
     SENT = [];
@@ -857,6 +878,106 @@ async function run() {
     ok(ex('/hooks/zeptomail', {}) && ex('/u/ABCD1234EFGH5678', {}) && ex('/google/callback', {}),
       'the three unconditional exemptions still stand');
     ok(!ex('/campaigns/join', {}), 'an ordinary route is still checked');
+  }
+
+  console.log('\nO-21  each transport sends as an address it may actually use');
+  {
+    /* THE OUTAGE THIS EXISTS FOR. `build()` puts the ZeptoMail sender on every
+       message. The SMTP relay authenticates as one mailbox and refuses any
+       other From, so the day the fallback started being handed
+       no-reply@mail.whollar.com it started answering 550, and because
+       ZeptoMail was already failing, every sign-in code in the product stopped
+       arriving. The audit line said `delivered: false, send_error: null`. */
+    const CFG2 = {
+      ZEPTOMAIL_FROM: 'info@whollar.com',
+      MAIL_FROM_TRANSACTIONAL: 'no-reply@mail.whollar.com',
+      SMTP_FROM: 'login@whollar.ca',
+    };
+    const wire = { from: 'no-reply@mail.whollar.com' };
+
+    ok(mailer.senderFor(CFG2, 'zeptomail', wire) === 'no-reply@mail.whollar.com',
+      'ZeptoMail honours the sender the message asked for');
+    ok(mailer.senderFor(CFG2, 'zeptomail', {}) === 'info@whollar.com',
+      'and falls back to the one configured sender');
+    ok(mailer.senderFor(CFG2, 'smtp', wire) === 'login@whollar.ca',
+      'the relay sends as its own mailbox, never as the address ZeptoMail was given');
+    ok(mailer.senderFor(CFG2, 'smtp', { from: 'login@whollar.ca' }) === 'login@whollar.ca',
+      'and asking for that same mailbox changes nothing');
+    ok(mailer.senderFor(CFG2, 'smtp', {}) === 'login@whollar.ca',
+      'with no request at all it is still its own mailbox');
+  }
+
+  console.log('\nO-22  a refused send reaches the caller as a reason, not a bare false');
+  {
+    reset();
+    FAIL_NEXT = { message: 'smtp 550: sender address not allowed', retryable: false };
+    const sent = await outbox.dispatch(app, CFG, {
+      templateKey: 'account.otp',
+      eventKey: 'otp.start:req-outage',
+      recipient: member('u-locked', 'locked-out@example.ca'),
+      context: { code: '481920', purpose: 'login', ttl_minutes: 10 },
+      now: NOON_ET,
+    });
+    ok(sent.delivered === false, 'the send failed');
+    ok(/550/.test(String(sent.sendError)),
+      'and the caller is handed the relay\u2019s own words, which is what the audit line writes');
+    const row = tableOf('notification_outbox').find((r) => r.event_key === 'otp.start:req-outage');
+    ok(row && /550/.test(String(row.last_error)), 'the row records it too');
+  }
+
+  console.log('\nO-23  a sign-in code that outlived its own TTL is never sent late');
+  {
+    /* The other half of the outage. Fourteen codes sat queued and retryable
+       for a day. Fixing the transport without this would have delivered all
+       fourteen, each one announcing that it expires in ten minutes. */
+    reset();
+    FAIL_NEXT = { message: 'smtp 550: sender address not allowed', retryable: true };
+    await outbox.dispatch(app, CFG, {
+      templateKey: 'account.otp',
+      eventKey: 'otp.start:req-stale',
+      recipient: member('u-stale', 'stale@example.ca'),
+      context: { code: '481920', purpose: 'login', ttl_minutes: 10 },
+      now: NOON_ET,
+    });
+    const row = tableOf('notification_outbox').find((r) => r.event_key === 'otp.start:req-stale');
+    ok(row && row.status === 'queued', 'the refused code is left queued for the drain');
+
+    SENT = [];
+    const later = await outbox.drain(app, CFG, { now: NOON_ET + 40 * 60000 });
+    ok(SENT.length === 0, 'forty minutes on, the drain sends nothing');
+    ok(later.cancelled === 1, 'and counts it cancelled rather than sent');
+    const after = tableOf('notification_outbox').find((r) => r.event_key === 'otp.start:req-stale');
+    ok(after.status === 'cancelled' && after.last_error === 'code_expired',
+      'the row says why, in words an operator can act on');
+
+    /* And the guard must not touch a code that is still good. */
+    reset();
+    await outbox.dispatch(app, CFG, {
+      templateKey: 'account.otp',
+      eventKey: 'otp.start:req-fresh',
+      recipient: member('u-fresh', 'fresh@example.ca'),
+      context: { code: '481921', purpose: 'login', ttl_minutes: 10 },
+      now: NOON_ET,
+    });
+    ok(SENT.length === 1, 'a code inside its TTL still goes out at once');
+  }
+
+  console.log('\nO-24  a store that cannot find a row it just wrote still sends the code');
+  {
+    reset();
+    BLIND_KEY_LOOKUP = true;
+    const sent = await outbox.dispatch(app, CFG, {
+      templateKey: 'account.otp',
+      eventKey: 'otp.start:req-blind',
+      recipient: member('u-blind', 'blind@example.ca'),
+      context: { code: '481922', purpose: 'login', ttl_minutes: 10 },
+      now: NOON_ET,
+    });
+    ok(sent.delivered === true, 'the code goes out on the handle the insert returned');
+    ok(SENT.length === 1 && /481922/.test(SENT[0].text), 'and it is the right code');
+    ok(!sent.sendError, 'with nothing to report');
+    const row = tableOf('notification_outbox').find((r) => r.event_key === 'otp.start:req-blind');
+    ok(row.status === 'sent', 'the row is marked sent, claimed and confirmed by ROWID');
   }
 
   console.log(`\n${pass} passed, ${fail} failed\n`);

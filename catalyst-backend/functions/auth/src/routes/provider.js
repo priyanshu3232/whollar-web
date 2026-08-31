@@ -78,7 +78,8 @@ async function issueCode(req, cfg, email, purpose = PURPOSE, firstName = null, u
     code,
     ttlMinutes,
     delivered: Boolean(sent.delivered),
-    sendError: sent.status === 'failed' ? 'send_failed' : null,
+    sendError: sent.sendError || null,
+    transport: sent.transport || null,
   };
 }
 
@@ -166,7 +167,7 @@ function mount(router, cfg) {
         },
       });
       const delivered = Boolean(notice.delivered);
-      const sendError = notice.status === 'failed' ? 'send_failed' : null;
+      const sendError = notice.sendError || null;
 
       audit.recordAsync(req.catalyst, req, {
         type: 'provider.signup', outcome: 'failure', email, userId: existing.user_id,
@@ -176,7 +177,7 @@ function mount(router, cfg) {
            diagnostics could not see. */
         detail: {
           reason: 'already_active', delivered,
-          transport: mailer.transportName(cfg), send_error: sendError,
+          transport: notice.transport || mailer.transportName(cfg), send_error: sendError,
         },
       });
       return opaqueOk(cfg, res, { ttlMinutes: challenges.TTL_MINUTES });
@@ -210,7 +211,7 @@ function mount(router, cfg) {
     });
     await orgs.addMember(req.catalyst, { userId: user.user_id, orgId: org.org_id });
 
-    const { code, ttlMinutes, delivered, sendError } = await issueCode(
+    const { code, ttlMinutes, delivered, sendError, transport } = await issueCode(
       req, cfg, email, PURPOSE, user.first_name, user
     );
 
@@ -221,7 +222,7 @@ function mount(router, cfg) {
          gets asked about most. */
       detail: {
         org_id: org.org_id, approval_status: org.approval_status,
-        delivered, transport: mailer.transportName(cfg), send_error: sendError,
+        delivered, transport: transport || mailer.transportName(cfg), send_error: sendError,
       },
     });
 
@@ -358,7 +359,7 @@ function mount(router, cfg) {
       type: 'provider.login.challenge', outcome: 'success', email, userId: user.user_id,
       detail: {
         delivered: issued.delivered,
-        transport: mailer.transportName(cfg),
+        transport: issued.transport || mailer.transportName(cfg),
         send_error: issued.sendError,
       },
     });

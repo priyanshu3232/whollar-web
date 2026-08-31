@@ -65,15 +65,47 @@ function zeptoAuthHeader(raw) {
   return /^Zoho-enczapikey\s/i.test(token) ? token : `Zoho-enczapikey ${token}`;
 }
 
+/**
+ * Which address a given transport may actually send as.
+ *
+ * A `from` on the message is a REQUEST, and the two transports are not equally
+ * free to honour it. ZeptoMail sends as any verified sender, so the split
+ * between the transactional and the commercial Mail Agent is real there. An
+ * SMTP relay authenticates as one mailbox and refuses everything else: IONOS
+ * answers 550 to a From address it does not own, and a refused fallback is a
+ * sign-in code that never arrives.
+ *
+ * This is the shape both transports had before the outbox existed: each one
+ * resolved its own sender, and nothing could hand the relay an address it was
+ * not allowed to use. `outbox.build()` now stamps the ZeptoMail sender on
+ * every message, and `message.from || cfg.SMTP_FROM` handed that address
+ * straight to the relay. It happens to be harmless today only because
+ * `SMTP_FROM` and `ZEPTOMAIL_FROM` are the same mailbox; the moment
+ * `MAIL_FROM_TRANSACTIONAL` is set, which `create-tables.md` 33f invites, the
+ * fallback would start sending as an address IONOS does not own and answering
+ * 550 to every sign-in code. Restored before it could, so do not collapse it
+ * back into a single `message.from ||`.
+ */
+function senderFor(cfg, transport, message) {
+  const asked = String((message && message.from) || '').trim();
+  if (transport === 'zeptomail') return asked || cfg.ZEPTOMAIL_FROM;
+
+  /* No matching against `asked` here, deliberately. "Use it if it happens to
+     be allowed" is a rule that has to know what the relay allows, and nothing
+     in this process does. The configured mailbox is the one address known to
+     work; an unset one falls through and fails at the relay, honestly. */
+  return String(cfg.SMTP_FROM || '').trim() || asked;
+}
+
 async function sendViaZeptoMail(cfg, message) {
   const base = (cfg.ZEPTOMAIL_API_BASE || DEFAULT_API_BASE).replace(/\/+$/, '');
 
-  /* `from` is per message, not per function, because transactional and
-     commercial mail send from different Mail Agents on different subdomains
+  /* Per message here, because ZeptoMail can honour it: transactional and
+     commercial mail leave from different Mail Agents on different subdomains
      so that a complaint on an announcement cannot damage the deliverability
-     of a sign-in code. Falls back to the single configured sender, which is
-     what every caller wanted before the split existed. */
-  const from = message.from || cfg.ZEPTOMAIL_FROM;
+     of a sign-in code. `senderFor` falls back to the single configured
+     sender, which is what every caller wanted before the split existed. */
+  const from = senderFor(cfg, 'zeptomail', message);
 
   const payload = {
     from: { address: from, name: message.fromName || 'Whollar' },
@@ -173,7 +205,7 @@ async function sendViaSmtp(cfg, message) {
 
   try {
     const info = await transporter.sendMail({
-      from: { address: message.from || cfg.SMTP_FROM, name: message.fromName || 'Whollar' },
+      from: { address: senderFor(cfg, 'smtp', message), name: message.fromName || 'Whollar' },
       to: message.to,
       subject: message.subject,
       text: message.text,
@@ -280,4 +312,4 @@ const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
 ));
 
-module.exports = { send, transportName, escapeHtml, DEFAULT_API_BASE };
+module.exports = { send, transportName, senderFor, escapeHtml, DEFAULT_API_BASE };

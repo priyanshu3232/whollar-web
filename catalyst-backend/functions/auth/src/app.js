@@ -138,6 +138,21 @@ function buildApp(cfg) {
       // send with an error that does not mention the domain.
       mail_from: cfg.FEATURES.mail ? (cfg.ZEPTOMAIL_FROM || null)
         : (cfg.FEATURES.smtp ? (cfg.SMTP_FROM || null) : null),
+      /* The addresses mail actually leaves as, per transport, because "which
+         sender" is the question a delivery failure most often turns out to be
+         and it was answerable nowhere. A transactional sender naming a
+         subdomain with no verified Mail Agent behind it refuses every send,
+         and the relay's own mailbox is the only address the fallback can use.
+         Public for the same reason `mail_from` is: these appear in the From
+         line of every email this system sends. */
+      mail_senders: {
+        /* Resolved through the outbox's own function rather than restated
+           here, so a health check cannot report a sender the mail path does
+           not use. */
+        transactional: outbox.senderAddress(cfg, { casl: 'transactional' }) || null,
+        cem: outbox.senderAddress(cfg, { casl: 'cem' }) || null,
+        smtp_relay: cfg.FEATURES.smtp ? (cfg.SMTP_FROM || null) : null,
+      },
     });
   });
 

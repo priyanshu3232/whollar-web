@@ -77,7 +77,11 @@ async function issueCode(req, cfg, email, purpose, firstName = null, user = null
     code,
     ttlMinutes,
     delivered: Boolean(sent.delivered),
-    sendError: sent.status === 'failed' ? 'send_failed' : null,
+    /* The transport's own reason, not a restatement of the enqueue status. A
+       relay that refused the sender and a queue that has not run yet are
+       different faults and the audit line has to be able to tell them apart. */
+    sendError: sent.sendError || null,
+    transport: sent.transport || null,
     outboxStatus: sent.status,
   };
 }
@@ -216,7 +220,7 @@ function mount(router, cfg) {
       detail: {
         branch: existing ? 'pending_retry' : 'created',
         delivered: issued.delivered,
-        transport: mailer.transportName(cfg),
+        transport: issued.transport || mailer.transportName(cfg),
         send_error: issued.sendError,
         referral_code: profile.referralCode,
         referred_by: (!selfReferred && referredBy) ? referredBy.user_id : null,
@@ -411,7 +415,7 @@ function mount(router, cfg) {
       detail: {
         rehashed: Boolean(check.rehashed),
         delivered: issued.delivered,
-        transport: mailer.transportName(cfg),
+        transport: issued.transport || mailer.transportName(cfg),
         send_error: issued.sendError,
       },
     });

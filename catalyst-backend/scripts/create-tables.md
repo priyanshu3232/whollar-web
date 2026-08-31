@@ -2238,8 +2238,15 @@ Correct for the GTA footprint, wrong the day a British Columbia household joins.
 |---|:--:|---|
 | `MAIL_POSTAL_ADDRESS` | for commercial mail | **No fallback, deliberately.** An invented address in a compliance footer is worse than a missing one because it looks correct in every review. Unset, transactional mail sends with identification and no address, and every commercial send is REFUSED with `no_postal_address` |
 | `MAIL_LEGAL_NAME` | | defaults to `Whollar`. Set it to the registered entity name |
-| `MAIL_FROM_TRANSACTIONAL` | | e.g. `no-reply@mail.whollar.com`. Falls back to `ZEPTOMAIL_FROM` |
-| `MAIL_FROM_CEM` | | e.g. `news@news.whollar.com`. Falls back to `ZEPTOMAIL_FROM` |
+| `MAIL_FROM_TRANSACTIONAL` | | e.g. `no-reply@mail.whollar.com`. Falls back to `ZEPTOMAIL_FROM`. **It must be an address a verified ZeptoMail Mail Agent may send as.** Set it to a subdomain with no Mail Agent behind it and ZeptoMail refuses every transactional send, sign-in codes included. Leave it unset until the Mail Agent exists: the fallback is the sender that already works |
+| `MAIL_FROM_CEM` | | e.g. `news@news.whollar.com`. Falls back to `ZEPTOMAIL_FROM`. Same rule, same failure |
+
+Neither of these reaches the SMTP relay. It authenticates as one mailbox and
+refuses any other From, so it always sends as `SMTP_FROM`. That is not a
+limitation to work around: it is what keeps the fallback able to carry a login
+code on a day ZeptoMail cannot. `GET /api/auth/health` reports all three
+addresses as `mail_senders`, and the transactional one is the field to read
+first when mail stops arriving.
 | `MAIL_WEBHOOK_SECRET` | for the webhook | Unset, `POST /hooks/zeptomail` answers 503 to everything. An unauthenticated endpoint that writes suppressions is a way for anyone to silence anyone |
 
 Also confirm `ZEPTOMAIL_API_BASE` is `https://api.zeptomail.ca` in **both**

@@ -99,7 +99,14 @@ async function dispatch(req, spec) {
       template: spec.templateKey,
       detail: String((err && err.message) || err).slice(0, 200),
     }));
-    return { status: 'failed', delivered: false, notifyKey: null, error: err };
+    return {
+      status: 'failed',
+      delivered: false,
+      notifyKey: null,
+      transport: null,
+      sendError: String((err && err.message) || err).slice(0, 190),
+      error: err,
+    };
   }
 }
 
