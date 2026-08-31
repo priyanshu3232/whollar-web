@@ -281,11 +281,25 @@ const CONTRACT_LENGTH = {
   '-1': 'Not sure'
 };
 
-function noteFor(source, email, data, isProd, dropped) {
+function noteFor(source, email, data, isProd, dropped, queuedAt) {
   const meta = SOURCE_META[source] || { label: source };
   const devTag = isProd ? '' : '[DEV] ';
   const lines = [];
   if (meta.hot) lines.push('⚠ DEEP READ REQUESTED: high intent');
+
+  // When the household actually submitted, and how far behind this record is.
+  // A stalled cron is invisible in CRM otherwise: the rep sees a lead created
+  // today and calls it as a warm enquiry when the form was filled weeks ago.
+  // The queue clock runs UTC-7 against a UTC Date.now(), which can move the
+  // day count by one at a boundary and never changes whether a gap is shown.
+  // An unparseable stamp leaves both lines out rather than printing NaN.
+  const stamp = queuedAt ? String(queuedAt).trim().slice(0, 19).replace(' ', 'T') : '';
+  const at = stamp ? Date.parse(stamp) : NaN;
+  if (!Number.isNaN(at)) lines.push(`Submitted: ${stamp.replace('T', ' ')}`);
+  const lateDays = Number.isNaN(at) ? 0 : Math.floor((Date.now() - at) / 86400000);
+  if (lateDays >= 1) {
+    lines.push(`⚠ Reached CRM ${lateDays} day${lateDays === 1 ? '' : 's'} after it was submitted: the sync was stalled. Not a fresh enquiry.`);
+  }
 
   const add = (k, v) => { if (v !== undefined && v !== null && v !== '') lines.push(`${k}: ${v}`); };
   const money = v => (v === undefined || v === null || v === '' ? null : `$${Number(v).toFixed(2)}`);
@@ -439,7 +453,7 @@ async function syncJob(ctx, job, cfg) {
     recordId = created.id;
     dropped = created.dropped;
   }
-  const note = noteFor(job.Source, email, data, cfg.isProd, dropped);
+  const note = noteFor(job.Source, email, data, cfg.isProd, dropped, job.CREATEDTIME);
   await addNote(ctx, moduleName, recordId, note.title, note.content);
   return recordId;
 }
@@ -505,7 +519,10 @@ app.all(['/', '/process'], async (req, res) => {
 
   try {
     const rows = await catalystApp.zcql().executeZCQLQuery(
-      `SELECT ROWID, Source, SourceRowId, Email, LeadType, Payload, Attempts ` +
+      // CREATEDTIME rides along so the note can say when the household
+      // actually submitted. Draining a stalled queue writes weeks-old rows
+      // in one batch, and without this every one of them reads as today's.
+      `SELECT ROWID, Source, SourceRowId, Email, LeadType, Payload, Attempts, CREATEDTIME ` +
       `FROM ${QUEUE_TABLE} WHERE Status = 'PENDING' ORDER BY CREATEDTIME ASC LIMIT ${cfg.batchSize}`
     );
 
