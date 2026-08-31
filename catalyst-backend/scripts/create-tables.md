@@ -192,6 +192,7 @@ the evidence.
 | `approval_status` | Var Char | 16 | | ✅ | | `pending` \| `approved` \| `rejected` |
 | `approved_by` | Var Char | 255 | | | | internal operator identifier |
 | `approved_at` | DateTime | - | | | | |
+| `rejection_reason` | Var Char | 255 | | | | the operator's reason on a rejected application, shown back to the partner. Added with the admin console (docs/ADMIN_CONSOLE_RUNBOOK.md section 1c); `routes/admin.js` retries the write without it when it is missing |
 
 ## 9. `provider_users`
 
@@ -2115,3 +2116,437 @@ fail: if it does not, `offer_key` was created without Unique.
 
 Finally `GET /api/auth/health/diagnostics` as an admin: `lib/schema.js verify()`
 names `household_offers` and must not list it as missing.
+
+---
+
+## 33. The notification layer: four tables, two columns, five variables
+
+Phase A of the notification build. What this unblocks is not new email, it is
+the ability to stop sending it: four signup surfaces and `privacy.html` already
+tell people they can unsubscribe at any time, and until these tables exist
+there is no list to put them on.
+
+**Nothing here is required for the site to keep working.** Every read degrades:
+`lib/notify/outbox.js` returns quietly when `notification_outbox` is missing,
+exactly as `lib/notices.js` does, and `lib/notify/suppress.js` fails CLOSED for
+commercial mail and OPEN for a sign-in code. So a deploy before these tables
+exist sends nothing new and locks nobody out. It also records nothing, which is
+the state to leave as quickly as possible.
+
+**Order matters here, unlike most sections.** Create the tables BEFORE
+deploying the auth function. The code is written to survive their absence, but
+every message sent in the gap is a message with no delivery record and no
+suppression check, and there is no way to reconstruct either afterwards.
+
+### 33a. `notification_outbox` (new table)
+
+One row per (event, template, recipient). **The unique flag on `notify_key` is
+the whole deduplication.** `lib/notices.js` sweeps on every dashboard load, so
+without it a cohort's letters go out again on every page view.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `notify_key` | Var Char | 64 | ✅ | ✅ | sha256 over event, template and recipient. **The Unique flag is not optional.** |
+| `event_key` | Var Char | 190 | | ✅ | `campaign.stage:brampton-east:offers` for a system decision, `otp.start:<req id>` for a click |
+| `template_key` | Var Char | 80 | | ✅ | `member.campaign.stage` |
+| `recipient_type` | Var Char | 16 | | ✅ | `member` \| `partner` \| `admin` \| `address` |
+| `recipient_id` | Var Char | 190 | | ✅ | `users.user_id`, or the address itself for `address` |
+| `recipient_email` | Var Char | 255 | | ✅ | snapshot at enqueue |
+| `locale` | Var Char | 8 | | | `en`, fallback `en` |
+| `timezone` | Var Char | 64 | | | IANA, fallback `America/Toronto` |
+| `campaign_id` | Var Char | 64 | | | present on every campaign-scoped message |
+| `context` | Text | 10000 | | | render context, JSON |
+| `send_priority` | Var Char | 16 | | ✅ | `security` \| `action_required` \| `informational` \| `reminder`. **Not `priority`**: that is reserved in ZCQL and the console refuses it |
+| `casl_class` | Var Char | 16 | | ✅ | `transactional` \| `cem` |
+| `category` | Var Char | 32 | | ✅ | the preference category |
+| `collapse_group` | Var Char | 120 | | | `campaign_stage:brampton-east` |
+| `earliest_send_at` | DateTime | - | | ✅ | quiet hours land here |
+| `status` | Var Char | 16 | | ✅ | `queued` \| `held` \| `superseded` \| `sending` \| `sent` \| `failed` \| `suppressed` \| `cancelled` |
+| `attempts` | Int | - | | | |
+| `last_error` | Var Char | 190 | | | `missing:dashboard_url`, `scrubbed:other_partner_name` |
+| `subject` | Var Char | 190 | | | written on success, for the member's own history |
+| `body_sha` | Var Char | 64 | | | the body itself is NOT stored: no blob store is wired |
+| `created_at` | DateTime | - | | ✅ | |
+| `updated_at` | DateTime | - | | | |
+| `sent_at` | DateTime | - | | | |
+
+### 33b. `notification_deliveries` (new table, append only)
+
+One row per attempt, and one more per webhook event on that attempt. Append
+only on purpose: updating the previous row in place would destroy the sequence
+that answers "it was accepted, and then it bounced".
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `outbox_key` | Var Char | 64 | | ✅ | the outbox row's `notify_key` |
+| `client_reference` | Var Char | 64 | | | the value **we** chose, echoed back by ZeptoMail. Matched on first |
+| `provider_message_id` | Var Char | 200 | | | the value the provider chose. The fallback |
+| `transport` | Var Char | 16 | | | `zeptomail` \| `smtp` \| `log` |
+| `status` | Var Char | 24 | | ✅ | `accepted` \| `delivered` \| `bounced_hard` \| `bounced_soft` \| `complained` \| `clicked` \| `failed` \| `unknown`. **Never `opened`**: open tracking is off for member mail by decision |
+| `status_at` | DateTime | - | | ✅ | |
+| `detail` | Var Char | 500 | | | bounce reason, provider error |
+| `created_at` | DateTime | - | | ✅ | |
+
+### 33c. `email_suppressions` (new table)
+
+The addresses nothing may be written to. **`email` must be Unique**: the
+address is the identity here, whatever number of accounts have used it.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `email` | Var Char | 255 | ✅ | ✅ | lowercased by the write path |
+| `reason` | Var Char | 24 | | ✅ | `hard_bounce` \| `complaint` \| `unsubscribed_all` \| `manual` |
+| `source` | Var Char | 120 | | | `webhook:hardbounce`, `unsub:one_click` |
+| `first_seen_at` | DateTime | - | | ✅ | |
+| `last_seen_at` | DateTime | - | | ✅ | |
+
+`hard_bounce` and `complaint` block **transactional mail as well**, and that
+asymmetry is deliberate: a complaint means somebody pressed the spam button,
+and continuing to send them sign-in codes is how a sending domain gets filtered
+for every other member at once.
+
+### 33d. `unsubscribe_tokens` (new table)
+
+One row per (recipient, scope), **reused, not minted per message**. A token per
+email would put millions of rows in a lookup table and would break the link in
+an old email, which is exactly when people press one.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `token_key` | Var Char | 200 | ✅ | ✅ | **derived**: `` `${recipient_type}:${recipient_id}:${scope}` ``. The flattened composite (rule 4) |
+| `token` | Var Char | 16 | ✅ | ✅ | opaque, two checked halves, no identity encoded |
+| `recipient_type` | Var Char | 16 | | ✅ | `member` \| `partner` |
+| `recipient_id` | Var Char | 190 | | ✅ | |
+| `scope` | Var Char | 32 | | ✅ | `all_cem`, or one unlockable category |
+| `created_at` | DateTime | - | | ✅ | |
+| `used_at` | DateTime | - | | | first press. The row is NOT burned: a second press must be a no-op |
+
+### 33e. Two columns to add to `users`
+
+Both optional, both with a ladder in `lib/users.js`, so an environment without
+them reads one rung narrower and falls back to `en` and `America/Toronto`.
+Correct for the GTA footprint, wrong the day a British Columbia household joins.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `locale` | Var Char | 8 | | | `en`. French is written before any Quebec region opens |
+| `timezone` | Var Char | 64 | | | IANA. Quiet hours are held against this |
+
+### 33f. Environment variables, in **both** environments
+
+| Name | Required | Notes |
+|---|:--:|---|
+| `MAIL_POSTAL_ADDRESS` | for commercial mail | **No fallback, deliberately.** An invented address in a compliance footer is worse than a missing one because it looks correct in every review. Unset, transactional mail sends with identification and no address, and every commercial send is REFUSED with `no_postal_address` |
+| `MAIL_LEGAL_NAME` | | defaults to `Whollar`. Set it to the registered entity name |
+| `MAIL_FROM_TRANSACTIONAL` | | e.g. `no-reply@mail.whollar.com`. Falls back to `ZEPTOMAIL_FROM` |
+| `MAIL_FROM_CEM` | | e.g. `news@news.whollar.com`. Falls back to `ZEPTOMAIL_FROM` |
+| `MAIL_WEBHOOK_SECRET` | for the webhook | Unset, `POST /hooks/zeptomail` answers 503 to everything. An unauthenticated endpoint that writes suppressions is a way for anyone to silence anyone |
+
+Also confirm `ZEPTOMAIL_API_BASE` is `https://api.zeptomail.ca` in **both**
+environments. The code default is now the Canadian host, so an unset variable
+is no longer a residency problem, but an explicitly wrong one still is.
+
+### 33g. Gate checks, in the ZCQL tab
+
+**The deduplication.** The second insert must be **refused**:
+
+```sql
+INSERT INTO notification_outbox (notify_key, event_key, template_key, recipient_type, recipient_id, recipient_email, send_priority, casl_class, category, earliest_send_at, status, created_at) VALUES ('gate-test-key', 'gate:test', 'account.otp', 'address', 'gate@test.invalid', 'gate@test.invalid', 'security', 'transactional', 'security', '2026-08-30 00:00:00', 'queued', '2026-08-30 00:00:00');
+```
+
+```sql
+INSERT INTO notification_outbox (notify_key, event_key, template_key, recipient_type, recipient_id, recipient_email, send_priority, casl_class, category, earliest_send_at, status, created_at) VALUES ('gate-test-key', 'gate:test', 'account.otp', 'address', 'gate@test.invalid', 'gate@test.invalid', 'security', 'transactional', 'security', '2026-08-30 00:00:01', 'queued', '2026-08-30 00:00:01');
+```
+
+If the second one succeeds, the Unique flag on `notify_key` is not set and
+every cohort will be mailed again on every dashboard load. Fix it before going
+near a live cohort. Then clean up:
+
+```sql
+DELETE FROM notification_outbox WHERE notify_key = 'gate-test-key';
+```
+
+**The suppression list.** Same test, and the same stakes in the other
+direction: without the Unique flag on `email`, one address accumulates a row
+per bounce and the reason that explains the block is whichever row is read
+first.
+
+```sql
+INSERT INTO email_suppressions (email, reason, source, first_seen_at, last_seen_at) VALUES ('gate@test.invalid', 'manual', 'gate-test', '2026-08-30 00:00:00', '2026-08-30 00:00:00');
+```
+
+```sql
+INSERT INTO email_suppressions (email, reason, source, first_seen_at, last_seen_at) VALUES ('gate@test.invalid', 'complaint', 'gate-test', '2026-08-30 00:00:01', '2026-08-30 00:00:01');
+```
+
+The second must be refused. Then:
+
+```sql
+DELETE FROM email_suppressions WHERE email = 'gate@test.invalid';
+```
+
+**The two token constraints.** `unsubscribe_tokens` needs Unique on **both**
+`token_key` and `token`. The first stops a second row for one recipient, the
+second stops two recipients sharing a link.
+
+```sql
+INSERT INTO unsubscribe_tokens (token_key, token, recipient_type, recipient_id, scope, created_at) VALUES ('member:gate:all_cem', 'GATE0TESTGATE0TE', 'member', 'gate', 'all_cem', '2026-08-30 00:00:00');
+```
+
+```sql
+INSERT INTO unsubscribe_tokens (token_key, token, recipient_type, recipient_id, scope, created_at) VALUES ('member:other:all_cem', 'GATE0TESTGATE0TE', 'member', 'other', 'all_cem', '2026-08-30 00:00:01');
+```
+
+The second must be refused on `token`. Then:
+
+```sql
+DELETE FROM unsubscribe_tokens WHERE recipient_id = 'gate';
+```
+
+**The two new `users` columns exist.** This must return rows rather than an
+error, and if it errors the ladder in `lib/users.js` is what is carrying the
+site:
+
+```sql
+SELECT user_id, locale, timezone FROM users LIMIT 1
+```
+
+**The deliveries table takes a row.**
+
+```sql
+INSERT INTO notification_deliveries (outbox_key, client_reference, transport, status, status_at, created_at) VALUES ('gate-test-key', 'gate-test-key', 'log', 'accepted', '2026-08-30 00:00:00', '2026-08-30 00:00:00');
+```
+
+```sql
+DELETE FROM notification_deliveries WHERE outbox_key = 'gate-test-key';
+```
+
+### 33h. After the tables exist
+
+`GET /api/auth/health/diagnostics` (admin session required) reports every
+declared table, so the four new ones appear there once created. A row count of
+zero on `notification_outbox` after a sign-in attempt means the table exists
+and nothing wrote to it, which is a different problem from the table being
+absent, and the two are worth telling apart before hunting through DNS again.
+
+---
+
+## 34. Provider exclusions: four new tables, one column pair, four columns
+
+A member names the providers they will not hear from, every founding partner
+declares the brands it operates, and the price book is then cut PER MEMBER out
+of that member's eligible bids. The promise made to the household is absolute
+("excluded providers will never be able to send you an offer"), so it is
+enforced in the award and in the accept, not by hiding a card.
+
+**Deploy order matters here, and it is not the usual one.** Every other section
+in this file can land in either order. This one has a rule:
+
+1. **34a `brand_registry` first, and seed it.** Nothing else is usable without
+   it: a roster picks from it, an exclusion picks from it, and a bid names a row
+   in it. An empty registry is a working screen with nothing in it.
+2. **34b `provider_brands` next.** Until it exists no bid may name a brand, and
+   `lib/rosters.js canBidAs` says so rather than passing the bid through.
+3. **34d `member_provider_exclusions` next.** This is the one with a safety
+   consequence: see the note under it.
+4. **34e and 34f, the columns, last and at any time.** Both have fallbacks.
+
+**What happens before any of it lands:** nothing changes. `brands.all()`,
+`rosters.rosterFor()` and `exclusions.setFor()` each return the "not created"
+answer, the exclusion step reports itself unavailable, the offer route reads
+the sealed cohort book exactly as it does today, and no member is filtered.
+
+### 34a. `brand_registry` (new table)
+
+The canonical list of consumer-facing brands, and the one place a flanker brand
+is tied to its parent. Members, partners and bids all resolve through it, so
+nothing free-types a brand name into matching logic.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `brand_id` | Var Char | 64 | ✅ | ✅ | | slug, `^[a-z0-9][a-z0-9-]{0,62}$`, e.g. `bell`, `virgin-plus`, `oxio`. Reaches a WHERE clause, so the charset is enforced in `lib/brands.js` |
+| `display_name` | Var Char | 120 | | ✅ | | exact consumer-facing name, accents included, e.g. `Vidéotron` |
+| `parent_brand_id` | Var Char | 64 | | | | null for a parent or independent brand. ONE level only: a flanker's parent must itself have null here |
+| `owner_org_name` | Var Char | 255 | | | | operator review only. **Never rendered to a member**: `publicBrand()` names the three fields that cross |
+| `status` | Var Char | 16 | | ✅ | | `active` \| `retired` \| `pending_review` |
+| `created_at` | DateTime | - | | ✅ | | |
+| `updated_at` | DateTime | - | | | | |
+
+**Seeding.** Take the provider column of the pricing dataset. Every parent gets
+`parent_brand_id` null; every flanker points at its parent. Only `active` rows
+are selectable anywhere, so seed conservatively and promote later: a brand
+missing from the registry cannot be excluded, which is a worse failure than a
+brand nobody picks.
+
+### 34b. `provider_brands` (new table)
+
+The brands one founding partner has attested to operating. Soft removal only:
+a bid sealed last month was made under the roster as it stood then.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `roster_key` | Var Char | 160 | ✅ | ✅ | | `${provider_id}:${brand_id}`. The Data Store has no partial unique index, so this is one row per (org, brand) EVER, revived rather than re-inserted |
+| `provider_id` | Var Char | 64 | | ✅ | | `provider_orgs.org_id` |
+| `brand_id` | Var Char | 64 | | ✅ | | `brand_registry.brand_id` |
+| `declared_at` | DateTime | - | | ✅ | | re-stamped on every attestation, including for unchanged rows: the date is the date the WHOLE list was last sworn to |
+| `attested_by` | Var Char | 64 | | ✅ | | the user id that attested |
+| `removed_at` | DateTime | - | | | | soft removal, history never deleted |
+
+### 34c. `distributor_providers` (new table)
+
+The providers one distributor has attested to serving.
+
+**There is no distributor console yet**, and this table is not on any live
+path today. It is created now because `lib/rosters.js canBidAs` already
+enforces it: the moment an authenticated distributor role exists, a
+distributor bid is checked against this map and cannot bypass a member's
+exclusion. The gate before the door, which for this particular gate is the
+right order.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `serving_key` | Var Char | 160 | ✅ | ✅ | | `${distributor_id}:${provider_id}` |
+| `distributor_id` | Var Char | 64 | | ✅ | | |
+| `provider_id` | Var Char | 64 | | ✅ | | `provider_orgs.org_id` |
+| `declared_at` | DateTime | - | | ✅ | | |
+| `attested_by` | Var Char | 64 | | ✅ | | |
+| `removed_at` | DateTime | - | | | | |
+
+### 34d. `member_provider_exclusions` (new table)
+
+One row per brand a member has excluded, materialised at write time. Never "the
+parent plus whatever the registry says its children are today": a registry edit
+must not silently widen or narrow a list the member already agreed to.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `excl_key` | Var Char | 160 | ✅ | ✅ | | `${member_id}:${brand_id}`. One row per pair EVER; a re-exclusion revives the row and bumps `cycles` |
+| `member_id` | Var Char | 64 | | ✅ | ✅ | never sent to a partner in any shape, including an error payload |
+| `brand_id` | Var Char | 64 | | ✅ | | |
+| `source` | Var Char | 16 | | ✅ | | `direct` \| `family_default`. Recorded, never enforced |
+| `created_at` | DateTime | - | | ✅ | | re-stamped on a revival |
+| `removed_at` | DateTime | - | | | | soft removal |
+| `cycles` | Int | - | | | | how many times this pair has been excluded. Absent is read as 1 |
+
+**Read the safety note before creating this one.** `lib/exclusions.js`
+distinguishes two failures that look identical to Catalyst and demand opposite
+behaviour. Table absent means nobody anywhere has an exclusion, so offers route
+exactly as they did before the feature: an empty set is correct. Table PRESENT
+and a member's read failing means an empty set is a guess, and the guess
+delivers an offer the household refused. So presence is probed separately and
+`setFor()` returns null in the second case, which every award path treats as
+"do not route" and never as "nothing excluded". A household then sees
+`offersHeld: true` instead of an offer. That is the intended behaviour: the
+promise is absolute, so the failure mode is a missing offer, never a wrong one.
+
+The full history for a dispute is in `auth_events`, not here: every create and
+remove writes `member.exclusions.replace` with the added and removed lists.
+
+### 34e. Two columns to add to `provider_bids`
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `brand_id` | Var Char | 64 | | | | the brand this bid is made under. Validated against the attested roster at submission |
+| `submitted_via_distributor_id` | Var Char | 64 | | | | null for a direct provider submission |
+
+**Both nullable, and a bid that names no brand is still accepted.** These
+columns and 34b are separate schema objects, so either can exist without the
+other; `routes/desk.js writeHead()` retries the head write without them. A
+brandless bid is attributed to its org's primary declared brand by
+`lib/awards.js brandOfBid()`, so an exclusion still bites on every bid sealed
+before this column existed. Making a brand mandatory is a later flip, worth
+making only once every active partner has attested a roster.
+
+### 34f. Five columns to add to `household_offers`
+
+Section 32 recorded one window per household and never rewrote it, which is
+exactly what a new exclusion during `offers_out` has to change. Both hold by
+versioning: a row is still never rewritten, and a new exclusion writes version
+n+1 and stamps version n superseded.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `version` | Int | - | | | | absent is read as 1, so every row already in the table is version 1 without being touched |
+| `superseded_at` | DateTime | - | | | | set when a later version replaces this one |
+| `audit_json` | Text | 20000 | | | | the per-bid resolution for this version: `[{bidKey, orgId, brandId, status}]`, status `awarded` \| `outranked` \| `skipped_excluded_brand` \| `invalidated_brand_inactive` \| `skipped_unresolved_brand`. **Operator-only. Never in a member or provider payload** |
+| `excluded_json` | Text | 4000 | | | | the exclusion set this version was cut against, which is what makes a stale window detectable |
+| `withdrawn_json` | Text | 4000 | | | | tiers this household held and no longer holds: `[{tier, price, state:'withdrawn_by_exclusion'}]` |
+
+`offer_key` stays `${campaign_id}:${user_id}` for version 1 and takes a `:v{n}`
+suffix from version 2, so the existing unique constraint keeps working and no
+row already written needs a new key.
+
+### 34g. `brand_requests` (new table, optional)
+
+A partner asking for a brand we do not list creates a `pending_review` row in
+34a plus an operator task here. The registry row is the record that matters and
+the task is best-effort, so this table is optional: without it the request
+still lands, and only the operator queue is lost.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `brand_id` | Var Char | 64 | | ✅ | | the derived slug, never partner-supplied |
+| `provider_id` | Var Char | 64 | | ✅ | | |
+| `display_name` | Var Char | 120 | | ✅ | | |
+| `evidence_url` | Var Char | 500 | | ✅ | | |
+| `note` | Text | 1000 | | | | |
+| `requested_by` | Var Char | 64 | | ✅ | | |
+| `requested_at` | DateTime | - | | ✅ | | |
+| `state` | Var Char | 16 | | ✅ | | `open` \| `promoted` \| `refused` |
+
+### 34h. Gate checks, in the ZCQL tab
+
+Each table answers at all:
+
+```sql
+SELECT ROWID FROM brand_registry LIMIT 1;
+SELECT ROWID FROM provider_brands LIMIT 1;
+SELECT ROWID FROM distributor_providers LIMIT 1;
+SELECT ROWID FROM member_provider_exclusions LIMIT 1;
+```
+
+The two unique flags are the race guards, and both must be tested by hand,
+because a missing Unique flag fails silently as a duplicate row rather than as
+an error. Insert the same `excl_key` twice: the second must fail. Same for
+`roster_key`.
+
+The one-level family rule, which no constraint can express:
+
+```sql
+SELECT brand_id, parent_brand_id FROM brand_registry WHERE parent_brand_id IS NOT NULL LIMIT 100;
+```
+
+Every `parent_brand_id` in that result must name a row whose own
+`parent_brand_id` is null. A two-hop chain is a data error; `familyOf()`
+reports it as `depthError` rather than resolving a grandparent the member was
+never shown.
+
+Then the columns:
+
+```sql
+SELECT brand_id, submitted_via_distributor_id FROM provider_bids LIMIT 1;
+SELECT version, superseded_at, excluded_json FROM household_offers LIMIT 1;
+```
+
+**The end-to-end check, which is the only one that proves the feature.** Two
+members on one closed cohort, two partners bidding under two different brands
+at different prices:
+
+1. As member M, `PUT /api/auth/me/exclusions` naming the CHEAPER brand.
+2. `GET /api/auth/campaigns/<id>/offer` as M, then as member N who excluded
+   nothing.
+3. N's `book` holds the cheaper brand at the contested tier. M's holds the
+   dearer one, at its own price, and **M's whole response must contain no
+   occurrence of the excluded brand's name or its price**. Check the raw JSON,
+   not the rendered card.
+4. `SELECT offer_key, version, excluded_json FROM household_offers` shows one
+   row per member, M's `excluded_json` carrying the brand.
+5. As the cheaper partner, `GET /api/auth/provider/cohorts/<id>/results`:
+   `households_unreachable_exclusions` is 1 and no member is named.
+
+Then add a second exclusion as M and read the offer again: a new row appears at
+`version` 2, version 1 carries `superseded_at`, and the response's
+`offers.withdrawn` names the tier that went.
+
+Finally `GET /api/auth/health/diagnostics` as an admin: `lib/schema.js verify()`
+names the four new tables and must not list them as missing.

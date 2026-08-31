@@ -34,6 +34,7 @@
 const catalog = require('../lib/catalog');
 const awards = require('../lib/awards');
 const orders = require('../lib/orders');
+const events = require('../lib/notify/events');
 const billing = require('../lib/billing');
 const audit = require('../lib/audit');
 const datastore = require('../lib/datastore');
@@ -130,6 +131,31 @@ function mount(router) {
     const { context } = await requirePartner(req);
     requireApproved(context);
     const { statements, t, live } = await buildStatements(req, context);
+
+    /* ISSUED, NOT ACCRUING. A statement accrues from the first activation and
+       changes every time another install lands, so a letter on that state
+       would arrive once per household. `issuedAt` is the moment it stops
+       moving and becomes a thing that falls due, and that is the only version
+       worth putting in an inbox.
+       Read-triggered, like the award letters and for the same reason: there is
+       no cron here. The outbox key carries the issue timestamp, so a statement
+       announces itself once and every later board load enqueues nothing. */
+    for (const st of statements) {
+      if (st.state === 'accruing' || !st.issuedAt) continue;
+      /* eslint-disable-next-line no-await-in-loop */
+      await events.statementReady(req, {
+        campaign: { id: st.campaignId, region: st.region, sub: st.sub || null },
+        orgId: context.orgId,
+        ref: `${st.campaignId}:${st.issuedAt}`,
+        /* No document number exists on a statement yet, so none is printed.
+           An invented one would be a reference a partner could not quote. */
+        statementRef: null,
+        total: st.total,
+        lineCount: st.counts ? st.counts.act : null,
+        dueAt: st.dueAt || null,
+      });
+    }
+
     const method = await billing.methodFor(req.catalyst, context.orgId);
     return ok(res, {
       statements,
@@ -212,6 +238,15 @@ function mount(router) {
       outcome: 'success',
       userId: user.user_id,
       detail: `org=${context.orgId} order=${row.order_no || row.order_key}`,
+    });
+
+    /* To the billing contacts rather than the bid desk, so a held line is read
+       by whoever pays. Falls back to everyone at the org while
+       provider_users.notify_roles does not exist, which is today. */
+    await events.disputeLogged(req, {
+      orgId: context.orgId,
+      orderRef: row.order_no || row.order_key,
+      campaignId: row.campaign_id || null,
     });
 
     return ok(res, { disputed: true, key: row.order_key });

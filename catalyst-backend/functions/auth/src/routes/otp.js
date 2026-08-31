@@ -20,6 +20,7 @@ const challenges = require('../lib/challenges');
 const consents = require('../lib/consents');
 const sessions = require('../lib/sessions');
 const mailer = require('../lib/mailer');
+const notify = require('../lib/notify');
 const audit = require('../lib/audit');
 const ratelimit = require('../lib/ratelimit');
 const referral = require('../lib/referral');
@@ -66,30 +67,34 @@ function mount(router, cfg) {
     // else gets the bare greeting. A lookup failure falls through to the bare
     // greeting: it must never change the response or block the send.
     const known = await users.findByEmail(req.catalyst, email).catch(() => null);
-    const message = mailer.otpEmail({
-      code, purpose: 'login', ttlMinutes,
-      firstName: known ? known.first_name : null,
+
+    /* Through the outbox rather than straight at the transport, so the send is
+       recorded, deduplicated and refused to a suppressed address. `security`
+       priority means it drains inline, in this request: a person is standing
+       at a login form and a queued code is a locked door.
+
+       The event key is the request id, so a double-submitted form is one row
+       and one code rather than two of each. Not surfaced to the caller either
+       way: a provider outage must not reveal whether this particular address
+       was accepted for delivery, which is the same reason /otp/start answers
+       identically whether or not an account exists. */
+    const sent = await notify.dispatch(req, {
+      templateKey: 'account.otp',
+      eventKey: `otp.start:${req.id}`,
+      to: email,
+      user: known,
+      context: { code, purpose: 'login', ttl_minutes: ttlMinutes },
     });
-    let delivered = false;
-    let sendError = null;
-    try {
-      const result = await mailer.send(cfg, { to: email, ...message });
-      delivered = Boolean(result.delivered);
-    } catch (err) {
-      // Not surfaced to the caller: a provider outage must not reveal whether
-      // this particular address was accepted for delivery. But it IS recorded,
-      // because /otp/start answers identically either way, so without this the
-      // difference between "sent" and "the provider rejected everything" exists
-      // nowhere a person will look.
-      sendError = String((err && err.message) || err).slice(0, 300);
-      console.error(JSON.stringify({
-        req_id: req.id, level: 'error', message: 'otp mail send failed', detail: sendError,
-      }));
-    }
+    const delivered = Boolean(sent.delivered);
 
     audit.recordAsync(req.catalyst, req, {
       type: 'otp.start', outcome: 'success', email,
-      detail: { delivered, transport: mailer.transportName(cfg), send_error: sendError },
+      detail: {
+        delivered,
+        transport: mailer.transportName(cfg),
+        outbox_status: sent.status,
+        send_error: sent.status === 'failed' ? (sent.row && sent.row.last_error) || 'send_failed' : null,
+      },
     });
 
     const body = { ok: true, ttlMinutes };

@@ -45,6 +45,14 @@ const TABLES = Object.freeze({
     postal_code:      'varchar(10)',
     fsa:              'varchar(3)',
     province_code:    'varchar(2)',
+    // Which language to write to this person in, and which clock to hold a
+    // message against overnight. Both OPTIONAL, and lib/users.js carries a
+    // ladder for them: an environment where the console has not added these
+    // yet reads without them and falls back to `en` and America/Toronto,
+    // which is correct for the launch footprint and wrong the day a British
+    // Columbia household joins.
+    locale:           'varchar(8)',
+    timezone:         'varchar(64)',
     // When the postal code last moved, and which surface moved it:
     // signup | checkup_claim | profile_edit | operator. Both OPTIONAL: they
     // are an audit nicety on a change the site takes either way, and
@@ -315,6 +323,14 @@ const TABLES = Object.freeze({
     payload_hash:           'varchar(64)',
     submitted_at:           'datetime',           // first sealing, written once
     last_revised_at:        'datetime',
+    // The brand this bid is made under, and the distributor that submitted it
+    // if one did (create-tables.md section 34e). Load-bearing for member
+    // exclusions: lib/awards.js brandOfBid() reads this first and falls back
+    // to the org's primary declared brand only when it is absent, so an
+    // exclusion still bites on bids sealed before the column existed. Both
+    // nullable, and routes/desk.js writeHead() retries without them.
+    brand_id:                     'varchar(64)',
+    submitted_via_distributor_id: 'varchar(64)',
   },
   bid_revisions: {
     // THE SEALED RECORD. Append-only, permanently: one row per sealing,
@@ -482,6 +498,74 @@ const TABLES = Object.freeze({
     window_rule: 'varchar(40) required',         // which branch of the window rule produced the cards
     cards_json:  'text(4000) required',          // [{tier, orgId, bidKey, price, position}], [] when none
     offered_at:  'datetime required',
+    // Section 34f. A window is still never rewritten: a new exclusion writes
+    // version n+1 and stamps version n superseded, so what a household was
+    // shown when it decided keeps its own row. Version 1 holds the bare key;
+    // version 2 onward suffixes `:v{n}`.
+    version:        'int',                       // absent is read as 1
+    superseded_at:  'datetime',
+    audit_json:     'text(20000)',               // per-bid resolution. OPERATOR-ONLY, never on a member or provider payload
+    excluded_json:  'text(4000)',                // the exclusion set this version was cut against
+    withdrawn_json: 'text(4000)',                // tiers withdrawn_by_exclusion between versions
+  },
+  brand_registry: {
+    // The canonical brand list, and the one place a flanker brand is tied to
+    // its parent. Members, partners and bids all resolve through it, so
+    // nothing free-types a brand name into matching logic. Section 34a.
+    brand_id:        'varchar(64) unique required',  // slug; reaches a WHERE clause
+    display_name:    'varchar(120) required',        // exact consumer-facing name, accents included
+    parent_brand_id: 'varchar(64)',                  // null for a parent; ONE level of nesting only
+    owner_org_name:  'varchar(255)',                 // operator review only, never rendered to a member
+    status:          'varchar(16) required',         // 'active' | 'retired' | 'pending_review'
+    created_at:      'datetime required',
+    updated_at:      'datetime',
+  },
+  provider_brands: {
+    // The brands one founding partner has attested to operating. Soft removal
+    // only: a bid sealed last month was made under the roster as it stood
+    // then. Section 34b.
+    roster_key:  'varchar(160) unique required',  // `${provider_id}:${brand_id}`, one row per pair ever
+    provider_id: 'varchar(64) required',
+    brand_id:    'varchar(64) required',
+    declared_at: 'datetime required',             // re-stamped on every attestation
+    attested_by: 'varchar(64) required',
+    removed_at:  'datetime',
+  },
+  distributor_providers: {
+    // The providers one distributor has attested to serving. No distributor
+    // console exists yet; lib/rosters.js canBidAs already enforces this map on
+    // the bid path, so the gate exists before the door. Section 34c.
+    serving_key:    'varchar(160) unique required', // `${distributor_id}:${provider_id}`
+    distributor_id: 'varchar(64) required',
+    provider_id:    'varchar(64) required',
+    declared_at:    'datetime required',
+    attested_by:    'varchar(64) required',
+    removed_at:     'datetime',
+  },
+  member_provider_exclusions: {
+    // The brands whose offers must never reach one household. Materialised at
+    // write time, one row per brand, so a registry edit cannot widen or narrow
+    // a list the member already agreed to. Section 34d.
+    excl_key:   'varchar(160) unique required',  // `${member_id}:${brand_id}`; a re-exclusion revives the row
+    member_id:  'varchar(64) required',          // never sent to a partner, including in an error payload
+    brand_id:   'varchar(64) required',
+    source:     'varchar(16) required',          // 'direct' | 'family_default'; recorded, never enforced
+    created_at: 'datetime required',
+    removed_at: 'datetime',
+    cycles:     'int',                           // times this pair has been excluded; absent is 1
+  },
+  brand_requests: {
+    // A partner asking for a brand we do not list. The pending_review registry
+    // row is the record that matters; this is the operator queue, and it is
+    // best-effort. Section 34g.
+    brand_id:     'varchar(64) required',        // derived slug, never partner-supplied
+    provider_id:  'varchar(64) required',
+    display_name: 'varchar(120) required',
+    evidence_url: 'varchar(500) required',
+    note:         'text(1000)',
+    requested_by: 'varchar(64) required',
+    requested_at: 'datetime required',
+    state:        'varchar(16) required',        // 'open' | 'promoted' | 'refused'
   },
   provider_orders: {
     // The only table holding a household address against a partner, and only
@@ -559,6 +643,115 @@ const TABLES = Object.freeze({
     ip_hash:     'varchar(128)',
     ua_hash:     'varchar(128)',
   },
+  /* ---------------------------------------------------------------- *
+   * The notification layer
+   * ---------------------------------------------------------------- */
+
+  notification_outbox: {
+    // One row per (event, template, recipient). `notify_key` is the
+    // idempotency key from lib/notify/outbox.js: a sha256 over the event,
+    // the template, and who it is for. THE UNIQUE FLAG IS THE WHOLE
+    // DEDUPLICATION: a second enqueue of the same fact collides here and
+    // writes nothing, which is what lets a read-time sweep run on every
+    // dashboard load without mailing anybody twice.
+    notify_key:       'varchar(64) unique required',
+    // What happened, in domain terms. Stable for a system-decided message
+    // (`campaign.stage:brampton-east:offers`) and per request for one a
+    // person just asked for (`otp.start:<req id>`), which is the difference
+    // between "never send this twice" and "never send this twice for one
+    // click".
+    event_key:        'varchar(190) required',
+    template_key:     'varchar(80) required',
+    // 'member' | 'partner' | 'admin' | 'address'. 'address' is a send to an
+    // email that has no account yet, which a sign-in code always is on the
+    // first attempt.
+    recipient_type:   'varchar(16) required',
+    recipient_id:     'varchar(190) required',
+    recipient_email:  'varchar(255) required',
+    locale:           'varchar(8)',
+    timezone:         'varchar(64)',
+    campaign_id:      'varchar(64)',
+    // The render context as JSON. Read back at drain time rather than
+    // rebuilt, and re-validated by the template's own stillRelevant hook.
+    context:          'text',
+    // NOT `priority`: that is a reserved word in ZCQL and the console refuses
+    // the column. The registry field is still called `priority`, because that
+    // is what it is; only the stored name carries the prefix.
+    send_priority:    'varchar(16) required',
+    casl_class:       'varchar(16) required',
+    category:         'varchar(32) required',
+    collapse_group:   'varchar(120)',
+    // Quiet hours land here. A row held overnight is 'held' until this
+    // passes, and the drain re-checks consent before it sends, so a midnight
+    // opt-out is honoured by a message queued before it.
+    earliest_send_at: 'datetime required',
+    // queued | held | superseded | sending | sent | failed | suppressed | cancelled
+    status:           'varchar(16) required',
+    attempts:         'int',
+    last_error:       'varchar(190)',
+    // Written on success, for the member's own notification history. The
+    // body is NOT stored: a blob store is not wired, and a truncated body is
+    // worse than an honest absence.
+    subject:          'varchar(190)',
+    body_sha:         'varchar(64)',
+    created_at:       'datetime required',
+    updated_at:       'datetime',
+    sent_at:          'datetime',
+  },
+
+  notification_deliveries: {
+    // One row per attempt, and one more per webhook event on that attempt.
+    // Append only: a delivery report is a thing that happened, and updating
+    // the previous one in place would destroy the sequence that answers "it
+    // was accepted, then it bounced".
+    outbox_key:          'varchar(64) required',
+    // The value WE chose, echoed back by the provider. Matched on first,
+    // because a provider message id is a value the provider chose.
+    client_reference:    'varchar(64)',
+    provider_message_id: 'varchar(200)',
+    transport:           'varchar(16)',
+    // accepted | delivered | bounced_hard | bounced_soft | complained
+    // | clicked | failed | unknown. Never 'opened': open tracking is off for
+    // member mail by decision, and an open event that arrives anyway is
+    // dropped rather than stored.
+    status:              'varchar(24) required',
+    status_at:           'datetime required',
+    detail:              'varchar(500)',
+    created_at:          'datetime required',
+  },
+
+  email_suppressions: {
+    // The addresses nothing may be written to, and why. Lowercased, and
+    // unique because the address IS the identity here: one person, one row,
+    // however many accounts they have had.
+    email:         'varchar(255) unique required',
+    // hard_bounce | complaint | unsubscribed_all | manual. The first two
+    // block transactional mail as well, because a complaint means somebody
+    // pressed the spam button and a hard bounce means the address is gone.
+    reason:        'varchar(24) required',
+    source:        'varchar(120)',
+    first_seen_at: 'datetime required',
+    last_seen_at:  'datetime required',
+  },
+
+  unsubscribe_tokens: {
+    // One row per (recipient, scope), reused rather than minted per message:
+    // a token per email would put millions of rows in a lookup table and
+    // would break the link in an old email, which is exactly when people use
+    // one. `token_key` is the flattened composite, `token` is the opaque
+    // sixteen characters that travel in the link and encode no identity.
+    token_key:      'varchar(200) unique required', // `${type}:${id}:${scope}`
+    token:          'varchar(16) unique required',
+    recipient_type: 'varchar(16) required',
+    recipient_id:   'varchar(190) required',
+    // all_cem, or one unlockable preference category.
+    scope:          'varchar(32) required',
+    created_at:     'datetime required',
+    // First press. The row is not burned: a second press must be a no-op and
+    // not an error, because a mail client retrying a one-click POST is normal.
+    used_at:        'datetime',
+  },
+
   share_event: {
     event:          'varchar(32) required',
     member_id:      'varchar(64)',

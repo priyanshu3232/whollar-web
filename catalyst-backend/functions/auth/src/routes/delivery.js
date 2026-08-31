@@ -40,6 +40,7 @@
 const catalog = require('../lib/catalog');
 const awards = require('../lib/awards');
 const orders = require('../lib/orders');
+const events = require('../lib/notify/events');
 const billing = require('../lib/billing');
 const audit = require('../lib/audit');
 const datastore = require('../lib/datastore');
@@ -297,6 +298,11 @@ function mount(router) {
     const slot = orders.readSlot((req.body || {}).slotAt, at);
     orders.requireTransition(row.state, 'bkd');
 
+    /* Captured BEFORE the write: it is what tells a rebooking from a first
+       booking, and the row is about to stop carrying it. */
+    const wasBooked = row.state === 'bkd';
+    const previousSlotAt = wasBooked ? row.slot_at : null;
+
     await orders.move(req.catalyst, row, 'bkd', {
       slot_at: datastore.toDb(new Date(slot)),
       note: row.state === 'acc' ? 'Booked' : 'Rebooked, household confirmed',
@@ -308,7 +314,16 @@ function mount(router) {
       userId: user.user_id,
       detail: `org=${context.orgId} order=${row.order_no || row.order_key}`,
     });
-    return ok(res, { order: orders.publicOrder(await orders.findAnyByKey(req.catalyst, row.order_key)) });
+
+    const fresh = await orders.findAnyByKey(req.catalyst, row.order_key);
+    /* AFTER the write, never before. An email saying "your install is booked"
+       that arrives because the booking then failed is worse than no email. */
+    await events.installScheduled(req, {
+      row: fresh || row,
+      previousSlotAt: previousSlotAt ? datastore.fromDb(previousSlotAt).getTime() : null,
+      rebooked: wasBooked,
+    });
+    return ok(res, { order: orders.publicOrder(fresh) });
   }));
 
   /**
@@ -346,7 +361,14 @@ function mount(router) {
       userId: user.user_id,
       detail: `org=${context.orgId} cohort=${row.campaign_id} order=${row.order_no || row.order_key}`,
     });
-    return ok(res, { order: orders.publicOrder(await orders.findAnyByKey(req.catalyst, row.order_key)) });
+
+    const activated = await orders.findAnyByKey(req.catalyst, row.order_key);
+    /* The finish line, and the only email in this file a household is glad to
+       get. No saving figure is passed: it would have to be derived from a bill
+       typed in months ago, and an unlabelled projection on the one letter that
+       says "done" is the worst place to put a guess. */
+    await events.switchComplete(req, { row: activated || row });
+    return ok(res, { order: orders.publicOrder(activated) });
   }));
 
   /**
@@ -381,7 +403,10 @@ function mount(router) {
       userId: user.user_id,
       detail: `org=${context.orgId} order=${row.order_no || row.order_key} kind=${kind}`,
     });
-    return ok(res, { order: orders.publicOrder(await orders.findAnyByKey(req.catalyst, row.order_key)) });
+
+    const after = await orders.findAnyByKey(req.catalyst, row.order_key);
+    await events.installException(req, { row: after || row, kind });
+    return ok(res, { order: orders.publicOrder(after) });
   }));
 
   /**
@@ -415,7 +440,10 @@ function mount(router) {
       userId: user.user_id,
       detail: `org=${context.orgId} order=${row.order_no || row.order_key} reason=${reason}`,
     });
-    return ok(res, { order: orders.publicOrder(await orders.findAnyByKey(req.catalyst, row.order_key)) });
+
+    const released = await orders.findAnyByKey(req.catalyst, row.order_key);
+    await events.orderReleased(req, { row: released || row, reason });
+    return ok(res, { order: orders.publicOrder(released) });
   }));
 }
 

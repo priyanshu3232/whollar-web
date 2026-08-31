@@ -91,6 +91,14 @@
       "destination": "https://whollar-110003037934.development.catalystserverless.ca/server/auth/r/:token"
     },
     {
+      "source": "/u/:token",
+      "destination": "https://whollar-110003037934.development.catalystserverless.ca/server/auth/u/:token"
+    },
+    {
+      "source": "/hooks/zeptomail",
+      "destination": "https://whollar-110003037934.development.catalystserverless.ca/server/auth/hooks/zeptomail"
+    },
+    {
       "source": "/api/auth/:path*",
       "destination": "https://whollar-110003037934.development.catalystserverless.ca/server/auth/:path*"
     }

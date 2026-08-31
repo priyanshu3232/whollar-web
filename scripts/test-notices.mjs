@@ -27,6 +27,8 @@ const schema = backend('lib/schema.js');
 const ds = backend('lib/datastore.js');
 const catalog = backend('lib/catalog.js');
 const mailer = backend('lib/mailer.js');
+const registry = backend('lib/notify/registry.js');
+const layout = backend('lib/notify/layout.js');
 const notices = backend('lib/notices.js');
 const users = backend('lib/users.js');
 
@@ -263,27 +265,68 @@ async function run() {
 
   console.log('\nN-7  seven stages, seven letters, each naming its cohort');
   {
+    /* Against the registry, not the old mailer templates. The letters moved
+       into lib/notify when the outbox landed, and a test still driving the
+       previous copy would go green over dead code while the live copy rotted. */
     const stages = catalog.MEMBER_STAGES;
     ok(stages.length === 7, `catalog names seven member stages (${stages.length})`);
-    let missing = [];
-    for (const stage of stages) {
-      const m = mailer.cohortStageEmail({
-        stage, region: 'Scarborough East', sub: 'Autumn cohort',
-        firstName: 'Ada', appBaseUrl: 'https://www.whollar.ca', when: null,
+
+    const entry = registry.get('member.campaign.stage');
+    ok(Boolean(entry), 'the stage letter is registered');
+
+    const renderStage = (stage) => {
+      const out = registry.render(entry, {
+        stage,
+        region_label: 'Scarborough East',
+        cohort_label: 'Autumn cohort',
+        dashboard_url: 'https://www.whollar.ca/dashboard',
+        first_name: 'Ada',
+      }, { locale: 'en', timezone: 'America/Toronto' });
+      return layout.assemble({
+        audience: 'member',
+        subject: out.subject,
+        preheader: out.preheader,
+        greeting: out.greeting,
+        blocks: out.blocks,
+        footer: layout.footerBlocks({
+          legalName: 'Whollar',
+          postalAddress: '1 Test Street, Toronto ON',
+          contactEmail: 'info@whollar.com',
+          whyLine: 'You are getting this because you have a Whollar account.',
+          preferencesUrl: 'https://www.whollar.ca/dashboard#settings',
+        }),
       });
-      if (!m || !m.subject || !m.text || !m.html) { missing.push(stage); continue; }
+    };
+
+    const missing = [];
+    for (const stage of stages) {
+      let m = null;
+      try { m = renderStage(stage); } catch { missing.push(`${stage} (threw)`); continue; }
+      if (!m.subject || !m.text || !m.html) { missing.push(stage); continue; }
       if (!/Scarborough East/.test(m.subject)) missing.push(`${stage} (subject)`);
       if (!/dashboard/i.test(m.text)) missing.push(`${stage} (no link)`);
+      if (!m.preheader) missing.push(`${stage} (no preheader)`);
+      /* CASL: identification and a postal address on every message, including
+         a transactional one. The unsubscribe link is the only part an opt-out
+         exemption covers. */
+      if (!/Whollar, 1 Test Street/.test(m.text)) missing.push(`${stage} (no address)`);
+      if (!/Notification settings/.test(m.text)) missing.push(`${stage} (no settings link)`);
     }
     ok(missing.length === 0, `every stage has a complete letter${missing.length ? ': missing ' + missing.join(', ') : ''}`);
 
     const em = stages
-      .map((s) => mailer.cohortStageEmail({ stage: s, region: 'X', appBaseUrl: 'https://x.ca' }))
-      .filter((m) => m && (/—/.test(m.text) || /—/.test(m.subject)));
-    ok(em.length === 0, 'and no letter carries an em dash');
+      .map(renderStage)
+      .filter((m) => /[\u2014\u2013]/.test(m.text) || /[\u2014\u2013]/.test(m.subject) || /[\u2014\u2013]/.test(m.html));
+    ok(em.length === 0, 'and no letter carries an em or en dash');
 
-    ok(mailer.cohortStageEmail({ stage: 'not_a_stage', region: 'X' }) === null,
-      'an unknown stage returns null rather than an empty letter');
+    /* Member-facing copy never says the word. Sealed bidding is what partners
+       do here; "auction" is the partner console's vocabulary. */
+    const auction = stages.map(renderStage).filter((m) => /auction/i.test(m.text));
+    ok(auction.length === 0, 'and no letter says the word the member surface never uses');
+
+    let threw = false;
+    try { renderStage('not_a_stage'); } catch { threw = true; }
+    ok(threw, 'an unknown stage throws rather than rendering an empty letter');
   }
 
   console.log(`\n${pass} passed, ${fail} failed\n`);
