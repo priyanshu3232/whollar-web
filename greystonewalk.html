@@ -21,6 +21,10 @@
 <script src="/js/whollar-base-pricing.js?v=20260807c"></script>
 <script src="/js/whollar-estimate-bench.js?v=20260814a"></script>
 <script src="/js/whollar-core.js?v=20260831a"></script>
+<!-- The v17 checkup engine, the SAME file /bill-checkup runs and the same
+     one scripts/test-checkup-savings.mjs asserts against. This page does not
+     own any pricing arithmetic: it collects the fields and hands them over. -->
+<script src="/js/checkup-savings.js?v=20260813"></script>
 <title>Greystone Walk internet cohort · Whollar</title>
 <meta name="description" content="Residents of 1, 3 and 5 Greystone Walk Drive in Scarborough are joining one Whollar cohort, so internet providers bid for all three towers at once. Free to join, non binding.">
 <link rel="canonical" href="https://www.whollar.ca/greystonewalk">
@@ -171,8 +175,13 @@ section.alt{background:var(--mist)}
 .card p{color:var(--ink-2);font-size:13.5px;line-height:1.6}
 
 /* estimator */
-.checkout{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:16px;align-items:start}
+/* The form is the wide column and the verdict is the fixed one, as in the
+   design reference. It was the other way round while the form was two
+   fields: at 440px a ten field form wraps 'Contract start date' onto three
+   lines and truncates the options inside the selects. */
+.checkout{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:16px;align-items:start}
 @media(max-width:1020px){.checkout{grid-template-columns:1fr}}
+@media(min-width:1021px){.vcard{position:sticky;top:88px}}
 .fld{border:1px solid var(--line);border-radius:var(--r);padding:14px 16px 16px;background:var(--paper)}
 .fld+.fld{margin-top:12px}
 .fld:focus-within{border-color:var(--accent)}
@@ -190,6 +199,37 @@ section.alt{background:var(--mist)}
 .billwrap input{border:none;padding:11px 0}
 .billwrap input:focus{border:none}
 .pcok{display:block;margin-top:8px;font-size:12.5px;font-weight:600;color:var(--accent-deep)}
+
+/* the checkup form */
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+@media(max-width:640px){.fg{grid-template-columns:1fr}}
+.fld select{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:11px;color:var(--ink);padding:11px 13px;font-size:14.5px;font-family:var(--body);appearance:none;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235F6B64' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 13px center;padding-right:36px}
+.fld select:focus{outline:none;border-color:var(--accent)}
+.barrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.barrow input{max-width:220px}
+.idk{margin-left:auto;flex:none;background:var(--paper);border:1.5px solid var(--line);color:var(--ink-2);font-size:11.5px;font-weight:600;border-radius:999px;padding:5px 12px}
+.idk:hover{border-color:#c6d5cc}
+.idk.on{background:var(--teal);color:#fff;border-color:var(--teal)}
+.mp{display:flex;align-items:flex-start;gap:11px;background:var(--mist);border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;width:100%;text-align:left;margin-top:12px}
+.mp .bx{flex:none;width:19px;height:19px;border-radius:6px;border:1.5px solid var(--line);background:var(--paper);margin-top:2px;display:grid;place-items:center}
+.mp[aria-pressed="true"] .bx{background:var(--accent-deep);border-color:var(--accent-deep)}
+.mp[aria-pressed="true"] .bx::after{content:"";width:10px;height:6px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-2px)}
+.mp b{display:block;font-family:var(--disp);font-weight:700;font-size:14px;color:var(--teal)}
+.mp span.d{display:block;font-size:12.5px;color:var(--ink-2);line-height:1.55;margin-top:3px}
+.periods{margin-top:12px;border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;background:var(--paper)}
+.prow{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:10px;align-items:center}
+.prow+.prow{margin-top:10px}
+.prow label{font-size:12.5px;color:var(--ink-2)}
+.periods .hint{margin-top:10px}
+.emailbox{border:1px solid var(--line);border-radius:var(--r);padding:15px 17px;margin-top:12px}
+.emailbox label{display:block;font-family:var(--label);font-weight:700;font-size:14px;color:var(--teal);margin-bottom:9px}
+.emailbox input{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:11px;padding:11px 13px;font-size:14.5px;font-family:var(--body)}
+.emailbox input:focus{outline:none;border-color:var(--accent)}
+.emailbox .fine{margin-top:9px;font-size:11.5px;line-height:1.6;color:var(--ink-3)}
+.vpill{display:inline-flex;align-items:center;gap:7px;font-family:var(--label);font-weight:700;font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;border-radius:999px;padding:6px 13px;background:rgba(255,184,148,.16);color:#FFB894;margin-left:8px}
+.vnote{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.14);font-size:13px;line-height:1.6;color:rgba(255,255,255,.75)}
 
 /* verdict panel */
 .vcard{border-radius:var(--rf);background:var(--panel);color:#fff;padding:clamp(24px,3.2vw,34px);position:relative;overflow:hidden;border-top:4px solid var(--teal-soft)}
@@ -282,13 +322,6 @@ section.alt{background:var(--mist)}
 
 /* ===== Restored from the design reference ===== */
 
-/* demo strip. The reference carried this disclosure above the fold and it
-   ships with the demo figures it describes: the leaderboard names, the
-   points and the sample verdict below are placeholders, and a resident of
-   1, 3 or 5 Greystone Walk Drive must not read them as neighbours who
-   already joined. The visitor/member toggle is deliberately not here. */
-.demo{background:var(--gold-soft);color:#6F5A1D;font-size:12.5px;line-height:1.5;padding:9px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
-.demo b{font-weight:700}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;background:var(--paper);padding:3px;flex:none}
 .seg button{border:none;background:transparent;color:var(--ink-2);font-size:12.5px;font-weight:600;padding:6px 14px;border-radius:999px}
 .seg button.on{background:var(--teal);color:#fff}
@@ -574,9 +607,7 @@ section.alt{background:var(--mist)}
 </head>
 <body>
 
-<div class="demo">
-  <div><b>Building facts are verified.</b> Units, storeys and completion years come from public condo records. The usernames, points, ratings and the sample verdict on this page are demo data while the cohort is being set up.</div>
-</div>
+
 
 <nav class="topnav"><div class="nav-in">
   <a class="mark" href="/" aria-label="Whollar home">
@@ -615,35 +646,76 @@ section.alt{background:var(--mist)}
     <div class="sec__d"><p class="lead">Not the sticker. The complete bill: your plan, the rented box, the credits, and the jump that lands when your promo quietly expires. About a minute, no account needed.</p></div>
   </header>
   <div class="checkout">
-    <form class="card" id="estForm" novalidate>
+    <form class="card" id="ckForm" novalidate>
       <div class="fld">
-        <div class="fld__h"><span class="fld__n">01</span><label class="fld__l" for="estBill">Your monthly internet bill</label></div>
-        <div class="billwrap"><span aria-hidden="true">$</span><input id="estBill" type="text" inputmode="numeric" autocomplete="off" value="90" aria-describedby="estBillHint"></div>
-        <p class="hint" id="estBillHint">The total you pay in a normal month, taxes in.</p>
+        <div class="barrow">
+          <span class="fld__n">01</span><label class="fld__l" for="ckPc">Postal code</label>
+          <input id="ckPc" type="text" maxlength="7" autocomplete="postal-code" value="M1K 5J4" placeholder="M1K 5J4">
+          <span class="pcok" id="ckPcOk"></span>
+        </div>
+        <p class="hint" id="ckPcHint">Greystone Walk Drive is M1K. The province is what picks your comparison.</p>
       </div>
-      <div class="fld">
-        <div class="fld__h"><span class="fld__n">02</span><label class="fld__l" for="estPc">Postal code</label></div>
-        <input id="estPc" type="text" maxlength="7" autocomplete="postal-code" placeholder="M1K 5J4" value="M1K 5J4" aria-describedby="estPcHint">
-        <span class="pcok" id="estPcOk"></span>
-        <p class="hint" id="estPcHint">Greystone Walk Drive is M1K. Any complete code works if you are checking for somewhere else.</p>
+      <div class="fg">
+        <div class="fld"><div class="fld__h"><span class="fld__n">02</span><label class="fld__l" for="ckB">Building</label></div>
+          <select id="ckB"><option value="1">1 Greystone Walk</option><option value="3" selected>3 Greystone Walk</option><option value="5">5 Greystone Walk</option></select></div>
+        <div class="fld"><div class="fld__h"><span class="fld__n">03</span><label class="fld__l" for="ckProv">Current provider</label></div>
+          <select id="ckProv"><option>Rogers</option><option selected>Bell</option><option>TekSavvy</option><option>Another independent</option><option>Other</option></select></div>
+        <div class="fld"><div class="fld__h"><span class="fld__n">04</span><label class="fld__l" for="ckSpd">Download speed</label></div>
+          <select id="ckSpd"><option value="150">150 Mbps</option><option value="500" selected>500 Mbps</option><option value="1000">1 Gig</option><option value="1500">1.5 Gig and faster</option><option value="0">Not sure</option></select></div>
+        <div class="fld"><div class="fld__h"><span class="fld__n">05</span><label class="fld__l" for="ckTech">How it reaches your unit</label></div>
+          <select id="ckTech"><option selected>Cable (TV coax jack)</option><option>Fibre to the unit</option><option>DSL (phone jack)</option><option>Fixed wireless</option><option>Not sure</option></select></div>
+        <div class="fld"><div class="fld__h"><span class="fld__n">06</span><label class="fld__l" for="ckStart">Contract start date</label><button class="idk" type="button" id="ckStartIdk" aria-pressed="false">I don't know</button></div>
+          <input id="ckStart" type="date" value="2026-01-01"></div>
+        <div class="fld"><div class="fld__h"><span class="fld__n">07</span><label class="fld__l" for="ckLen">Length of contract</label></div>
+          <select id="ckLen"><option value="0">No contract, month to month</option><option value="24" selected>24 months</option><option value="12">12 months</option></select></div>
+      </div>
+      <div class="fld" style="margin-top:12px"><div class="fld__h"><span class="fld__n">08</span><label class="fld__l" for="ckPend">Promo end date</label><button class="idk" type="button" id="ckPendIdk" aria-pressed="false">I don't know</button></div>
+        <input id="ckPend" type="date" value="2026-11-30"></div>
+
+      <button class="mp" type="button" id="ckMulti" aria-pressed="false" aria-controls="ckPeriods">
+        <span class="bx" aria-hidden="true"></span>
+        <span><b>I have more than one promo, and pay a different price in different months</b><span class="d">A device credit that ends in June and a bundle discount that ends in December, for instance. Tick this and enter each amount instead.</span></span>
+      </button>
+
+      <div class="periods hide" id="ckPeriods">
+        <div class="prow"><label for="ckP1a">First price, and how many months at it</label><input id="ckP1a" type="text" inputmode="decimal" placeholder="$ 64.99" aria-label="First price"></div>
+        <div class="prow"><label for="ckP1m">Months at that price</label><input id="ckP1m" type="text" inputmode="numeric" placeholder="6" aria-label="Months at the first price"></div>
+        <div class="prow"><label for="ckP2a">Second price</label><input id="ckP2a" type="text" inputmode="decimal" placeholder="$ 84.99" aria-label="Second price"></div>
+        <div class="prow"><label for="ckP2m">Months at that price</label><input id="ckP2m" type="text" inputmode="numeric" placeholder="6" aria-label="Months at the second price"></div>
+        <div class="prow"><label for="ckPf">And after that, every month</label><input id="ckPf" type="text" inputmode="decimal" placeholder="$ 104.99" aria-label="Price after every promo ends"></div>
+        <p class="hint">Any months you do not account for are held at the last price you gave, and the result says so.</p>
+      </div>
+
+      <div class="fg" id="ckSingle">
+        <div class="fld"><div class="fld__h"><span class="fld__n">09</span><label class="fld__l" for="ckDuring">Price paid during promo</label></div>
+          <input id="ckDuring" type="text" inputmode="decimal" value="$ 74.99"><p class="hint" id="ckDuringHint">The monthly total you pay right now, taxes in.</p></div>
+        <div class="fld"><div class="fld__h"><span class="fld__n">10</span><label class="fld__l" for="ckAfter">Price paid after promo ends</label></div>
+          <input id="ckAfter" type="text" inputmode="decimal" value="$ 104.99"><p class="hint" id="ckAfterHint">Leave blank if you do not know it yet.</p></div>
+      </div>
+
+      <div class="emailbox">
+        <label for="ckEmail">Email address</label>
+        <input id="ckEmail" type="email" placeholder="you@example.com" autocomplete="email">
+        <p class="fine">Optional. Nothing is sent from this page: your address is only carried to the join form so you do not type it twice. Free for households. Providers pay us only when they win your building.</p>
       </div>
       <button class="btn acc" type="submit" style="width:100%;margin-top:12px">Check my results</button>
-      <p class="cap" style="margin-top:12px">Nothing is sent anywhere and nothing is stored. This runs in your browser. The full checkup reads your plan, your contract dates and every promo on the bill.</p>
+      <p class="cap" style="margin-top:12px">The figure is worked out in your browser, by the same engine that runs the full Whollar checkup.</p>
     </form>
 
     <div class="vcard" id="vcard">
-      <span class="vbadge" id="vBadge">Your estimate</span>
-      <h3 id="vTitle">Enter your bill to see where you stand.</h3>
+      <span class="vbadge" id="vBadge">Your verdict</span><span class="vpill hide" id="vPill">Cliff ahead</span>
+      <h3 id="vTitle">Fill the form to see where you stand.</h3>
       <div class="vfig hide" id="vFig">
         <div class="fig"><span class="mlabel">You pay now</span><b id="vNow">$0<span style="font-size:.5em;color:rgba(255,255,255,.6)">/mo</span></b></div>
         <span class="figsep"></span>
         <div class="fig fig--hero"><span class="mlabel" id="vGapLabel">Extra over the next 12 months</span><b id="vGap">$0</b></div>
       </div>
-      <p class="vbody" id="vBody">Nothing announces the day a promo ends: the number moves, autopay clears it, and most households find out two or three bills later. This compares what you pay against the cheapest advertised plan we track near you.</p>
+      <p class="vbody" id="vBody">Nothing announces the day a promo ends: the number moves, autopay clears it, and most households find out two or three bills later. The checkup reads the whole twelve months instead of today's price.</p>
+      <p class="vnote hide" id="vNote"></p>
       <p class="vfine" id="vFine">Pooled with your building, providers bid for all three towers at once, and a building does not get quietly reset.</p>
       <div class="vcta">
-        <a class="btn" href="/waitlist/?fsa=M1K">Join the&nbsp;<span class="bn">Greystone Walk II</span>&nbsp;cohort</a>
-        <a class="btn ghost" href="/bill-checkup">Run the full checkup</a>
+        <a class="btn" id="vJoin" href="/waitlist/?fsa=M1K">Join the&nbsp;<span class="bn">Greystone Walk II</span>&nbsp;cohort</a>
+        <a class="btn ghost" href="/bill-checkup">Open the full checkup</a>
       </div>
     </div>
   </div>
@@ -1012,39 +1084,92 @@ section.alt{background:var(--mist)}
   modal.addEventListener('click', function (e) { if (e.target === modal) closeNom(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeNom(); });
 
-  /* ---- the estimate ------------------------------------------------
-     W.quickEstimate is the homepage's function and /bill-checkup's
-     reference, generated from the pricing spreadsheet and gated in CI,
-     so this page cannot drift away from what the rest of the site says
-     a household is overpaying. Three outcomes, each rendered as itself:
-     a real gap, already at or below the tracked price, or which input
-     was wrong. The bill is validated, never clamped: silently rewriting
-     a typed $5 into $20 would put a figure on screen that the household
-     never entered. */
-  var form = document.getElementById('estForm');
-  if (!form || !W) return;
-  var billEl = document.getElementById('estBill');
-  var pcEl = document.getElementById('estPc');
-  var pcOk = document.getElementById('estPcOk');
-  var billHint = document.getElementById('estBillHint');
+  /* ---- the checkup -------------------------------------------------
+     Every figure on the verdict card comes from WhollarSavings.computeCheckup,
+     the v17 engine that /bill-checkup runs and that
+     scripts/test-checkup-savings.mjs asserts against. This page owns no
+     pricing arithmetic of its own, so it cannot tell a household at Greystone
+     Walk a different number from the one the rest of the site would give them.
+
+     The window is always twelve months. Exit fees have been zero since CRTC
+     2026-43, so the contract does not gate the decision and must not truncate
+     the window.
+
+     ONE THING THIS MUST NEVER DO, and the engine's own header says so: name
+     the plan it compared against. The benchmark's provider and plan are
+     deliberately absent from the computeCheckup result and must not be
+     reconstructed here. The household is told the gap, not the shop. */
+  var form = document.getElementById('ckForm');
+  var E = window.WhollarSavings;
+  if (!form || !W || !E) return;
+
+  var pcEl = document.getElementById('ckPc');
+  var pcOk = document.getElementById('ckPcOk');
+  var pcHint = document.getElementById('ckPcHint');
+  var bEl = document.getElementById('ckB');
+  var spdEl = document.getElementById('ckSpd');
+  var startEl = document.getElementById('ckStart');
+  var pendEl = document.getElementById('ckPend');
+  var duringEl = document.getElementById('ckDuring');
+  var afterEl = document.getElementById('ckAfter');
+  var emailEl = document.getElementById('ckEmail');
+  var startIdk = document.getElementById('ckStartIdk');
+  var pendIdk = document.getElementById('ckPendIdk');
+  var multiBtn = document.getElementById('ckMulti');
+  var periods = document.getElementById('ckPeriods');
+  var single = document.getElementById('ckSingle');
+
   var card = document.getElementById('vcard');
   var badge = document.getElementById('vBadge');
+  var pill = document.getElementById('vPill');
   var title = document.getElementById('vTitle');
   var fig = document.getElementById('vFig');
   var nowEl = document.getElementById('vNow');
   var gapEl = document.getElementById('vGap');
   var gapLabel = document.getElementById('vGapLabel');
-  var body = document.getElementById('vBody');
-  var fine = document.getElementById('vFine');
+  var bodyEl = document.getElementById('vBody');
+  var noteEl = document.getElementById('vNote');
+  var fineEl = document.getElementById('vFine');
+  var joinEl = document.getElementById('vJoin');
 
-  var BMIN = W.ESTIMATE_BILL_MIN, BMAX = W.ESTIMATE_BILL_MAX;
-  var BILL_HELP = 'The total you pay in a normal month, taxes in.';
-
-  function currentBill() {
-    var raw = String(billEl.value).replace(/[^0-9]/g, '');
-    return raw === '' ? NaN : parseInt(raw, 10);
+  /* Whole dollars. The engine works in cents and the household does not:
+     a headline of "$659.94 extra" reads as false precision on a figure that
+     rests on a benchmark and a promo date. */
+  function money(n) { return '$' + Math.round(Number(n) || 0).toLocaleString('en-CA'); }
+  function num(el) {
+    var raw = String(el.value).replace(/[^0-9.]/g, '');
+    var v = parseFloat(raw);
+    return isFinite(v) ? v : null;
   }
-  function money(n) { return '$' + Number(n).toLocaleString('en-CA'); }
+
+  /* The "I don't know" buttons. A date nobody knows is null to the engine,
+     which then reports the assumption it had to make rather than inventing
+     a date and reporting nothing. */
+  function idk(btn, input) {
+    btn.addEventListener('click', function () {
+      var on = btn.getAttribute('aria-pressed') === 'true';
+      btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+      btn.classList.toggle('on', !on);
+      input.disabled = !on;
+    });
+  }
+  idk(startIdk, startEl);
+  idk(pendIdk, pendEl);
+
+  multiBtn.addEventListener('click', function () {
+    var on = multiBtn.getAttribute('aria-pressed') === 'true';
+    multiBtn.setAttribute('aria-pressed', on ? 'false' : 'true');
+    periods.classList.toggle('hide', on);
+    single.classList.toggle('hide', !on);
+  });
+
+  /* Building picks the tower, so the form and the panel above cannot
+     disagree about which of the three you are reading. */
+  bEl.addEventListener('change', function () {
+    var id = bEl.value;
+    each('.tower', function (t) { t.setAttribute('aria-selected', t.getAttribute('data-b') === id ? 'true' : 'false'); });
+    selectTower(id);
+  });
 
   function paintPostal() {
     var atEnd = pcEl.selectionStart === pcEl.value.length;
@@ -1052,96 +1177,151 @@ section.alt{background:var(--mist)}
     if (atEnd) { try { pcEl.setSelectionRange(pcEl.value.length, pcEl.value.length); } catch (e) {} }
     var pc = W.parsePostal(pcEl.value);
     if (pc && pc.complete) {
-      pcOk.textContent = '✓ ' + pc.province + ', the ' + pc.fsa + ' area';
+      pcOk.textContent = pc.fsa === 'M1K'
+        ? '✓ Ontario, the Greystone Walk cohort'
+        : '✓ ' + pc.province + ', the ' + pc.fsa + ' area';
       pcEl.classList.remove('is-err');
+      pcHint.classList.remove('err');
     } else {
       pcOk.textContent = '';
     }
+    return pc;
+  }
+  pcEl.addEventListener('input', paintPostal);
+
+  function engineInput(pc) {
+    var multi = multiBtn.getAttribute('aria-pressed') === 'true';
+    var rows = [];
+    if (multi) {
+      var pairs = [['ckP1a', 'ckP1m'], ['ckP2a', 'ckP2m']];
+      for (var i = 0; i < pairs.length; i++) {
+        var a = num(document.getElementById(pairs[i][0]));
+        var m = num(document.getElementById(pairs[i][1]));
+        if (a !== null && m !== null && m > 0) rows.push({ amount: a, months: Math.round(m) });
+      }
+    }
+    return {
+      province: pc ? pc.province : null,
+      speedMbps: parseInt(spdEl.value, 10) || 0,
+      during: multi ? null : num(duringEl),
+      after: multi ? null : num(afterEl),
+      multi: multi,
+      periods: rows,
+      fallback: multi ? num(document.getElementById('ckPf')) : null,
+      startDate: startIdk.getAttribute('aria-pressed') === 'true' || !startEl.value ? null : startEl.value,
+      promoEnd: pendIdk.getAttribute('aria-pressed') === 'true' || !pendEl.value ? null : pendEl.value
+    };
   }
 
-  function show(state, o) {
-    card.classList.toggle('is-over', state === 'over');
-    fig.classList.toggle('hide', state !== 'over' && state !== 'under');
+  var TONE = {
+    high: 'Verdict, well above the market',
+    moderate: 'Verdict, above the market',
+    fair: 'Verdict, buying well'
+  };
+
+  function show(o) {
+    card.classList.toggle('is-over', !!o.over);
+    fig.classList.toggle('hide', !o.figures);
+    pill.classList.toggle('hide', !o.pill);
     badge.textContent = o.badge;
     title.textContent = o.title;
-    body.textContent = o.body;
-    fine.textContent = o.fine || '';
-    fine.classList.toggle('hide', !o.fine);
+    bodyEl.textContent = o.body;
+    noteEl.textContent = o.note || '';
+    noteEl.classList.toggle('hide', !o.note);
+    fineEl.textContent = o.fine;
   }
 
   function render() {
-    var bill = currentBill();
-    var bad = isNaN(bill) || bill < BMIN || bill > BMAX;
-    billEl.classList.toggle('is-err', bad);
-    billHint.classList.toggle('err', bad);
-    billHint.textContent = bad
-      ? 'Enter a monthly bill between $' + BMIN + ' and $' + BMAX + '.'
-      : BILL_HELP;
+    var pc = paintPostal();
+    if (!pc || !pc.complete) {
+      pcEl.classList.add('is-err');
+      pcHint.classList.add('err');
+      pcHint.textContent = 'Six characters, letter number letter, number letter number.';
+      show({ badge: 'Your verdict', title: 'That postal code is not complete.',
+             body: 'The province is what picks your comparison, so the code has to be a full one. Greystone Walk Drive is M1K.',
+             fine: 'Nothing on this form leaves your browser.' });
+      pcEl.focus();
+      return;
+    }
+    pcHint.textContent = 'Greystone Walk Drive is M1K. The province is what picks your comparison.';
 
-    var est = W.quickEstimate(bill, pcEl.value);
-
-    if (!est.ok) {
-      if (est.reason === 'postal') {
-        pcEl.classList.add('is-err');
-        show('idle', {
-          badge: 'Your estimate',
-          title: 'That postal code is not complete.',
-          body: 'Six characters, letter number letter, number letter number. Greystone Walk Drive is M1K.'
-        });
-        pcEl.focus();
-        return;
-      }
-      if (est.reason === 'bill') {
-        show('idle', {
-          badge: 'Your estimate',
-          title: 'That bill is outside the range we can compare.',
-          body: 'We compare bills between $' + BMIN + ' and $' + BMAX + ' a month. Anything outside that is better handled by the full checkup, which reads your actual plan.'
-        });
-        billEl.focus();
-        return;
-      }
-      show('idle', {
-        badge: 'Your estimate',
-        title: 'We do not track a plan near that postal code yet.',
-        body: 'The full checkup still works: it compares your plan against the national range for your speed rather than a local one.'
-      });
+    var input = engineInput(pc);
+    var multi = input.multi;
+    var haveMoney = multi ? (input.periods.length > 0 || input.fallback !== null) : input.during !== null;
+    if (!haveMoney) {
+      show({ badge: 'Your verdict', title: 'We still need what you pay each month.',
+             body: multi
+               ? 'Enter at least one price and the number of months you paid it, or untick the multiple promo box.'
+               : 'Field 09 is the monthly total you pay right now, taxes in.',
+             fine: 'Nothing on this form leaves your browser.' });
+      (multi ? document.getElementById('ckP1a') : duringEl).focus();
       return;
     }
 
-    var where = W.estimateAreaLabel(est);
-    var basis = 'Compared with the cheapest advertised plan at ' + est.mbps
-      + ' Mbps or better ' + where + ': ' + est.provider + ' at ' + money(est.benchmark)
-      + ' a month. That is an advertised price we track, not an offer.';
+    var r = E.computeCheckup(input);
 
-    nowEl.innerHTML = money(est.bill) + '<span style="font-size:.5em;color:rgba(255,255,255,.6)">/mo</span>';
+    /* Carry the address to the join form so nobody types it twice. */
+    var q = '/waitlist/?fsa=' + encodeURIComponent(pc.fsa);
+    if (emailEl.value && emailEl.value.indexOf('@') > 0) q += '&email=' + encodeURIComponent(emailEl.value.trim());
+    joinEl.setAttribute('href', q);
 
-    if (est.atOrBelow) {
-      gapLabel.textContent = 'Tracked price ' + where;
-      gapEl.textContent = money(est.benchmark);
-      show('under', {
-        badge: 'You are buying well',
-        title: 'Your bill is already at or below the price we track ' + where + '.',
-        body: basis,
-        fine: 'A cohort can still beat it, because a cohort is not buying one line. That is what the sealed bids for the three towers decide, and joining costs nothing while you find out.'
-      });
+    if (!r.ok) {
+      show({ badge: 'Your verdict', title: 'We do not track a plan at that speed in ' + (pc.province || 'your province') + ' yet.',
+             body: 'Without a comparison there is no honest figure to show you, so this page will not invent one. A cohort still works: the price comes from what providers bid for the three towers, not from what we track today.',
+             fine: 'Pooled with your building, providers bid for all three towers at once, and a building does not get quietly reset.' });
+      return;
+    }
+
+    var now = r.now.amount || 0;
+    nowEl.innerHTML = money(now) + '<span style="font-size:.5em;color:rgba(255,255,255,.6)">/mo</span>';
+
+    /* Assumptions and what the gap has already cost, both from the engine. */
+    var bits = [];
+    if (r.overpaid) bits.push('At that gap, the months already behind you have cost about ' + money(r.overpaid) + '.');
+    if (r.assumptions.indexOf('midpoint-estimate') > -1) bits.push('You did not give a promo end date, so the twelve months are split half at each price.');
+    if (r.assumptions.indexOf('current-only') > -1) bits.push('No end date and no post promo price, so the whole year is held at what you pay today. The real figure is likely higher.');
+    if (r.assumptions.indexOf('dated-no-sticker') > -1) bits.push('You did not give the post promo price, so the months after the cliff are held at today’s rate. The real figure is likely higher.');
+    if (r.assumptions.indexOf('uncovered') > -1) bits.push('Some months were not accounted for, so they are held at the last price you gave.');
+
+    if (r.savings <= 0) {
+      gapLabel.textContent = 'Your twelve months';
+      gapEl.textContent = money(r.current.total);
+      show({ figures: true, badge: TONE.fair,
+             title: 'You are already at or below what we can compare you with.',
+             body: 'Over the next twelve months your plan costs about ' + money(r.current.total) + ', which is at or under the cheapest comparable plan we track in ' + pc.province + ' at your speed.',
+             note: bits.join(' '),
+             fine: 'A cohort can still beat it, because a cohort is not buying one line. That is what the sealed bids for the three towers decide, and joining costs nothing while you find out.' });
       return;
     }
 
     gapLabel.textContent = 'Extra over the next 12 months';
-    gapEl.textContent = money(est.annual);
-    show('over', {
-      badge: 'Above the tracked price',
-      title: 'You are paying ' + money(Math.floor(est.monthlyDelta)) + ' a month more than the cheapest plan we track ' + where + '.',
-      body: basis,
-      fine: 'Pooled with your building, providers bid for all three towers at once, and a building does not get quietly reset. A cohort price is set by those sealed bids, which is a different number again.'
-    });
+    gapEl.textContent = money(r.savings);
+
+    var title2, body;
+    if (r.cliffSoon && r.now.postPromo === false) {
+      title2 = 'Your loyalty is about to cost you.';
+      body = 'Your promo ends within four months and the rate steps up. Nothing announces the day it changes: the number moves, autopay clears it, and most households find out two or three bills later. Across the next twelve months that is about '
+        + money(r.savings) + ' more than the cheapest comparable plan at your speed in ' + pc.province + '.';
+    } else if (r.now.postPromo) {
+      title2 = 'Your promo has already ended.';
+      body = 'You are on the regular rate now. Across the next twelve months that is about ' + money(r.savings)
+        + ' more than the cheapest comparable plan at your speed in ' + pc.province + ', or about ' + money(r.perMonth) + ' a month.';
+    } else {
+      title2 = 'You are paying about ' + money(r.perMonth) + ' a month more than you need to.';
+      body = 'Across the next twelve months that is about ' + money(r.savings)
+        + ' more than the cheapest comparable plan at your speed in ' + pc.province + '.';
+    }
+
+    /* When the cliff is the story it IS the verdict, so it goes in the badge
+       rather than beside it: the reference reads "Verdict, cliff ahead", and a
+       tone badge plus a separate pill wraps onto two lines at this width. */
+    show({ figures: true, over: true, pill: false,
+           badge: r.cliffSoon ? 'Verdict, cliff ahead' : (TONE[r.tone] || 'Your verdict'),
+           title: title2, body: body,
+           note: bits.join(' '),
+           fine: 'Pooled with your building, providers bid for all three towers at once, and a building does not get quietly reset. What a cohort actually pays is set by those sealed bids, which is a different number again.' });
   }
 
-  pcEl.addEventListener('input', paintPostal);
-  billEl.addEventListener('input', function () {
-    var bill = currentBill();
-    billEl.classList.toggle('is-err', isNaN(bill) || bill < BMIN || bill > BMAX);
-  });
   form.addEventListener('submit', function (e) { e.preventDefault(); render(); });
   paintPostal();
 })();
