@@ -319,6 +319,15 @@
     });
     ctl.ui.count = n;
     ctl.sig = signature(sel);
+    /* The PLACEHOLDER is re-read too, not just the rows. It is what the trigger
+       shows while nothing is picked, and a page that replaces a list usually
+       replaces that line with it: the survey's model cell starts life as "Pick
+       make first" and becomes "Model" the moment a make answers the question it
+       was asking. Captured once at build time it stayed on the older, now
+       nonsensical, instruction. An explicit data-wsel-empty still wins, because
+       that one is the page's word and not the option list's. */
+    ctl.ui.empty = sel.getAttribute('data-wsel-empty')
+      || (ph ? ph.text : (ctl.multi ? 'Choose' : 'Choose\u2026'));
     ctl.list.innerHTML = html.join('');
 
     /* Text is set as text, never as markup: an option label is content, and
@@ -388,6 +397,15 @@
   /* The gap between trigger and panel, and the margin the panel keeps off
      every edge of the window. */
   var GAP = 6, EDGE = 8;
+  /* The least room below a trigger that is still worth opening into: about four
+     rows. Below this a downward panel is a slot too thin to pick from and the
+     panel goes above instead. Above it, DOWN WINS, even when the list would
+     rather have more space, because these panels scroll and a reader looking
+     for a dropdown looks under the control. The alternative, flipping whenever
+     the full list does not fit, is what put a 320px carrier list over the
+     dialog's own heading on a 13px shortfall: technically the roomier side,
+     visibly the wrong one. */
+  var MIN_ROOM = 168;
   /* The panel's own ceiling, unchanged from the `max-height:min(320px,58vh)`
      this replaced. It is applied in place() now because the height decides
      which side the panel opens on, and a rule in the stylesheet cannot be read
@@ -419,10 +437,13 @@
     panel.style.maxHeight = '';
     panel.style.minWidth = Math.round(t.width) + 'px';
     panel.style.maxWidth = Math.max(160, vw - 2 * EDGE) + 'px';
-    var want = panel.offsetHeight;
+    /* The height the panel will actually be drawn at, capped, which is the only
+       height worth measuring anything against: a 17-row sidewall list wants
+       680px and is never going to get it. */
+    var want = Math.min(panel.offsetHeight, cap());
     var below = vh - t.bottom - GAP - EDGE, above = t.top - GAP - EDGE;
-    var up = want > below && above > below;
-    var h = Math.min(want, Math.max(96, Math.min(cap(), up ? above : below)));
+    var up = below < Math.min(want, MIN_ROOM) && above > below;
+    var h = Math.min(want, Math.max(96, up ? above : below));
     panel.style.maxHeight = h + 'px';
     var top = up ? t.top - GAP - h : t.bottom + GAP;
     panel.style.top = Math.max(EDGE, Math.min(top, vh - EDGE - h)) + 'px';
