@@ -44,6 +44,7 @@ const challenges = require('../lib/challenges');
 const mailer = require('../lib/mailer');
 const notify = require('../lib/notify');
 const audit = require('../lib/audit');
+const crm = require('../lib/crmqueue');
 const ratelimit = require('../lib/ratelimit');
 const siteconfig = require('../lib/siteconfig');
 const catalog = require('../lib/catalog');
@@ -1384,6 +1385,22 @@ function mount(router, cfg) {
         context,
       });
       outcomes.push({ user: u.user_id, delivered: Boolean(sent.delivered), status: sent.status });
+      /* The CRM note belongs on the PARTNER's record, not the operator's, so
+         it is written here, in the one place the org's own people are already
+         resolved. The audit row the callers write records who decided; this
+         records what was decided about them. Both callers are a decision, so
+         there is no case where this fires for something else. */
+      crm.enqueueAsync(req.catalyst, req, {
+        source: crm.SOURCES.PARTNER_DECISION,
+        rowId: org.org_id,
+        email: u.email_display || u.email_normalized,
+        leadType: 'partner',
+        data: {
+          org_id: org.org_id, org_name: org.legal_name || null,
+          decision: context.approved ? 'approved' : 'rejected',
+          reason: context.reason || null,
+        },
+      });
     }
     return outcomes;
   }

@@ -382,3 +382,20 @@ jobs:
       # where a syntax error blanks the whole page.
       - name: Inline page scripts parse
         run: node scripts/check-inline-scripts.mjs
+
+      # The auth function's CRM enqueue helper, and the three rules that make it
+      # safe to call from a signup path. Each one fails silently in production if
+      # it breaks: a throw from a marketing queue would refuse somebody's signup,
+      # a leaked install address is only ever found by whoever reads the CRM, and
+      # an unparked note ships to Zoho before anyone decided it should.
+      - name: CRM enqueue rules
+        run: node scripts/test-crmqueue.mjs
+
+      # What each CRM note says, for the twelve events the auth function
+      # enqueues. A note that renders wrongly is not an error anywhere: it is a
+      # line somebody reads in Zoho weeks later and believes. Two of the
+      # assertions are refusals, and they are the reason the file exists: a
+      # sealed bid's note must never carry a price, an activation's must never
+      # carry a fee amount.
+      - name: CRM note copy
+        run: node scripts/test-crmnotes.mjs

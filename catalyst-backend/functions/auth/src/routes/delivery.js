@@ -43,6 +43,7 @@ const orders = require('../lib/orders');
 const events = require('../lib/notify/events');
 const billing = require('../lib/billing');
 const audit = require('../lib/audit');
+const crm = require('../lib/crmqueue');
 const datastore = require('../lib/datastore');
 const { ok } = require('../lib/envelope');
 const { requirePartner: guardPartner, requireApproved } = require('../lib/guards');
@@ -314,6 +315,19 @@ function mount(router) {
       userId: user.user_id,
       detail: `org=${context.orgId} order=${row.order_no || row.order_key}`,
     });
+    /* PARTNER SIDE ONLY, on purpose. The household's half of this story is
+       already on their own record from the offer acceptance, and resolving
+       `member_user_id` to an email here would pull the household's identity
+       into a partner-facing route that is built never to carry it. */
+    crm.enqueueAsync(req.catalyst, req, {
+      source: crm.SOURCES.HOUSEHOLD_ORDER,
+      rowId: row.order_key,
+      email: user.email_display || user.email_normalized,
+      leadType: 'partner',
+      data: { event: wasBooked ? 'rebooked' : 'booked', org_id: context.orgId,
+        cohort: row.campaign_id, order_no: row.order_no || null,
+        tier: row.tier || null, fsa: row.fsa || null },
+    });
 
     const fresh = await orders.findAnyByKey(req.catalyst, row.order_key);
     /* AFTER the write, never before. An email saying "your install is booked"
@@ -361,6 +375,24 @@ function mount(router) {
       userId: user.user_id,
       detail: `org=${context.orgId} cohort=${row.campaign_id} order=${row.order_no || row.order_key}`,
     });
+    /* PARTNER SIDE ONLY, on purpose. The household's half of this story is
+       already on their own record from the offer acceptance, and resolving
+       `member_user_id` to an email here would pull the household's identity
+       into a partner-facing route that is built never to carry it. */
+    /* NO FEE FIGURE. Only an activation with a clean line test earns one, which
+       is what just happened, but the amount is configuration on the agreement
+       (site_config.success_fee, read by lib/billing.js) and not a number this
+       route holds. A stale figure copied into a CRM note would be read as the
+       invoice. The note records the event; billing owns the money. */
+    crm.enqueueAsync(req.catalyst, req, {
+      source: crm.SOURCES.HOUSEHOLD_ORDER,
+      rowId: row.order_key,
+      email: user.email_display || user.email_normalized,
+      leadType: 'partner',
+      data: { event: 'activated', org_id: context.orgId,
+        cohort: row.campaign_id, order_no: row.order_no || null,
+        tier: row.tier || null, fsa: row.fsa || null, billable: true },
+    });
 
     const activated = await orders.findAnyByKey(req.catalyst, row.order_key);
     /* The finish line, and the only email in this file a household is glad to
@@ -402,6 +434,18 @@ function mount(router) {
       outcome: 'success',
       userId: user.user_id,
       detail: `org=${context.orgId} order=${row.order_no || row.order_key} kind=${kind}`,
+    });
+    /* PARTNER SIDE ONLY, on purpose. The household's half of this story is
+       already on their own record from the offer acceptance, and resolving
+       `member_user_id` to an email here would pull the household's identity
+       into a partner-facing route that is built never to carry it. */
+    crm.enqueueAsync(req.catalyst, req, {
+      source: crm.SOURCES.HOUSEHOLD_ORDER,
+      rowId: row.order_key,
+      email: user.email_display || user.email_normalized,
+      leadType: 'partner',
+      data: { event: kind, org_id: context.orgId, cohort: row.campaign_id,
+        order_no: row.order_no || null, fsa: row.fsa || null },
     });
 
     const after = await orders.findAnyByKey(req.catalyst, row.order_key);

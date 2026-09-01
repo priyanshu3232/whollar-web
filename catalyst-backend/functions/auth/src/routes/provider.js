@@ -36,6 +36,7 @@ const sessions = require('../lib/sessions');
 const mailer = require('../lib/mailer');
 const notify = require('../lib/notify');
 const audit = require('../lib/audit');
+const crm = require('../lib/crmqueue');
 const ratelimit = require('../lib/ratelimit');
 const envelope = require('../lib/envelope');
 const { canRevealCode } = require('./otp');
@@ -285,6 +286,19 @@ function mount(router, cfg) {
     audit.recordAsync(req.catalyst, req, {
       type: 'provider.signup.verify', outcome: 'success', email, userId: user.user_id,
       detail: { org_id: context && context.orgId, approval_status: context && context.approvalStatus },
+    });
+    crm.enqueueAsync(req.catalyst, req, {
+      source: crm.SOURCES.PARTNER_SIGNUP,
+      rowId: user.user_id,
+      email: user.email_display || email,
+      leadType: 'partner',
+      data: {
+        first_name: user.first_name || null,
+        last_name: user.last_name || null,
+        org_id: (context && context.orgId) || null,
+        org_name: (context && context.orgName) || null,
+        approval_status: (context && context.approvalStatus) || null,
+      },
     });
 
     res.status(200).json({

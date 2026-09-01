@@ -38,6 +38,7 @@ const users = require('../lib/users');
 const catalog = require('../lib/catalog');
 const siteconfig = require('../lib/siteconfig');
 const audit = require('../lib/audit');
+const crm = require('../lib/crmqueue');
 const envelope = require('../lib/envelope');
 const bids = require('../lib/bids');
 const events = require('../lib/notify/events');
@@ -279,6 +280,13 @@ function mount(router) {
       userId: user.user_id,
       email: user.email_normalized,
       detail: { org_id: org.org_id, from: org.legal_name, to: legalName },
+    });
+    crm.enqueueAsync(req.catalyst, req, {
+      source: crm.SOURCES.PARTNER_ORG,
+      rowId: org.org_id,
+      email: user.email_display || user.email_normalized,
+      leadType: 'partner',
+      data: { org_id: org.org_id, org_name: legalName, previous_name: org.legal_name || null },
     });
 
     res.status(200).json({ ok: true, org: { ...context, orgName: legalName } });
@@ -645,6 +653,21 @@ function mount(router) {
       /* No prices in the detail. The sealed record is the record. */
       detail: { org_id: context.orgId, campaign: campaign.id, revision: sealed.revisionNo, receipt: sealed.receipt },
     });
+    /* NO PRICES, deliberately, and for the same reason the audit line above
+       carries none: the sealed record is the record. A CRM note is read by
+       more people than an audit row and lives on a surface built for sharing,
+       so what it carries is that a bid exists, which cohort it is on, its
+       revision and its receipt. The number stays in provider_bids, where the
+       seal means something. */
+    crm.enqueueAsync(req.catalyst, req, {
+      source: crm.SOURCES.SEALED_BID,
+      rowId: `${campaign.id}:${context.orgId}`,
+      email: user.email_display || user.email_normalized,
+      leadType: 'partner',
+      data: { event: 'sealed', org_id: context.orgId, org_name: context.orgName || null,
+        cohort: campaign.id, region: campaign.region || null,
+        revision: sealed.revisionNo, receipt: sealed.receipt },
+    });
 
     /* The receipt, in writing. Their own bid and nothing else: not the number
        of bidders, not whether they are cheapest, not whether anybody else bid
@@ -777,6 +800,21 @@ function mount(router) {
       userId: user.user_id,
       email: user.email_normalized,
       detail: { org_id: context.orgId, campaign: campaign.id, revision: sealed.revisionNo, receipt: sealed.receipt },
+    });
+    /* NO PRICES, deliberately, and for the same reason the audit line above
+       carries none: the sealed record is the record. A CRM note is read by
+       more people than an audit row and lives on a surface built for sharing,
+       so what it carries is that a bid exists, which cohort it is on, its
+       revision and its receipt. The number stays in provider_bids, where the
+       seal means something. */
+    crm.enqueueAsync(req.catalyst, req, {
+      source: crm.SOURCES.SEALED_BID,
+      rowId: `${campaign.id}:${context.orgId}`,
+      email: user.email_display || user.email_normalized,
+      leadType: 'partner',
+      data: { event: 'improved', org_id: context.orgId, org_name: context.orgName || null,
+        cohort: campaign.id, region: campaign.region || null,
+        revision: sealed.revisionNo, receipt: sealed.receipt },
     });
 
     /* Same receipt letter as a first seal, and the revision number is what

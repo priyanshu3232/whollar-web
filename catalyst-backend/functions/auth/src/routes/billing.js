@@ -37,6 +37,7 @@ const orders = require('../lib/orders');
 const events = require('../lib/notify/events');
 const billing = require('../lib/billing');
 const audit = require('../lib/audit');
+const crm = require('../lib/crmqueue');
 const datastore = require('../lib/datastore');
 const { ok } = require('../lib/envelope');
 const { requirePartner: guardPartner, requireApproved } = require('../lib/guards');
@@ -288,6 +289,14 @@ function mount(router) {
       outcome: 'success',
       userId: user.user_id,
       detail: `org=${context.orgId} method=invoice`,
+    });
+    crm.enqueueAsync(req.catalyst, req, {
+      source: crm.SOURCES.PARTNER_BILLING,
+      rowId: context.orgId,
+      email: user.email_display || user.email_normalized,
+      leadType: 'partner',
+      data: { org_id: context.orgId, org_name: context.orgName || null,
+        method: 'invoice', billing_email: email, billing_contact: contact || null },
     });
     return ok(res, { method: billing.publicMethod(method) });
   }));

@@ -32,6 +32,7 @@
 
 const datastore = require('../lib/datastore');
 const audit = require('../lib/audit');
+const crm = require('../lib/crmqueue');
 const seats = require('../lib/seats');
 const users = require('../lib/users');
 const catalog = require('../lib/catalog');
@@ -1030,6 +1031,21 @@ function mount(router, cfg) {
         ? `cohort=${campaign.id} from_org=${changed.orgId} from_tier=${changed.tier} org=${entry.orgId} tier=${entry.tier}`
         : `cohort=${campaign.id} org=${entry.orgId} tier=${entry.tier} slot=${slotAt} window=${slotWindow}`,
     });
+    /* The household's decision, and the first moment a partner is attached to
+       one. The install address and mobile this route also handles are not
+       passed: lib/crmqueue.js would strip them, and not sending them says so
+       at the call site as well as at the boundary. */
+    crm.enqueueAsync(req.catalyst, req, {
+      source: crm.SOURCES.HOUSEHOLD_ORDER,
+      rowId: `${campaign.id}:${user.user_id}`,
+      email: user.email_display || user.email_normalized,
+      data: {
+        event: changed ? 'repicked' : 'accepted',
+        cohort: campaign.id, region: campaign.region || null,
+        tier: entry.tier || null, price: entry.price || null,
+        from_tier: changed ? changed.tier || null : null,
+      },
+    });
 
     /* The confirmation, and it doubles as the booking receipt: the day, the
        window, the address and the reference in one place a household can find
@@ -1157,6 +1173,13 @@ function mount(router, cfg) {
       email: user.email_normalized,
       detail: { campaign: campaign.id, status, was },
     });
+    crm.enqueueAsync(req.catalyst, req, {
+      source: crm.SOURCES.COHORT_SEAT,
+      rowId: `${campaign.id}:${user.user_id}`,
+      email: user.email_display || user.email_normalized,
+      data: { event: status, cohort: campaign.id, region: campaign.region || null,
+        fsa: user.fsa || null },
+    });
 
     const reply = await memberReply(req.catalyst, campaign, { status }, user.fsa);
     res.status(200).json({ ok: true, serverTime: reply.now, campaign: reply.campaign });
@@ -1221,6 +1244,12 @@ function mount(router, cfg) {
       userId: user.user_id,
       email: user.email_normalized,
       detail: { campaign: campaign.id },
+    });
+    crm.enqueueAsync(req.catalyst, req, {
+      source: crm.SOURCES.COHORT_SEAT,
+      rowId: `${campaign.id}:${user.user_id}`,
+      email: user.email_display || user.email_normalized,
+      data: { event: 'left', cohort: campaign.id, region: campaign.region || null },
     });
 
     const reply = await memberReply(req.catalyst, campaign, undefined, user.fsa);

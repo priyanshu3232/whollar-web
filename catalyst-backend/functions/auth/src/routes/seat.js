@@ -44,6 +44,7 @@ const events = require('../lib/notify/events');
 const cohorts = require('../lib/cohorts');
 const guards = require('../lib/guards');
 const audit = require('../lib/audit');
+const crm = require('../lib/crmqueue');
 const ratelimit = require('../lib/ratelimit');
 const campaigns = require('./campaigns');
 const { ok } = require('../lib/envelope');
@@ -289,6 +290,15 @@ function mount(router) {
       userId: user.user_id, email: user.email_normalized,
       detail: { cohort: target.id, source: String((req.body || {}).source || 'direct') },
     });
+    crm.enqueueAsync(req.catalyst, req, {
+      source: crm.SOURCES.COHORT_SEAT,
+      rowId: `${target.id}:${user.user_id}`,
+      email: user.email_display || user.email_normalized,
+      data: {
+        event: rejoin ? 'rejoined' : 'joined',
+        cohort: target.id, region: target.region || null, fsa: user.fsa || null,
+      },
+    });
 
     const after = await cohorts.seatCount(req.catalyst, target.id);
 
@@ -372,6 +382,13 @@ function mount(router) {
       type: 'seat.leave', outcome: 'success', userId: user.user_id,
       email: user.email_normalized,
       detail: { cohort: cohort.id, reason: seats.cleanReason((req.body || {}).reason) },
+    });
+    crm.enqueueAsync(req.catalyst, req, {
+      source: crm.SOURCES.COHORT_SEAT,
+      rowId: `${cohort.id}:${user.user_id}`,
+      email: user.email_display || user.email_normalized,
+      data: { event: 'left', cohort: cohort.id, region: cohort.region || null,
+        reason: seats.cleanReason((req.body || {}).reason) },
     });
 
     const counter = await cohorts.seatCount(req.catalyst, cohort.id);
@@ -487,6 +504,14 @@ function mount(router) {
         reason: seats.cleanReason((req.body || {}).reason),
       },
     });
+    crm.enqueueAsync(req.catalyst, req, {
+      source: crm.SOURCES.COHORT_SEAT,
+      rowId: `${to.id}:${user.user_id}`,
+      email: user.email_display || user.email_normalized,
+      data: { event: 'moved', cohort: to.id, region: to.region || null,
+        from_cohort: from.id, from_region: from.region || null,
+        reason: seats.cleanReason((req.body || {}).reason) },
+    });
 
     return ok(res, {
       claim: fresh,
@@ -576,6 +601,13 @@ function mount(router) {
       type: 'seat.pass', outcome: 'success', userId: user.user_id,
       email: user.email_normalized,
       detail: { cohort: cohort.id, reason: seats.cleanReason((req.body || {}).reason) },
+    });
+    crm.enqueueAsync(req.catalyst, req, {
+      source: crm.SOURCES.COHORT_SEAT,
+      rowId: `${cohort.id}:${user.user_id}`,
+      email: user.email_display || user.email_normalized,
+      data: { event: 'passed', cohort: cohort.id, region: cohort.region || null,
+        reason: seats.cleanReason((req.body || {}).reason) },
     });
 
     /* One letter, not two. The order release below writes 'household_passed',

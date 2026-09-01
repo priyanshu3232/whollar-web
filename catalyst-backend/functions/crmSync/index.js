@@ -216,8 +216,149 @@ const SOURCE_META = {
   WaitlistDetails:        { label: 'Waitlist Details', hasName: false },
   BillCheckupSubmissions: { label: 'Bill Checkup', hasName: false },
   DeepReadRequests:       { label: 'Deep Read', hasName: false, hot: true },
-  PartnerApplications:    { label: 'Partner Application', hasName: true, hasCompany: true, partner: true }
+  PartnerApplications:    { label: 'Partner Application', hasName: true, hasCompany: true, partner: true },
+
+  /* ---- the auth function's sources -------------------------------------
+   * Everything above is a website form: an anonymous stranger, whose whole
+   * story is the one payload. Everything below is somebody already known,
+   * doing a thing on a date, so each carries a `lines()` that renders that
+   * one event and nothing else. The record is found by email and the note is
+   * added to it; a person's history is the stack of notes, in order, which is
+   * why none of these rewrites a field.
+   *
+   * `label` reaches the reader twice, in `Lead_Source` on a record this
+   * source created and in every note title, so it is written as a person
+   * would say it out loud.
+   *
+   * The names must match lib/crmqueue.js SOURCES exactly. scripts/test-crmqueue.mjs
+   * asserts that, and it is strict the moment one of them appears here.
+   */
+  MemberSignups: {
+    label: 'Account Created', hasName: true,
+    lines: (d) => [
+      d.user_type === 'provider' ? 'Created a partner account.' : 'Created a member account.',
+      row('Postal area', d.fsa), row('Province', d.province),
+      row('Referred by', d.referred_by),
+    ],
+  },
+  PartnerSignups: {
+    label: 'Partner Account', hasName: true, hasCompany: true, partner: true,
+    lines: (d) => [
+      'Created a partner account.',
+      row('Organisation', d.org_name), row('Approval', d.approval_status),
+    ],
+  },
+  PartnerOrgs: {
+    label: 'Partner Organisation', hasName: false, hasCompany: true, partner: true,
+    lines: (d) => [
+      d.previous_name && d.previous_name !== d.org_name
+        ? `Organisation renamed from ${d.previous_name} to ${d.org_name}.`
+        : `Organisation registered as ${d.org_name}.`,
+    ],
+  },
+  ProviderApplications: {
+    label: 'Application Submitted', hasName: false, hasCompany: true, partner: true,
+    lines: (d) => ['Founding partner application submitted.', row('Organisation', d.org_name)],
+  },
+  PartnerApprovals: {
+    label: 'Application Decision', hasName: false, hasCompany: true, partner: true,
+    lines: (d) => [
+      d.decision === 'approved'
+        ? 'APPROVED. The partner console is live for this organisation.'
+        : 'DECLINED.',
+      row('Organisation', d.org_name), row('Reason', d.reason),
+    ],
+  },
+  PartnerTerms: {
+    label: 'Terms Accepted', hasName: false, hasCompany: true, partner: true,
+    lines: (d) => [
+      `Accepted the standard cohort terms, version ${d.doc_version || 'unknown'}.`,
+      row('Organisation', d.org_name),
+    ],
+  },
+  PartnerBilling: {
+    label: 'Billing On File', hasName: false, hasCompany: true, partner: true,
+    lines: (d) => [
+      'Billing method on file: invoice, net 15 on activated households.',
+      row('Organisation', d.org_name), row('Billing email', d.billing_email),
+      row('Billing contact', d.billing_contact),
+    ],
+  },
+  CohortSeats: {
+    label: 'Cohort', hasName: false,
+    lines: (d) => {
+      const SEAT = {
+        joined: 'Joined the cohort.', rejoined: 'Rejoined the cohort.',
+        left: 'Left the cohort.', moved: 'Moved to this cohort.',
+        passed: 'Passed on this round.', waitlist: 'Joined the waitlist.',
+        alert: 'Asked to be told when this one opens.',
+      };
+      return [
+        SEAT[d.event] || `Cohort membership: ${d.event || 'changed'}.`,
+        row('Cohort', d.region || d.cohort),
+        d.from_region ? row('Moved from', d.from_region) : null,
+        row('Postal area', d.fsa), row('Reason', d.reason),
+      ];
+    },
+  },
+  SealedBids: {
+    label: 'Sealed Bid', hasName: false, hasCompany: true, partner: true,
+    /* Deliberately no price. routes/desk.js does not send one and this would
+       not print it if it did: the sealed record is the record, and a CRM note
+       is read by more people than the auction ever should be. */
+    lines: (d) => [
+      d.event === 'improved'
+        ? `Improved their sealed bid, revision ${d.revision || '?'}.`
+        : 'Placed a sealed bid.',
+      row('Cohort', d.region || d.cohort), row('Receipt', d.receipt),
+      row('Organisation', d.org_name),
+    ],
+  },
+  CohortAwards: {
+    label: 'Cohort Award', hasName: false, hasCompany: true, partner: true,
+    lines: (d) => [
+      'Won tiers in this cohort.',
+      row('Cohort', d.region || d.cohort), row('Tiers won', (d.tiers_won || []).join(', ')),
+      row('Organisation', d.org_name),
+    ],
+  },
+  HouseholdOrders: {
+    label: 'Order', hasName: false,
+    lines: (d) => {
+      const ORDER = {
+        accepted: 'Accepted an offer.', repicked: 'Changed their pick.',
+        booked: 'Install booked.', rebooked: 'Install rebooked.',
+        activated: 'LINE ACTIVATED.', released: 'Released back to the cohort.',
+        noshow: 'Exception: household not home.',
+        access: 'Exception: no access to the building or utility room.',
+        linefail: 'Exception: line tested below the bid tier.',
+      };
+      return [
+        ORDER[d.event] || `Order: ${d.event || 'changed'}.`,
+        row('Cohort', d.region || d.cohort), row('Speed', d.tier),
+        d.price ? row('Price accepted', `$${d.price}/mo`) : null,
+        d.from_tier ? row('Changed from', d.from_tier) : null,
+        row('Order', d.order_no), row('Postal area', d.fsa),
+        /* Says a fee is now earned, never how much. The figure is
+           configuration on the agreement (site_config.success_fee) and a
+           number copied here would be read as the invoice. */
+        d.billable ? 'This activation earns a success fee. The amount is on the agreement.' : null,
+      ];
+    },
+  },
+  EmailSuppressions: {
+    label: 'Unsubscribed', hasName: false,
+    lines: (d) => [
+      'UNSUBSCRIBED. Do not send commercial email to this address.',
+      row('Reason', d.reason), row('Scope', d.scope),
+    ],
+  },
 };
+
+/** `Label: value`, or nothing at all when there is no value to show. */
+function row(k, v) {
+  return (v === undefined || v === null || v === '') ? null : `${k}: ${v}`;
+}
 
 // Which module a source's records live in. Consumers are always Leads;
 // partner applications go to cfg.partnerModule, which defaults to 'Leads'
@@ -235,8 +376,9 @@ const partnerNameField = (cfg) =>
 // Lead_Source are Leads fields and would be INVALID_DATA anywhere else. The
 // application detail rides in the Note, exactly as it does for Leads.
 function partnerInsertFields(cfg, email, data) {
-  const name = data.company
-    || [data.firstName, data.lastName].filter(Boolean).join(' ')
+  const n = names(data);
+  const name = n.company
+    || [n.first, n.last].filter(Boolean).join(' ')
     || email;
   const fields = { [partnerNameField(cfg)]: name, Email: email };
   if (data.phone) fields.Phone = data.phone;
@@ -245,16 +387,30 @@ function partnerInsertFields(cfg, email, data) {
 
 // Fields for a NEW lead. Zoho requires Last_Name and Company on Leads, so for
 // nameless/company-less consumer sources we fall back to the email / "Individual".
+/* The forms send firstName/lastName/company; the auth function sends
+   first_name/last_name/org_name, because those are its column names and a
+   payload that renames its own columns on the way out is a payload nobody can
+   trace back. Both shapes are read here, once, so no field mapper below has to
+   know which half of the system a note came from. */
+function names(data) {
+  return {
+    first: data.firstName || data.first_name || null,
+    last: data.lastName || data.last_name || null,
+    company: data.company || data.org_name || null,
+  };
+}
+
 function insertFields(source, email, data, isProd) {
   const meta = SOURCE_META[source] || { label: source };
   const envTag = isProd ? '' : ' [dev]';
+  const n = names(data);
   const fields = {
     Email: email,
-    Last_Name: (meta.hasName && data.lastName) ? data.lastName : email,
-    Company: meta.hasCompany ? (data.company || 'Unknown') : 'Individual',
+    Last_Name: (meta.hasName && n.last) ? n.last : email,
+    Company: meta.hasCompany ? (n.company || 'Unknown') : 'Individual',
     Lead_Source: `Whollar ${meta.label}${envTag}`
   };
-  if (meta.hasName && data.firstName) fields.First_Name = data.firstName;
+  if (meta.hasName && n.first) fields.First_Name = n.first;
   if (data.phone) fields.Phone = data.phone;
   if (meta.hot) fields.Rating = 'Hot';
   return fields;
@@ -265,9 +421,10 @@ function insertFields(source, email, data, isProd) {
 // detail goes to a Note instead, so history is preserved, not clobbered.
 function updateFields(source, data) {
   const meta = SOURCE_META[source] || {};
+  const n = names(data);
   const fields = {};
-  if (meta.hasName && data.lastName) fields.Last_Name = data.lastName;
-  if (meta.hasName && data.firstName) fields.First_Name = data.firstName;
+  if (meta.hasName && n.last) fields.Last_Name = n.last;
+  if (meta.hasName && n.first) fields.First_Name = n.first;
   if (data.phone) fields.Phone = data.phone;
   if (meta.hot) fields.Rating = 'Hot';
   return fields;
@@ -299,6 +456,27 @@ function noteFor(source, email, data, isProd, dropped, queuedAt) {
   const lateDays = Number.isNaN(at) ? 0 : Math.floor((Date.now() - at) / 86400000);
   if (lateDays >= 1) {
     lines.push(`⚠ Reached CRM ${lateDays} day${lateDays === 1 ? '' : 's'} after it was submitted: the sync was stalled. Not a fresh enquiry.`);
+  }
+
+  /* A source with its own `lines()` renders that and stops. Everything below
+     this point reads a website form's payload: a verdict, a benchmark, a
+     promo end date. An account being created has none of those, and running
+     it through that machinery would print a note made entirely of absences. */
+  if (typeof meta.lines === 'function') {
+    let own = [];
+    try {
+      own = meta.lines(data) || [];
+    } catch (err) {
+      /* A malformed payload must not cost the whole note. The record still
+         gets a line saying the event happened, which is the part that
+         matters, and the parse problem goes to the logs. */
+      own = [`(this note could not be rendered: ${String((err && err.message) || err).slice(0, 120)})`];
+    }
+    own.filter(Boolean).forEach((l) => lines.push(l));
+    return {
+      title: `${devTag}Whollar ${meta.label}: ${email}`.trim(),
+      content: lines.length ? lines.join('\n') : `${meta.label}.`,
+    };
   }
 
   const add = (k, v) => { if (v !== undefined && v !== null && v !== '') lines.push(`${k}: ${v}`); };
@@ -576,5 +754,13 @@ app.all(['/', '/process'], async (req, res) => {
     try { await lockSeg.delete(LOCK_KEY); } catch { /* TTL covers cleanup either way */ }
   }
 });
+
+/* The express app is what Catalyst mounts. The second export is a test
+   surface and nothing else reads it: the note builders below are twelve pure
+   functions whose failure mode is a note that reads wrongly in somebody's CRM,
+   which no amount of staring at the file catches and one assertion does.
+   Attached to the app rather than replacing the export, so the deployment
+   contract is unchanged. */
+app.__test = { SOURCE_META, noteFor, insertFields, updateFields, moduleFor, names };
 
 module.exports = app;

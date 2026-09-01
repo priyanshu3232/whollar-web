@@ -22,6 +22,7 @@ const sessions = require('../lib/sessions');
 const mailer = require('../lib/mailer');
 const notify = require('../lib/notify');
 const audit = require('../lib/audit');
+const crm = require('../lib/crmqueue');
 const ratelimit = require('../lib/ratelimit');
 const referral = require('../lib/referral');
 const share = require('./share');
@@ -229,6 +230,25 @@ function mount(router, cfg) {
       type: created ? 'otp.signup' : 'otp.login',
       outcome: 'success', email, userId: user.user_id,
     });
+    /* An account, not a sign-in. Every later login is the same person doing
+       the same thing, and a CRM note per login would bury the events that
+       actually changed something under a stack of identical lines. */
+    if (created) {
+      crm.enqueueAsync(req.catalyst, req, {
+        source: crm.SOURCES.MEMBER_SIGNUP,
+        rowId: user.user_id,
+        email: user.email_display || email,
+        leadType: user.user_type === 'provider' ? 'partner' : 'consumer',
+        data: {
+          user_type: user.user_type || null,
+          first_name: user.first_name || null,
+          last_name: user.last_name || null,
+          fsa: user.fsa || null,
+          province: user.province_code || null,
+          referred_by: user.referral_code || null,
+        },
+      });
+    }
 
     res.status(200).json({
       ok: true,
