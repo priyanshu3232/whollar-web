@@ -280,6 +280,139 @@ section.alt{background:var(--mist)}
 .seen--no svg{stroke:var(--warn-text)}
 .card--no{border-color:#EBD9CF;background:#FDF9F6}
 
+/* ===== Restored from the design reference ===== */
+
+/* demo strip. The reference carried this disclosure above the fold and it
+   ships with the demo figures it describes: the leaderboard names, the
+   points and the sample verdict below are placeholders, and a resident of
+   1, 3 or 5 Greystone Walk Drive must not read them as neighbours who
+   already joined. The visitor/member toggle is deliberately not here. */
+.demo{background:var(--gold-soft);color:#6F5A1D;font-size:12.5px;line-height:1.5;padding:9px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.demo b{font-weight:700}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;background:var(--paper);padding:3px;flex:none}
+.seg button{border:none;background:transparent;color:var(--ink-2);font-size:12.5px;font-weight:600;padding:6px 14px;border-radius:999px}
+.seg button.on{background:var(--teal);color:#fff}
+
+.pulse{width:9px;height:9px;border-radius:50%;background:var(--teal-soft);margin-right:9px;box-shadow:0 0 0 0 rgba(127,227,176,.6);animation:pulse 2.4s infinite;display:inline-block;flex:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(127,227,176,.55)}70%{box-shadow:0 0 0 9px rgba(127,227,176,0)}100%{box-shadow:0 0 0 0 rgba(127,227,176,0)}}
+.status b.row{display:flex;align-items:center}
+
+.step.now{border-color:var(--accent);background:#F7FCF9}
+.step.now .mlabel{color:var(--accent-deep)}
+
+/* survey */
+.survey{padding:0;overflow:hidden}
+.survey>*+*{margin-top:0}
+.survey__h{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px clamp(20px,2.6vw,28px);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.qgrid{display:grid;grid-template-columns:1fr 1fr}
+@media(max-width:760px){.qgrid{grid-template-columns:1fr}}
+.q{padding:22px clamp(20px,2.6vw,28px);border-bottom:1px solid var(--line)}
+.q:nth-child(odd){border-right:1px solid var(--line)}
+@media(max-width:760px){.q:nth-child(odd){border-right:none}}
+.q__l{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.q__n{flex:none;width:24px;height:20px;border-radius:6px;background:var(--mist);color:var(--ink-2);font-family:var(--mono);font-size:10.5px;font-weight:600;display:grid;place-items:center}
+.q__l b{font-family:var(--label);font-weight:700;font-size:14px;color:var(--teal)}
+.stars{display:flex;align-items:center;gap:4px}
+.stars button{width:40px;height:40px;border:none;background:none;font-size:28px;line-height:1;color:#C3CDC6;padding:0;transition:color .12s,transform .12s}
+.stars button.on{color:var(--gold-text)}
+.stars button:hover{transform:scale(1.12)}
+.stars .lbl{margin-left:10px;font-size:13px;color:var(--ink-2);min-width:76px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chips button{border:1.5px solid var(--line);background:var(--paper);border-radius:999px;padding:9px 16px;font-size:13.5px;font-weight:500;color:var(--ink-2);transition:background .12s,border-color .12s,color .12s}
+.chips button.on{background:var(--teal);color:#fff;border-color:var(--teal)}
+.chips button:hover:not(.on){border-color:#c6d5cc;color:var(--teal)}
+.survey__f{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px clamp(20px,2.6vw,28px);background:var(--mist);flex-wrap:wrap}
+.trust{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2)}
+.trust span{display:flex;align-items:center;gap:7px}
+.trust svg{flex:none;stroke:var(--ink-3)}
+
+/* managers */
+.mgr__top{display:flex;gap:14px;align-items:center}
+.ava{width:52px;height:52px;border-radius:50%;flex:none;display:grid;place-items:center;font-family:var(--disp);font-weight:900;font-size:17px;background:var(--green-tint);color:var(--teal-bright);border:2px solid var(--paper);box-shadow:0 0 0 1px #cfe9db}
+.ava.empty{background:var(--mist);color:var(--ink-3);box-shadow:0 0 0 1px var(--line);font-weight:700;font-size:22px}
+.mgr__id b{display:block;font-family:var(--disp);font-weight:700;font-size:15px;color:var(--teal)}
+.mgr__id .mlabel{display:block;margin-top:3px}
+.rating{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12.5px;color:var(--ink-2)}
+.rating i{font-style:normal;color:var(--gold-text)}
+.mgr q{display:block;font-size:13.5px;line-height:1.6;color:var(--ink-2);quotes:none}
+.mgr q::before,.mgr q::after{content:""}
+.mgr__cta{display:flex;gap:8px;flex-wrap:wrap}
+
+/* referral glow */
+.glow{position:relative;border-radius:var(--rf);padding:clamp(24px,3vw,32px);background:linear-gradient(135deg,var(--green-tint),var(--gold-soft));border:1px solid #E4DFC9;overflow:hidden;margin-top:16px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(24px,4vw,56px);align-items:center}
+@media(max-width:860px){.glow{grid-template-columns:1fr;gap:20px}}
+.glow::before{content:"";position:absolute;inset:-40%;background:radial-gradient(circle at 28% 46%,rgba(194,155,60,.28),transparent 46%),radial-gradient(circle at 74% 42%,rgba(30,158,99,.2),transparent 46%);animation:drift 10s ease-in-out infinite alternate;pointer-events:none}
+@keyframes drift{from{transform:translate(-3%,-3%)}to{transform:translate(3%,3%)}}
+.glow>*{position:relative}
+.glow p{margin-top:10px;color:var(--ink-2);font-size:14.5px}
+.pts-row{display:grid;gap:10px;font-size:13.5px;color:var(--ink-2)}
+.pts-row span{display:grid;grid-template-columns:52px minmax(0,1fr);gap:12px;align-items:baseline}
+.pts-row b{font-family:var(--mono);font-weight:600;color:var(--accent-deep);background:rgba(255,255,255,.72);border-radius:8px;padding:4px 0;text-align:center;font-size:13px}
+
+/* leaderboard */
+.lbhead{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.lb{list-style:none;margin:12px 0 0;padding:0}
+.lb li{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);font-size:14px}
+.lb li:last-child{border-bottom:none}
+.lb .p{font-family:var(--disp);font-weight:900;color:var(--ink-3);font-size:14px}
+.lb .u{font-weight:600;color:var(--teal)}
+.lb .u small{font-weight:400;color:var(--ink-3);margin-left:7px;font-size:12px}
+.lb .c{font-family:var(--mono);font-size:13px;color:var(--accent-deep);font-variant-numeric:tabular-nums}
+
+/* reward tiers */
+.tiers{margin-top:16px;position:relative}
+.tiers::before{content:"";position:absolute;left:21px;top:26px;bottom:26px;width:2px;background:var(--line)}
+.tier{display:grid;grid-template-columns:44px minmax(0,1fr);gap:14px;align-items:start;padding:12px 0;position:relative}
+.tier .ic{width:44px;height:44px;border-radius:50%;background:var(--green-tint);color:var(--teal-bright);display:grid;place-items:center;border:2px solid var(--paper);box-shadow:0 0 0 1px #cfe9db}
+.tier.top .ic{background:linear-gradient(140deg,#E0C070,var(--gold));color:#fff;box-shadow:0 0 0 1px var(--gold),0 4px 14px rgba(194,155,60,.35)}
+.tier b{display:block;font-family:var(--disp);font-weight:700;font-size:15px;color:var(--teal)}
+.tier em{font-style:normal;font-family:var(--label);font-weight:700;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal-bright);background:var(--green-tint);padding:3px 9px;border-radius:999px;margin-left:8px;vertical-align:2px}
+.tier.top em{background:var(--gold-soft);color:var(--gold-text)}
+.tier p{font-size:13px;line-height:1.55;color:var(--ink-2);margin-top:3px}
+
+/* products */
+.prod{display:flex;justify-content:space-between;align-items:center;gap:16px}
+.prod>*+*{margin-top:0}
+.tog{width:46px;height:26px;border-radius:13px;border:none;background:#C7D0C9;position:relative;flex:none;transition:background .15s}
+.tog::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.tog.on{background:var(--accent-deep)}.tog.on::after{left:23px}
+
+/* the building feed, still shut. The reference drew this as a grey disc
+   reading "12%", a percentage against no total, which measures nothing. It
+   is drawn here as the rung it actually is, matching the ladder above. */
+.locked{display:flex;gap:18px;align-items:center}
+.locked>*+*{margin-top:0}
+.locked .ic{width:52px;height:52px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--mist);color:var(--ink-3);border:1px solid var(--line)}
+.locked .k{display:inline-block;font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--accent-deep);background:var(--green-tint);border-radius:999px;padding:4px 11px;margin-bottom:8px}
+
+/* modal */
+.modal{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;background:rgba(10,32,24,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.modal__c{background:var(--paper);border-radius:var(--rf);max-width:480px;width:100%;max-height:88vh;overflow:auto;box-shadow:var(--sh-2);animation:rise .28s var(--ease)}
+.modal__h{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line)}
+.modal__h h3{font-size:19px}
+.modal__x{border:none;background:var(--mist);width:32px;height:32px;border-radius:50%;font-size:14px;color:var(--ink-2)}
+.mtabs{display:flex;border-bottom:1px solid var(--line)}
+.mtabs button{flex:1;border:none;background:none;padding:13px;font-family:var(--label);font-size:13.5px;font-weight:700;color:var(--ink-3);border-bottom:2px solid transparent}
+.mtabs button.on{color:var(--accent-deep);border-bottom-color:var(--accent-deep)}
+.mbody{padding:22px}
+.mbody>*+*{margin-top:12px}
+.mbody .fld+.fld{margin-top:12px}
+.drop{display:flex;gap:14px;align-items:center;background:var(--green-tint);border:1.5px dashed #b9c8bf;border-radius:var(--r);padding:14px}
+.drop b{display:block;font-family:var(--disp);font-weight:700;font-size:14px;color:var(--teal)}
+.drop span{font-size:12.5px;color:var(--ink-2);line-height:1.5}
+.nom{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.nom:last-of-type{border-bottom:none}
+.nom__t{flex:1;min-width:0}
+.nom__t b{display:block;font-family:var(--disp);font-weight:700;font-size:14px;color:var(--teal)}
+.nom__t span{font-size:12.5px;color:var(--ink-2);line-height:1.5}
+.nom .v{font-family:var(--mono);font-size:12px;color:var(--ink-3);white-space:nowrap}
+.gate{text-align:center}
+.gate .ic{width:52px;height:52px;border-radius:50%;background:var(--green-tint);color:var(--teal-bright);display:grid;place-items:center;margin:0 auto 14px}
+.gate h4{margin-bottom:8px}
+.gate p{font-size:13.5px;color:var(--ink-2);max-width:38ch;margin:0 auto}
+.gate input{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:11px;padding:11px 13px;font-size:14.5px;font-family:var(--body);margin-top:14px}
+.mbody select{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:11px;color:var(--ink);padding:11px 13px;font-size:14.5px;font-family:var(--body)}
+
 /* FAQ. The site's accordion, not this page's own: same 760px centred
    column, same chevron that rotates, same open/closed transition as the one
    on the homepage and /partners. A second FAQ pattern on a third page is how
@@ -389,10 +522,10 @@ section.alt{background:var(--mist)}
   "mainEntity": [
     {
       "@type": "Question",
-      "name": "Does the building already have a bulk internet agreement?",
+      "name": "Does the building have a bulk internet agreement?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "We confirm this with each condo corporation separately, so three buildings means three answers. Where a bulk agreement is in force, the cohort runs alongside it for households that want a different provider, and we will say so on this page once we have each answer in writing."
+        "text": "We confirm this with each condo corporation separately. Three buildings, three answers. If a bulk agreement is in force, the cohort runs as an add on for households who want a different provider."
       }
     },
     {
@@ -400,7 +533,7 @@ section.alt{background:var(--mist)}
       "name": "Will someone need to drill into my unit?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "It depends on what already reaches your tower's riser. Where fibre is in the building, the install is usually one visit to the existing telecom outlet. We publish the answer per building once the site survey is done rather than guessing at it now."
+        "text": "It depends on the independent's technology in your tower. Where fibre already reaches the riser, the install is usually one visit to the existing telecom outlet. We post the details per building once the site survey is done."
       }
     },
     {
@@ -408,7 +541,7 @@ section.alt{background:var(--mist)}
       "name": "What happens to my TV or home phone bundle?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Your offer shows the internet price on its own. Before you decide, we tell you what your current provider will charge for the rest of the bundle once internet leaves it, because that is the number that decides whether the offer is actually worth taking."
+        "text": "Your offer shows the internet only price. Before you decide, we tell you what your current provider will charge for the rest of the bundle once internet leaves it."
       }
     },
     {
@@ -416,15 +549,15 @@ section.alt{background:var(--mist)}
       "name": "Who sees my bill?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Only Whollar. Providers see cohort level aggregates: counts, the spread of speeds, when renewals cluster. Never names, never unit numbers, never an individual bill."
+        "text": "Only Whollar. Providers see building level aggregates, counts, medians and satisfaction, never names, units or individual bills."
       }
     },
     {
       "@type": "Question",
-      "name": "Is there a lobby session?",
+      "name": "When is the lobby session?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Not yet. A session is arranged by the resident running the campaign in a tower, and those three seats are open. If you want to be the one to arrange it, ask about the seat and we will bring the notices and answer the technical questions on the night."
+        "text": "A session is arranged by the resident running the campaign in a tower, and all three seats are open. Put your name forward and we will bring the notices and answer the technical questions on the night."
       }
     },
     {
@@ -432,7 +565,7 @@ section.alt{background:var(--mist)}
       "name": "What does it cost me?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Nothing. Providers pay Whollar only when they win a cohort and a line is activated. Joining is free, staying is free, and turning the offer down is free."
+        "text": "Nothing. Providers pay Whollar only when they win a building. Since June 2026, activation, change and cancellation fees are banned, so switching costs you nothing either."
       }
     }
   ]
@@ -441,41 +574,45 @@ section.alt{background:var(--mist)}
 </head>
 <body>
 
+<div class="demo">
+  <div><b>Building facts are verified.</b> Units, storeys and completion years come from public condo records. The usernames, points, ratings and the sample verdict on this page are demo data while the cohort is being set up.</div>
+</div>
+
 <nav class="topnav"><div class="nav-in">
   <a class="mark" href="/" aria-label="Whollar home">
     <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="wmk" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wmk)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
     <b>Whollar</b><span>Greystone Walk</span>
   </a>
-  <div class="nav-links"><a href="#check">Check my bill</a><a href="#stats">The buildings</a><a href="#how">How it works</a><a href="#seat">Run your tower</a><a href="#faq">Questions</a></div>
+  <div class="nav-links"><a href="#check">Check my bill</a><a href="#stats">The building</a><a href="#how">How it works</a><a href="#managers">Lead your building</a><a href="#faq">FAQ</a></div>
   <a class="btn sm" href="/waitlist/?fsa=M1K">Join the cohort</a>
 </div></nav>
 
 <header class="hero"><div class="wrap">
   <div>
-    <span class="eyebrow">Greystone Walk Drive, Scarborough Southwest</span>
+    <span class="eyebrow">Greystone Walk Drive, Scarborough Junction</span>
     <h1>Greystone Walk is asking for a better internet price. <em>Together.</em></h1>
-    <p class="lead">Residents of 1, 3 and 5 are putting their bills into one cohort. Once enough households join, providers bid for all three towers at once, and every household gets its own offer to take or ignore.</p>
+    <p class="lead">Residents of 1, 3 and 5 are pooling their bills into one cohort. Once enough households join, providers bid for all three towers at once, and every household gets its own offer to take or ignore.</p>
     <div class="cta"><a class="btn" href="#check">Check if I am overpaying</a><a class="btn ghost" href="#how">How the cohort works</a></div>
     <div class="status">
-      <div><span class="mlabel">Doors across the three towers</span><b class="num">973</b><span class="sub">Public condo records</span></div>
-      <div><span class="mlabel">Bidding opens at</span><b class="num">30%</b><span class="sub">of doors in a tower</span></div>
-      <div><span class="mlabel">Cost to join</span><b>Nothing</b><span class="sub">Providers pay, only on a win</span></div>
+      <div><span class="mlabel">Cohort status</span><b class="row"><span class="pulse"></span>Forming</b></div>
+      <div><span class="mlabel">Bidding opens at</span><b class="num">30% full</b></div>
+      <div><span class="mlabel">Founding window</span><b>Open now</b></div>
     </div>
   </div>
   <div class="towers">
-    <div class="towers__h"><h3>Three towers, one cohort</h3><span class="mlabel">Each tower climbs the same ladder</span></div>
-    <button class="tower" data-b="1" aria-selected="false" type="button"><span class="n">1</span><span><span class="t">1 Greystone Walk</span><span class="s">266 units, 20 storeys</span></span></button>
-    <button class="tower" data-b="3" aria-selected="true" type="button"><span class="n">3</span><span><span class="t">Greystone Walk II</span><span class="s">354 units, 23 storeys</span></span></button>
-    <button class="tower" data-b="5" aria-selected="false" type="button"><span class="n">5</span><span><span class="t">Greystone Walk I</span><span class="s">353 units, 22 storeys</span></span></button>
-    <p class="towers__f">Founding members, the first 5% of doors in each tower, get the first install windows when their tower switches. Pick a tower to read the rest of this page as that building.</p>
+    <div class="towers__h"><h3>Three towers, one cohort</h3><span class="mlabel">First to fill installs first</span></div>
+    <button class="tower" data-b="1" aria-selected="false" type="button"><span class="n">1</span><span><span class="t">1 Greystone Walk</span><span class="s">266 units, 20 storeys</span></span><span class="badge">Forming</span></button>
+    <button class="tower" data-b="3" aria-selected="true" type="button"><span class="n">3</span><span><span class="t">Greystone Walk II</span><span class="s">354 units, 23 storeys</span></span><span class="badge">Forming</span></button>
+    <button class="tower" data-b="5" aria-selected="false" type="button"><span class="n">5</span><span><span class="t">Greystone Walk I</span><span class="s">353 units, 22 storeys</span></span><span class="badge">Forming</span></button>
+    <p class="towers__f">Founding members, the first 5% of doors in each tower, get the first install windows when the building switches. The race between towers goes live once each tower passes 5%.</p>
   </div>
 </div></header>
 
 <section id="check"><div class="wrap">
   <header class="sec">
-    <span class="eyebrow">Your bill</span>
+    <span class="eyebrow">The Whollar checkup</span>
     <h2>What is your internet really costing you?</h2>
-    <div class="sec__d"><p class="lead">Two answers give you a first number: your monthly bill, and the postal code the price was quoted for. We compare it to the cheapest advertised plan at 100 Mbps or better that we track near you.</p></div>
+    <div class="sec__d"><p class="lead">Not the sticker. The complete bill: your plan, the rented box, the credits, and the jump that lands when your promo quietly expires. About a minute, no account needed.</p></div>
   </header>
   <div class="checkout">
     <form class="card" id="estForm" novalidate>
@@ -490,8 +627,8 @@ section.alt{background:var(--mist)}
         <span class="pcok" id="estPcOk"></span>
         <p class="hint" id="estPcHint">Greystone Walk Drive is M1K. Any complete code works if you are checking for somewhere else.</p>
       </div>
-      <button class="btn acc" type="submit" style="width:100%;margin-top:12px">Show me the number</button>
-      <p class="cap" style="margin-top:12px">Nothing is sent anywhere and nothing is stored. This runs in your browser.</p>
+      <button class="btn acc" type="submit" style="width:100%;margin-top:12px">Check my results</button>
+      <p class="cap" style="margin-top:12px">Nothing is sent anywhere and nothing is stored. This runs in your browser. The full checkup reads your plan, your contract dates and every promo on the bill.</p>
     </form>
 
     <div class="vcard" id="vcard">
@@ -500,10 +637,10 @@ section.alt{background:var(--mist)}
       <div class="vfig hide" id="vFig">
         <div class="fig"><span class="mlabel">You pay now</span><b id="vNow">$0<span style="font-size:.5em;color:rgba(255,255,255,.6)">/mo</span></b></div>
         <span class="figsep"></span>
-        <div class="fig fig--hero"><span class="mlabel" id="vGapLabel">Gap over the next 12 months</span><b id="vGap">$0</b></div>
+        <div class="fig fig--hero"><span class="mlabel" id="vGapLabel">Extra over the next 12 months</span><b id="vGap">$0</b></div>
       </div>
-      <p class="vbody" id="vBody">The comparison is the cheapest advertised plan at 100 Mbps or better that we track near you, so it is a frontier price rather than an offer.</p>
-      <p class="vfine" id="vFine">A cohort price is set by the sealed bids providers place for the towers, which is a different number again, and it is the one this page exists to get you.</p>
+      <p class="vbody" id="vBody">Nothing announces the day a promo ends: the number moves, autopay clears it, and most households find out two or three bills later. This compares what you pay against the cheapest advertised plan we track near you.</p>
+      <p class="vfine" id="vFine">Pooled with your building, providers bid for all three towers at once, and a building does not get quietly reset.</p>
       <div class="vcta">
         <a class="btn" href="/waitlist/?fsa=M1K">Join the&nbsp;<span class="bn">Greystone Walk II</span>&nbsp;cohort</a>
         <a class="btn ghost" href="/bill-checkup">Run the full checkup</a>
@@ -512,108 +649,175 @@ section.alt{background:var(--mist)}
   </div>
 </div></section>
 
-<section class="alt" id="stats"><div class="wrap">
+<section class="alt" id="rate"><div class="wrap">
+  <header class="sec">
+    <span class="eyebrow">Rate your provider</span>
+    <h2>How is the internet treating this building?</h2>
+    <div class="sec__d"><p class="lead">Four taps. Providers bidding on a building want to know how unhappy residents are and how many would actually move. Your answer tells them both.</p></div>
+  </header>
+  <div class="card survey">
+    <div class="survey__h"><h4>Four taps, twenty seconds</h4><span class="mlabel">No account needed</span></div>
+    <div class="qgrid">
+      <div class="q"><div class="q__l"><span class="q__n">01</span><b id="qs1">Overall, how satisfied are you?</b></div>
+        <div class="stars" data-stars aria-labelledby="qs1"><button type="button" aria-label="1 star">&#9733;</button><button type="button" aria-label="2 stars">&#9733;</button><button type="button" aria-label="3 stars">&#9733;</button><button type="button" aria-label="4 stars">&#9733;</button><button type="button" aria-label="5 stars">&#9733;</button><span class="lbl"></span></div></div>
+      <div class="q"><div class="q__l"><span class="q__n">02</span><b id="qs2">How reliable is it in your unit?</b></div>
+        <div class="stars" data-stars aria-labelledby="qs2"><button type="button" aria-label="1 star">&#9733;</button><button type="button" aria-label="2 stars">&#9733;</button><button type="button" aria-label="3 stars">&#9733;</button><button type="button" aria-label="4 stars">&#9733;</button><button type="button" aria-label="5 stars">&#9733;</button><span class="lbl"></span></div></div>
+      <div class="q"><div class="q__l"><span class="q__n">03</span><b>Same speed, lower price. Would you switch?</b></div>
+        <div class="chips" data-chips><button type="button">Yes</button><button type="button">Maybe</button><button type="button">No</button></div></div>
+      <div class="q"><div class="q__l"><span class="q__n">04</span><b>Your floor</b></div>
+        <div class="chips" data-chips><button type="button">1 to 5</button><button type="button">6 to 10</button><button type="button">11 to 15</button><button type="button">16 to 20</button><button type="button">21 and up</button></div></div>
+    </div>
+    <div class="survey__f">
+      <div class="trust">
+        <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Anonymous, never your unit</span>
+        <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M4 18h4v-6H4zM10 18h4V6h-4zM16 18h4v-9h-4z"/></svg>Shown only as a building average</span>
+        <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Averages appear once 5% have rated</span>
+      </div>
+      <a class="btn acc" id="rateGo" href="/waitlist/?fsa=M1K">Submit rating</a>
+    </div>
+  </div>
+  <p class="cap" style="margin-top:14px">A rating belongs to a household, so joining is the step that files it. Nothing is published until 5% of the tower has rated, and a building average is all a provider ever sees.</p>
+</div></section>
+
+<section id="stats"><div class="wrap">
   <header class="sec">
     <span class="eyebrow"><span class="bnfull">Building 3, Greystone Walk II</span></span>
     <h2>What is already true about this building</h2>
-    <div class="sec__d"><p class="lead">Facts that hold before a single household joins. Everything that depends on who has joined is deliberately absent from this page: it belongs to the people who joined, and they see it signed in.</p></div>
+    <div class="sec__d"><p class="lead">Facts that hold before a single bill is pooled. Everything else on this page unlocks as neighbours join, and nothing is shown until enough people are behind it.</p></div>
   </header>
   <div class="grid g4">
     <div class="card"><span class="mlabel">Units in the building</span><div class="stat num" id="stUnits">354</div><p id="stUnitsSub">23 storeys, completed 1990.</p></div>
-    <div class="card"><span class="mlabel">Doors across all three</span><div class="stat num">973</div><p>One address, three condo corporations, one cohort on the wire.</p></div>
-    <div class="card"><span class="mlabel">Founding spots</span><div class="stat">5%</div><p>The first 5% of doors in a tower are founding members, and take the first install windows when that tower switches.</p></div>
-    <div class="card"><span class="mlabel">Cost of joining</span><div class="stat">$0</div><p>Free, and non binding all the way to the offer. You decide once your own price is in front of you.</p></div>
+    <div class="card"><span class="mlabel">Providers in reach</span><div class="stat num">3</div><p>Two incumbents, and at least one independent last mile provider with coverage in the area.</p></div>
+    <div class="card"><span class="mlabel">Founding spots</span><div class="stat">5%</div><p>The first 5% of doors are founding members, with the first install windows when the building switches.</p></div>
+    <div class="card"><span class="mlabel">Next unlock</span><div class="stat">10 bills</div><p>Ten submitted bills registers <span class="bn">Greystone Walk II</span> as an active Whollar building.</p></div>
   </div>
   <p class="cap" style="margin-top:14px">Unit counts, storeys and completion years are from public condo records for 1, 3 and 5 Greystone Walk Drive, Toronto M1K.</p>
 </div></section>
 
-<section id="how"><div class="wrap">
+<section class="alt" id="how"><div class="wrap">
   <header class="sec">
     <span class="eyebrow">How the cohort works</span>
     <h2>Join now, decide later, pay nothing either way</h2>
-    <div class="sec__d"><p class="lead">Joining is free and non binding. You make one decision, and only when you are holding an offer with your own name and your own price on it.</p></div>
+    <div class="sec__d"><p class="lead">Joining is free and non binding. You only make a decision when you are holding an offer with your own name and price on it.</p></div>
   </header>
   <div class="steps">
-    <div class="step"><span class="mlabel">One</span><b>Forming</b><p>Residents join and add their current bill and renewal date.</p></div>
-    <div class="step"><span class="mlabel">Two</span><b>Threshold</b><p>At 30% of a tower's doors the cohort is large enough to take to providers as one purchase.</p></div>
-    <div class="step"><span class="mlabel">Three</span><b>Sealed bids</b><p>Providers bid without seeing each other. They get aggregates, never a name or a unit.</p></div>
-    <div class="step"><span class="mlabel">Four</span><b>Your offer</b><p>Each household sees its own price at its own speed, and takes it or leaves it.</p></div>
-    <div class="step"><span class="mlabel">Five</span><b>Switch</b><p>Whollar handles the cancellation, the install window and the timing against your promo.</p></div>
+    <div class="step now"><span class="mlabel">Now</span><b>Forming</b><p>Residents join, submit a bill, rate their provider.</p></div>
+    <div class="step"><span class="mlabel">Next</span><b>Threshold</b><p>At 30% of doors the building is big enough to take to providers as one purchase.</p></div>
+    <div class="step"><span class="mlabel">Then</span><b>Sealed bids</b><p>Providers bid without seeing each other. They see aggregates only, never who you are.</p></div>
+    <div class="step"><span class="mlabel">Then</span><b>Your offer</b><p>Each household sees its own price and takes it or leaves it.</p></div>
+    <div class="step"><span class="mlabel">Finally</span><b>Switch</b><p>Whollar handles the cancellation, the install window and the promo timing.</p></div>
   </div>
 
   <div class="rail">
     <div class="rail__t">
-      <h3>What each share of doors unlocks in <span class="bn">Greystone Walk II</span></h3>
+      <h3>What unlocks as <span class="bn">Greystone Walk II</span> fills</h3>
       <span class="mlabel">Share of the tower's doors</span>
     </div>
     <div class="rail__stops">
       <span class="rail__line" aria-hidden="true"></span>
-      <div class="stop"><span class="stop__dot" aria-hidden="true"></span><span class="stop__k">5%</span><span class="stop__b">Founding window closes</span><p>The first 5% of doors are founding members and hold the first install windows.</p></div>
-      <div class="stop stop--key"><span class="stop__dot" aria-hidden="true"></span><span class="stop__k">12%</span><span class="stop__b">Building feed opens</span><p>Joins, unlocks and switches appear to members as they happen, as counts only, never a unit.</p></div>
-      <div class="stop"><span class="stop__dot" aria-hidden="true"></span><span class="stop__k">20%</span><span class="stop__b">Bidding opens</span><p>Providers are invited, and the date every household sees its own offer is set.</p></div>
-      <div class="stop"><span class="stop__dot" aria-hidden="true"></span><span class="stop__k">30%</span><span class="stop__b">Bids close</span><p>The tower is large enough to price as one purchase. Sealed bids are opened together.</p></div>
-      <div class="stop"><span class="stop__dot" aria-hidden="true"></span><span class="stop__k">OFFERS</span><span class="stop__b">Install windows</span><p>Households that accepted book a window, founding members first.</p></div>
+      <div class="stop stop--key"><span class="stop__dot" aria-hidden="true"></span><span class="stop__k">10 BILLS</span><span class="stop__b">Registered</span><p>Your building gets registered with Whollar.</p></div>
+      <div class="stop"><span class="stop__dot" aria-hidden="true"></span><span class="stop__k">5%</span><span class="stop__b">Founding window closes</span><p>Ratings unlock and the tower race goes live.</p></div>
+      <div class="stop"><span class="stop__dot" aria-hidden="true"></span><span class="stop__k">12%</span><span class="stop__b">Building feed opens</span><p>Whollar starts conversations with providers.</p></div>
+      <div class="stop"><span class="stop__dot" aria-hidden="true"></span><span class="stop__k">20%</span><span class="stop__b">Bidding opens</span><p>Providers are invited and the offer reveal date is set.</p></div>
+      <div class="stop"><span class="stop__dot" aria-hidden="true"></span><span class="stop__k">30%</span><span class="stop__b">Bids close</span><p>Install windows scheduled, first tower first.</p></div>
     </div>
-    <p class="rail__f">All three towers climb the same ladder, so a smaller tower is not disadvantaged by its size. Where this tower stands on the ladder today, and how many doors have joined, is shown to members on their dashboard rather than in public: a running count on an open page is a number a provider could read as easily as a resident.</p>
+    <p class="rail__f">All three towers run the same ladder, so the race is fair whatever a tower's size. The reveal date and countdown appear on this page only once bidding opens.</p>
   </div>
 </div></section>
 
-<section class="alt" id="seen"><div class="wrap">
+<section id="managers"><div class="wrap">
   <header class="sec">
-    <span class="eyebrow">What a provider sees</span>
-    <h2>They bid on a building, not on you</h2>
-    <div class="sec__d"><p class="lead">A provider bidding for Greystone Walk is given enough to price the work and nothing that identifies anyone in it. This is the whole trade, so it is worth being exact about.</p></div>
-  </header>
-  <div class="split">
-    <div class="card">
-      <h4>What they are given</h4>
-      <ul class="seen seen--yes">
-        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg><span>How many households are in the cohort, and which tower each is in</span></li>
-        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg><span>The spread of speeds households are on today, as a distribution</span></li>
-        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg><span>The region, Scarborough Southwest, and the postal areas it covers</span></li>
-        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg><span>When the cohort's renewal dates cluster, so the switch can be timed</span></li>
-      </ul>
-    </div>
-    <div class="card card--no">
-      <h4>What they are never given</h4>
-      <ul class="seen seen--no">
-        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span>Your name, your unit number or your email address</span></li>
-        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span>Your bill, or anyone's individual bill</span></li>
-        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span>Another provider's bid, its count, or that another provider bid at all</span></li>
-        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span>Your address, until you have accepted an offer and released it yourself</span></li>
-      </ul>
-    </div>
-  </div>
-  <p class="cap" style="margin-top:14px">A bid is sealed: it is placed once, revised only by replacing it, and never withdrawn. Read the <a href="/privacy" style="color:var(--accent-deep)">privacy policy</a> for the full account.</p>
-</div></section>
-
-<section id="seat"><div class="wrap">
-  <header class="sec">
-    <span class="eyebrow">Run the campaign in your tower</span>
+    <span class="eyebrow">Campaign managers</span>
     <h2>Every building needs someone to start it</h2>
-    <div class="sec__d"><p class="lead">One resident per tower puts the notice in the lobby, answers the questions in the building chat, and posts the update. It is the difference between a page and a cohort.</p></div>
+    <div class="sec__d"><p class="lead">One resident per tower puts the notice in the lobby, answers the questions in the building group, and posts the weekly update. Neighbours pick them, members rate them, and they earn 1.2x points on every referral.</p></div>
   </header>
-  <div class="grid g2">
+  <div class="grid g3">
+    <div class="card mgr">
+      <div class="mgr__top"><span class="ava empty">+</span><span class="mgr__id"><b>1 Greystone Walk</b><span class="mlabel">Seat open</span></span></div>
+      <q>Nobody has taken this tower yet. Add a photo and one line on why you are in. Neighbours from your tower endorse you, and the most endorsed takes the seat.</q>
+      <div class="mgr__cta"><button class="btn acc sm" type="button" data-nom="nominate">Nominate myself</button><button class="btn ghost sm" type="button" data-nom="vote">Vote</button></div>
+    </div>
+    <div class="card mgr">
+      <div class="mgr__top"><span class="ava empty">+</span><span class="mgr__id"><b>3 Greystone Walk</b><span class="mlabel">Seat open</span></span></div>
+      <q>The largest tower, 354 doors, and the one that sets the pace for the other two. One resident, one notice in the lobby, and the campaign starts.</q>
+      <div class="mgr__cta"><button class="btn acc sm" type="button" data-nom="nominate">Nominate myself</button><button class="btn ghost sm" type="button" data-nom="vote">Vote</button></div>
+    </div>
+    <div class="card mgr">
+      <div class="mgr__top"><span class="ava empty">+</span><span class="mgr__id"><b>5 Greystone Walk</b><span class="mlabel">Seat open</span></span></div>
+      <q>Campaign managers earn 1.2x points on referrals, are rated by members, and can withdraw at any time. You are not selling anything and you never handle anyone's bill.</q>
+      <div class="mgr__cta"><button class="btn acc sm" type="button" data-nom="nominate">Nominate myself</button><button class="btn ghost sm" type="button" data-nom="vote">Vote</button></div>
+    </div>
+  </div>
+
+  <div class="glow">
+    <div>
+      <h3>Join the race. Every referral makes this building a little better.</h3>
+      <p>One more household is one more reason for a provider to bid harder, for everyone on your floor and not just you. Referral points count toward the Greystone Walk leaderboard and the Whollar wide one.</p>
+    </div>
+    <div class="pts-row"><span><b>+10</b>per referral that joins and submits a bill</span><span><b>x1.2</b>for campaign managers</span><span><b>+5</b>when your referral rates their provider</span></div>
+  </div>
+
+  <div class="grid g2" style="margin-top:16px">
     <div class="card">
-      <div class="seat">
-        <span class="ic" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="3.5"/><path d="M18 8v6M21 11h-6"/></svg></span>
-        <div>
-          <h4>Three seats, all open</h4>
-          <p class="small">One for 1 Greystone Walk, one for 3, one for 5. Nobody has taken any of them yet, which is the honest answer and also the reason this page exists.</p>
+      <div class="lbhead"><h4>Referral leaderboard</h4><div class="seg" id="lbSeg"><button class="on" data-lb="b" type="button">Greystone Walk</button><button data-lb="w" type="button">All of Whollar</button></div></div>
+      <ol class="lb" id="lbB">
+        <li><span class="p">1</span><span class="u">Open<small>no referrals yet</small></span><span class="c">0 pts</span></li>
+        <li><span class="p">2</span><span class="u">Open<small>no referrals yet</small></span><span class="c">0 pts</span></li>
+        <li><span class="p">3</span><span class="u">Open<small>no referrals yet</small></span><span class="c">0 pts</span></li>
+        <li><span class="p">&middot;</span><span class="u">Join to appear</span><span class="c">&nbsp;</span></li>
+      </ol>
+      <ol class="lb hide" id="lbW">
+        <li><span class="p">&middot;</span><span class="u">Standings open once the first cohorts start referring</span><span class="c">&nbsp;</span></li>
+      </ol>
+      <p class="cap">A referral counts when the household joins and submits a bill. Usernames only, and you can opt out any time.</p>
+    </div>
+    <div class="card">
+      <h4>Referral rewards</h4>
+      <p class="cap">Each tier stacks on the last.</p>
+      <div class="tiers">
+        <div class="tier">
+          <span class="ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 5.3 5.6.6-4.2 3.9 1.2 5.6L12 14.8 7 17.4l1.2-5.6L4 7.9l5.6-.6z"/></svg></span>
+          <div><b>Front of the line<em>1 referral</em></b><p>Priority slot in the switch schedule, with the first install windows when the building moves.</p></div>
+        </div>
+        <div class="tier">
+          <span class="ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M12 8v12M3 13h18M8 8a3 3 0 1 1 4-3c0 2-4 3-4 3zM16 8a3 3 0 1 0-4-3c0 2 4 3 4 3z"/></svg></span>
+          <div><b>First taste of what is next<em>3 referrals</em></b><p>Early access to the next Whollar product cohort, starting with mobile plans.</p></div>
+        </div>
+        <div class="tier top">
+          <span class="ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17h14M6 17L4 7l5 3 3-6 3 6 5-3-2 10"/></svg></span>
+          <div><b>Building champion<em>top referrer</em></b><p>Early access to every product in the pipeline, and a seat in the offer review call when bids come in.</p></div>
         </div>
       </div>
-      <ul class="duty">
-        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg><span>Put the notice up where your tower actually reads things</span></li>
-        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg><span>Answer the questions neighbours ask before they will join anything</span></li>
-        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg><span>Post the update when the tower climbs a rung</span></li>
-      </ul>
-      <a class="btn acc sm" href="/contact" style="margin-top:16px">Ask about the seat</a>
     </div>
-    <div class="card">
-      <h4>What we do, so you are not doing it alone</h4>
-      <p class="small">You are not selling anything and you are not handling anyone's bill. Whollar writes the notice, checks which providers can actually reach the towers, runs the bidding, and answers anything technical a neighbour asks. Your part is the part only a resident can do, which is being a resident people recognise.</p>
-      <p class="small">If more than one person in a tower wants the seat, we will say so plainly and let the tower decide rather than choosing for it.</p>
-      <p class="cap" style="margin-top:4px">Endorsements, ratings and referral standings are member features and are not shown on this page.</p>
+  </div>
+</div></section>
+
+<section class="alt" id="products"><div class="wrap">
+  <header class="sec">
+    <span class="eyebrow">Next from Whollar</span>
+    <h2>Same idea, your other bills</h2>
+    <div class="sec__d"><p class="lead">Tell us which of these you would want negotiated for the building. Interest here becomes the bargaining number for the next cohort.</p></div>
+  </header>
+  <div class="grid g3">
+    <div class="card prod"><div><h4>Mobile plans</h4><p>Same cohort, your phone bill</p></div><button class="tog" type="button" role="switch" aria-checked="false" aria-label="Interested in mobile plans"></button></div>
+    <div class="card prod"><div><h4>Streaming bundles</h4><p>One negotiated bundle for the building</p></div><button class="tog" type="button" role="switch" aria-checked="false" aria-label="Interested in streaming bundles"></button></div>
+    <div class="card prod"><div><h4>Winter tires</h4><p>Group price, delivered to the garage</p></div><button class="tog" type="button" role="switch" aria-checked="false" aria-label="Interested in winter tires"></button></div>
+  </div>
+  <p class="cap" style="margin-top:14px">Your interest joins the main Whollar waitlist, tagged to Greystone Walk. The 3 referral tier moves you to the front. <a href="/waitlist/?fsa=M1K" style="color:var(--accent-deep)">Register your interest</a>.</p>
+</div></section>
+
+<section id="feed"><div class="wrap">
+  <header class="sec">
+    <span class="eyebrow">Building feed</span>
+    <h2>Watch the building move</h2>
+    <div class="sec__d"><p class="lead">Joins, unlocks, rank changes and switches as they happen. Anonymous and aggregate, never a unit number.</p></div>
+  </header>
+  <div class="card locked">
+    <span class="ic" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span>
+    <div>
+      <span class="k">12% of doors</span>
+      <h4>The feed opens once the campaign is 12% full</h4>
+      <p class="small">Until then your campaign manager posts the weekly update in the building group. It is the third rung on the ladder above.</p>
     </div>
   </div>
 </div></section>
@@ -627,115 +831,198 @@ section.alt{background:var(--mist)}
     </header>
     <div class="faqwrap" data-faqwrap>
       <div class="faq" data-open="true">
-        <button class="faq__q" type="button" aria-expanded="true"><span>Does the building already have a bulk internet agreement?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
-        <div class="faq__a">We confirm this with each condo corporation separately, so three buildings means three answers. Where a bulk agreement is in force, the cohort runs alongside it for households that want a different provider, and we will say so on this page once we have each answer in writing.</div>
+        <button class="faq__q" type="button" aria-expanded="true"><span>Does the building have a bulk internet agreement?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div class="faq__a">We confirm this with each condo corporation separately. Three buildings, three answers. If a bulk agreement is in force, the cohort runs as an add on for households who want a different provider.</div>
       </div>
       <div class="faq" data-open="false">
         <button class="faq__q" type="button" aria-expanded="false"><span>Will someone need to drill into my unit?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
-        <div class="faq__a">It depends on what already reaches your tower's riser. Where fibre is in the building, the install is usually one visit to the existing telecom outlet. We publish the answer per building once the site survey is done rather than guessing at it now.</div>
+        <div class="faq__a">It depends on the independent's technology in your tower. Where fibre already reaches the riser, the install is usually one visit to the existing telecom outlet. We post the details per building once the site survey is done.</div>
       </div>
       <div class="faq" data-open="false">
         <button class="faq__q" type="button" aria-expanded="false"><span>What happens to my TV or home phone bundle?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
-        <div class="faq__a">Your offer shows the internet price on its own. Before you decide, we tell you what your current provider will charge for the rest of the bundle once internet leaves it, because that is the number that decides whether the offer is actually worth taking.</div>
+        <div class="faq__a">Your offer shows the internet only price. Before you decide, we tell you what your current provider will charge for the rest of the bundle once internet leaves it.</div>
       </div>
       <div class="faq" data-open="false">
         <button class="faq__q" type="button" aria-expanded="false"><span>Who sees my bill?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
-        <div class="faq__a">Only Whollar. Providers see cohort level aggregates: counts, the spread of speeds, when renewals cluster. Never names, never unit numbers, never an individual bill.</div>
+        <div class="faq__a">Only Whollar. Providers see building level aggregates, counts, medians and satisfaction, never names, units or individual bills.</div>
       </div>
       <div class="faq" data-open="false">
-        <button class="faq__q" type="button" aria-expanded="false"><span>Is there a lobby session?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
-        <div class="faq__a">Not yet. A session is arranged by the resident running the campaign in a tower, and those three seats are open. If you want to be the one to arrange it, ask about the seat and we will bring the notices and answer the technical questions on the night.</div>
+        <button class="faq__q" type="button" aria-expanded="false"><span>When is the lobby session?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div class="faq__a">A session is arranged by the resident running the campaign in a tower, and all three seats are open. Put your name forward and we will bring the notices and answer the technical questions on the night.</div>
       </div>
       <div class="faq" data-open="false">
         <button class="faq__q" type="button" aria-expanded="false"><span>What does it cost me?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
-        <div class="faq__a">Nothing. Providers pay Whollar only when they win a cohort and a line is activated. Joining is free, staying is free, and turning the offer down is free.</div>
+        <div class="faq__a">Nothing. Providers pay Whollar only when they win a building. Since June 2026, activation, change and cancellation fees are banned, so switching costs you nothing either.</div>
       </div>
     </div>
   </div>
 </div></section>
 
-<section id="join"><div class="wrap">
-  <div class="band">
-    <h2>Three towers, 973 doors, one price to ask for.</h2>
-    <p>Join with your postal code and your current bill. Nothing happens to your service until an offer with your own price on it is in front of you, and you say yes to it.</p>
-    <div class="cta"><a class="btn" href="/waitlist/?fsa=M1K">Join the Greystone Walk cohort</a><a class="btn ghost" href="/bill-checkup">Check my bill first</a></div>
+<div class="modal hide" id="nomModal" role="dialog" aria-modal="true" aria-labelledby="nomTitle">
+  <div class="modal__c">
+    <div class="modal__h"><h3 id="nomTitle">Lead your building</h3><button class="modal__x" type="button" id="nomClose" aria-label="Close">&#10005;</button></div>
+    <div class="mtabs"><button class="on" data-mt="nominate" type="button">Nominate myself</button><button data-mt="vote" type="button">Vote for a nominee</button></div>
+
+    <div class="mbody" id="mtNominate">
+      <div class="fld"><div class="fld__h"><span class="fld__n">01</span><label class="fld__l" for="nomB">Your building</label></div><select id="nomB"><option>1 Greystone Walk</option><option selected>3 Greystone Walk</option><option>5 Greystone Walk</option></select></div>
+      <div class="fld"><div class="fld__h"><span class="fld__n">02</span><label class="fld__l" for="nomU">Username</label></div><input id="nomU" placeholder="@yourname"></div>
+      <div class="drop"><span class="ava empty" style="width:44px;height:44px;font-size:18px">+</span><span><b>Add a photo</b><span>Neighbours endorse the people they recognise from the elevator.</span></span></div>
+      <div class="fld"><div class="fld__h"><span class="fld__n">03</span><label class="fld__l" for="nomW">One line on why you are in</label></div><input id="nomW" maxlength="120" placeholder="I run the floor 12 group chat and I am done calling retention."></div>
+      <div class="fld"><div class="fld__h"><span class="fld__n">04</span><label class="fld__l" for="nomE">Email</label></div><input id="nomE" type="email" placeholder="you@example.com"><p class="hint">We send a verification link. Your nomination goes live once you click it, so one person cannot create ten nominees.</p></div>
+      <a class="btn acc" href="/contact" style="width:100%">Submit nomination</a>
+      <p class="cap">Campaign managers earn 1.2x points on referrals and are rated by members. You can withdraw at any time.</p>
+    </div>
+
+    <div class="mbody hide" id="mtVote">
+      <div class="gate">
+        <span class="ic" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span>
+        <h4>No nominees yet</h4>
+        <p>Voting opens as soon as somebody in a tower puts their name forward. One vote per building, per email, and you can move it until the seat is decided.</p>
+        <a class="btn acc" href="/contact" style="width:100%;margin-top:14px">Tell me when voting opens</a>
+      </div>
+    </div>
   </div>
-</div></section>
+</div>
 
 <script>
 /* ------------------------------------------------------------------ *
- * Tower selection. Retitles the page as one of the three buildings.
- * Facts only: unit count, storeys, completion year, all from public
- * condo records. Nothing here is cohort state.
+ * One classic script, no modules, no eval. Everything on this page is
+ * either a fact from public records or a control that goes somewhere
+ * real; the estimate is the only thing that computes, and it computes
+ * with the site's own engine.
  * ------------------------------------------------------------------ */
 (function () {
   'use strict';
   var W = window.WHOLLAR;
 
+  function each(sel, fn, root) {
+    var n = (root || document).querySelectorAll(sel);
+    for (var i = 0; i < n.length; i++) fn(n[i], i);
+  }
+
+  /* ---- the three towers -------------------------------------------
+     Retitles the page as one of the buildings. Facts only: unit count,
+     storeys and completion year, all from public condo records. */
   var TOWERS = {
     '1': { name: '1 Greystone Walk', full: 'Building 1, 1 Greystone Walk', units: '266', sub: '20 storeys, completed 1989.' },
     '3': { name: 'Greystone Walk II', full: 'Building 3, Greystone Walk II', units: '354', sub: '23 storeys, completed 1990.' },
     '5': { name: 'Greystone Walk I', full: 'Building 5, Greystone Walk I', units: '353', sub: '22 storeys, completed 1988.' }
   };
-
   function selectTower(id) {
     var t = TOWERS[id];
     if (!t) return;
-    var i;
-    var bn = document.querySelectorAll('.bn');
-    for (i = 0; i < bn.length; i++) bn[i].textContent = t.name;
-    var bf = document.querySelectorAll('.bnfull');
-    for (i = 0; i < bf.length; i++) bf[i].textContent = t.full;
-    var u = document.getElementById('stUnits');
-    var s = document.getElementById('stUnitsSub');
+    each('.bn', function (e) { e.textContent = t.name; });
+    each('.bnfull', function (e) { e.textContent = t.full; });
+    var u = document.getElementById('stUnits'), b = document.getElementById('stUnitsSub');
     if (u) u.textContent = t.units;
-    if (s) s.textContent = t.sub;
+    if (b) b.textContent = t.sub;
+    var sel = document.getElementById('nomB');
+    if (sel) sel.value = id + ' Greystone Walk';
   }
-
-  /* FAQ accordion, the same open/close contract the rest of the site uses:
-     data-open on the item drives the CSS, aria-expanded on the button drives
-     the screen reader, and both are set together. */
-  var faqs = document.querySelectorAll('[data-faqwrap] .faq');
-  for (var f = 0; f < faqs.length; f++) {
-    (function (item) {
-      var q = item.querySelector('.faq__q');
-      q.addEventListener('click', function () {
-        var open = item.getAttribute('data-open') === 'true';
-        item.setAttribute('data-open', open ? 'false' : 'true');
-        q.setAttribute('aria-expanded', open ? 'false' : 'true');
-      });
-    })(faqs[f]);
-  }
-
   var towers = document.querySelectorAll('.tower');
-  for (var i = 0; i < towers.length; i++) {
-    (function (btn) {
-      btn.addEventListener('click', function () {
-        for (var j = 0; j < towers.length; j++) towers[j].setAttribute('aria-selected', 'false');
-        btn.setAttribute('aria-selected', 'true');
-        selectTower(btn.getAttribute('data-b'));
-      });
-    })(towers[i]);
-  }
+  each('.tower', function (btn) {
+    btn.addEventListener('click', function () {
+      for (var j = 0; j < towers.length; j++) towers[j].setAttribute('aria-selected', 'false');
+      btn.setAttribute('aria-selected', 'true');
+      selectTower(btn.getAttribute('data-b'));
+    });
+  });
 
-  /* ---------------------------------------------------------------- *
-   * The estimate.
-   *
-   * W.quickEstimate is the homepage's function and /bill-checkup's
-   * reference, generated from the pricing spreadsheet and gated in CI, so
-   * this page cannot drift away from what the rest of the site says a
-   * household is overpaying. Three outcomes, each rendered as itself:
-   *
-   *   over        a real gap, shown as a 12 month figure
-   *   atOrBelow   already at or under the tracked frontier. Not an error,
-   *               not a "$0 saving" under a savings heading
-   *   !ok         which input was wrong, named
-   *
-   * The bill is validated, never clamped: silently rewriting a typed $5
-   * into $20 and estimating from it would put a figure on screen that the
-   * household never entered.
-   * ---------------------------------------------------------------- */
+  /* ---- FAQ accordion, the site's open/close contract ---------------
+     data-open drives the CSS, aria-expanded drives the screen reader,
+     and both are set together. */
+  each('[data-faqwrap] .faq', function (item) {
+    var q = item.querySelector('.faq__q');
+    q.addEventListener('click', function () {
+      var open = item.getAttribute('data-open') === 'true';
+      item.setAttribute('data-open', open ? 'false' : 'true');
+      q.setAttribute('aria-expanded', open ? 'false' : 'true');
+    });
+  });
+
+  /* ---- the four tap survey ----------------------------------------
+     Nothing posts: a rating belongs to a household and there is no
+     anonymous rating endpoint, so the controls answer to the tap and
+     the join link is what files it. Deliberately starts EMPTY rather
+     than with stars pre-lit: a pre-filled rating is somebody else's
+     opinion wearing yours. */
+  var STAR_WORDS = [
+    ['Awful', 'Poor', 'It is okay', 'Good', 'Excellent'],
+    ['Drops daily', 'Spotty', 'Mostly fine', 'Solid', 'Rock solid']
+  ];
+  each('[data-stars]', function (g, gi) {
+    var bs = g.querySelectorAll('button'), lbl = g.querySelector('.lbl');
+    each('button', function (b, i) {
+      b.addEventListener('click', function () {
+        for (var j = 0; j < bs.length; j++) {
+          if (j <= i) bs[j].classList.add('on'); else bs[j].classList.remove('on');
+          bs[j].setAttribute('aria-pressed', j <= i ? 'true' : 'false');
+        }
+        if (lbl) lbl.textContent = (STAR_WORDS[gi] || STAR_WORDS[0])[i];
+      });
+    }, g);
+  });
+  each('[data-chips]', function (g) {
+    var bs = g.querySelectorAll('button');
+    each('button', function (b) {
+      b.addEventListener('click', function () {
+        for (var j = 0; j < bs.length; j++) {
+          bs[j].classList.remove('on');
+          bs[j].setAttribute('aria-pressed', 'false');
+        }
+        b.classList.add('on');
+        b.setAttribute('aria-pressed', 'true');
+      });
+    }, g);
+  });
+
+  /* ---- interest toggles and the leaderboard tabs ------------------- */
+  each('.tog', function (t) {
+    t.addEventListener('click', function () {
+      var on = t.classList.toggle('on');
+      t.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  });
+  each('#lbSeg button', function (b) {
+    b.addEventListener('click', function () {
+      each('#lbSeg button', function (x) { x.classList.remove('on'); });
+      b.classList.add('on');
+      var building = b.getAttribute('data-lb') === 'b';
+      document.getElementById('lbB').classList.toggle('hide', !building);
+      document.getElementById('lbW').classList.toggle('hide', building);
+    });
+  });
+
+  /* ---- the nomination sheet ---------------------------------------- */
+  var modal = document.getElementById('nomModal');
+  function tab(t) {
+    each('.mtabs button', function (b) { b.classList.toggle('on', b.getAttribute('data-mt') === t); });
+    document.getElementById('mtNominate').classList.toggle('hide', t !== 'nominate');
+    document.getElementById('mtVote').classList.toggle('hide', t !== 'vote');
+  }
+  function openNom(t) { modal.classList.remove('hide'); tab(t || 'nominate'); }
+  function closeNom() { modal.classList.add('hide'); }
+  each('[data-nom]', function (b) {
+    b.addEventListener('click', function () { openNom(b.getAttribute('data-nom')); });
+  });
+  each('.mtabs button', function (b) {
+    b.addEventListener('click', function () { tab(b.getAttribute('data-mt')); });
+  });
+  document.getElementById('nomClose').addEventListener('click', closeNom);
+  modal.addEventListener('click', function (e) { if (e.target === modal) closeNom(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeNom(); });
+
+  /* ---- the estimate ------------------------------------------------
+     W.quickEstimate is the homepage's function and /bill-checkup's
+     reference, generated from the pricing spreadsheet and gated in CI,
+     so this page cannot drift away from what the rest of the site says
+     a household is overpaying. Three outcomes, each rendered as itself:
+     a real gap, already at or below the tracked price, or which input
+     was wrong. The bill is validated, never clamped: silently rewriting
+     a typed $5 into $20 would put a figure on screen that the household
+     never entered. */
   var form = document.getElementById('estForm');
+  if (!form || !W) return;
   var billEl = document.getElementById('estBill');
   var pcEl = document.getElementById('estPc');
   var pcOk = document.getElementById('estPcOk');
@@ -744,13 +1031,11 @@ section.alt{background:var(--mist)}
   var badge = document.getElementById('vBadge');
   var title = document.getElementById('vTitle');
   var fig = document.getElementById('vFig');
-  var now = document.getElementById('vNow');
-  var gap = document.getElementById('vGap');
+  var nowEl = document.getElementById('vNow');
+  var gapEl = document.getElementById('vGap');
   var gapLabel = document.getElementById('vGapLabel');
   var body = document.getElementById('vBody');
   var fine = document.getElementById('vFine');
-
-  if (!form || !W) return;
 
   var BMIN = W.ESTIMATE_BILL_MIN, BMAX = W.ESTIMATE_BILL_MAX;
   var BILL_HELP = 'The total you pay in a normal month, taxes in.';
@@ -759,32 +1044,29 @@ section.alt{background:var(--mist)}
     var raw = String(billEl.value).replace(/[^0-9]/g, '');
     return raw === '' ? NaN : parseInt(raw, 10);
   }
-
   function money(n) { return '$' + Number(n).toLocaleString('en-CA'); }
 
-  /* The postal field formats as it is typed and confirms the province and
-     the FSA, the same acknowledgement the join form gives. */
   function paintPostal() {
     var atEnd = pcEl.selectionStart === pcEl.value.length;
     pcEl.value = W.formatPostal(pcEl.value);
     if (atEnd) { try { pcEl.setSelectionRange(pcEl.value.length, pcEl.value.length); } catch (e) {} }
-    var p = W.parsePostal(pcEl.value);
-    if (p && p.complete) {
-      pcOk.textContent = '✓ ' + p.province + ', the ' + p.fsa + ' area';
+    var pc = W.parsePostal(pcEl.value);
+    if (pc && pc.complete) {
+      pcOk.textContent = '✓ ' + pc.province + ', the ' + pc.fsa + ' area';
       pcEl.classList.remove('is-err');
     } else {
       pcOk.textContent = '';
     }
   }
 
-  function show(state, opts) {
+  function show(state, o) {
     card.classList.toggle('is-over', state === 'over');
     fig.classList.toggle('hide', state !== 'over' && state !== 'under');
-    badge.textContent = opts.badge;
-    title.textContent = opts.title;
-    body.textContent = opts.body;
-    fine.textContent = opts.fine || '';
-    fine.classList.toggle('hide', !opts.fine);
+    badge.textContent = o.badge;
+    title.textContent = o.title;
+    body.textContent = o.body;
+    fine.textContent = o.fine || '';
+    fine.classList.toggle('hide', !o.fine);
   }
 
   function render() {
@@ -831,11 +1113,11 @@ section.alt{background:var(--mist)}
       + ' Mbps or better ' + where + ': ' + est.provider + ' at ' + money(est.benchmark)
       + ' a month. That is an advertised price we track, not an offer.';
 
-    now.innerHTML = money(est.bill) + '<span style="font-size:.5em;color:rgba(255,255,255,.6)">/mo</span>';
+    nowEl.innerHTML = money(est.bill) + '<span style="font-size:.5em;color:rgba(255,255,255,.6)">/mo</span>';
 
     if (est.atOrBelow) {
-      gapLabel.textContent = 'Tracked frontier ' + where;
-      gap.textContent = money(est.benchmark);
+      gapLabel.textContent = 'Tracked price ' + where;
+      gapEl.textContent = money(est.benchmark);
       show('under', {
         badge: 'You are buying well',
         title: 'Your bill is already at or below the price we track ' + where + '.',
@@ -845,21 +1127,20 @@ section.alt{background:var(--mist)}
       return;
     }
 
-    gapLabel.textContent = 'Gap over the next 12 months';
-    gap.textContent = money(est.annual);
+    gapLabel.textContent = 'Extra over the next 12 months';
+    gapEl.textContent = money(est.annual);
     show('over', {
       badge: 'Above the tracked price',
       title: 'You are paying ' + money(Math.floor(est.monthlyDelta)) + ' a month more than the cheapest plan we track ' + where + '.',
       body: basis,
-      fine: 'A cohort price is set by the sealed bids providers place for the towers, which is a different number again, and it is the one this page exists to get you.'
+      fine: 'Pooled with your building, providers bid for all three towers at once, and a building does not get quietly reset. A cohort price is set by those sealed bids, which is a different number again.'
     });
   }
 
   pcEl.addEventListener('input', paintPostal);
   billEl.addEventListener('input', function () {
     var bill = currentBill();
-    var bad = isNaN(bill) || bill < BMIN || bill > BMAX;
-    billEl.classList.toggle('is-err', bad);
+    billEl.classList.toggle('is-err', isNaN(bill) || bill < BMIN || bill > BMAX);
   });
   form.addEventListener('submit', function (e) { e.preventDefault(); render(); });
   paintPostal();

@@ -152,3 +152,12 @@ docs/DELIVERY_AUDIT.md
 # verbatim at its own path: this one names internal tables, internal columns
 # and open gaps, and is written for staff.
 docs/ADMIN_CONSOLE_V2_BRIEF.md
+
+# The Greystone Walk cohort page design reference. Same reason as the
+# prototypes above: cleanUrls would otherwise publish this raw file at
+# /whollargreystonewalkcohortpage, where it would serve a SECOND, unguarded
+# copy of the cohort page carrying its demo data (invented usernames, points,
+# ratings and a sample verdict) and its Viewing-as-member toggle. Its content
+# was ported into greystonewalk.html on 2026-09-01; kept in the repo so the
+# port can be checked against its source.
+whollargreystonewalkcohortpage.html
