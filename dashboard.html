@@ -14,7 +14,7 @@
      empty localStorage. Synchronous and in the head so the guard at the foot of
      the body can rely on it. -->
 <script src="/js/whollar-core.js?v=20260831a"></script>
-<script src="/js/whollar-select.js?v=20260818"></script>
+<script src="/js/whollar-select.js?v=20260901a"></script>
 <!-- The same savings engine /bill-checkup runs, so the deal signal band states
      the checkup's verdict rather than a second opinion about the same bill.
      Nothing here recomputes what the engine already decides: the band feeds it
@@ -180,7 +180,7 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.015em;text-wrap:balance}
 
    The tone classes come from the engine's own `tone`, so the accent and the
    hero colour cannot drift from the verdict the copy is making. */
-.cliff.has-verdict{background:linear-gradient(155deg,#0A2018,#123B2C 58%,#17553D);border-color:#0A2018;border-top:4px solid var(--accent);color:#fff}
+.cliff.has-verdict{background:#14563C;border-color:#14563C;border-top:4px solid var(--accent);color:#fff}
 .cliff.has-verdict .step{display:none}
 .cliff.has-verdict.tone-high{border-top-color:var(--terra)}
 .cliff.has-verdict.tone-moderate{border-top-color:#C29B3C}
@@ -1049,6 +1049,27 @@ body.npopen{overflow:hidden}
 .sizetrio .sw{width:58px;flex:none}
 .sizetrio .sp,.sizetrio .sr{width:50px;flex:none}
 .sizetrio i{font-style:normal;color:#949E95;font-size:11.5px;font-family:var(--mono);flex:none}
+/* js/whollar-select.js turns each <select> above into a .wsel: a trigger button
+   plus a fixed-positioned panel, with the original select kept in the DOM,
+   clipped to 1px, as the value. Two things therefore have to move across. The
+   WIDTH, because the box on screen is now the wrapper and the rules above are
+   sizing the holder behind it. And the TYPE SCALE, which the widget reads from
+   its own --wsel-* tokens and not from `.ltable select`.
+
+   Matched with :has() on the class the select still carries, so the three
+   sidewall widths stay one number in one place rather than becoming an inline
+   style on each call. The widget's own sheet already relies on :has(), so this
+   adds no support floor that was not there. */
+.ltable .wsel{width:100%;--wsel-size:12.5px;--wsel-radius:8px}
+.ltable .wseltrig{padding:6px 7px}
+.sizetrio .wsel{flex:none}
+.sizetrio .wsel:has(>.sw){width:58px}
+.sizetrio .wsel:has(>.sp),.sizetrio .wsel:has(>.sr){width:50px}
+.sizetrio .wseltrig{padding:6px 4px;gap:4px;justify-content:center}
+@media (max-width:680px){
+  .ltable .wsel{--wsel-size:14px}
+  .ltable .wseltrig{padding:9px 8px;min-height:40px}
+}
 .sizehelp{width:17px;height:17px;border-radius:50%;background:#E4EDE2;color:var(--accent-deep);font-size:11px;font-weight:800;display:inline-grid;place-items:center;margin-inline-start:6px;vertical-align:1px;border:1px solid #CBDCC9;line-height:1}
 .sizehelp:hover{background:#D5E4D3}
 .sizeinfo{background:#E4EDE2;border:1px solid #CBDCC9;border-radius:14px;padding:15px 18px;margin-top:12px;font-size:12.8px;line-height:1.6;color:#1E3A2C}
@@ -5667,6 +5688,21 @@ var NPTW=npRange(155,315,10),NPTA=npRange(30,80,5),NPTR=npRange(14,22,1);
 /* One <select>. `groups` is a flat list of strings, or [label,[options]] pairs
    for an optgroup, so the device catalog and the carrier list build the same
    way and only one of them has to care about grouping. */
+/* ENHANCED by js/whollar-select.js, like every other dropdown on the site.
+   These were native for a while, opted out with data-wsel="off", because the
+   widget's panel was absolutely positioned at `left:0;right:0`: inside a dense
+   cell it drew 76px wide and .ltwrap's horizontal scroll then clipped it, so a
+   carrier list was unreadable, and the model select, whose options are replaced
+   in place when the make changes, went on offering "Pick make first" for ever.
+   Both were the widget's bugs and both are fixed there: the panel is fixed
+   positioned and sized to its own content, exactly like .mselmenu two hundred
+   lines up, and it re-reads its options when they move. Going native was a way
+   round a broken dropdown, and it cost the one thing the OS list cannot do,
+   which is open where we tell it to.
+
+   The class stays on the <select>, which the widget keeps in the DOM as the
+   value holder, so npStr() below still reads `.l-carrier`.value and nothing on
+   the wire changes. */
 function npSel(cls,ph,groups,extra){
   var o='<select class="'+cls+'" aria-label="'+esc(ph)+'"'+(extra||'')+'><option value="">'+esc(ph)+'</option>';
   groups.forEach(function(g){
@@ -6260,6 +6296,7 @@ document.addEventListener('change',function(e){
   if(!e.target.value){
     msel.disabled=true;
     msel.innerHTML='<option value="">Pick make first</option>';
+    npReselect(msel);
     return;
   }
   msel.disabled=false;
@@ -6268,7 +6305,18 @@ document.addEventListener('change',function(e){
   msel.innerHTML='<option value="">Model</option>'
     +models.map(function(m){return '<option>'+esc(m)+'</option>'}).join('')
     +'<option>Other / older model</option>';
+  npReselect(msel);
 });
+
+/* Tell the dropdown its options moved. The widget re-reads them on open by
+   itself, so the panel is right either way; this is for the part that is on
+   screen BEFORE anyone opens it, which is the trigger's own label. Without it a
+   member picks Toyota and the model cell still reads "Pick make first" until
+   they click it. Guarded because the widget is a separate file: a member whose
+   /js request failed still gets three working native selects. */
+function npReselect(sel){
+  try{if(W&&W.select&&W.select.refresh)W.select.refresh(sel)}catch(err){}
+}
 
 document.addEventListener('keydown',function(e){
   if(!NPOPEN)return;
