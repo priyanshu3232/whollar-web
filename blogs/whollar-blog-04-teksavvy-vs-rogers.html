@@ -159,19 +159,18 @@
   .btn.solid:hover{background:var(--ink);border-color:var(--ink)}
   /* End-of-article call to action. Interface, not prose: the whole block is set
      in the display sans so the eye stops on it rather than reading another
-     paragraph, the two actions share one auto-fit grid track so their outer
-     edges line up, and the trust line is a divided footer strip instead of the
-     monospace paragraph it used to be, which was the heaviest element in the
-     card carrying the least important words in it. */
+     paragraph, and the two actions share one auto-fit grid track so their outer
+     edges line up. Four parts became two: the monospace trust line that used to
+     sit under the buttons was the heaviest element in the card carrying the
+     least important words in it, and the eyebrow above the headline was a label
+     on something that needs no labelling. What is left is the sentence, the
+     reason, and the two things a reader can do about it. */
   .invite{margin:44px 0 0;border:1px solid var(--line-2);border-radius:12px;background:#fff;overflow:hidden;
     font-family:'Bricolage Grotesque',system-ui,sans-serif}
   .invite .top{padding:24px 24px 20px}
-  .invite .kicker{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;
-    letter-spacing:.08em;color:var(--accent);margin:0 0 12px}
-  .invite .kicker::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent-2);flex:none}
   .invite h3{font-family:inherit;font-weight:700;color:var(--ink);font-size:23px;line-height:1.3;letter-spacing:-.02em;margin:0 0 10px}
   .invite .top p{font-family:inherit;font-size:17.5px;line-height:1.6;color:var(--muted);max-width:52ch;margin:0}
-  .invite .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;padding:0 24px 20px}
+  .invite .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;padding:0 24px 24px}
   .invite .btn{display:flex;align-items:center;justify-content:center;gap:8px;height:50px;border-radius:10px;
     font-family:inherit;font-size:15px;font-weight:600;letter-spacing:0;border:1px solid transparent;
     text-decoration:none;transition:background .15s ease,border-color .15s ease,color .15s ease}
@@ -181,14 +180,10 @@
   .invite .btn.ghost{background:transparent;color:var(--accent);border-color:var(--accent-2)}
   .invite .btn.ghost:hover{background:var(--wash)}
   .invite .btn:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
-  .invite .trust{display:flex;flex-wrap:wrap;gap:8px 20px;border-top:1px solid var(--line);padding:12px 24px}
-  .invite .trust span{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
-  .invite .trust svg{width:15px;height:15px;flex:none;color:var(--accent-2)}
   @media(max-width:480px){
     .invite .top{padding:20px 20px 16px}
     .invite h3{font-size:19px}
-    .invite .row{padding:0 20px 16px}
-    .invite .trust{flex-direction:column;gap:8px;padding:12px 20px}
+    .invite .row{padding:0 20px 20px}
   }
   .faq{margin:56px 0 0;border-top:1px solid var(--line);padding-top:12px}
   .faq h2{margin-top:28px}
@@ -294,18 +289,12 @@
 
 <div class="invite">
   <div class="top">
-    <span class="kicker">Next step</span>
     <h3>See what your own line really costs.</h3>
     <p>The checkup takes two minutes and reads your bill the way this article does: same wire, honest arithmetic. And when your region's cohort opens, providers compete for the group, so the gap works in your favour by default.</p>
   </div>
   <div class="row">
     <a class="btn solid" href="https://whollar.ca/join">Hold your spot <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9.5M9 4.5 12.5 8 9 11.5"/></svg></a>
     <a class="btn ghost" href="https://whollar.ca/checkup"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.6V8l2.3 1.5"/></svg> Run a 2-minute checkup</a>
-  </div>
-  <div class="trust">
-    <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8.4 3.3 3.3L13 5"/></svg>Free for households</span>
-    <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8.4 3.3 3.3L13 5"/></svg>Nothing to buy today</span>
-    <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8.4 3.3 3.3L13 5"/></svg>You only act on a bid you want</span>
   </div>
 </div>
 
