@@ -91,7 +91,7 @@ button{font-family:var(--body);cursor:pointer}
 @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
 /* type utilities */
-.eyebrow{display:block;font-family:var(--label);font-weight:700;font-size:12.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent-deep);margin-bottom:14px}
+.eyebrow{display:block;font-family:var(--label);font-weight:700;font-size:14px;letter-spacing:.01em;color:var(--accent-deep);margin-bottom:12px}
 .mlabel{font-family:var(--label);font-weight:700;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
 .lead{font-size:clamp(15px,1.5vw,17.5px);line-height:1.6;color:var(--ink-2);max-width:var(--measure)}
 .small{font-size:13.5px;line-height:1.55;color:var(--ink-2)}
@@ -104,8 +104,13 @@ button{font-family:var(--body);cursor:pointer}
    screen away from it, which reads as two unrelated blocks. */
 section{padding:clamp(48px,6vw,72px) 0}
 section.alt{background:var(--mist)}
-.sec{margin-bottom:32px;max-width:var(--measure)}
+.sec{margin-bottom:32px}
 .sec__d{margin-top:14px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+/* The description runs the full content width rather than stopping at the
+   halfway mark. Capped at 105ch so a 1240px viewport does not hand the reader
+   a 140 character line, which is roughly where the eye starts losing the
+   return sweep; below that width it simply fills the row. */
+.sec__d .lead{max-width:105ch}
 
 /* buttons */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;font-family:var(--body);font-weight:600;font-size:15px;color:#fff;background:var(--teal);border-radius:13px;padding:13px 22px;text-decoration:none;white-space:nowrap;transition:background .18s,transform .18s}
