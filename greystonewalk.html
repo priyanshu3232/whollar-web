@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "xrkpgls1yj");
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- The estimate on this page is the SAME function the homepage runs:
+     W.quickEstimate reads whollar-estimate-bench.js, which is generated from
+     the pricing spreadsheet and gated in CI. The three tables load before the
+     core because the core reads them at call time and the widget needs them
+     present on first paint. whollar-core.js also runs W.referral.capture() at
+     load, which is what makes a neighbour's ?ref= link bank correctly when it
+     lands here rather than on the join page. -->
+<script src="/js/whollar-benchmarks.js?v=20260806"></script>
+<script src="/js/whollar-base-pricing.js?v=20260807c"></script>
+<script src="/js/whollar-estimate-bench.js?v=20260814a"></script>
+<script src="/js/whollar-core.js?v=20260831a"></script>
+<title>Greystone Walk internet cohort · Whollar</title>
+<meta name="description" content="Residents of 1, 3 and 5 Greystone Walk Drive in Scarborough are joining one Whollar cohort, so internet providers bid for all three towers at once. Free to join, non binding.">
+<link rel="canonical" href="https://www.whollar.ca/greystonewalk">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.whollar.ca/greystonewalk">
+<meta property="og:title" content="Greystone Walk internet cohort · Whollar">
+<meta property="og:description" content="Residents of 1, 3 and 5 Greystone Walk Drive in Scarborough are joining one Whollar cohort, so internet providers bid for all three towers at once. Free to join, non binding.">
+<meta property="og:site_name" content="Whollar">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Greystone Walk internet cohort · Whollar">
+<meta name="twitter:description" content="Residents of 1, 3 and 5 Greystone Walk Drive in Scarborough are joining one Whollar cohort, so internet providers bid for all three towers at once. Free to join, non binding.">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>
+/* Fonts are served from this origin, not from a CDN: same files the homepage,
+   /contact and /terms load, so this page costs no extra connection and cannot
+   be left textless by a third party being slow. */
+@font-face{font-family:'Satoshi';font-style:normal;font-weight:500;font-display:swap;src:url("/fonts/satoshi-500.woff2") format('woff2')}
+@font-face{font-family:'Satoshi';font-style:normal;font-weight:700;font-display:swap;src:url("/fonts/satoshi-700.woff2") format('woff2')}
+@font-face{font-family:'Satoshi';font-style:normal;font-weight:900;font-display:swap;src:url("/fonts/satoshi-900.woff2") format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url("/fonts/inter-var-latin.woff2") format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url("/fonts/inter-var-latin-ext.woff2") format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+
+:root{
+  --teal:#0E2A20; --teal-deep:#0A2018; --teal-bright:#178A5A; --teal-soft:#7FE3B0;
+  --accent:#1E9E63; --accent-hover:#178A5A;
+  /* Filled-pill background. --accent behind white text is 3.4:1 and
+     --accent-hover 4.35:1, both under the WCAG AA floor at small sizes. */
+  --accent-deep:#14764D;
+  --cream:#FAF8F3; --paper:#ffffff; --mist:#F6F4EE;
+  --ink:#2B3A33; --ink-2:#54625B;
+  /* --ink-3 carries real body copy here (hints, captions, trust lines) at 11
+     to 13px, so it is the /bill-checkup value, not the #8A968F of the design
+     reference, which is 2.6 to 3.1:1 against every background on this page. */
+  --ink-3:#5F6B64; --line:#e7ebe6;
+  --warn:#C2643B; --warn-soft:#F7E7DD; --green-tint:#E4F4EC; --gold:#C29B3C; --gold-soft:#F7EEDA;
+  /* --warn and --gold are for borders and icon strokes only. Text uses these. */
+  --warn-text:#A34F2B; --gold-text:#8A6B21;
+  --disp:'Satoshi',system-ui,sans-serif;
+  --label:'Satoshi',system-ui,sans-serif;
+  --body:'Inter',system-ui,sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
+  --wrap:1240px; --measure:660px; --r:18px; --rf:26px;
+  --sh-1:0 1px 2px rgba(16,40,34,.04),0 8px 24px rgba(16,40,34,.05);
+  --sh-2:0 2px 6px rgba(16,40,34,.06),0 18px 44px rgba(16,40,34,.09);
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --panel:linear-gradient(155deg,var(--teal-deep),#123B2C 58%,#17553D);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--disp);color:var(--teal);letter-spacing:-.02em;margin:0;text-wrap:balance}
+h1{font-size:clamp(28px,3.8vw,46px);font-weight:900;line-height:1.06}
+h2{font-size:clamp(23px,2.8vw,32px);font-weight:900;line-height:1.12}
+h3{font-size:clamp(18px,2.2vw,22px);font-weight:900;line-height:1.25}
+h4{font-size:16px;font-weight:700;line-height:1.3}
+p{margin:0}
+button{font-family:var(--body);cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}
+.num{font-variant-numeric:tabular-nums}
+.hide{display:none!important}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* type utilities */
+.eyebrow{display:block;font-family:var(--label);font-weight:700;font-size:12.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent-deep);margin-bottom:14px}
+.mlabel{font-family:var(--label);font-weight:700;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.lead{font-size:clamp(15px,1.5vw,17.5px);line-height:1.6;color:var(--ink-2);max-width:var(--measure)}
+.small{font-size:13.5px;line-height:1.55;color:var(--ink-2)}
+.cap{font-size:12.5px;color:var(--ink-3);line-height:1.55}
+.stat{font-family:var(--disp);font-weight:900;font-size:clamp(28px,3.4vw,38px);letter-spacing:-.03em;color:var(--teal);line-height:1.05;font-variant-numeric:tabular-nums}
+
+/* Section head. The description sits UNDER the heading, on the same left
+   edge, rather than in a second column: a two-column head put the sentence
+   that explains the heading level with the heading's baseline and half a
+   screen away from it, which reads as two unrelated blocks. */
+section{padding:clamp(48px,6vw,72px) 0}
+section.alt{background:var(--mist)}
+.sec{margin-bottom:32px;max-width:var(--measure)}
+.sec__d{margin-top:14px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;font-family:var(--body);font-weight:600;font-size:15px;color:#fff;background:var(--teal);border-radius:13px;padding:13px 22px;text-decoration:none;white-space:nowrap;transition:background .18s,transform .18s}
+.btn:hover{background:var(--teal-deep);transform:translateY(-1px);color:#fff}
+.btn.acc{background:var(--accent-deep)}.btn.acc:hover{background:var(--teal-bright)}
+.btn.ghost{background:transparent;color:var(--teal);border:1px solid var(--line)}
+.btn.ghost:hover{background:var(--paper);border-color:#c6d5cc}
+.btn.sm{font-size:13.5px;padding:10px 18px;border-radius:11px}
+@media (prefers-reduced-motion:reduce){.btn:hover{transform:none}}
+
+/* nav */
+.topnav{position:sticky;top:0;z-index:60;background:rgba(250,248,243,.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.nav-in{max-width:var(--wrap);margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:14px}
+.mark{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--teal)}
+.mark svg{width:34px;height:34px;flex:none}
+.mark b{font-family:var(--disp);font-weight:900;font-size:20px}
+.mark span{font-size:13.5px;color:var(--ink-3);margin-left:2px}
+.nav-links{margin-left:auto;display:flex;gap:20px;font-size:14px}
+.nav-links a{color:var(--ink-2);text-decoration:none}
+.nav-links a:hover{color:var(--teal)}
+@media(max-width:900px){.nav-links{display:none}}
+@media(max-width:640px){.mark span{display:none}.nav-in{gap:10px}.mark{min-width:0}}
+
+/* hero */
+.hero{background:var(--panel);color:#fff;padding:clamp(44px,5.5vw,68px) 0;position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0;background:radial-gradient(620px 300px at 88% -14%,rgba(127,227,176,.16),transparent 62%);pointer-events:none}
+.hero .wrap{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:clamp(28px,4vw,56px);align-items:start}
+@media(max-width:980px){.hero .wrap{grid-template-columns:1fr}}
+.hero .eyebrow{color:var(--teal-soft)}
+.hero h1{color:#fff}
+.hero h1 em{font-style:normal;color:var(--teal-soft)}
+.hero .lead{margin-top:16px;color:rgba(255,255,255,.82)}
+.hero .cta{display:flex;gap:12px;margin-top:24px;flex-wrap:wrap}
+.hero .btn{background:var(--accent)}
+.hero .btn:hover{background:var(--accent-hover)}
+.hero .btn.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.28)}
+.hero .btn.ghost:hover{background:rgba(255,255,255,.06)}
+.status{display:flex;gap:32px;margin-top:32px;flex-wrap:wrap}
+.status .mlabel{color:rgba(255,255,255,.62);display:block;margin-bottom:6px}
+.status b{display:block;font-family:var(--disp);font-weight:900;font-size:26px;letter-spacing:-.02em;color:#fff}
+.status span.sub{display:block;font-size:12.5px;color:rgba(255,255,255,.55);margin-top:4px}
+
+/* towers panel */
+.towers{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.13);border-radius:var(--rf);padding:20px 22px}
+.towers__h{margin-bottom:8px}
+.towers__h h3{color:#fff;font-size:17px;font-weight:700}
+.towers__h .mlabel{display:block;color:rgba(255,255,255,.58);margin-top:6px}
+.tower{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px 0;border-top:1px solid rgba(255,255,255,.1);cursor:pointer;text-align:left;background:none;border-left:none;border-right:none;border-bottom:none;width:100%;color:inherit}
+.tower .n{font-family:var(--disp);font-weight:900;font-size:17px;color:var(--teal-soft)}
+.tower .t{display:block;font-family:var(--disp);font-weight:700;font-size:14.5px;color:#fff;line-height:1.3}
+.tower .s{display:block;font-size:12px;color:rgba(255,255,255,.62);margin-top:3px}
+.tower .badge{font-family:var(--label);font-weight:700;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal-soft);background:rgba(127,227,176,.13);border-radius:999px;padding:5px 11px;white-space:nowrap}
+.tower[aria-selected="true"]{background:rgba(127,227,176,.09);border-radius:14px;padding-left:10px;padding-right:10px;margin:0 -10px}
+.towers__f{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.1);font-size:12px;line-height:1.55;color:rgba(255,255,255,.58)}
+
+/* cards + grids */
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:940px){.g3,.g4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.g2,.g3,.g4{grid-template-columns:1fr}}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--rf);box-shadow:var(--sh-1);padding:clamp(20px,2.6vw,28px)}
+.card>*+*{margin-top:12px}
+.card .mlabel{display:block}
+.card .stat{margin-top:8px}
+.card p{color:var(--ink-2);font-size:13.5px;line-height:1.6}
+
+/* estimator */
+.checkout{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:16px;align-items:start}
+@media(max-width:1020px){.checkout{grid-template-columns:1fr}}
+.fld{border:1px solid var(--line);border-radius:var(--r);padding:14px 16px 16px;background:var(--paper)}
+.fld+.fld{margin-top:12px}
+.fld:focus-within{border-color:var(--accent)}
+.fld__h{display:flex;align-items:center;gap:9px;margin-bottom:10px;min-height:26px}
+.fld__n{flex:none;width:24px;height:20px;border-radius:6px;background:var(--mist);color:var(--ink-2);font-family:var(--mono);font-size:10.5px;font-weight:600;display:grid;place-items:center}
+.fld__l{font-family:var(--label);font-weight:700;font-size:14px;color:var(--teal)}
+.fld input{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:11px;color:var(--ink);padding:11px 13px;font-size:15px;font-family:var(--body);appearance:none}
+.fld input:focus{outline:none;border-color:var(--accent)}
+.fld input.is-err{border-color:var(--warn)}
+.fld .hint{margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5}
+.fld .hint.err{color:var(--warn-text)}
+.billwrap{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:11px;padding:0 13px;background:var(--paper)}
+.billwrap:focus-within{border-color:var(--accent)}
+.billwrap span{font-family:var(--disp);font-weight:700;color:var(--ink-2)}
+.billwrap input{border:none;padding:11px 0}
+.billwrap input:focus{border:none}
+.pcok{display:block;margin-top:8px;font-size:12.5px;font-weight:600;color:var(--accent-deep)}
+
+/* verdict panel */
+.vcard{border-radius:var(--rf);background:var(--panel);color:#fff;padding:clamp(24px,3.2vw,34px);position:relative;overflow:hidden;border-top:4px solid var(--teal-soft)}
+.vcard.is-over{border-top-color:var(--warn)}
+.vcard::before{content:"";position:absolute;inset:0;background:radial-gradient(460px 220px at 92% -20%,rgba(127,227,176,.14),transparent 62%);pointer-events:none}
+.vcard>*{position:relative}
+.vbadge{display:inline-block;font-family:var(--label);font-weight:700;font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;border-radius:999px;padding:7px 15px;border:1px solid rgba(255,255,255,.35);color:#fff}
+.vcard.is-over .vbadge{border-color:#E8A07A;color:#F3BE9E}
+.vcard h3{color:#fff;margin-top:16px;max-width:var(--measure)}
+.vfig{display:flex;gap:clamp(18px,3vw,34px);margin-top:22px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:var(--r);padding:18px 22px}
+@media(max-width:620px){.vfig{flex-direction:column}}
+.fig{min-width:0}
+.fig .mlabel{color:rgba(255,255,255,.62);display:block}
+.fig b{display:block;font-family:var(--disp);font-weight:900;letter-spacing:-.03em;color:#fff;font-size:clamp(24px,3vw,32px);margin-top:8px;line-height:1.05;font-variant-numeric:tabular-nums}
+.fig--hero b{font-size:clamp(34px,4.6vw,48px);color:#FFB894}
+.figsep{width:1px;background:rgba(255,255,255,.14);flex:none}
+@media(max-width:620px){.figsep{width:auto;height:1px}}
+.vbody{margin-top:20px;font-size:14.5px;line-height:1.7;color:rgba(255,255,255,.82);max-width:var(--measure)}
+.vfine{margin-top:14px;font-size:12.5px;line-height:1.6;color:rgba(255,255,255,.6);max-width:var(--measure)}
+.vcta{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
+.vcard .btn{background:var(--accent)}
+.vcard .btn:hover{background:var(--accent-hover)}
+.vcard .btn.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.28)}
+.vcard .btn.ghost:hover{background:rgba(255,255,255,.06)}
+
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+@media(max-width:900px){.steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.steps{grid-template-columns:1fr}}
+.step{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+.step .mlabel{display:block;margin-bottom:8px}
+.step b{display:block;font-family:var(--disp);font-weight:700;font-size:15px;color:var(--teal);margin-bottom:4px}
+.step p{font-size:12.5px;line-height:1.55;color:var(--ink-2)}
+
+/* Threshold rail. Replaces a grey "12%" disc that represented nothing: a
+   percentage set against no total is not a measurement, and this page has no
+   live count to set it against (the campaign read layer is signed in). The
+   rail is what IS true, the published ladder, drawn as a ladder: five stops
+   on one line, each naming the share of doors and what it opens. No fill,
+   because a fill would be a claim about how full the cohort is today. */
+.rail{margin-top:8px;border:1px solid var(--line);border-radius:var(--rf);background:var(--paper);padding:clamp(22px,3vw,30px) clamp(20px,2.6vw,28px);box-shadow:var(--sh-1)}
+.rail__t{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:26px}
+.rail__t h3{font-size:18px}
+.rail__stops{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;position:relative}
+.rail__line{position:absolute;left:0;right:0;top:9px;height:2px;background:linear-gradient(90deg,var(--line),#cfe0d5);border-radius:2px}
+.stop{position:relative;padding:0 10px 0 0}
+.stop__dot{width:20px;height:20px;border-radius:50%;background:var(--paper);border:2px solid #c9dbcf;display:grid;place-items:center;position:relative;z-index:1}
+.stop__dot::after{content:"";width:6px;height:6px;border-radius:50%;background:#c9dbcf}
+.stop--key .stop__dot{border-color:var(--accent-deep);box-shadow:0 0 0 4px var(--green-tint)}
+.stop--key .stop__dot::after{background:var(--accent-deep)}
+.stop__k{display:block;font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--ink-3);margin-top:16px;letter-spacing:.02em}
+.stop--key .stop__k{color:var(--accent-deep)}
+.stop__b{display:block;font-family:var(--disp);font-weight:700;font-size:14px;color:var(--teal);margin-top:6px;line-height:1.3}
+.stop p{font-size:12.5px;line-height:1.5;color:var(--ink-2);margin-top:5px;padding-right:8px}
+@media(max-width:860px){
+  .rail__stops{grid-template-columns:1fr;gap:0}
+  /* Stacked, the connector is drawn per stop rather than as one line down the
+     whole column: a single line runs past the last dot and through the copy
+     under it, which reads as a rung that leads nowhere. */
+  .rail__line{display:none}
+  .stop{display:grid;grid-template-columns:20px minmax(0,1fr);gap:0 16px;padding:0 0 20px 0}
+  .stop::before{content:"";position:absolute;left:9px;top:22px;bottom:-2px;width:2px;background:var(--line)}
+  .stop:last-child::before{display:none}
+  .stop:last-child{padding-bottom:0}
+  .stop__dot{grid-row:1;grid-column:1}
+  .stop__k{grid-row:1;grid-column:2;margin-top:1px}
+  .stop__b{grid-row:2;grid-column:2;margin-top:4px}
+  .stop p{grid-row:3;grid-column:2;padding-right:0}
+}
+.rail__f{margin-top:24px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;line-height:1.6;color:var(--ink-3)}
+
+/* seat / role */
+.seat{display:grid;grid-template-columns:52px minmax(0,1fr);gap:16px;align-items:start}
+.seat>*+*{margin-top:0}
+.seat .ic{width:52px;height:52px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--green-tint);color:var(--teal-bright);border:2px solid var(--paper);box-shadow:0 0 0 1px #cfe9db}
+.seat h4{margin-bottom:6px}
+.duty{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px}
+.duty li{display:grid;grid-template-columns:18px minmax(0,1fr);gap:11px;align-items:start;font-size:13.5px;line-height:1.55;color:var(--ink-2)}
+.duty svg{margin-top:3px;flex:none;stroke:var(--accent-deep)}
+
+/* what a provider sees */
+.split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media(max-width:760px){.split{grid-template-columns:1fr}}
+.seen{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:11px}
+.seen li{display:grid;grid-template-columns:20px minmax(0,1fr);gap:11px;align-items:start;font-size:13.5px;line-height:1.55;color:var(--ink-2)}
+.seen svg{margin-top:2px;flex:none}
+.seen--yes svg{stroke:var(--accent-deep)}
+.seen--no svg{stroke:var(--warn-text)}
+.card--no{border-color:#EBD9CF;background:#FDF9F6}
+
+/* FAQ. The site's accordion, not this page's own: same 760px centred
+   column, same chevron that rotates, same open/closed transition as the one
+   on the homepage and /partners. A second FAQ pattern on a third page is how
+   a design system stops being one. */
+.faq-layout{max-width:760px;margin:0 auto}
+.faq-layout .sec{text-align:center;max-width:none;margin:0 auto clamp(28px,4vw,44px)}
+.faq-layout .sec__d{align-items:center}
+.faq-layout .lead{margin:0 auto}
+.faqwrap{display:flex;flex-direction:column;gap:14px}
+.faq{background:var(--paper);border:1px solid var(--line);border-radius:16px;overflow:hidden;transition:border-color .15s,box-shadow .15s}
+.faq:hover{border-color:#d7e4de}
+.faq[data-open="true"]{border-color:#cfe0d8;box-shadow:var(--sh-2)}
+.faq__q{width:100%;display:flex;align-items:center;justify-content:space-between;gap:16px;text-align:left;background:none;border:none;cursor:pointer;padding:20px 22px;font-family:var(--disp);font-weight:700;font-size:17px;color:var(--ink);letter-spacing:-.01em}
+.faq__q svg{transition:transform .25s var(--ease);flex:none}
+.faq[data-open="true"] .faq__q svg{transform:rotate(180deg)}
+.faq__a{max-height:0;overflow:hidden;padding:0 22px;color:var(--ink-2);font-size:15.5px;line-height:1.6;transition:max-height .3s var(--ease),padding .3s var(--ease)}
+.faq[data-open="true"] .faq__a{max-height:420px;padding:2px 22px 22px}
+
+/* closing band */
+.band{border-radius:var(--rf);background:var(--panel);color:#fff;padding:clamp(28px,4vw,44px);position:relative;overflow:hidden;text-align:center}
+.band::before{content:"";position:absolute;inset:0;background:radial-gradient(520px 240px at 50% -30%,rgba(127,227,176,.16),transparent 64%);pointer-events:none}
+.band>*{position:relative}
+.band h2{color:#fff;margin:0 auto}
+.band p{margin:14px auto 0;max-width:56ch;color:rgba(255,255,255,.82);font-size:15px;line-height:1.65}
+.band .cta{display:flex;gap:12px;justify-content:center;margin-top:24px;flex-wrap:wrap}
+.band .btn{background:var(--accent)}
+.band .btn:hover{background:var(--accent-hover)}
+.band .btn.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.28)}
+.band .btn.ghost:hover{background:rgba(255,255,255,.06)}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+<!-- WHOLLAR-FOOTER-CSS:START (generated by scripts/build-footer.mjs) -->
+<style id="whl-footer-css">
+.whl-footer{margin:0;background:#0A2018;color:#CFE8D6;border-top:1px solid rgba(255,255,255,.08);padding:40px 0 calc(30px + env(safe-area-inset-bottom));font-family:Inter,'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14.5px;line-height:1.5;text-align:left}
+.whl-footer__wrap{max-width:1340px;margin:0 auto;padding:0 24px}
+.whl-footer__top{display:grid;grid-template-columns:1fr auto 1fr;gap:28px;align-items:start;padding-bottom:30px;border-bottom:1px solid rgba(255,255,255,.12)}
+.whl-footer__brand{max-width:340px}
+.whl-footer__row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.whl-footer__mk{width:30px;height:30px;border-radius:9px;flex:none;display:block}
+.whl-footer__wm{font-family:'Satoshi','Hanken Grotesk','Bricolage Grotesque',Inter,system-ui,sans-serif;font-weight:800;font-size:20px;letter-spacing:-.01em;color:#fff}
+.whl-footer__brand p{margin:0;font-size:14px;line-height:1.5;color:#9FC1BF;font-style:normal;white-space:nowrap}
+.whl-footer__cols{display:flex;gap:96px;flex-wrap:wrap;margin:0 auto}
+.whl-footer__col{display:flex;flex-direction:column;gap:11px}
+.whl-footer__col a{color:#CFE8D6;text-decoration:none;font-size:14.5px;font-weight:400;border:0}
+.whl-footer__col a:hover{color:#fff}
+.whl-footer__col a[aria-current="page"]{color:#fff;font-weight:600}
+.whl-footer__bottom{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center;padding-top:22px}
+.whl-footer__bottom span{font-size:13px;color:#8FB39B}
+.whl-footer__made{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:#CFE8D6;font-weight:600}
+@media(max-width:880px){
+  .whl-footer__top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start}
+  .whl-footer__cols{gap:48px;margin:0}
+}
+@media(max-width:560px){.whl-footer__cols{gap:34px}}
+@media(max-width:380px){.whl-footer__brand p{font-size:11.5px}}
+</style>
+<!-- WHOLLAR-FOOTER-CSS:END -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "url": "https://www.whollar.ca/greystonewalk",
+  "name": "Greystone Walk internet cohort",
+  "description": "The Whollar internet cohort for 1, 3 and 5 Greystone Walk Drive, Scarborough.",
+  "publisher": {
+    "@id": "https://www.whollar.ca/#org"
+  },
+  "about": {
+    "@type": "ApartmentComplex",
+    "name": "Greystone Walk",
+    "numberOfAccommodationUnits": 973,
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "1, 3 and 5 Greystone Walk Drive",
+      "addressLocality": "Toronto",
+      "addressRegion": "ON",
+      "postalCode": "M1K",
+      "addressCountry": "CA"
+    }
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Whollar",
+      "item": "https://www.whollar.ca/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Greystone Walk",
+      "item": "https://www.whollar.ca/greystonewalk"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Does the building already have a bulk internet agreement?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "We confirm this with each condo corporation separately, so three buildings means three answers. Where a bulk agreement is in force, the cohort runs alongside it for households that want a different provider, and we will say so on this page once we have each answer in writing."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Will someone need to drill into my unit?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "It depends on what already reaches your tower's riser. Where fibre is in the building, the install is usually one visit to the existing telecom outlet. We publish the answer per building once the site survey is done rather than guessing at it now."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What happens to my TV or home phone bundle?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Your offer shows the internet price on its own. Before you decide, we tell you what your current provider will charge for the rest of the bundle once internet leaves it, because that is the number that decides whether the offer is actually worth taking."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Who sees my bill?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Only Whollar. Providers see cohort level aggregates: counts, the spread of speeds, when renewals cluster. Never names, never unit numbers, never an individual bill."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is there a lobby session?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Not yet. A session is arranged by the resident running the campaign in a tower, and those three seats are open. If you want to be the one to arrange it, ask about the seat and we will bring the notices and answer the technical questions on the night."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What does it cost me?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Nothing. Providers pay Whollar only when they win a cohort and a line is activated. Joining is free, staying is free, and turning the offer down is free."
+      }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<nav class="topnav"><div class="nav-in">
+  <a class="mark" href="/" aria-label="Whollar home">
+    <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="wmk" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wmk)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
+    <b>Whollar</b><span>Greystone Walk</span>
+  </a>
+  <div class="nav-links"><a href="#check">Check my bill</a><a href="#stats">The buildings</a><a href="#how">How it works</a><a href="#seat">Run your tower</a><a href="#faq">Questions</a></div>
+  <a class="btn sm" href="/waitlist/?fsa=M1K">Join the cohort</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <div>
+    <span class="eyebrow">Greystone Walk Drive, Scarborough Southwest</span>
+    <h1>Greystone Walk is asking for a better internet price. <em>Together.</em></h1>
+    <p class="lead">Residents of 1, 3 and 5 are putting their bills into one cohort. Once enough households join, providers bid for all three towers at once, and every household gets its own offer to take or ignore.</p>
+    <div class="cta"><a class="btn" href="#check">Check if I am overpaying</a><a class="btn ghost" href="#how">How the cohort works</a></div>
+    <div class="status">
+      <div><span class="mlabel">Doors across the three towers</span><b class="num">973</b><span class="sub">Public condo records</span></div>
+      <div><span class="mlabel">Bidding opens at</span><b class="num">30%</b><span class="sub">of doors in a tower</span></div>
+      <div><span class="mlabel">Cost to join</span><b>Nothing</b><span class="sub">Providers pay, only on a win</span></div>
+    </div>
+  </div>
+  <div class="towers">
+    <div class="towers__h"><h3>Three towers, one cohort</h3><span class="mlabel">Each tower climbs the same ladder</span></div>
+    <button class="tower" data-b="1" aria-selected="false" type="button"><span class="n">1</span><span><span class="t">1 Greystone Walk</span><span class="s">266 units, 20 storeys</span></span></button>
+    <button class="tower" data-b="3" aria-selected="true" type="button"><span class="n">3</span><span><span class="t">Greystone Walk II</span><span class="s">354 units, 23 storeys</span></span></button>
+    <button class="tower" data-b="5" aria-selected="false" type="button"><span class="n">5</span><span><span class="t">Greystone Walk I</span><span class="s">353 units, 22 storeys</span></span></button>
+    <p class="towers__f">Founding members, the first 5% of doors in each tower, get the first install windows when their tower switches. Pick a tower to read the rest of this page as that building.</p>
+  </div>
+</div></header>
+
+<section id="check"><div class="wrap">
+  <header class="sec">
+    <span class="eyebrow">Your bill</span>
+    <h2>What is your internet really costing you?</h2>
+    <div class="sec__d"><p class="lead">Two answers give you a first number: your monthly bill, and the postal code the price was quoted for. We compare it to the cheapest advertised plan at 100 Mbps or better that we track near you.</p></div>
+  </header>
+  <div class="checkout">
+    <form class="card" id="estForm" novalidate>
+      <div class="fld">
+        <div class="fld__h"><span class="fld__n">01</span><label class="fld__l" for="estBill">Your monthly internet bill</label></div>
+        <div class="billwrap"><span aria-hidden="true">$</span><input id="estBill" type="text" inputmode="numeric" autocomplete="off" value="90" aria-describedby="estBillHint"></div>
+        <p class="hint" id="estBillHint">The total you pay in a normal month, taxes in.</p>
+      </div>
+      <div class="fld">
+        <div class="fld__h"><span class="fld__n">02</span><label class="fld__l" for="estPc">Postal code</label></div>
+        <input id="estPc" type="text" maxlength="7" autocomplete="postal-code" placeholder="M1K 5J4" value="M1K 5J4" aria-describedby="estPcHint">
+        <span class="pcok" id="estPcOk"></span>
+        <p class="hint" id="estPcHint">Greystone Walk Drive is M1K. Any complete code works if you are checking for somewhere else.</p>
+      </div>
+      <button class="btn acc" type="submit" style="width:100%;margin-top:12px">Show me the number</button>
+      <p class="cap" style="margin-top:12px">Nothing is sent anywhere and nothing is stored. This runs in your browser.</p>
+    </form>
+
+    <div class="vcard" id="vcard">
+      <span class="vbadge" id="vBadge">Your estimate</span>
+      <h3 id="vTitle">Enter your bill to see where you stand.</h3>
+      <div class="vfig hide" id="vFig">
+        <div class="fig"><span class="mlabel">You pay now</span><b id="vNow">$0<span style="font-size:.5em;color:rgba(255,255,255,.6)">/mo</span></b></div>
+        <span class="figsep"></span>
+        <div class="fig fig--hero"><span class="mlabel" id="vGapLabel">Gap over the next 12 months</span><b id="vGap">$0</b></div>
+      </div>
+      <p class="vbody" id="vBody">The comparison is the cheapest advertised plan at 100 Mbps or better that we track near you, so it is a frontier price rather than an offer.</p>
+      <p class="vfine" id="vFine">A cohort price is set by the sealed bids providers place for the towers, which is a different number again, and it is the one this page exists to get you.</p>
+      <div class="vcta">
+        <a class="btn" href="/waitlist/?fsa=M1K">Join the&nbsp;<span class="bn">Greystone Walk II</span>&nbsp;cohort</a>
+        <a class="btn ghost" href="/bill-checkup">Run the full checkup</a>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<section class="alt" id="stats"><div class="wrap">
+  <header class="sec">
+    <span class="eyebrow"><span class="bnfull">Building 3, Greystone Walk II</span></span>
+    <h2>What is already true about this building</h2>
+    <div class="sec__d"><p class="lead">Facts that hold before a single household joins. Everything that depends on who has joined is deliberately absent from this page: it belongs to the people who joined, and they see it signed in.</p></div>
+  </header>
+  <div class="grid g4">
+    <div class="card"><span class="mlabel">Units in the building</span><div class="stat num" id="stUnits">354</div><p id="stUnitsSub">23 storeys, completed 1990.</p></div>
+    <div class="card"><span class="mlabel">Doors across all three</span><div class="stat num">973</div><p>One address, three condo corporations, one cohort on the wire.</p></div>
+    <div class="card"><span class="mlabel">Founding spots</span><div class="stat">5%</div><p>The first 5% of doors in a tower are founding members, and take the first install windows when that tower switches.</p></div>
+    <div class="card"><span class="mlabel">Cost of joining</span><div class="stat">$0</div><p>Free, and non binding all the way to the offer. You decide once your own price is in front of you.</p></div>
+  </div>
+  <p class="cap" style="margin-top:14px">Unit counts, storeys and completion years are from public condo records for 1, 3 and 5 Greystone Walk Drive, Toronto M1K.</p>
+</div></section>
+
+<section id="how"><div class="wrap">
+  <header class="sec">
+    <span class="eyebrow">How the cohort works</span>
+    <h2>Join now, decide later, pay nothing either way</h2>
+    <div class="sec__d"><p class="lead">Joining is free and non binding. You make one decision, and only when you are holding an offer with your own name and your own price on it.</p></div>
+  </header>
+  <div class="steps">
+    <div class="step"><span class="mlabel">One</span><b>Forming</b><p>Residents join and add their current bill and renewal date.</p></div>
+    <div class="step"><span class="mlabel">Two</span><b>Threshold</b><p>At 30% of a tower's doors the cohort is large enough to take to providers as one purchase.</p></div>
+    <div class="step"><span class="mlabel">Three</span><b>Sealed bids</b><p>Providers bid without seeing each other. They get aggregates, never a name or a unit.</p></div>
+    <div class="step"><span class="mlabel">Four</span><b>Your offer</b><p>Each household sees its own price at its own speed, and takes it or leaves it.</p></div>
+    <div class="step"><span class="mlabel">Five</span><b>Switch</b><p>Whollar handles the cancellation, the install window and the timing against your promo.</p></div>
+  </div>
+
+  <div class="rail">
+    <div class="rail__t">
+      <h3>What each share of doors unlocks in <span class="bn">Greystone Walk II</span></h3>
+      <span class="mlabel">Share of the tower's doors</span>
+    </div>
+    <div class="rail__stops">
+      <span class="rail__line" aria-hidden="true"></span>
+      <div class="stop"><span class="stop__dot" aria-hidden="true"></span><span class="stop__k">5%</span><span class="stop__b">Founding window closes</span><p>The first 5% of doors are founding members and hold the first install windows.</p></div>
+      <div class="stop stop--key"><span class="stop__dot" aria-hidden="true"></span><span class="stop__k">12%</span><span class="stop__b">Building feed opens</span><p>Joins, unlocks and switches appear to members as they happen, as counts only, never a unit.</p></div>
+      <div class="stop"><span class="stop__dot" aria-hidden="true"></span><span class="stop__k">20%</span><span class="stop__b">Bidding opens</span><p>Providers are invited, and the date every household sees its own offer is set.</p></div>
+      <div class="stop"><span class="stop__dot" aria-hidden="true"></span><span class="stop__k">30%</span><span class="stop__b">Bids close</span><p>The tower is large enough to price as one purchase. Sealed bids are opened together.</p></div>
+      <div class="stop"><span class="stop__dot" aria-hidden="true"></span><span class="stop__k">OFFERS</span><span class="stop__b">Install windows</span><p>Households that accepted book a window, founding members first.</p></div>
+    </div>
+    <p class="rail__f">All three towers climb the same ladder, so a smaller tower is not disadvantaged by its size. Where this tower stands on the ladder today, and how many doors have joined, is shown to members on their dashboard rather than in public: a running count on an open page is a number a provider could read as easily as a resident.</p>
+  </div>
+</div></section>
+
+<section class="alt" id="seen"><div class="wrap">
+  <header class="sec">
+    <span class="eyebrow">What a provider sees</span>
+    <h2>They bid on a building, not on you</h2>
+    <div class="sec__d"><p class="lead">A provider bidding for Greystone Walk is given enough to price the work and nothing that identifies anyone in it. This is the whole trade, so it is worth being exact about.</p></div>
+  </header>
+  <div class="split">
+    <div class="card">
+      <h4>What they are given</h4>
+      <ul class="seen seen--yes">
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg><span>How many households are in the cohort, and which tower each is in</span></li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg><span>The spread of speeds households are on today, as a distribution</span></li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg><span>The region, Scarborough Southwest, and the postal areas it covers</span></li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg><span>When the cohort's renewal dates cluster, so the switch can be timed</span></li>
+      </ul>
+    </div>
+    <div class="card card--no">
+      <h4>What they are never given</h4>
+      <ul class="seen seen--no">
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span>Your name, your unit number or your email address</span></li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span>Your bill, or anyone's individual bill</span></li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span>Another provider's bid, its count, or that another provider bid at all</span></li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span>Your address, until you have accepted an offer and released it yourself</span></li>
+      </ul>
+    </div>
+  </div>
+  <p class="cap" style="margin-top:14px">A bid is sealed: it is placed once, revised only by replacing it, and never withdrawn. Read the <a href="/privacy" style="color:var(--accent-deep)">privacy policy</a> for the full account.</p>
+</div></section>
+
+<section id="seat"><div class="wrap">
+  <header class="sec">
+    <span class="eyebrow">Run the campaign in your tower</span>
+    <h2>Every building needs someone to start it</h2>
+    <div class="sec__d"><p class="lead">One resident per tower puts the notice in the lobby, answers the questions in the building chat, and posts the update. It is the difference between a page and a cohort.</p></div>
+  </header>
+  <div class="grid g2">
+    <div class="card">
+      <div class="seat">
+        <span class="ic" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="3.5"/><path d="M18 8v6M21 11h-6"/></svg></span>
+        <div>
+          <h4>Three seats, all open</h4>
+          <p class="small">One for 1 Greystone Walk, one for 3, one for 5. Nobody has taken any of them yet, which is the honest answer and also the reason this page exists.</p>
+        </div>
+      </div>
+      <ul class="duty">
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg><span>Put the notice up where your tower actually reads things</span></li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg><span>Answer the questions neighbours ask before they will join anything</span></li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg><span>Post the update when the tower climbs a rung</span></li>
+      </ul>
+      <a class="btn acc sm" href="/contact" style="margin-top:16px">Ask about the seat</a>
+    </div>
+    <div class="card">
+      <h4>What we do, so you are not doing it alone</h4>
+      <p class="small">You are not selling anything and you are not handling anyone's bill. Whollar writes the notice, checks which providers can actually reach the towers, runs the bidding, and answers anything technical a neighbour asks. Your part is the part only a resident can do, which is being a resident people recognise.</p>
+      <p class="small">If more than one person in a tower wants the seat, we will say so plainly and let the tower decide rather than choosing for it.</p>
+      <p class="cap" style="margin-top:4px">Endorsements, ratings and referral standings are member features and are not shown on this page.</p>
+    </div>
+  </div>
+</div></section>
+
+<section class="alt" id="faq"><div class="wrap">
+  <div class="faq-layout">
+    <header class="sec">
+      <span class="eyebrow">Questions residents ask</span>
+      <h2>The things people check before they join</h2>
+      <div class="sec__d"><p class="lead">Six answers. Where we do not have one yet, this page says so rather than guessing at it.</p></div>
+    </header>
+    <div class="faqwrap" data-faqwrap>
+      <div class="faq" data-open="true">
+        <button class="faq__q" type="button" aria-expanded="true"><span>Does the building already have a bulk internet agreement?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div class="faq__a">We confirm this with each condo corporation separately, so three buildings means three answers. Where a bulk agreement is in force, the cohort runs alongside it for households that want a different provider, and we will say so on this page once we have each answer in writing.</div>
+      </div>
+      <div class="faq" data-open="false">
+        <button class="faq__q" type="button" aria-expanded="false"><span>Will someone need to drill into my unit?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div class="faq__a">It depends on what already reaches your tower's riser. Where fibre is in the building, the install is usually one visit to the existing telecom outlet. We publish the answer per building once the site survey is done rather than guessing at it now.</div>
+      </div>
+      <div class="faq" data-open="false">
+        <button class="faq__q" type="button" aria-expanded="false"><span>What happens to my TV or home phone bundle?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div class="faq__a">Your offer shows the internet price on its own. Before you decide, we tell you what your current provider will charge for the rest of the bundle once internet leaves it, because that is the number that decides whether the offer is actually worth taking.</div>
+      </div>
+      <div class="faq" data-open="false">
+        <button class="faq__q" type="button" aria-expanded="false"><span>Who sees my bill?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div class="faq__a">Only Whollar. Providers see cohort level aggregates: counts, the spread of speeds, when renewals cluster. Never names, never unit numbers, never an individual bill.</div>
+      </div>
+      <div class="faq" data-open="false">
+        <button class="faq__q" type="button" aria-expanded="false"><span>Is there a lobby session?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div class="faq__a">Not yet. A session is arranged by the resident running the campaign in a tower, and those three seats are open. If you want to be the one to arrange it, ask about the seat and we will bring the notices and answer the technical questions on the night.</div>
+      </div>
+      <div class="faq" data-open="false">
+        <button class="faq__q" type="button" aria-expanded="false"><span>What does it cost me?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div class="faq__a">Nothing. Providers pay Whollar only when they win a cohort and a line is activated. Joining is free, staying is free, and turning the offer down is free.</div>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<section id="join"><div class="wrap">
+  <div class="band">
+    <h2>Three towers, 973 doors, one price to ask for.</h2>
+    <p>Join with your postal code and your current bill. Nothing happens to your service until an offer with your own price on it is in front of you, and you say yes to it.</p>
+    <div class="cta"><a class="btn" href="/waitlist/?fsa=M1K">Join the Greystone Walk cohort</a><a class="btn ghost" href="/bill-checkup">Check my bill first</a></div>
+  </div>
+</div></section>
+
+<script>
+/* ------------------------------------------------------------------ *
+ * Tower selection. Retitles the page as one of the three buildings.
+ * Facts only: unit count, storeys, completion year, all from public
+ * condo records. Nothing here is cohort state.
+ * ------------------------------------------------------------------ */
+(function () {
+  'use strict';
+  var W = window.WHOLLAR;
+
+  var TOWERS = {
+    '1': { name: '1 Greystone Walk', full: 'Building 1, 1 Greystone Walk', units: '266', sub: '20 storeys, completed 1989.' },
+    '3': { name: 'Greystone Walk II', full: 'Building 3, Greystone Walk II', units: '354', sub: '23 storeys, completed 1990.' },
+    '5': { name: 'Greystone Walk I', full: 'Building 5, Greystone Walk I', units: '353', sub: '22 storeys, completed 1988.' }
+  };
+
+  function selectTower(id) {
+    var t = TOWERS[id];
+    if (!t) return;
+    var i;
+    var bn = document.querySelectorAll('.bn');
+    for (i = 0; i < bn.length; i++) bn[i].textContent = t.name;
+    var bf = document.querySelectorAll('.bnfull');
+    for (i = 0; i < bf.length; i++) bf[i].textContent = t.full;
+    var u = document.getElementById('stUnits');
+    var s = document.getElementById('stUnitsSub');
+    if (u) u.textContent = t.units;
+    if (s) s.textContent = t.sub;
+  }
+
+  /* FAQ accordion, the same open/close contract the rest of the site uses:
+     data-open on the item drives the CSS, aria-expanded on the button drives
+     the screen reader, and both are set together. */
+  var faqs = document.querySelectorAll('[data-faqwrap] .faq');
+  for (var f = 0; f < faqs.length; f++) {
+    (function (item) {
+      var q = item.querySelector('.faq__q');
+      q.addEventListener('click', function () {
+        var open = item.getAttribute('data-open') === 'true';
+        item.setAttribute('data-open', open ? 'false' : 'true');
+        q.setAttribute('aria-expanded', open ? 'false' : 'true');
+      });
+    })(faqs[f]);
+  }
+
+  var towers = document.querySelectorAll('.tower');
+  for (var i = 0; i < towers.length; i++) {
+    (function (btn) {
+      btn.addEventListener('click', function () {
+        for (var j = 0; j < towers.length; j++) towers[j].setAttribute('aria-selected', 'false');
+        btn.setAttribute('aria-selected', 'true');
+        selectTower(btn.getAttribute('data-b'));
+      });
+    })(towers[i]);
+  }
+
+  /* ---------------------------------------------------------------- *
+   * The estimate.
+   *
+   * W.quickEstimate is the homepage's function and /bill-checkup's
+   * reference, generated from the pricing spreadsheet and gated in CI, so
+   * this page cannot drift away from what the rest of the site says a
+   * household is overpaying. Three outcomes, each rendered as itself:
+   *
+   *   over        a real gap, shown as a 12 month figure
+   *   atOrBelow   already at or under the tracked frontier. Not an error,
+   *               not a "$0 saving" under a savings heading
+   *   !ok         which input was wrong, named
+   *
+   * The bill is validated, never clamped: silently rewriting a typed $5
+   * into $20 and estimating from it would put a figure on screen that the
+   * household never entered.
+   * ---------------------------------------------------------------- */
+  var form = document.getElementById('estForm');
+  var billEl = document.getElementById('estBill');
+  var pcEl = document.getElementById('estPc');
+  var pcOk = document.getElementById('estPcOk');
+  var billHint = document.getElementById('estBillHint');
+  var card = document.getElementById('vcard');
+  var badge = document.getElementById('vBadge');
+  var title = document.getElementById('vTitle');
+  var fig = document.getElementById('vFig');
+  var now = document.getElementById('vNow');
+  var gap = document.getElementById('vGap');
+  var gapLabel = document.getElementById('vGapLabel');
+  var body = document.getElementById('vBody');
+  var fine = document.getElementById('vFine');
+
+  if (!form || !W) return;
+
+  var BMIN = W.ESTIMATE_BILL_MIN, BMAX = W.ESTIMATE_BILL_MAX;
+  var BILL_HELP = 'The total you pay in a normal month, taxes in.';
+
+  function currentBill() {
+    var raw = String(billEl.value).replace(/[^0-9]/g, '');
+    return raw === '' ? NaN : parseInt(raw, 10);
+  }
+
+  function money(n) { return '$' + Number(n).toLocaleString('en-CA'); }
+
+  /* The postal field formats as it is typed and confirms the province and
+     the FSA, the same acknowledgement the join form gives. */
+  function paintPostal() {
+    var atEnd = pcEl.selectionStart === pcEl.value.length;
+    pcEl.value = W.formatPostal(pcEl.value);
+    if (atEnd) { try { pcEl.setSelectionRange(pcEl.value.length, pcEl.value.length); } catch (e) {} }
+    var p = W.parsePostal(pcEl.value);
+    if (p && p.complete) {
+      pcOk.textContent = '✓ ' + p.province + ', the ' + p.fsa + ' area';
+      pcEl.classList.remove('is-err');
+    } else {
+      pcOk.textContent = '';
+    }
+  }
+
+  function show(state, opts) {
+    card.classList.toggle('is-over', state === 'over');
+    fig.classList.toggle('hide', state !== 'over' && state !== 'under');
+    badge.textContent = opts.badge;
+    title.textContent = opts.title;
+    body.textContent = opts.body;
+    fine.textContent = opts.fine || '';
+    fine.classList.toggle('hide', !opts.fine);
+  }
+
+  function render() {
+    var bill = currentBill();
+    var bad = isNaN(bill) || bill < BMIN || bill > BMAX;
+    billEl.classList.toggle('is-err', bad);
+    billHint.classList.toggle('err', bad);
+    billHint.textContent = bad
+      ? 'Enter a monthly bill between $' + BMIN + ' and $' + BMAX + '.'
+      : BILL_HELP;
+
+    var est = W.quickEstimate(bill, pcEl.value);
+
+    if (!est.ok) {
+      if (est.reason === 'postal') {
+        pcEl.classList.add('is-err');
+        show('idle', {
+          badge: 'Your estimate',
+          title: 'That postal code is not complete.',
+          body: 'Six characters, letter number letter, number letter number. Greystone Walk Drive is M1K.'
+        });
+        pcEl.focus();
+        return;
+      }
+      if (est.reason === 'bill') {
+        show('idle', {
+          badge: 'Your estimate',
+          title: 'That bill is outside the range we can compare.',
+          body: 'We compare bills between $' + BMIN + ' and $' + BMAX + ' a month. Anything outside that is better handled by the full checkup, which reads your actual plan.'
+        });
+        billEl.focus();
+        return;
+      }
+      show('idle', {
+        badge: 'Your estimate',
+        title: 'We do not track a plan near that postal code yet.',
+        body: 'The full checkup still works: it compares your plan against the national range for your speed rather than a local one.'
+      });
+      return;
+    }
+
+    var where = W.estimateAreaLabel(est);
+    var basis = 'Compared with the cheapest advertised plan at ' + est.mbps
+      + ' Mbps or better ' + where + ': ' + est.provider + ' at ' + money(est.benchmark)
+      + ' a month. That is an advertised price we track, not an offer.';
+
+    now.innerHTML = money(est.bill) + '<span style="font-size:.5em;color:rgba(255,255,255,.6)">/mo</span>';
+
+    if (est.atOrBelow) {
+      gapLabel.textContent = 'Tracked frontier ' + where;
+      gap.textContent = money(est.benchmark);
+      show('under', {
+        badge: 'You are buying well',
+        title: 'Your bill is already at or below the price we track ' + where + '.',
+        body: basis,
+        fine: 'A cohort can still beat it, because a cohort is not buying one line. That is what the sealed bids for the three towers decide, and joining costs nothing while you find out.'
+      });
+      return;
+    }
+
+    gapLabel.textContent = 'Gap over the next 12 months';
+    gap.textContent = money(est.annual);
+    show('over', {
+      badge: 'Above the tracked price',
+      title: 'You are paying ' + money(Math.floor(est.monthlyDelta)) + ' a month more than the cheapest plan we track ' + where + '.',
+      body: basis,
+      fine: 'A cohort price is set by the sealed bids providers place for the towers, which is a different number again, and it is the one this page exists to get you.'
+    });
+  }
+
+  pcEl.addEventListener('input', paintPostal);
+  billEl.addEventListener('input', function () {
+    var bill = currentBill();
+    var bad = isNaN(bill) || bill < BMIN || bill > BMAX;
+    billEl.classList.toggle('is-err', bad);
+  });
+  form.addEventListener('submit', function (e) { e.preventDefault(); render(); });
+  paintPostal();
+})();
+</script>
+
+<!-- WHOLLAR-FOOTER:START (generated by scripts/build-footer.mjs) -->
+<footer class="whl-footer">
+  <div class="whl-footer__wrap">
+    <div class="whl-footer__top">
+      <div class="whl-footer__brand">
+        <div class="whl-footer__row"><svg class="whl-footer__mk" width="30" height="30" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Whollar"><defs><linearGradient id="whlFooterMark" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#whlFooterMark)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#FFFFFF"/><circle cx="86" cy="42" r="11" fill="#FFFFFF"/><circle cx="60" cy="80" r="11" fill="#FFFFFF"/></svg><span class="whl-footer__wm">Whollar</span></div>
+        <p>Wholesale buying power that saves you dollars</p>
+      </div>
+      <div class="whl-footer__cols">
+        <div class="whl-footer__col">
+        <a href="/#how">How it works</a>
+        <a href="/#why">Why us</a>
+        <a href="/#faq">FAQ</a>
+        <a href="/blog/">Resources</a>
+        <a href="/contact">Contact</a>
+        </div>
+        <div class="whl-footer__col">
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="/partners">For providers</a>
+        </div>
+      </div>
+    </div>
+    <div class="whl-footer__bottom">
+      <span>&copy; 2026 Whollar, now forming the first cohorts.</span>
+      <span class="whl-footer__made">Made in Canada
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="#1E9E63" aria-hidden="true"><path d="M12 2l1.6 4.3 4.4-1.2-2 4 3.5 2.4-4 1.3.6 4.4-3.7-2.2L12 22l-.4-3.3-3.7 2.2.6-4.4-4-1.3L4 9.1l-2-4 4.4 1.2z"/></svg>
+      </span>
+    </div>
+  </div>
+</footer>
+<!-- WHOLLAR-FOOTER:END -->
+</body>
+</html>

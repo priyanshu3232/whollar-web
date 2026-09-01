@@ -158,6 +158,12 @@ const PAGES = [
   { file: 'bill-checkup.html', current: null },
   { file: 'waitlist/index.html', current: null },
   { file: 'thank-you.html', current: null },
+  /* The region pages. A cohort page is a marketing page for one address, so
+     it carries the footer like every other public page: nobody is signed in
+     here, and the route back out to /bill-checkup, /privacy and /contact is
+     the point rather than a leak. `current: null` because there is no nav
+     item for a region. */
+  { file: 'greystonewalk.html', current: null },
   /* NO FOOTER ON A SIGNED-IN SURFACE. dashboard.html, partner/index.html,
      welcome-member.html and welcome-partner.html are app chrome, not marketing
      pages: a member or a partner who has signed in is inside the product, and
