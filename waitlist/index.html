@@ -17,9 +17,9 @@
 <script src="/js/device-router.js?v=20260831c"></script>
 <title>Join the waitlist · Whollar</title>
 <meta name="description" content="Hold your spot in your neighbourhood's cohort. Whollar gets providers to bid for whole streets at once, so everyone gets the group price.">
-<link rel="canonical" href="https://www.whollar.ca/waitlist/">
+<link rel="canonical" href="https://internet.whollar.ca/waitlist/">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://www.whollar.ca/waitlist/">
+<meta property="og:url" content="https://internet.whollar.ca/waitlist/">
 <meta property="og:title" content="Join the waitlist · Whollar">
 <meta property="og:description" content="Hold your spot in your neighbourhood's cohort. Whollar gets providers to bid for whole streets at once, so everyone gets the group price.">
 <meta property="og:site_name" content="Whollar">
@@ -556,7 +556,7 @@ document.addEventListener('DOMContentLoaded',function(){
     function maybeAuto(){const c=readCode();if(c.length===6&&c!==lastTried)verifyCode();}
 
     /* welcome modal */
-    let SHARE_URL='https://whollar.ca/join';
+    let SHARE_URL='https://internet.whollar.ca/join';
     const SHARE_TXT='I just joined Whollar so providers bid for our whole street’s internet at once. Join our cohort:';
     function shareApps(){
       const u=encodeURIComponent(SHARE_URL),t=encodeURIComponent(SHARE_TXT);
@@ -570,7 +570,7 @@ document.addEventListener('DOMContentLoaded',function(){
     function copyModalLink(){const done=()=>{const c=$('#wm-copy');if(c){c.textContent='Copied';setTimeout(()=>c.textContent='Copy',1500);}};
       if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(SHARE_URL).then(done,done);else done();}
     function openWelcome(nm){
-      if(S.fsa)SHARE_URL='https://whollar.ca/join?fsa='+S.fsa;
+      if(S.fsa)SHARE_URL='https://internet.whollar.ca/join?fsa='+S.fsa;
       $('#wm-link').value=SHARE_URL;
       if(nm)$('#wm-sub').textContent='Welcome, '+nm+'. Let’s make pricing transparent, together. You just joined the households rewriting how internet is bought in Canada.';
       const wrap=$('#wm-apps');

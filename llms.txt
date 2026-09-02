@@ -5,19 +5,19 @@
 > our resource library for AI crawlers and answer engines.
 
 ## Resources
-- [How much internet speed do you actually need?](https://www.whollar.ca/blog/internet-speed-how-much-need): activity-by-activity Mbps, what 1 gig is really for, right-sizing.
-- [The $487 problem: why Canadians overpay for internet](https://www.whollar.ca/blog/overpaying-internet-canada): the size of the overpayment and why most households never ask.
-- [Internet price increase? The promo cliff, explained](https://www.whollar.ca/blog/internet-price-increase-promo-cliff): why introductory rates expire and how to see it coming.
-- [Collective switching: what if your street switched at once](https://www.whollar.ca/blog/collective-switching-internet-canada): how pooled demand creates leverage one household lacks.
-- [TekSavvy vs Rogers: same cable, half the price](https://www.whollar.ca/blog/teksavvy-vs-rogers-same-cable): how independents resell incumbent lines cheaper.
-- [Internet bill breakdown: where your $90 actually goes](https://www.whollar.ca/blog/internet-bill-breakdown-canada): the anatomy of a monthly bill and where the negotiable room sits.
-- [How to negotiate your internet bill in Canada](https://www.whollar.ca/blog/negotiate-internet-bill-canada): the leverage that works and where it hits a ceiling.
-- [Internet retention offer: what the win-back really says](https://www.whollar.ca/blog/internet-retention-offer-win-back): reading the offer they make when you try to leave.
-- [Independent internet providers vs flankers: who's who](https://www.whollar.ca/blog/independent-internet-providers-canada): the ownership map behind the brands on the shelf.
-- [Collective switching worked for energy. Internet is next](https://www.whollar.ca/blog/collective-switching-energy-proof): the precedent from group energy switching.
-- [How three companies came to own Canadian internet](https://www.whollar.ca/blog/big-three-telecom-canada): concentration and what it does to prices.
-- [CRTC internet prices: who actually regulates your bill](https://www.whollar.ca/blog/crtc-internet-prices-canada): what the regulator does and does not set.
-- [Cheap internet in Chatham, Ontario: the real map](https://www.whollar.ca/blog/cheap-internet-chatham-ontario): a local market mapped by network type.
-- [Best internet in Toronto: how to actually decide](https://www.whollar.ca/blog/best-internet-toronto): why the building outranks the brand.
-- [Internet providers in Mississauga: the honest map](https://www.whollar.ca/blog/internet-providers-mississauga): the GTA map with one lane fewer than Toronto.
-- [Rural internet in Ontario: every real option explained](https://www.whollar.ca/blog/rural-internet-ontario): the option ladder from fibre to satellite.
+- [How much internet speed do you actually need?](https://internet.whollar.ca/blog/internet-speed-how-much-need): activity-by-activity Mbps, what 1 gig is really for, right-sizing.
+- [The $487 problem: why Canadians overpay for internet](https://internet.whollar.ca/blog/overpaying-internet-canada): the size of the overpayment and why most households never ask.
+- [Internet price increase? The promo cliff, explained](https://internet.whollar.ca/blog/internet-price-increase-promo-cliff): why introductory rates expire and how to see it coming.
+- [Collective switching: what if your street switched at once](https://internet.whollar.ca/blog/collective-switching-internet-canada): how pooled demand creates leverage one household lacks.
+- [TekSavvy vs Rogers: same cable, half the price](https://internet.whollar.ca/blog/teksavvy-vs-rogers-same-cable): how independents resell incumbent lines cheaper.
+- [Internet bill breakdown: where your $90 actually goes](https://internet.whollar.ca/blog/internet-bill-breakdown-canada): the anatomy of a monthly bill and where the negotiable room sits.
+- [How to negotiate your internet bill in Canada](https://internet.whollar.ca/blog/negotiate-internet-bill-canada): the leverage that works and where it hits a ceiling.
+- [Internet retention offer: what the win-back really says](https://internet.whollar.ca/blog/internet-retention-offer-win-back): reading the offer they make when you try to leave.
+- [Independent internet providers vs flankers: who's who](https://internet.whollar.ca/blog/independent-internet-providers-canada): the ownership map behind the brands on the shelf.
+- [Collective switching worked for energy. Internet is next](https://internet.whollar.ca/blog/collective-switching-energy-proof): the precedent from group energy switching.
+- [How three companies came to own Canadian internet](https://internet.whollar.ca/blog/big-three-telecom-canada): concentration and what it does to prices.
+- [CRTC internet prices: who actually regulates your bill](https://internet.whollar.ca/blog/crtc-internet-prices-canada): what the regulator does and does not set.
+- [Cheap internet in Chatham, Ontario: the real map](https://internet.whollar.ca/blog/cheap-internet-chatham-ontario): a local market mapped by network type.
+- [Best internet in Toronto: how to actually decide](https://internet.whollar.ca/blog/best-internet-toronto): why the building outranks the brand.
+- [Internet providers in Mississauga: the honest map](https://internet.whollar.ca/blog/internet-providers-mississauga): the GTA map with one lane fewer than Toronto.
+- [Rural internet in Ontario: every real option explained](https://internet.whollar.ca/blog/rural-internet-ontario): the option ladder from fibre to satellite.

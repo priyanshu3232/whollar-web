@@ -29,6 +29,16 @@ import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+/* MOVED. The output of this port, landing.html, became home/landing.html on 2026-09-02
+   and was transformed there for the umbrella project: canonical, og, absolute
+   product links. Re-running this writes a root landing.html again, which now
+   redirects to the umbrella and which the host gate would flag. Historical,
+   like debundle.mjs. */
+if (!process.argv.includes('--force')) {
+  console.error('scripts/port-landing.mjs: output moved to home/ and was transformed there; pass --force only to re-port from the design source.');
+  process.exit(1);
+}
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'Landingpagedesignstructure', 'Whollar Landing Page.html');
 const IMG_DIR = join(ROOT, 'images', 'landing');

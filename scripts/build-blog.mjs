@@ -14,7 +14,7 @@ import { join } from 'node:path';
 
 // Canonical host is www: the apex 308-redirects to it, so sitemap/canonical/JSON-LD
 // URLs must all be www or Google chases redirects.
-const DOMAIN = 'https://www.whollar.ca';
+const DOMAIN = 'https://internet.whollar.ca';
 const EM_DASH = '—';
 
 const PUBLISH_DATE = process.argv[2];

@@ -1,5 +1,7 @@
 {
-  "regions": ["yul1"],
+  "regions": [
+    "yul1"
+  ],
   "cleanUrls": true,
   "headers": [
     {
@@ -104,6 +106,26 @@
     }
   ],
   "redirects": [
+    {
+      "source": "/join",
+      "destination": "https://www.whollar.ca/join",
+      "statusCode": 301
+    },
+    {
+      "source": "/join-welcome",
+      "destination": "https://www.whollar.ca/join-welcome",
+      "statusCode": 301
+    },
+    {
+      "source": "/join-welcome-tires",
+      "destination": "https://www.whollar.ca/join-welcome-tires",
+      "statusCode": 301
+    },
+    {
+      "source": "/landing",
+      "destination": "https://www.whollar.ca/",
+      "statusCode": 301
+    },
     {
       "source": "/disclosures",
       "destination": "/terms",

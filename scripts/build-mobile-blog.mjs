@@ -10,7 +10,7 @@
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-const DOMAIN = 'https://www.whollar.ca';
+const DOMAIN = 'https://internet.whollar.ca';
 const ROUTER_TAG = '<script src="/js/device-router.js?v=20260831c"></script>';
 const RETURN_TAG = '<script src="/js/blog-return.js?v=20260901a" defer></script>';
 

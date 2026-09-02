@@ -100,6 +100,12 @@ jobs:
       - name: Redirect map resolves every legacy URL
         run: node scripts/check-redirect-map.mjs
 
+      # The internet site names its own host and no other. Computed over the
+      # deployable set, so a canonical or a sitemap entry that still says
+      # www.whollar.ca cannot ship telling crawlers the page lives elsewhere.
+      - name: No deployable file names the old host
+        run: node scripts/check-site-host.mjs
+
       # Fails when js/whollar-benchmarks.js no longer matches what the
       # spreadsheet would produce, i.e. the pricing model was updated but the
       # generated table wasn't, so the site is scoring against stale prices.
