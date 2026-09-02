@@ -316,10 +316,13 @@ const RHYTHM = [
   /* where a nav click stops */
   ['scroll-padding-top:100px', 'scroll-padding-top:var(--wh-head,92px)', 1],
 ];
+/* The base rules live in the canvas's own <style>, which the helmet carries,
+   so both halves of the page are in scope here. */
 for (const [find, repl, n] of RHYTHM) {
-  const hits = doc.split(find).length - 1;
+  const hits = (doc.split(find).length - 1) + (helmet.split(find).length - 1);
   if (hits !== n) throw new Error(`rhythm: expected ${n} of "${find}", found ${hits}`);
   doc = doc.split(find).join(repl);
+  helmet = helmet.split(find).join(repl);
 }
 console.log(`rhythm rules applied: ${RHYTHM.length}`);
 
