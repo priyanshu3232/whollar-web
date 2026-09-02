@@ -110,11 +110,6 @@
       "permanent": false
     },
     {
-      "source": "/join",
-      "destination": "/waitlist/",
-      "permanent": false
-    },
-    {
       "source": "/resources",
       "destination": "/blog/",
       "statusCode": 301
