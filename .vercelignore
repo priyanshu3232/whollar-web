@@ -161,3 +161,13 @@ docs/ADMIN_CONSOLE_V2_BRIEF.md
 # was ported into greystonewalk.html on 2026-09-01; kept in the repo so the
 # port can be checked against its source.
 whollargreystonewalkcohortpage.html
+
+# The landing page design source: a Claude Design canvas plus the assets it was
+# built from. Working files, not site source, and three separate reasons it must
+# never deploy. cleanUrls would publish the raw pages at their own paths, and
+# they carry no login guard and no noindex. `Whollar Landing Page.html` is a
+# 13 MB single file with its assets inlined, which is a design export and not
+# something to serve. And uploads/ holds two licensed stock .mp4s and the .docx
+# content spec, none of which belong on the public site. Kept in the repo so the
+# port into a real page can be checked against its source.
+Landingpagedesignstructure
