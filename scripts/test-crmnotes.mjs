@@ -30,6 +30,7 @@ const note = (source, data) => t.noteFor(source, 'jane@example.com', data, true,
 /* The payloads, copied from the enqueue calls in catalyst-backend/.../routes/. */
 const CASES = {
   MemberSignups:        { user_type: 'member', first_name: 'Jane', last_name: 'Roy', fsa: 'M5S', province: 'ON', referred_by: 'WHL-1a2b3c4d' },
+  MemberProfiles:       { first_name: 'Jane', last_name: 'Roy', phone: '(416) 555 0134', postal: 'M5S 2J7', fsa: 'M5S', province: 'ON', changed: ['phone', 'postal_code'] },
   PartnerSignups:       { first_name: 'Sam', last_name: 'Okafor', org_id: 'org-1', org_name: 'Northline', approval_status: 'pending' },
   PartnerOrgs:          { org_id: 'org-1', org_name: 'Northline Fibre', previous_name: 'Northline' },
   ProviderApplications: { org_id: 'org-1', org_name: 'Northline Fibre' },
@@ -98,6 +99,32 @@ const h = t.insertFields('ProviderApplications', 'ops@northline.ca', CASES.Provi
 ok(h.Company === 'Northline Fibre', 'org_name becomes the company');
 ok(!/\[dev\]/.test(f.Lead_Source), 'production leads carry no dev tag');
 ok(/\[dev\]/.test(t.insertFields('MemberSignups', 'a@b.ca', {}, false).Lead_Source), 'and non-production ones do');
+
+/* ---- registration details reach the record, not just the note ---- */
+const prof = t.insertFields('MemberProfiles', 'jane@example.com', CASES.MemberProfiles, true);
+ok(prof.Phone === '(416) 555 0134', 'the phone number lands on the Zoho field, not only in the note');
+ok(prof.Zip_Code === 'M5S 2J7', 'the postal code lands on Zip_Code');
+ok(prof.State === 'ON', 'the province lands on State');
+ok(prof.First_Name === 'Jane' && prof.Last_Name === 'Roy', 'and the name is filled in');
+
+const profUpd = t.updateFields('MemberProfiles', CASES.MemberProfiles);
+ok(profUpd.Phone === '(416) 555 0134' && profUpd.Zip_Code === 'M5S 2J7',
+  'an EXISTING lead is enriched with them too, which is the common case');
+ok(!('Lead_Source' in profUpd), 'and its original Lead_Source is never rewritten');
+
+/* A source without `address` must not start carrying one. */
+ok(!('Zip_Code' in t.insertFields('CohortSeats', 'a@b.ca', { postal: 'M5S 2J7' }, true)),
+  'a source that does not declare an address does not send one');
+
+/* ---- a refused field costs the field, never the note ---- */
+const refuse = (api) => ({ data: [{ code: 'INVALID_DATA', details: { api_name: api } }] });
+const payload = { Email: 'a@b.ca', Last_Name: 'Roy', Company: 'Individual', Zip_Code: 'M5S 2J7', Phone: '416' };
+ok(t.offendingField(refuse('Zip_Code'), payload) === 'Zip_Code', 'a rejected optional field is droppable');
+ok(t.offendingField(refuse('Email'), payload) === null, 'Email is never dropped: there is no record without it');
+ok(t.offendingField(refuse('Last_Name'), payload) === null, 'nor is Last_Name');
+ok(t.offendingField(refuse('Company'), payload) === null, 'nor is Company');
+ok(t.offendingField(refuse('Not_In_Payload'), payload) === null, 'a field we never sent is not dropped');
+ok(t.offendingField({ data: [{ code: 'SUCCESS' }] }, payload) === null, 'a success is not an error');
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

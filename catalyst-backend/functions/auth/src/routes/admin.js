@@ -44,7 +44,7 @@ const challenges = require('../lib/challenges');
 const mailer = require('../lib/mailer');
 const notify = require('../lib/notify');
 const audit = require('../lib/audit');
-const crm = require('../lib/crmqueue');
+const crm = require('../lib/crm/outbox');
 const ratelimit = require('../lib/ratelimit');
 const siteconfig = require('../lib/siteconfig');
 const catalog = require('../lib/catalog');
@@ -504,6 +504,9 @@ function mount(router, cfg) {
           watching: t.watching,
           bidding_open: Boolean(c.biddingOpen),
           sort_order: c.sortOrder,
+          /* The member key, so the console can edit the FSA scope and read the
+             cohort's reach without a second request. */
+          fsas: c.fsas || [],
           /* Epoch ms per calendar column, so the console can render and edit
              the schedule it could previously only see in ZCQL. */
           dates: c.dates || {},
@@ -948,6 +951,17 @@ function mount(router, cfg) {
       userId: admin.user_id, email: admin.email_normalized,
       detail: { campaign: id, kind, ...auditableCampaignFields(fields) },
     });
+    /* A cohort is not a person: no email, keyed on its own id, and the note
+       lands on the Cohorts record rather than on whichever operator made it. */
+    crm.enqueueAsync(req.catalyst, req, {
+      eventType: 'cohort.created',
+      entityRowid: id,
+      version: 1,
+      payload: {
+        campaign_id: id, region: fields.region || null, sub: fields.sub || null,
+        stage: kind, target: fields.target || null, fsas: fields.fsas || null,
+      },
+    });
 
     res.status(200).json({ ok: true, id, warning: overlapNote(await overlapWith(req.catalyst, id, fields.fsas)) });
   }));
@@ -1112,6 +1126,17 @@ function mount(router, cfg) {
       type: 'admin.campaign.transition', outcome: 'success',
       userId: admin.user_id, email: admin.email_normalized,
       detail: { campaign: id, from, to },
+    });
+    /* `archived` is this stack's word for a cohort that is over and not coming
+       back, which is what the catalogue calls cancelled. Every other move is a
+       stage change. The version is the destination stage, so a cohort that
+       moves forming to auction to closed writes three distinct rows and a
+       repeated transition writes one. */
+    crm.enqueueAsync(req.catalyst, req, {
+      eventType: to === 'archived' ? 'cohort.cancelled' : 'cohort.stage_changed',
+      entityRowid: id,
+      version: to,
+      payload: { campaign_id: id, stage: to },
     });
 
     res.status(200).json({ ok: true, id, kind: to });
@@ -1335,6 +1360,35 @@ function mount(router, cfg) {
         : rows.filter((r) => key && String(r.Email || '').toLowerCase().endsWith(`@${key}`));
     } catch { /* lead table unreadable: review still renders */ }
 
+    /* The optional per-org columns, read explicitly so their absence is
+       tolerated rather than assumed present on the findById row. */
+    let extra = {};
+    try {
+      const o2 = await datastore.findBy(req.catalyst, orgs.ORGS, 'org_id', orgId,
+        ['ROWID', 'lead_rate', 'serviceability_url']);
+      if (o2) extra = o2;
+    } catch { /* columns not created yet: rate falls back to the default */ }
+
+    /* The regions this org has declared, so approval and coverage read as one
+       decision rather than two screens that do not know about each other. */
+    let coverage = [];
+    try {
+      coverage = await datastore.queryAll(req.catalyst, desk.COVERAGE,
+        ['coverage_key', 'region', 'techs', 'speed', 'lead', 'status', 'updated_at'],
+        `org_id = ${datastore.lit(orgId)}`);
+    } catch { /* coverage unreadable: the review still renders */ }
+
+    /* Terms acceptance, so "have they signed" is on the page. */
+    let terms = [];
+    try {
+      terms = await datastore.queryAll(req.catalyst, 'provider_terms',
+        ['doc_type', 'doc_version', 'accepted_at', 'accepted_email'],
+        `org_id = ${datastore.lit(orgId)}`);
+    } catch { /* terms table unreadable: the section is omitted */ }
+
+    const base = await baseRate(req.catalyst);
+    const override = overrideRate(extra);
+
     res.status(200).json({
       ok: true,
       org: {
@@ -1344,9 +1398,13 @@ function mount(router, cfg) {
         approval_status: org.approval_status || 'pending',
         approved_by: org.approved_by || null,
         approved_at: org.approved_at || null,
+        serviceability_url: extra.serviceability_url || null,
       },
       people,
       applications,
+      coverage,
+      terms,
+      lead_rate: { base, override, effective: override ?? base },
     });
   }));
 
@@ -1391,11 +1449,11 @@ function mount(router, cfg) {
          records what was decided about them. Both callers are a decision, so
          there is no case where this fires for something else. */
       crm.enqueueAsync(req.catalyst, req, {
-        source: crm.SOURCES.PARTNER_DECISION,
-        rowId: org.org_id,
+        eventType: 'partner.state_changed',
+        entityRowid: org.org_id,
         email: u.email_display || u.email_normalized,
         leadType: 'partner',
-        data: {
+        payload: {
           org_id: org.org_id, org_name: org.legal_name || null,
           decision: context.approved ? 'approved' : 'rejected',
           reason: context.reason || null,
@@ -1609,6 +1667,155 @@ function mount(router, cfg) {
     res.status(200).json({ ok: true, org_id: org.org_id, region: regionSlug, status: 'rejected' });
   }));
 
+  /* ---------------------------------------------------------------- *
+   * Coverage queue, read side
+   *
+   * The verify and reject writes above have existed unused because nothing
+   * listed the work. Coverage is decided per (org, region), so the natural
+   * surface is a queue across every organisation, not a tab inside one
+   * company. A partner that declared six regions is six decisions, and the
+   * urgent one is a region with a live auction the partner cannot yet bid in.
+   * ---------------------------------------------------------------- */
+
+  /** Effective per-activation rate for an org: the site_config success_fee is
+      the platform default, a provider_orgs.lead_rate value overrides it for one
+      company. The column is optional and tolerated absent, the fallback is 95. */
+  const DEFAULT_LEAD_RATE = 95;
+  async function baseRate(catalystApp) {
+    let base = null;
+    try { base = await siteconfig.getValue(catalystApp, 'success_fee'); } catch { base = null; }
+    const n = Number(base);
+    return Number.isFinite(n) ? n : DEFAULT_LEAD_RATE;
+  }
+  function overrideRate(orgRow) {
+    const raw = orgRow ? orgRow.lead_rate : null;
+    if (raw === '' || raw === null || raw === undefined) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  router.get('/admin/coverage', wrap(async (req, res) => {
+    requireAdmin(req);
+    const want = String(req.query.status || '').trim();
+
+    let rows;
+    try {
+      rows = await datastore.queryAll(req.catalyst, desk.COVERAGE,
+        ['coverage_key', 'org_id', 'region', 'techs', 'speed', 'lead', 'status', 'updated_at'],
+        'ROWID > 0');
+    } catch {
+      return res.status(200).json({ ok: true, live: false, coverage: [], counts: {} });
+    }
+
+    /* Org names and their own serviceability checker, matched in code. The
+       serviceability_url column is optional: read a narrower set when it is
+       not there rather than failing the whole queue. */
+    const orgMap = new Map();
+    try {
+      const orgRows = await datastore.queryAll(req.catalyst, orgs.ORGS,
+        ['org_id', 'legal_name', 'approval_status', 'serviceability_url'], 'ROWID > 0');
+      orgRows.forEach((o) => orgMap.set(o.org_id, o));
+    } catch {
+      try {
+        const orgRows = await datastore.queryAll(req.catalyst, orgs.ORGS,
+          ['org_id', 'legal_name', 'approval_status'], 'ROWID > 0');
+        orgRows.forEach((o) => orgMap.set(o.org_id, o));
+      } catch { /* orgs unreadable: rows still render with the id as the name */ }
+    }
+
+    /* A region is urgent when a cohort keyed to it is in auction: a partner
+       who cannot bid there is holding up a live auction, not a planned one. */
+    const cat = await catalog.load(req.catalyst, { fresh: true });
+    const auctionRegions = new Set();
+    cat.list.forEach((c) => { if (c.kind === 'auction') auctionRegions.add(String(c.region || '').toLowerCase()); });
+
+    let out = rows.map((r) => {
+      const o = orgMap.get(r.org_id) || {};
+      const status = r.status || 'verifying';
+      const urgent = status === 'verifying' && auctionRegions.has(String(r.region || '').toLowerCase());
+      return {
+        coverage_key: r.coverage_key, org_id: r.org_id,
+        legal_name: o.legal_name || r.org_id,
+        approval_status: o.approval_status || 'pending',
+        region: r.region, techs: r.techs || '', speed: r.speed || '', lead: r.lead || '',
+        status, updated_at: r.updated_at || null,
+        serviceability_url: o.serviceability_url || null,
+        urgent,
+      };
+    });
+
+    const counts = { verifying: 0, active: 0, rejected: 0 };
+    out.forEach((x) => { counts[x.status] = (counts[x.status] || 0) + 1; });
+    if (want) out = out.filter((x) => x.status === want);
+    /* Urgent first, then longest wait (oldest updated_at) first. */
+    out.sort((a, b) => {
+      if (a.urgent !== b.urgent) return a.urgent ? -1 : 1;
+      return String(a.updated_at || '').localeCompare(String(b.updated_at || ''));
+    });
+
+    res.status(200).json({ ok: true, live: true, coverage: out, counts });
+  }));
+
+  /**
+   * Per-org settings that live on provider_orgs and are edited from the review:
+   * the per-activation lead rate override, and the partner's own serviceability
+   * checker URL used by the coverage queue. Both columns are optional and this
+   * tolerates them being absent: a save then reports what needs creating rather
+   * than a 500. Every write is audited with the before and after.
+   */
+  router.post('/admin/providers/:orgId/settings', wrap(async (req, res) => {
+    const admin = requireAdmin(req);
+    const org = await orgForDecision(req);
+    const body = req.body || {};
+    const fields = { ROWID: org.ROWID };
+    const before = {};
+    const after = {};
+
+    if (Object.prototype.hasOwnProperty.call(body, 'lead_rate')) {
+      let v = body.lead_rate;
+      if (v === '' || v === null || v === undefined) { v = ''; }
+      else {
+        v = Number(v);
+        if (!Number.isFinite(v) || v < 0 || v > 100000) {
+          throw badRequest('The lead rate must be a number of dollars, 0 or more.');
+        }
+      }
+      before.lead_rate = overrideRate(org);
+      fields.lead_rate = v;
+      after.lead_rate = v === '' ? null : v;
+    }
+    if (Object.prototype.hasOwnProperty.call(body, 'serviceability_url')) {
+      const u = String(body.serviceability_url || '').trim().slice(0, 500);
+      if (u && !/^https?:\/\//i.test(u)) throw badRequest('The checker URL must start with http:// or https://');
+      before.serviceability_url = org.serviceability_url || null;
+      fields.serviceability_url = u;
+      after.serviceability_url = u || null;
+    }
+    if (Object.keys(fields).length < 2) throw badRequest('Nothing to change.');
+
+    try {
+      await datastore.updateRow(req.catalyst, orgs.ORGS, fields);
+    } catch (err) {
+      throw new AppError('SERVER_ERROR',
+        'That could not be saved. The lead_rate and serviceability_url columns on provider_orgs may not exist yet: see create-tables.md.',
+        { logDetail: `provider_orgs settings write failed: ${String((err && err.message) || err).slice(0, 200)}` });
+    }
+
+    await audit.record(req.catalyst, req, {
+      type: 'admin.provider.settings', outcome: 'success',
+      userId: admin.user_id, email: admin.email_normalized,
+      detail: { org_id: org.org_id, before, after },
+    });
+
+    const base = await baseRate(req.catalyst);
+    res.status(200).json({
+      ok: true, org_id: org.org_id,
+      lead_rate: { base, override: after.lead_rate !== undefined ? after.lead_rate : overrideRate(org),
+        effective: (after.lead_rate !== undefined ? after.lead_rate : overrideRate(org)) ?? base },
+      serviceability_url: after.serviceability_url !== undefined ? after.serviceability_url : (org.serviceability_url || null),
+    });
+  }));
+
   /**
    * approved -> pending. Their sessions keep working, but every surface that
    * checks approval loses access on its next request. No email: suspension
@@ -1709,6 +1916,80 @@ function mount(router, cfg) {
     }
 
     res.status(200).json({ ok: true, table, columns, rows: page.rows, next: page.next });
+  }));
+
+  /**
+   * Where the demand is, by forward sortation area, across the intake tables
+   * that carry a postal fragment. This is the "where to launch the next
+   * cohort" reading: an FSA with many checkups and no cohort is an opportunity,
+   * an FSA already inside a forming cohort is covered.
+   *
+   * Counted in code from capped reads rather than a GROUP BY, so a ZCQL dialect
+   * that refuses aggregate grammar still answers. Each table is tolerated absent
+   * on its own: one missing source narrows the picture, it does not blank it.
+   */
+  const GEO_SOURCES = [
+    ['WaitlistSignups', 'FSA'],
+    ['WaitlistDetails', 'FSA'],
+    ['BillCheckupSubmissions', 'PostalFSA'],
+    ['CalculatorEstimates', 'FSA'],
+  ];
+
+  router.get('/admin/intake/geo', wrap(async (req, res) => {
+    requireAdmin(req);
+    const tally = new Map();
+    const sources = {};
+    let anyLive = false;
+
+    for (const [table, col] of GEO_SOURCES) {
+      const t = datastore.ident(table);
+      const c = datastore.ident(col);
+      try {
+        /* eslint-disable-next-line no-await-in-loop */
+        const rows = await datastore.query(req.catalyst, t,
+          `SELECT ${c} FROM ${t} LIMIT ${datastore.MAX_ROWS}`);
+        anyLive = true;
+        sources[table] = rows.length;
+        rows.forEach((r) => {
+          const fsa = String((r[col] != null ? r[col] : (r[table] && r[table][col])) || '')
+            .trim().toUpperCase().slice(0, 3);
+          if (!/^[A-Z][0-9][A-Z]$/.test(fsa)) return;
+          const cur = tally.get(fsa) || { fsa, count: 0, byTable: {} };
+          cur.count += 1;
+          cur.byTable[table] = (cur.byTable[table] || 0) + 1;
+          tally.set(fsa, cur);
+        });
+      } catch {
+        sources[table] = null; // table unreadable: recorded as such, not as zero
+      }
+    }
+
+    /* Which FSAs already sit inside a cohort, so the console can mark an area
+       as covered rather than open. A cohort's fsas is its member key. */
+    const covered = new Set();
+    try {
+      const cat = await catalog.load(req.catalyst, { fresh: true });
+      cat.list.forEach((c) => (c.fsas || []).forEach((f) => covered.add(String(f).toUpperCase())));
+    } catch { /* catalog unreadable: nothing marked covered */ }
+
+    let out = [...tally.values()].map((x) => {
+      const place = fsaref.lookup(x.fsa);
+      return {
+        fsa: x.fsa, count: x.count, byTable: x.byTable,
+        city: place ? place.city : null,
+        province: place ? place.province : null,
+        covered: covered.has(x.fsa),
+      };
+    });
+    out.sort((a, b) => b.count - a.count);
+
+    res.status(200).json({
+      ok: true,
+      live: anyLive,
+      total: out.reduce((s, x) => s + x.count, 0),
+      sources,
+      fsas: out.slice(0, 60),
+    });
   }));
 
   /**

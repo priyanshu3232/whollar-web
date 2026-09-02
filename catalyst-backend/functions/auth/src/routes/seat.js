@@ -44,7 +44,7 @@ const events = require('../lib/notify/events');
 const cohorts = require('../lib/cohorts');
 const guards = require('../lib/guards');
 const audit = require('../lib/audit');
-const crm = require('../lib/crmqueue');
+const crm = require('../lib/crm/outbox');
 const ratelimit = require('../lib/ratelimit');
 const campaigns = require('./campaigns');
 const { ok } = require('../lib/envelope');
@@ -291,10 +291,11 @@ function mount(router) {
       detail: { cohort: target.id, source: String((req.body || {}).source || 'direct') },
     });
     crm.enqueueAsync(req.catalyst, req, {
-      source: crm.SOURCES.COHORT_SEAT,
-      rowId: `${target.id}:${user.user_id}`,
+      eventType: 'cohort_membership.joined',
+      entityRowid: `${target.id}:${user.user_id}`,
+      version: rejoin ? 'rejoined' : 'joined',
       email: user.email_display || user.email_normalized,
-      data: {
+      payload: {
         event: rejoin ? 'rejoined' : 'joined',
         cohort: target.id, region: target.region || null, fsa: user.fsa || null,
       },
@@ -384,10 +385,11 @@ function mount(router) {
       detail: { cohort: cohort.id, reason: seats.cleanReason((req.body || {}).reason) },
     });
     crm.enqueueAsync(req.catalyst, req, {
-      source: crm.SOURCES.COHORT_SEAT,
-      rowId: `${cohort.id}:${user.user_id}`,
+      eventType: 'cohort_membership.exited',
+      entityRowid: `${cohort.id}:${user.user_id}`,
+      version: 'left',
       email: user.email_display || user.email_normalized,
-      data: { event: 'left', cohort: cohort.id, region: cohort.region || null,
+      payload: { event: 'left', cohort: cohort.id, region: cohort.region || null,
         reason: seats.cleanReason((req.body || {}).reason) },
     });
 
@@ -505,10 +507,11 @@ function mount(router) {
       },
     });
     crm.enqueueAsync(req.catalyst, req, {
-      source: crm.SOURCES.COHORT_SEAT,
-      rowId: `${to.id}:${user.user_id}`,
+      eventType: 'cohort_membership.joined',
+      entityRowid: `${to.id}:${user.user_id}`,
+      version: 'moved',
       email: user.email_display || user.email_normalized,
-      data: { event: 'moved', cohort: to.id, region: to.region || null,
+      payload: { event: 'moved', cohort: to.id, region: to.region || null,
         from_cohort: from.id, from_region: from.region || null,
         reason: seats.cleanReason((req.body || {}).reason) },
     });
@@ -603,10 +606,11 @@ function mount(router) {
       detail: { cohort: cohort.id, reason: seats.cleanReason((req.body || {}).reason) },
     });
     crm.enqueueAsync(req.catalyst, req, {
-      source: crm.SOURCES.COHORT_SEAT,
-      rowId: `${cohort.id}:${user.user_id}`,
+      eventType: 'cohort_membership.exited',
+      entityRowid: `${cohort.id}:${user.user_id}`,
+      version: 'passed',
       email: user.email_display || user.email_normalized,
-      data: { event: 'passed', cohort: cohort.id, region: cohort.region || null,
+      payload: { event: 'passed', cohort: cohort.id, region: cohort.region || null,
         reason: seats.cleanReason((req.body || {}).reason) },
     });
 

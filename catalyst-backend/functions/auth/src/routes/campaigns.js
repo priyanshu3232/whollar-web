@@ -32,7 +32,7 @@
 
 const datastore = require('../lib/datastore');
 const audit = require('../lib/audit');
-const crm = require('../lib/crmqueue');
+const crm = require('../lib/crm/outbox');
 const seats = require('../lib/seats');
 const users = require('../lib/users');
 const catalog = require('../lib/catalog');
@@ -1033,13 +1033,14 @@ function mount(router, cfg) {
     });
     /* The household's decision, and the first moment a partner is attached to
        one. The install address and mobile this route also handles are not
-       passed: lib/crmqueue.js would strip them, and not sending them says so
+       passed: the switch_order allowlist drops them, and not sending them says so
        at the call site as well as at the boundary. */
     crm.enqueueAsync(req.catalyst, req, {
-      source: crm.SOURCES.HOUSEHOLD_ORDER,
-      rowId: `${campaign.id}:${user.user_id}`,
+      eventType: 'switch_order.created',
+      entityRowid: `${campaign.id}:${user.user_id}`,
+      version: changed ? 'repicked' : 'accepted',
       email: user.email_display || user.email_normalized,
-      data: {
+      payload: {
         event: changed ? 'repicked' : 'accepted',
         cohort: campaign.id, region: campaign.region || null,
         tier: entry.tier || null, price: entry.price || null,
@@ -1174,10 +1175,11 @@ function mount(router, cfg) {
       detail: { campaign: campaign.id, status, was },
     });
     crm.enqueueAsync(req.catalyst, req, {
-      source: crm.SOURCES.COHORT_SEAT,
-      rowId: `${campaign.id}:${user.user_id}`,
+      eventType: 'cohort_membership.joined',
+      entityRowid: `${campaign.id}:${user.user_id}`,
+      version: status,
       email: user.email_display || user.email_normalized,
-      data: { event: status, cohort: campaign.id, region: campaign.region || null,
+      payload: { event: status, cohort: campaign.id, region: campaign.region || null,
         fsa: user.fsa || null },
     });
 
@@ -1246,10 +1248,11 @@ function mount(router, cfg) {
       detail: { campaign: campaign.id },
     });
     crm.enqueueAsync(req.catalyst, req, {
-      source: crm.SOURCES.COHORT_SEAT,
-      rowId: `${campaign.id}:${user.user_id}`,
+      eventType: 'cohort_membership.exited',
+      entityRowid: `${campaign.id}:${user.user_id}`,
+      version: 'left',
       email: user.email_display || user.email_normalized,
-      data: { event: 'left', cohort: campaign.id, region: campaign.region || null },
+      payload: { event: 'left', cohort: campaign.id, region: campaign.region || null },
     });
 
     const reply = await memberReply(req.catalyst, campaign, undefined, user.fsa);

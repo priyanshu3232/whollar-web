@@ -27,7 +27,7 @@ const datastore = require('../lib/datastore');
 const orgs = require('../lib/orgs');
 const terms = require('../lib/terms');
 const audit = require('../lib/audit');
-const crm = require('../lib/crmqueue');
+const crm = require('../lib/crm/outbox');
 const bids = require('../lib/bids');
 const { ok, ms } = require('../lib/envelope');
 const { requirePartner: guardPartner } = require('../lib/guards');
@@ -217,11 +217,11 @@ function mount(router) {
        is noise on the one record a person actually reads. */
     if (!result.alreadyAccepted) {
       crm.enqueueAsync(req.catalyst, req, {
-        source: crm.SOURCES.PARTNER_TERMS,
-        rowId: `${context.orgId}:${terms.DOC_TYPE}:${result.version}`,
+        eventType: 'partner.updated',
+        entityRowid: `${context.orgId}:${terms.DOC_TYPE}:${result.version}`,
         email: user.email_display || user.email_normalized,
         leadType: 'partner',
-        data: { org_id: context.orgId, org_name: context.orgName || null,
+        payload: { org_id: context.orgId, org_name: context.orgName || null,
           doc_type: terms.DOC_TYPE, doc_version: result.version },
       });
     }

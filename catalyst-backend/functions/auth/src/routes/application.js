@@ -34,7 +34,7 @@ const express = require('express');
 
 const datastore = require('../lib/datastore');
 const audit = require('../lib/audit');
-const crm = require('../lib/crmqueue');
+const crm = require('../lib/crm/outbox');
 /* requirePartner, not requireProvider: every handler here destructures
    `{ context }` and reads context.orgId. requireProvider returns the bare user,
    so importing it made all seven routes throw on context.orgId and answer 500.
@@ -677,11 +677,11 @@ function mount(router) {
          reason: re-posting a submitted application is the console retrying,
          not a second application. */
       crm.enqueueAsync(req.catalyst, req, {
-        source: crm.SOURCES.PARTNER_APPLIED,
-        rowId: context.orgId,
+        eventType: 'partner.applied',
+        entityRowid: context.orgId,
         email: user.email_display || user.email_normalized,
         leadType: 'partner',
-        data: { org_id: context.orgId, org_name: context.orgName || null },
+        payload: { org_id: context.orgId, org_name: context.orgName || null },
       });
     }
 

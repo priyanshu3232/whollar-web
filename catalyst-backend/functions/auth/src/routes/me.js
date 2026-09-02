@@ -25,6 +25,7 @@ const referral = require('../lib/referral');
 const sessions = require('../lib/sessions');
 const prefs = require('../lib/prefs');
 const audit = require('../lib/audit');
+const crm = require('../lib/crm/outbox');
 const cookies = require('../lib/cookies');
 const ratelimit = require('../lib/ratelimit');
 const guards = require('../lib/guards');
@@ -333,6 +334,33 @@ function mount(router) {
         fsa: postalChange ? postalChange.fsa : undefined,
         left_cohort: left ? left.id : undefined,
         return_to: postalChange && body.returnTo ? String(body.returnTo).slice(0, 64) : undefined,
+      },
+    });
+
+    /* WHERE A MEMBER'S DETAILS ACTUALLY ARRIVE. Signup mints an account from an
+       email and a code and nothing else: no name, no number, no postal code.
+       They are entered here, so a CRM record built from the signup event alone
+       is a lead with an address and nothing to call.
+    
+       This one DOES carry the postal code, where the audit line above
+       deliberately does not, and the difference is the audience. That is an
+       append-only security trail which must not become a second copy of where
+       everybody lives; this is a customer record, where a postal code is the
+       ordinary field a person expects to find and the thing that makes a lead
+       reachable. `fresh` and not `fields`, so what goes out is what the row
+       now holds rather than what this request happened to touch. */
+    crm.enqueueAsync(app, req, {
+      eventType: 'household.updated',
+      entityRowid: user.user_id,
+      email: user.email_display || user.email_normalized,
+      payload: {
+        first_name: (fresh && fresh.first_name) || null,
+        last_name: (fresh && fresh.last_name) || null,
+        phone: (fresh && fresh.phone) || null,
+        postal: (fresh && fresh.postal_code) || null,
+        fsa: (fresh && fresh.fsa) || null,
+        province: (fresh && fresh.province_code) || null,
+        changed: Object.keys(fields).filter((k) => k !== 'ROWID'),
       },
     });
 

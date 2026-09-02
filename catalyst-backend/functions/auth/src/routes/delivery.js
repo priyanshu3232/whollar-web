@@ -43,7 +43,7 @@ const orders = require('../lib/orders');
 const events = require('../lib/notify/events');
 const billing = require('../lib/billing');
 const audit = require('../lib/audit');
-const crm = require('../lib/crmqueue');
+const crm = require('../lib/crm/outbox');
 const datastore = require('../lib/datastore');
 const { ok } = require('../lib/envelope');
 const { requirePartner: guardPartner, requireApproved } = require('../lib/guards');
@@ -320,11 +320,12 @@ function mount(router) {
        `member_user_id` to an email here would pull the household's identity
        into a partner-facing route that is built never to carry it. */
     crm.enqueueAsync(req.catalyst, req, {
-      source: crm.SOURCES.HOUSEHOLD_ORDER,
-      rowId: row.order_key,
+      eventType: 'switch_order.state_changed',
+      entityRowid: row.order_key,
+      version: wasBooked ? 'rebooked' : 'booked',
       email: user.email_display || user.email_normalized,
       leadType: 'partner',
-      data: { event: wasBooked ? 'rebooked' : 'booked', org_id: context.orgId,
+      payload: { event: wasBooked ? 'rebooked' : 'booked', org_id: context.orgId,
         cohort: row.campaign_id, order_no: row.order_no || null,
         tier: row.tier || null, fsa: row.fsa || null },
     });
@@ -385,11 +386,12 @@ function mount(router) {
        route holds. A stale figure copied into a CRM note would be read as the
        invoice. The note records the event; billing owns the money. */
     crm.enqueueAsync(req.catalyst, req, {
-      source: crm.SOURCES.HOUSEHOLD_ORDER,
-      rowId: row.order_key,
+      eventType: 'switch_order.activated',
+      entityRowid: row.order_key,
+      version: 'activated',
       email: user.email_display || user.email_normalized,
       leadType: 'partner',
-      data: { event: 'activated', org_id: context.orgId,
+      payload: { event: 'activated', org_id: context.orgId,
         cohort: row.campaign_id, order_no: row.order_no || null,
         tier: row.tier || null, fsa: row.fsa || null, billable: true },
     });
@@ -440,11 +442,12 @@ function mount(router) {
        `member_user_id` to an email here would pull the household's identity
        into a partner-facing route that is built never to carry it. */
     crm.enqueueAsync(req.catalyst, req, {
-      source: crm.SOURCES.HOUSEHOLD_ORDER,
-      rowId: row.order_key,
+      eventType: 'switch_order.state_changed',
+      entityRowid: row.order_key,
+      version: kind,
       email: user.email_display || user.email_normalized,
       leadType: 'partner',
-      data: { event: kind, org_id: context.orgId, cohort: row.campaign_id,
+      payload: { event: kind, org_id: context.orgId, cohort: row.campaign_id,
         order_no: row.order_no || null, fsa: row.fsa || null },
     });
 
@@ -483,6 +486,18 @@ function mount(router) {
       outcome: 'success',
       userId: user.user_id,
       detail: `org=${context.orgId} order=${row.order_no || row.order_key} reason=${reason}`,
+    });
+    crm.enqueueAsync(req.catalyst, req, {
+      eventType: 'switch_order.released',
+      entityRowid: row.order_key,
+      version: 'released',
+      email: user.email_display || user.email_normalized,
+      leadType: 'partner',
+      payload: {
+        order_key: row.order_key, order_no: row.order_no || null,
+        org_id: context.orgId, campaign_id: row.campaign_id,
+        state: 'rel', release_reason: reason, fsa: row.fsa || null,
+      },
     });
 
     const released = await orders.findAnyByKey(req.catalyst, row.order_key);

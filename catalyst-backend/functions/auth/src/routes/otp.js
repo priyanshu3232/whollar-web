@@ -22,7 +22,7 @@ const sessions = require('../lib/sessions');
 const mailer = require('../lib/mailer');
 const notify = require('../lib/notify');
 const audit = require('../lib/audit');
-const crm = require('../lib/crmqueue');
+const crm = require('../lib/crm/outbox');
 const ratelimit = require('../lib/ratelimit');
 const referral = require('../lib/referral');
 const share = require('./share');
@@ -235,11 +235,11 @@ function mount(router, cfg) {
        actually changed something under a stack of identical lines. */
     if (created) {
       crm.enqueueAsync(req.catalyst, req, {
-        source: crm.SOURCES.MEMBER_SIGNUP,
-        rowId: user.user_id,
+        eventType: 'household.created',
+        entityRowid: user.user_id,
         email: user.email_display || email,
         leadType: user.user_type === 'provider' ? 'partner' : 'consumer',
-        data: {
+        payload: {
           user_type: user.user_type || null,
           first_name: user.first_name || null,
           last_name: user.last_name || null,

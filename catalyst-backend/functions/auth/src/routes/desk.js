@@ -38,7 +38,7 @@ const users = require('../lib/users');
 const catalog = require('../lib/catalog');
 const siteconfig = require('../lib/siteconfig');
 const audit = require('../lib/audit');
-const crm = require('../lib/crmqueue');
+const crm = require('../lib/crm/outbox');
 const envelope = require('../lib/envelope');
 const bids = require('../lib/bids');
 const events = require('../lib/notify/events');
@@ -282,11 +282,11 @@ function mount(router) {
       detail: { org_id: org.org_id, from: org.legal_name, to: legalName },
     });
     crm.enqueueAsync(req.catalyst, req, {
-      source: crm.SOURCES.PARTNER_ORG,
-      rowId: org.org_id,
+      eventType: 'partner.updated',
+      entityRowid: org.org_id,
       email: user.email_display || user.email_normalized,
       leadType: 'partner',
-      data: { org_id: org.org_id, org_name: legalName, previous_name: org.legal_name || null },
+      payload: { org_id: org.org_id, org_name: legalName, previous_name: org.legal_name || null },
     });
 
     res.status(200).json({ ok: true, org: { ...context, orgName: legalName } });
@@ -660,11 +660,12 @@ function mount(router) {
        revision and its receipt. The number stays in provider_bids, where the
        seal means something. */
     crm.enqueueAsync(req.catalyst, req, {
-      source: crm.SOURCES.SEALED_BID,
-      rowId: `${campaign.id}:${context.orgId}`,
+      eventType: 'sealed_bid.submitted',
+      entityRowid: `${campaign.id}:${context.orgId}`,
+      version: sealed.revisionNo,
       email: user.email_display || user.email_normalized,
       leadType: 'partner',
-      data: { event: 'sealed', org_id: context.orgId, org_name: context.orgName || null,
+      payload: { event: 'sealed', org_id: context.orgId, org_name: context.orgName || null,
         cohort: campaign.id, region: campaign.region || null,
         revision: sealed.revisionNo, receipt: sealed.receipt },
     });
@@ -808,11 +809,12 @@ function mount(router) {
        revision and its receipt. The number stays in provider_bids, where the
        seal means something. */
     crm.enqueueAsync(req.catalyst, req, {
-      source: crm.SOURCES.SEALED_BID,
-      rowId: `${campaign.id}:${context.orgId}`,
+      eventType: 'sealed_bid.revised',
+      entityRowid: `${campaign.id}:${context.orgId}`,
+      version: sealed.revisionNo,
       email: user.email_display || user.email_normalized,
       leadType: 'partner',
-      data: { event: 'improved', org_id: context.orgId, org_name: context.orgName || null,
+      payload: { event: 'improved', org_id: context.orgId, org_name: context.orgName || null,
         cohort: campaign.id, region: campaign.region || null,
         revision: sealed.revisionNo, receipt: sealed.receipt },
     });
@@ -1011,6 +1013,18 @@ function mount(router) {
       userId: user.user_id,
       email: user.email_normalized,
       detail: { org_id: context.orgId, region: regionSlug, techs },
+    });
+    crm.enqueueAsync(req.catalyst, req, {
+      eventType: 'partner.coverage_changed',
+      entityRowid: context.orgId,
+      version: regionSlug,
+      email: user.email_display || user.email_normalized,
+      leadType: 'partner',
+      payload: {
+        org_id: context.orgId, org_name: context.orgName || null,
+        coverage_region: regionSlug,
+        coverage_status: created ? 'declared' : 'updated',
+      },
     });
 
     const rows = await coverageRows(req.catalyst, context.orgId);

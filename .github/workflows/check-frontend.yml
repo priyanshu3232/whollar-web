@@ -389,7 +389,33 @@ jobs:
       # a leaked install address is only ever found by whoever reads the CRM, and
       # an unparked note ships to Zoho before anyone decided it should.
       - name: CRM enqueue rules
-        run: node scripts/test-crmqueue.mjs
+        run: node scripts/test-crm-outbox.mjs
+
+      # The allowlist, asserted by field list equality rather than spot check.
+      # D2 as amended makes these serialisers the control on what leaves
+      # Catalyst: asserting a price is absent catches the price, asserting the
+      # whole key set catches the field nobody thought to look for.
+      - name: CRM allowlist
+        run: node scripts/test-crm-serialisers.mjs
+
+      # One assertion per wired event: the right idempotency key and an
+      # allowlisted payload. The key is the only thing between a retried request
+      # and a duplicate record in somebody's CRM.
+      - name: CRM event keys
+        run: node scripts/test-crm-events.mjs
+
+      # D4: which CRM record a row belongs to. A wrong answer is not an error
+      # anywhere, both writes succeed and the founder finds two of the same
+      # household weeks later.
+      - name: CRM upsert and adoption
+        run: node scripts/test-crm-upsert.mjs
+
+      # The field map, and the three defects it exists to fix. Each was
+      # invisible in a different way: a postal code silently dropped, a cohort
+      # record that looked created and held nothing, and a Deal that failed on
+      # mandatory fields and was dead after two attempts.
+      - name: CRM field map
+        run: node scripts/test-crm-fieldmap.mjs
 
       # What each CRM note says, for the twelve events the auth function
       # enqueues. A note that renders wrongly is not an error anywhere: it is a
