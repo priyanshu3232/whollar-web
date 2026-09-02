@@ -34,6 +34,7 @@ const PAGES = [
   'greystonewalk.html',
   'landing.html',
   'join.html',
+  'join-welcome.html',
   'whollar-login-consumer.html', 'whollar-login-provider.html',
   'welcome-member.html', 'welcome-partner.html',
   'MobileVersion/consumer-mobile.html', 'MobileVersion/provider-mobile.html',

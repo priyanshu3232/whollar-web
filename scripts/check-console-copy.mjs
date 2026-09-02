@@ -68,7 +68,11 @@ const FILES = [
      first page a new member or partner reads, so the vocabulary in them sets
      the vocabulary everyone uses back at us. */
   'welcome-member.html',
-  'welcome-partner.html'
+  'welcome-partner.html',
+  /* The same argument, for the screen a household lands on the moment its
+     code is checked. Clean on day one. */
+  'join-welcome.html',
+  'js/join-welcome.js'
 ];
 
 /* Banned words. Each is paired with what to say instead, because a gate that

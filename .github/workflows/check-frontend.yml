@@ -79,6 +79,11 @@ jobs:
       - name: Waitlist join script parses
         run: node --check js/waitlist-join.js
 
+      # The welcome screen after a verified join: the per-product copy, the
+      # reveal timeline, and the referral link.
+      - name: Join welcome script parses
+        run: node --check js/join-welcome.js
+
       # Fails when js/whollar-benchmarks.js no longer matches what the
       # spreadsheet would produce, i.e. the pricing model was updated but the
       # generated table wasn't, so the site is scoring against stale prices.

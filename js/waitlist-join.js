@@ -195,17 +195,22 @@
   }
 
   function finish() {
+    /* The welcome screen owns everything past this point: it names the person,
+       tells them what happens next for the product they picked, and hands them
+       their referral link. The success panel the canvas drew stays in the
+       markup as the fallback for a redirect that cannot happen. */
+    var pool = pending.unsentPool;
+    var target = '/join-welcome' + (pool ? '?pool=' + encodeURIComponent(pool) : '');
+    try {
+      window.location.assign(target);
+      return;
+    } catch (e) { /* fall through to the inline panel */ }
+
     setText('[data-wl-donearea]', pending.postalCode);
-    var pool = { internet: 'Internet', tires: 'Winter tires', both: 'Internet and winter tires' };
-    setText('[data-wl-donepool]', pool[pending.unsentPool] || 'Internet');
+    var label = { internet: 'Internet', tires: 'Winter tires', both: 'Internet and winter tires' };
+    setText('[data-wl-donepool]', label[pool] || 'Internet');
     show('code', false);
     show('joined', true);
-
-    /* The member number tile. This backend has no member number, so it shows
-       the one identifier a member actually owns: their referral code, which is
-       also the thing worth handing to a neighbour. `referral` resolves null
-       rather than rejecting when it cannot be read, so the tile says pending
-       instead of the panel failing over an ornament. */
     W.session.referral().then(function (r) {
       setText('[data-wl-donenumber]', (r && (r.code || r.referralCode)) || 'pending');
     });
