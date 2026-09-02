@@ -98,6 +98,7 @@ const MAPS = Object.freeze({
       Whollar_Provider: d.provider,
       Whollar_Speed_Tier: d.speed_tier,
       Whollar_Cohort_Status: d.cohort_status,
+      Whollar_Pooling_For: d.pooling_for,
     }),
     /* A checkbox is false, not absent, so it is set outside present(). */
     always: { Whollar_Has_Referral: Boolean(d.has_referral) },

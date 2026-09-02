@@ -262,7 +262,7 @@ ${css}
 
 ${body}
 
-<script src="/js/waitlist-join.js?v=${STAMP}"></script>
+<script src="/js/waitlist-join.js?v=20260902b"></script>
 </body>
 </html>
 `;

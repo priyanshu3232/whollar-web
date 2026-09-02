@@ -72,6 +72,7 @@ const FILES = [
   /* The same argument, for the screen a household lands on the moment its
      code is checked. Clean on day one. */
   'join-welcome.html',
+  'join-welcome-tires.html',
   'js/join-welcome.js'
 ];
 

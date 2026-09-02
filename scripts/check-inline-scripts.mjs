@@ -35,6 +35,7 @@ const PAGES = [
   'landing.html',
   'join.html',
   'join-welcome.html',
+  'join-welcome-tires.html',
   'whollar-login-consumer.html', 'whollar-login-provider.html',
   'welcome-member.html', 'welcome-partner.html',
   'MobileVersion/consumer-mobile.html', 'MobileVersion/provider-mobile.html',

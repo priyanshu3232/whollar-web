@@ -23,6 +23,10 @@ module.exports = (d) => ({
   speed_tier: d.speed_tier || null,
   cohort_status: d.cohort_status || null,
   user_type: d.user_type || null,
+  /* Which product they asked for on /join: internet, tires or both. Named
+     here deliberately, because a CRM that cannot tell a tire household from
+     an internet one cannot tell anyone which cohort to talk to them about. */
+  pooling_for: d.pooling_for || null,
   /* Presence, never the token. D2. */
   has_referral: Boolean(d.referred_by || d.referral_code || d.has_referral),
 });

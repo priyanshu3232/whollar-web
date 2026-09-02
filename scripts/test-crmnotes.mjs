@@ -30,7 +30,7 @@ const note = (source, data) => t.noteFor(source, 'jane@example.com', data, true,
 /* The payloads, copied from the enqueue calls in catalyst-backend/.../routes/. */
 const CASES = {
   MemberSignups:        { user_type: 'member', first_name: 'Jane', last_name: 'Roy', fsa: 'M5S', province: 'ON', referred_by: 'WHL-1a2b3c4d' },
-  MemberProfiles:       { first_name: 'Jane', last_name: 'Roy', phone: '(416) 555 0134', postal: 'M5S 2J7', fsa: 'M5S', province: 'ON', changed: ['phone', 'postal_code'] },
+  MemberProfiles:       { first_name: 'Jane', last_name: 'Roy', phone: '(416) 555 0134', postal: 'M5S 2J7', fsa: 'M5S', province: 'ON', pooling_for: 'tires', changed: ['phone', 'postal_code', 'pooling_for'] },
   PartnerSignups:       { first_name: 'Sam', last_name: 'Okafor', org_id: 'org-1', org_name: 'Northline', approval_status: 'pending' },
   PartnerOrgs:          { org_id: 'org-1', org_name: 'Northline Fibre', previous_name: 'Northline' },
   ProviderApplications: { org_id: 'org-1', org_name: 'Northline Fibre' },
@@ -95,6 +95,15 @@ const f = t.insertFields('MemberSignups', 'jane@example.com', CASES.MemberSignup
 ok(f.Last_Name === 'Roy' && f.First_Name === 'Jane', 'snake_case names from the auth function are read');
 const g = t.insertFields('WaitlistSignups', 'jane@example.com', { firstName: 'Jane', lastName: 'Roy' }, true);
 ok(g.Last_Name === 'Roy' && g.First_Name === 'Jane', 'camelCase names from the forms still are');
+
+/* ---- the product asked for on /join reaches the lead, both shapes ---- */
+const pj = t.insertFields('WaitlistSignups', 'jane@example.com', { firstName: 'Jane', lastName: 'Roy', poolingFor: 'tires' }, true);
+ok(pj.Whollar_Pooling_For === 'tires', 'the form lane writes the product on a new lead');
+ok(t.updateFields('WaitlistSignups', { poolingFor: 'both' }).Whollar_Pooling_For === 'both',
+  'and on an existing lead: the newest answer wins, unlike the name');
+ok(!('Whollar_Pooling_For' in g), 'a form that never asked writes nothing, not an empty picklist value');
+ok(t.insertFields('MemberProfiles', 'j@e.ca', { pooling_for: 'internet' }, true).Whollar_Pooling_For === 'internet',
+  'the auth lane\'s snake_case shape is read too');
 const h = t.insertFields('ProviderApplications', 'ops@northline.ca', CASES.ProviderApplications, true);
 ok(h.Company === 'Northline Fibre', 'org_name becomes the company');
 ok(!/\[dev\]/.test(f.Lead_Source), 'production leads carry no dev tag');

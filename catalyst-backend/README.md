@@ -77,6 +77,7 @@ characters, `Var Char` = up to 255. Every column below should allow nulls unless
 | Phone | Var Char | required |
 | FSA | Var Char | required |
 | ReferralCode | Var Char | |
+| PoolingFor | Var Char | `internet`, `tires` or `both`: what /join asked. Optional: the insert retries without it until the column exists |
 | SubmittedAt | DateTime | |
 
 ### WaitlistDetails

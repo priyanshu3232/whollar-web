@@ -211,6 +211,17 @@ function mount(router) {
       const s = String(body.provinceCode || '').trim().toUpperCase().slice(0, 2);
       fields.province_code = s || null;
     }
+    /* WHAT THEY ASKED FOR ON /join. Not a users column: it lives in the
+       user_prefs blob beside the other facts a dashboard writes, and it rides
+       along with a details save rather than getting a route of its own. A
+       closed list, because it becomes a CRM picklist and a value the picklist
+       does not know is a field Zoho refuses and offendingField drops. */
+    let poolingFor = null;
+    if ('poolingFor' in body) {
+      const s = String(body.poolingFor || '').trim().toLowerCase();
+      if (!['internet', 'tires', 'both'].includes(s)) throw badRequest('Unknown product.');
+      poolingFor = s;
+    }
 
     if (Object.keys(fields).length === 1) {
       throw badRequest('Nothing to update.');
@@ -349,6 +360,22 @@ function mount(router) {
        ordinary field a person expects to find and the thing that makes a lead
        reachable. `fresh` and not `fields`, so what goes out is what the row
        now holds rather than what this request happened to touch. */
+    /* Same principle for the product: the payload carries what the prefs blob
+       now holds, read back from the merge, never the request value. A write
+       that failed leaves the payload null rather than telling the CRM
+       something the store does not know. Best effort for the same reason the
+       enqueue is: a prefs table that is missing must not fail a details save
+       at the one moment a new member is filling them in. */
+    let poolingStored = null;
+    if (poolingFor) {
+      try {
+        const merged = await prefs.merge(app, user.user_id, { pooling_for: poolingFor });
+        poolingStored = (merged && merged.pooling_for) || null;
+      } catch (err) {
+        console.warn('[me.profile] pooling_for not stored:', String((err && err.message) || err).slice(0, 160));
+      }
+    }
+
     crm.enqueueAsync(app, req, {
       eventType: 'household.updated',
       entityRowid: user.user_id,
@@ -360,7 +387,8 @@ function mount(router) {
         postal: (fresh && fresh.postal_code) || null,
         fsa: (fresh && fresh.fsa) || null,
         province: (fresh && fresh.province_code) || null,
-        changed: Object.keys(fields).filter((k) => k !== 'ROWID'),
+        pooling_for: poolingStored,
+        changed: Object.keys(fields).filter((k) => k !== 'ROWID').concat(poolingStored ? ['pooling_for'] : []),
       },
     });
 

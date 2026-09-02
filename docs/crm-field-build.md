@@ -53,6 +53,7 @@ Households and people at partners share this module, told apart by
 | Speed tier | `Whollar_Speed_Tier` | Picklist | `50`, `100`, `200`, `500`, `1000`, `2500` |
 | Cohort status | `Whollar_Cohort_Status` | Picklist | `joined`, `waitlist`, `alert`, `passed`, `left`, `moved` |
 | Has referral | `Whollar_Has_Referral` | Checkbox | **presence only**, D2. Never the token |
+| Pooling for | `Whollar_Pooling_For` | Picklist | `internet`, `tires`, `both`. What the household asked for on /join. Households only; absent when never said. **Build it on Leads too**, same API name and values: the /join form lane writes it through the legacy form path, which creates Leads, not Contacts |
 | Partner role | `Whollar_Partner_Role` | Picklist | `owner`, `admin`, `member`. Partner contacts only |
 | **Account** | `Account_Name` | **LOOKUP to Accounts** | standard on Contacts. Partner contacts only |
 

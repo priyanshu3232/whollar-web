@@ -25,9 +25,12 @@ console.log('\ncrm field map');
 /* ---- DEFECT 1: Contacts use Mailing_*, never the Lead names ---- */
 const hh = fm.mapFor('household', {
   first_name: 'Jane', last_name: 'Roy', email: 'j@e.ca', phone: '416',
-  postal: 'M5S 2J7', province: 'ON', city: 'Toronto', fsa: 'M5S', has_referral: true,
+  postal: 'M5S 2J7', province: 'ON', city: 'Toronto', fsa: 'M5S', has_referral: true, pooling_for: 'tires',
 }, 'u1');
 ok(hh.fields.Mailing_Zip === 'M5S 2J7', 'the full postal code lands in Mailing_Zip');
+ok(hh.fields.Whollar_Pooling_For === 'tires', 'the product asked for on /join lands on its own picklist');
+ok(!('Whollar_Pooling_For' in fm.mapFor('household', { email: 'a@b.ca' }, 'u4').fields),
+  'and a household that never said is not written as an empty picklist value, which Zoho refuses');
 ok(hh.fields.Mailing_State === 'ON', 'the province lands in Mailing_State');
 ok(!('Zip_Code' in hh.fields) && !('State' in hh.fields),
   'the Lead field names are never sent to a Contact: this is what was silently losing the postal code');

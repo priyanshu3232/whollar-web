@@ -461,6 +461,13 @@ app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 360
   const email = str(b.email);
   const phone = normalizePhone(b.phone);
   const postal = normalizePostal(b.fsa || b.postalFull);
+  // What /join asked: which product the household is pooling for. A closed
+  // list, because it becomes a CRM picklist and a value the picklist does not
+  // know is a field Zoho refuses. Not required and never a 400: the older
+  // /waitlist/ page posts here too and has no such question, and a bad value
+  // from anywhere is worth less than the row it would block.
+  const poolingFor = ['internet', 'tires', 'both'].includes(str(b.poolingFor).toLowerCase())
+    ? str(b.poolingFor).toLowerCase() : null;
 
   if (firstName.length < 2) return badRequest(res, 'firstName is required.');
   if (lastName.length < 2) return badRequest(res, 'lastName is required.');
@@ -471,7 +478,9 @@ app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 360
 
   try {
     const catalystApp = catalyst.initialize(req);
-    const row = await insert(catalystApp, 'WaitlistSignups', {
+    // PoolingFor is the one column that may not exist yet (create-tables.md
+    // and README.md name it); insertTolerant drops it and keeps the row.
+    const row = await insertTolerant(catalystApp, 'WaitlistSignups', {
       FirstName: firstName,
       LastName: lastName,
       Email: email,
@@ -480,8 +489,9 @@ app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 360
       Phone: digits(b.phone),
       FSA: postal.fsa,
       ReferralCode: orNull(str(b.referral)),
+      PoolingFor: poolingFor,
       SubmittedAt: catalystNow()
-    });
+    }, ['PoolingFor']);
     await enqueueCrm(catalystApp, {
       source: 'WaitlistSignups', rowId: row.ROWID, email, leadType: 'consumer',
       data: {
@@ -490,6 +500,7 @@ app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 360
         fsa: postal.fsa, postal: postal.full,
         province: str(b.province) || null, provinceCode: str(b.provinceCode) || null,
         referral: str(b.referral),
+        poolingFor,
         ...consentFrom(b, req)
       }
     });

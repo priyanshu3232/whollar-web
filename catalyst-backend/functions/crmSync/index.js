@@ -457,6 +457,7 @@ const SOURCE_META = {
       'Filled in their details.',
       row('Phone', d.phone), row('Postal code', d.postal),
       row('Postal area', d.fsa), row('Province', d.province),
+      row('Pooling for', d.pooling_for),
     ],
   },
   PartnerSignups: {
@@ -677,6 +678,17 @@ function insertFields(source, email, data, isProd) {
   if (data.phone) fields.Phone = data.phone;
   if (meta.address) addressOnto(fields, data);
   if (meta.hot) fields.Rating = 'Hot';
+  poolingOnto(fields, data);
+  return fields;
+}
+
+// Which product they asked for on /join. Read in both shapes, like names():
+// the form lane sends poolingFor, the auth lane pooling_for. Written on an
+// existing lead too, unlike the name: the newest answer is the right one, and
+// a household that changes its mind on /join should not be stuck as internet.
+function poolingOnto(fields, data) {
+  const v = data.poolingFor || data.pooling_for || null;
+  if (v) fields.Whollar_Pooling_For = v;
   return fields;
 }
 
@@ -692,6 +704,7 @@ function updateFields(source, data) {
   if (data.phone) fields.Phone = data.phone;
   if (meta.address) addressOnto(fields, data);
   if (meta.hot) fields.Rating = 'Hot';
+  poolingOnto(fields, data);
   return fields;
 }
 

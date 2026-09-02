@@ -17,11 +17,11 @@
  * and the welcome screen degrades accordingly. Restoring accounts means either
  * putting a code step back or a new backend route, not a change in this file.
  *
- * THREE FIELDS ARE COLLECTED AND NOT SENT, deliberately and not silently: the
- * full street address and the preferred language have no column on this route,
- * and "pooling for" has no home either, since /me/product-interest knows
- * mobile, streaming and tires only and this asks about internet. All three are
- * marked below. Wiring them is backend work, not a line in this file.
+ * TWO FIELDS ARE COLLECTED AND NOT SENT, deliberately and not silently: the
+ * full street address and the preferred language have no column on this route.
+ * Both are marked below. Wiring them is backend work, not a line in this file.
+ * "Pooling for" IS sent: /waitlist-join keeps it on the row and puts it on the
+ * CRM lead, and it also decides which welcome screen this form ends on.
  */
 (function () {
   'use strict';
@@ -185,12 +185,12 @@
         fsa: pc.fsa,
         referralCode: val('wref').trim() || null,
         marketing: !!(cohort && cohort.checked),
-        /* COLLECTED, NOT SENT. None of the three has anywhere to go on this
-           route: it stores a name, an email, a phone, an FSA and a referral
-           code. Kept here so the day a column exists this is a one-line
+        pool: radio('pool'),
+        /* COLLECTED, NOT SENT. Neither has anywhere to go on this route: it
+           stores a name, an email, a phone, an FSA, a referral code and the
+           product. Kept here so the day a column exists this is a one-line
            change, and so nobody reads the form and assumes they are stored. */
         unsentAddress: addr ? addr.value.trim() : null,
-        unsentPool: radio('pool'),
         unsentLang: radio('lang')
       };
 
@@ -203,7 +203,8 @@
         fsa: pending.fsa,
         province: pending.provinceCode,
         provinceCode: pending.provinceCode,
-        referral: pending.referralCode
+        referral: pending.referralCode,
+        poolingFor: pending.pool
       };
       /* CASL: what was agreed to, when, and on which page. The checkbox state
          alone proves nothing a year from now, and the route carries these
@@ -241,7 +242,7 @@
        and tells them what happens next for the product they picked. The
        success panel the canvas drew stays in the markup as the fallback for a
        redirect that cannot happen. */
-    var pool = pending.unsentPool;
+    var pool = pending.pool;
     try {
       window.sessionStorage.setItem(HANDOFF, JSON.stringify({
         firstName: pending.firstName,
@@ -251,7 +252,13 @@
       }));
     } catch (e) { /* a blocked store costs a name on the next screen, nothing more */ }
 
-    var target = '/join-welcome' + (pool ? '?pool=' + encodeURIComponent(pool) : '');
+    /* Two destinations, not one screen with swapped copy. A tire household
+       goes to its own page, which a separate build of the tire journey owns;
+       internet and both go to the internet screen, where "both" keeps its
+       two-cohort copy, since the internet cohort is the one live today. */
+    var target = pool === 'tires'
+      ? '/join-welcome-tires'
+      : '/join-welcome' + (pool ? '?pool=' + encodeURIComponent(pool) : '');
     try {
       window.location.assign(target);
       return;

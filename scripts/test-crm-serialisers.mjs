@@ -46,12 +46,13 @@ ok(!JSON.stringify(bid).includes('58.00'), 'and no price survives anywhere in it
 const hh = serialise('household', {
   first_name: 'Jane', last_name: 'Roy', email: 'j@e.ca', phone: '416', postal: 'M5S 2J7',
   fsa: 'M5S', province: 'ON', city: 'Toronto', provider: 'Bell', speed_tier: '500',
-  cohort_status: 'joined', user_type: 'member', referred_by: 'WHL-1a2b3c4d',
+  cohort_status: 'joined', user_type: 'member', referred_by: 'WHL-1a2b3c4d', pooling_for: 'tires',
   street_address: '12 Elm St', unit: '4', bill_url: 'x', password_hash: 'y', internal_score: 9,
 });
 ok(keys(hh) === 'city,cohort_status,email,first_name,fsa,has_referral,last_name,'
-  + 'phone,postal,provider,province,speed_tier,user_type',
-  'a household is exactly the D2 allowlist');
+  + 'phone,pooling_for,postal,provider,province,speed_tier,user_type',
+  'a household is exactly the D2 allowlist, plus the product asked for on /join');
+ok(hh.pooling_for === 'tires', 'the product asked for on /join leaves as itself');
 ok(hh.has_referral === true, 'a referral becomes presence');
 ok(!('referred_by' in hh), 'and the token itself does not leave');
 ok(serialise('household', {}).has_referral === false, 'no referral is false, not absent');
