@@ -176,6 +176,10 @@ const PAGES = [
      pages keep theirs, because nobody is signed in yet. Deliberately absent
      from this list, and the footer markers are stripped from those files, so
      `--check` has nothing to call stale. */
+  /* join.html is deliberately absent for the same reason as the welcome
+     screens above: it is a single-purpose signup, its whole job is the one
+     form, and it already carries Terms and Privacy in the consent line. It
+     also has no footer markers, so --check has nothing to call stale. */
   { file: 'whollar-login-consumer.html', current: null },
   { file: 'whollar-login-provider.html', current: null },
   { file: 'blog/index.html', current: 'resources' },

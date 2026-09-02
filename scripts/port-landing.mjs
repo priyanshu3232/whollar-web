@@ -120,11 +120,9 @@ im.save(sys.argv[2], 'WEBP', quality=82, method=6)
   written.push([`images/landing/${base}.webp`, statSync(webp).size]);
 }
 
-writeFileSync(join(ROOT, '.port-landing-assets.json'), JSON.stringify(written, null, 2));
 console.log(`assets written: ${written.length}`);
 let total = 0; for (const [, n] of written) total += n;
 console.log(`asset total: ${(total / 1048576).toFixed(2)} MB`);
-writeFileSync(join(ROOT, '.port-landing-stage1.html'), doc);
 
 /* ---------- 3. resolve the canvas markup ---------- */
 
@@ -222,13 +220,10 @@ doc = doc.replace(/<script type="text\/x-dc"[\s\S]*?<\/script>/g, '');
 let helmet = '';
 doc = doc.replace(/<helmet>([\s\S]*?)<\/helmet>/, (_, inner) => { helmet = inner.trim(); return ''; });
 if (!helmet) throw new Error('no helmet block found');
-writeFileSync(join(ROOT, '.port-landing-helmet.html'), helmet);
 
 const leftover = doc.match(/\{\{[^}]*\}\}|sc-[a-z-]+=|<sc-|<helmet|style-hover/g);
 if (leftover) throw new Error(`unconverted canvas syntax: ${[...new Set(leftover)].join(', ')}`);
 
-writeFileSync(join(ROOT, '.port-landing-stage2.html'), doc);
-writeFileSync(join(ROOT, '.port-landing-hover.css'), hoverCss);
 console.log(`hover rules: ${hoverRules.size}`);
 console.log('canvas syntax fully resolved');
 
@@ -256,6 +251,78 @@ for (const [find, repl] of VOCAB) {
 const strayGroup = (doc.replace(/<[^>]+>/g, ' ').match(/\bgroups?\b/gi) || []).length;
 if (strayGroup) throw new Error(`"group" still in visible copy ${strayGroup} time(s)`);
 
+/* ---------- 4b. where the calls to action actually go ---------- */
+
+/* The canvas pointed every button at #join, an in-page email box. The real
+   destinations: signup is its own page now, and the internet card is the door
+   to the current home page, which becomes internet.whollar.ca. Matched on the
+   link's own text, and loud on a miss, because a silently unrewritten CTA is a
+   button that scrolls instead of converting. */
+const CTAS = {
+  'Join Whollar': '/join',
+  'Join the tire cohort': '/join',
+  'Bring Whollar here': '/join',
+  'Bring Whollar to my city': '/join',
+  /* The current home page, which is the internet product. At cutover this
+     becomes https://internet.whollar.ca; root-relative until that DNS exists,
+     so staging and production both resolve it today. */
+  'Explore internet': '/',
+};
+const seen = new Set();
+doc = doc.replace(/<a\s[^>]*href="#join"[^>]*>[\s\S]*?<\/a>/g, (a) => {
+  const text = a.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const target = Object.keys(CTAS).find(k => text === k || text.startsWith(k));
+  if (!target) throw new Error(`a #join link with unmapped text: "${text}"`);
+  seen.add(target);
+  return a.replace('href="#join"', `href="${CTAS[target]}"`);
+});
+for (const label of Object.keys(CTAS)) {
+  if (!seen.has(label)) throw new Error(`CTA never matched: ${label}`);
+}
+if (/href="#join"/.test(doc)) throw new Error('a CTA still points at #join');
+
+/* The inline email box goes to the same place. As the canvas built it, it
+   claimed "We sent a confirmation" and sent nothing; now it carries whatever
+   was typed to /join so nobody retypes it. */
+if (!doc.includes('data-lp-action="join"')) throw new Error('inline join button missing');
+doc = doc.replace('<button data-lp-action="join"', '<button type="button" data-lp-action="join-go"');
+
+/* ---------- 4c. vertical rhythm ---------- */
+
+/* The canvas was drawn on a tall artboard, and its section padding reads as
+   dead space in a browser: a nav click lands on a screen whose first line is
+   112px down and whose last sits 152px above the fold. Same sections, same
+   order, tightened. Counted and loud on a miss, so a canvas edit that renames
+   a padding value fails the port instead of silently keeping the old spacing.
+
+   The scroll anchor goes with it: --wh-head is measured off the sticky header
+   in js/landing.js, because that header wraps on narrow screens and a constant
+   either tucks a section title behind the bar or leaves a gap above it. */
+const RHYTHM = [
+  /* the section shells */
+  ['padding:clamp(64px,8vw,112px) 0', 'padding:clamp(44px,5vw,76px) 0', 8],
+  ['padding:clamp(48px,6vw,80px) 0 clamp(64px,7vw,104px)', 'padding:clamp(28px,3.4vw,48px) 0 clamp(36px,4.4vw,64px)', 1],
+  /* the gap between a section heading and the cards under it */
+  ['margin:0 auto clamp(44px,5vw,68px)', 'margin:0 auto clamp(26px,3vw,42px)', 1],
+  ['margin:0 auto clamp(40px,4.5vw,60px)', 'margin:0 auto clamp(24px,2.8vw,40px)', 1],
+  ['margin:0 auto clamp(38px,4vw,56px)', 'margin:0 auto clamp(24px,2.6vw,38px)', 2],
+  ['margin:0 auto clamp(36px,4vw,56px)', 'margin:0 auto clamp(24px,2.6vw,38px)', 1],
+  ['margin:0 auto clamp(32px,3.6vw,48px)', 'margin:0 auto clamp(22px,2.4vw,34px)', 1],
+  ['margin-bottom:clamp(32px,3.6vw,48px)', 'margin-bottom:clamp(22px,2.4vw,34px)', 1],
+  ['margin:0 auto clamp(28px,3vw,40px)', 'margin:0 auto clamp(20px,2.2vw,30px)', 1],
+  ['margin-top:clamp(28px,3vw,40px)', 'margin-top:clamp(20px,2.2vw,28px)', 1],
+  /* the pinned word reveal: same animation, less scrolling to get through it */
+  ['height:340vh', 'height:260vh', 1],
+  /* where a nav click stops */
+  ['scroll-padding-top:100px', 'scroll-padding-top:var(--wh-head,92px)', 1],
+];
+for (const [find, repl, n] of RHYTHM) {
+  const hits = doc.split(find).length - 1;
+  if (hits !== n) throw new Error(`rhythm: expected ${n} of "${find}", found ${hits}`);
+  doc = doc.split(find).join(repl);
+}
+console.log(`rhythm rules applied: ${RHYTHM.length}`);
+
 /* ---------- 5. the page, assembled ---------- */
 
 /* The design's own footer goes: every page's footer comes from
@@ -274,7 +341,7 @@ const body = doc.slice(doc.indexOf('<body>') + 6, doc.indexOf('</body>')).trim()
 const helmetOut = helmet
   .replace(/<link rel="preconnect"[^>]*>\s*/g, '');
 
-const STAMP = '20260902';
+const STAMP = '20260902a';
 const page = `<!DOCTYPE html>
 <html lang="en">
 <head>

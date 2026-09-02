@@ -171,3 +171,13 @@ whollargreystonewalkcohortpage.html
 # content spec, none of which belong on the public site. Kept in the repo so the
 # port into a real page can be checked against its source.
 Landingpagedesignstructure
+
+# The waitlist design sources: commonwaitlist.html is the cut /join was ported
+# from, and commonwaitlist/ holds an older one (account creation with a
+# password) plus the brand sheet and the uploads behind both. Same three
+# reasons as the landing design above. cleanUrls would publish the raw pages at
+# their own paths with no guard and no noindex, they are self-unpacking bundles
+# whose runtime the CSP blocks anyway, and uploads/ is working material. Kept
+# in the repo so the port can be checked against its source.
+commonwaitlist.html
+commonwaitlist

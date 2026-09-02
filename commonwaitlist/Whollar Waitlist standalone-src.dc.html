@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+<template id="__bundler_thumbnail" data-bg-color="#0E2A20">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#0E2A20"/>
+    <rect x="450" y="200" width="300" height="300" rx="88" fill="#FCFAF5"/>
+    <path d="M528 305h144M528 305l72 106M672 305l-72 106" stroke="#1E4D38" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
+    <circle cx="528" cy="305" r="31" fill="#1E4D38"/>
+    <circle cx="672" cy="305" r="31" fill="#1E4D38"/>
+    <circle cx="600" cy="411" r="31" fill="#1E4D38"/>
+    <rect x="470" y="560" width="260" height="20" rx="10" fill="#7FE3B0" opacity=".9"/>
+    <rect x="530" y="608" width="140" height="14" rx="7" fill="#A9C7B5" opacity=".6"/>
+  </svg>
+</template>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Join the waitlist · Whollar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:'Inter',system-ui,sans-serif;background:#F1EDE2;color:#1A2520;font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3,p{margin:0}
+a{color:#1E4D38;text-decoration:none}
+a:hover{color:#2C6A4E}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input{font:inherit;color:#1A2520}
+:focus-visible{outline:2.5px solid #2C6A4E;outline-offset:2px;border-radius:8px}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(126,227,176,.35)}55%{box-shadow:0 0 0 7px rgba(126,227,176,0)}}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes sc1{0%{opacity:0;transform:translateY(14px)}2.4%{opacity:1;transform:none}30.5%{opacity:1;transform:none}33.3%{opacity:0;transform:translateY(-10px)}100%{opacity:0;transform:translateY(14px)}}
+@keyframes sc2{0%,33.3%{opacity:0;transform:translateY(14px)}35.7%{opacity:1;transform:none}63.8%{opacity:1;transform:none}66.6%{opacity:0;transform:translateY(-10px)}100%{opacity:0;transform:translateY(14px)}}
+@keyframes sc3{0%,66.6%{opacity:0;transform:translateY(14px)}69%{opacity:1;transform:none}97.1%{opacity:1;transform:none}99.9%{opacity:0;transform:translateY(-10px)}100%{opacity:0;transform:translateY(14px)}}
+@keyframes s1r1{0%,3%{opacity:0;transform:translateX(-18px);filter:blur(7px)}7.2%,33.3%{opacity:1;transform:none;filter:blur(0)}33.4%,100%{opacity:0;transform:translateX(-18px);filter:blur(7px)}}
+@keyframes s1r2{0%,7%{opacity:0;transform:translateX(-18px);filter:blur(7px)}11.2%,33.3%{opacity:1;transform:none;filter:blur(0)}33.4%,100%{opacity:0;transform:translateX(-18px);filter:blur(7px)}}
+@keyframes s1r3{0%,11%{opacity:0;transform:translateX(-18px);filter:blur(7px)}15.2%,33.3%{opacity:1;transform:none;filter:blur(0)}33.4%,100%{opacity:0;transform:translateX(-18px);filter:blur(7px)}}
+@keyframes s1r4{0%,15%{opacity:0;transform:translateX(-18px);filter:blur(7px)}19.4%,33.3%{opacity:1;transform:none;filter:blur(0)}33.4%,100%{opacity:0;transform:translateX(-18px);filter:blur(7px)}}
+@keyframes s1bar1{0%,4%{width:0}9%,33.3%{width:100%}33.4%,100%{width:0}}
+@keyframes s1bar2{0%,8%{width:0}13%,33.3%{width:79%}33.4%,100%{width:0}}
+@keyframes s1bar3{0%,12%{width:0}17%,33.3%{width:63%}33.4%,100%{width:0}}
+@keyframes s1bar4{0%,16%{width:0}21%,33.3%{width:49%}33.4%,100%{width:0}}
+@keyframes s1pop{0%,18.5%{opacity:0;transform:translateY(6px) scale(.94)}21.5%{opacity:1;transform:translateY(0) scale(1.06)}23%,33.3%{opacity:1;transform:none}33.4%,100%{opacity:0;transform:translateY(6px) scale(.94)}}
+@keyframes s2rows{0%,34.5%{opacity:0;transform:translateY(10px)}37.5%,66.6%{opacity:1;transform:none}66.7%,100%{opacity:0;transform:translateY(10px)}}
+@keyframes s2b1{0%,39%{transform:translateY(0)}41%,66.6%{transform:translateY(-22px)}66.7%,100%{transform:translateY(0)}}
+@keyframes s2b2{0%,42%{transform:translateY(0)}44%,66.6%{transform:translateY(-22px)}66.7%,100%{transform:translateY(0)}}
+@keyframes s2b3{0%,45%{transform:translateY(0)}47%,66.6%{transform:translateY(-22px)}66.7%,100%{transform:translateY(0)}}
+@keyframes s2b4{0%,48%{transform:translateY(0)}50%,66.6%{transform:translateY(-22px)}66.7%,100%{transform:translateY(0)}}
+@keyframes s2win{0%,51%{border-color:#E1DBCB;background:#FCFAF5;box-shadow:0 0 0 0 rgba(44,106,78,0)}54.5%,66.6%{border-color:#2C6A4E;background:#EFF7EF;box-shadow:0 0 0 3px rgba(44,106,78,.14)}66.7%,100%{border-color:#E1DBCB;background:#FCFAF5;box-shadow:0 0 0 0 rgba(44,106,78,0)}}
+@keyframes s2chip{0%,52.5%{opacity:0;transform:scale(.9)}55.5%,66.6%{opacity:1;transform:none}66.7%,100%{opacity:0;transform:scale(.9)}}
+@keyframes s2tick{0%,35%{opacity:.25}36%{opacity:1}38%{opacity:.25}40%{opacity:1}42%{opacity:.25}44%{opacity:1}46%{opacity:.25}48%{opacity:1}50%{opacity:.25}52%{opacity:1}54%,66.6%{opacity:.25}66.7%,100%{opacity:.25}}
+@keyframes s3card{0%,67.5%{opacity:0;transform:translateY(12px)}71%,99.4%{opacity:1;transform:none}100%{opacity:0;transform:translateY(12px)}}
+@keyframes s3roll{0%,73%{left:1%;transform:rotate(0deg);opacity:0}74.5%{left:5%;transform:rotate(70deg);opacity:1}86%,99.4%{left:calc(100% - 34px);transform:rotate(760deg);opacity:1}100%{opacity:0}}
+@keyframes s3price{0%,76.5%{transform:translateY(0)}79.5%{transform:translateY(-30px)}82.5%{transform:translateY(-60px)}85.5%,99.4%{transform:translateY(-90px)}100%{transform:translateY(0)}}
+@keyframes s3win{0%,85%{border-color:#E1DBCB;background:#FCFAF5;box-shadow:0 0 0 0 rgba(44,106,78,0)}88.5%,99.4%{border-color:#2C6A4E;background:#EFF7EF;box-shadow:0 0 0 3px rgba(44,106,78,.14)}100%{border-color:#E1DBCB;background:#FCFAF5;box-shadow:0 0 0 0 rgba(44,106,78,0)}}
+@keyframes s3save{0%,90%{opacity:0;transform:translateY(8px) scale(.94)}93.5%,99.4%{opacity:1;transform:none}100%{opacity:0;transform:translateY(8px) scale(.94)}}
+@keyframes pf1{0%{width:0}33.2%{width:100%}33.4%,100%{width:0}}
+@keyframes pf2{0%,33.3%{width:0}66.5%{width:100%}66.7%,100%{width:0}}
+@keyframes pf3{0%,66.6%{width:0}99.8%{width:100%}100%{width:0}}
+@media (prefers-reduced-motion:reduce){#wl-badge-dot{animation:none !important}}
+</style>
+</helmet>
+
+<div ref="{{ rootRef }}" style="height:100dvh;min-height:560px;display:grid;grid-template-columns:1.02fr .98fr;background:#F1EDE2;overflow:hidden">
+
+<div data-screen-label="Waitlist · left" style="position:relative;background:linear-gradient(158deg,#0E2A20,#1A4A35 58%,#123B2B);padding:clamp(20px,2.4vw,34px) clamp(20px,2.8vw,40px);display:flex;flex-direction:column;gap:clamp(14px,1.8vh,22px);overflow:hidden;min-width:0">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex:none">
+    <a href="https://www.whollar.com/" aria-label="Whollar home" style="display:flex;align-items:center;gap:10px">
+      <svg viewBox="0 0 120 120" aria-hidden="true" style="width:28px;height:28px;flex:none"><rect x="6" y="6" width="108" height="108" rx="32" fill="#FCFAF5"></rect><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#1E4D38" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"></path><circle cx="34" cy="42" r="11" fill="#1E4D38"></circle><circle cx="86" cy="42" r="11" fill="#1E4D38"></circle><circle cx="60" cy="80" r="11" fill="#1E4D38"></circle></svg>
+      <b style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:19px;letter-spacing:-.02em;color:#fff">Whollar</b>
+    </a>
+    <a href="https://www.whollar.com/" style="font-size:12.5px;font-weight:600;color:#A9C7B5;border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:6px 13px;transition:background .15s,color .15s;white-space:nowrap" style-hover="background:rgba(255,255,255,.09);color:#fff">← Back to home</a>
+  </div>
+
+  <div style="flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;gap:clamp(14px,2.4vh,26px)">
+  <div style="flex:none">
+    <span style="display:inline-flex;align-items:center;gap:8px;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#BFE6CE;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:5px 12px;margin-bottom:13px;white-space:nowrap">
+      <i id="wl-badge-dot" style="width:6px;height:6px;border-radius:50%;background:#7FE3B0;animation:pulse 2.4s ease-in-out infinite"></i> Founding members
+    </span>
+    <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-size:clamp(26px,2.9vw,40px);font-weight:800;line-height:1.03;letter-spacing:-.032em;color:#fff;text-wrap:balance">Become a founding member of Whollar.</h1>
+    <p style="font-size:clamp(14px,1.15vw,16px);color:#C2D8C9;max-width:44ch;margin-top:11px;text-wrap:pretty">Join to <b style="color:#fff;font-weight:600">shrink your bill</b>, to make this market <b style="color:#fff;font-weight:600">explain itself</b>, and to be <b style="color:#fff;font-weight:600">inside before what's next goes public</b>.</p>
+  </div>
+
+  <div style="flex:none;display:flex;flex-direction:column;gap:10px;margin-top:clamp(10px,1.8vh,22px)">
+    <div style="position:relative;flex:none;height:clamp(238px,30vh,272px);border-radius:20px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(165deg,#EDF3EA,#E4EDE2 55%,#DEE9DC);box-shadow:0 20px 50px rgba(0,0,0,.28);overflow:hidden">
+
+      <div data-anim style="position:absolute;inset:0;padding:14px clamp(14px,1.8vw,22px);display:flex;flex-direction:column;animation:sc1 18s linear infinite">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <span style="font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#1E4D38;white-space:nowrap">Bulk pricing</span>
+          <span style="font-size:10.5px;font-weight:600;color:#5B655C;background:rgba(252,250,245,.7);border:1px solid #D3DFD1;border-radius:999px;padding:3px 9px;white-space:nowrap">Same plan, same street</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:clamp(6px,1vh,11px);margin:auto 0">
+          <div data-anim style="display:grid;grid-template-columns:78px 1fr 62px;align-items:center;gap:10px;animation:s1r1 18s linear infinite">
+            <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:#5B655C">1 buyer</span>
+            <div style="height:11px;border-radius:6px;background:rgba(255,255,255,.55);overflow:hidden"><i data-anim style="display:block;height:100%;width:100%;border-radius:6px;background:#B9CDBB;animation:s1bar1 18s cubic-bezier(.2,.8,.3,1) infinite"></i></div>
+            <span style="font-family:'Space Mono',monospace;font-size:15px;font-weight:700;text-align:right;color:#3D473F">$94</span>
+          </div>
+          <div data-anim style="display:grid;grid-template-columns:78px 1fr 62px;align-items:center;gap:10px;animation:s1r2 18s linear infinite">
+            <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:#5B655C">12 buyers</span>
+            <div style="height:11px;border-radius:6px;background:rgba(255,255,255,.55);overflow:hidden"><i data-anim style="display:block;height:100%;width:79%;border-radius:6px;background:#A3C4A8;animation:s1bar2 18s cubic-bezier(.2,.8,.3,1) infinite"></i></div>
+            <span style="font-family:'Space Mono',monospace;font-size:15px;font-weight:700;text-align:right;color:#3D473F">$81</span>
+          </div>
+          <div data-anim style="display:grid;grid-template-columns:78px 1fr 62px;align-items:center;gap:10px;animation:s1r3 18s linear infinite">
+            <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:#5B655C">47 buyers</span>
+            <div style="height:11px;border-radius:6px;background:rgba(255,255,255,.55);overflow:hidden"><i data-anim style="display:block;height:100%;width:63%;border-radius:6px;background:#71A97F;animation:s1bar3 18s cubic-bezier(.2,.8,.3,1) infinite"></i></div>
+            <span style="font-family:'Space Mono',monospace;font-size:15px;font-weight:700;text-align:right;color:#3D473F">$67</span>
+          </div>
+          <div data-anim style="display:grid;grid-template-columns:78px 1fr 62px;align-items:center;gap:10px;background:rgba(252,250,245,.78);border:1px solid #C3D8C4;border-radius:11px;padding:7px 9px;margin:0 -9px;animation:s1r4 18s linear infinite">
+            <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:#1E4D38">128 buyers</span>
+            <div style="height:11px;border-radius:6px;background:#E0E9DE;overflow:hidden"><i data-anim style="display:block;height:100%;width:49%;border-radius:6px;background:linear-gradient(90deg,#1E4D38,#3E9E6E);animation:s1bar4 18s cubic-bezier(.2,.8,.3,1) infinite"></i></div>
+            <span style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;text-align:right;color:#1E4D38">$58</span>
+          </div>
+          <div data-anim style="display:flex;justify-content:flex-end;align-items:center;gap:8px;animation:s1pop 18s cubic-bezier(.2,.8,.3,1) infinite">
+            <span style="font-size:11px;color:#9A968B;text-decoration:line-through;font-family:'Space Mono',monospace">$94</span>
+            <span style="font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;background:#1E4D38;color:#fff;border-radius:999px;padding:4px 10px">Group rate unlocked</span>
+          </div>
+        </div>
+        <p style="font-size:11.5px;color:#4A5249;line-height:1.4">Buying alone hides the price. Buying in bulk shows it, and drops it.</p>
+      </div>
+
+      <div data-anim style="position:absolute;inset:0;padding:14px clamp(14px,1.8vw,22px);display:flex;flex-direction:column;animation:sc2 18s linear infinite">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <span style="font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#1E4D38;white-space:nowrap">Internet · 44 homes</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;color:#8C4622;background:rgba(252,250,245,.75);border:1px solid #E7CFB9;border-radius:999px;padding:3px 9px;white-space:nowrap"><i data-anim style="width:5px;height:5px;border-radius:50%;background:#B0512B;animation:s2tick 18s steps(1,end) infinite"></i>BIDS CLOSE 23:47</span>
+        </div>
+        <div data-anim style="display:flex;flex-direction:column;gap:6px;margin:auto 0;animation:s2rows 18s cubic-bezier(.2,.8,.3,1) infinite">
+          <div style="display:grid;grid-template-columns:66px 1fr 66px;align-items:center;gap:10px;background:#FCFAF5;border:1.5px solid #E1DBCB;border-radius:11px;padding:5px 11px">
+            <sc-if value="{{ providerLogos }}" hint-placeholder-val="{{ true }}"><img src="https://www.whollar.com/images/index-assets/89d33839d374.png" alt="Bell" style="height:14px;width:auto;max-width:60px;object-fit:contain;object-position:left;mix-blend-mode:multiply;font-size:12px;font-weight:700;color:#1A2520"></sc-if>
+            <sc-if value="{{ providerText }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;font-weight:700">Bell</span></sc-if>
+            <span style="font-size:11.5px;color:#5B655C">1.5 Gbps fibre</span>
+            <div style="height:22px;overflow:hidden;text-align:right"><div data-anim style="animation:s2b1 18s cubic-bezier(.5,0,.2,1) infinite"><div style="height:22px;font-family:'Space Mono',monospace;font-size:14px;line-height:22px;color:#A8A497">$ — —</div><div style="height:22px;font-family:'Space Mono',monospace;font-size:16px;font-weight:700;line-height:22px;color:#1A2520">$61</div></div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:66px 1fr 66px;align-items:center;gap:10px;background:#FCFAF5;border:1.5px solid #E1DBCB;border-radius:11px;padding:5px 11px">
+            <sc-if value="{{ providerLogos }}" hint-placeholder-val="{{ true }}"><img src="https://www.whollar.com/images/index-assets/c8634f25d32d.svg" alt="Rogers" style="height:14px;width:auto;max-width:60px;object-fit:contain;object-position:left;mix-blend-mode:multiply;font-size:12px;font-weight:700;color:#1A2520"></sc-if>
+            <sc-if value="{{ providerText }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;font-weight:700">Rogers</span></sc-if>
+            <span style="font-size:11.5px;color:#5B655C">1 Gbps cable</span>
+            <div style="height:22px;overflow:hidden;text-align:right"><div data-anim style="animation:s2b2 18s cubic-bezier(.5,0,.2,1) infinite"><div style="height:22px;font-family:'Space Mono',monospace;font-size:14px;line-height:22px;color:#A8A497">$ — —</div><div style="height:22px;font-family:'Space Mono',monospace;font-size:16px;font-weight:700;line-height:22px;color:#1A2520">$59</div></div></div>
+          </div>
+          <div data-anim style="position:relative;display:grid;grid-template-columns:66px 1fr 66px;align-items:center;gap:10px;background:#FCFAF5;border:1.5px solid #E1DBCB;border-radius:11px;padding:5px 11px;animation:s2win 18s cubic-bezier(.2,.8,.3,1) infinite">
+            <span data-anim style="position:absolute;top:-8px;left:11px;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:#1E4D38;color:#fff;border-radius:999px;padding:2px 8px;box-shadow:0 2px 6px rgba(26,37,32,.2);animation:s2chip 18s cubic-bezier(.2,.8,.3,1) infinite">Lowest bid</span>
+            <sc-if value="{{ providerLogos }}" hint-placeholder-val="{{ true }}"><img src="https://www.whollar.com/images/index-assets/1372ac5c779a.jpg" alt="TekSavvy" style="height:14px;width:auto;max-width:60px;object-fit:contain;object-position:left;mix-blend-mode:multiply;font-size:12px;font-weight:700;color:#1A2520"></sc-if>
+            <sc-if value="{{ providerText }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;font-weight:700">TekSavvy</span></sc-if>
+            <span style="font-size:11.5px;color:#5B655C">1 Gbps fibre</span>
+            <div style="height:22px;overflow:hidden;text-align:right"><div data-anim style="animation:s2b3 18s cubic-bezier(.5,0,.2,1) infinite"><div style="height:22px;font-family:'Space Mono',monospace;font-size:14px;line-height:22px;color:#A8A497">$ — —</div><div style="height:22px;font-family:'Space Mono',monospace;font-size:18px;font-weight:700;line-height:22px;color:#1E4D38">$54</div></div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:66px 1fr 66px;align-items:center;gap:10px;background:#FCFAF5;border:1.5px solid #E1DBCB;border-radius:11px;padding:5px 11px">
+            <sc-if value="{{ providerLogos }}" hint-placeholder-val="{{ true }}"><img src="https://www.whollar.com/images/index-assets/6cc0936caab4.svg" alt="Oxio" style="height:14px;width:auto;max-width:60px;object-fit:contain;object-position:left;mix-blend-mode:multiply;font-size:12px;font-weight:700;color:#1A2520"></sc-if>
+            <sc-if value="{{ providerText }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;font-weight:700">Oxio</span></sc-if>
+            <span style="font-size:11.5px;color:#5B655C">500 Mbps cable</span>
+            <div style="height:22px;overflow:hidden;text-align:right"><div data-anim style="animation:s2b4 18s cubic-bezier(.5,0,.2,1) infinite"><div style="height:22px;font-family:'Space Mono',monospace;font-size:14px;line-height:22px;color:#A8A497">$ — —</div><div style="height:22px;font-family:'Space Mono',monospace;font-size:16px;font-weight:700;line-height:22px;color:#1A2520">$62</div></div></div>
+          </div>
+        </div>
+        <p style="font-size:11.5px;color:#4A5249;line-height:1.4">Providers bid for the whole street. You keep the lowest one. <span style="color:#8A8578">Illustrative bids.</span></p>
+      </div>
+
+      <div data-anim style="position:absolute;inset:0;padding:14px clamp(14px,1.8vw,22px);display:flex;flex-direction:column;animation:sc3 18s linear infinite">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <span style="font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#8C4622;white-space:nowrap">Winter tires · installed</span>
+          <span data-anim style="font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;background:#1E4D38;color:#fff;border-radius:999px;padding:4px 10px;white-space:nowrap;animation:s3save 18s cubic-bezier(.2,.8,.3,1) infinite">You keep $380</span>
+        </div>
+        <div style="margin:auto 0">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:clamp(9px,1.2vw,14px);align-items:stretch">
+            <div data-anim style="background:#FCFAF5;border:1.5px solid #E7CFB9;border-radius:13px;padding:12px;display:flex;flex-direction:column;gap:3px;animation:s3card 18s cubic-bezier(.2,.8,.3,1) infinite">
+              <span style="font-size:11px;font-weight:700;color:#8C4622">Walk in on your own</span>
+              <span style="font-family:'Space Mono',monospace;font-size:clamp(20px,2.1vw,26px);font-weight:700;line-height:1.15;color:#8C4622">$1,240</span>
+              <span style="font-size:11px;color:#8C7A66">Sticker price · you negotiate nothing</span>
+            </div>
+            <div data-anim style="background:#FCFAF5;border:1.5px solid #E1DBCB;border-radius:13px;padding:12px;display:flex;flex-direction:column;gap:3px;animation:s3card 18s cubic-bezier(.2,.8,.3,1) infinite,s3win 18s cubic-bezier(.2,.8,.3,1) infinite">
+              <span style="font-size:11px;font-weight:700;color:#1E4D38">Whollar claimed dealership</span>
+              <div style="height:30px;overflow:hidden"><div data-anim style="animation:s3price 18s cubic-bezier(.5,0,.2,1) infinite">
+                <div style="height:30px;font-family:'Space Mono',monospace;font-size:clamp(20px,2.1vw,26px);font-weight:700;line-height:30px;color:#9A968B">$1,240</div>
+                <div style="height:30px;font-family:'Space Mono',monospace;font-size:clamp(20px,2.1vw,26px);font-weight:700;line-height:30px;color:#6E7C6C">$1,090</div>
+                <div style="height:30px;font-family:'Space Mono',monospace;font-size:clamp(20px,2.1vw,26px);font-weight:700;line-height:30px;color:#3E7A5A">$980</div>
+                <div style="height:30px;font-family:'Space Mono',monospace;font-size:clamp(20px,2.1vw,26px);font-weight:700;line-height:30px;color:#1E4D38">$860</div>
+              </div></div>
+              <span style="font-size:11px;color:#5B655C">Group rate · mount, balance, install</span>
+            </div>
+          </div>
+          <div style="position:relative;height:32px;margin-top:8px">
+            <div style="position:absolute;left:0;right:0;top:21px;height:2px;border-radius:2px;background:repeating-linear-gradient(90deg,#C6D3C4 0 8px,transparent 8px 16px)"></div>
+            <div data-anim style="position:absolute;top:3px;left:1%;width:30px;height:30px;border-radius:50%;border:5px solid #0E2A20;background:#DCEBDF;box-shadow:0 4px 10px rgba(14,42,32,.22);animation:s3roll 18s cubic-bezier(.35,0,.3,1) infinite">
+              <i style="position:absolute;left:50%;top:1px;width:2px;height:18px;margin-left:-1px;background:#0E2A20;opacity:.5"></i>
+              <i style="position:absolute;top:50%;left:1px;height:2px;width:18px;margin-top:-1px;background:#0E2A20;opacity:.5"></i>
+              <i style="position:absolute;left:50%;top:1px;width:2px;height:18px;margin-left:-1px;background:#0E2A20;opacity:.5;transform:rotate(45deg)"></i>
+              <i style="position:absolute;left:50%;top:1px;width:2px;height:18px;margin-left:-1px;background:#0E2A20;opacity:.5;transform:rotate(-45deg)"></i>
+              <i style="position:absolute;left:50%;top:50%;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;background:#0E2A20"></i>
+            </div>
+          </div>
+        </div>
+        <p style="font-size:11.5px;color:#4A5249;line-height:1.4">Same tires, same install. One street ordering together moves the number.</p>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:14px;flex:none">
+      <span style="font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#A9C7B5;white-space:nowrap">Your street · <b style="color:#7FE3B0">18</b>/25 joined</span>
+      <div style="flex:1;display:flex;gap:6px">
+        <div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.16);overflow:hidden"><i data-anim style="display:block;height:100%;width:0;background:#7FE3B0;animation:pf1 18s linear infinite"></i></div>
+        <div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.16);overflow:hidden"><i data-anim style="display:block;height:100%;width:0;background:#7FE3B0;animation:pf2 18s linear infinite"></i></div>
+        <div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.16);overflow:hidden"><i data-anim style="display:block;height:100%;width:0;background:#7FE3B0;animation:pf3 18s linear infinite"></i></div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<div data-screen-label="Waitlist · form" style="background:#F1EDE2;padding:clamp(20px,2.4vw,34px) clamp(20px,2.8vw,44px);display:block;overflow-y:auto;min-width:0">
+  <div style="width:100%;max-width:500px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;justify-content:center">
+
+    <sc-if value="{{ notJoined }}" hint-placeholder-val="{{ true }}">
+      <div>
+        <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-size:clamp(20px,1.9vw,25px);font-weight:800;letter-spacing:-.025em">Create your account</h2>
+
+        <form onSubmit="{{ onSubmit }}" noValidate="{{ true }}" style="display:flex;flex-direction:column;gap:9px;background:#FCFAF5;border:1px solid #E1DBCB;border-radius:18px;padding:clamp(13px,1.4vw,17px);margin-top:12px;box-shadow:0 1px 2px rgba(26,37,32,.05),0 12px 30px rgba(26,37,32,.07)">
+
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div>
+              <label for="wname" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">What should we call you?</label>
+              <input ref="{{ nameRef }}" id="wname" name="name" placeholder="Priya" autoComplete="given-name" required="{{ true }}" style="width:100%;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:7px 12px;font-size:14px;transition:border-color .15s,box-shadow .15s" style-focus="outline:none;border-color:#2C6A4E;box-shadow:0 0 0 3px rgba(44,106,78,.13)">
+            </div>
+            <div>
+              <label for="wemail" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">Email</label>
+              <input ref="{{ emailRef }}" type="email" id="wemail" name="email" placeholder="you@email.com" autoComplete="email" required="{{ true }}" style="width:100%;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:7px 12px;font-size:14px;transition:border-color .15s,box-shadow .15s" style-focus="outline:none;border-color:#2C6A4E;box-shadow:0 0 0 3px rgba(44,106,78,.13)">
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div>
+              <label for="wpass" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">Password</label>
+              <input ref="{{ passRef }}" type="password" id="wpass" name="password" placeholder="••••••••••" autoComplete="new-password" required="{{ true }}" style="width:100%;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:7px 12px;font-size:14px;transition:border-color .15s,box-shadow .15s" style-focus="outline:none;border-color:#2C6A4E;box-shadow:0 0 0 3px rgba(44,106,78,.13)">
+            </div>
+            <div>
+              <label for="wphone" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">A number to text when bids land</label>
+              <input ref="{{ phoneRef }}" type="tel" id="wphone" name="phone" placeholder="(416) 555 0134" autoComplete="tel" style="width:100%;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:7px 12px;font-size:14px;transition:border-color .15s,box-shadow .15s" style-focus="outline:none;border-color:#2C6A4E;box-shadow:0 0 0 3px rgba(44,106,78,.13)">
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div>
+              <label for="wpostal" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">Postal code</label>
+              <input ref="{{ postalRef }}" id="wpostal" name="postal" placeholder="M1B 2K3" autoComplete="postal-code" maxLength="7" required="{{ true }}" style="width:100%;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:7px 12px;font-size:14px;font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:.04em;transition:border-color .15s,box-shadow .15s" style-focus="outline:none;border-color:#2C6A4E;box-shadow:0 0 0 3px rgba(44,106,78,.13)">
+            </div>
+            <sc-if value="{{ refClosed }}" hint-placeholder-val="{{ true }}">
+              <button type="button" onClick="{{ onOpenRef }}" style="align-self:flex-start;font-size:12.5px;font-weight:650;color:#1E4D38;text-decoration:underline;text-underline-offset:3px;padding:2px 0" style-hover="color:#2C6A4E">Have a referral code?</button>
+            </sc-if>
+            <sc-if value="{{ refOpen }}" hint-placeholder-val="{{ false }}">
+              <div>
+                <label for="wref" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">Have a referral code?</label>
+                <input ref="{{ refRef }}" id="wref" name="referral" placeholder="Referral code or a neighbour's email" style="width:100%;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:7px 12px;font-size:14px;transition:border-color .15s,box-shadow .15s" style-focus="outline:none;border-color:#2C6A4E;box-shadow:0 0 0 3px rgba(44,106,78,.13)">
+              </div>
+            </sc-if>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:11px;padding-top:3px">
+            <label style="display:flex;gap:9px;align-items:flex-start;font-size:12px;line-height:1.4;color:#43413B;cursor:pointer">
+              <input ref="{{ termsRef }}" type="checkbox" id="wterms" name="terms" required="{{ true }}" style="margin-top:2px;width:15px;height:15px;accent-color:#1E4D38;flex:none">
+              <span>I accept the <a href="https://www.whollar.com/terms" style="text-decoration:underline;text-underline-offset:2px">Terms</a> and <a href="https://www.whollar.com/privacy" style="text-decoration:underline;text-underline-offset:2px">Privacy Policy</a>.</span>
+            </label>
+            <label style="display:flex;gap:9px;align-items:flex-start;font-size:12px;line-height:1.4;color:#43413B;cursor:pointer">
+              <input ref="{{ newsRef }}" type="checkbox" id="wnews" name="news" style="margin-top:2px;width:15px;height:15px;accent-color:#1E4D38;flex:none">
+              <span>Count me in for further Product updates</span>
+            </label>
+          </div>
+
+          <sc-if value="{{ hasError }}" hint-placeholder-val="{{ false }}">
+            <p role="alert" style="font-size:12.5px;font-weight:600;color:#B0512B;background:#FBEDE4;border:1px solid #E7CFB9;border-radius:10px;padding:8px 11px">{{ error }}</p>
+          </sc-if>
+
+          <button type="submit" style="width:100%;padding:11px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:650;border-radius:11px;font-size:14.5px;background:#1E4D38;color:#fff;box-shadow:0 1px 2px rgba(20,50,36,.25),0 8px 18px rgba(30,77,56,.22);transition:transform .16s cubic-bezier(.2,.8,.3,1),background .15s,box-shadow .2s" style-hover="background:#17402E;transform:translateY(-2px);box-shadow:0 2px 4px rgba(20,50,36,.28),0 16px 30px rgba(30,77,56,.26)">Become a founding member</button>
+        </form>
+
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ joined }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:rise .5s ease both">
+        <div style="width:48px;height:48px;border-radius:50%;background:#1E4D38;display:grid;place-items:center;margin-bottom:14px"><svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round"><path d="M4 12l6 6L20 6"></path></svg></div>
+        <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#2C6A4E">You're a founding member</span>
+        <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-size:clamp(23px,2.4vw,30px);font-weight:800;letter-spacing:-.025em;margin-top:6px">Welcome to the Whollar family</h2>
+        <p style="font-size:14px;color:#4A5249;margin-top:9px;max-width:44ch;text-wrap:pretty">Let's make pricing transparent. You just joined the households rewriting how internet is bought in Canada.</p>
+        <div style="background:#FCFAF5;border:1px solid #E1DBCB;border-radius:16px;padding:18px;margin-top:16px;display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+          <span style="font-size:13px;color:#5B655C">Your area</span>
+          <b style="font-family:'Space Mono',monospace;font-size:14px;letter-spacing:.04em">{{ doneArea }}</b>
+        </div>
+        <button type="button" onClick="{{ onReset }}" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:650;border-radius:11px;padding:11px 17px;font-size:14px;background:#1E4D38;color:#fff;margin-top:16px;transition:transform .16s cubic-bezier(.2,.8,.3,1),background .15s" style-hover="background:#17402E;transform:translateY(-2px)">Add someone else</button>
+      </div>
+    </sc-if>
+  </div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;sceneSeconds&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:6,&quot;min&quot;:3,&quot;max&quot;:12,&quot;step&quot;:0.5,&quot;unit&quot;:&quot;s&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Animation&quot;},&quot;providerLogos&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Animation&quot;}}">
+class Component extends DCLogic {
+  rootRef = React.createRef();
+  nameRef = React.createRef();
+  emailRef = React.createRef();
+  passRef = React.createRef();
+  phoneRef = React.createRef();
+  postalRef = React.createRef();
+  refRef = React.createRef();
+  termsRef = React.createRef();
+  newsRef = React.createRef();
+
+  state = { error: '', joined: false, doneArea: '', refOpen: false };
+
+  componentDidMount(){
+    this.applyTempo();
+    this.t0 = performance.now();
+    this._iv = setInterval(() => this.syncAnims(), 400);
+    this.onVis = () => this.syncAnims();
+    document.addEventListener('visibilitychange', this.onVis);
+  }
+  componentDidUpdate(){ this.applyTempo(); this.syncAnims(); }
+  componentWillUnmount(){
+    if (this._iv) clearInterval(this._iv);
+    document.removeEventListener('visibilitychange', this.onVis);
+  }
+
+  applyTempo(){
+    const root = this.rootRef.current;
+    if (!root) return;
+    const d = (Number(this.props.sceneSeconds ?? 6) * 3) + 's';
+    root.querySelectorAll('[data-anim]').forEach(n => { n.style.animationDuration = d; });
+  }
+
+  // One JS clock owns the 3-scene cycle. Every 400ms each scene animation is
+  // corrected back onto that phase, so a React re-render (which restarts CSS
+  // animations at 0% and would pin the panel on scene 1) or a suspended,
+  // unpainted preview can't strand the cycle.
+  animList(){
+    const root = this.rootRef.current;
+    if (!root) return [];
+    let out = [];
+    root.querySelectorAll('[data-anim]').forEach(n => {
+      if (n.getAnimations) { try { out = out.concat(n.getAnimations()); } catch(e){} }
+    });
+    return out;
+  }
+
+  syncAnims(){
+    const cycle = Number(this.props.sceneSeconds ?? 6) * 3000;
+    if (this.t0 == null) this.t0 = performance.now();
+    const phase = (performance.now() - this.t0) % cycle;
+    this.animList().forEach(a => {
+      try {
+        if (a.playState !== 'running') a.play();
+        const ct = ((Number(a.currentTime) || 0) % cycle + cycle) % cycle;
+        const d = Math.abs(ct - phase);
+        if (Math.min(d, cycle - d) > 260) a.currentTime = phase;
+      } catch(e){}
+    });
+  }
+
+  submit(e){
+    e.preventDefault();
+    const name = this.nameRef.current, email = this.emailRef.current;
+    const pass = this.passRef.current, postal = this.postalRef.current, terms = this.termsRef.current;
+    const fail = (msg, el) => { this.setState({error: msg}); if (el) el.focus(); };
+    if (!name.value.trim()) return fail('Add a name so we know who is in the cohort.', name);
+    if (!email.value || !email.checkValidity()) return fail('Enter an email we can reach you at.', email);
+    if ((pass.value || '').length < 10) return fail('Passwords need at least 10 characters.', pass);
+    const pc = postal.value.trim().toUpperCase();
+    if (!/^[A-Z]\d[A-Z] ?\d[A-Z]\d$/.test(pc)) return fail('Postal code should look like M1B 2K3.', postal);
+    if (!terms.checked) return fail('Accept the Terms and Privacy Policy to continue.', terms);
+    const fsa = pc.slice(0, 3);
+    this.setState({
+      joined: true, error: '',
+      doneArea: fsa + ' · ' + (/^(M|L)/.test(fsa) ? 'GTA, cohort forming' : 'pilot city, gathering votes')
+    });
+  }
+
+  renderVals(){
+    const logos = this.props.providerLogos ?? true;
+    return {
+      rootRef: this.rootRef,
+      nameRef: this.nameRef, emailRef: this.emailRef, passRef: this.passRef,
+      phoneRef: this.phoneRef, postalRef: this.postalRef, refRef: this.refRef,
+      termsRef: this.termsRef, newsRef: this.newsRef,
+      providerLogos: logos, providerText: !logos,
+      error: this.state.error, hasError: !!this.state.error,
+      joined: this.state.joined, notJoined: !this.state.joined,
+      doneArea: this.state.doneArea,
+      refOpen: this.state.refOpen, refClosed: !this.state.refOpen,
+      onOpenRef: () => this.setState({refOpen: true}),
+      onSubmit: e => this.submit(e),
+      onReset: () => this.setState({joined: false, error: ''})
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -75,6 +75,10 @@ jobs:
       - name: Landing page script parses
         run: node --check js/landing.js
 
+      # The /join signup: form, the two-step code flow, and the scene loop.
+      - name: Waitlist join script parses
+        run: node --check js/waitlist-join.js
+
       # Fails when js/whollar-benchmarks.js no longer matches what the
       # spreadsheet would produce, i.e. the pricing model was updated but the
       # generated table wasn't, so the site is scoring against stale prices.

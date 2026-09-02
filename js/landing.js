@@ -13,6 +13,25 @@
 
   function all(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
 
+  /* ----- where a nav click stops -----
+   * The header is sticky and it wraps on narrow screens, so its height is not
+   * a constant and a hardcoded scroll-padding-top either hides the top of a
+   * section behind the bar or leaves a gap above it. Measure the bar and hand
+   * the number to CSS; landing.html's scroll-padding-top reads --wh-head with
+   * a 92px fallback for the no-JS case.
+   */
+
+  var head = document.querySelector('header');
+  if (head) {
+    var syncHead = function () {
+      var h = Math.round(head.getBoundingClientRect().height) + 14;
+      document.documentElement.style.setProperty('--wh-head', h + 'px');
+    };
+    syncHead();
+    window.addEventListener('resize', syncHead);
+    if (window.ResizeObserver) new window.ResizeObserver(syncHead).observe(head);
+  }
+
   /* ----- the picker and its vote ----- */
 
   var sel = [false, false, false, false, false, false, false, false];
@@ -49,17 +68,18 @@
     });
   });
 
-  /* ----- the join form ----- */
+  /* ----- the inline email box -----
+   * It does not sign anyone up: signup lives on /join, which needs a password
+   * and a postal code this box does not ask for. So it carries the address
+   * across rather than collecting one here and claiming a confirmation was
+   * sent, which is what the canvas did. */
 
-  all('[data-lp-action="join"]').forEach(function (btn) {
+  all('[data-lp-action="join-go"]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var el = document.getElementById('wh-email');
       var v = el && el.value ? el.value.trim() : '';
       if (!v || v.indexOf('@') < 1) { if (el) el.focus(); return; }
-      var msg = document.querySelector('[data-lp-joinmsg]');
-      if (msg) msg.textContent = 'We sent a confirmation to ' + v + '. We will only email you when a real cohort offer is ready.';
-      setWhen('not-joined', false);
-      setWhen('joined', true);
+      window.location.href = '/join?email=' + encodeURIComponent(v);
     });
   });
 
@@ -73,7 +93,7 @@
   });
 
   /* ----- the scroll reveal -----
-   * The section is 340vh tall; its first child is a 100vh panel that pins
+   * The section is 260vh tall; its first child is a 100vh panel that pins
    * while the section scrolls through, and each word sharpens on its own
    * slice of that travel. Thresholds are the canvas's: 6% lead-in, words
    * spread over the next 80%, each fading across 7.5% of the travel. */
