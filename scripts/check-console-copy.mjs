@@ -73,7 +73,9 @@ const FILES = [
      code is checked. Clean on day one. */
   'join-welcome.html',
   'join-welcome-tires.html',
-  'js/join-welcome.js'
+  'js/join-welcome.js',
+  'home/index.html', 'home/join.html', 'home/join-welcome.html',
+  'home/join-welcome-tires.html', 'home/js/join-welcome.js', 'home/llms.txt'
 ];
 
 /* Banned words. Each is paired with what to say instead, because a gate that

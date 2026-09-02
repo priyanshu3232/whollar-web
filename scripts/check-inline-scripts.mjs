@@ -36,6 +36,10 @@ const PAGES = [
   'join.html',
   'join-welcome.html',
   'join-welcome-tires.html',
+  /* The umbrella project at whollar.ca. Its own Vercel root, so its pages are
+     listed here by their repo path; the gate reads files, not deployments. */
+  'home/index.html', 'home/join.html', 'home/join-welcome.html',
+  'home/join-welcome-tires.html', 'home/404.html',
   'whollar-login-consumer.html', 'whollar-login-provider.html',
   'welcome-member.html', 'welcome-partner.html',
   'MobileVersion/consumer-mobile.html', 'MobileVersion/provider-mobile.html',

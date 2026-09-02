@@ -1,0 +1,221 @@
+{
+  "regions": [
+    "yul1"
+  ],
+  "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' blob: https://*.zoho.com https://*.zohopublic.ca https://*.zohostatic.com https://www.clarity.ms https://scripts.clarity.ms; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com https://*.zohostatic.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com https://api.fontshare.com https://cdn.fontshare.com https://*.zohostatic.com; media-src 'self' data: blob:; connect-src 'self' https://*.catalystserverless.ca https://fonts.googleapis.com https://fonts.gstatic.com https://api.fontshare.com https://*.zoho.com https://*.zohopublic.ca https://www.clarity.ms https://*.clarity.ms; frame-src https://*.zoho.com https://forms.zohopublic.ca; form-action 'self' https://*.zoho.com https://forms.zohopublic.ca; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; upgrade-insecure-requests"
+        }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "whollar.ca"
+        }
+      ],
+      "destination": "https://www.whollar.ca/:path*",
+      "statusCode": 308
+    },
+    {
+      "source": "/bill-checkup",
+      "destination": "https://internet.whollar.ca/bill-checkup",
+      "statusCode": 301
+    },
+    {
+      "source": "/become-a-partner",
+      "destination": "https://internet.whollar.ca/become-a-partner",
+      "statusCode": 301
+    },
+    {
+      "source": "/partners",
+      "destination": "https://internet.whollar.ca/partners",
+      "statusCode": 301
+    },
+    {
+      "source": "/waitlist/",
+      "destination": "https://internet.whollar.ca/waitlist/",
+      "statusCode": 301
+    },
+    {
+      "source": "/contact",
+      "destination": "https://internet.whollar.ca/contact",
+      "statusCode": 301
+    },
+    {
+      "source": "/greystonewalk",
+      "destination": "https://internet.whollar.ca/greystonewalk",
+      "statusCode": 301
+    },
+    {
+      "source": "/terms",
+      "destination": "https://internet.whollar.ca/terms",
+      "statusCode": 301
+    },
+    {
+      "source": "/privacy",
+      "destination": "https://internet.whollar.ca/privacy",
+      "statusCode": 301
+    },
+    {
+      "source": "/whollar-login-consumer",
+      "destination": "https://internet.whollar.ca/whollar-login-consumer",
+      "statusCode": 301
+    },
+    {
+      "source": "/whollar-login-provider",
+      "destination": "https://internet.whollar.ca/whollar-login-provider",
+      "statusCode": 301
+    },
+    {
+      "source": "/dashboard",
+      "destination": "https://internet.whollar.ca/dashboard",
+      "statusCode": 301
+    },
+    {
+      "source": "/partner",
+      "destination": "https://internet.whollar.ca/partner",
+      "statusCode": 301
+    },
+    {
+      "source": "/welcome-member",
+      "destination": "https://internet.whollar.ca/welcome-member",
+      "statusCode": 301
+    },
+    {
+      "source": "/welcome-partner",
+      "destination": "https://internet.whollar.ca/welcome-partner",
+      "statusCode": 301
+    },
+    {
+      "source": "/thank-you",
+      "destination": "https://internet.whollar.ca/thank-you",
+      "statusCode": 301
+    },
+    {
+      "source": "/disclosures",
+      "destination": "https://internet.whollar.ca/terms",
+      "statusCode": 307
+    },
+    {
+      "source": "/resources",
+      "destination": "https://internet.whollar.ca/blog/",
+      "statusCode": 301
+    },
+    {
+      "source": "/checkup",
+      "destination": "https://internet.whollar.ca/bill-checkup",
+      "statusCode": 301
+    },
+    {
+      "source": "/whollar-partner-v6",
+      "destination": "https://internet.whollar.ca/become-a-partner",
+      "statusCode": 301
+    },
+    {
+      "source": "/whollar-partner-v6.html",
+      "destination": "https://internet.whollar.ca/become-a-partner",
+      "statusCode": 301
+    },
+    {
+      "source": "/whollar-bill checkup-v6",
+      "destination": "https://internet.whollar.ca/bill-checkup",
+      "statusCode": 301
+    },
+    {
+      "source": "/whollar-bill%20checkup-v6",
+      "destination": "https://internet.whollar.ca/bill-checkup",
+      "statusCode": 301
+    },
+    {
+      "source": "/Whollar Provider Landing v7",
+      "destination": "https://internet.whollar.ca/partners",
+      "statusCode": 301
+    },
+    {
+      "source": "/Whollar%20Provider%20Landing%20v7",
+      "destination": "https://internet.whollar.ca/partners",
+      "statusCode": 301
+    },
+    {
+      "source": "/whollar-thankyou",
+      "destination": "https://internet.whollar.ca/thank-you",
+      "statusCode": 301
+    },
+    {
+      "source": "/(provider|provider-dashboard)(\\.html)?",
+      "destination": "https://internet.whollar.ca/partner",
+      "statusCode": 301
+    },
+    {
+      "source": "/blog/:path*",
+      "destination": "https://internet.whollar.ca/blog/:path*",
+      "statusCode": 301
+    },
+    {
+      "source": "/partner/:path*",
+      "destination": "https://internet.whollar.ca/partner/:path*",
+      "statusCode": 301
+    },
+    {
+      "source": "/MobileVersion/:path*",
+      "destination": "https://internet.whollar.ca/MobileVersion/:path*",
+      "statusCode": 301
+    },
+    {
+      "source": "/r/:token",
+      "destination": "https://internet.whollar.ca/r/:token",
+      "statusCode": 301
+    },
+    {
+      "source": "/u/:token",
+      "destination": "https://internet.whollar.ca/u/:token",
+      "statusCode": 301
+    },
+    {
+      "source": "/api/auth/:path*",
+      "destination": "https://internet.whollar.ca/api/auth/:path*",
+      "statusCode": 308
+    },
+    {
+      "source": "/landing",
+      "destination": "/",
+      "statusCode": 301
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/hooks/zeptomail",
+      "destination": "https://whollar-110003037934.development.catalystserverless.ca/server/auth/hooks/zeptomail"
+    }
+  ]
+}

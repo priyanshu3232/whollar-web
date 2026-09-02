@@ -84,6 +84,22 @@ jobs:
       - name: Join welcome script parses
         run: node --check js/join-welcome.js
 
+      # The umbrella project at whollar.ca deploys from home/ as its own Vercel
+      # root, so it carries its own copies. Two things must hold: its scripts
+      # parse, and its whollar-core.js IS the shared module, byte for byte. A
+      # copy that drifts is a second implementation of the session and form
+      # layer that nobody remembers to fix.
+      - name: Umbrella scripts parse
+        run: for f in home/js/*.js; do node --check "$f"; done
+      - name: Umbrella core is the shared core
+        run: cmp js/whollar-core.js home/js/whollar-core.js
+
+      # The permanent redirect map: every legacy sitemap URL resolves through
+      # home/vercel.json to the same path on the internet host, and the
+      # umbrella's own paths are never swallowed by a rule.
+      - name: Redirect map resolves every legacy URL
+        run: node scripts/check-redirect-map.mjs
+
       # Fails when js/whollar-benchmarks.js no longer matches what the
       # spreadsheet would produce, i.e. the pricing model was updated but the
       # generated table wasn't, so the site is scoring against stale prices.
