@@ -237,7 +237,7 @@ section.alt{background:var(--mist)}
 /* Grain. A single inline turbulence, no request, sitting over the dark
    panels only: flat gradients are what make a green box look like every
    other green box. Kept under 4% so it reads as paper, not as noise. */
-.hero::after,.vcard::after{
+.hero::after,.vcard::after,.rail::after{
   content:"";position:absolute;inset:0;pointer-events:none;opacity:.035;
   background-image:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
   mix-blend-mode:overlay}
@@ -268,7 +268,7 @@ section.alt{background:var(--mist)}
 .stat{font-variant-numeric:tabular-nums;letter-spacing:-.035em}
 
 /* The key rung breathes, so the eye finds the rung the copy is about. */
-@keyframes rungpulse{0%,100%{box-shadow:0 0 0 4px var(--green-tint)}50%{box-shadow:0 0 0 7px rgba(30,158,99,.12)}}
+@keyframes rungpulse{0%,100%{box-shadow:0 0 0 4px rgba(127,227,176,.16)}50%{box-shadow:0 0 0 9px rgba(127,227,176,.05)}}
 .stop--key .stop__dot{animation:rungpulse 3.2s var(--ease) infinite}
 
 /* Entrance. One orchestrated arrival per section rather than motion
@@ -344,13 +344,14 @@ html.rv-on .rv-stagger.is-in>*:hover{transition-delay:0s}
 .vcard .btn.ghost:hover{background:rgba(255,255,255,.06)}
 
 /* steps */
-.steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
-@media(max-width:900px){.steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:520px){.steps{grid-template-columns:1fr}}
-.step{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
-.step .mlabel{display:block;margin-bottom:8px}
-.step b{display:block;font-family:var(--disp);font-weight:700;font-size:15px;color:var(--teal);margin-bottom:4px}
-.step p{font-size:12.5px;line-height:1.55;color:var(--ink-2)}
+.track{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0 clamp(18px,2.4vw,30px)}
+@media(max-width:900px){.track{grid-template-columns:repeat(2,minmax(0,1fr));gap:28px clamp(18px,2.4vw,30px)}}
+@media(max-width:520px){.track{grid-template-columns:1fr}}
+.track__i{position:relative;padding-top:15px;border-top:2px solid var(--line);display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;align-content:start;column-gap:10px}
+.track__i .mlabel{grid-column:1;font-size:11px;align-self:baseline}
+.track__n{grid-column:2;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;color:#9DAAA3;align-self:baseline}
+.track__i b{grid-column:1/-1;font-family:var(--disp);font-weight:900;font-size:17px;letter-spacing:-.02em;color:var(--teal);margin-top:7px}
+.track__i p{grid-column:1/-1;font-size:13px;line-height:1.55;color:var(--ink-2);margin-top:7px}
 
 /* Threshold rail. Replaces a grey "12%" disc that represented nothing: a
    percentage set against no total is not a measurement, and this page has no
@@ -358,20 +359,32 @@ html.rv-on .rv-stagger.is-in>*:hover{transition-delay:0s}
    rail is what IS true, the published ladder, drawn as a ladder: five stops
    on one line, each naming the share of doors and what it opens. No fill,
    because a fill would be a claim about how full the cohort is today. */
-.rail{margin-top:8px;border:1px solid var(--line);border-radius:var(--rf);background:var(--paper);padding:clamp(22px,3vw,30px) clamp(20px,2.6vw,28px);box-shadow:var(--sh-1)}
-.rail__t{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:26px}
-.rail__t h3{font-size:18px}
+/* Drawn on the dark panel, not on a white one. The section already spends
+   its light surfaces on the phase track; a second white block under it put
+   the ladder in a void and gave the page no anchor between the hero and the
+   manager cards. On the panel it is the one heavy object in the section, and
+   it picks up the page's two dark-panel devices, the grain and the glow. */
+.rail{position:relative;overflow:hidden;margin-top:clamp(30px,4vw,44px);border:1px solid rgba(255,255,255,.10);border-radius:var(--rf);background:var(--panel);color:#fff;padding:clamp(26px,3.2vw,36px) clamp(22px,2.8vw,32px);box-shadow:var(--sh-2)}
+.rail::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(640px 300px at 84% -22%,rgba(127,227,176,.15),transparent 62%)}
+.rail>*{position:relative}
+.rail__t{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:30px}
+.rail__t h3{font-size:19px;color:#fff}
+.rail__t h3 .bn{color:var(--teal-soft)}
+.rail__t .mlabel{color:rgba(255,255,255,.55)}
 .rail__stops{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;position:relative}
-.rail__line{position:absolute;left:0;right:0;top:9px;height:2px;background:linear-gradient(90deg,var(--line),#cfe0d5);border-radius:2px}
-.stop{position:relative;padding:0 10px 0 0}
-.stop__dot{width:20px;height:20px;border-radius:50%;background:var(--paper);border:2px solid #c9dbcf;display:grid;place-items:center;position:relative;z-index:1}
-.stop__dot::after{content:"";width:6px;height:6px;border-radius:50%;background:#c9dbcf}
-.stop--key .stop__dot{border-color:var(--accent-deep);box-shadow:0 0 0 4px var(--green-tint)}
-.stop--key .stop__dot::after{background:var(--accent-deep)}
-.stop__k{display:block;font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--ink-3);margin-top:16px;letter-spacing:.02em}
-.stop--key .stop__k{color:var(--accent-deep)}
-.stop__b{display:block;font-family:var(--disp);font-weight:700;font-size:14px;color:var(--teal);margin-top:6px;line-height:1.3}
-.stop p{font-size:12.5px;line-height:1.5;color:var(--ink-2);margin-top:5px;padding-right:8px}
+/* Ticked, not solid. A solid bar on a dark ground reads as a fill, and a
+   fill would claim how full the cohort is today, which this page cannot
+   know. Dashes say ladder: five thresholds, none of them reached yet. */
+.rail__line{position:absolute;left:10px;right:calc(20% - 10px);top:9px;height:2px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.26) 0 7px,rgba(255,255,255,0) 7px 14px)}
+.stop{position:relative;padding:0 14px 0 0}
+.stop__dot{width:20px;height:20px;border-radius:50%;background:#0F3527;border:2px solid rgba(255,255,255,.26);display:grid;place-items:center;position:relative;z-index:1}
+.stop__dot::after{content:"";width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.34)}
+.stop--key .stop__dot{border-color:var(--teal-soft);background:rgba(127,227,176,.14)}
+.stop--key .stop__dot::after{background:var(--teal-soft)}
+.stop__k{display:block;font-family:var(--mono);font-size:12px;font-weight:600;color:rgba(255,255,255,.52);margin-top:18px;letter-spacing:.06em}
+.stop--key .stop__k{color:var(--teal-soft)}
+.stop__b{display:block;font-family:var(--disp);font-weight:700;font-size:15px;color:#fff;margin-top:7px;line-height:1.3}
+.stop p{font-size:12.5px;line-height:1.55;color:rgba(255,255,255,.62);margin-top:6px;padding-right:8px}
 @media(max-width:860px){
   .rail__stops{grid-template-columns:1fr;gap:0}
   /* Stacked, the connector is drawn per stop rather than as one line down the
@@ -379,7 +392,7 @@ html.rv-on .rv-stagger.is-in>*:hover{transition-delay:0s}
      under it, which reads as a rung that leads nowhere. */
   .rail__line{display:none}
   .stop{display:grid;grid-template-columns:20px minmax(0,1fr);gap:0 16px;padding:0 0 20px 0}
-  .stop::before{content:"";position:absolute;left:9px;top:22px;bottom:-2px;width:2px;background:var(--line)}
+  .stop::before{content:"";position:absolute;left:9px;top:22px;bottom:-2px;width:2px;background:rgba(255,255,255,.16)}
   .stop:last-child::before{display:none}
   .stop:last-child{padding-bottom:0}
   .stop__dot{grid-row:1;grid-column:1}
@@ -387,7 +400,7 @@ html.rv-on .rv-stagger.is-in>*:hover{transition-delay:0s}
   .stop__b{grid-row:2;grid-column:2;margin-top:4px}
   .stop p{grid-row:3;grid-column:2;padding-right:0}
 }
-.rail__f{margin-top:24px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;line-height:1.6;color:var(--ink-3)}
+.rail__f{margin-top:26px;padding-top:18px;border-top:1px solid rgba(255,255,255,.12);font-size:12.5px;line-height:1.6;color:rgba(255,255,255,.52)}
 
 /* seat / role */
 .seat .ic{width:52px;height:52px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--green-tint);color:var(--teal-bright);border:2px solid var(--paper);box-shadow:0 0 0 1px #cfe9db}
@@ -404,8 +417,13 @@ html.rv-on .rv-stagger.is-in>*:hover{transition-delay:0s}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(127,227,176,.55)}70%{box-shadow:0 0 0 9px rgba(127,227,176,0)}100%{box-shadow:0 0 0 0 rgba(127,227,176,0)}}
 .status b.row{display:flex;align-items:center}
 
-.step.now{border-color:var(--accent);background:#F7FCF9}
-.step.now .mlabel{color:var(--accent-deep)}
+/* The live stage. The rule fills, the numeral and the state word take the
+   accent, and a marker sits ON the rule. No tint and no box: a box here is
+   just the card again, and the card is what made five stages read as five
+   unrelated claims instead of one sequence. */
+.track__i.is-now{border-top-color:var(--accent-deep)}
+.track__i.is-now .mlabel,.track__i.is-now .track__n{color:var(--accent-deep)}
+.track__i.is-now::before{content:"";position:absolute;top:-6px;left:0;width:9px;height:9px;border-radius:2px;background:var(--accent-deep)}
 
 /* survey */
 .survey{padding:0;overflow:hidden}
@@ -434,14 +452,37 @@ html.rv-on .rv-stagger.is-in>*:hover{transition-delay:0s}
 .trust svg{flex:none;stroke:var(--ink-3)}
 
 /* managers */
+/* A tower down the left edge, not a grey plus in a circle. The seats are
+   OPEN, so an avatar there is either an empty state pretending to be a
+   person or a stock face pretending to hold the seat. The building is the
+   honest subject, and three tall strips give the row the verticality the
+   page is actually about. */
+.mgr{padding:0;overflow:hidden;display:grid;grid-template-columns:106px minmax(0,1fr)}
+.mgr>*+*{margin-top:0}
+.mgr__art{position:relative;background:var(--teal-deep);align-self:stretch;min-height:230px}
+.mgr__art img{width:100%;height:100%;object-fit:cover;display:block}
+.mgr__art::after{content:"";position:absolute;inset:auto 0 0 0;height:58%;background:linear-gradient(to top,rgba(10,32,24,.82),transparent)}
+/* Numerals are data on this page, and the street number is the one datum
+   that tells the three cards apart at a glance. */
+.mgr__no{position:absolute;left:16px;bottom:12px;z-index:1;font-family:var(--disp);font-weight:900;font-size:34px;line-height:1;letter-spacing:-.04em;color:#fff}
+.mgr__body{padding:clamp(18px,2.2vw,24px);display:flex;flex-direction:column;gap:14px}
+@media(max-width:640px){
+  .mgr{grid-template-columns:1fr}
+  /* Stacked, the tall crop becomes a band, so bias it up the frame: the
+     middle of a 1:2.5 tower crop is trees and road, not the building. */
+  .mgr__art{min-height:0;height:132px}
+  .mgr__art img{object-position:50% 26%}
+  .mgr__no{font-size:30px}
+}
 .mgr__top{display:flex;gap:14px;align-items:center}
 .ava{width:52px;height:52px;border-radius:50%;flex:none;display:grid;place-items:center;font-family:var(--disp);font-weight:900;font-size:17px;background:var(--green-tint);color:var(--teal-bright);border:2px solid var(--paper);box-shadow:0 0 0 1px #cfe9db}
 .ava.empty{background:var(--mist);color:var(--ink-3);box-shadow:0 0 0 1px var(--line);font-weight:700;font-size:22px}
-.mgr__id b{display:block;font-family:var(--disp);font-weight:700;font-size:15px;color:var(--teal)}
+.mgr__id b{display:block;font-family:var(--disp);font-weight:700;font-size:16px;color:var(--teal)}
 .mgr__id .mlabel{display:block;margin-top:3px}
 .mgr q{display:block;font-size:13.5px;line-height:1.6;color:var(--ink-2);quotes:none}
 .mgr q::before,.mgr q::after{content:""}
-.mgr__cta{display:flex;gap:8px;flex-wrap:wrap}
+.mgr__cta{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:2px}
+.mgr__cta .btn.sm{padding-left:16px;padding-right:16px}
 
 /* referral glow */
 .glow{position:relative;border-radius:var(--rf);padding:clamp(24px,3vw,32px);background:linear-gradient(135deg,var(--green-tint),var(--gold-soft));border:1px solid #E4DFC9;overflow:hidden;margin-top:16px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(24px,4vw,56px);align-items:center}
@@ -450,9 +491,10 @@ html.rv-on .rv-stagger.is-in>*:hover{transition-delay:0s}
 @keyframes drift{from{transform:translate(-3%,-3%)}to{transform:translate(3%,3%)}}
 .glow>*{position:relative}
 .glow p{margin-top:10px;color:var(--ink-2);font-size:14.5px}
-.pts-row{display:grid;gap:10px;font-size:13.5px;color:var(--ink-2)}
-.pts-row span{display:grid;grid-template-columns:52px minmax(0,1fr);gap:12px;align-items:baseline}
-.pts-row b{font-family:var(--mono);font-weight:600;color:var(--accent-deep);background:rgba(255,255,255,.72);border-radius:8px;padding:4px 0;text-align:center;font-size:13px}
+.pts-row{display:grid;gap:0;font-size:13.5px;color:var(--ink-2)}
+.pts-row span{display:grid;grid-template-columns:66px minmax(0,1fr);gap:14px;align-items:baseline;padding:11px 0;border-top:1px solid rgba(14,42,32,.13)}
+.pts-row span:first-child{border-top:none;padding-top:0}
+.pts-row b{font-family:var(--disp);font-weight:900;font-size:20px;letter-spacing:-.03em;color:var(--teal);text-align:right;font-variant-numeric:tabular-nums}
 
 /* leaderboard */
 .lbhead{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
@@ -845,13 +887,13 @@ html.rv-on .rv-stagger.is-in>*:hover{transition-delay:0s}
     <h2>Join now, decide later, pay nothing either way</h2>
     <div class="sec__d"><p class="lead">Joining is free and non binding. You only make a decision when you are holding an offer with your own name and price on it.</p></div>
   </header>
-  <div class="rv-stagger steps">
-    <div class="step now"><span class="mlabel">Now</span><b>Forming</b><p>Residents join, submit a bill, rate their provider.</p></div>
-    <div class="step"><span class="mlabel">Next</span><b>Threshold</b><p>At 30% of doors the building is big enough to take to providers as one purchase.</p></div>
-    <div class="step"><span class="mlabel">Then</span><b>Sealed bids</b><p>Providers bid without seeing each other. They see aggregates only, never who you are.</p></div>
-    <div class="step"><span class="mlabel">Then</span><b>Your offer</b><p>Each household sees its own price and takes it or leaves it.</p></div>
-    <div class="step"><span class="mlabel">Finally</span><b>Switch</b><p>Whollar handles the cancellation, the install window and the promo timing.</p></div>
-  </div>
+  <ol class="rv-stagger track">
+    <li class="track__i is-now"><span class="mlabel">Now</span><span class="track__n">01</span><b>Forming</b><p>Residents join, submit a bill, rate their provider.</p></li>
+    <li class="track__i"><span class="mlabel">Next</span><span class="track__n">02</span><b>Threshold</b><p>At 30% of doors the building is big enough to take to providers as one purchase.</p></li>
+    <li class="track__i"><span class="mlabel">Then</span><span class="track__n">03</span><b>Sealed bids</b><p>Providers bid without seeing each other. They see aggregates only, never who you are.</p></li>
+    <li class="track__i"><span class="mlabel">Then</span><span class="track__n">04</span><b>Your offer</b><p>Each household sees its own price and takes it or leaves it.</p></li>
+    <li class="track__i"><span class="mlabel">Finally</span><span class="track__n">05</span><b>Switch</b><p>Whollar handles the cancellation, the install window and the promo timing.</p></li>
+  </ol>
 
   <div class="rv rail">
     <div class="rail__t">
@@ -876,22 +918,37 @@ html.rv-on .rv-stagger.is-in>*:hover{transition-delay:0s}
     <h2>Every building needs someone to start it</h2>
     <div class="sec__d"><p class="lead">One resident per tower puts the notice in the lobby, answers the questions in the building group, and posts the weekly update. Neighbours pick them, members rate them, and they earn 1.2x points on every referral.</p></div>
   </header>
+  <!-- PLACEHOLDER ART. Public domain photographs of Scarborough, Toronto
+       apartment towers from Wikimedia Commons (Agincourt Skyline, Kingston
+       and Morningside, Ionview Road), duotoned to the brand ramp so three
+       different skies read as one set. They are NOT 1, 3 and 5 Greystone
+       Walk: decorative only, alt="" and the number overlay aria-hidden, so
+       nothing on the page claims otherwise. Swap for real tower photos. -->
   <div class="rv-stagger grid g3">
-    <div class="card mgr">
-      <div class="mgr__top"><span class="ava empty">+</span><span class="mgr__id"><b>1 Greystone Walk</b><span class="mlabel">Seat open</span></span></div>
-      <q>Nobody has taken this tower yet. Add a photo and one line on why you are in. Neighbours from your tower endorse you, and the most endorsed takes the seat.</q>
-      <div class="mgr__cta"><button class="btn acc sm" type="button" data-nom="nominate">Nominate myself</button><button class="btn ghost sm" type="button" data-nom="vote">Vote</button></div>
-    </div>
-    <div class="card mgr">
-      <div class="mgr__top"><span class="ava empty">+</span><span class="mgr__id"><b>3 Greystone Walk</b><span class="mlabel">Seat open</span></span></div>
-      <q>The largest tower, 354 doors, and the one that sets the pace for the other two. One resident, one notice in the lobby, and the campaign starts.</q>
-      <div class="mgr__cta"><button class="btn acc sm" type="button" data-nom="nominate">Nominate myself</button><button class="btn ghost sm" type="button" data-nom="vote">Vote</button></div>
-    </div>
-    <div class="card mgr">
-      <div class="mgr__top"><span class="ava empty">+</span><span class="mgr__id"><b>5 Greystone Walk</b><span class="mlabel">Seat open</span></span></div>
-      <q>Campaign managers earn 1.2x points on referrals, are rated by members, and can withdraw at any time. You are not selling anything and you never handle anyone's bill.</q>
-      <div class="mgr__cta"><button class="btn acc sm" type="button" data-nom="nominate">Nominate myself</button><button class="btn ghost sm" type="button" data-nom="vote">Vote</button></div>
-    </div>
+    <article class="card mgr">
+      <span class="mgr__art"><img src="/images/greystone/tower-1.webp" srcset="/images/greystone/tower-1.webp 1x, /images/greystone/tower-1@2x.webp 2x" alt="" width="106" height="320" loading="lazy" decoding="async"><span class="mgr__no" aria-hidden="true">1</span></span>
+      <div class="mgr__body">
+        <div class="mgr__top"><span class="mgr__id"><b>1 Greystone Walk</b><span class="mlabel">Seat open</span></span></div>
+        <q>Nobody has taken this tower yet. Add a photo and one line on why you are in. Neighbours from your tower endorse you, and the most endorsed takes the seat.</q>
+        <div class="mgr__cta"><button class="btn acc sm" type="button" data-nom="nominate">Nominate myself</button><button class="btn ghost sm" type="button" data-nom="vote">Vote</button></div>
+      </div>
+    </article>
+    <article class="card mgr">
+      <span class="mgr__art"><img src="/images/greystone/tower-3.webp" srcset="/images/greystone/tower-3.webp 1x, /images/greystone/tower-3@2x.webp 2x" alt="" width="106" height="320" loading="lazy" decoding="async"><span class="mgr__no" aria-hidden="true">3</span></span>
+      <div class="mgr__body">
+        <div class="mgr__top"><span class="mgr__id"><b>3 Greystone Walk</b><span class="mlabel">Seat open</span></span></div>
+        <q>The largest tower, 354 doors, and the one that sets the pace for the other two. One resident, one notice in the lobby, and the campaign starts.</q>
+        <div class="mgr__cta"><button class="btn acc sm" type="button" data-nom="nominate">Nominate myself</button><button class="btn ghost sm" type="button" data-nom="vote">Vote</button></div>
+      </div>
+    </article>
+    <article class="card mgr">
+      <span class="mgr__art"><img src="/images/greystone/tower-5.webp" srcset="/images/greystone/tower-5.webp 1x, /images/greystone/tower-5@2x.webp 2x" alt="" width="106" height="320" loading="lazy" decoding="async"><span class="mgr__no" aria-hidden="true">5</span></span>
+      <div class="mgr__body">
+        <div class="mgr__top"><span class="mgr__id"><b>5 Greystone Walk</b><span class="mlabel">Seat open</span></span></div>
+        <q>Campaign managers earn 1.2x points on referrals, are rated by members, and can withdraw at any time. You are not selling anything and you never handle anyone's bill.</q>
+        <div class="mgr__cta"><button class="btn acc sm" type="button" data-nom="nominate">Nominate myself</button><button class="btn ghost sm" type="button" data-nom="vote">Vote</button></div>
+      </div>
+    </article>
   </div>
 
   <div class="rv glow">
