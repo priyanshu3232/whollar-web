@@ -30,8 +30,9 @@ It does **not** touch the "Become a founding member" form under `Become_a_foundi
 - **Live function base URL** (baked into the three HTML pages' `CATALYST_BASE`):
   `https://whollar-110003037934.development.catalystserverless.ca/server/formSubmit`
 - **File Store folder ID** in use: `1258000000015979` (set as `UPLOADS_FOLDER_ID` in `formSubmit/index.js`).
-- **CORS allowlist** (in both functions' `ALLOWED_ORIGINS`): `https://whollar.ca`,
-  `https://www.whollar.ca`, `http://localhost:3000`.
+- **CORS allowlist** (in both functions' `ALLOWED_ORIGINS`): `https://internet.whollar.ca`
+  (the product host since September 2026), `https://whollar.ca`, `https://www.whollar.ca`
+  (the umbrella, which hosts /join), `http://localhost:3000`.
 
 Because this is the **development** environment, submissions currently land in the *dev* copies of
 the tables. See **Going to production** at the bottom before pointing the live whollar.ca site at it.

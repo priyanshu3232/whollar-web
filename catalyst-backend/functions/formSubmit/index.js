@@ -28,6 +28,9 @@ const ALLOWED_ORIGINS = [
   'https://www.whollar.com',
   'https://whollar.ca',
   'https://www.whollar.ca',
+  // The product host since the September 2026 restructure. Express answers CORS
+  // for it until the console rule is widened; see GATEWAY_CORS_ORIGINS.
+  'https://internet.whollar.ca',
   'https://whollar-staging-1w.vercel.app'
 ];
 
@@ -51,6 +54,10 @@ const ALLOWED_ORIGINS = [
 //     <function-url> | grep -i access-control-allow-origin
 // Exactly one line back is the passing result. If the console rule is ever
 // removed, empty this list in the same change and Express resumes the header.
+// NOT YET https://internet.whollar.ca. Adding it here before the console rule
+// names it would silence Express for an origin the gateway does not answer,
+// and every form on the product host would fail CORS. The runbook's owner step
+// widens the console rule first; this list follows in the same change.
 const GATEWAY_CORS_ORIGINS = ['https://www.whollar.ca'];
 
 // Local development: the marketing pages are plain HTML files, opened either
@@ -579,7 +586,7 @@ app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSe
 // Table: BillCheckupSubmissions
 //
 // This route stores the LEAD, never the signed-in member's bill, and it cannot:
-// the session cookie is host-only to www.whollar.ca (see auth/lib/cookies.js)
+// the session cookie is host-only to internet.whollar.ca (see auth/lib/cookies.js)
 // and this function is called cross-origin on the Catalyst domain, so the cookie
 // is not in the request at all: there is no session here to read. A signed-in
 // member's copy is written by the auth function, which owns sessions:

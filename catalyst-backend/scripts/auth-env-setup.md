@@ -32,8 +32,9 @@ a manual `support@zohocatalyst.com` request with a 48-hour turnaround. Revisit i
 when the production environment exists; the change is then one constant in
 `js/whollar-core.js` plus deleting the rewrite.
 
-Because the browser and the function agree on `https://www.whollar.ca` as the
-public origin, `APP_BASE_URL` and `API_BASE_URL` are deliberately the same value.
+Because the browser and the function agree on `https://internet.whollar.ca` as the
+public origin (the product host since the September 2026 restructure; www is the
+umbrella and 301s every product path here), `APP_BASE_URL` and `API_BASE_URL` are deliberately the same value.
 Anything that needs the `/api/auth` prefix (OAuth redirect URIs) spells it out in
 full: see `GOOGLE_REDIRECT_URI` below.
 
@@ -44,16 +45,17 @@ full: see `GOOGLE_REDIRECT_URI` below.
 | Variable | Development value | Production value |
 |---|---|---|
 | `NODE_ENV` | `development` | `production` |
-| `APP_BASE_URL` | `https://www.whollar.ca` | `https://www.whollar.ca` |
-| `API_BASE_URL` | `https://www.whollar.ca` | `https://www.whollar.ca` |
+| `APP_BASE_URL` | `https://internet.whollar.ca` | `https://internet.whollar.ca` |
+| `API_BASE_URL` | `https://internet.whollar.ca` | `https://internet.whollar.ca` |
 | `COOKIE_DOMAIN` | `.whollar.ca` | `.whollar.ca` |
-| `ALLOWED_ORIGINS` | `https://www.whollar.ca https://whollar.ca http://localhost:3000` | `https://www.whollar.ca https://whollar.ca` |
+| `ALLOWED_ORIGINS` | `https://internet.whollar.ca https://www.whollar.ca https://whollar.ca http://localhost:3000` | `https://internet.whollar.ca https://www.whollar.ca https://whollar.ca` |
 | `CODE_PEPPER` | see below | **generate a different one** |
 | `IP_PEPPER` | see below | **generate a different one** |
 
-`www` is the canonical host, the apex `whollar.ca` 308s to it, so it leads both
-lists. The apex stays in `ALLOWED_ORIGINS` because a 308 preserves the method and
-body of a POST, so a request can legitimately arrive having started there.
+`internet.whollar.ca` is the product host and leads both lists. `www` and the apex
+stay in `ALLOWED_ORIGINS`: the umbrella at www hosts /join, which posts to the
+backend, and the apex 308s to www, which preserves the method and body of a POST,
+so a request can legitimately arrive having started there.
 
 **`ALLOWED_ORIGINS` IS THE ONE ROW THAT GROWS. Read the live value in the
 console, never this table.** It is Phase 0 setup, not an inventory, and origins

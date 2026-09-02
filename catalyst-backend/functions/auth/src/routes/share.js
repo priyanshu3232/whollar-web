@@ -8,7 +8,7 @@
  *   POST /share/event    fire and forget telemetry from the share sheet
  *
  * THE SHORT LINK IS THE ATTRIBUTION CARRIER. The dashboard hands out
- * https://www.whollar.ca/r/<token> (a vercel.json rewrite lands it here), and
+ * https://internet.whollar.ca/r/<token> (a vercel.json rewrite lands it here), and
  * this route banks the token in BOTH places the join flow can later read:
  *
  *   1. the `?ref=` parameter on the redirect target, which whollar-core.js

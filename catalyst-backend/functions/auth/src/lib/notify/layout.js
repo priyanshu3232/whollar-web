@@ -40,7 +40,7 @@ const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => (
    production host because an email is read days after it is sent, long after
    any preview deployment is gone. Clients that block remote images show the
    alt text, so the mark can only ever be decoration. */
-const LOGO_URL = 'https://www.whollar.ca/images/email/whollar-mark.png';
+const LOGO_URL = 'https://internet.whollar.ca/images/email/whollar-mark.png';
 
 const FONT = "Satoshi,'General Sans',Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 

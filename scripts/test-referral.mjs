@@ -45,7 +45,7 @@ function loadCore(search = '') {
       setItem: (k, v) => { store[k] = String(v); },
       removeItem: (k) => { delete store[k]; },
     },
-    location: { search, origin: 'https://www.whollar.ca', href: 'https://www.whollar.ca/' },
+    location: { search, origin: 'https://internet.whollar.ca', href: 'https://internet.whollar.ca/' },
     document: {
       addEventListener() {}, readyState: 'complete', documentElement: {},
       querySelector: () => null, querySelectorAll: () => [],
@@ -119,7 +119,7 @@ test('a page with no link in its URL banks nothing', () => {
 test('the share link round-trips through capture', () => {
   const W = loadCore('');
   const link = W.referral.link('WHL-3F9A2C1D');
-  assert.equal(link, 'https://www.whollar.ca/waitlist/?ref=WHL-3F9A2C1D');
+  assert.equal(link, 'https://internet.whollar.ca/waitlist/?ref=WHL-3F9A2C1D');
   const landed = loadCore(link.slice(link.indexOf('?')));
   assert.equal(landed.referral.pending(), 'WHL-3F9A2C1D');
 });

@@ -71,6 +71,9 @@ const BANNED = [
 const MEMBER_BANNED = [[/\bauctions?\b/gi, 'auction']];
 
 const LINK_HOSTS = new Set([
+  /* The product host since September 2026, then the umbrella and the old
+     names, which sent mail still carries and the redirect map still honours. */
+  'internet.whollar.ca',
   'www.whollar.ca', 'whollar.ca', 'www.whollar.com', 'whollar.com',
 ]);
 
@@ -83,7 +86,7 @@ const FOOTER = {
   legalName: 'Whollar',
   postalAddress: '1 Example Street, Toronto ON M5V 0A1',
   contactEmail: 'info@whollar.com',
-  preferencesUrl: 'https://www.whollar.ca/dashboard#settings',
+  preferencesUrl: 'https://internet.whollar.ca/dashboard#settings',
 };
 
 let problems = 0;
@@ -127,7 +130,7 @@ function renderOne(entry, ctx) {
     footer: layout.footerBlocks({
       ...FOOTER,
       whyLine: 'You are getting this because you have a Whollar account.',
-      unsubscribeUrl: entry.casl === 'cem' ? 'https://www.whollar.ca/u/ABCD1234EFGH5678' : null,
+      unsubscribeUrl: entry.casl === 'cem' ? 'https://internet.whollar.ca/u/ABCD1234EFGH5678' : null,
     }),
   });
 }

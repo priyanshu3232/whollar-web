@@ -686,7 +686,7 @@ async function build(catalystApp, cfg, entry, row, ctx) {
     timezone: row.timezone || 'America/Toronto',
   });
 
-  const base = String(cfg.APP_BASE_URL || 'https://www.whollar.ca').replace(/\/+$/, '');
+  const base = String(cfg.APP_BASE_URL || 'https://internet.whollar.ca').replace(/\/+$/, '');
   const prefsPath = row.recipient_type === 'partner' ? '/partner#account' : '/dashboard#settings';
 
   let unsubscribeUrl = null;

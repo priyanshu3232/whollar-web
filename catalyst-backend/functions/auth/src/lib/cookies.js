@@ -19,7 +19,7 @@ const NAME = 'whollar_session';
  * not settable from a `*.vercel.app` preview, so pinning the domain would mean
  * auth could never be tested anywhere but production.
  *
- * Host-only is also the stricter choice: the cookie goes to `www.whollar.ca`
+ * Host-only is also the stricter choice: the cookie goes to `internet.whollar.ca`
  * and to nothing else, not to a sibling subdomain, not to the apex. Nothing is
  * lost by that here, because the apex 308s to `www` and no visitor stays on it.
  *

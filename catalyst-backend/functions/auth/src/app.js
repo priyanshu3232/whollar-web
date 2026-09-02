@@ -5,11 +5,11 @@
  *
  * Path shape: Advanced I/O functions are served under `/server/<fn>/…`, so on
  * the raw Catalyst domain this function lives at `/server/auth`. The browser
- * reaches it same-origin at `https://www.whollar.ca/api/auth/*` via the rewrite
+ * reaches it same-origin at `https://internet.whollar.ca/api/auth/*` via the rewrite
  * in `vercel.json`. To keep one contract across both, the router is mounted at
  * BOTH `/` and `/auth`, so these are all the same endpoint:
  *
- *   https://www.whollar.ca/api/auth/health                       (browser)
+ *   https://internet.whollar.ca/api/auth/health                       (browser)
  *   https://<project>.development.catalystserverless.ca/server/auth/health
  *   https://<project>.development.catalystserverless.ca/server/auth/auth/health
  */

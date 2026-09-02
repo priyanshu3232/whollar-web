@@ -56,9 +56,9 @@ module.exports = [
     required: ['region_label', 'decide_by_at', 'dashboard_url'],
     fixtures: [
       { region_label: 'Brampton East', decide_by_at: 1787600000000, hours_left: 72,
-        dashboard_url: 'https://www.whollar.ca/dashboard', first_name: 'Sam' },
+        dashboard_url: 'https://internet.whollar.ca/dashboard', first_name: 'Sam' },
       { region_label: 'Brampton East', decide_by_at: 1787600000000, hours_left: 24,
-        dashboard_url: 'https://www.whollar.ca/dashboard', first_name: 'Sam' },
+        dashboard_url: 'https://internet.whollar.ca/dashboard', first_name: 'Sam' },
     ],
     /**
      * Relevant only while no order stands.
@@ -112,7 +112,7 @@ module.exports = [
     fixture: {
       partner_name: 'Northline Fibre', slot_at: 1787600000000,
       slot_window: 'Morning, 8am to 12pm', order_no: 'WH-10428',
-      dashboard_url: 'https://www.whollar.ca/dashboard', first_name: 'Sam',
+      dashboard_url: 'https://internet.whollar.ca/dashboard', first_name: 'Sam',
     },
     /**
      * Relevant only while the order is still booked for the day this reminder
@@ -169,9 +169,9 @@ module.exports = [
     required: ['region_label', 'closes_at', 'console_url'],
     fixtures: [
       { region_label: 'Brampton East', cohort_label: 'Winter cohort', closes_at: 1787600000000,
-        hours_left: 24, has_bid: false, console_url: 'https://www.whollar.ca/partner', first_name: 'Riya' },
+        hours_left: 24, has_bid: false, console_url: 'https://internet.whollar.ca/partner', first_name: 'Riya' },
       { region_label: 'Brampton East', cohort_label: 'Winter cohort', closes_at: 1787600000000,
-        hours_left: 2, has_bid: true, console_url: 'https://www.whollar.ca/partner', first_name: 'Riya' },
+        hours_left: 2, has_bid: true, console_url: 'https://internet.whollar.ca/partner', first_name: 'Riya' },
     ],
     /**
      * Relevant only while the window is actually open.

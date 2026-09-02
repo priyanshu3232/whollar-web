@@ -71,7 +71,7 @@ function due(now, deadline, hours) {
 
 const slotLabel = (hours) => `t-${hours}h`;
 
-const base = (cfg) => String((cfg && cfg.APP_BASE_URL) || 'https://www.whollar.ca').replace(/\/+$/, '');
+const base = (cfg) => String((cfg && cfg.APP_BASE_URL) || 'https://internet.whollar.ca').replace(/\/+$/, '');
 
 /* ------------------------------------------------------------------ *
  * Reads, each campaign-scoped and each degrading to nothing

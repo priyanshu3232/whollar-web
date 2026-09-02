@@ -33,7 +33,7 @@ const datastore = require('../datastore');
  * ------------------------------------------------------------------ */
 
 /** The site's own origin, trailing slash removed. */
-const base = (cfg) => String((cfg && cfg.APP_BASE_URL) || 'https://www.whollar.ca').replace(/\/+$/, '');
+const base = (cfg) => String((cfg && cfg.APP_BASE_URL) || 'https://internet.whollar.ca').replace(/\/+$/, '');
 
 /** A member user row, or null. Never throws: a missing person is not an error. */
 async function memberById(catalystApp, userId) {

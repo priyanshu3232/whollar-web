@@ -37,7 +37,7 @@ module.exports = [
     required: ['region_label', 'dashboard_url'],
     fixture: {
       region_label: 'Brampton East', cohort_label: 'Winter cohort',
-      dashboard_url: 'https://www.whollar.ca/dashboard',
+      dashboard_url: 'https://internet.whollar.ca/dashboard',
       have: 61, need: 100, first_name: 'Sam',
     },
     locales: {
@@ -84,14 +84,14 @@ module.exports = [
         partner_name: 'Northline Fibre', tier: '1 Gig', price: '64.99',
         slot_at: 1787000000000, slot_window: 'Morning, 8am to 12pm',
         address_line: '18 Rutherford Road', order_no: 'WH-10428',
-        region_label: 'Brampton East', dashboard_url: 'https://www.whollar.ca/dashboard',
+        region_label: 'Brampton East', dashboard_url: 'https://internet.whollar.ca/dashboard',
         first_name: 'Sam', changed_from: null,
       },
       {
         partner_name: 'Northline Fibre', tier: '1 Gig', price: '64.99',
         slot_at: 1787000000000, slot_window: 'Afternoon, 12pm to 5pm',
         address_line: '18 Rutherford Road', order_no: 'WH-10428',
-        region_label: 'Brampton East', dashboard_url: 'https://www.whollar.ca/dashboard',
+        region_label: 'Brampton East', dashboard_url: 'https://internet.whollar.ca/dashboard',
         first_name: 'Sam', changed_from: '500 Mbps',
       },
     ],
@@ -138,7 +138,7 @@ module.exports = [
     collapse: null,
     required: ['region_label', 'dashboard_url'],
     fixture: {
-      region_label: 'Brampton East', dashboard_url: 'https://www.whollar.ca/dashboard',
+      region_label: 'Brampton East', dashboard_url: 'https://internet.whollar.ca/dashboard',
       released: true, first_name: 'Sam',
     },
     locales: {
@@ -177,7 +177,7 @@ module.exports = [
     fixture: {
       partner_name: 'Northline Fibre', slot_at: 1787000000000,
       slot_window: 'Morning, 8am to 12pm', order_no: 'WH-10428',
-      dashboard_url: 'https://www.whollar.ca/dashboard', first_name: 'Sam',
+      dashboard_url: 'https://internet.whollar.ca/dashboard', first_name: 'Sam',
     },
     locales: {
       en: (c, h) => ({
@@ -210,7 +210,7 @@ module.exports = [
     fixture: {
       partner_name: 'Northline Fibre', slot_at: 1787600000000,
       previous_slot_at: 1787000000000, slot_window: 'Afternoon, 12pm to 5pm',
-      order_no: 'WH-10428', dashboard_url: 'https://www.whollar.ca/dashboard',
+      order_no: 'WH-10428', dashboard_url: 'https://internet.whollar.ca/dashboard',
       first_name: 'Sam',
     },
     locales: {
@@ -248,7 +248,7 @@ module.exports = [
       kind,
       partner_name: 'Northline Fibre',
       order_no: 'WH-10428',
-      dashboard_url: 'https://www.whollar.ca/dashboard',
+      dashboard_url: 'https://internet.whollar.ca/dashboard',
       first_name: 'Sam',
     })),
     locales: {
@@ -302,7 +302,7 @@ module.exports = [
     required: ['partner_name', 'dashboard_url'],
     fixture: {
       partner_name: 'Northline Fibre', tier: '1 Gig', price: '64.99',
-      monthly_saving: '48.00', dashboard_url: 'https://www.whollar.ca/dashboard',
+      monthly_saving: '48.00', dashboard_url: 'https://internet.whollar.ca/dashboard',
       first_name: 'Sam',
     },
     locales: {
@@ -344,7 +344,7 @@ module.exports = [
     fixtures: ['no_plant', 'building_access', 'speed_tier_unavailable', 'household_cancelled'].map((reason) => ({
       reason,
       region_label: 'Brampton East',
-      dashboard_url: 'https://www.whollar.ca/dashboard',
+      dashboard_url: 'https://internet.whollar.ca/dashboard',
       first_name: 'Sam',
     })),
     locales: {

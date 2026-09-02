@@ -74,7 +74,7 @@ module.exports = [
    * ---------------------------------------------------------------- */
   {
     key: 'account.signup_collision',
-    fixture: { sign_in_url: 'https://www.whollar.ca/whollar-login-consumer', first_name: 'Sam' },
+    fixture: { sign_in_url: 'https://internet.whollar.ca/whollar-login-consumer', first_name: 'Sam' },
     audience: 'auto',
     casl: 'transactional',
     priority: 'security',
@@ -142,7 +142,7 @@ module.exports = [
    * ---------------------------------------------------------------- */
   {
     key: 'account.password_changed',
-    fixture: { reset_url: 'https://www.whollar.ca/whollar-login-consumer', changed_at: 1787000000000, first_name: 'Sam' },
+    fixture: { reset_url: 'https://internet.whollar.ca/whollar-login-consumer', changed_at: 1787000000000, first_name: 'Sam' },
     audience: 'auto',
     casl: 'transactional',
     priority: 'security',
@@ -179,7 +179,7 @@ module.exports = [
    * ---------------------------------------------------------------- */
   {
     key: 'account.no_account',
-    fixture: { sign_up_url: 'https://www.whollar.ca/whollar-login-consumer' },
+    fixture: { sign_up_url: 'https://internet.whollar.ca/whollar-login-consumer' },
     audience: 'auto',
     casl: 'transactional',
     priority: 'security',

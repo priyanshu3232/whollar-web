@@ -90,7 +90,7 @@ module.exports = [
       stage,
       region_label: 'Brampton East',
       cohort_label: 'Winter cohort',
-      dashboard_url: 'https://www.whollar.ca/dashboard',
+      dashboard_url: 'https://internet.whollar.ca/dashboard',
       next_at: 1787000000000,
       first_name: 'Sam',
     })),

@@ -28,8 +28,8 @@ module.exports = [
   {
     key: 'partner.account.decision',
     fixtures: [
-      { approved: true, org_name: 'Northline Fibre', console_url: 'https://www.whollar.ca/partner', first_name: 'Riya' },
-      { approved: false, org_name: 'Northline Fibre', reason: 'The coverage claim could not be verified against the plant map you sent.', console_url: 'https://www.whollar.ca/partner', first_name: 'Riya' },
+      { approved: true, org_name: 'Northline Fibre', console_url: 'https://internet.whollar.ca/partner', first_name: 'Riya' },
+      { approved: false, org_name: 'Northline Fibre', reason: 'The coverage claim could not be verified against the plant map you sent.', console_url: 'https://internet.whollar.ca/partner', first_name: 'Riya' },
     ],
     audience: 'partner',
     casl: 'transactional',
@@ -105,10 +105,10 @@ module.exports = [
     fixtures: [
       { region_label: 'Brampton East', cohort_label: 'Winter cohort', receipt_no: 'R-4471',
         revision_no: 1, sealed_at: 1787000000000, closes_at: 1787600000000,
-        console_url: 'https://www.whollar.ca/partner', first_name: 'Riya' },
+        console_url: 'https://internet.whollar.ca/partner', first_name: 'Riya' },
       { region_label: 'Brampton East', cohort_label: 'Winter cohort', receipt_no: 'R-4482',
         revision_no: 3, sealed_at: 1787200000000, closes_at: 1787600000000,
-        console_url: 'https://www.whollar.ca/partner', first_name: 'Riya' },
+        console_url: 'https://internet.whollar.ca/partner', first_name: 'Riya' },
     ],
     locales: {
       en: (c, h) => {
@@ -159,7 +159,7 @@ module.exports = [
     fixture: {
       region_label: 'Brampton East', cohort_label: 'Winter cohort', tier: '1 Gig',
       household_count: 34, price: '64.99', switch_window_at: 1787600000000,
-      console_url: 'https://www.whollar.ca/partner', first_name: 'Riya',
+      console_url: 'https://internet.whollar.ca/partner', first_name: 'Riya',
     },
     locales: {
       en: (c, h) => {
@@ -207,7 +207,7 @@ module.exports = [
     required: ['region_label', 'tier', 'console_url'],
     fixture: {
       region_label: 'Brampton East', tier: '500 Mbps',
-      console_url: 'https://www.whollar.ca/partner', first_name: 'Riya',
+      console_url: 'https://internet.whollar.ca/partner', first_name: 'Riya',
     },
     locales: {
       en: (c, h) => ({
@@ -239,7 +239,7 @@ module.exports = [
     fixture: {
       region_label: 'Brampton East', statement_ref: 'ST-2026-08-0031',
       total: '3040.00', line_count: 32, due_at: 1787600000000,
-      console_url: 'https://www.whollar.ca/partner', first_name: 'Riya',
+      console_url: 'https://internet.whollar.ca/partner', first_name: 'Riya',
     },
     locales: {
       en: (c, h) => {
@@ -275,7 +275,7 @@ module.exports = [
     required: ['order_ref', 'console_url'],
     fixture: {
       order_ref: 'WH-10428', region_label: 'Brampton East',
-      console_url: 'https://www.whollar.ca/partner', first_name: 'Riya',
+      console_url: 'https://internet.whollar.ca/partner', first_name: 'Riya',
     },
     locales: {
       en: (c, h) => ({
