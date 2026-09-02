@@ -164,6 +164,9 @@ const PAGES = [
      the point rather than a leak. `current: null` because there is no nav
      item for a region. */
   { file: 'greystonewalk.html', current: null },
+  /* The ported landing design, staged for review at /landing. At cutover it
+     replaces index.html and this line inherits index's entry. */
+  { file: 'landing.html', current: null },
   /* NO FOOTER ON A SIGNED-IN SURFACE. dashboard.html, partner/index.html,
      welcome-member.html and welcome-partner.html are app chrome, not marketing
      pages: a member or a partner who has signed in is inside the product, and

@@ -71,6 +71,10 @@ jobs:
       - name: Shared select parses
         run: node --check js/whollar-select.js
 
+      # The landing page behaviour: picker, vote, join form, scroll reveal.
+      - name: Landing page script parses
+        run: node --check js/landing.js
+
       # Fails when js/whollar-benchmarks.js no longer matches what the
       # spreadsheet would produce, i.e. the pricing model was updated but the
       # generated table wasn't, so the site is scoring against stale prices.
