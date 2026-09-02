@@ -260,11 +260,52 @@ section.alt{background:var(--mist)}
 .card{transition:transform .22s var(--ease),box-shadow .22s var(--ease),border-color .22s var(--ease)}
 .grid .card:hover{transform:translateY(-3px);box-shadow:var(--sh-2);border-color:#d7e4de}
 
-/* Numerals are data here, so they are set as data: tabular, tight, and
-   with a hairline over the stat cards that fills in on hover. */
-#stats .card{position:relative;overflow:hidden}
-#stats .card::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent-deep),var(--teal-soft));transform:scaleX(0);transform-origin:0 50%;transition:transform .3s var(--ease)}
-#stats .card:hover::before{transform:scaleX(1)}
+/* The building record. Four facts about one address are one record, not four
+   claims, so they are set as one: the identity fact large on the left with the
+   tower drawn beside it at its real storey count, the other three as ruled
+   lines on the right. Four equal cards gave the unit count, the provider count
+   and the next unlock the same weight, and left three of them padding out a
+   box they did not fill. */
+.record{position:relative;overflow:hidden;background:var(--paper);border:1px solid var(--line);border-radius:var(--rf);box-shadow:var(--sh-1);padding:clamp(24px,3vw,36px);display:grid;grid-template-columns:minmax(0,.86fr) minmax(0,1.14fr)}
+.record::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent-deep),var(--teal-soft))}
+.record__lead{padding-right:clamp(24px,3vw,40px);display:grid;grid-template-columns:minmax(0,1fr) 84px;grid-template-rows:auto auto 1fr;column-gap:clamp(16px,2vw,28px)}
+.record__lead .mlabel{display:block;grid-column:1}
+.record__lead .record__big,.record__lead p{grid-column:1}
+.record__big{font-family:var(--disp);font-weight:900;font-size:clamp(54px,6.6vw,86px);line-height:.9;letter-spacing:-.05em;color:var(--teal);font-variant-numeric:tabular-nums;margin-top:14px}
+.record__lead p{font-size:13.5px;line-height:1.6;color:var(--ink-2);margin-top:12px;max-width:22ch}
+/* The page's one drawing about this address, at this tower's storey count:
+   one hairline per floor, so 20, 23 and 22 are different objects rather than
+   the same box with a different caption. */
+.record__floors{grid-column:2;grid-row:1/4;align-self:end;width:84px;height:min(248px,100%);
+  border:1.5px solid #c2d2ca;border-bottom-width:3px;border-radius:4px 4px 1px 1px;
+  background-image:linear-gradient(to bottom,#d6e1db 0 1px,transparent 1px);
+  background-size:100% calc(100% / var(--st,23));background-repeat:repeat-y;pointer-events:none}
+.record__rows{padding-left:clamp(24px,3vw,40px);border-left:1px solid var(--line)}
+.record__r{display:grid;grid-template-columns:88px minmax(0,1fr);column-gap:20px;align-items:start;align-content:start;padding:18px 0;border-top:1px solid var(--line)}
+.record__r:first-child{border-top:none;padding-top:2px}
+.record__r:last-child{padding-bottom:0}
+.record__n{grid-column:1;grid-row:1/3;text-align:right;font-family:var(--disp);font-weight:900;font-size:31px;line-height:1;letter-spacing:-.04em;color:var(--teal);font-variant-numeric:tabular-nums}
+.record__n .u{display:block;font-family:var(--body);font-weight:600;font-size:11.5px;letter-spacing:.01em;color:var(--ink-3);margin-top:5px}
+.record__r .mlabel{grid-column:2;grid-row:1}
+.record__r p{grid-column:2;grid-row:2;font-size:13.5px;line-height:1.6;color:var(--ink-2);margin-top:6px}
+/* The next unlock is the rung the ladder below lights. Same fact, same accent,
+   so the two sections are visibly talking about the same thing. */
+.record__r.is-next .record__n,.record__r.is-next .mlabel{color:var(--accent-deep)}
+.record__f{grid-column:1/-1;margin-top:26px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;line-height:1.55;color:var(--ink-3)}
+@media(max-width:860px){
+  .record{grid-template-columns:1fr}
+  .record__lead{padding-right:0;padding-bottom:22px}
+  .record__rows{padding-left:0;border-left:none;border-top:1px solid var(--line);padding-top:4px}
+  .record__floors{width:66px;height:150px}
+}
+@media(max-width:520px){
+  /* Kept, not dropped: the elevation is the one thing on the page drawn from
+     this address, and a phone is where most residents will meet it. */
+  .record__lead{grid-template-columns:minmax(0,1fr) 54px}
+  .record__floors{width:54px;height:min(150px,100%)}
+  .record__lead p{max-width:none}
+  .record__r{grid-template-columns:64px minmax(0,1fr);column-gap:16px}
+}
 .stat{font-variant-numeric:tabular-nums;letter-spacing:-.035em}
 
 /* The key rung breathes, so the eye finds the rung the copy is about. */
@@ -872,13 +913,20 @@ html.rv-on .rv-stagger.is-in>*:hover{transition-delay:0s}
     <h2>What is already true about this building</h2>
     <div class="sec__d"><p class="lead">Facts that hold before a single bill is pooled. Everything else on this page unlocks as neighbours join, and nothing is shown until enough people are behind it.</p></div>
   </header>
-  <div class="rv-stagger grid g4">
-    <div class="card"><span class="mlabel">Units in the building</span><div class="stat num" id="stUnits">354</div><p id="stUnitsSub">23 storeys, completed 1990.</p></div>
-    <div class="card"><span class="mlabel">Providers in reach</span><div class="stat num">3</div><p>Two incumbents, and at least one independent last mile provider with coverage in the area.</p></div>
-    <div class="card"><span class="mlabel">Founding spots</span><div class="stat">5%</div><p>The first 5% of doors are founding members, with the first install windows when the building switches.</p></div>
-    <div class="card"><span class="mlabel">Next unlock</span><div class="stat">10 bills</div><p>Ten submitted bills registers <span class="bn">Greystone Walk II</span> as an active Whollar building.</p></div>
+  <div class="rv record">
+    <div class="record__lead">
+      <span class="record__floors" id="stFloors" aria-hidden="true"></span>
+      <span class="mlabel">Units in the building</span>
+      <div class="record__big num" id="stUnits">354</div>
+      <p id="stUnitsSub">23 storeys, completed 1990.</p>
+    </div>
+    <div class="rv-stagger record__rows">
+      <div class="record__r"><span class="record__n num">3</span><span class="mlabel">Providers in reach</span><p>Two incumbents, and at least one independent last mile provider with coverage in the area.</p></div>
+      <div class="record__r"><span class="record__n">5%</span><span class="mlabel">Founding spots</span><p>The first 5% of doors are founding members, with the first install windows when the building switches.</p></div>
+      <div class="record__r is-next"><span class="record__n num">10<span class="u">bills</span></span><span class="mlabel">Next unlock</span><p>Ten submitted bills registers <span class="bn">Greystone Walk II</span> as an active Whollar building.</p></div>
+    </div>
+    <p class="record__f">Unit counts, storeys and completion years are from public condo records for 1, 3 and 5 Greystone Walk Drive, Toronto M1K.</p>
   </div>
-  <p class="cap" style="margin-top:14px">Unit counts, storeys and completion years are from public condo records for 1, 3 and 5 Greystone Walk Drive, Toronto M1K.</p>
 </div></section>
 
 <section class="alt" id="how"><div class="wrap">
@@ -1131,9 +1179,9 @@ html.rv-on .rv-stagger.is-in>*:hover{transition-delay:0s}
      Retitles the page as one of the buildings. Facts only: unit count,
      storeys and completion year, all from public condo records. */
   var TOWERS = {
-    '1': { name: '1 Greystone Walk', full: 'Building 1, 1 Greystone Walk', units: '266', sub: '20 storeys, completed 1989.' },
-    '3': { name: 'Greystone Walk II', full: 'Building 3, Greystone Walk II', units: '354', sub: '23 storeys, completed 1990.' },
-    '5': { name: 'Greystone Walk I', full: 'Building 5, Greystone Walk I', units: '353', sub: '22 storeys, completed 1988.' }
+    '1': { name: '1 Greystone Walk', full: 'Building 1, 1 Greystone Walk', units: '266', sub: '20 storeys, completed 1989.', storeys: 20 },
+    '3': { name: 'Greystone Walk II', full: 'Building 3, Greystone Walk II', units: '354', sub: '23 storeys, completed 1990.', storeys: 23 },
+    '5': { name: 'Greystone Walk I', full: 'Building 5, Greystone Walk I', units: '353', sub: '22 storeys, completed 1988.', storeys: 22 }
   };
   function selectTower(id) {
     var t = TOWERS[id];
@@ -1143,6 +1191,10 @@ html.rv-on .rv-stagger.is-in>*:hover{transition-delay:0s}
     var u = document.getElementById('stUnits'), b = document.getElementById('stUnitsSub');
     if (u) u.textContent = t.units;
     if (b) b.textContent = t.sub;
+    /* The elevation is drawn from the storey count, so switching tower
+       redraws the building rather than recaptioning the same box. */
+    var f = document.getElementById('stFloors');
+    if (f) f.style.setProperty('--st', t.storeys);
     var sel = document.getElementById('nomB');
     if (sel) sel.value = id + ' Greystone Walk';
   }
