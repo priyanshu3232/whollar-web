@@ -25,6 +25,15 @@
      one scripts/test-checkup-savings.mjs asserts against. This page does not
      own any pricing arithmetic: it collects the fields and hands them over. -->
 <script src="/js/checkup-savings.js?v=20260813"></script>
+<script>
+/* Entrance animations opt IN. The hiding rules are scoped to html.rv-on, so
+   if this line never runs, or the browser has no IntersectionObserver, the
+   page renders fully visible rather than blank. Set in <head> so a revealed
+   section never paints before being hidden. */
+if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  document.documentElement.className += ' rv-on';
+}
+</script>
 <title>Greystone Walk internet cohort · Whollar</title>
 <meta name="description" content="Residents of 1, 3 and 5 Greystone Walk Drive in Scarborough are joining one Whollar cohort, so internet providers bid for all three towers at once. Free to join, non binding.">
 <link rel="canonical" href="https://www.whollar.ca/greystonewalk">
@@ -87,7 +96,6 @@ button{font-family:var(--body);cursor:pointer}
 .wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}
 .num{font-variant-numeric:tabular-nums}
 .hide{display:none!important}
-.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
 /* type utilities */
@@ -151,7 +159,6 @@ section.alt{background:var(--mist)}
 .status{display:flex;gap:32px;margin-top:32px;flex-wrap:wrap}
 .status .mlabel{color:rgba(255,255,255,.62);display:block;margin-bottom:6px}
 .status b{display:block;font-family:var(--disp);font-weight:900;font-size:26px;letter-spacing:-.02em;color:#fff}
-.status span.sub{display:block;font-size:12.5px;color:rgba(255,255,255,.55);margin-top:4px}
 
 /* towers panel */
 .towers{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.13);border-radius:var(--rf);padding:20px 22px}
@@ -214,12 +221,72 @@ section.alt{background:var(--mist)}
 .fld input.is-err{border-color:var(--warn)}
 .fld .hint{margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5}
 .fld .hint.err{color:var(--warn-text)}
-.billwrap{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:11px;padding:0 13px;background:var(--paper)}
-.billwrap:focus-within{border-color:var(--accent)}
-.billwrap span{font-family:var(--disp);font-weight:700;color:var(--ink-2)}
-.billwrap input{border:none;padding:11px 0}
-.billwrap input:focus{border:none}
 .pcok{display:block;margin-top:8px;font-size:12.5px;font-weight:600;color:var(--accent-deep)}
+
+/* ===================================================================
+ * Craft pass. Everything here works inside the Whollar system rather
+ * than beside it: same palette, same Satoshi and Inter, same footer.
+ * A resident who taps through to /bill-checkup must not feel they have
+ * left the company.
+ *
+ * The concept is a civic notice for one address. Three devices carry it:
+ * a paper grain and a floor-line motif on the dark panels, hairline
+ * accents that mark where a section starts, and numerals set as data.
+ * =================================================================== */
+
+/* Grain. A single inline turbulence, no request, sitting over the dark
+   panels only: flat gradients are what make a green box look like every
+   other green box. Kept under 4% so it reads as paper, not as noise. */
+.hero::after,.vcard::after{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.035;
+  background-image:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode:overlay}
+
+/* Floor lines. The hero's own motif, and the only thing on this site that
+   is about THIS address: three towers of 20, 23 and 22 storeys, drawn as
+   storey lines. Decorative, behind everything, and gone on small screens
+   where it would only crowd the copy. */
+.hero__towers{position:absolute;right:-40px;bottom:-1px;width:520px;height:300px;opacity:.13;pointer-events:none}
+@media(max-width:1180px){.hero__towers{display:none}}
+
+/* Section openers. A short rule above the eyebrow, so a section announces
+   itself before the eye reaches the heading. */
+.sec .eyebrow{position:relative;padding-top:16px}
+.sec .eyebrow::before{content:"";position:absolute;top:0;left:0;width:34px;height:2px;border-radius:2px;background:var(--accent-deep)}
+.faq-layout .sec .eyebrow::before{left:50%;transform:translateX(-50%)}
+
+/* Cards lift on approach, and the top edge picks up the accent. Same
+   feel as the card grids on the homepage. */
+.card{transition:transform .22s var(--ease),box-shadow .22s var(--ease),border-color .22s var(--ease)}
+.grid .card:hover{transform:translateY(-3px);box-shadow:var(--sh-2);border-color:#d7e4de}
+
+/* Numerals are data here, so they are set as data: tabular, tight, and
+   with a hairline over the stat cards that fills in on hover. */
+#stats .card{position:relative;overflow:hidden}
+#stats .card::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent-deep),var(--teal-soft));transform:scaleX(0);transform-origin:0 50%;transition:transform .3s var(--ease)}
+#stats .card:hover::before{transform:scaleX(1)}
+.stat{font-variant-numeric:tabular-nums;letter-spacing:-.035em}
+
+/* The key rung breathes, so the eye finds the rung the copy is about. */
+@keyframes rungpulse{0%,100%{box-shadow:0 0 0 4px var(--green-tint)}50%{box-shadow:0 0 0 7px rgba(30,158,99,.12)}}
+.stop--key .stop__dot{animation:rungpulse 3.2s var(--ease) infinite}
+
+/* Entrance. One orchestrated arrival per section rather than motion
+   scattered over the page: the header, then its content, then the row.
+   Mirrors the homepage's whl-reveal so the two pages move the same way. */
+html.rv-on .rv{opacity:0;transform:translateY(14px);transition:opacity .55s var(--ease),transform .55s var(--ease)}
+html.rv-on .rv.is-in{opacity:1;transform:none}
+html.rv-on .rv-stagger>*{opacity:0;transform:translateY(14px);transition:opacity .5s var(--ease),transform .5s var(--ease)}
+html.rv-on .rv-stagger.is-in>*{opacity:1;transform:none}
+html.rv-on .rv-stagger.is-in>*:nth-child(2){transition-delay:.06s}
+html.rv-on .rv-stagger.is-in>*:nth-child(3){transition-delay:.12s}
+html.rv-on .rv-stagger.is-in>*:nth-child(4){transition-delay:.18s}
+html.rv-on .rv-stagger.is-in>*:nth-child(5){transition-delay:.24s}
+html.rv-on .rv-stagger.is-in>*:hover{transition-delay:0s}
+@media (prefers-reduced-motion:reduce){
+  html.rv-on .rv,html.rv-on .rv-stagger>*{opacity:1;transform:none;transition:none}
+  .stop--key .stop__dot{animation:none}
+}
 
 /* the checkup form */
 .fg{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
@@ -323,23 +390,9 @@ section.alt{background:var(--mist)}
 .rail__f{margin-top:24px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;line-height:1.6;color:var(--ink-3)}
 
 /* seat / role */
-.seat{display:grid;grid-template-columns:52px minmax(0,1fr);gap:16px;align-items:start}
-.seat>*+*{margin-top:0}
 .seat .ic{width:52px;height:52px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--green-tint);color:var(--teal-bright);border:2px solid var(--paper);box-shadow:0 0 0 1px #cfe9db}
-.seat h4{margin-bottom:6px}
-.duty{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px}
-.duty li{display:grid;grid-template-columns:18px minmax(0,1fr);gap:11px;align-items:start;font-size:13.5px;line-height:1.55;color:var(--ink-2)}
-.duty svg{margin-top:3px;flex:none;stroke:var(--accent-deep)}
 
 /* what a provider sees */
-.split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
-@media(max-width:760px){.split{grid-template-columns:1fr}}
-.seen{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:11px}
-.seen li{display:grid;grid-template-columns:20px minmax(0,1fr);gap:11px;align-items:start;font-size:13.5px;line-height:1.55;color:var(--ink-2)}
-.seen svg{margin-top:2px;flex:none}
-.seen--yes svg{stroke:var(--accent-deep)}
-.seen--no svg{stroke:var(--warn-text)}
-.card--no{border-color:#EBD9CF;background:#FDF9F6}
 
 /* ===== Restored from the design reference ===== */
 
@@ -386,8 +439,6 @@ section.alt{background:var(--mist)}
 .ava.empty{background:var(--mist);color:var(--ink-3);box-shadow:0 0 0 1px var(--line);font-weight:700;font-size:22px}
 .mgr__id b{display:block;font-family:var(--disp);font-weight:700;font-size:15px;color:var(--teal)}
 .mgr__id .mlabel{display:block;margin-top:3px}
-.rating{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12.5px;color:var(--ink-2)}
-.rating i{font-style:normal;color:var(--gold-text)}
 .mgr q{display:block;font-size:13.5px;line-height:1.6;color:var(--ink-2);quotes:none}
 .mgr q::before,.mgr q::after{content:""}
 .mgr__cta{display:flex;gap:8px;flex-wrap:wrap}
@@ -454,12 +505,6 @@ section.alt{background:var(--mist)}
 .drop{display:flex;gap:14px;align-items:center;background:var(--green-tint);border:1.5px dashed #b9c8bf;border-radius:var(--r);padding:14px}
 .drop b{display:block;font-family:var(--disp);font-weight:700;font-size:14px;color:var(--teal)}
 .drop span{font-size:12.5px;color:var(--ink-2);line-height:1.5}
-.nom{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
-.nom:last-of-type{border-bottom:none}
-.nom__t{flex:1;min-width:0}
-.nom__t b{display:block;font-family:var(--disp);font-weight:700;font-size:14px;color:var(--teal)}
-.nom__t span{font-size:12.5px;color:var(--ink-2);line-height:1.5}
-.nom .v{font-family:var(--mono);font-size:12px;color:var(--ink-3);white-space:nowrap}
 .gate{text-align:center}
 .gate .ic{width:52px;height:52px;border-radius:50%;background:var(--green-tint);color:var(--teal-bright);display:grid;place-items:center;margin:0 auto 14px}
 .gate h4{margin-bottom:8px}
@@ -486,16 +531,6 @@ section.alt{background:var(--mist)}
 .faq[data-open="true"] .faq__a{max-height:420px;padding:2px 22px 22px}
 
 /* closing band */
-.band{border-radius:var(--rf);background:var(--panel);color:#fff;padding:clamp(28px,4vw,44px);position:relative;overflow:hidden;text-align:center}
-.band::before{content:"";position:absolute;inset:0;background:radial-gradient(520px 240px at 50% -30%,rgba(127,227,176,.16),transparent 64%);pointer-events:none}
-.band>*{position:relative}
-.band h2{color:#fff;margin:0 auto}
-.band p{margin:14px auto 0;max-width:56ch;color:rgba(255,255,255,.82);font-size:15px;line-height:1.65}
-.band .cta{display:flex;gap:12px;justify-content:center;margin-top:24px;flex-wrap:wrap}
-.band .btn{background:var(--accent)}
-.band .btn:hover{background:var(--accent-hover)}
-.band .btn.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.28)}
-.band .btn.ghost:hover{background:rgba(255,255,255,.06)}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 <!-- WHOLLAR-FOOTER-CSS:START (generated by scripts/build-footer.mjs) -->
@@ -639,7 +674,7 @@ section.alt{background:var(--mist)}
   <a class="btn sm" href="/waitlist/?fsa=M1K">Join the cohort</a>
 </div></nav>
 
-<header class="hero"><div class="wrap">
+<header class="hero"><svg class="hero__towers" viewBox="0 0 520 300" fill="none" aria-hidden="true" focusable="false"><rect x="40" y="65" width="120" height="235" rx="3" fill="none" stroke="#7FE3B0" stroke-width="1.5"/><line x1="45" y1="77" x2="155" y2="77" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="45" y1="89" x2="155" y2="89" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="45" y1="100" x2="155" y2="100" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="45" y1="112" x2="155" y2="112" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="45" y1="124" x2="155" y2="124" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="45" y1="135" x2="155" y2="135" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="45" y1="147" x2="155" y2="147" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="45" y1="159" x2="155" y2="159" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="45" y1="171" x2="155" y2="171" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="45" y1="183" x2="155" y2="183" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="45" y1="194" x2="155" y2="194" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="45" y1="206" x2="155" y2="206" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="45" y1="218" x2="155" y2="218" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="45" y1="229" x2="155" y2="229" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="45" y1="241" x2="155" y2="241" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="45" y1="253" x2="155" y2="253" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="45" y1="265" x2="155" y2="265" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="45" y1="277" x2="155" y2="277" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="45" y1="288" x2="155" y2="288" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><rect x="180" y="30" width="130" height="270" rx="3" fill="none" stroke="#7FE3B0" stroke-width="1.5"/><line x1="185" y1="42" x2="305" y2="42" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="53" x2="305" y2="53" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="65" x2="305" y2="65" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="77" x2="305" y2="77" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="89" x2="305" y2="89" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="100" x2="305" y2="100" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="112" x2="305" y2="112" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="124" x2="305" y2="124" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="136" x2="305" y2="136" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="147" x2="305" y2="147" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="159" x2="305" y2="159" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="171" x2="305" y2="171" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="183" x2="305" y2="183" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="194" x2="305" y2="194" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="206" x2="305" y2="206" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="218" x2="305" y2="218" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="230" x2="305" y2="230" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="241" x2="305" y2="241" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="253" x2="305" y2="253" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="265" x2="305" y2="265" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="277" x2="305" y2="277" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="185" y1="288" x2="305" y2="288" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><rect x="330" y="42" width="128" height="258" rx="3" fill="none" stroke="#7FE3B0" stroke-width="1.5"/><line x1="335" y1="54" x2="453" y2="54" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="65" x2="453" y2="65" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="77" x2="453" y2="77" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="89" x2="453" y2="89" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="101" x2="453" y2="101" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="112" x2="453" y2="112" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="124" x2="453" y2="124" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="136" x2="453" y2="136" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="148" x2="453" y2="148" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="159" x2="453" y2="159" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="171" x2="453" y2="171" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="183" x2="453" y2="183" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="194" x2="453" y2="194" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="206" x2="453" y2="206" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="218" x2="453" y2="218" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="230" x2="453" y2="230" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="241" x2="453" y2="241" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="253" x2="453" y2="253" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="265" x2="453" y2="265" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="277" x2="453" y2="277" stroke="#7FE3B0" stroke-width="1" opacity=".55"/><line x1="335" y1="288" x2="453" y2="288" stroke="#7FE3B0" stroke-width="1" opacity=".55"/></svg><div class="wrap">
   <div>
     <span class="eyebrow">Greystone Walk Drive, Scarborough Junction</span>
     <h1>Greystone Walk is asking for a better internet price. <em>Together.</em></h1>
@@ -661,12 +696,12 @@ section.alt{background:var(--mist)}
 </div></header>
 
 <section id="check"><div class="wrap">
-  <header class="sec">
+  <header class="sec rv">
     <span class="eyebrow">The Whollar checkup</span>
     <h2>What is your internet really costing you?</h2>
     <div class="sec__d"><p class="lead">Not the sticker. The complete bill: your plan, the rented box, the credits, and the jump that lands when your promo quietly expires. About a minute, no account needed.</p></div>
   </header>
-  <div class="checkout">
+  <div class="rv checkout">
     <form class="card" id="ckForm" novalidate>
       <div class="fld">
         <div class="barrow">
@@ -760,12 +795,12 @@ section.alt{background:var(--mist)}
 </div></section>
 
 <section class="alt" id="rate"><div class="wrap">
-  <header class="sec">
+  <header class="sec rv">
     <span class="eyebrow">Rate your provider</span>
     <h2>How is the internet treating this building?</h2>
     <div class="sec__d"><p class="lead">Four taps. Providers bidding on a building want to know how unhappy residents are and how many would actually move. Your answer tells them both.</p></div>
   </header>
-  <div class="card survey">
+  <div class="rv card survey">
     <div class="survey__h"><h4>Four taps, twenty seconds</h4><span class="mlabel">No account needed</span></div>
     <div class="qgrid">
       <div class="q"><div class="q__l"><span class="q__n">01</span><b id="qs1">Overall, how satisfied are you?</b></div>
@@ -790,12 +825,12 @@ section.alt{background:var(--mist)}
 </div></section>
 
 <section id="stats"><div class="wrap">
-  <header class="sec">
+  <header class="sec rv">
     <span class="eyebrow"><span class="bnfull">Building 3, Greystone Walk II</span></span>
     <h2>What is already true about this building</h2>
     <div class="sec__d"><p class="lead">Facts that hold before a single bill is pooled. Everything else on this page unlocks as neighbours join, and nothing is shown until enough people are behind it.</p></div>
   </header>
-  <div class="grid g4">
+  <div class="rv-stagger grid g4">
     <div class="card"><span class="mlabel">Units in the building</span><div class="stat num" id="stUnits">354</div><p id="stUnitsSub">23 storeys, completed 1990.</p></div>
     <div class="card"><span class="mlabel">Providers in reach</span><div class="stat num">3</div><p>Two incumbents, and at least one independent last mile provider with coverage in the area.</p></div>
     <div class="card"><span class="mlabel">Founding spots</span><div class="stat">5%</div><p>The first 5% of doors are founding members, with the first install windows when the building switches.</p></div>
@@ -805,12 +840,12 @@ section.alt{background:var(--mist)}
 </div></section>
 
 <section class="alt" id="how"><div class="wrap">
-  <header class="sec">
+  <header class="sec rv">
     <span class="eyebrow">How the cohort works</span>
     <h2>Join now, decide later, pay nothing either way</h2>
     <div class="sec__d"><p class="lead">Joining is free and non binding. You only make a decision when you are holding an offer with your own name and price on it.</p></div>
   </header>
-  <div class="steps">
+  <div class="rv-stagger steps">
     <div class="step now"><span class="mlabel">Now</span><b>Forming</b><p>Residents join, submit a bill, rate their provider.</p></div>
     <div class="step"><span class="mlabel">Next</span><b>Threshold</b><p>At 30% of doors the building is big enough to take to providers as one purchase.</p></div>
     <div class="step"><span class="mlabel">Then</span><b>Sealed bids</b><p>Providers bid without seeing each other. They see aggregates only, never who you are.</p></div>
@@ -818,12 +853,12 @@ section.alt{background:var(--mist)}
     <div class="step"><span class="mlabel">Finally</span><b>Switch</b><p>Whollar handles the cancellation, the install window and the promo timing.</p></div>
   </div>
 
-  <div class="rail">
+  <div class="rv rail">
     <div class="rail__t">
       <h3>What unlocks as <span class="bn">Greystone Walk II</span> fills</h3>
       <span class="mlabel">Share of the tower's doors</span>
     </div>
-    <div class="rail__stops">
+    <div class="rv-stagger rail__stops">
       <span class="rail__line" aria-hidden="true"></span>
       <div class="stop stop--key"><span class="stop__dot" aria-hidden="true"></span><span class="stop__k">10 BILLS</span><span class="stop__b">Registered</span><p>Your building gets registered with Whollar.</p></div>
       <div class="stop"><span class="stop__dot" aria-hidden="true"></span><span class="stop__k">5%</span><span class="stop__b">Founding window closes</span><p>Ratings unlock and the tower race goes live.</p></div>
@@ -836,12 +871,12 @@ section.alt{background:var(--mist)}
 </div></section>
 
 <section id="managers"><div class="wrap">
-  <header class="sec">
+  <header class="sec rv">
     <span class="eyebrow">Campaign managers</span>
     <h2>Every building needs someone to start it</h2>
     <div class="sec__d"><p class="lead">One resident per tower puts the notice in the lobby, answers the questions in the building group, and posts the weekly update. Neighbours pick them, members rate them, and they earn 1.2x points on every referral.</p></div>
   </header>
-  <div class="grid g3">
+  <div class="rv-stagger grid g3">
     <div class="card mgr">
       <div class="mgr__top"><span class="ava empty">+</span><span class="mgr__id"><b>1 Greystone Walk</b><span class="mlabel">Seat open</span></span></div>
       <q>Nobody has taken this tower yet. Add a photo and one line on why you are in. Neighbours from your tower endorse you, and the most endorsed takes the seat.</q>
@@ -859,7 +894,7 @@ section.alt{background:var(--mist)}
     </div>
   </div>
 
-  <div class="glow">
+  <div class="rv glow">
     <div>
       <h3>Join the race. Every referral makes this building a little better.</h3>
       <p>One more household is one more reason for a provider to bid harder, for everyone on your floor and not just you. Referral points count toward the Greystone Walk leaderboard and the Whollar wide one.</p>
@@ -867,7 +902,7 @@ section.alt{background:var(--mist)}
     <div class="pts-row"><span><b>+10</b>per referral that joins and submits a bill</span><span><b>x1.2</b>for campaign managers</span><span><b>+5</b>when your referral rates their provider</span></div>
   </div>
 
-  <div class="grid g2" style="margin-top:16px">
+  <div class="rv-stagger grid g2" style="margin-top:16px">
     <div class="card">
       <div class="lbhead"><h4>Referral leaderboard</h4><div class="seg" id="lbSeg"><button class="on" data-lb="b" type="button">Greystone Walk</button><button data-lb="w" type="button">All of Whollar</button></div></div>
       <ol class="lb" id="lbB">
@@ -903,12 +938,12 @@ section.alt{background:var(--mist)}
 </div></section>
 
 <section class="alt" id="products"><div class="wrap">
-  <header class="sec">
+  <header class="sec rv">
     <span class="eyebrow">Next from Whollar</span>
     <h2>Same idea, your other bills</h2>
     <div class="sec__d"><p class="lead">Tell us which of these you would want negotiated for the building. Interest here becomes the bargaining number for the next cohort.</p></div>
   </header>
-  <div class="grid g3">
+  <div class="rv-stagger grid g3">
     <div class="card prod"><div><h4>Mobile plans</h4><p>Same cohort, your phone bill</p></div><button class="tog" type="button" role="switch" aria-checked="false" aria-label="Interested in mobile plans"></button></div>
     <div class="card prod"><div><h4>Streaming bundles</h4><p>One negotiated bundle for the building</p></div><button class="tog" type="button" role="switch" aria-checked="false" aria-label="Interested in streaming bundles"></button></div>
     <div class="card prod"><div><h4>Winter tires</h4><p>Group price, delivered to the garage</p></div><button class="tog" type="button" role="switch" aria-checked="false" aria-label="Interested in winter tires"></button></div>
@@ -917,12 +952,12 @@ section.alt{background:var(--mist)}
 </div></section>
 
 <section id="feed"><div class="wrap">
-  <header class="sec">
+  <header class="sec rv">
     <span class="eyebrow">Building feed</span>
     <h2>Watch the building move</h2>
     <div class="sec__d"><p class="lead">Joins, unlocks, rank changes and switches as they happen. Anonymous and aggregate, never a unit number.</p></div>
   </header>
-  <div class="card locked">
+  <div class="rv card locked">
     <span class="ic" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span>
     <div>
       <span class="k">12% of doors</span>
@@ -934,12 +969,12 @@ section.alt{background:var(--mist)}
 
 <section class="alt" id="faq"><div class="wrap">
   <div class="faq-layout">
-    <header class="sec">
+    <header class="sec rv">
       <span class="eyebrow">Questions residents ask</span>
       <h2>The things people check before they join</h2>
       <div class="sec__d"><p class="lead">Six answers. Where we do not have one yet, this page says so rather than guessing at it.</p></div>
     </header>
-    <div class="faqwrap" data-faqwrap>
+    <div class="rv-stagger faqwrap" data-faqwrap>
       <div class="faq" data-open="true">
         <button class="faq__q" type="button" aria-expanded="true"><span>Does the building have a bulk internet agreement?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
         <div class="faq__a">We confirm this with each condo corporation separately. Three buildings, three answers. If a bulk agreement is in force, the cohort runs as an add on for households who want a different provider.</div>
@@ -1010,6 +1045,31 @@ section.alt{background:var(--mist)}
     for (var i = 0; i < n.length; i++) fn(n[i], i);
   }
 
+  /* ---- entrance ----------------------------------------------------
+     One arrival per section: the header, then its grid, staggered. Each
+     element is unobserved once it has arrived, so nothing re-animates on
+     the way back up. */
+  if (document.documentElement.className.indexOf('rv-on') > -1) {
+    var io = new IntersectionObserver(function (entries) {
+      for (var i = 0; i < entries.length; i++) {
+        if (!entries[i].isIntersecting) continue;
+        entries[i].target.classList.add('is-in');
+        io.unobserve(entries[i].target);
+      }
+    }, { rootMargin: '0px 0px -60px 0px', threshold: 0 });
+    /* Backstop: anything still waiting once the page has loaded is revealed
+       outright. A section that never crosses the trigger is a section nobody
+       can read, which is a worse failure than a missed animation. */
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        each('.rv, .rv-stagger', function (el) {
+          if (el.getBoundingClientRect().top < window.innerHeight) el.classList.add('is-in');
+        });
+      }, 400);
+    });
+    each('.rv, .rv-stagger', function (el) { io.observe(el); });
+  }
+
   /* ---- the three towers -------------------------------------------
      Retitles the page as one of the buildings. Facts only: unit count,
      storeys and completion year, all from public condo records. */
@@ -1041,12 +1101,24 @@ section.alt{background:var(--mist)}
   /* ---- FAQ accordion, the site's open/close contract ---------------
      data-open drives the CSS, aria-expanded drives the screen reader,
      and both are set together. */
+  function setFaq(item, open) {
+    item.setAttribute('data-open', open ? 'true' : 'false');
+    item.querySelector('.faq__q').setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
   each('[data-faqwrap] .faq', function (item) {
     var q = item.querySelector('.faq__q');
     q.addEventListener('click', function () {
       var open = item.getAttribute('data-open') === 'true';
-      item.setAttribute('data-open', open ? 'false' : 'true');
-      q.setAttribute('aria-expanded', open ? 'false' : 'true');
+      /* One answer at a time. Opening a question closes whichever was
+         already open, so the column never grows past a screen and the
+         question you just clicked does not walk off the top of it.
+         Clicking the open one still closes it and leaves none open. */
+      if (!open) {
+        each('[data-faqwrap] .faq', function (other) {
+          if (other !== item) setFaq(other, false);
+        });
+      }
+      setFaq(item, !open);
     });
   });
 
