@@ -301,7 +301,7 @@ doc = doc.replace('<button data-lp-action="join"', '<button type="button" data-l
 const RHYTHM = [
   /* the section shells */
   ['padding:clamp(64px,8vw,112px) 0', 'padding:clamp(44px,5vw,76px) 0', 8],
-  ['padding:clamp(48px,6vw,80px) 0 clamp(64px,7vw,104px)', 'padding:clamp(28px,3.4vw,48px) 0 clamp(36px,4.4vw,64px)', 1],
+  ['padding:clamp(48px,6vw,80px) 0 clamp(64px,7vw,104px)', 'padding:clamp(28px,3.4vw,48px) 0 clamp(14px,1.8vw,26px)', 1],
   /* the gap between a section heading and the cards under it */
   ['margin:0 auto clamp(44px,5vw,68px)', 'margin:0 auto clamp(26px,3vw,42px)', 1],
   ['margin:0 auto clamp(40px,4.5vw,60px)', 'margin:0 auto clamp(24px,2.8vw,40px)', 1],
@@ -313,6 +313,12 @@ const RHYTHM = [
   ['margin-top:clamp(28px,3vw,40px)', 'margin-top:clamp(20px,2.2vw,28px)', 1],
   /* the pinned word reveal: same animation, less scrolling to get through it */
   ['height:340vh', 'height:260vh', 1],
+  /* The reveal panel is a 100vh box with the words centred in it, so roughly a
+     third of a screen of blank sits above the first line: dead space on the
+     way in, and dead space again while the panel is pinned. Anchored to the
+     top instead, with a padding that keeps the words off the header. */
+  ['height:100vh;display:flex;align-items:center;justify-content:center;padding:clamp(56px,8vh,104px)',
+   'height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:clamp(48px,13vh,148px)', 1],
   /* where a nav click stops */
   ['scroll-padding-top:100px', 'scroll-padding-top:var(--wh-head,92px)', 1],
 ];
