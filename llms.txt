@@ -1,0 +1,13 @@
+# Whollar
+
+> Whollar is a household buying platform for Canada. It brings households with
+> the same need together into cohorts so that suppliers bid for all of them at
+> once, and each household keeps the offer it likes. Free for households. This
+> file describes the umbrella site and points at the services under it.
+
+## Services
+- [Home internet](https://internet.whollar.ca/): the first service. Cohorts by neighbourhood and renewal window; verified providers bid sealed for the whole cohort. Its resource library is at https://internet.whollar.ca/llms.txt.
+- Winter tires: the second service, forming now. Households can hold a spot at https://www.whollar.ca/join.
+
+## Join
+- [Join Whollar](https://www.whollar.ca/join): hold a spot for internet, winter tires, or both.
