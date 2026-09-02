@@ -186,7 +186,23 @@ section.alt{background:var(--mist)}
    lines and truncates the options inside the selects. */
 .checkout{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:16px;align-items:start}
 @media(max-width:1020px){.checkout{grid-template-columns:1fr}}
-@media(min-width:1021px){.vcard{position:sticky;top:88px}}
+/* The right column is a rail, not a single card. The form is ~1200px tall
+   and the verdict is 500 to 800, so pinning only the card left 400 to 700px
+   of dead column beside fields 06 to 10. The rail carries the three things
+   worth knowing WHILE you are typing a bill, and the whole rail sticks as
+   one unit so it is still on screen at the last field. */
+.vrail{display:flex;flex-direction:column;gap:16px;min-width:0}
+/* Deliberately NOT sticky. Once the rail carries the notes it is 890 to
+   1175px tall against a viewport that is often shorter, and a sticky block
+   taller than the viewport pins with its own bottom unreachable: you scroll
+   and the last note never arrives. The two columns are within 26px of each
+   other after a result, so there is nothing left to pin anyway. */
+.vnotes{border:1px solid var(--line);border-radius:var(--rf);background:var(--paper);padding:6px 20px;box-shadow:var(--sh-1)}
+.vnote-item{display:grid;grid-template-columns:20px minmax(0,1fr);gap:13px;align-items:start;padding:16px 0}
+.vnote-item+.vnote-item{border-top:1px solid var(--line)}
+.vnote-item svg{margin-top:2px;flex:none;stroke:var(--accent-deep)}
+.vnote-item b{display:block;font-family:var(--disp);font-weight:700;font-size:14px;color:var(--teal);margin-bottom:3px}
+.vnote-item p{font-size:12.5px;line-height:1.55;color:var(--ink-2)}
 .fld{border:1px solid var(--line);border-radius:var(--r);padding:14px 16px 16px;background:var(--paper)}
 .fld+.fld{margin-top:12px}
 .fld:focus-within{border-color:var(--accent)}
@@ -707,6 +723,7 @@ section.alt{background:var(--mist)}
       <p class="cap" style="margin-top:12px">The figure is worked out in your browser, by the same engine that runs the full Whollar checkup.</p>
     </form>
 
+    <div class="vrail">
     <div class="vcard" id="vcard">
       <span class="vbadge" id="vBadge">Your verdict</span><span class="vpill hide" id="vPill">Cliff ahead</span>
       <h3 id="vTitle">Fill the form to see where you stand.</h3>
@@ -722,6 +739,22 @@ section.alt{background:var(--mist)}
         <a class="btn" id="vJoin" href="/waitlist/?fsa=M1K">Join the&nbsp;<span class="bn">Greystone Walk II</span>&nbsp;cohort</a>
         <a class="btn ghost" href="/bill-checkup">Open the full checkup</a>
       </div>
+    </div>
+
+    <div class="vnotes">
+      <div class="vnote-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        <div><b>Why twelve months, not your contract</b><p>Exit fees on internet have been zero since June 2026, so you can move in any month. Your contract does not gate the decision, and it does not shorten the window either.</p></div>
+      </div>
+      <div class="vnote-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+        <div><b>Only Whollar sees your bill</b><p>Providers bidding for the towers get counts, the spread of speeds and when renewals cluster. Never a name, a unit number, or anyone's individual bill.</p></div>
+      </div>
+      <div class="vnote-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg>
+        <div><b>Nothing is decided here</b><p>Joining is free and non binding. You make one decision, later, holding an offer with your own price on it, and turning it down costs nothing.</p></div>
+      </div>
+    </div>
     </div>
   </div>
 </div></section>
