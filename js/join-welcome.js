@@ -7,9 +7,13 @@
  * and a winter tire cohort and an internet cohort do not do the same things
  * next. Which one is in the `pool` query parameter, put there by /join.
  *
- * Everything else is read from the session rather than the URL. The name and
- * the area are the person's own details, and a URL is the one place on a
- * shared machine that keeps them after the tab is closed.
+ * Everything else is read from the session where there is one, and from a
+ * sessionStorage handoff where there is not. /join no longer mints an account
+ * (see js/waitlist-join.js for why the code step went and what it cost), so on
+ * that path there is nothing to read a name out of. What there is never goes
+ * in the URL: a query string is the one place on a shared machine that keeps a
+ * name and a postal code after the tab is closed, in history and in any link
+ * that gets pasted. The handoff dies with the tab.
  */
 (function () {
   'use strict';
@@ -69,8 +73,14 @@
   };
 
   function chosen() {
-    var pool;
-    try { pool = new URLSearchParams(window.location.search).get('pool'); } catch (e) { pool = null; }
+    /* The page says first: /join-welcome-tires carries data-pool on <body>,
+       so a tire household cannot be shown internet copy by a stripped query
+       string. The URL decides only between internet and both on the internet
+       screen. */
+    var pool = document.body.getAttribute('data-pool');
+    if (!pool) {
+      try { pool = new URLSearchParams(window.location.search).get('pool'); } catch (e) { pool = null; }
+    }
     return Object.prototype.hasOwnProperty.call(STATES, pool) ? pool : 'internet';
   }
 
@@ -171,7 +181,10 @@
       if (!raw) return;
       $('share-lnk').textContent =
         window.location.origin.replace(/^https?:\/\//, '') + '/r/' + encodeURIComponent(raw);
-    });
+    /* A signed-out reader is the normal case now, and this endpoint refuses
+       them. Swallowed rather than left to reject: the placeholder link is a
+       real one, it just attributes nobody. */
+    }).catch(function () { /* placeholder stands */ });
   }
 
   $('share-cp').addEventListener('click', function () {
@@ -192,11 +205,28 @@
    * here from a verified code, and an empty stage would be worse than a
    * slightly less personal one. */
 
+  /* What /join left in the tab when it had no session to leave. Read once and
+     cleared, so a reload of this URL on a shared machine shows the generic
+     screen rather than somebody's name. */
+  function handoff() {
+    try {
+      var raw = window.sessionStorage.getItem('whollar.join.welcome');
+      if (!raw) return null;
+      window.sessionStorage.removeItem('whollar.join.welcome');
+      return JSON.parse(raw);
+    } catch (e) { return null; }
+  }
+
   var key = chosen();
+  var carried = handoff();
   if (W.session && W.session.read) {
-    W.session.read().then(function (r) { apply(key, r && r.user); });
+    W.session.read().then(function (r) {
+      /* The session wins where there is one: it is the record, the handoff is
+         only what the previous page happened to know. */
+      apply(key, (r && r.user) || carried);
+    });
   } else {
-    apply(key, null);
+    apply(key, carried);
   }
   fillShareLink();
 })();

@@ -1,22 +1,27 @@
-/* The /join waitlist: the scene animation, the form, and the code step.
+/* The /join waitlist: the scene animation and the form.
  *
  * This is the classic-script reimplementation of the waitlist design canvas's
  * React component (see scripts/port-waitlist.mjs for why that component cannot
  * ship). The canvas's submit() validated and then only set a flag, so as drawn
  * the page told someone they were on the list and sent nothing. This posts.
  *
- * WHICH LANE, AND WHY. The design asks for no password, so this uses the
- * passwordless OTP lane rather than /signup: `otpStart` mails a code and
- * `otpVerify` creates the account and opens the session. The account is minted
- * from an email, a code and a first name, so the rest of what the form
- * collects is written straight after with /me/profile, which is the endpoint
- * that owns a member's details.
+ * WHICH LANE, AND WHY. One submit, POST /waitlist-join, the same route the
+ * older /waitlist/ page uses: it writes the WaitlistSignups row and queues the
+ * CRM lead, and it needs neither a session nor an emailed code. The form ends
+ * at the welcome screen, which is what was asked for.
  *
- * TWO FIELDS ARE COLLECTED AND NOT SENT, deliberately and not silently:
- * the full street address has no column on the user record anywhere in this
- * backend, and "pooling for" has no home either, since /me/product-interest
- * only knows mobile, streaming and tires and this asks about internet. Both
- * are marked below. Wiring them is backend work, not a line in this file.
+ * WHAT THAT COSTS, SO NOBODY REDISCOVERS IT: no code means no proven address,
+ * and this backend mints an account only behind a code (/signup/verify and
+ * otpVerify are the only two doors). So a household joining here is on the
+ * list and in the CRM, but has no account, no session and no referral code,
+ * and the welcome screen degrades accordingly. Restoring accounts means either
+ * putting a code step back or a new backend route, not a change in this file.
+ *
+ * THREE FIELDS ARE COLLECTED AND NOT SENT, deliberately and not silently: the
+ * full street address and the preferred language have no column on this route,
+ * and "pooling for" has no home either, since /me/product-interest knows
+ * mobile, streaming and tires only and this asks about internet. All three are
+ * marked below. Wiring them is backend work, not a line in this file.
  */
 (function () {
   'use strict';
@@ -39,6 +44,13 @@
   function radio(name) {
     var el = document.querySelector('input[name="' + name + '"]:checked');
     return el ? el.value : null;
+  }
+  /* Byte for byte what normalizePhone() accepts in
+     catalyst-backend/functions/formSubmit/index.js: ten digits, or eleven
+     starting with the country code. */
+  function phoneOk(v) {
+    var d = String(v == null ? '' : v).replace(/\D/g, '');
+    return d.length === 10 || (d.length === 11 && d.charAt(0) === '1');
   }
 
   /* ---- the three-scene animation ----
@@ -134,8 +146,21 @@
       var terms = document.getElementById('wterms');
       var cohort = document.getElementById('wcohort');
 
+      var phone = document.getElementById('wphone');
+
       if (!name.value.trim()) return fail('Add a name so we know who is in the cohort.', name);
+      /* These three mirror what /waitlist-join enforces (a first and a last
+         name of two characters each, and a number normalizePhone can read),
+         so a form that would 400 says which field and why, here, in the
+         page's own words rather than as a bare server message. */
+      var parts = name.value.trim().split(/\s+/);
+      if (parts.length < 2 || parts[0].length < 2 || parts[parts.length - 1].length < 2) {
+        return fail('Add your first and last name.', name);
+      }
       if (!email.value || !email.checkValidity()) return fail('Enter an email we can reach you at.', email);
+      if (!phoneOk(phone && phone.value)) {
+        return fail('Add a mobile number we can text when a bid lands.', phone);
+      }
       if (addr && !addr.value.trim()) return fail('Add the address the offer would be installed at.', addr);
       /* W.parsePostal rather than a fresh regex: it already encodes which
          letters are real, canonicalises the spacing, and derives the province
@@ -160,25 +185,37 @@
         fsa: pc.fsa,
         referralCode: val('wref').trim() || null,
         marketing: !!(cohort && cohort.checked),
-        /* COLLECTED, NOT SENT. Neither has anywhere to go in the backend yet:
-           there is no address column on the user record, and
-           /me/product-interest knows mobile, streaming and tires only. Kept
-           here so the day a column exists this is a one-line change, and so
-           nobody reads the form and assumes they are already stored. */
+        /* COLLECTED, NOT SENT. None of the three has anywhere to go on this
+           route: it stores a name, an email, a phone, an FSA and a referral
+           code. Kept here so the day a column exists this is a one-line
+           change, and so nobody reads the form and assumes they are stored. */
         unsentAddress: addr ? addr.value.trim() : null,
         unsentPool: radio('pool'),
         unsentLang: radio('lang')
       };
 
-      busy(true, 'Sending your code...');
-      W.session.otpStart(pending.email).then(function (r) {
-        busy(false, 'Become a founding member');
-        setText('[data-wl-echo]', pending.email);
-        if (r && r.ttlMinutes) setText('[data-wl-ttl]', String(r.ttlMinutes));
-        show('not-joined', false);
-        show('code', true);
-        var code = document.getElementById('wcode');
-        if (code) code.focus();
+      var fields = {
+        firstName: pending.firstName,
+        lastName: pending.lastName,
+        email: pending.email,
+        phone: pending.phone,
+        postalFull: pending.postalCode,
+        fsa: pending.fsa,
+        province: pending.provinceCode,
+        provinceCode: pending.provinceCode,
+        referral: pending.referralCode
+      };
+      /* CASL: what was agreed to, when, and on which page. The checkbox state
+         alone proves nothing a year from now, and the route carries these
+         through to the CRM payload. */
+      var consent = W.consentPayload('waitlist', pending.marketing);
+      for (var k in consent) {
+        if (Object.prototype.hasOwnProperty.call(consent, k)) fields[k] = consent[k];
+      }
+
+      busy(true, 'Adding you...');
+      W.submitForm('/waitlist-join', fields).then(function () {
+        finish();
       }).catch(function (err) {
         busy(false, 'Become a founding member');
         /* The server's messages are written to be shown, so show them. */
@@ -187,19 +224,33 @@
     });
   }
 
-  /* ---- the code step ---- */
+  /* ---- handing over to the welcome screen ---- */
 
-  function codeFail(msg) {
-    setText('[data-wl-codeerror]', msg);
-    show('code-error', true);
-  }
+  /* WHY sessionStorage AND NOT THE URL. The welcome screen names the person
+     and their area, and it used to read both from the session. There is no
+     session on this path, and a query string is the one place on a shared
+     machine that keeps a name and a postal code after the tab is closed, in
+     history and in any link that gets pasted. sessionStorage dies with the
+     tab, so the screen stays personal and nothing outlives the visit. The
+     product is still a query parameter: it is not personal, and it is what
+     makes the page shareable as a preview. */
+  var HANDOFF = 'whollar.join.welcome';
 
   function finish() {
-    /* The welcome screen owns everything past this point: it names the person,
-       tells them what happens next for the product they picked, and hands them
-       their referral link. The success panel the canvas drew stays in the
-       markup as the fallback for a redirect that cannot happen. */
+    /* The welcome screen owns everything past this point: it names the person
+       and tells them what happens next for the product they picked. The
+       success panel the canvas drew stays in the markup as the fallback for a
+       redirect that cannot happen. */
     var pool = pending.unsentPool;
+    try {
+      window.sessionStorage.setItem(HANDOFF, JSON.stringify({
+        firstName: pending.firstName,
+        lastName: pending.lastName,
+        postal: pending.postalCode,
+        fsa: pending.fsa
+      }));
+    } catch (e) { /* a blocked store costs a name on the next screen, nothing more */ }
+
     var target = '/join-welcome' + (pool ? '?pool=' + encodeURIComponent(pool) : '');
     try {
       window.location.assign(target);
@@ -209,65 +260,9 @@
     setText('[data-wl-donearea]', pending.postalCode);
     var label = { internet: 'Internet', tires: 'Winter tires', both: 'Internet and winter tires' };
     setText('[data-wl-donepool]', label[pool] || 'Internet');
-    show('code', false);
+    /* No account on this lane, so there is no member number to print. */
+    setText('[data-wl-donenumber]', 'Pending');
     show('joined', true);
-    W.session.referral().then(function (r) {
-      setText('[data-wl-donenumber]', (r && (r.code || r.referralCode)) || 'pending');
-    });
-  }
-
-  var verify = document.querySelector('[data-wl-action="verify"]');
-  if (verify) {
-    verify.addEventListener('click', function () {
-      show('code-error', false);
-      var code = (val('wcode') || '').trim();
-      if (!/^\d{6}$/.test(code)) return codeFail('Enter the 6-digit code from your email.');
-
-      verify.disabled = true;
-      verify.textContent = 'Checking...';
-      W.session.otpVerify({
-        email: pending.email,
-        code: code,
-        firstName: pending.firstName,
-        referralCode: pending.referralCode,
-        marketing: pending.marketing
-      }).then(function () {
-        /* The account exists now but knows only an email and a first name.
-           The rest of the form is written here, which is the endpoint that
-           owns a member's details. A failure past this point must NOT read as
-           a failed signup: they are on the list either way. */
-        return W.session.profileSave ? W.session.profileSave({
-          lastName: pending.lastName,
-          phone: pending.phone,
-          postalCode: pending.postalCode,
-          provinceCode: pending.provinceCode
-        }).catch(function () { return null; }) : null;
-      }).then(function () {
-        finish();
-      }).catch(function (err) {
-        verify.disabled = false;
-        verify.textContent = 'Verify and continue';
-        codeFail(err.message || 'That code did not work. Try again.');
-      });
-    });
-  }
-
-  var resend = document.querySelector('[data-wl-action="resend"]');
-  if (resend) {
-    resend.addEventListener('click', function () {
-      if (!pending) return;
-      resend.disabled = true;
-      resend.textContent = 'Sending...';
-      W.session.otpStart(pending.email).then(function () {
-        resend.disabled = false;
-        resend.textContent = 'Send a new code';
-        show('code-error', false);
-      }).catch(function (err) {
-        resend.disabled = false;
-        resend.textContent = 'Send a new code';
-        codeFail(err.message || 'Could not send another code just yet.');
-      });
-    });
   }
 
   /* ---- start over from the success panel ---- */
@@ -278,7 +273,6 @@
       if (form) form.reset();
       pending = null;
       show('joined', false);
-      show('code', false);
       show('error', false);
       show('not-joined', true);
     });

@@ -8,10 +8,17 @@
  *
  * The one difference that matters: this page carries a real form. The canvas
  * component validates it and then only flips a flag, so as designed it tells
- * someone "you're in" and sends nothing. The port wires it to the signup the
- * backend already has, which is a two-step flow (POST /signup, then a code to
- * POST /signup/verify), so the port adds the code step the design has no
- * screen for. Without it the page cannot actually enrol anyone.
+ * someone "you're in" and sends nothing. The port wires it to the waitlist
+ * route the backend already has, POST /waitlist-join, which writes the row and
+ * queues the CRM lead with no session and no emailed code.
+ *
+ * WHY NOT AN ACCOUNT. It was one, briefly: /signup and the OTP lane both mint
+ * a member, and both hold the account inert behind a 6-digit code, so the port
+ * carried a screen to type it in. That screen is gone at the user's call: the
+ * form should end at the welcome. No code means no verified address, so it
+ * means no account, because this backend has no route that makes one without
+ * one. What is left is a real waitlist: the details are stored, the lead
+ * reaches the CRM, and the household is counted. See js/waitlist-join.js.
  *
  *   node scripts/port-waitlist.mjs
  */
@@ -203,6 +210,11 @@ const VOCAB = [
      repo-wide and this is not prose but it is still a page string, so it uses
      bullets, which read as hidden digits without reaching for a dash at all. */
   ['$ — —', '$ • •'],
+  /* POST /waitlist-join refuses a row without a valid 10-digit number, and the
+     welcome screen promises "we text you the moment one lands", so the design's
+     "optional" was wrong on both ends. Says what the number is for instead. */
+  ['>Mobile <span style="font-weight:500;color:#68705F">· optional</span>',
+   '>Mobile <span style="font-weight:500;color:#68705F">· we text you when a bid lands</span>'],
 ];
 for (const [find, repl] of VOCAB) {
   const n = doc.split(find).length - 1;
@@ -213,38 +225,11 @@ const strayGroup = (doc.replace(/<[^>]+>/g, ' ').match(/\bgroups?\b/gi) || []).l
 if (strayGroup) throw new Error(`"group" still in visible copy ${strayGroup} time(s)`);
 if (doc.includes('—')) throw new Error('an em dash survived');
 
-/* ---------- the code step ---------- */
-
-/* The design has no screen for it, because its submit only flipped a flag.
-   The real signup issues a code and the account stays inert until it is
-   checked, so the page needs somewhere to type it. Built from the design's own
-   tokens rather than a new look: same card, same mono face, same green. */
-const CODE_STEP = `
-    <span data-wl-when="code" hidden>
-      <div style="animation:rise .5s ease both">
-        <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#2C6A4E">One last step</span>
-        <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-size:clamp(23px,2.4vw,30px);font-weight:800;letter-spacing:-.025em;margin-top:6px">Check your email</h2>
-        <p style="font-size:14px;color:#4A5249;margin-top:9px;max-width:44ch;text-wrap:pretty">We sent a 6-digit code to <b data-wl-echo></b>. It expires in <span data-wl-ttl>10</span> minutes.</p>
-        <div style="background:#FCFAF5;border:1px solid #E1DBCB;border-radius:16px;padding:18px;margin-top:16px">
-          <label for="wcode" style="display:block;font-size:12px;font-weight:650;color:#43413B;margin-bottom:7px">Your code</label>
-          <input id="wcode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"
-            style="width:100%;padding:11px 13px;border:1px solid #DDD6C6;border-radius:11px;background:#fff;font-family:'Space Mono',monospace;font-size:18px;letter-spacing:.28em;color:#1A2520" class="wl-focus1">
-          <span data-wl-when="code-error" hidden><p style="font-size:12.5px;color:#A6402B;margin-top:8px"><span data-wl-codeerror></span></p></span>
-          <button type="button" data-wl-action="verify" style="width:100%;margin-top:11px;padding:11px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:650;border-radius:11px;font-size:14.5px;background:#1E4D38;color:#fff;border:none;cursor:pointer">Verify and continue</button>
-          <button type="button" data-wl-action="resend" style="width:100%;margin-top:8px;padding:8px;background:none;border:none;font-size:12.5px;color:#5B655C;text-decoration:underline;text-underline-offset:2px;cursor:pointer">Send a new code</button>
-        </div>
-      </div>
-    </span>
-`;
-const joinedAt = doc.indexOf('<span data-wl-when="joined"');
-if (joinedAt < 0) throw new Error('no joined panel to anchor the code step to');
-doc = doc.slice(0, joinedAt) + CODE_STEP + '\n    ' + doc.slice(joinedAt);
-
 /* ---------- the page ---------- */
 
 const body = doc.slice(doc.indexOf('<body>') + 6, doc.indexOf('</body>')).trim();
 const helmetOut = helmet.replace(/<link rel="preconnect"[^>]*>\s*/g, '');
-const STAMP = '20260902';
+const STAMP = '20260902a';
 
 const page = `<!DOCTYPE html>
 <html lang="en-CA">

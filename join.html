@@ -14,7 +14,7 @@
    records session replays, so mask text content by default (PIPEDA / Law 25). */
 window.clarity('set','mask','true');</script>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<script src="/js/whollar-core.js?v=20260902"></script>
+<script src="/js/whollar-core.js?v=20260902a"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Join the waitlist · Whollar</title>
 <style>/* vietnamese */
@@ -683,7 +683,7 @@ body{background:#0E2A20;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
           </div>
 
           <div>
-            <label for="wphone" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">Mobile <span style="font-weight:500;color:#68705F">· optional</span></label>
+            <label for="wphone" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">Mobile <span style="font-weight:500;color:#68705F">· we text you when a bid lands</span></label>
             <input type="tel" id="wphone" name="phone" placeholder="(416) 555 0134" autocomplete="tel" style="width:100%;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:7px 12px;font-size:14px;transition:border-color .15s,box-shadow .15s" class="wl-focus3">
           </div>
 
@@ -748,24 +748,7 @@ body{background:#0E2A20;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
 </div>
 </span>
 
-
-    <span data-wl-when="code" hidden>
-      <div style="animation:rise .5s ease both">
-        <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#2C6A4E">One last step</span>
-        <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-size:clamp(23px,2.4vw,30px);font-weight:800;letter-spacing:-.025em;margin-top:6px">Check your email</h2>
-        <p style="font-size:14px;color:#4A5249;margin-top:9px;max-width:44ch;text-wrap:pretty">We sent a 6-digit code to <b data-wl-echo></b>. It expires in <span data-wl-ttl>10</span> minutes.</p>
-        <div style="background:#FCFAF5;border:1px solid #E1DBCB;border-radius:16px;padding:18px;margin-top:16px">
-          <label for="wcode" style="display:block;font-size:12px;font-weight:650;color:#43413B;margin-bottom:7px">Your code</label>
-          <input id="wcode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"
-            style="width:100%;padding:11px 13px;border:1px solid #DDD6C6;border-radius:11px;background:#fff;font-family:'Space Mono',monospace;font-size:18px;letter-spacing:.28em;color:#1A2520" class="wl-focus1">
-          <span data-wl-when="code-error" hidden><p style="font-size:12.5px;color:#A6402B;margin-top:8px"><span data-wl-codeerror></span></p></span>
-          <button type="button" data-wl-action="verify" style="width:100%;margin-top:11px;padding:11px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:650;border-radius:11px;font-size:14.5px;background:#1E4D38;color:#fff;border:none;cursor:pointer">Verify and continue</button>
-          <button type="button" data-wl-action="resend" style="width:100%;margin-top:8px;padding:8px;background:none;border:none;font-size:12.5px;color:#5B655C;text-decoration:underline;text-underline-offset:2px;cursor:pointer">Send a new code</button>
-        </div>
-      </div>
-    </span>
-
-    <span data-wl-when="joined" hidden>
+<span data-wl-when="joined" hidden>
 <div style="height:100%;background:linear-gradient(158deg,#0E2A20,#1A4A35 58%,#123B2B);display:block;overflow-y:auto;padding:clamp(24px,3vw,44px)">
   <div style="width:100%;max-width:620px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;justify-content:center;gap:clamp(14px,2vh,22px);animation:rise .5s ease both">
 
@@ -821,6 +804,6 @@ body{background:#0E2A20;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
 
 </div>
 
-<script src="/js/waitlist-join.js?v=20260902"></script>
+<script src="/js/waitlist-join.js?v=20260902a"></script>
 </body>
 </html>
