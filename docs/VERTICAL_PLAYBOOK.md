@@ -90,3 +90,12 @@ The full build, step by step, with the Catalyst tables its waitlist needs:
   When the vertical exists, that screen's button and step link point at it.
 - `Whollar_Pooling_For` on the CRM record already carries `tires`; the
   vertical inherits the household without new backend work.
+
+## Since the split (2026-09-03)
+
+The umbrella and the tire vertical are their own repos now, so a vertical that
+copies `js/whollar-core.js` cannot be held equal by a `cmp` in this repo's CI.
+Each copy carries a `js/whollar-core.sha256` its own CI checks, which catches a
+local edit but not this file changing underneath it. **Changing
+`js/whollar-core.js` is three commits**: here, and a copy plus a new checksum
+in `whollar-home` and `whollar-tires`. See `docs/REPO_SPLIT_2026-09.md`.
