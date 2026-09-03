@@ -38,6 +38,36 @@ class ConfigError extends Error {
 
 const isLocal = (host) => host === 'localhost' || host === '127.0.0.1';
 
+/**
+ * The hosts this site is served from, unioned into ALLOWED_ORIGINS at load.
+ *
+ * WHY THIS IS IN CODE AND NOT ONLY IN THE CONSOLE. On 2026-09-03 the domain
+ * restructure moved the product to internet.whollar.ca, and the environment
+ * variable was not widened with it. lib/csrf.js then refused every
+ * state-changing request from the new host: no sign-in, no join, no bid, and
+ * a member told to reload the page and try again. Reads were unaffected,
+ * which is why the site looked healthy from the outside.
+ *
+ * A value that has to equal a list of hosts this repository already knows,
+ * held only in a console someone must remember to edit on the day a host
+ * moves, will drift again. formSubmit/index.js hardcodes the same list for
+ * the same reason, and its comment says these lists are only safe while they
+ * agree. This is that agreement, kept by the code rather than by memory.
+ *
+ * ALLOWED_ORIGINS stays required and stays read. It is where a staging alias
+ * or a local origin goes, and those genuinely do not belong in a constant.
+ * The union only ever adds: an origin in the variable is never dropped.
+ *
+ * The .com twins are deliberately absent. They are meant to be redirect
+ * domains, so no request originates from them; while they still serve, the
+ * variable carries them and the union keeps them.
+ */
+const CANONICAL_ORIGINS = Object.freeze([
+  'https://internet.whollar.ca',
+  'https://www.whollar.ca',
+  'https://tires.whollar.ca',
+]);
+
 const v = {
   /**
    * A value that is allowed to be absent.
@@ -392,6 +422,10 @@ function load(env = process.env) {
     provider: out.SESSION_TTL_PARTNER_HOURS * 60 * 60 * 1000,
     admin: (features.admin ? out.SESSION_TTL_ADMIN_HOURS : 12) * 60 * 60 * 1000,
   });
+
+  /* The canonical hosts cannot go missing, whatever the variable says. See
+     CANONICAL_ORIGINS above for the outage that made this a constant. */
+  out.ALLOWED_ORIGINS = Object.freeze([...new Set([...CANONICAL_ORIGINS, ...out.ALLOWED_ORIGINS])]);
 
   return Object.freeze(out);
 }
