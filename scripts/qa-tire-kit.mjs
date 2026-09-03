@@ -256,9 +256,16 @@ ok(early > 0, 'it has started moving a fifth of a second in');
 const joinTop = await page.locator('#join').evaluate(el => el.getBoundingClientRect().top + window.pageYOffset);
 ok(early < joinTop * 0.6, `and is not there yet, which is the point (${Math.round(early)} of ${Math.round(joinTop)})`);
 await page.waitForTimeout(2200);
-const landed = await page.evaluate(() => window.pageYOffset);
-const headPad = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--wh-head')) || 92);
-ok(Math.abs(landed - (joinTop - headPad)) < 4, 'it lands with the section clear of the sticky header');
+const framed = await page.locator('#join').evaluate(el => {
+  const r = el.getBoundingClientRect();
+  return { top: Math.round(r.top), bottom: Math.round(r.bottom), vh: window.innerHeight, h: Math.round(r.height) };
+});
+/* The join section is a screenful, so it should come to rest framed: nothing
+   of the section above showing, and its cards not cut off below. */
+ok(framed.top <= 2 && framed.top >= -Math.max(4, framed.h - framed.vh) - 2,
+  `the section rests at the top of the screen, not pushed down by the header (top ${framed.top})`);
+ok(framed.bottom >= framed.vh - 2,
+  `and its foot is not cut off (bottom ${framed.bottom} of ${framed.vh})`);
 await page.evaluate(() => window.scrollTo(0, 0));
 
 console.log('\nno JavaScript is still a working link');
