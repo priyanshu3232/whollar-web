@@ -34,7 +34,7 @@ mkdirSync(FONT_DIR, { recursive: true });
 const HOST = 'https://tires.whollar.ca';
 const UMBRELLA = 'https://www.whollar.ca';
 const NET = 'https://internet.whollar.ca';
-const STAMP = '20260903a';
+const STAMP = '20260903b';
 
 let doc = readFileSync(SRC, 'utf8');
 
@@ -325,6 +325,14 @@ ${fontCss}
 </style>
 ${helmet}
 <style>
+/* The nav, the hero CTA and the footer all point at sections of this page, and
+   the canvas left them as instant jumps under a sticky header: the section
+   title landed behind the bar and nothing told you the page had moved.
+   --wh-head is measured off that header in js/tires.js, because it is taller on
+   a phone than the 92px fallback here. Smooth is opt-out, not opt-in: someone
+   who asked their system for less motion gets the jump. */
+html{scroll-padding-top:var(--wh-head,92px)}
+@media (prefers-reduced-motion: no-preference){html{scroll-behavior:smooth}}
 /* :hover rules generated from the canvas's style-hover attributes. */
 ${hoverCss}
 </style>
