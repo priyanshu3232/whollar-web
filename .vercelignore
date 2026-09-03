@@ -182,6 +182,17 @@ Landingpagedesignstructure
 commonwaitlist.html
 commonwaitlist
 
+# The winter tire design sources: the landing canvas plus the waitlist
+# prototype it links to. Same three reasons as the landing and waitlist designs
+# above. cleanUrls would publish the raw pages at their own paths with no guard
+# and no noindex, the canvas runtime compiles itself with new Function which
+# the CSP blocks, and uploads/ holds licensed .mp4s and the .docx build spec.
+# Both still name www.whollar.ca, so leaving them deployable also fails
+# scripts/check-site-host.mjs. Kept in the repo so the port into tires/ can be
+# checked against its source.
+WhollarTireLandingPage
+whollar-waitlist-tyre.html
+
 # The umbrella project. home/ deploys as its OWN Vercel project with its root
 # directory set to home/, serving whollar.ca. Left in this deploy, cleanUrls
 # would publish a second copy of the umbrella at /home/index and every page

@@ -78,6 +78,9 @@ it.
 
 ## For tires.whollar.ca specifically
 
+The full build, step by step, with the Catalyst tables its waitlist needs:
+`docs/TIRE_VERTICAL_BUILD.md`. What follows is the summary it expands.
+
 - The design is owed. When it arrives as a canvas bundle, port it the way
   `scripts/port-landing.mjs` did for the umbrella: decode assets to files,
   resolve the canvas syntax, re-implement any behaviour as a classic script.
