@@ -1,0 +1,21 @@
+# Whollar winter tires
+
+> Whollar brings drivers in one area together so tire installers and
+> distributors bid for the whole cohort at once, instead of quoting one car at
+> a time. This host is the winter tire product. Greater Toronto Area,
+> Winter 2026.
+
+Whollar is one organisation across several hosts. The umbrella is
+https://www.whollar.ca/ and the internet product is https://internet.whollar.ca/.
+
+## Pages
+
+- [Winter tires](https://tires.whollar.ca/): what the tire cohort is, how a
+  cohort forms, what a household gets, and which cities are open.
+
+## What this is not
+
+- Not a retailer. Whollar never sells tires and never sits between a household
+  and its installer.
+- Not a quote. Joining is a vote for a cohort, nothing is charged, and a
+  household picks and pays its own installer.
