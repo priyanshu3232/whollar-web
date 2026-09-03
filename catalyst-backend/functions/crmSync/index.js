@@ -423,6 +423,12 @@ async function addNote(ctx, moduleName, recordId, title, content) {
 
 const SOURCE_META = {
   WaitlistSignups:        { label: 'Waitlist', hasName: true },
+  /* The winter tire vertical, tires.whollar.ca. hasName matters: without a
+     row here the source falls back to { label: source }, hasName is undefined,
+     and Last_Name is set to the household's email address instead of their
+     name. Its own label rather than the internet waitlist's, because
+     Lead_Source is how the CRM tells the two products apart. */
+  TireWaitlistSignups:    { label: 'Winter Tire Waitlist', hasName: true },
   WaitlistDetails:        { label: 'Waitlist Details', hasName: false },
   BillCheckupSubmissions: { label: 'Bill Checkup', hasName: false },
   DeepReadRequests:       { label: 'Deep Read', hasName: false, hot: true },

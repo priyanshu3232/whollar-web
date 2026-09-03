@@ -21,7 +21,29 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 const errors = [];
 page.on('pageerror', e => errors.push(String(e)));
-page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+page.on('console', m => {
+  if (m.type() !== 'error') return;
+  /* The failure test stubs a 500 on purpose, and the browser logs every failed
+     resource. Counting that as an unexpected error would make the check fail
+     for the one thing it is proving works. */
+  const from = (m.location() && m.location().url) || '';
+  if (/tire-waitlist-join/.test(from)) return;
+  errors.push(m.text());
+});
+
+/* The route is stubbed for the whole run, from before the first submit.
+   Without this the earlier guided-form test posts for real, and against an
+   undeployed route that is a 404 in the console, which then fails the "no
+   errors" check for a reason that has nothing to do with the page. */
+let posted = null;
+async function stubRoute(status = 200, body = { ok: true, reference: 'WHL-TIRE-GTA-K7QM', wave: 1 }) {
+  await page.unroute('**/server/formSubmit/tire-waitlist-join').catch(() => {});
+  await page.route('**/server/formSubmit/tire-waitlist-join', async (route) => {
+    posted = JSON.parse(route.request().postData() || '{}');
+    await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+  });
+}
+await stubRoute();
 
 await page.goto(BASE + '/', { waitUntil: 'networkidle' });
 
@@ -145,6 +167,9 @@ await pick(page, '#g_have', 'none');
 await page.locator('#g2 button[type="submit"]').click();
 ok(await page.locator('#g3').isVisible(), 'stage 2 submits and stage 3 appears');
 await page.locator('#g3 button[type="submit"]').click();
+/* This one posts now, so the screen it opens is on the far side of a round
+   trip rather than of a function call. */
+await page.waitForTimeout(800);
 ok(await page.locator('#confirmView').isVisible(), 'stage 3 submits to the completion screen');
 const conf = await page.locator('#wmodalBody').textContent();
 ok(!/#\s*\d/.test(conf.split('What happens next')[0]), 'the completion screen puts no invented number on the household');
@@ -267,6 +292,66 @@ ok(framed.top <= 2 && framed.top >= -Math.max(4, framed.h - framed.vh) - 2,
 ok(framed.bottom >= framed.vh - 2,
   `and its foot is not cut off (bottom ${framed.bottom} of ${framed.vh})`);
 await page.evaluate(() => window.scrollTo(0, 0));
+
+console.log('\nthe submit sends what the route reads');
+/* The route is POST /tire-waitlist-join in formSubmit. This stubs it so the
+   contract between the two can be checked without deploying a function or
+   writing a row: what the page posts has to be what the handler validates. */
+posted = null;
+await page.locator('[data-wpath="guided"]').click();
+await modal.waitFor({ state: 'visible' });
+await page.locator('#g_first').fill('Ada');
+await page.locator('#g_last').fill('Lovelace');
+await page.locator('#g_email').fill('ada@example.com');
+await page.locator('#g_postal').fill('M4B1B3');
+await pick(page, '#g_city', 'gta');
+await page.locator('#g_consent').check();
+await page.locator('#g1 button[type="submit"]').click();
+await pick(page, '#g_have', 'none');
+await page.locator('#g2 button[type="submit"]').click();
+await page.locator('#g3 button[type="submit"]').click();
+await page.waitForTimeout(900);
+
+ok(posted !== null, 'the form actually posts, rather than logging to the console');
+if (posted) {
+  /* Exactly the six the handler rejects the row without. */
+  for (const f of ['firstName', 'lastName', 'email', 'postalFull', 'city', 'path']) {
+    ok(typeof posted[f] === 'string' && posted[f].length > 0, `it sends ${f}, which the route requires`);
+  }
+  ok(posted.path === 'guided', 'path names which door they came through');
+  ok(Array.isArray(posted.vehicles) && posted.vehicles.length === 1, 'the car travels as an array, because a household can bring several');
+  ok(Array.isArray(posted.windows), 'the appointment windows travel as an array with their rank');
+  ok(posted.details && typeof posted.details === 'object', 'the guided path sends a details object');
+  ok(posted.consentGranted === true && typeof posted.consentText === 'string' && posted.consentText.length > 40,
+    'the CASL record travels with what was agreed, not just that it was');
+  ok(typeof posted.consentSource === 'string', 'and where it was agreed');
+  ok(!('ref_code' in posted), 'it does NOT send a reference code: the server mints that');
+}
+/* And the completion screen shows the code that came BACK, not one it made up. */
+const shown = await page.locator('#confRef').count()
+  ? (await page.locator('#confRef').textContent()).trim() : '';
+ok(await page.locator('#confirmView').isVisible(), 'a successful save opens the completion screen');
+await page.locator('#wmodalClose').click().catch(() => {});
+
+console.log('\na failed save does not claim success');
+await stubRoute(500, { ok: false, error: 'nope' });
+await page.evaluate(() => window.scrollTo(0, 0));
+await page.locator('[data-wpath="quick"]').click();
+await modal.waitFor({ state: 'visible' });
+await page.locator('#q_first').fill('Ada');
+await page.locator('#q_last').fill('Lovelace');
+await page.locator('#q_email').fill('ada@example.com');
+await page.locator('#q_postal').fill('M4B1B3');
+await pick(page, '#q_city', 'gta');
+await page.locator('#q_consent').check();
+await page.locator('#quickForm button[type="submit"]').click();
+await page.waitForTimeout(700);
+ok(!(await page.locator('#confirmView').isVisible()), 'a 500 does not open the completion screen');
+ok(await page.locator('#quickForm').isVisible(), 'and the form is still there with what was typed');
+ok((await page.locator('#q_first').inputValue()) === 'Ada', 'nothing the household typed was lost');
+await page.locator('#wmodalClose').click();
+await modal.waitFor({ state: 'hidden' });
+await stubRoute();
 
 console.log('\nno cream strip at any window height');
 /* The bug this guards: the resting place had a fallback for a section more

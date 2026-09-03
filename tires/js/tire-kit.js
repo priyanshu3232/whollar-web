@@ -1672,18 +1672,134 @@ function renderQueue(){
     : 'Referrals do not move you past anyone, because your place is fixed at the moment you joined. What they do is get the cohort to its number sooner, which pulls the auction date forward for everybody including you.';
 }
 
+
+var TIRE_API = "https://whollar-110003037934.development.catalystserverless.ca/server/formSubmit";
+
+/* Mirrors W.submitForm in js/whollar-core.js. See the note in
+   scripts/port-tires.mjs section 10e1 before changing the Content-Type. */
+function postForm(path, fields){
+  return fetch(TIRE_API + path, { method: "POST", body: JSON.stringify(fields) })
+    .then(function(r){
+      return r.json().catch(function(){ return null; }).then(function(body){
+        if(!r.ok){
+          var e = new Error((body && body.error) || ("submit failed: " + r.status));
+          e.status = r.status; e.body = body;
+          throw e;
+        }
+        return body || {};
+      });
+    });
+}
+
+/* Mirrors W.consentPayload. The field names are read by consentFrom() in
+   catalyst-backend/functions/formSubmit/index.js, so the two are only correct
+   while they agree. CASL needs what was agreed, when, and where. */
+var CONSENT_TEXT = "Add me to the Whollar winter tire cohort and email me about it. I understand this is not a purchase and nothing is charged today.";
+
+/* What the route expects. Built from the same S.record the page already
+   assembles, so the form stays the source of truth and this is only a shape. */
+function submitPayload(){
+  var r = S.record, t = S.tools || {};
+  var veh = {
+    inputMode: r.veh_entry_mode || "unsure",
+    year: r.veh_year, make: r.veh_make, model: r.veh_model,
+    vin: r.vin, tireSize: r.tire_size,
+    sizeNormalized: (t.size && t.size.oe) || null,
+    strategy: r.strategy,
+    startingPoint: r.have,
+    tireLifeLeft: r.tire_life_left,
+    trim: r.veh_trim,
+    winterSizeChosen: r.winter_size_chosen,
+    sizeDownsized: r.size_downsized,
+    sizeAck: r.size_ack,
+    staggered: r.staggered,
+    tpmsPresent: r.tpms_present,
+    rimsRecommendation: r.rims_recommendation,
+    ownsRims: (t.rims && t.rims.wh) || null,
+    runsWinterNow: null
+  };
+  var details = r.path === "guided" ? {
+    needs: (r.needs || []).join(","),
+    tier: r.tier, brand: r.brand, budget: r.budget_per_tire,
+    financing: r.financing_interest, installerType: r.installer_type,
+    splitPreference: r.split_install_storage ? "prefer" : null,
+    installWindows: (r.preferred_slots || []).map(function(x){ return x.date + " " + x.slot; }).join(", "),
+    notBefore: r.window_earliest, mustBeOnBy: r.window_latest,
+    memberships: (r.memberships || []).join(","),
+    priorities: (r.priorities || []).join(","),
+    readiness: r.readiness, notes: r.notes,
+    brandLine: r.brand_line, travelRadius: r.travel_radius,
+    installerName: r.installer_name, installerAddress: r.installer_address,
+    installerPostal: r.installer_postal,
+    insuranceHelp: r.insurance_help, insurerProvince: r.insurer_province,
+    premiumAnnual: r.premium_annual,
+    /* Everything asked that has no column, kept verbatim so a new question is
+       not a schema change. */
+    payload: { language: r.language, smsOpt: r.sms_opt, staggered: r.staggered,
+      vehTrim: r.veh_trim, toolsAnswered: Object.keys(t) }
+  } : null;
+
+  return {
+    path: r.path, source: "tires-site",
+    firstName: r.first_name, lastName: r.last_name, email: r.email,
+    phone: r.mobile, postalFull: r.postal, city: r.city,
+    language: r.language || "en", referral: null,
+    consentEmail: !!r.consent_cohort,
+    consentSms: !!r.sms_opt,
+    consentShare: !!r.consent_share_installers,
+    alsoInternet: !!r.consent_internet,
+    consentGranted: !!r.consent_cohort,
+    consentKind: "tire-cohort",
+    consentText: CONSENT_TEXT,
+    consentAt: new Date().toISOString(),
+    consentSource: window.location.pathname,
+    vehicles: [veh],
+    details: details,
+    windows: (r.preferred_slots || []).map(function(x){ return { date: x.date, slot: x.slot, rank: x.rank }; }),
+    toolRuns: Object.keys(t).map(function(k){ return { tool: k, input: null, output: t[k] }; })
+  };
+}
+
+function busyFinish(on){
+  var b = qs("#g3 button[type=submit]") || qs("#quickForm button[type=submit]");
+  if(!b) return;
+  b.disabled = on;
+  b.style.opacity = on ? "0.6" : "";
+  b.dataset.label = b.dataset.label || b.textContent;
+  b.textContent = on ? "Saving your spot..." : b.dataset.label;
+}
+
 function finish(){
+  busyFinish(true);
   S.ref = makeRef(S.city);
   var r = S.record;
   r.ref_code = S.ref; r.rank = S.rank; r.wave = S.wave; r.city = S.city;
   r.tools = S.tools; r.preferred_slots = S.prefs.map(function(x,i){ return {date:x.date, slot:x.slot, rank:i+1}; });
   r.joined_at = new Date().toISOString();
 
-  /* ---- ZOHO / CATALYST POST GOES HERE ----------------------
-     One call creates the Contact and the Waitlist Entry.
-     Everything the backend needs is in this object.
-     -------------------------------------------------------- */
-  console.log("WAITLIST RECORD (would POST to Catalyst):", r);
+  postForm("/tire-waitlist-join", submitPayload()).then(function(saved){
+    /* The reference is the server's. v5 minted one in the browser, which meant
+       two people could hold the same code and nothing could be looked up by
+       it. makeRef stays only as the label until this returns. */
+    S.ref = saved.reference || S.ref;
+    S.wave = saved.wave || S.wave;
+    showConfirmation();
+  }).catch(function(err){
+    busyFinish(false);
+    toast(esc(err.message || "We could not save that just now. Nothing was lost, try again."));
+  });
+  return;
+}
+
+/* Split out so the post above has something to call, and so the completion
+   screen is built from what came back rather than from what was hoped. */
+function showConfirmation(){
+  /* Re-enabled on the way through, not only on failure. v5 offers "Add
+     another vehicle" from the completion screen, which returns to a form whose
+     submit button would otherwise still be disabled and still saying it was
+     saving. */
+  busyFinish(false);
+  var r = S.record;
 
   var c = CITIES.filter(function(x){ return x.v===S.city; })[0] || CITIES[6];
   if($("confRef")) $("confRef").textContent = S.ref;

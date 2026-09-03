@@ -34,7 +34,7 @@ mkdirSync(FONT_DIR, { recursive: true });
 const HOST = 'https://tires.whollar.ca';
 const UMBRELLA = 'https://www.whollar.ca';
 const NET = 'https://internet.whollar.ca';
-const STAMP = '20260903m';
+const STAMP = '20260903n';
 
 let doc = readFileSync(SRC, 'utf8');
 
@@ -638,6 +638,168 @@ var WM = (function(){
   return api;
 })();
 `;
+/* ---------- 10e1. the submit ---------- */
+
+/* v5 ended at a console.log. This is the wiring to POST /tire-waitlist-join,
+   which writes TireWaitlistSignups, TireWaitlistVehicles, TireWaitlistDetails,
+   TireInstallWindows and TireToolRuns (create-tables.md, sections 35 and 36).
+
+   WHY NOT js/whollar-core.js. The vertical playbook says a vertical that uses
+   the shared core should copy it with a CI gate holding it byte identical.
+   That is right for a page that uses the core; this one would be loading 103 KB
+   of member, partner, campaign and referral machinery to reach two functions,
+   on a landing page that already carries a 141 KB engine. So the transport is
+   here, small, and the comment names what it mirrors so the next person can
+   see it is deliberate rather than ignorant of W.submitForm.
+
+   THE ONE SUBTLETY, and the reason a copy is dangerous at all: the body goes
+   out with no Content-Type, which makes it text/plain, which is CORS
+   safelisted, which means no preflight. The Catalyst gateway answers a
+   preflight with no CORS headers at all, so a request that triggers one fails
+   before it is sent. Do not "tidy" this by adding application/json. */
+const SUBMIT_JS = `
+var TIRE_API = "https://whollar-110003037934.development.catalystserverless.ca/server/formSubmit";
+
+/* Mirrors W.submitForm in js/whollar-core.js. See the note in
+   scripts/port-tires.mjs section 10e1 before changing the Content-Type. */
+function postForm(path, fields){
+  return fetch(TIRE_API + path, { method: "POST", body: JSON.stringify(fields) })
+    .then(function(r){
+      return r.json().catch(function(){ return null; }).then(function(body){
+        if(!r.ok){
+          var e = new Error((body && body.error) || ("submit failed: " + r.status));
+          e.status = r.status; e.body = body;
+          throw e;
+        }
+        return body || {};
+      });
+    });
+}
+
+/* Mirrors W.consentPayload. The field names are read by consentFrom() in
+   catalyst-backend/functions/formSubmit/index.js, so the two are only correct
+   while they agree. CASL needs what was agreed, when, and where. */
+var CONSENT_TEXT = "Add me to the Whollar winter tire cohort and email me about it. I understand this is not a purchase and nothing is charged today.";
+
+/* What the route expects. Built from the same S.record the page already
+   assembles, so the form stays the source of truth and this is only a shape. */
+function submitPayload(){
+  var r = S.record, t = S.tools || {};
+  var veh = {
+    inputMode: r.veh_entry_mode || "unsure",
+    year: r.veh_year, make: r.veh_make, model: r.veh_model,
+    vin: r.vin, tireSize: r.tire_size,
+    sizeNormalized: (t.size && t.size.oe) || null,
+    strategy: r.strategy,
+    startingPoint: r.have,
+    tireLifeLeft: r.tire_life_left,
+    trim: r.veh_trim,
+    winterSizeChosen: r.winter_size_chosen,
+    sizeDownsized: r.size_downsized,
+    sizeAck: r.size_ack,
+    staggered: r.staggered,
+    tpmsPresent: r.tpms_present,
+    rimsRecommendation: r.rims_recommendation,
+    ownsRims: (t.rims && t.rims.wh) || null,
+    runsWinterNow: null
+  };
+  var details = r.path === "guided" ? {
+    needs: (r.needs || []).join(","),
+    tier: r.tier, brand: r.brand, budget: r.budget_per_tire,
+    financing: r.financing_interest, installerType: r.installer_type,
+    splitPreference: r.split_install_storage ? "prefer" : null,
+    installWindows: (r.preferred_slots || []).map(function(x){ return x.date + " " + x.slot; }).join(", "),
+    notBefore: r.window_earliest, mustBeOnBy: r.window_latest,
+    memberships: (r.memberships || []).join(","),
+    priorities: (r.priorities || []).join(","),
+    readiness: r.readiness, notes: r.notes,
+    brandLine: r.brand_line, travelRadius: r.travel_radius,
+    installerName: r.installer_name, installerAddress: r.installer_address,
+    installerPostal: r.installer_postal,
+    insuranceHelp: r.insurance_help, insurerProvince: r.insurer_province,
+    premiumAnnual: r.premium_annual,
+    /* Everything asked that has no column, kept verbatim so a new question is
+       not a schema change. */
+    payload: { language: r.language, smsOpt: r.sms_opt, staggered: r.staggered,
+      vehTrim: r.veh_trim, toolsAnswered: Object.keys(t) }
+  } : null;
+
+  return {
+    path: r.path, source: "tires-site",
+    firstName: r.first_name, lastName: r.last_name, email: r.email,
+    phone: r.mobile, postalFull: r.postal, city: r.city,
+    language: r.language || "en", referral: null,
+    consentEmail: !!r.consent_cohort,
+    consentSms: !!r.sms_opt,
+    consentShare: !!r.consent_share_installers,
+    alsoInternet: !!r.consent_internet,
+    consentGranted: !!r.consent_cohort,
+    consentKind: "tire-cohort",
+    consentText: CONSENT_TEXT,
+    consentAt: new Date().toISOString(),
+    consentSource: window.location.pathname,
+    vehicles: [veh],
+    details: details,
+    windows: (r.preferred_slots || []).map(function(x){ return { date: x.date, slot: x.slot, rank: x.rank }; }),
+    toolRuns: Object.keys(t).map(function(k){ return { tool: k, input: null, output: t[k] }; })
+  };
+}
+`;
+const FINISH_AT = kitJs.indexOf('function finish(){');
+if (FINISH_AT < 0) throw new Error('finish() not found');
+kitJs = kitJs.slice(0, FINISH_AT) + SUBMIT_JS + '\n' + kitJs.slice(FINISH_AT);
+
+/* finish() stops pretending. It posts, waits, and only then opens the
+   completion screen, with the reference the SERVER minted. A failure says so
+   and leaves the form on screen with everything still typed in it, because the
+   one thing worse than a form that will not send is a form that says it did. */
+const OLD_FINISH = `  /* ---- ZOHO / CATALYST POST GOES HERE ----------------------
+     One call creates the Contact and the Waitlist Entry.
+     Everything the backend needs is in this object.
+     -------------------------------------------------------- */
+  console.log("WAITLIST RECORD (would POST to Catalyst):", r);
+`;
+if (!kitJs.includes(OLD_FINISH)) throw new Error('the finish() placeholder moved');
+kitJs = kitJs.split(OLD_FINISH).join(`  postForm("/tire-waitlist-join", submitPayload()).then(function(saved){
+    /* The reference is the server's. v5 minted one in the browser, which meant
+       two people could hold the same code and nothing could be looked up by
+       it. makeRef stays only as the label until this returns. */
+    S.ref = saved.reference || S.ref;
+    S.wave = saved.wave || S.wave;
+    showConfirmation();
+  }).catch(function(err){
+    busyFinish(false);
+    toast(esc(err.message || "We could not save that just now. Nothing was lost, try again."));
+  });
+  return;
+}
+
+/* Split out so the post above has something to call, and so the completion
+   screen is built from what came back rather than from what was hoped. */
+function showConfirmation(){
+  /* Re-enabled on the way through, not only on failure. v5 offers "Add
+     another vehicle" from the completion screen, which returns to a form whose
+     submit button would otherwise still be disabled and still saying it was
+     saving. */
+  busyFinish(false);
+  var r = S.record;
+`);
+if (!kitJs.includes('function showConfirmation()')) throw new Error('the finish split did not attach');
+
+/* The submit button has to say something while the request is in flight, or a
+   slow network reads as a dead button and gets clicked twice. */
+kitJs = kitJs.replace('function finish(){', `function busyFinish(on){
+  var b = qs("#g3 button[type=submit]") || qs("#quickForm button[type=submit]");
+  if(!b) return;
+  b.disabled = on;
+  b.style.opacity = on ? "0.6" : "";
+  b.dataset.label = b.dataset.label || b.textContent;
+  b.textContent = on ? "Saving your spot..." : b.dataset.label;
+}
+
+function finish(){
+  busyFinish(true);`);
+
 /* ---------- 10e2. long lists of options become a dropdown ---------- */
 
 /* Five or more choices in a row of chips is a wall, and the seven-city and
