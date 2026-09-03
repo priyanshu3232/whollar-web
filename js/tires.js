@@ -15,6 +15,24 @@
 (function () {
   'use strict';
 
+  /* ---- where an in-page link stops ----
+   * The header is sticky, so a link to #join lands with the section title
+   * behind the bar unless scroll-padding-top accounts for it. The bar is not a
+   * constant height: it is taller once the nav wraps on a narrow screen. Measure
+   * it and hand the number to CSS, which carries a 92px fallback for the
+   * no-JS case. */
+
+  var head = document.querySelector('header');
+  if (head) {
+    var syncHead = function () {
+      var h = Math.round(head.getBoundingClientRect().height) + 16;
+      document.documentElement.style.setProperty('--wh-head', h + 'px');
+    };
+    syncHead();
+    window.addEventListener('resize', syncHead);
+    if (window.ResizeObserver) new window.ResizeObserver(syncHead).observe(head);
+  }
+
   var nodes = Array.prototype.slice.call(document.querySelectorAll('[data-reveal]'));
   if (!nodes.length) return;
 
