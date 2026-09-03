@@ -34,7 +34,7 @@ mkdirSync(FONT_DIR, { recursive: true });
 const HOST = 'https://tires.whollar.ca';
 const UMBRELLA = 'https://www.whollar.ca';
 const NET = 'https://internet.whollar.ca';
-const STAMP = '20260903k';
+const STAMP = '20260903m';
 
 let doc = readFileSync(SRC, 'utf8');
 

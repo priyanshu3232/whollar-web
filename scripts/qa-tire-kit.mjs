@@ -268,6 +268,23 @@ ok(framed.bottom >= framed.vh - 2,
   `and its foot is not cut off (bottom ${framed.bottom} of ${framed.vh})`);
 await page.evaluate(() => window.scrollTo(0, 0));
 
+console.log('\nno cream strip at any window height');
+/* The bug this guards: the resting place had a fallback for a section more
+   than a third taller than the screen, and that fallback offset by the header,
+   which left a band of the section above showing over a full-bleed colour
+   block. It only appeared on a short window, which is why it survived the
+   first two rounds of checking. */
+for (const vh of [1000, 900, 800, 700, 640, 560]) {
+  await page.setViewportSize({ width: 1280, height: vh });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator('a[href="#join"]').first().click();
+  await page.waitForTimeout(2300);
+  const top = await page.locator('#join').evaluate(el => Math.round(el.getBoundingClientRect().top));
+  ok(top <= 2, `at ${vh}px tall the join section reaches the top of the screen (top ${top})`);
+}
+await page.setViewportSize({ width: 1280, height: 900 });
+await page.evaluate(() => window.scrollTo(0, 0));
+
 console.log('\nno JavaScript is still a working link');
 const hrefs = await page.locator('[data-wtool],[data-wpath]').evaluateAll(els => els.map(e => e.getAttribute('href')));
 ok(hrefs.every(h => h && h.startsWith('/join')), 'all six controls are links to /join underneath');

@@ -75,7 +75,14 @@
        eyebrow starts at the top edge and the cards finish at the bottom one,
        which is the whole point. */
     if (rect.height <= vh * 1.35) return top + (rect.height - vh) / 2;
-    return top - headOffset();
+    /* Taller than that and there is no framing to be had, so the heading wins
+       and the foot is below the fold. But it still lands on the section's OWN
+       top edge, not pushed down by the header: subtracting the header height
+       here is what left a strip of the previous section showing above a
+       full-bleed colour block, which is the one thing that must never happen.
+       The header is translucent and the section carries 96px of top padding
+       for it to sit over. */
+    return top;
   }
 
   function glideTo(target){
