@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<script src="./image-slot.js"></script>
+<style>
+  body { margin: 0; background: #F1EDE2; -webkit-font-smoothing: antialiased; }
+  a { color: #1E4D38; text-decoration: none; }
+  a:hover { color: #E05A22; }
+</style>
+</helmet>
+<div style="width:100%;background:#F1EDE2;color:#17231D;font-family:Inter,sans-serif;overflow-x:hidden">
+
+  <header style="position:sticky;top:0;z-index:50;background:#F1EDE2;border-bottom:1px solid rgba(30,77,56,0.08)">
+    <div style="max-width:1280px;margin:0 auto;padding:16px 40px;display:flex;align-items:center;justify-content:space-between;gap:32px">
+      <div style="position:relative;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:26px;letter-spacing:-0.02em;color:#1E4D38;line-height:1">whollar<span style="position:absolute;left:56%;bottom:-5px;display:flex;gap:2px"><span style="width:3px;height:3px;border-radius:50%;background:#E05A22"></span><span style="width:3px;height:3px;border-radius:50%;background:#E05A22"></span><span style="width:3px;height:3px;border-radius:50%;background:#E05A22"></span></span></div>
+      <nav style="display:flex;gap:44px;font-size:14px;font-weight:500;color:#17231D">
+        <a href="#how-it-works" style="color:#17231D">How it works</a>
+        <a href="#what-you-get" style="color:#17231D">What you get</a>
+        <a href="#faq" style="color:#17231D">FAQ</a>
+      </nav>
+      <a href="#join" style="background:#1B4632;color:#F7F3EA;font-size:14px;font-weight:500;padding:13px 22px;border-radius:9px;white-space:nowrap" style-hover="background:#16382A">Join the winter tire group</a>
+    </div>
+  </header>
+
+  <section data-screen-label="Hero" style="position:relative;background:#F1EDE2;overflow:hidden">
+    <div style="position:absolute;top:0;right:0;bottom:0;width:52%;min-width:520px">
+      <image-slot id="tire-hero" shape="rect" fit="cover" src="./assets/hero-winter-tire-gta.png" placeholder="Drop winter-tire-toronto-hero.svg"></image-slot>
+    </div>
+    <div style="position:relative;max-width:1280px;margin:0 auto;padding:76px 40px 64px;display:grid;grid-template-columns:minmax(0,48%) 1fr;min-height:560px">
+      <div>
+        <div style="display:inline-flex;align-items:center;gap:9px;border:1px solid rgba(30,77,56,0.28);border-radius:999px;padding:8px 15px;background:rgba(252,250,245,0.6)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.6" stroke-linecap="round"><path d="M12 2v20M4 6l16 12M20 6L4 18" /><path d="M9 4l3 2 3-2M9 20l3-2 3 2" /></svg>
+          <span style="font-family:'Space Mono',monospace;font-size:11.5px;letter-spacing:0.1em;color:#2C6A4E;font-weight:700">WINTER TIRES · GTA 2026</span>
+        </div>
+        <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:clamp(38px,4.6vw,66px);line-height:1.02;letter-spacing:-0.028em;color:#17231D;margin:26px 0 0;text-wrap:pretty">Stop shopping for winter tires <span style="color:#E05A22">one car at a time.</span></h1>
+        <p style="font-size:16.5px;line-height:1.6;color:#3E4B43;margin:24px 0 0;max-width:25em">Whollar brings drivers together, helps you figure out what you need, and turns everyone looking for winter tires into one powerful buying group.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:32px">
+          <a href="#join" style="display:inline-flex;align-items:center;gap:14px;background:#1B4632;color:#F7F3EA;font-size:15px;font-weight:500;padding:16px 20px 16px 24px;border-radius:10px" style-hover="background:#16382A">Join the winter tire group<span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:rgba(247,243,234,0.16)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F7F3EA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span></a>
+          <a href="#how-it-works" style="display:inline-flex;align-items:center;background:transparent;color:#1E4D38;font-size:15px;font-weight:500;padding:16px 24px;border:1px solid rgba(30,77,56,0.3);border-radius:10px" style-hover="background:rgba(228,237,226,0.6)">See how it works</a>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:28px;margin-top:34px">
+          <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#3E4B43"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M8 12.5l2.5 2.5L16 9.5" /></svg>Free to join</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#3E4B43"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M8 12.5l2.5 2.5L16 9.5" /></svg>No commitment</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#3E4B43"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M8 12.5l2.5 2.5L16 9.5" /></svg>No purchase today</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Smart-buy help" style="background:#FCFAF5;border-top:1px solid rgba(30,77,56,0.07)">
+    <div style="max-width:1280px;margin:0 auto;padding:88px 40px;display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:56px">
+      <div>
+        <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#2C6A4E;font-weight:700;text-transform:uppercase">Before you buy, know what you're buying.</div>
+        <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:38px;line-height:1.1;letter-spacing:-0.025em;color:#17231D;margin:22px 0 0">We'll help you with the <span style="color:#E05A22">important stuff.</span></h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border:1px solid #E2DACB;border-radius:14px;overflow:hidden;background:#FFFDF8">
+        <div style="padding:26px 22px 22px;display:flex;flex-direction:column;gap:18px;border-right:1px solid #E9E2D5" style-hover="background:#FBF8F1">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;background:#E4EDE2"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.4" stroke-linecap="round"><path d="M12 2.5v19M4 7l16 10M20 7L4 17" /><path d="M9.5 4.2L12 6l2.5-1.8M9.5 19.8L12 18l2.5 1.8M4.6 10.8l.3 3-2.6 1.5M19.4 13.2l-.3-3 2.6-1.5M4.6 13.2l-.3-3-2.6-1.5M19.4 10.8l.3 3 2.6 1.5" /></svg></span>
+          <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:17px;line-height:1.25;letter-spacing:-0.01em;color:#17231D">Winter or all-weather?</div>
+          <p style="font-size:12.5px;line-height:1.55;color:#5A665D;margin:0;flex:1">We'll help you figure out which makes more sense for how you drive.</p>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6" /></svg>
+        </div>
+        <div style="padding:26px 22px 22px;display:flex;flex-direction:column;gap:18px;border-right:1px solid #E9E2D5" style-hover="background:#FBF8F1">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;background:#E4EDE2"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.4"><circle cx="12" cy="12" r="9.2" /><circle cx="12" cy="12" r="5.6" /><circle cx="12" cy="12" r="2.1" /></svg></span>
+          <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:17px;line-height:1.25;letter-spacing:-0.01em;color:#17231D">What size do I need?</div>
+          <p style="font-size:12.5px;line-height:1.55;color:#5A665D;margin:0;flex:1">Enter your car and we'll show the right winter tire size to start with.</p>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6" /></svg>
+        </div>
+        <div style="padding:26px 22px 22px;display:flex;flex-direction:column;gap:18px;border-right:1px solid #E9E2D5" style-hover="background:#FBF8F1">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;background:#E4EDE2"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.4" stroke-linecap="round"><circle cx="12" cy="12" r="9.2" /><circle cx="12" cy="12" r="3" /><path d="M12 2.8v6.2M12 15v6.2M3.4 9.4l5.9 1.9M14.7 12.7l5.9 1.9M20.6 9.4l-5.9 1.9M9.3 12.7l-5.9 1.9" /></svg></span>
+          <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:17px;line-height:1.25;letter-spacing:-0.01em;color:#17231D">Do I need another set of wheels?</div>
+          <p style="font-size:12.5px;line-height:1.55;color:#5A665D;margin:0;flex:1">See whether a second set of wheels actually makes sense for you.</p>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6" /></svg>
+        </div>
+        <div style="padding:26px 22px 22px;display:flex;flex-direction:column;gap:18px" style-hover="background:#FBF8F1">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;background:#E4EDE2"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.8l7.4 2.6v6.1c0 4.3-3 8.2-7.4 9.7-4.4-1.5-7.4-5.4-7.4-9.7V5.4z" /><path d="M13.6 9.2c-.4-.7-1-1-1.8-1-1.1 0-1.9.6-1.9 1.5 0 .8.6 1.2 1.9 1.5 1.4.3 2 .8 2 1.7 0 1-.9 1.6-2 1.6-.9 0-1.6-.4-2-1.1M12 7v10" /></svg></span>
+          <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:17px;line-height:1.25;letter-spacing:-0.01em;color:#17231D">What does insurance save me?</div>
+          <p style="font-size:12.5px;line-height:1.55;color:#5A665D;margin:0;flex:1">Estimate the potential savings against the cost of your tires.</p>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6" /></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="The problem" style="background:#F1EDE2">
+    <div style="max-width:1280px;margin:0 auto;padding:80px 40px;display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:56px;align-items:center">
+      <div>
+        <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#2C6A4E;font-weight:700">THE PROBLEM</div>
+        <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:38px;line-height:1.1;letter-spacing:-0.025em;color:#17231D;margin:22px 0 0">Once you know what you need, there's still <span style="color:#E05A22">one problem.</span></h2>
+        <p style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:17px;color:#17231D;margin:28px 0 0">You're still buying alone.</p>
+        <p style="font-size:13px;line-height:1.6;color:#5A665D;margin:10px 0 0;max-width:24em">One household. One quote. One chance to negotiate. That's not real buying power.</p>
+      </div>
+      <div style="background:#F2E3D6;border:1px solid #E6D6C6;border-radius:16px;padding:34px 40px 30px;position:relative">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;position:relative">
+          <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(30,77,56,0.13)"></div>
+          <div style="position:absolute;left:50%;top:52px;transform:translate(-50%,0);z-index:2;width:44px;height:44px;border-radius:50%;background:#FCFAF5;border:1px solid #E6D6C6;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:#1E4D38">VS.</div>
+          <div style="padding-right:52px;text-align:center">
+            <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.09em;color:#3E4B43;font-weight:700;min-height:32px">BUYING ALONE</div>
+            <div style="display:flex;justify-content:center;margin-top:12px"><span style="width:58px;height:58px;border-radius:50%;background:#FCFAF5;border:1px solid #E6D6C6;display:flex;align-items:center;justify-content:center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.4" stroke-linecap="round"><circle cx="12" cy="8.4" r="3.6" /><path d="M5.2 20c0-3.6 3-6.1 6.8-6.1s6.8 2.5 6.8 6.1" /></svg></span></div>
+            <svg viewBox="0 0 300 44" style="width:100%;height:44px;margin-top:6px" fill="none" stroke="rgba(30,77,56,0.22)" stroke-width="1"><path d="M150 0v14M40 44V26M150 44V26M260 44V26M40 26h220" /></svg>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.3" stroke-linecap="round"><circle cx="9" cy="9" r="3" /><circle cx="16.5" cy="10.5" r="2.2" /><path d="M3.5 19c0-2.8 2.4-4.6 5.5-4.6s5.5 1.8 5.5 4.6M15 14.6c2.6.2 4.5 1.9 4.5 4.4" /></svg><span style="font-size:10.5px;color:#5A665D;line-height:1.3">One household</span></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.3" stroke-linecap="round"><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M8.5 8h7M8.5 12h7M8.5 16h4" /></svg><span style="font-size:10.5px;color:#5A665D;line-height:1.3">One quote</span></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.3" stroke-linecap="round"><path d="M12.5 3.5H20v7.5l-9 9-7.5-7.5z" /><circle cx="16.4" cy="7.6" r="1.3" /></svg><span style="font-size:10.5px;color:#5A665D;line-height:1.3">You negotiate</span></div>
+            </div>
+          </div>
+          <div style="padding-left:52px;text-align:center">
+            <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.09em;color:#3E4B43;font-weight:700;min-height:32px;line-height:1.5">BUYING TOGETHER<br />WITH WHOLLAR</div>
+            <div style="display:flex;justify-content:center;margin-top:12px"><span style="width:58px;height:58px;border-radius:50%;background:#E4EDE2;border:1px solid #CFDECB;display:flex;align-items:center;justify-content:center"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.4" stroke-linecap="round"><circle cx="9" cy="8.6" r="3.2" /><circle cx="16.8" cy="10" r="2.4" /><path d="M2.8 19.4c0-3.3 2.8-5.4 6.2-5.4s6.2 2.1 6.2 5.4M15.4 14.2c2.9.2 5 1.9 5 5.2" /></svg></span></div>
+            <svg viewBox="0 0 300 44" style="width:100%;height:44px;margin-top:6px" fill="none" stroke="rgba(30,77,56,0.22)" stroke-width="1"><path d="M150 0v14M40 44V26M150 44V26M260 44V26M40 26h220" /></svg>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.3" stroke-linecap="round"><path d="M3.5 20h17M5.5 20V9.5M18.5 20V9.5M3 9.5h18L12 3.8z" /><path d="M9.2 20v-5.5h5.6V20" /></svg><span style="font-size:10.5px;color:#5A665D;line-height:1.3">Many households</span></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.3" stroke-linecap="round"><path d="M12 21V13M12 13c-3 0-5-2-5-4.5 0-1 .3-2 .9-2.8C9 6 10.8 7.4 12 9.6c1.2-2.2 3-3.6 4.1-3.9.6.8.9 1.8.9 2.8 0 2.5-2 4.5-5 4.5z" /><path d="M8 21h8" /></svg><span style="font-size:10.5px;color:#5A665D;line-height:1.3">Group demand</span></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.3" stroke-linecap="round"><circle cx="12" cy="12" r="8.6" /><path d="M13.8 9.4c-.4-.6-1-.9-1.8-.9-1 0-1.8.6-1.8 1.4 0 .8.6 1.2 1.8 1.4 1.3.3 1.9.8 1.9 1.6 0 .9-.8 1.5-1.9 1.5-.8 0-1.5-.3-1.9-1M12 7.2v9.6" /></svg><span style="font-size:10.5px;color:#5A665D;line-height:1.3">Suppliers compete</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how-it-works" data-screen-label="How it works" style="background:#FCFAF5;border-top:1px solid rgba(30,77,56,0.07)">
+    <div style="max-width:1280px;margin:0 auto;padding:84px 40px;display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:56px">
+      <div>
+        <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#2C6A4E;font-weight:700">HOW WHOLLAR WORKS</div>
+        <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:38px;line-height:1.14;letter-spacing:-0.025em;color:#17231D;margin:22px 0 0">Your demand.<br />Our process.<br /><span style="color:#E05A22">Better offers.</span></h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));column-gap:30px;position:relative">
+        <div style="text-align:center">
+          <div style="width:32px;height:32px;margin:0 auto;border:1px solid #CFDECB;border-radius:50%;background:#F4F8F2;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:#2C6A4E">01</div>
+          <div style="position:relative;margin-top:14px;display:flex;justify-content:center">
+            <span style="width:62px;height:62px;border-radius:50%;border:1px solid #E2DACB;background:#FFFDF8;display:flex;align-items:center;justify-content:center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 15.4h18.8M4.4 15.4l1.7-4.9c.3-.9 1.1-1.5 2.1-1.5h7.6c1 0 1.8.6 2.1 1.5l1.7 4.9M4.4 15.4v2.2M19.6 15.4v2.2" /><circle cx="7.2" cy="17.6" r="1.6" /><circle cx="16.8" cy="17.6" r="1.6" /></svg></span>
+            <svg viewBox="0 0 120 8" preserveAspectRatio="none" style="position:absolute;left:calc(50% + 46px);top:31px;width:calc(100% - 62px);height:8px" fill="none"><path d="M0 4h108" stroke="rgba(30,77,56,0.24)" stroke-width="1" stroke-dasharray="3 4" /><path d="M104 1l4 3-4 3" stroke="rgba(30,77,56,0.35)" stroke-width="1" /></svg>
+          </div>
+          <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:15.5px;line-height:1.25;color:#17231D;margin-top:16px">Tell us what you need</div>
+          <p style="font-size:12px;line-height:1.55;color:#5A665D;margin:10px auto 0;max-width:15em">Share your vehicle, tire needs, location and timing.</p>
+        </div>
+        <div style="text-align:center">
+          <div style="width:32px;height:32px;margin:0 auto;border:1px solid #CFDECB;border-radius:50%;background:#F4F8F2;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:#2C6A4E">02</div>
+          <div style="position:relative;margin-top:14px;display:flex;justify-content:center">
+            <span style="width:62px;height:62px;border-radius:50%;border:1px solid #E2DACB;background:#FFFDF8;display:flex;align-items:center;justify-content:center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.3" stroke-linecap="round"><circle cx="8.6" cy="8.4" r="3.1" /><circle cx="16.6" cy="9.8" r="2.4" /><path d="M2.8 19.2c0-3.2 2.6-5.2 5.8-5.2s5.8 2 5.8 5.2M15 14.2c2.9.2 5.2 1.8 5.2 5" /></svg></span>
+            <svg viewBox="0 0 120 8" preserveAspectRatio="none" style="position:absolute;left:calc(50% + 46px);top:31px;width:calc(100% - 62px);height:8px" fill="none"><path d="M0 4h108" stroke="rgba(30,77,56,0.24)" stroke-width="1" stroke-dasharray="3 4" /><path d="M104 1l4 3-4 3" stroke="rgba(30,77,56,0.35)" stroke-width="1" /></svg>
+          </div>
+          <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:15.5px;line-height:1.25;color:#17231D;margin-top:16px">We bring similar buyers together</div>
+          <p style="font-size:12px;line-height:1.55;color:#5A665D;margin:10px auto 0;max-width:15em">Your demand joins other drivers looking for the same thing.</p>
+        </div>
+        <div style="text-align:center">
+          <div style="width:32px;height:32px;margin:0 auto;border:1px solid #CFDECB;border-radius:50%;background:#F4F8F2;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:#2C6A4E">03</div>
+          <div style="position:relative;margin-top:14px;display:flex;justify-content:center">
+            <span style="width:62px;height:62px;border-radius:50%;border:1px solid #E2DACB;background:#FFFDF8;display:flex;align-items:center;justify-content:center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 20.2h17.2M4.8 20.2V9.8M19.2 20.2V9.8M3 9.8h18L12 4z" /><path d="M8.4 20.2v-6.4h7.2v6.4M8.4 16.8h7.2" /></svg></span>
+            <svg viewBox="0 0 120 8" preserveAspectRatio="none" style="position:absolute;left:calc(50% + 46px);top:31px;width:calc(100% - 62px);height:8px" fill="none"><path d="M0 4h108" stroke="rgba(30,77,56,0.24)" stroke-width="1" stroke-dasharray="3 4" /><path d="M104 1l4 3-4 3" stroke="rgba(30,77,56,0.35)" stroke-width="1" /></svg>
+          </div>
+          <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:15.5px;line-height:1.25;color:#17231D;margin-top:16px">We take the group to suppliers</div>
+          <p style="font-size:12px;line-height:1.55;color:#5A665D;margin:10px auto 0;max-width:15em">Installers and distributors compete for the group's business.</p>
+        </div>
+        <div style="text-align:center">
+          <div style="width:32px;height:32px;margin:0 auto;border:1px solid #CFDECB;border-radius:50%;background:#F4F8F2;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:#2C6A4E">04</div>
+          <div style="margin-top:14px;display:flex;justify-content:center">
+            <span style="width:62px;height:62px;border-radius:50%;border:1px solid #CFDECB;background:#E4EDE2;display:flex;align-items:center;justify-content:center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.6" /><path d="M8.2 12.4l2.6 2.6 5-5.4" /></svg></span>
+          </div>
+          <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:15.5px;line-height:1.25;color:#17231D;margin-top:16px">You choose</div>
+          <p style="font-size:12px;line-height:1.55;color:#5A665D;margin:10px auto 0;max-width:15em">See the offer. Compare it with what you'd pay alone. You decide.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="what-you-get" data-screen-label="What you get" style="background:#F1EDE2">
+    <div style="max-width:1280px;margin:0 auto;padding:64px 40px;display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:56px;align-items:center">
+      <div>
+        <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#2C6A4E;font-weight:700">WHAT YOU GET</div>
+        <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:38px;line-height:1.12;letter-spacing:-0.025em;color:#17231D;margin:20px 0 0">More than<br /><span style="color:#E05A22">just four tires.</span></h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr))">
+        <div style="padding:0 18px;border-left:1px solid rgba(30,77,56,0.12);display:flex;flex-direction:column;gap:16px">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.3" stroke-linecap="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.1" /><path d="M12 3.2v5.6M12 15.2v5.6M3.6 9.2l5.4 1.7M15 13.1l5.4 1.7M20.4 9.2L15 10.9M9 13.1l-5.4 1.7" /></svg>
+          <div style="font-size:12.5px;line-height:1.45;color:#17231D;font-weight:500">Right tire size<br />for your vehicle</div>
+        </div>
+        <div style="padding:0 18px;border-left:1px solid rgba(30,77,56,0.12);display:flex;flex-direction:column;gap:16px">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.8l7.4 2.6v6.1c0 4.3-3 8.2-7.4 9.7-4.4-1.5-7.4-5.4-7.4-9.7V5.4z" /><path d="M8.8 11.8l2.5 2.5 4.2-4.6" /></svg>
+          <div style="font-size:12.5px;line-height:1.45;color:#17231D;font-weight:500">Recommendation<br />that fits your driving</div>
+        </div>
+        <div style="padding:0 18px;border-left:1px solid rgba(30,77,56,0.12);display:flex;flex-direction:column;gap:16px">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.3" stroke-linecap="round"><path d="M12 21V13M12 13c-3.2 0-5.4-2.1-5.4-4.8 0-1.1.3-2.1 1-3 1.2.4 3.1 1.9 4.4 4.3 1.3-2.4 3.2-3.9 4.4-4.3.7.9 1 1.9 1 3 0 2.7-2.2 4.8-5.4 4.8z" /><path d="M8 21h8" /></svg>
+          <div style="font-size:12.5px;line-height:1.45;color:#17231D;font-weight:500">Group pricing<br />from suppliers</div>
+        </div>
+        <div style="padding:0 18px;border-left:1px solid rgba(30,77,56,0.12);display:flex;flex-direction:column;gap:16px">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.3" stroke-linecap="round"><path d="M12 2.6v18.8M3.8 7.2l16.4 9.6M20.2 7.2L3.8 16.8" /><path d="M9.4 4.4L12 6.2l2.6-1.8M9.4 19.6L12 17.8l2.6 1.8" /></svg>
+          <div style="font-size:12.5px;line-height:1.45;color:#17231D;font-weight:500">Installation<br />options</div>
+        </div>
+        <div style="padding:0 18px;border-left:1px solid rgba(30,77,56,0.12);display:flex;flex-direction:column;gap:16px">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.3" stroke-linecap="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="2.6" /><path d="M12 3.2v6.2M12 14.6v6.2M4.2 8.4l5.6 2M14.2 13.6l5.6 2M19.8 8.4l-5.6 2M9.8 13.6l-5.6 2" /></svg>
+          <div style="font-size:12.5px;line-height:1.45;color:#17231D;font-weight:500">Insurance<br />guidance</div>
+        </div>
+        <div style="padding:0 18px;border-left:1px solid rgba(30,77,56,0.12);border-right:1px solid rgba(30,77,56,0.12);display:flex;flex-direction:column;gap:16px">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.8l7.4 2.6v6.1c0 4.3-3 8.2-7.4 9.7-4.4-1.5-7.4-5.4-7.4-9.7V5.4z" /><path d="M9 12.2l2.4 2.4 4-4.4" /></svg>
+          <div style="font-size:12.5px;line-height:1.45;color:#17231D;font-weight:500">Your choice,<br />no pressure</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="GTA launch and cities" style="display:grid;grid-template-columns:1fr 1fr;border-top:1px solid rgba(30,77,56,0.07)">
+    <div style="background:#FCFAF5;padding:56px 48px 0;display:flex;flex-direction:column">
+      <div style="max-width:520px;margin-left:auto;width:100%;padding-right:24px">
+        <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#2C6A4E;font-weight:700">STARTING IN THE GTA</div>
+        <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:34px;line-height:1.14;letter-spacing:-0.025em;color:#17231D;margin:18px 0 0">Winter 2026<br />starts in the <span style="color:#E05A22">GTA.</span></h2>
+        <p style="font-size:12.5px;line-height:1.6;color:#5A665D;margin:16px 0 0;max-width:24em">We're building the first Whollar winter tire cohort across the Greater Toronto Area.</p>
+      </div>
+      <div style="margin-top:auto;padding-top:26px">
+        <svg viewBox="0 0 640 190" preserveAspectRatio="xMidYMax" style="width:100%;display:block" fill="none" stroke="#B9B0A0" stroke-width="1.1" stroke-linecap="round">
+          <path d="M0 178h640" stroke="#A79E8E" />
+          <path d="M14 178v-26M14 152l-9 12h18zM14 160l-11 14h22zM14 168l-13 12h26z" />
+          <path d="M52 178v-22M52 156l-8 11h16zM52 164l-10 12h20z" />
+          <path d="M96 178v-46h34v46M104 140h18M104 150h18M104 160h18" />
+          <path d="M140 178v-62h26v62M146 124h14M146 136h14M146 148h14M146 160h14" />
+          <path d="M176 178v-36h22v36M181 150h12M181 160h12" />
+          <path d="M300 178V64M312 64V178M300 64c0-6 2-12 6-16 4 4 6 10 6 16M295 60h22M297 52h18M306 48V22M300 22h12v-8h-12zM299 60l-4 6h22l-4-6M306 22v-8" />
+          <path d="M292 100h28v18h-28zM292 108h28" />
+          <path d="M340 178v-74h26v74M346 112h14M346 124h14M346 136h14M346 148h14M346 160h14" />
+          <path d="M374 178v-52h20v52M379 134h10M379 146h10M379 158h10" />
+          <path d="M402 178v-88h30v88M409 98h16M409 112h16M409 126h16M409 140h16M409 154h16M409 166h16" />
+          <path d="M440 178v-40h24v40M446 146h12M446 158h12" />
+          <path d="M472 178v-60h22v60M477 126h12M477 138h12M477 150h12M477 162h12" />
+          <path d="M502 178v-30h26v30M508 156h14M508 166h14" />
+          <path d="M560 178v-30M560 148l-11 15h22zM560 158l-13 17h26zM560 168l-15 13h30z" />
+          <path d="M604 178v-24M604 154l-9 12h18zM604 162l-11 14h22z" />
+          <path d="M626 178v-18M626 160l-8 10h16z" />
+          <path d="M196 178c0-4 3-7 7-7h6l7-11c1-2 3-3 5-3h20c2 0 4 1 5 3l7 11h6c4 0 7 3 7 7v6h-70z" />
+          <circle cx="212" cy="176" r="7" />
+          <circle cx="250" cy="176" r="7" />
+          <path d="M219 157h24" />
+        </svg>
+      </div>
+    </div>
+    <div style="background:#F2E3D6;padding:56px 48px">
+      <div style="max-width:520px">
+        <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#B0512B;font-weight:700">COMING NEXT</div>
+        <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:32px;line-height:1.14;letter-spacing:-0.025em;color:#17231D;margin:18px 0 0">Don't see your city?</h2>
+        <p style="font-size:12.5px;line-height:1.6;color:#5A665D;margin:14px 0 0;max-width:26em">GTA is first. The next cohort goes where enough drivers want to buy together.</p>
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:26px">
+          <div style="background:#FCFAF5;border:1px solid #E6D6C6;border-radius:12px;padding:16px 12px;display:flex;flex-direction:column;align-items:center;gap:12px;cursor:pointer" style-hover="border-color:#C9B9A6">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.2" stroke-linecap="round"><path d="M4 21h16M6 21V9l6-5 6 5v12M10 21v-6h4v6M9.5 11.5h5" /></svg>
+            <span style="font-size:12.5px;font-weight:500;color:#17231D">Ottawa</span>
+            <sc-if value="{{ showCityStatus }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Space Mono',monospace;font-size:9.5px;letter-spacing:0.06em;color:#2C6A4E">DEMAND BUILDING</span></sc-if>
+          </div>
+          <div style="background:#FCFAF5;border:1px solid #E6D6C6;border-radius:12px;padding:16px 12px;display:flex;flex-direction:column;align-items:center;gap:12px;cursor:pointer" style-hover="border-color:#C9B9A6">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.2" stroke-linecap="round"><path d="M4 21h16M7 21V7h10v14M10 11h4M10 15h4M12 7V3" /></svg>
+            <span style="font-size:12.5px;font-weight:500;color:#17231D">Montréal</span>
+            <sc-if value="{{ showCityStatus }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Space Mono',monospace;font-size:9.5px;letter-spacing:0.06em;color:#2C6A4E">DEMAND BUILDING</span></sc-if>
+          </div>
+          <div style="background:#FCFAF5;border:1px solid #E6D6C6;border-radius:12px;padding:16px 12px;display:flex;flex-direction:column;align-items:center;gap:12px;cursor:pointer" style-hover="border-color:#C9B9A6">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.2" stroke-linecap="round"><path d="M4 21h16M9 21V10h6v11M12 10V4M9.5 13.5h5" /></svg>
+            <span style="font-size:12.5px;font-weight:500;color:#17231D">Calgary</span>
+            <sc-if value="{{ showCityStatus }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Space Mono',monospace;font-size:9.5px;letter-spacing:0.06em;color:#2C6A4E">DEMAND BUILDING</span></sc-if>
+          </div>
+          <div style="background:#FCFAF5;border:1px solid #E6D6C6;border-radius:12px;padding:16px 12px;display:flex;flex-direction:column;align-items:center;gap:12px;cursor:pointer" style-hover="border-color:#C9B9A6">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.2" stroke-linecap="round"><path d="M4 21h16M8 21l4-16 4 16M9.5 14h5M12 5V3" /></svg>
+            <span style="font-size:12.5px;font-weight:500;color:#17231D">Vancouver</span>
+            <sc-if value="{{ showCityStatus }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Space Mono',monospace;font-size:9.5px;letter-spacing:0.06em;color:#2C6A4E">DEMAND BUILDING</span></sc-if>
+          </div>
+        </div>
+        <a href="#join" style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:14px;background:#FCFAF5;border:1px solid #E6D6C6;border-radius:11px;padding:15px;font-size:13px;font-weight:500;color:#1E4D38" style-hover="background:#FFFFFF;border-color:#C9B9A6">Bring Whollar to your city<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6" /></svg></a>
+      </div>
+    </div>
+  </section>
+
+  <section id="join" data-screen-label="Signup choice" style="background:#F1EDE2;border-top:1px solid rgba(30,77,56,0.07)">
+    <div style="max-width:1280px;margin:0 auto;padding:76px 40px;display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:52px;align-items:center">
+      <div>
+        <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#2C6A4E;font-weight:700">READY TO JOIN?</div>
+        <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:36px;line-height:1.12;letter-spacing:-0.025em;color:#17231D;margin:20px 0 0">Join the winter <span style="color:#E05A22">tire group.</span></h2>
+        <p style="font-size:12.5px;line-height:1.6;color:#5A665D;margin:18px 0 0;max-width:24em">It takes about a minute to lock in your spot. You can add more details afterwards.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">
+        <div style="background:#FCFAF5;border:1px solid #E2DACB;border-radius:16px;padding:24px">
+          <span style="display:inline-block;background:#E4EDE2;color:#2C6A4E;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.06em;font-weight:700;padding:5px 9px;border-radius:6px">~1 MINUTE</span>
+          <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:22px;letter-spacing:-0.02em;color:#17231D;margin:16px 0 0">Quick signup</h3>
+          <p style="font-size:12.5px;line-height:1.55;color:#5A665D;margin:10px 0 0">Share the basics and you're in. We'll handle the rest.</p>
+          <a href="#join" style="display:flex;align-items:center;justify-content:space-between;margin-top:22px;background:#1B4632;color:#F7F3EA;font-size:13.5px;font-weight:500;padding:14px 18px;border-radius:9px" style-hover="background:#16382A">Join quickly<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F7F3EA" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6" /></svg></a>
+        </div>
+        <div style="background:#FCFAF5;border:1px solid #E2DACB;border-radius:16px;padding:24px">
+          <span style="display:inline-block;background:#FBE3D5;color:#B0512B;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.06em;font-weight:700;padding:5px 9px;border-radius:6px">A FEW MINUTES</span>
+          <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:22px;letter-spacing:-0.02em;color:#17231D;margin:16px 0 0">Guided signup</h3>
+          <p style="font-size:12.5px;line-height:1.55;color:#5A665D;margin:10px 0 0">We'll help you figure out the right tires, wheels, timing and more.</p>
+          <a href="#join" style="display:flex;align-items:center;justify-content:space-between;margin-top:22px;background:#E05A22;color:#FFF7F2;font-size:13.5px;font-weight:500;padding:14px 18px;border-radius:9px" style-hover="background:#C94E1B">Help me figure it out<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFF7F2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6" /></svg></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Trust strip" style="background:#FCFAF5;border-top:1px solid rgba(30,77,56,0.09)">
+    <div style="max-width:1280px;margin:0 auto;padding:34px 40px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:40px">
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.2" stroke-linecap="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="2.6" /><path d="M12 3.2v6.2M12 14.6v6.2M4.2 8.4l5.6 2M14.2 13.6l5.6 2M19.8 8.4l-5.6 2M9.8 13.6l-5.6 2" /></svg>
+        <div><div style="font-size:12.5px;font-weight:600;color:#17231D">No commitment</div><div style="font-size:12px;color:#5A665D;margin-top:4px">Nothing is charged today.</div></div>
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.2" stroke-linecap="round" style="flex:none;margin-top:2px"><path d="M12 21V13M12 13c-3.2 0-5.4-2.1-5.4-4.8 0-1.1.3-2.1 1-3 1.2.4 3.1 1.9 4.4 4.3 1.3-2.4 3.2-3.9 4.4-4.3.7.9 1 1.9 1 3 0 2.7-2.2 4.8-5.4 4.8z" /><path d="M8 21h8" /></svg>
+        <div><div style="font-size:12.5px;font-weight:600;color:#17231D">You stay in control</div><div style="font-size:12px;color:#5A665D;margin-top:4px">You choose if and when to buy.</div></div>
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.2" stroke-linecap="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.1" /><path d="M12 3.2v5.6M12 15.2v5.6M3.6 9.2l5.4 1.7M15 13.1l5.4 1.7M20.4 9.2L15 10.9M9 13.1l-5.4 1.7" /></svg>
+        <div><div style="font-size:12.5px;font-weight:600;color:#17231D">Protecting your data</div><div style="font-size:12px;color:#5A665D;margin-top:4px">We never share your information.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <sc-if value="{{ showCrossSell }}" hint-placeholder-val="{{ true }}">
+    <section data-screen-label="Cross-sell" style="background:#F1EDE2;border-top:1px solid rgba(30,77,56,0.07)">
+      <div style="max-width:1280px;margin:0 auto;padding:40px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap">
+        <div>
+          <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:20px;letter-spacing:-0.02em;color:#17231D">While you're here…</div>
+          <p style="font-size:12.5px;color:#5A665D;margin:8px 0 0">Your internet bill could use the same treatment.</p>
+        </div>
+        <a href="#join" style="display:inline-flex;align-items:center;gap:10px;border:1px solid rgba(30,77,56,0.28);border-radius:10px;padding:13px 18px;font-size:13px;font-weight:500;color:#1E4D38" style-hover="background:#E4EDE2">See Whollar for internet<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6" /></svg></a>
+      </div>
+    </section>
+  </sc-if>
+
+  <footer id="faq" style="background:#1B4632;color:#E7EFE6">
+    <div style="max-width:1280px;margin:0 auto;padding:44px 40px;display:flex;align-items:flex-start;justify-content:space-between;gap:40px;flex-wrap:wrap">
+      <div>
+        <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:22px;letter-spacing:-0.02em;color:#FCFAF5">whollar</div>
+        <p style="font-size:12.5px;color:rgba(231,239,230,0.72);margin:12px 0 0">Household buying power, pooled.<br />A vote, not a purchase. Nothing is charged today.</p>
+      </div>
+      <nav style="display:flex;gap:26px;font-size:12.5px">
+        <a href="#how-it-works" style="color:rgba(231,239,230,0.8)" style-hover="color:#FCFAF5">How it works</a>
+        <a href="#what-you-get" style="color:rgba(231,239,230,0.8)" style-hover="color:#FCFAF5">What you get</a>
+        <a href="#faq" style="color:rgba(231,239,230,0.8)" style-hover="color:#FCFAF5">FAQ</a>
+        <a href="#faq" style="color:rgba(231,239,230,0.8)" style-hover="color:#FCFAF5">About</a>
+        <a href="#faq" style="color:rgba(231,239,230,0.8)" style-hover="color:#FCFAF5">Privacy</a>
+      </nav>
+    </div>
+  </footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showCityStatus&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Content&quot;},&quot;showCrossSell&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Content&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      showCityStatus: this.props.showCityStatus ?? false,
+      showCrossSell: this.props.showCrossSell ?? true,
+    };
+  }
+}
+</script>
+</body>
+</html>
