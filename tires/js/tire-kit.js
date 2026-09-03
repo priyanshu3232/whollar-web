@@ -424,6 +424,7 @@ function bindChips(box){
     }
     box.dispatchEvent(new CustomEvent("chipchange",{bubbles:true}));
   });
+  condenseChips(box);
 }
 function chipVal(id){ var b=qs('.chip[aria-pressed="true"]', $(id)); return b ? b.dataset.v : null; }
 function chipVals(id){ return qsa('.chip[aria-pressed="true"]', $(id)).map(function(b){ return b.dataset.v; }); }
@@ -1884,6 +1885,64 @@ function bindGuided(){
 /* ============================================================
    INIT
    ============================================================ */
+
+var CONDENSE_MIN = 5;
+
+function condenseChips(box){
+  if(!box || box.dataset.condensed || !box.dataset.single) return;
+  var chips = qsa(".chip", box);
+  if(chips.length < CONDENSE_MIN) return;
+  box.dataset.condensed = "1";
+
+  var sel = document.createElement("select");
+  sel.className = "f-in wm-condensed";
+  var lbl = box.previousElementSibling;
+  if(lbl && lbl.classList && lbl.classList.contains("f-lbl")) sel.setAttribute("aria-label", lbl.textContent.trim());
+
+  var ph = document.createElement("option");
+  ph.value = ""; ph.textContent = "Choose one";
+  sel.appendChild(ph);
+  chips.forEach(function(c, i){
+    var o = document.createElement("option");
+    o.value = String(i);
+    var small = c.querySelector("small");
+    var main = small ? c.textContent.replace(small.textContent, "") : c.textContent;
+    o.textContent = small ? main.trim() + " · " + small.textContent.trim() : main.trim();
+    sel.appendChild(o);
+  });
+
+  /* One direction: the reader picks, the chip is pressed, and the chipchange
+     event every v5 handler already listens for is dispatched as if they had
+     clicked it. */
+  sel.addEventListener("change", function(){
+    var i = sel.value === "" ? -1 : Number(sel.value);
+    chips.forEach(function(c, n){ c.setAttribute("aria-pressed", n === i ? "true" : "false"); });
+    box.dispatchEvent(new CustomEvent("chipchange", { bubbles: true }));
+  });
+
+  /* The other: anything that presses or disables a chip, and there are many,
+     is reflected back without those functions knowing this control exists. */
+  var syncing = false;
+  function sync(){
+    if(syncing) return;
+    syncing = true;
+    var picked = -1;
+    chips.forEach(function(c, n){
+      if(c.getAttribute("aria-pressed") === "true") picked = n;
+      var o = sel.options[n + 1];
+      if(o) o.disabled = c.dataset.off === "1";
+    });
+    sel.value = picked < 0 ? "" : String(picked);
+    syncing = false;
+  }
+  sync();
+  if(window.MutationObserver){
+    new window.MutationObserver(sync).observe(box, {
+      subtree: true, attributes: true, attributeFilter: ["aria-pressed", "data-off"]
+    });
+  }
+  box.parentNode.insertBefore(sel, box.nextSibling);
+}
 
 /* ---- the modal every one of the six buttons opens ----
  * One dialog, reused. The page behind it never moves: it is scroll-locked

@@ -560,14 +560,19 @@ html{scroll-padding-top:var(--wh-head,92px)}
 .wm-scope .checkline{margin:6px 0}
 .wm-scope .signup{padding:0}
 .wm-scope .mid{max-width:none;padding:0}
+/* !important for the same reason v5's own .hide carries it: the two grid
+   rules above match through a :has(), which outranks a plain attribute
+   selector, and a row that has been condensed is hidden, full stop. */
+.wm-scope .chips[data-condensed]{display:none!important}
 /* Selects get the chevron the bill checkup, /become-a-partner and this
    vertical's own /join already use. The native control draws a different
    arrow on every platform and none of them match the chip buttons beside it,
    so Year, Make and Model read as three widgets borrowed from somewhere else.
    Same SVG and the same offsets as those pages, so it is one control across
    the site rather than a fourth variant. */
-.wm-scope select.f-in{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%235B655C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
+.wm-scope select.f-in,.wm-scope select.wm-condensed{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%235B655C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
 .wm-scope select.f-in:disabled{background-image:none}
+.wm-scope select.wm-condensed{width:100%}
 /* The verdict a tool leaves behind on its card, and the running tally. */
 .wm-verdict{display:none;font-size:13.5px;font-weight:600;color:#14352A;background:#CFE7D6;border-radius:9px;padding:6px 12px;width:fit-content;max-width:100%}
 [data-wtool].done .wm-verdict{display:inline-block}
@@ -1651,7 +1656,7 @@ footer .in{max-width:1340px;margin:0 auto;padding:0 22px;display:flex;flex-wrap:
   </div>
 </div>
 
-<script src="/js/tires.js?v=20260903g"></script>
-<script src="/js/tire-kit.js?v=20260903g"></script>
+<script src="/js/tires.js?v=20260903i"></script>
+<script src="/js/tire-kit.js?v=20260903i"></script>
 </body>
 </html>

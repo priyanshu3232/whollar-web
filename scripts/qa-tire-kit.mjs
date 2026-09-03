@@ -32,6 +32,18 @@ ok(await page.locator('#wmodal').isHidden(), 'and starts hidden');
 ok(await page.locator('#wm-park [id="quickForm"]').count() === 1, 'the sign-up is parked off screen');
 ok((await page.locator('#tally').textContent()).trim() === '0 of 4 answered', 'the tally starts at zero');
 
+/* Single-select groups of five or more condense to a dropdown, so answering
+   by clicking the chip would be driving a control no reader can see. This
+   picks through whichever one the group actually rendered. */
+async function pick(page, box, value) {
+  const condensed = await page.locator(box).getAttribute('data-condensed');
+  if (!condensed) return page.locator(`${box} .chip[data-v="${value}"]`).click();
+  const i = await page.locator(`${box} .chip`).evaluateAll(
+    (els, v) => els.findIndex(e => e.dataset.v === v), value);
+  if (i < 0) throw new Error(`${box} has no option ${value}`);
+  await page.locator(`${box} + select.wm-condensed`).selectOption(String(i));
+}
+
 const modal = page.locator('#wmodal');
 const title = page.locator('#wmodalTitle');
 const bodyOverflow = () => page.evaluate(() => document.body.style.overflow);
@@ -59,7 +71,7 @@ await page.locator('[data-wtool="strat"]').click();
 await modal.waitFor({ state: 'visible' });
 for (const [group, value] of [['now', 'allseason'], ['work', 'no'], ['usage', 'city'], ['storm', 'yes'],
   ['who', 'solo'], ['drv', 'fwd'], ['fric', 'none']]) {
-  await page.locator(`#kxstrat-${group} .chip[data-v="${value}"]`).click();
+  await pick(page, `#kxstrat-${group}`, value);
 }
 await page.locator('#kxstrat-run').click();
 ok((await page.locator('#kxstrat-out').textContent()).length > 80, 'it produces a verdict');
@@ -74,7 +86,7 @@ await page.locator('[data-wtool="strat"]').click();
 await modal.waitFor({ state: 'visible' });
 for (const [group, value] of [['now', 'allseason'], ['work', 'no'], ['usage', 'parkit'], ['storm', 'yes'],
   ['who', 'solo'], ['drv', 'fwd'], ['fric', 'hate']]) {
-  await page.locator(`#kxstrat-${group} .chip[data-v="${value}"]`).click();
+  await pick(page, `#kxstrat-${group}`, value);
 }
 await page.locator('#kxstrat-run').click();
 await page.keyboard.press('Escape');
@@ -122,14 +134,14 @@ await page.locator('#g_first').fill('Ada');
 await page.locator('#g_last').fill('Lovelace');
 await page.locator('#g_email').fill('ada@example.com');
 await page.locator('#g_postal').fill('M4B1B3');
-await page.locator('#g_city .chip[data-v="gta"]').click();
+await pick(page, '#g_city', 'gta');
 await page.locator('#g_consent').check();
 await page.locator('#g1 button[type="submit"]').click();
 ok(await page.locator('#g2').isVisible(), 'stage 1 submits and stage 2 appears');
 ok(await modal.isVisible(), 'and the dialog is still the thing on screen');
 const pct = (await page.locator('#meterPct').textContent()).trim();
 ok(/^\d+% complete$/.test(pct), `the completeness meter reads a number: ${pct}`);
-await page.locator('#g_have .chip[data-v="none"]').click();
+await pick(page, '#g_have', 'none');
 await page.locator('#g2 button[type="submit"]').click();
 ok(await page.locator('#g3').isVisible(), 'stage 2 submits and stage 3 appears');
 await page.locator('#g3 button[type="submit"]').click();
@@ -184,7 +196,7 @@ await page.locator('#g_first').fill('Ada');
 await page.locator('#g_last').fill('Lovelace');
 await page.locator('#g_email').fill('ada@example.com');
 await page.locator('#g_postal').fill('M4B1B3');
-await page.locator('#g_city .chip[data-v="gta"]').click();
+await pick(page, '#g_city', 'gta');
 await page.locator('#g_consent').check();
 await page.locator('#g1 button[type="submit"]').click();
 const meter = await page.locator('#meter').boundingBox();
@@ -214,6 +226,23 @@ const nativeArrow = await page.locator('#g_brand').evaluate(el => getComputedSty
 ok(nativeArrow === 'none', `the selects use the site's own chevron, not the platform's (appearance: ${nativeArrow})`);
 const selBg = await page.locator('#g_brand').evaluate(el => getComputedStyle(el).backgroundImage);
 ok(selBg.includes('svg'), 'and that chevron is actually painted');
+await page.locator('#wmodalClose').click();
+await modal.waitFor({ state: 'hidden' });
+
+console.log('\nlong option lists are dropdowns');
+await page.locator('[data-wpath="guided"]').click();
+await modal.waitFor({ state: 'visible' });
+const condensed = await page.locator('#wmodalBody .chips[data-condensed]').evaluateAll(
+  els => els.map(e => ({ id: e.id, n: e.querySelectorAll('.chip').length, shown: e.offsetParent !== null })));
+ok(condensed.length > 0, `${condensed.length} long lists condensed: ${condensed.map(c => c.id + '(' + c.n + ')').join(', ')}`);
+ok(condensed.every(c => c.n >= 5), 'every condensed group had five or more options');
+ok(condensed.every(c => !c.shown), 'and none of them still shows its chips');
+const short = await page.locator('#wmodalBody .chips:not([data-condensed])').evaluateAll(
+  els => els.filter(e => e.dataset.single).map(e => e.querySelectorAll('.chip').length));
+ok(short.every(n => n < 5), `every group left as chips has four or fewer: ${short.join(', ')}`);
+await pick(page, '#g_city', 'gta');
+ok((await page.locator('#g_city .chip[data-v="gta"]').getAttribute('aria-pressed')) === 'true',
+  'choosing from the dropdown presses the chip the rest of the code reads');
 await page.locator('#wmodalClose').click();
 await modal.waitFor({ state: 'hidden' });
 

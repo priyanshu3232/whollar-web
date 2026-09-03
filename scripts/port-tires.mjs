@@ -34,7 +34,7 @@ mkdirSync(FONT_DIR, { recursive: true });
 const HOST = 'https://tires.whollar.ca';
 const UMBRELLA = 'https://www.whollar.ca';
 const NET = 'https://internet.whollar.ca';
-const STAMP = '20260903g';
+const STAMP = '20260903i';
 
 let doc = readFileSync(SRC, 'utf8');
 
@@ -638,11 +638,97 @@ var WM = (function(){
   return api;
 })();
 `;
+/* ---------- 10e2. long lists of options become a dropdown ---------- */
+
+/* Five or more choices in a row of chips is a wall, and the seven-city and
+   six-installer questions were the worst of them. Those condense to a select.
+ *
+   THE CHIPS STAY, hidden, and remain the source of truth. Everything in v5
+   reads and writes them: chipVal, chipVals, setChip, clearChips, gateChips,
+   every applyPrefill branch and every gate that disables an option. Replacing
+   them with a select would mean rewriting all of that. Driving them from a
+   select instead means none of it changes, and an observer keeps the select
+   showing whatever the chips say, whoever set them.
+ *
+   Single-select only. "What you need from us" and "What matters most" are
+   multi-select with a cap, and a multiple select box is a worse control than
+   the chips, not a better one. */
+const CONDENSE_JS = `
+var CONDENSE_MIN = 5;
+
+function condenseChips(box){
+  if(!box || box.dataset.condensed || !box.dataset.single) return;
+  var chips = qsa(".chip", box);
+  if(chips.length < CONDENSE_MIN) return;
+  box.dataset.condensed = "1";
+
+  var sel = document.createElement("select");
+  sel.className = "f-in wm-condensed";
+  var lbl = box.previousElementSibling;
+  if(lbl && lbl.classList && lbl.classList.contains("f-lbl")) sel.setAttribute("aria-label", lbl.textContent.trim());
+
+  var ph = document.createElement("option");
+  ph.value = ""; ph.textContent = "Choose one";
+  sel.appendChild(ph);
+  chips.forEach(function(c, i){
+    var o = document.createElement("option");
+    o.value = String(i);
+    var small = c.querySelector("small");
+    var main = small ? c.textContent.replace(small.textContent, "") : c.textContent;
+    o.textContent = small ? main.trim() + " \u00b7 " + small.textContent.trim() : main.trim();
+    sel.appendChild(o);
+  });
+
+  /* One direction: the reader picks, the chip is pressed, and the chipchange
+     event every v5 handler already listens for is dispatched as if they had
+     clicked it. */
+  sel.addEventListener("change", function(){
+    var i = sel.value === "" ? -1 : Number(sel.value);
+    chips.forEach(function(c, n){ c.setAttribute("aria-pressed", n === i ? "true" : "false"); });
+    box.dispatchEvent(new CustomEvent("chipchange", { bubbles: true }));
+  });
+
+  /* The other: anything that presses or disables a chip, and there are many,
+     is reflected back without those functions knowing this control exists. */
+  var syncing = false;
+  function sync(){
+    if(syncing) return;
+    syncing = true;
+    var picked = -1;
+    chips.forEach(function(c, n){
+      if(c.getAttribute("aria-pressed") === "true") picked = n;
+      var o = sel.options[n + 1];
+      if(o) o.disabled = c.dataset.off === "1";
+    });
+    sel.value = picked < 0 ? "" : String(picked);
+    syncing = false;
+  }
+  sync();
+  if(window.MutationObserver){
+    new window.MutationObserver(sync).observe(box, {
+      subtree: true, attributes: true, attributeFilter: ["aria-pressed", "data-off"]
+    });
+  }
+  box.parentNode.insertBefore(sel, box.nextSibling);
+}
+`;
+
+/* Every group goes through bindChips, and by then its options exist: the two
+   that build themselves, fillCityChips and fillBudget, set innerHTML first. */
+const OLD_BIND_END = `    box.dispatchEvent(new CustomEvent("chipchange",{bubbles:true}));
+  });
+}`;
+if (!kitJs.includes(OLD_BIND_END)) throw new Error('bindChips is not the shape this port expects');
+kitJs = kitJs.split(OLD_BIND_END).join(`    box.dispatchEvent(new CustomEvent("chipchange",{bubbles:true}));
+  });
+  condenseChips(box);
+}`);
+
 /* Defined before init() runs, and inside v5's own closure so it can see $, qs,
    qsa, show, toast and mountTool. */
 const INIT_AT = kitJs.indexOf('function init(){');
 if (INIT_AT < 0) throw new Error('init() not found');
-kitJs = kitJs.slice(0, INIT_AT) + MODAL_JS + '\n' + kitJs.slice(INIT_AT);
+kitJs = kitJs.slice(0, INIT_AT) + CONDENSE_JS + MODAL_JS + '\n' + kitJs.slice(INIT_AT);
 
 /* ---------- 10f. what goes on the page ---------- */
 
@@ -758,14 +844,19 @@ const MODAL_CSS = `
 .wm-scope .checkline{margin:6px 0}
 .wm-scope .signup{padding:0}
 .wm-scope .mid{max-width:none;padding:0}
+/* !important for the same reason v5's own .hide carries it: the two grid
+   rules above match through a :has(), which outranks a plain attribute
+   selector, and a row that has been condensed is hidden, full stop. */
+.wm-scope .chips[data-condensed]{display:none!important}
 /* Selects get the chevron the bill checkup, /become-a-partner and this
    vertical's own /join already use. The native control draws a different
    arrow on every platform and none of them match the chip buttons beside it,
    so Year, Make and Model read as three widgets borrowed from somewhere else.
    Same SVG and the same offsets as those pages, so it is one control across
    the site rather than a fourth variant. */
-.wm-scope select.f-in{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%235B655C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
+.wm-scope select.f-in,.wm-scope select.wm-condensed{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%235B655C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
 .wm-scope select.f-in:disabled{background-image:none}
+.wm-scope select.wm-condensed{width:100%}
 /* The verdict a tool leaves behind on its card, and the running tally. */
 .wm-verdict{display:none;font-size:13.5px;font-weight:600;color:#14352A;background:#CFE7D6;border-radius:9px;padding:6px 12px;width:fit-content;max-width:100%}
 [data-wtool].done .wm-verdict{display:inline-block}
