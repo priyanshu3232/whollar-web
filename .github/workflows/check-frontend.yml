@@ -75,6 +75,14 @@ jobs:
       - name: Landing page script parses
         run: node --check js/landing.js
 
+      # The winter tire vertical: the scroll reveal, and nothing else.
+      - name: Tire landing script parses
+        run: node --check tires/js/tires.js
+
+      # The tire waitlist: two paths, four calculators.
+      - name: Tire waitlist script parses
+        run: node --check tires/js/tire-join.js
+
       # The /join signup: form, the two-step code flow, and the scene loop.
       - name: Waitlist join script parses
         run: node --check js/waitlist-join.js

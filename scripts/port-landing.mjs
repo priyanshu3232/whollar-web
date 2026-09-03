@@ -270,7 +270,9 @@ if (strayGroup) throw new Error(`"group" still in visible copy ${strayGroup} tim
    button that scrolls instead of converting. */
 const CTAS = {
   'Join Whollar': '/join',
-  'Join the tire cohort': '/join',
+  /* The tire vertical owns its own host, so this card leaves the umbrella the
+     same way the internet card above it does. */
+  'Join the tire cohort': 'https://tires.whollar.ca/',
   'Bring Whollar here': '/join',
   'Bring Whollar to my city': '/join',
   /* The current home page, which is the internet product. At cutover this

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://tires.whollar.ca/sitemap.xml

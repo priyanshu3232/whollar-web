@@ -192,6 +192,16 @@ commonwaitlist
 # checked against its source.
 WhollarTireLandingPage
 whollar-waitlist-tyre.html
+# The canvas exported as one self-unpacking file. Same page, same reasons, and
+# it is not covered by the two lines above because it sits at the root under
+# its own name.
+WhollarWinterTires (standalone).html
+
+# The winter tire vertical. tires/ deploys as its OWN Vercel project with its
+# root directory set to tires/, serving tires.whollar.ca. Same reason as home/
+# below: left in this deploy, cleanUrls would publish a second copy of it at
+# /tires/index on the product host.
+tires
 
 # The umbrella project. home/ deploys as its OWN Vercel project with its root
 # directory set to home/, serving whollar.ca. Left in this deploy, cleanUrls

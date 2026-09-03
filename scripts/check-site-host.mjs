@@ -23,7 +23,7 @@ const FIX = process.argv.includes('--fix');
 const OLD = /https:\/\/(www\.)?whollar\.ca(?=[/"'\s<)]|$)/g;
 const NEW = 'https://internet.whollar.ca';
 const EXT = new Set(['.html', '.xml', '.txt', '.json', '.js', '.css']);
-const SKIP_DIRS = new Set(['.git', 'node_modules', 'home', 'catalyst-backend', 'docs', 'scripts', 'admin-console', '.vercel', '.claude']);
+const SKIP_DIRS = new Set(['.git', 'node_modules', 'home', 'tires', 'catalyst-backend', 'docs', 'scripts', 'admin-console', '.vercel', '.claude']);
 const GENERATED = ['MobileVersion' + sep];
 
 /* .vercelignore, read as prefixes and globs the way Vercel does, minus comments. */
