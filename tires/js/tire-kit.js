@@ -2002,7 +2002,211 @@ function bindGuided(){
    INIT
    ============================================================ */
 
-var CONDENSE_MIN = 5;
+var wselN = 0;
+var wselOpen = null;
+
+function themeSelect(sel){
+  if(!sel || sel.multiple || sel.dataset.wsel) return;
+  sel.dataset.wsel = "1";
+  /* Out of the tab order: the button below is the control now, and two stops
+     for one field is a keyboard reader tabbing into something invisible. */
+  sel.setAttribute("tabindex", "-1");
+  var n = ++wselN;
+
+  var wrap = document.createElement("div");
+  wrap.className = "wsel";
+  sel.parentNode.insertBefore(wrap, sel);
+  wrap.appendChild(sel);
+
+  var btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "wsel-btn";
+  btn.setAttribute("aria-haspopup", "listbox");
+  btn.setAttribute("aria-expanded", "false");
+  var named = sel.getAttribute("aria-label");
+  var lab = (!named && sel.id) ? qs('label[for="' + sel.id + '"]') : null;
+  btn.setAttribute("aria-label", named || (lab ? lab.textContent.trim() : "Choose one"));
+  btn.innerHTML = '<span class="wsel-val"></span><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5l4 4 4-4"></path></svg>';
+  wrap.appendChild(btn);
+
+  var list = document.createElement("div");
+  list.className = "wsel-list";
+  list.id = "wsel" + n;
+  list.setAttribute("role", "listbox");
+  list.hidden = true;
+  btn.setAttribute("aria-controls", list.id);
+  wrap.appendChild(list);
+
+  var cur = -1, typed = "", typedAt = 0;
+
+  function render(){
+    list.innerHTML = "";
+    for(var i = 0; i < sel.options.length; i++){
+      var row = document.createElement("div");
+      row.className = "wsel-opt";
+      row.id = list.id + "-o" + i;
+      row.setAttribute("role", "option");
+      row.dataset.i = String(i);
+      row.textContent = sel.options[i].textContent;
+      /* "Choose one" is the absence of an answer, so it is not painted as
+         one: without this the list opens with a green pressed row saying
+         nothing has been picked. It stays in the list because it is also how
+         an answer is taken back, and because for Model it is the only row
+         there is until a make is chosen. */
+      if(!sel.options[i].value) row.dataset.placeholder = "1";
+      list.appendChild(row);
+    }
+    paint();
+  }
+
+  function paint(){
+    var i = sel.selectedIndex, o = sel.options[i];
+    qs(".wsel-val", btn).textContent = o ? o.textContent : "";
+    btn.dataset.empty = (o && o.value) ? "" : "1";
+    btn.disabled = sel.disabled;
+    if(sel.classList.contains("bad")) btn.classList.add("bad"); else btn.classList.remove("bad");
+    qsa(".wsel-opt", list).forEach(function(row){
+      var k = Number(row.dataset.i), op = sel.options[k];
+      row.setAttribute("aria-selected", k === i ? "true" : "false");
+      if(op && op.disabled) row.setAttribute("aria-disabled", "true");
+      else row.removeAttribute("aria-disabled");
+    });
+  }
+
+  /* Focus never leaves the button, so the dialog's focus trap has nothing to
+     fight with. The row a keyboard is on is named by aria-activedescendant. */
+  function active(i){
+    cur = i;
+    qsa(".wsel-opt", list).forEach(function(row){
+      if(Number(row.dataset.i) !== i){ row.removeAttribute("data-active"); return; }
+      row.dataset.active = "1";
+      btn.setAttribute("aria-activedescendant", row.id);
+      if(row.scrollIntoView) row.scrollIntoView({ block: "nearest" });
+    });
+  }
+
+  function step(d){
+    var len = sel.options.length, i = cur;
+    for(var k = 0; k < len; k++){
+      i = (i + d + len) % len;
+      if(!sel.options[i].disabled){ active(i); return; }
+    }
+  }
+
+  function choose(i){
+    var o = sel.options[i];
+    if(!o || o.disabled) return;
+    if(sel.selectedIndex !== i){
+      sel.selectedIndex = i;
+      sel.dispatchEvent(new Event("input", { bubbles: true }));
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    shut(true);
+  }
+
+  /* The dialog body is the scrollport, and it clips. A list with no room
+     below it opens upward, and either way it is capped to the room there is
+     rather than disappearing under the edge. */
+  function place(){
+    var port = sel.closest ? sel.closest(".wmodal-body") : null;
+    var pr = port ? port.getBoundingClientRect() : { top: 0, bottom: (window.innerHeight || 800) };
+    var br = btn.getBoundingClientRect();
+    var below = pr.bottom - br.bottom - 14, above = br.top - pr.top - 14;
+    var up = below < 180 && above > below;
+    if(up) list.dataset.up = "1"; else list.removeAttribute("data-up");
+    list.style.maxHeight = Math.max(132, Math.min(288, up ? above : below)) + "px";
+  }
+
+  function drop(){
+    if(btn.disabled || !list.hidden) return;
+    if(wselOpen) wselOpen.shut(false);
+    list.hidden = false;
+    btn.setAttribute("aria-expanded", "true");
+    place();
+    wselOpen = { wrap: wrap, shut: shut };
+    active(sel.selectedIndex > 0 ? sel.selectedIndex : 0);
+  }
+
+  function shut(back){
+    if(list.hidden) return;
+    list.hidden = true;
+    btn.setAttribute("aria-expanded", "false");
+    btn.removeAttribute("aria-activedescendant");
+    if(wselOpen && wselOpen.wrap === wrap) wselOpen = null;
+    if(back) btn.focus();
+  }
+
+  btn.addEventListener("click", function(e){ e.preventDefault(); if(list.hidden) drop(); else shut(true); });
+  /* Mousedown default is what would move focus off the button and shut the
+     list before the click ever lands. */
+  list.addEventListener("mousedown", function(e){ e.preventDefault(); });
+  list.addEventListener("click", function(e){
+    var row = e.target && e.target.closest ? e.target.closest(".wsel-opt") : null;
+    if(row) choose(Number(row.dataset.i));
+  });
+
+  btn.addEventListener("keydown", function(e){
+    var k = e.key;
+    if(list.hidden){
+      if(k === "ArrowDown" || k === "ArrowUp" || k === "Enter" || k === " "){ e.preventDefault(); drop(); }
+      return;
+    }
+    /* Escape shuts the list, and only the list: without stopping it here the
+       dialog's own handler would read the same key and close the form. */
+    if(k === "Escape"){ e.preventDefault(); e.stopPropagation(); shut(true); return; }
+    if(k === "Enter" || k === " "){ e.preventDefault(); choose(cur); return; }
+    if(k === "ArrowDown"){ e.preventDefault(); step(1); return; }
+    if(k === "ArrowUp"){ e.preventDefault(); step(-1); return; }
+    if(k === "Home"){ e.preventDefault(); active(0); return; }
+    if(k === "End"){ e.preventDefault(); active(sel.options.length - 1); return; }
+    if(k === "Tab"){ shut(false); return; }
+    if(k.length !== 1) return;
+    /* Sixty makes is too many to arrow through. */
+    var now = Date.now();
+    typed = (now - typedAt < 900 ? typed : "") + k.toLowerCase();
+    typedAt = now;
+    for(var i = 0; i < sel.options.length; i++){
+      if(sel.options[i].disabled) continue;
+      if(sel.options[i].textContent.trim().toLowerCase().indexOf(typed) === 0){ active(i); return; }
+    }
+  });
+
+  sel.addEventListener("change", paint);
+
+  /* v5 sets .value on prefill and .selectedIndex when it clears the vehicle,
+     neither of which fires an event or shows up as a mutation. Trapped on the
+     element, not the prototype, so nothing else on the page is affected. */
+  var proto = Object.getPrototypeOf(sel);
+  ["value", "selectedIndex"].forEach(function(prop){
+    var d = Object.getOwnPropertyDescriptor(proto, prop);
+    if(!d || !d.set) return;
+    Object.defineProperty(sel, prop, {
+      configurable: true,
+      get: function(){ return d.get.call(this); },
+      set: function(v){ d.set.call(this, v); paint(); }
+    });
+  });
+
+  if(window.MutationObserver){
+    /* Model is rebuilt every time Make changes, and the chips a condensed
+       question was built from can be gated after the fact. */
+    new window.MutationObserver(render).observe(sel, { childList: true });
+    new window.MutationObserver(paint).observe(sel, { attributes: true, attributeFilter: ["disabled", "class"] });
+  }
+
+  render();
+}
+
+function themeSelects(root){ qsa("select", root).forEach(themeSelect); }
+
+document.addEventListener("mousedown", function(e){
+  if(!wselOpen) return;
+  var w = e.target && e.target.closest ? e.target.closest(".wsel") : null;
+  if(w !== wselOpen.wrap) wselOpen.shut(false);
+}, true);
+window.addEventListener("resize", function(){ if(wselOpen) wselOpen.shut(false); });
+
+var CONDENSE_MIN = 2;
 
 function condenseChips(box){
   if(!box || box.dataset.condensed || !box.dataset.single) return;
@@ -2058,6 +2262,7 @@ function condenseChips(box){
     });
   }
   box.parentNode.insertBefore(sel, box.nextSibling);
+  themeSelect(sel);
 }
 
 /* ---- the modal every one of the six buttons opens ----
@@ -2081,7 +2286,7 @@ var WM = (function(){
   var root, dialog, body, titleEl, closeBtn, park, lastFocus = null, open = false;
 
   function focusable(){
-    return qsa('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])', dialog)
+    return qsa('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]):not([tabindex="-1"]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])', dialog)
       .filter(function(el){ return el.offsetParent !== null || el === closeBtn; });
   }
   function onKey(e){
@@ -2101,6 +2306,9 @@ var WM = (function(){
       titleEl.textContent = titleText || "";
       lastFocus = opener || document.activeElement;
       fill(body);
+      /* Anything with options that arrives in the dialog, whether it was
+         built by mountTool a moment ago or has been parked since load. */
+      themeSelects(body);
       root.hidden = false;
       open = true;
       document.body.style.overflow = "hidden";

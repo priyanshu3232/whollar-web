@@ -54,16 +54,20 @@ ok(await page.locator('#wmodal').isHidden(), 'and starts hidden');
 ok(await page.locator('#wm-park [id="quickForm"]').count() === 1, 'the sign-up is parked off screen');
 ok((await page.locator('#tally').textContent()).trim() === '0 of 4 answered', 'the tally starts at zero');
 
-/* Single-select groups of five or more condense to a dropdown, so answering
-   by clicking the chip would be driving a control no reader can see. This
-   picks through whichever one the group actually rendered. */
+/* Every question that takes one answer is asked with a dropdown, and the
+   chips behind it are hidden, so clicking a chip would be driving a control no
+   reader can see. This answers the way a reader does: open the drawn list,
+   click the row. The row is one ahead of the chip because the list carries a
+   "Choose one" placeholder. Questions that take several answers keep their
+   chips, and those are still clicked. */
 async function pick(page, box, value) {
   const condensed = await page.locator(box).getAttribute('data-condensed');
   if (!condensed) return page.locator(`${box} .chip[data-v="${value}"]`).click();
   const i = await page.locator(`${box} .chip`).evaluateAll(
     (els, v) => els.findIndex(e => e.dataset.v === v), value);
   if (i < 0) throw new Error(`${box} has no option ${value}`);
-  await page.locator(`${box} + select.wm-condensed`).selectOption(String(i));
+  await page.locator(`${box} + .wsel .wsel-btn`).click();
+  await page.locator(`${box} + .wsel .wsel-opt[data-i="${i + 1}"]`).click();
 }
 
 const modal = page.locator('#wmodal');
@@ -228,12 +232,19 @@ const meter = await page.locator('#meter').boundingBox();
 const heading = await page.locator('#g2 h3').boundingBox();
 ok(meter.y + meter.height <= heading.y + 1,
   `the sticky meter sits above the heading, not across it (${Math.round(heading.y - (meter.y + meter.height))}px clear)`);
-const rows = await page.locator('#g_have .chip').evaluateAll(els => {
+/* The starting point used to be four cards in two rows. It is a dropdown now,
+   so what is worth checking is that the cards are gone and the control that
+   replaced them fills the column. The even-rows claim moves to the questions
+   that still take several answers, which are the only chips left. */
+ok(await page.locator('#g_have').getAttribute('data-condensed') === '1',
+  'the starting point is asked with a dropdown');
+ok(await page.locator('#g_have .chip').first().isHidden(), 'and its chips are not on screen');
+const rows = await page.locator('#g_needs .chip').evaluateAll(els => {
   const tops = els.map(e => Math.round(e.getBoundingClientRect().top));
   const widths = els.map(e => Math.round(e.getBoundingClientRect().width));
   return { rows: new Set(tops).size, widths: new Set(widths).size };
 });
-ok(rows.rows === 2, `the four starting-point options sit in two even rows (${rows.rows})`);
+ok(rows.rows >= 2, `the several-answer options sit in even rows (${rows.rows})`);
 ok(rows.widths === 1, `and every one is the same width (${rows.widths} distinct)`);
 const gaps = await page.locator('#g2 .sec-t').evaluateAll(els => els.slice(1).map((el, i) => {
   const prev = els[i].parentElement.querySelector('.sec-t');
@@ -247,27 +258,84 @@ const secGap = await page.evaluate(() => {
 ok(secGap <= 32, `a section break costs ${secGap}px, not v5's 48`);
 const cardPad = await page.locator('#g2').evaluate(el => parseFloat(getComputedStyle(el).paddingTop));
 ok(cardPad === 0, `the panel is not a card inside a card (padding ${cardPad}px)`);
-const nativeArrow = await page.locator('#g_brand').evaluate(el => getComputedStyle(el).appearance);
-ok(nativeArrow === 'none', `the selects use the site's own chevron, not the platform's (appearance: ${nativeArrow})`);
-const selBg = await page.locator('#g_brand').evaluate(el => getComputedStyle(el).backgroundImage);
-ok(selBg.includes('svg'), 'and that chevron is actually painted');
+const drawn = await page.locator('#g_brand').evaluate(el => {
+  const wrap = el.closest('.wsel');
+  const btn = wrap && wrap.querySelector('.wsel-btn');
+  const cs = getComputedStyle(el);
+  return { wrapped: !!wrap, chevron: !!(btn && btn.querySelector('svg')),
+    selOpacity: cs.opacity, selEvents: cs.pointerEvents, tab: el.getAttribute('tabindex') };
+});
+ok(drawn.wrapped && drawn.chevron, 'the selects are drawn controls with the site chevron');
+ok(drawn.selOpacity === '0' && drawn.selEvents === 'none' && drawn.tab === '-1',
+  'and the platform control behind them cannot be seen, clicked or tabbed to');
+/* Model is rebuilt wholesale whenever Make changes, so the list drawn over it
+   has to follow the options rather than the value. */
+const rebuilt = await page.evaluate(() => {
+  const mk = document.getElementById('g_make'), md = document.getElementById('g_model');
+  if (!mk || !md) return null;
+  const rowsOf = (el) => el.parentElement.querySelectorAll('.wsel-opt').length;
+  const before = rowsOf(md);
+  mk.selectedIndex = 2;
+  mk.dispatchEvent(new Event('change', { bubbles: true }));
+  return new Promise(r => setTimeout(() => r({
+    before, after: rowsOf(md),
+    shows: mk.parentElement.querySelector('.wsel-val').textContent.trim(),
+    picked: mk.options[2].textContent.trim(),
+  }), 80));
+});
+ok(rebuilt && rebuilt.after > rebuilt.before,
+  `choosing a make rebuilds the model list it draws (${rebuilt && rebuilt.before} to ${rebuilt && rebuilt.after})`);
+ok(rebuilt && rebuilt.shows === rebuilt.picked,
+  `and a value set in code repaints the control (${rebuilt && rebuilt.shows})`);
 await page.locator('#wmodalClose').click();
 await modal.waitFor({ state: 'hidden' });
 
-console.log('\nlong option lists are dropdowns');
+console.log('\nevery question with options is a dropdown');
 await page.locator('[data-wpath="guided"]').click();
 await modal.waitFor({ state: 'visible' });
 const condensed = await page.locator('#wmodalBody .chips[data-condensed]').evaluateAll(
   els => els.map(e => ({ id: e.id, n: e.querySelectorAll('.chip').length, shown: e.offsetParent !== null })));
-ok(condensed.length > 0, `${condensed.length} long lists condensed: ${condensed.map(c => c.id + '(' + c.n + ')').join(', ')}`);
-ok(condensed.every(c => c.n >= 5), 'every condensed group had five or more options');
+ok(condensed.length >= 8, `${condensed.length} questions ask with a dropdown`);
+ok(condensed.every(c => c.n >= 2), 'every one of them had options to condense');
 ok(condensed.every(c => !c.shown), 'and none of them still shows its chips');
 const short = await page.locator('#wmodalBody .chips:not([data-condensed])').evaluateAll(
-  els => els.filter(e => e.dataset.single).map(e => e.querySelectorAll('.chip').length));
-ok(short.every(n => n < 5), `every group left as chips has four or fewer: ${short.join(', ')}`);
+  els => els.filter(e => e.dataset.single).map(e => e.id));
+ok(short.length === 0, `nothing that takes one answer is left as chips: ${short.join(', ') || 'none'}`);
+const multi = await page.locator('#wmodalBody .chips[data-multi]').evaluateAll(
+  els => els.map(e => e.id + (e.hasAttribute('data-condensed') ? ':condensed' : '')));
+ok(multi.length > 0 && multi.every(id => !/condensed/.test(id)),
+  `the questions that take several answers keep their chips: ${multi.join(', ')}`);
 await pick(page, '#g_city', 'gta');
 ok((await page.locator('#g_city .chip[data-v="gta"]').getAttribute('aria-pressed')) === 'true',
   'choosing from the dropdown presses the chip the rest of the code reads');
+
+const cityList = page.locator('#g_city + .wsel .wsel-list');
+await page.locator('#g_city + .wsel .wsel-btn').click();
+ok(await cityList.isVisible(), 'the drawn list opens');
+const drawnList = await cityList.evaluate(el => ({
+  inDialog: !!el.closest('#wmodal'),
+  font: getComputedStyle(el).fontFamily,
+  bg: getComputedStyle(el).backgroundColor,
+  rows: el.querySelectorAll('.wsel-opt').length,
+}));
+ok(drawnList.inDialog && /Inter/.test(drawnList.font),
+  `the list is inside the dialog, so it takes the dialog's font (${drawnList.font.split(',')[0]})`);
+ok(drawnList.bg === 'rgb(255, 254, 251)', `and the page's own cream, not the platform's (${drawnList.bg})`);
+/* Escape belongs to the list while the list is open. Without stopping it there
+   the dialog's own handler reads the same key and closes the whole form. */
+await page.keyboard.press('Escape');
+ok(await cityList.isHidden(), 'escape shuts the list');
+ok(await modal.isVisible(), 'and leaves the dialog open');
+/* The keyboard drives it without the chips: focus never leaves the button, so
+   the dialog's focus trap has nothing to fight with. */
+await page.locator('#g_city + .wsel .wsel-btn').focus();
+await page.keyboard.press('ArrowDown');
+await page.keyboard.press('ArrowDown');
+await page.keyboard.press('Enter');
+const moved = await page.locator('#g_city .chip[aria-pressed="true"]').getAttribute('data-v');
+ok(moved && moved !== 'gta', `arrow keys and enter answer the question too (now ${moved})`);
+ok(await page.evaluate(() => document.activeElement.className), 'and focus is still on the control');
+await pick(page, '#g_city', 'gta');
 await page.locator('#wmodalClose').click();
 await modal.waitFor({ state: 'hidden' });
 
