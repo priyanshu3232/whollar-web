@@ -267,19 +267,28 @@ const strayPool = (doc.replace(/<[^>]+>/g, ' ').match(/\bpool(ing|ed|s)?\b/gi) |
 if (strayPool) throw new Error(`"pool" still in visible copy ${strayPool} time(s)`);
 if (doc.includes('—')) throw new Error('an em dash survived');
 
-/* ---------- 6b. where "join" goes ---------- */
+/* ---------- 6b. where "join" goes, and what the two paths are called ------ */
 
-/* Every Join control leaves for /join rather than scrolling to the section
-   that offers the same two paths. The waitlist's own first screen IS that
-   choice, so a click that scrolls and then asks again is one step of nothing.
-   The section keeps its id: the four remaining #join links inside it are the
-   footer and the cross-sell, and they should still land on the page's own
-   pitch before the form. */
+/* Every Join control scrolls to the join section at the foot of the page, and
+   the choice is made there. That section is the pitch: what joining costs,
+   what it gets you, and the two ways in. Sending the header CTA straight to
+   the form skips all of it. That was tried, and reverted at the owner's call.
+
+   The path cards take the names the design's own signup flow used, which this
+   port cut along with the flow shell. "Just hold my spot" loses the "just":
+   nothing about holding a spot is the lesser choice, and the word apologised
+   for picking it. */
 const joinCtas = (doc.match(/href="#join"/g) || []).length;
 if (joinCtas !== 4) throw new Error(`expected 4 #join links, found ${joinCtas}`);
-doc = doc.replace(/(<a href=)"#join"([^>]*>(?:(?!<\/a>)[\s\S])*?Join the winter tire cohort)/g, '$1"/join"$2');
-const joinLeft = (doc.match(/href="#join"/g) || []).length;
-if (joinLeft !== 2) throw new Error(`expected 2 #join links to remain, found ${joinLeft}`);
+
+const PATH_NAMES = [
+  ['>Quick signup<', '>Hold my spot<'],
+  ['>Guided signup<', '>Build my profile<'],
+];
+for (const [find, repl] of PATH_NAMES) {
+  if ((doc.split(find).length - 1) !== 1) throw new Error(`path card ${find}: expected exactly 1`);
+  doc = doc.split(find).join(repl);
+}
 
 /* ---------- 7. cross-host links ---------- */
 
@@ -331,151 +340,27 @@ ${body}
 
 writeFileSync(join(OUT, 'index.html'), page);
 
-/* ---------- 9. the waitlist, at /join on this host ---------- */
+/* ---------- 9. the waitlist is NOT generated ----------
 
-/* whollar-waitlist-tyre.html is a working prototype rather than a canvas: no
-   runtime, no bundle, plain HTML with one inline script. So this is a rewire,
-   not a port. What changes: the fonts are self-hosted like every other page
-   here, the script moves out of the page so CI can parse it and the browser
-   can cache it, the vocabulary follows the same rule as the landing page, and
-   the three demo behaviours are made honest (see js/tire-join.js). */
+   It was, briefly, and this is why it stopped being. whollar-waitlist-tyre.html
+   is a one-time design drop with no runtime and no upstream that will ever
+   regenerate it, so the only thing a generator bought here was the ability to
+   re-run a set of string edits against a file nobody will edit again. Against
+   that, tires/join.html now carries a real submit: payload assembly, the
+   validation that mirrors POST /tire-waitlist-join, the CASL consent record
+   read off the label as ticked, and the deep links from this page. Maintaining
+   that as string patches applied to the prototype's inline script inside a
+   Node template literal means every backend change is an edit to a string.
 
-const JOIN_JS_HEADER = `/* /join on tires.whollar.ca: the two sign-up paths and the four calculators.
- *
- * Lifted verbatim from the waitlist prototype by scripts/port-tires.mjs, with
- * three demo behaviours removed and the landing page's handoff added. Edit the
- * prototype or the port script, not this file: it is generated.
- *
- * WHAT WAS REMOVED, AND WHY. The prototype fabricated three things, honestly
- * labelled as a prototype but not shippable:
- *   1. the rank, "you are #1,848 in the GTA cohort", which was 1847 plus a
- *      random number, a claim about how many households joined,
- *   2. the reference code, minted in the browser from Math.random, so two
- *      people could hold the same one and nothing could be looked up by it,
- *   3. "We just emailed it to you", said when no email was sent.
- *
- * THE FORM DOES NOT SAVE YET. POST /tire-waitlist-join and the three tables
- * behind it are specified in docs/TIRE_VERTICAL_BUILD.md and do not exist. So
- * this submits nothing and says nothing about having saved anything. The
- * calculators are fully working: they run entirely here.
- */
-`;
+   So tires/join.html and tires/js/tire-join.js are ordinary source files,
+   registered in the gates by hand like every other page outside partner/:
+   scripts/check-inline-scripts.mjs, scripts/check-console-copy.mjs, and a
+   node --check step in .github/workflows/check-frontend.yml. The prototype
+   stays in the repo, and in .vercelignore, so the rewire can still be read
+   against its source.
 
-const JOIN_SRC = join(ROOT, 'whollar-waitlist-tyre.html');
-let jd = readFileSync(JOIN_SRC, 'utf8');
-
-/* The inline script becomes tires/js/tire-join.js. */
-const scriptAt = jd.lastIndexOf('<script>');
-const scriptEnd = jd.lastIndexOf('</script>');
-if (scriptAt < 0 || scriptEnd < scriptAt) throw new Error('the waitlist has no inline script to lift');
-let joinJs = jd.slice(scriptAt + '<script>'.length, scriptEnd).trim();
-jd = jd.slice(0, scriptAt) + `<script src="/js/tire-join.js?v=${STAMP}"></script>` + jd.slice(scriptEnd + '</script>'.length);
-
-/* Self-hosted fonts, same faces as the landing page. */
-jd = jd.replace(/<link rel="preconnect"[^>]*>\s*/g, '')
-  .replace(/<link href="https:\/\/fonts\.googleapis\.com[^>]*>\s*/g, '');
-if (/googleapis|gstatic/.test(jd)) throw new Error('a Google Fonts reference survived the waitlist');
-jd = jd.replace('<style>', `<style>\n${fontCss}\n`);
-
-/* The head: canonical on this host, a real favicon file rather than a data
-   URI, and Clarity with masking on, because this form collects a name, an
-   address and a phone number and Clarity records session replays. */
-jd = jd.replace(/<link rel="icon"[^>]*>/, '<link rel="icon" type="image/svg+xml" href="/favicon.svg">');
-jd = jd.replace('</head>', `<link rel="canonical" href="${HOST}/join">
-<meta property="og:type" content="website">
-<meta property="og:url" content="${HOST}/join">
-<meta property="og:title" content="Join the Whollar winter tire cohort">
-<meta property="og:image" content="${HOST}/og/tires.jpg">
-<meta name="twitter:card" content="summary_large_image">
-<script type="text/javascript">(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window, document, "clarity", "script", "xrkpgls1yj");
-/* This form collects a name, a phone number, an address and a postal code.
-   Clarity records session replays, so mask text content by default
-   (PIPEDA / Law 25). */
-window.clarity('set','mask','true');</script>
-</head>`);
-
-/* Same vocabulary rule as the landing page. */
-const JOIN_VOCAB = [
-  ['when my area forms a group', 'when my area forms a cohort'],
-  ['the group rate', 'the cohort rate'],
-  ['group rate', 'cohort rate'],
-  ["You're one of the group.", "You're in the cohort."],
-  ['we form a cohort and take its demand', 'we form a cohort and take its demand'],
-  ['Join the internet waitlist', 'Join the internet cohort'],
-  ['GTA neighbours are already pooling on internet with Whollar', 'GTA neighbours are already buying internet together with Whollar'],
-  ['Same idea, same waitlist.', 'Same idea, same door.'],
-  /* The reference box is hidden until a server mints a code, so its caption
-     may not say one was emailed. Nothing is emailed: nothing is saved. */
-  ['Think of this as your order number. We just emailed it to you.',
-   'Your reference code arrives by email once your spot is saved.'],
-];
-for (const [find, repl] of JOIN_VOCAB) jd = jd.split(find).join(repl);
-
-/* The cross-sell leaves for the internet host. */
-jd = jd.split('href="#internet-program"').join(`href="${NET}/"`);
-/* The wordmark goes to the umbrella. */
-jd = jd.replace('<span class="brand">', `<a class="brand" href="${UMBRELLA}" style="text-decoration:none;color:inherit">`)
-  .replace('</span>\n    <span class="tpill">', '</a>\n    <span class="tpill">');
-
-const jVisible = jd.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-const jStray = [...jVisible.matchAll(/\bgroups?\b|\bpool\w*\b/gi)]
-  .map(m => jVisible.slice(Math.max(0, m.index - 60), m.index + 40).trim());
-if (jStray.length) throw new Error(`the waitlist still says group or pool:\n  ${jStray.join('\n  ')}`);
-if (jd.includes('\u2014')) throw new Error('an em dash survived the waitlist');
-
-/* The three demo behaviours, and the landing page's handoff. */
-const JS_EDITS = [
-  /* The fabricated rank. */
-  [`if(cityVal==='gta'||!cityVal){var n=GTA_BASE+1+Math.floor(Math.random()*3);$('#c-rank').innerHTML='You\\u2019re <span>#'+n.toLocaleString()+'</span> in the GTA cohort';}
-    else {$('#c-rank').textContent='Your vote is counted. We follow the demand.';}`,
-   `$('#c-rank').textContent='Your vote is counted. We follow the demand.';`],
-  /* The browser-minted reference code, and the claim that it was emailed. */
-  [`$('#c-ref').textContent=makeRef();`,
-   `/* The server mints the code, and there is no server yet: hide the box
-       rather than print a number that means nothing. */
-    var refbox=document.querySelector('.refbox'); if(refbox) refbox.style.display='none';`],
-];
-for (const [find, repl] of JS_EDITS) {
-  if (!joinJs.includes(find)) throw new Error(`the waitlist script changed, this edit no longer matches:\n${find.slice(0, 90)}`);
-  joinJs = joinJs.split(find).join(repl);
-}
-if (/GTA_BASE\s*\+/.test(joinJs)) throw new Error('the fabricated rank survived');
-
-/* Both generators are unreachable now. Left in, they read as behaviour this
-   page still has, and the next person to touch it would wire them back up. */
-joinJs = joinJs.replace(/  var GTA_BASE=1847, INTERNET_GTA=4231;\n/, '');
-joinJs = joinJs.replace(/  \/\* ref code \+ rank \*\/\n[\s\S]*?return 'WHL-TIRE-'\+city\.slice\(0,3\)\.toUpperCase\(\)\+'-'\+s;\}\n/, '  /* the confirm screen */\n');
-for (const dead of ['GTA_BASE', 'makeRef', 'cityCode']) {
-  if (joinJs.includes(dead)) throw new Error(`${dead} survived the demo cut`);
-}
-
-/* The landing page hands over which path was chosen, and which tool the card
-   was for, so a click on "One set of wheels, or two?" opens that tool rather
-   than dropping someone at the top of a form. */
-joinJs = joinJs.replace(
-  `  $('#addcar').addEventListener('click',function(e){e.preventDefault();show('s-intro');});`,
-  `  $('#addcar').addEventListener('click',function(e){e.preventDefault();show('s-intro');});
-
-  /* ---- arriving from the landing page ----
-   * tires.whollar.ca/ links here with the path already chosen, and its four
-   * smart-buy cards name the tool they were about. Honour both, so a click on
-   * "One set of wheels, or two?" opens that tool rather than dropping someone
-   * at the top of a form they did not ask for. */
-  try{
-    var q=new URLSearchParams(window.location.search);
-    var path=q.get('path'), tool=q.get('tool');
-    if(path==='quick'){F.path='quick';show('s-quick');}
-    else if(path==='guided'){F.path='guided';gStage(tool?2:1);show('s-guided');}
-    var TOOLS={strategy:'strategy',size:'size',rims:'rimcalc',insurance:'ins'};
-    if(tool&&TOOLS[tool]){
-      var panel=$('#h-'+TOOLS[tool]);
-      if(panel){panel.hidden=false;setTimeout(function(){panel.scrollIntoView({behavior:'smooth',block:'center'});},260);}
-    }
-  }catch(e){/* an unparseable query string is not a reason to break the page */}`);
-if (!joinJs.includes('arriving from the landing page')) throw new Error('the handoff block did not attach');
-
-writeFileSync(join(OUT, 'join.html'), jd);
-writeFileSync(join(OUT, 'js', 'tire-join.js'), JOIN_JS_HEADER + joinJs + '\n');
+   What this port DOES still own is tires/index.html above, which has an
+   upstream that regenerates: the design canvas. */
 
 console.log(`hover rules: ${hoverRules.size}`);
 console.log(`fonts copied: ${fontFiles.size}`);
