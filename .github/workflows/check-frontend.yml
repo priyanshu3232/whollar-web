@@ -88,6 +88,11 @@ jobs:
       - name: Tire smart-buy kit parses
         run: node --check tires/js/tire-kit.js
 
+      # /join on the tire host loads the shared module, so the same rule as the
+      # umbrella below applies: the copy IS the shared module, byte for byte.
+      - name: Tire core is the shared core
+        run: cmp js/whollar-core.js tires/js/whollar-core.js
+
       # The /join signup: form, the two-step code flow, and the scene loop.
       - name: Waitlist join script parses
         run: node --check js/waitlist-join.js
