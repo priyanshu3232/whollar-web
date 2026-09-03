@@ -52,10 +52,36 @@
     return isNaN(v) ? 92 : v;
   }
 
+  /* Where a section should come to rest.
+   *
+   * Top-aligning under the header is right for a long section, where the rest
+   * of it is below the fold anyway. It is wrong for the ones on this page that
+   * are a screenful each: pushing the top down by the header's height pushes
+   * the same amount off the bottom, so the join section landed with a strip of
+   * the previous section showing above it and its two cards cut off below.
+   *
+   * So a section that can very nearly be shown whole is framed instead:
+   * centred in the viewport, which for a 100vh block means its own top edge at
+   * the top of the screen. Its 96px of padding sits under the translucent
+   * header, which is what that padding is for. */
+  function restingPlace(target){
+    var rect = target.getBoundingClientRect();
+    var top = rect.top + window.pageYOffset;
+    var vh = window.innerHeight || 800;
+    if (rect.height <= vh - headOffset()) return top - headOffset();
+    /* A third taller than the screen still frames better than it top-aligns.
+       These sections carry 96px of padding at each end, so centring an
+       overflow of about that much trims the padding and nothing else: the
+       eyebrow starts at the top edge and the cards finish at the bottom one,
+       which is the whole point. */
+    if (rect.height <= vh * 1.35) return top + (rect.height - vh) / 2;
+    return top - headOffset();
+  }
+
   function glideTo(target){
     var start = window.pageYOffset;
     var end = Math.max(0, Math.min(
-      target.getBoundingClientRect().top + start - headOffset(),
+      restingPlace(target),
       document.documentElement.scrollHeight - window.innerHeight));
     var dist = Math.abs(end - start);
     if (dist < 2) return;
