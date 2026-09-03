@@ -34,7 +34,7 @@ mkdirSync(FONT_DIR, { recursive: true });
 const HOST = 'https://tires.whollar.ca';
 const UMBRELLA = 'https://www.whollar.ca';
 const NET = 'https://internet.whollar.ca';
-const STAMP = '20260903o';
+const STAMP = '20260903p';
 
 let doc = readFileSync(SRC, 'utf8');
 
@@ -301,23 +301,40 @@ for (const [find, repl] of XLINKS) doc = doc.split(`href="${find}"`).join(`href=
 
 /* ---------- 7b. the rhythm between two sections ---------- */
 
-/* Every section is a screen tall and centres what is in it, so the empty band
-   a reader sees between two sections is the bottom half of one plus the top
-   half of the next, and both halves were larger than they look in the canvas.
-   The canvas had a global reset. This page must not have one: the markup
-   around these sections is inline styled and assumes default box sizing, and
-   adding a reset here is what made the sign-up inputs overlap. So min-height
-   is a CONTENT box on this page, and a section is 100vh PLUS its own 192px of
-   padding, which put 192px into every boundary that nobody asked for.
+/* THE FLOOR IS THE PROBLEM, not the padding. Every section was a screen tall
+   and centred what was in it, so the band between two sections was whatever
+   each one had left over: the "how it works" panel is 520px of content in a
+   screen-tall box, which put 210px of nothing above it and 210px below, and
+   the "what you get" panel is 360px, which put 290px on each side. A boundary
+   that size is not a rhythm, it is an accident of how short the section is.
+   (It was worse than it looks in the canvas, too: this page must not have a
+   global reset, because the markup around these sections is inline styled and
+   assumes default box sizing, and adding one is what made the sign-up inputs
+   overlap. So min-height is a CONTENT box here, and a screen-tall section was
+   really 100vh plus its own 192px of padding.)
 
-   Taking 144px off the floor takes 72px off each side of every boundary, at
-   every viewport height, which measures at about 70% of the band it replaces
-   (at 900px: 237 becomes 169, 473 becomes 329). The padding is untouched, so
-   a section whose content is taller than the floor, the join panel, keeps its
-   96px and does not tighten. */
-const SCREENS = (doc.match(/min-height:100vh/g) || []).length;
-if (SCREENS !== 6) throw new Error(`expected 6 full-screen sections, found ${SCREENS}`);
-doc = doc.split('min-height:100vh').join('min-height:calc(100vh - 144px)');
+   So the floor goes, and the space between two sections becomes one number
+   that does not depend on how much a section has to say: about 77px a side at
+   a 900px window, 96 at a tall one, 64 on a laptop. Boundaries that ran 330
+   to 510px are 155 to 190. The hero keeps its own full-screen rule: it is the
+   one section whose height is the point. */
+const SCREENS = (doc.match(/min-height:100vh;/g) || []).length;
+const PADS = (doc.match(/padding:96px 40px/g) || []).length;
+if (SCREENS !== 6 || PADS !== 6) throw new Error(`expected 6 screen-tall sections and 6 paddings, found ${SCREENS} and ${PADS}`);
+doc = doc.split('min-height:100vh;').join('');
+doc = doc.split('padding:96px 40px').join('padding:clamp(64px,8.5vh,96px) 40px');
+
+/* TWO EXCEPTIONS, and they are the same exception: a section whose height is
+   the point. The hero is a full screen of tire and it keeps its own rule
+   above. The join panel is where every call to action on the page lands, and
+   it is dark green against cream, so a panel that stops short of the window
+   leaves a cream strip above and below the thing someone just clicked to
+   reach. That is the bug that came back twice. Its content is nearly a screen
+   tall by itself, so the floor costs about 9px of extra boundary and buys the
+   guarantee that it covers the screen at every window height. */
+const JOIN = '<section id="join" style="';
+if ((doc.split(JOIN).length - 1) !== 1) throw new Error('the join section is not where this expects it');
+doc = doc.replace(JOIN, JOIN + 'min-height:100vh;');
 
 /* ---------- 10. the smart-buy kit and the sign-up, as modals ---------- */
 
