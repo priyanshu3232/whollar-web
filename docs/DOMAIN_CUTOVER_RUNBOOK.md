@@ -166,6 +166,57 @@ domain moves; nothing here breaks the current site.
     Development environment and `NODE_ENV` is still `development`. Not part of
     this cutover; noted so nobody attributes it to the domain move.
 
+## 6. The tire vertical, which depends on none of the above
+
+`tires/` is a third Vercel project on a third host. It touches `whollar.ca`
+nowhere, calls no backend, and shares no session, so **it can go live before
+the cutover, after it, or in the middle**, and a failure here cannot take the
+product down. The only tie to the rest is the umbrella's Winter tires card,
+which already points at `https://tires.whollar.ca/` and is a dead link until
+this section is done.
+
+20. **OWNER: create the project.** Vercel, same team as `whollar-web`: import
+    this repository again as `whollar-tires`, Root Directory `tires`, Framework
+    Preset `Other`, no build command, output `.`. `tires` is already in the root
+    `.vercelignore`, so the product project cannot publish a second copy of it.
+21. **OWNER: attach `tires.whollar.ca`.** At IONOS add
+    `CNAME tires -> cname.vercel-dns.com`. Wait for the certificate.
+22. **OWNER, optional: the two alias spellings.** `tire.whollar.ca` and
+    `tyre.whollar.ca` are both handled by `tires/vercel.json`, which 308s them
+    to the canonical host. They only work if they are attached in Vercel and
+    given their own CNAME at IONOS. Attach them if either spelling will be
+    printed or typed anywhere; skip them otherwise. **The canonical host is
+    `tires.whollar.ca` either way**, because every row, field and file in this
+    repository spells it that way: the pool value, `join-welcome-tires.html`,
+    `Whollar_Pooling_For`, and the seat vertical.
+23. **Verify, no login round trip needed because there is no login:**
+
+    ```
+    curl -sI https://tires.whollar.ca/            | grep "^HTTP"       # 200
+    curl -sI https://tires.whollar.ca/join        | grep "^HTTP"       # 200
+    curl -sI https://tires.whollar.ca/robots.txt  | grep "^HTTP"       # 200
+    curl -s  https://tires.whollar.ca/sitemap.xml | grep -c tires.whollar.ca   # 1
+    curl -sI https://tires.whollar.ca/nope        | grep "^HTTP"       # 404, real
+    curl -s  https://tires.whollar.ca/ | grep -o 'rel="canonical" href="[^"]*"'
+    curl -sI https://tire.whollar.ca/  | grep "^HTTP\|^location"      # 308, if attached
+    ```
+
+24. **OWNER: Search Console.** Add the `tires.whollar.ca` property and submit
+    its sitemap. One URL today; it grows with the vertical.
+25. **The form on `/join` still saves nothing**, and the page does not claim
+    otherwise. Section 35 of `catalyst-backend/scripts/create-tables.md` has the
+    three tables to create, and `docs/TIRE_VERTICAL_BUILD.md` section 6 has the
+    route that writes them. Putting the host live before that is fine: what
+    goes live is a landing page and a form that tells the truth. Do not
+    announce the waitlist until the route exists.
+26. **When the route does exist, CORS in four places, in this order:** the
+    Catalyst console rule, `GATEWAY_CORS_ORIGINS` on both functions, the
+    hardcoded `ALLOWED_ORIGINS` array in `formSubmit/index.js`, and the auth
+    env var only if the vertical ever calls `/api/auth` (today it does not).
+    Same ordering trap as step 6.
+
+---
+
 **The 301 map is permanent.** It is recorded as such in
 `docs/REDIRECT_MAP_2026-09.md`, enforced by a CI gate, and not subject to
 cleanup.
