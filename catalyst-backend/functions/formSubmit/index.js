@@ -1264,4 +1264,75 @@ app.post('/contact', limit({ key: 'contact', max: 10, windowSec: 3600 }), async 
   }
 });
 
+// Bring Whollar to my city: the demand signal from a place we do not serve.
+// Table: CityRequests (create-tables.md section 37)
+//
+// WHAT THIS IS NOT. It is not a join and it is not a waitlist row. /waitlist-join
+// records a household in a place a cohort can actually form, and it asks for the
+// name, the mobile and the postal code that make that possible. This asks one
+// question, "where should we open next", of someone we cannot serve today, and
+// asking them for a phone number to answer it is how you get no answer.
+//
+// THE CITY IS FREE TEXT, THE PROVINCE IS NOT. There is no list of Canadian city
+// names worth shipping inside a function: it changes, it disagrees with itself
+// about what is a city and what is a borough, and the day it goes stale it drops
+// exactly the small places this question exists to find. So the city is validated
+// by shape, capped, and off a charset that cannot carry markup or a URL. The
+// province is a closed list because it is the dimension the answers get counted
+// on, and thirteen values that never change cost nothing to enforce.
+//
+// NO MAIL. Every sibling route here tells the team by email; this one does not,
+// on purpose. It is a one-click answer to a one-line question, so the volume is
+// nothing like a contact form's, and a mailbox filling with "Ottawa" teaches
+// less than one ZCQL count does.
+const PROVINCES = ['AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT'];
+// A place name and nothing else: letters, spaces, hyphens, apostrophes, periods.
+// Accents included, because Montreal and Trois-Rivieres are spelled with them.
+const CITY_RE = /^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ '.\-]{1,59}$/;
+
+app.post('/city-request', limit({ key: 'city-request', max: 20, windowSec: 3600 }), async (req, res) => {
+  const b = req.body || {};
+  const city = str(b.city).replace(/\s+/g, ' ').trim();
+  const province = str(b.province).toUpperCase();
+  const email = str(b.email);
+  const postal = normalizePostal(b.postal);
+  // Same closed list and the same reasoning as /waitlist-join: it becomes a CRM
+  // picklist, and a value the picklist does not know is a field Zoho refuses.
+  const poolingFor = ['internet', 'tires', 'both'].includes(str(b.poolingFor).toLowerCase())
+    ? str(b.poolingFor).toLowerCase() : null;
+
+  if (!CITY_RE.test(city)) return badRequest(res, 'A city name is required.');
+  if (!PROVINCES.includes(province)) return badRequest(res, 'A province is required.');
+  if (!isEmail(email)) return badRequest(res, 'A valid email is required.');
+
+  try {
+    const catalystApp = catalyst.initialize(req);
+    // FSA and PoolingFor are the columns most likely to be missing on a store
+    // that has not caught up with section 37 yet, and a city with no postal code
+    // is still worth counting. insertTolerant drops them and keeps the row.
+    const row = await insertTolerant(catalystApp, 'CityRequests', {
+      City: city,
+      Province: province,
+      Email: email,
+      FSA: postal.fsa,
+      PoolingFor: poolingFor,
+      Marketing: b.marketing ? 'yes' : 'no',
+      SubmittedAt: catalystNow()
+    }, ['FSA', 'PoolingFor', 'Marketing']);
+    await enqueueCrm(catalystApp, {
+      source: 'CityRequests', rowId: row.ROWID, email, leadType: 'consumer',
+      data: {
+        city, province,
+        emailKey: emailKey(email),
+        fsa: postal.fsa, postal: postal.full,
+        poolingFor,
+        ...consentFrom(b, req)
+      }
+    });
+    res.status(200).json({ ok: true, id: row.ROWID });
+  } catch (err) {
+    serverError(res, err, 'city-request');
+  }
+});
+
 module.exports = app;

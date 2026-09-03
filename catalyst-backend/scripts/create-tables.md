@@ -2846,3 +2846,52 @@ and finish the form: `WinterSizeChosen` differs from `SizeNormalized`,
 `SizeDownsized` is `true`, and `SizeAck` is `true`. If `SizeAck` is empty the
 form let someone past the acknowledgement, which is the one failure here with a
 consequence outside the database.
+
+## 37. Bring Whollar to my city: one table
+
+The umbrella home page ends its city row with a dashed card, "Your city, bring
+Whollar here", and a button under it. Both used to link to `/join`, which asks
+a household in a place a cohort can form for a name, a mobile and a postal
+code. Someone in a place we do not serve has nothing to do there. `POST
+/city-request` on the **formSubmit** function records the answer to the only
+question worth asking them: where should we open next.
+
+**PascalCase, like every other formSubmit table.** Same warning as section 35:
+rule 2 at the top of this document governs the auth tables, and this is not
+one. `City`, not `city`. An unknown column throws at runtime, not at deploy.
+
+**Silent-skip contract:** `FSA`, `PoolingFor` and `Marketing` are passed to
+`insertTolerant` as optional, so the row still lands on a store that has only
+the four mandatory columns. `City`, `Province`, `Email` and `SubmittedAt` are
+not optional and the insert fails without them.
+
+**Until this table exists the route returns an error and the modal keeps the
+form on screen with what was typed still in it.** It never reports a save that
+did not happen.
+
+### 37a. `CityRequests` (new table)
+
+One row per submission, and deliberately not one per person: someone who asks
+twice, six months apart, is a stronger signal than someone who asks once, and
+collapsing that on write throws the second ask away. Count distinct emails per
+city when you want households rather than asks.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `City` | Var Char | 60 | | ✅ | | as typed, whitespace collapsed. Free text on purpose: there is no list of Canadian city names worth shipping in a function, and a stale one drops exactly the small places this question exists to find. Shape-validated and capped, so it cannot carry markup or a URL |
+| `Province` | Var Char | 2 | | ✅ | | a closed list of thirteen, because this is the dimension the answers get counted on |
+| `Email` | Var Char | 254 | | ✅ | ✅ | lowercased on write, like every other table here |
+| `FSA` | Var Char | 3 | | | | first three of the postal code if one was given. The field is optional on the form: a city and a province already answer the question |
+| `PoolingFor` | Var Char | 10 | | | | `internet`, `tires` or `both`. Same closed list as `WaitlistSignups.PoolingFor` and for the same reason: it becomes a CRM picklist |
+| `Marketing` | Var Char | 5 | | | | `yes` or `no`, whether to write when the city opens. Catalyst offers no boolean type |
+| `SubmittedAt` | Date Time | | | ✅ | | |
+
+### 37b. What to run once it exists
+
+```sql
+SELECT City, Province, COUNT(ROWID) FROM CityRequests
+  GROUP BY City, Province ORDER BY COUNT(ROWID) DESC
+```
+
+ZCQL has no `LOWER()`, so two spellings of one city are two rows in that
+result. Read the top of the list, not the tail.
