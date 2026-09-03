@@ -220,3 +220,117 @@ this section is done.
 **The 301 map is permanent.** It is recorded as such in
 `docs/REDIRECT_MAP_2026-09.md`, enforced by a CI gate, and not subject to
 cleanup.
+
+---
+
+## 7. Three projects, two TLDs (added 2026-09-03, after the repo split)
+
+Sections 0 to 6 were written when all three sites lived in one repo and one
+Vercel project with three root directories. They are now three repos, and both
+`.ca` and `.com` are in play. This section replaces the project-creation steps
+and adds the `.com` family. Everything else above still stands.
+
+### Where it actually stands, measured 2026-09-03
+
+| Host | DNS | HTTP today |
+|---|---|---|
+| `whollar.ca` | Vercel apex | 308 to `www.whollar.ca` |
+| `www.whollar.ca` | Vercel | **200, the product** |
+| `whollar.com` | Vercel apex | 308 to `www.whollar.com` |
+| `www.whollar.com` | Vercel | **200, the same product, a second live copy** |
+| `internet.whollar.ca` / `.com` | none | does not resolve |
+| `tires.whollar.ca` / `.com` | none | does not resolve |
+| `admin.whollar.ca` | **none** | does not resolve, despite the console being built for it |
+
+Two things worth knowing before touching anything. The apexes and both `www`
+records already point at Vercel, so no apex A record has to change: the only
+new DNS is four subdomain CNAMEs. And the site is **already serving on two
+TLDs**, which is a duplicate of every page; the canonical tags all name
+`www.whollar.ca`, which is what has kept it from costing anything so far.
+
+### The shape to aim for
+
+**One canonical host per surface, `.ca`, with the `.com` twin attached as a
+redirect domain in Vercel.** Not as a second live copy.
+
+That is one decision doing four jobs: it ends the duplicate that exists today,
+it keeps one sitemap and one canonical per page, it means no request ever
+originates from a `.com` origin so the backend Origin allowlist stays three
+hosts instead of six, and a redirect domain is a Vercel setting rather than
+code, so there is nothing to keep in sync.
+
+| Vercel project | GitHub repo | Primary domain | Redirect domains |
+|---|---|---|---|
+| `whollar-web` (exists) | `priyanshu3232/whollar-web` | `internet.whollar.ca` | `internet.whollar.com` |
+| `whollar-home` (new) | `priyanshu3232/whollar-home` | `www.whollar.ca` | `whollar.ca`, `whollar.com`, `www.whollar.com` |
+| `whollar-tires` (new) | `priyanshu3232/whollar-tires` | `tires.whollar.ca` | `tires.whollar.com` |
+
+The apex to www direction is what section 0 of this runbook fixed on, and
+`whollar-home` is built that way: its canonicals, og:urls and sitemap all name
+`www.whollar.ca`. **If you would rather the apex be canonical, say so before
+the domains move**: it is four files and a Vercel setting on the day, and an
+SEO cleanup afterwards.
+
+### OWNER: create the two projects
+
+27. **Grant Vercel access to the two new repos.** They are private and were
+    created after the Vercel GitHub app was installed, so the app cannot see
+    them yet. GitHub, Settings, Applications, Vercel, Configure, add
+    `whollar-home` and `whollar-tires` to the repository list. Skipping this
+    is why an import shows an empty repo list.
+28. **Import both, into the same team as `whollar-web`.** Framework preset
+    Other, Root Directory left at the repo root (that is the whole point of
+    the split), no build command, no output directory. Both are static.
+29. **The assistant cannot do steps 27 and 28.** The Vercel CLI on this
+    machine is authenticated as `priyanshu-7390's projects` and cannot see the
+    team that owns `whollar-web`. Creating the projects in the wrong account
+    is worse than not creating them.
+
+### OWNER: DNS at IONOS, four records
+
+30. On **whollar.ca** and **whollar.com** alike:
+
+    | Type | Name | Value |
+    |---|---|---|
+    | CNAME | `internet` | `cname.vercel-dns.com` |
+    | CNAME | `tires` | `cname.vercel-dns.com` |
+
+    Use whatever value the Vercel dashboard prints for the domain you are
+    attaching. It is authoritative and it has changed before.
+
+31. **Do not change the nameservers.** Both domains have live IONOS MX
+    records and mail runs on them: `info@` on `.com`, `partners@` on `.ca`.
+    Moving nameservers to Vercel DNS silently drops MX and mail stops.
+    Adding CNAMEs for subdomains does not touch mail. See
+    `docs/MAIL_AUTH_RUNBOOK.md`.
+
+32. **`admin.whollar.ca` does not resolve.** The console is built and its
+    runbook assumes that host. Either it was never attached or it lives
+    somewhere else. Find out before the cutover rather than during it.
+
+### Order, so nothing is dark
+
+33. `internet.whollar.ca` first, attached to `whollar-web` while
+    `www.whollar.ca` still serves it. Verify with section 2's checks: the
+    dashboard, a login round trip, a form POST. Nothing has moved yet, so a
+    failure here costs nothing.
+34. `tires.whollar.ca` next. It is a new host with no incoming links and no
+    login, so it can go live whenever it is ready, independently of the rest.
+35. **Then, and only then, the umbrella move**: `whollar.ca`, `www.whollar.ca`
+    and their `.com` twins from `whollar-web` to `whollar-home`. That is the
+    one irreversible-feeling minute. Section 3 has the live matrix to run
+    immediately after, and section 5 has the rollback.
+36. `internet.whollar.com` and `tires.whollar.com` as redirect domains, last.
+    They carry no traffic today and nothing depends on them.
+
+### What this does to the allowlist
+
+37. With the `.com` hosts redirecting, no request originates from them, so
+    `ALLOWED_ORIGINS` in `formSubmit/index.js` needs no new entries: the three
+    canonical hosts are already there. The `https://whollar.com` and
+    `https://www.whollar.com` entries that are in it today become dead the day
+    those hosts stop serving, and step 17 is where they come out.
+38. **If you decide to serve `.com` rather than redirect it**, that changes:
+    three more origins in `ALLOWED_ORIGINS`, three more in the Catalyst
+    console rule and `GATEWAY_CORS_ORIGINS`, a canonical decision per page,
+    and a second sitemap. It is the more expensive answer in every direction.
