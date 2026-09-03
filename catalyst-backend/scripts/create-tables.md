@@ -2557,3 +2557,173 @@ Then add a second exclusion as M and read the offer again: a new row appears at
 
 Finally `GET /api/auth/health/diagnostics` as an admin: `lib/schema.js verify()`
 names the four new tables and must not list them as missing.
+
+---
+
+## 35. The winter tire waitlist: three tables, two optional
+
+`tires.whollar.ca` has a sign-up with two paths: a quick one that asks for the
+essentials, and a guided one that walks four calculators and asks about thirty
+more things. `POST /tire-waitlist-join` on the **formSubmit** function writes
+what comes back. The pages are built and deployed; the route and these tables
+are what is left. See `docs/TIRE_VERTICAL_BUILD.md` for the build around them.
+
+**READ THIS BEFORE THE FIRST COLUMN.** Rule 2 at the top of this document says
+`lower_snake_case`. **That rule governs the auth tables, and these are not auth
+tables.** These belong to the formSubmit function, alongside `WaitlistSignups`,
+`BillCheckupSubmissions` and `PartnerApplications`, and every one of those uses
+**PascalCase table names and PascalCase columns**. `FirstName`, not
+`first_name`. Getting this wrong fails at runtime, not at deploy: the insert
+throws on an unknown column and the household is told the servers could not be
+reached.
+
+**Fail-closed, deliberately.** There is no silent-skip contract here. Until
+35a, 35b and 35c exist the route returns a clear error and the page keeps the
+form on screen with what was typed still in it. A waitlist that accepts a
+household and drops it is worse than one that says it is not open yet, and this
+is the only door the tire cohort has.
+
+**Order:** 35a first (everything else points at its `ReferenceCode`), then 35b
+and 35c in either order. 35d and 35e are optional and can come later or never.
+
+### 35a. `TireWaitlistSignups` (new table)
+
+One row per person. The row every other tire table points back at.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `ReferenceCode` | Var Char | 24 | ✅ | ✅ | | `WHL-TIRE-GTA-XXXX`, minted by the server, never by the browser. Unique is the race guard, and it is what a household quotes back to change anything |
+| `Email` | Var Char | 254 | | ✅ | ✅ | lowercased on write. Every table in this backend joins on the lowercased address, because ZCQL has no `LOWER()` and Zoho's equals is not reliably case-insensitive |
+| `FirstName` | Var Char | 120 | | ✅ | ✅ | |
+| `LastName` | Var Char | 120 | | ✅ | ✅ | |
+| `Phone` | Var Char | 20 | | | ✅ | digits only, the shape `WaitlistSignups.Phone` already stores. The canonical `+1` form goes to the CRM |
+| `FSA` | Var Char | 3 | | ✅ | | first three of the postal code, and what a cohort is grouped by |
+| `PostalFull` | Var Char | 7 | | | ✅ | tires are fitted at an address, so unlike the internet lead tables the full code earns a column here rather than living only in the CRM payload |
+| `City` | Var Char | 40 | | ✅ | | `gta`, `ottawa`, `calgary`, `edmonton`, `montreal`, `vancouver`, `other`. Only `gta` is open; the rest are a vote |
+| `Path` | Var Char | 12 | | ✅ | | `quick` or `guided`. The one number that says whether the four calculators earn their build |
+| `Source` | Var Char | 24 | | ✅ | | `tires-site` from this vertical, `umbrella-join` from `home/join.html`, which already asks internet / tires / both. Two doors reach one cohort and this is what keeps the count honest |
+| `Language` | Var Char | 5 | | | | `en` or `fr` |
+| `ReferralCode` | Var Char | 64 | | | | as typed: a code, or a neighbour's email |
+| `ConsentEmail` | Var Char | 5 | | ✅ | | `true` or `false`. Catalyst offers no boolean type |
+| `ConsentSms` | Var Char | 5 | | | | the guided path asks separately, because a text at 8pm is a different promise than an email |
+| `ConsentShare` | Var Char | 5 | | | | may their details go to matched installers |
+| `AlsoInternet` | Var Char | 5 | | | | the "add me to the internet cohort too" checkbox |
+| `ConsentText` | Text | 4000 | | ✅ | | the exact sentence agreed to. CASL needs what, when and where, and a checkbox state proves none of the three a year later |
+| `ConsentAt` | DateTime | - | | ✅ | | |
+| `SubmittedAt` | DateTime | - | | ✅ | | |
+
+### 35b. `TireWaitlistVehicles` (new table)
+
+One row per car, not per household. Two reasons: the confirm screen offers
+"Got another car? Add it to the waitlist for its own spot", and a tire cohort
+is sized by tire size, so the size is the unit a bid is built on.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `VehicleKey` | Var Char | 40 | ✅ | ✅ | | `${ReferenceCode}:${n}`. Unique is what makes a double submit one row and "add another car" idempotent. **Test this one twice by hand** |
+| `ReferenceCode` | Var Char | 24 | | ✅ | | the link back to 35a. The Data Store has no joins, so this is read as a filter |
+| `Email` | Var Char | 254 | | ✅ | ✅ | denormalised for the same reason |
+| `InputMode` | Var Char | 10 | | ✅ | | `vehicle`, `size`, `vin` or `unsure`. Someone who picked `unsure` is not a worse household, they are a household to call |
+| `VehicleYear` | Var Char | 4 | | | | |
+| `VehicleMake` | Var Char | 40 | | | | |
+| `VehicleModel` | Var Char | 60 | | | | |
+| `Vin` | Var Char | 17 | | | ✅ | identifies one specific car, so it is PII |
+| `TireSize` | Var Char | 20 | | | | exactly as typed, e.g. `225/45R17` |
+| `SizeNormalized` | Var Char | 20 | | | | parsed and canonical. Separate from what they typed, because this is the column a cohort is actually cut on and a typo must not silently become a size |
+| `Strategy` | Var Char | 12 | | | | `winter`, `allweather`, or empty when the tool was not run. The all-weather answer means no second set of rims and no storage, which changes what the bid asks for |
+| `RunsWinterNow` | Var Char | 10 | | | | `every`, `some`, `never` |
+| `OwnsRims` | Var Char | 10 | | | | `alloy`, `steel`, `no` |
+| `SubmittedAt` | DateTime | - | | ✅ | | |
+
+### 35c. `TireWaitlistDetails` (new table)
+
+One row per signup, written only by the guided path. Columns for what a bid is
+actually built from, one payload for the rest, so a new question on the form is
+not a schema change and a console visit.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `ReferenceCode` | Var Char | 24 | ✅ | ✅ | | one details row per signup |
+| `Email` | Var Char | 254 | | ✅ | ✅ | |
+| `Needs` | Var Char | 255 | | | | comma list of `tires,package,mount,install,swap,align,disposal,storage,oil` |
+| `Tier` | Var Char | 12 | | | | `recommend`, `premium`, `mid`, `value` |
+| `Brand` | Var Char | 12 | | | | `open`, `name`, `specific` |
+| `Budget` | Var Char | 12 | | | | `u800`, `800`, `1100`, `1500`, `open` |
+| `Financing` | Var Char | 8 | | | | `yes`, `maybe`, `no` |
+| `InstallerType` | Var Char | 16 | | | | `any`, `independent`, `bigbox`, `dealer`, `mobile` |
+| `Anchor` | Var Char | 8 | | | | `home`, `work`, `either` |
+| `SplitPreference` | Var Char | 12 | | | | `prefer`, `dontmind`, `one`: may fitting and storage be two places |
+| `InstallWindows` | Var Char | 255 | | | | the chosen date chips, or `any`. Fitting capacity before first snow is the real constraint on cohort size |
+| `NotBefore` | Var Char | 10 | | | | `YYYY-MM-DD`. Var Char and not DateTime: it is a date with no time, and nothing sorts on it |
+| `MustBeOnBy` | Var Char | 10 | | | | as above. Nov 1 is the usual insurance target |
+| `Memberships` | Var Char | 255 | | | | `costco,caa,triangle,club,employer,cc,none` |
+| `Priorities` | Var Char | 120 | | | | up to two of `price,early,brand,close,rep` |
+| `Readiness` | Var Char | 10 | | | | `ready`, `likely`, `watch` |
+| `Notes` | Text | 4000 | | | ✅ | free text. PII by default: people put addresses, plate numbers and phone numbers in these boxes |
+| `Payload` | Text | 10000 | | | | every answer with no column above, verbatim JSON |
+| `SubmittedAt` | DateTime | - | | ✅ | | |
+
+### 35d. `TireToolRuns` (new table, optional)
+
+The four calculators, what was answered and what was said back. Worth having:
+it is the only measure of what people are unsure about, which is what decides
+whether the guided path keeps earning its build. **Nothing breaks without it.**
+The route writes the same values into `TireWaitlistDetails.Payload` when this
+table is absent, and logs `TireToolRuns write skipped`, the same sidecar
+contract `cohort_counter` has in section 26.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `RunKey` | Var Char | 40 | ✅ | ✅ | | `${ReferenceCode}:${Tool}` |
+| `ReferenceCode` | Var Char | 24 | | ✅ | | |
+| `Tool` | Var Char | 12 | | ✅ | | `insurance`, `size`, `rims`, `strategy` |
+| `InputJson` | Text | 2000 | | ✅ | | what they answered |
+| `OutputJson` | Text | 2000 | | ✅ | | what we told them. Keep it: this is a statement we made, on a date, about their money |
+| `RanAt` | DateTime | - | | ✅ | | |
+
+### 35e. `TireCohortCounter` (new table, optional)
+
+**Only needed if a rank or a live count is ever shown.** It is not shown today,
+and that is deliberate: the prototype printed "you are #1,848", which was 1847
+plus a random number, and the port removed it.
+
+An honest count cannot come from counting rows. ZCQL refuses any `LIMIT` over
+300, a hard Catalyst ceiling, which is why `/pooling-count` answers `300+`
+rather than a number once a table passes that size. A counter row is the only
+way to show a rank that is true.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `CounterKey` | Var Char | 64 | ✅ | ✅ | | `tires:<city>`, e.g. `tires:gta` |
+| `Vertical` | Var Char | 16 | | ✅ | | `tires` |
+| `City` | Var Char | 40 | | ✅ | | |
+| `Joined` | Int | 10 | | ✅ | | incremented on each accepted signup. Default 0 |
+| `UpdatedAt` | DateTime | - | | ✅ | | |
+
+### 35f. Gate checks, in the ZCQL tab
+
+The three required tables answer at all:
+
+```sql
+SELECT ROWID FROM TireWaitlistSignups LIMIT 1;
+SELECT ROWID FROM TireWaitlistVehicles LIMIT 1;
+SELECT ROWID FROM TireWaitlistDetails LIMIT 1;
+```
+
+Then submit the guided path once against a preview of `tires.whollar.ca` and
+confirm one row in each, carrying the same `ReferenceCode`:
+
+```sql
+SELECT ReferenceCode, City, Path, Source, ConsentAt FROM TireWaitlistSignups LIMIT 5;
+SELECT VehicleKey, InputMode, SizeNormalized, Strategy FROM TireWaitlistVehicles LIMIT 5;
+SELECT ReferenceCode, Needs, InstallWindows, Readiness FROM TireWaitlistDetails LIMIT 5;
+```
+
+**Then prove the unique flags, because they are the whole race guard.** Insert
+the same `VehicleKey` twice by hand: the second must fail. Do the same for
+`TireWaitlistSignups.ReferenceCode`. If either succeeds, the column was created
+without Unique, and a double submit will duplicate a household or a car.
+
+Finally, submit the quick path: exactly one row in 35a and one in 35b, and
+**nothing in 35c**. A details row from the quick path means the route is
+writing empty preferences, which then read as answers nobody gave.
