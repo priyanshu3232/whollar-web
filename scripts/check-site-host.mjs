@@ -20,7 +20,12 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FIX = process.argv.includes('--fix');
-const OLD = /https:\/\/(www\.)?whollar\.ca(?=[/"'\s<)]|$)/g;
+/* The one deliberate exception, marked in the markup so it is visible where
+   it is written: the brand logo in the header links to the umbrella, which
+   is where whollar.ca now lives. `data-umbrella` on the anchor is what
+   makes it deliberate; the same URL anywhere else is still the old host in
+   a canonical, an og:url or a sitemap, and still fails. */
+const OLD = /https:\/\/(www\.)?whollar\.ca(?=[/"'\s<)]|$)(?!\/" data-umbrella)/g;
 const NEW = 'https://internet.whollar.ca';
 const EXT = new Set(['.html', '.xml', '.txt', '.json', '.js', '.css']);
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'home', 'tires', 'catalyst-backend', 'docs', 'scripts', 'admin-console', '.vercel', '.claude']);
