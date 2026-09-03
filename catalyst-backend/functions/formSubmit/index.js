@@ -861,6 +861,84 @@ app.post('/tire-waitlist-join', limit({ key: 'tire-waitlist-join', max: 20, wind
 //     which is what covers the case where that POST never arrived.
 // Making this route session-aware would mean proxying it same-origin and
 // duplicating session verification into the public forms endpoint. Don't.
+// ---------------------------------------------------------------------------
+// The umbrella's show of hands: what should Whollar help you buy after tires
+// ---------------------------------------------------------------------------
+//
+// ANONYMOUS BY DESIGN, and that is why this is not `product_interest`
+// (create-tables.md section 23). That table is a signed-in member answering a
+// detailed survey, keyed on `${user_id}:${product}`. whollar.ca has no login,
+// no session and no /api/auth rewrite, so there is no user_id to key on. This
+// is a show of hands on a public page.
+//
+// ONE ROW PER PICK, not one per submission. The only question anyone will ever
+// ask this table is "how many hands for each", and the Data Store has no joins
+// and caps a read at 300 rows, so the shape that answers it in one query is
+// GROUP BY Product. VoteId groups the picks of one submission, so counting
+// voters rather than picks stays one query too, and VoteKey is Unique so a
+// double click cannot be counted twice.
+//
+// The keys are values, never labels, for the same reason the member survey
+// gives: the copy on those buttons will be edited, and storing "Car
+// maintenance" would open a second bucket the day it becomes "Car servicing".
+const VOTE_PRODUCTS = [
+  'home-insurance', 'mobile-plans', 'car-maintenance', 'home-services',
+  'energy', 'travel', 'pet-care', 'other'
+];
+
+function voteId() {
+  let id = '';
+  for (let i = 0; i < 10; i++) id += REF_ALPHABET[Math.floor(Math.random() * REF_ALPHABET.length)];
+  return id;
+}
+
+app.post('/product-vote', limit({ key: 'product-vote', max: 30, windowSec: 3600 }), async (req, res) => {
+  const b = req.body || {};
+  // Unknown keys are dropped rather than refused, the same rule the member
+  // survey uses: a stale tab contributes the picks that still exist instead of
+  // having the whole vote thrown away.
+  const picks = [...new Set(
+    (Array.isArray(b.products) ? b.products : []).map(str).filter(p => VOTE_PRODUCTS.includes(p))
+  )];
+  if (!picks.length) return badRequest(res, 'Pick at least one.');
+
+  const otherText = str(b.otherText).slice(0, 120);
+  const sourcePage = str(b.sourcePage).slice(0, 120);
+
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const now = catalystNow();
+    const id = voteId();
+
+    const results = await Promise.allSettled(picks.map(product => insertTolerant(
+      catalystApp,
+      'ProductVotes',
+      {
+        VoteKey: `${id}:${product}`,
+        VoteId: id,
+        Product: product,
+        OtherText: product === 'other' && otherText ? otherText : null,
+        SourcePage: sourcePage || null,
+        SubmittedAt: now
+      },
+      [['OtherText', 'SourcePage']]
+    )));
+
+    const counted = results.filter(r => r.status === 'fulfilled').length;
+    for (const r of results) {
+      if (r.status === 'rejected') console.error('[formSubmit] ProductVotes row failed:', r.reason);
+    }
+    // Every row here is equal, so unlike the waitlist there is no anchor row
+    // whose failure should fail the request. Nothing saved is a real failure;
+    // some saved is a vote, and the page is told how many so it cannot thank
+    // someone for a vote that was entirely dropped.
+    if (!counted) return serverError(res, new Error('no ProductVotes rows were written'), 'product-vote');
+    res.json({ ok: true, counted, voteId: id });
+  } catch (err) {
+    return serverError(res, err, 'product-vote');
+  }
+});
+
 app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, windowSec: 3600 }), tolerantUpload(upload.single('billFile')), async (req, res) => {
   const b = req.body || {};
   const email = str(b.email);

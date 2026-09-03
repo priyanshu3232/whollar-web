@@ -57,14 +57,50 @@
     });
   });
 
+  /* The vote is SAVED, and the page only says so afterwards.
+   *
+   * It used to flip two hidden attributes and print "Thanks, your vote is in",
+   * which was the page telling someone their answer had been recorded when
+   * nothing had been sent anywhere. It posts to POST /product-vote on
+   * formSubmit now, which writes one ProductVotes row per pick
+   * (catalyst-backend/scripts/create-tables.md section 38).
+   *
+   * The keys travel, not the labels: the wire carries "car-maintenance", so
+   * renaming the button to "Car servicing" does not open a second bucket in
+   * the table. */
   all('[data-lp-action="vote"]').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      var n = sel.filter(Boolean).length;
-      if (!n) return;
+      var picks = [];
+      all('[data-lp-pick]').forEach(function (el) {
+        if (sel[Number(el.getAttribute('data-lp-pick'))]) picks.push(el.getAttribute('data-lp-key'));
+      });
+      picks = picks.filter(Boolean);
+      if (!picks.length) return;
+
+      var W = window.WHOLLAR;
+      var err = document.querySelector('[data-lp-voteerr]');
       var msg = document.querySelector('[data-lp-votemsg]');
-      if (msg) msg.textContent = n === 1 ? 'Thanks, your vote is in.' : 'Thanks, ' + n + ' votes are in.';
-      setWhen('not-voted', false);
-      setWhen('voted', true);
+      var said = btn.textContent;
+
+      function thanks() {
+        if (msg) msg.textContent = picks.length === 1 ? 'Thanks, your vote is in.' : 'Thanks, ' + picks.length + ' votes are in.';
+        setWhen('not-voted', false);
+        setWhen('voted', true);
+      }
+      function failed() {
+        btn.disabled = false;
+        btn.textContent = said;
+        if (err) err.hidden = false;
+      }
+
+      if (!W || !W.submitForm) return failed();
+      if (err) err.hidden = true;
+      btn.disabled = true;
+      btn.textContent = 'Sending your vote...';
+      W.submitForm('/product-vote', {
+        products: picks,
+        sourcePage: window.location.pathname
+      }).then(thanks, failed);
     });
   });
 

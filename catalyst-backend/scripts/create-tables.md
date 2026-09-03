@@ -2895,3 +2895,78 @@ SELECT City, Province, COUNT(ROWID) FROM CityRequests
 
 ZCQL has no `LOWER()`, so two spellings of one city are two rows in that
 result. Read the top of the list, not the tail.
+
+---
+
+## 38. The umbrella's show of hands: one table
+
+The home page ends with "Internet was first. Winter tires are next", eight
+buttons, and a vote. Until now the vote **saved nothing**: the button flipped
+two `hidden` attributes and printed "Thanks, your vote is in." Nothing was sent
+and nothing was recorded, so every vote cast since the page went up is gone.
+`POST /product-vote` on the **formSubmit** function records them.
+
+**Why not `product_interest` (section 23).** That table is a signed-in member
+answering a detailed survey, keyed on `` `${user_id}:${product}` ``.
+`whollar.ca` has no login, no session and no `/api/auth` rewrite, so there is
+no `user_id` to key on. Reusing it would mean inventing an identity for an
+anonymous click, and the two questions are not the same question: one is "how
+much do you pay for the mobile plan you have", the other is a show of hands.
+
+**PascalCase, like every other formSubmit table.** Same warning as sections 35
+and 37: rule 2 at the top of this document governs the auth tables, and this is
+not one. `Product`, not `product`.
+
+**Silent-skip contract:** `OtherText` and `SourcePage` are passed to
+`insertTolerant` as one optional group, so rows still land on a store that has
+only the four mandatory columns. `VoteKey`, `VoteId`, `Product` and
+`SubmittedAt` are not optional.
+
+**Until this table exists the route returns a 500 and the page says the vote
+did not save**, keeping the buttons as they were so it can be tried again. It
+never thanks anyone for a vote that was dropped, which is the whole reason this
+section exists.
+
+### 38a. `ProductVotes` (new table)
+
+**One row per pick, not one per submission.** The only question anyone will ask
+this table is how many hands went up for each product, the Data Store has no
+joins and caps a read at 300 rows, so the shape that answers it in one query is
+`GROUP BY Product`. `VoteId` groups the picks of one submission, so counting
+voters instead of picks stays one query as well.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `VoteKey` | Var Char | 64 | ✅ | ✅ | | `` `${VoteId}:${Product}` ``: a flattened composite, the same trick as `campaign_members.membership_key`, because the store has no composite unique. It is what stops a double click counting twice |
+| `VoteId` | Var Char | 16 | | ✅ | | server minted, 10 characters of the read-aloud alphabet. Groups the picks of one submission. Never comes from the client |
+| `Product` | Var Char | 32 | | ✅ | | one of `home-insurance`, `mobile-plans`, `car-maintenance`, `home-services`, `energy`, `travel`, `pet-care`, `other`. **Values, never labels**: the copy on those buttons will be edited, and storing "Car maintenance" opens a second bucket the day it becomes "Car servicing" |
+| `OtherText` | Var Char | 120 | | | | only meaningful when `Product` is `other`. The page has no text box for it yet, so it is null today and the column is here so that adding one is not a schema change |
+| `SourcePage` | Var Char | 120 | | | | the path that asked, e.g. `/`. Two pages carry this section |
+| `SubmittedAt` | Date Time | | | ✅ | | server clock, never the client's |
+
+No email column, and that is deliberate: the section asks for a hand, not an
+address, and a column nobody fills is a column someone later assumes is
+populated. When the page grows a "tell me when it opens" box, it gets an
+`Email` column and a `Marketing` flag in the same commit, the way
+`CityRequests` has them.
+
+### 38b. What to run once it exists
+
+```sql
+SELECT Product, COUNT(ROWID) FROM ProductVotes GROUP BY Product
+  ORDER BY COUNT(ROWID) DESC
+```
+
+That is picks. For people rather than picks:
+
+```sql
+SELECT COUNT(DISTINCT VoteId) FROM ProductVotes
+```
+
+And to sanity check that anything is arriving at all, which is the check that
+would have caught the silence this section fixes:
+
+```sql
+SELECT VoteId, Product, SubmittedAt FROM ProductVotes
+  ORDER BY SubmittedAt DESC LIMIT 10
+```
