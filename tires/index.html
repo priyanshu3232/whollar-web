@@ -1208,24 +1208,20 @@ footer .in{max-width:1340px;margin:0 auto;padding:0 22px;display:flex;flex-wrap:
           <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:28px;letter-spacing:-0.022em;color:#17231D;margin-top:14px">Don't see your city?</div>
           <p style="font-size:15px;line-height:1.6;color:#5A665D;margin:12px 0 0;max-width:26em">GTA is first. The next cohort goes where enough drivers want to buy together.</p>
           <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:28px">
-            <div style="background:#FCFAF5;border:1px solid #E6D6C6;border-radius:14px;padding:20px;display:flex;align-items:center;gap:14px;cursor:pointer" class="t-h4">
+            <button type="button" data-city-request="Ottawa" data-province="ON" style="background:#FCFAF5;border:1px solid #E6D6C6;border-radius:14px;padding:20px;display:flex;align-items:center;gap:14px;cursor:pointer;width:100%;text-align:left;font:inherit" class="t-h4">
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.2" stroke-linecap="round" style="flex:none"><path d="M4 21h16M6 21V9l6-5 6 5v12M10 21v-6h4v6M9.5 11.5h5"></path></svg>
-              <div><div style="font-size:15px;font-weight:500;color:#17231D">Ottawa</div></div>
-            </div>
-            <div style="background:#FCFAF5;border:1px solid #E6D6C6;border-radius:14px;padding:20px;display:flex;align-items:center;gap:14px;cursor:pointer" class="t-h4">
+              <div><div style="font-size:15px;font-weight:500;color:#17231D">Ottawa</div></div></button>
+            <button type="button" data-city-request="Montréal" data-province="QC" style="background:#FCFAF5;border:1px solid #E6D6C6;border-radius:14px;padding:20px;display:flex;align-items:center;gap:14px;cursor:pointer;width:100%;text-align:left;font:inherit" class="t-h4">
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.2" stroke-linecap="round" style="flex:none"><path d="M4 21h16M7 21V7h10v14M10 11h4M10 15h4M12 7V3"></path></svg>
-              <div><div style="font-size:15px;font-weight:500;color:#17231D">Montréal</div></div>
-            </div>
-            <div style="background:#FCFAF5;border:1px solid #E6D6C6;border-radius:14px;padding:20px;display:flex;align-items:center;gap:14px;cursor:pointer" class="t-h4">
+              <div><div style="font-size:15px;font-weight:500;color:#17231D">Montréal</div></div></button>
+            <button type="button" data-city-request="Calgary" data-province="AB" style="background:#FCFAF5;border:1px solid #E6D6C6;border-radius:14px;padding:20px;display:flex;align-items:center;gap:14px;cursor:pointer;width:100%;text-align:left;font:inherit" class="t-h4">
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.2" stroke-linecap="round" style="flex:none"><path d="M4 21h16M9 21V10h6v11M12 10V4M9.5 13.5h5"></path></svg>
-              <div><div style="font-size:15px;font-weight:500;color:#17231D">Calgary</div></div>
-            </div>
-            <div style="background:#FCFAF5;border:1px solid #E6D6C6;border-radius:14px;padding:20px;display:flex;align-items:center;gap:14px;cursor:pointer" class="t-h4">
+              <div><div style="font-size:15px;font-weight:500;color:#17231D">Calgary</div></div></button>
+            <button type="button" data-city-request="Vancouver" data-province="BC" style="background:#FCFAF5;border:1px solid #E6D6C6;border-radius:14px;padding:20px;display:flex;align-items:center;gap:14px;cursor:pointer;width:100%;text-align:left;font:inherit" class="t-h4">
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2C6A4E" stroke-width="1.2" stroke-linecap="round" style="flex:none"><path d="M4 21h16M8 21l4-16 4 16M9.5 14h5M12 5V3"></path></svg>
-              <div><div style="font-size:15px;font-weight:500;color:#17231D">Vancouver</div></div>
-            </div>
+              <div><div style="font-size:15px;font-weight:500;color:#17231D">Vancouver</div></div></button>
           </div>
-          <a href="#join" style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:16px;background:#FCFAF5;border:1px solid #E6D6C6;border-radius:12px;padding:17px;font-size:15px;font-weight:500;color:#1E4D38" class="t-h5">Bring Whollar to your city<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"></path></svg></a>
+          <button type="button" data-city-request style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:16px;width:100%;background:#FCFAF5;border:1px solid #E6D6C6;border-radius:12px;padding:17px;font-size:15px;font-weight:500;color:#1E4D38;font-family:inherit;cursor:pointer" class="t-h5">Bring Whollar to your city<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1E4D38" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"></path></svg></button>
         </div>
       </div>
     </div>
@@ -1372,7 +1368,7 @@ footer .in{max-width:1340px;margin:0 auto;padding:0 22px;display:flex;flex-wrap:
         <button type="button" class="chip" data-v="allweather">All-weather<small>One set, stays on all year</small></button>
         <button type="button" class="chip" data-v="unsure">Not sure<small>Open the first question above</small></button>
       </div>
-      <label class="f-lbl fgap">Roughly what you want to spend, per tire</label>
+      <label class="f-lbl fgap">Roughly what you want to spend, per tire <span style="font-weight:400;color:var(--sub)">· optional</span></label>
       <div class="chips" id="q_budget" data-single="1"></div>
       <div class="f-hint" id="q_budgetSet">Four tires, so multiply by four for the set.</div>
 
@@ -1591,7 +1587,7 @@ footer .in{max-width:1340px;margin:0 auto;padding:0 22px;display:flex;flex-wrap:
         <label class="checkline fgap winter-only"><input type="checkbox" id="g_split"><span>I am fine having one shop mount the tires and a different one store them, if that is cheaper.</span></label>
 
         <div class="sec-t">Budget</div>
-        <label class="f-lbl">Roughly what you want to spend, per tire</label>
+        <label class="f-lbl">Roughly what you want to spend, per tire <span style="font-weight:400;color:var(--sub)">· optional</span></label>
         <div class="chips" id="g_budget" data-single="1"></div>
         <div class="f-hint" id="g_budgetSet">Four tires, so multiply by four for the set.</div>
         <label class="f-lbl fgap">Would spreading it over a few months help?</label>
@@ -1689,7 +1685,9 @@ footer .in{max-width:1340px;margin:0 auto;padding:0 22px;display:flex;flex-wrap:
   </div>
 </div>
 
+<script src="/js/whollar-core.js?v=20260903q"></script>
 <script src="/js/tires.js?v=20260903p"></script>
 <script src="/js/tire-kit.js?v=20260903p"></script>
+<script src="/js/city-request.js?v=20260903q"></script>
 </body>
 </html>
