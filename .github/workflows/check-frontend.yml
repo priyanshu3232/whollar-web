@@ -83,6 +83,11 @@ jobs:
       - name: Tire waitlist script parses
         run: node --check tires/js/tire-join.js
 
+      # The tire landing page's six modals: the same four calculators and the
+      # same two paths, ported from the v5 drop by scripts/port-tires.mjs.
+      - name: Tire smart-buy kit parses
+        run: node --check tires/js/tire-kit.js
+
       # The /join signup: form, the two-step code flow, and the scene loop.
       - name: Waitlist join script parses
         run: node --check js/waitlist-join.js
