@@ -177,8 +177,18 @@
       "statusCode": 301
     },
     {
+      "source": "/blog/",
+      "destination": "https://internet.whollar.ca/blog/",
+      "statusCode": 301
+    },
+    {
       "source": "/blog/:path*",
       "destination": "https://internet.whollar.ca/blog/:path*",
+      "statusCode": 301
+    },
+    {
+      "source": "/partner/",
+      "destination": "https://internet.whollar.ca/partner/",
       "statusCode": 301
     },
     {

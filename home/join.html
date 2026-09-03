@@ -676,9 +676,15 @@ body{background:#0E2A20;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
           </div>
 
           <div style="display:flex;flex-direction:column;gap:12px">
-            <div>
-              <label for="wname" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">First and last name</label>
-              <input id="wname" name="name" placeholder="Priya Sharma" autocomplete="name" required style="width:100%;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:7px 12px;font-size:14px;transition:border-color .15s,box-shadow .15s" class="wl-focus3">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+              <div>
+                <label for="wfirst" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">First name</label>
+                <input id="wfirst" name="firstName" placeholder="Priya" autocomplete="given-name" required style="width:100%;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:7px 12px;font-size:14px;transition:border-color .15s,box-shadow .15s" class="wl-focus3">
+              </div>
+              <div>
+                <label for="wlast" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">Last name</label>
+                <input id="wlast" name="lastName" placeholder="Sharma" autocomplete="family-name" required style="width:100%;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:7px 12px;font-size:14px;transition:border-color .15s,box-shadow .15s" class="wl-focus3">
+              </div>
             </div>
             <div>
               <label for="wemail" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">Email</label>
@@ -693,8 +699,8 @@ body{background:#0E2A20;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
 
           <div style="display:flex;flex-direction:column;gap:12px">
             <div>
-              <label for="waddr" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">Full address</label>
-              <input id="waddr" name="address" placeholder="24 Bloor St W, Toronto ON" autocomplete="street-address" required style="width:100%;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:7px 12px;font-size:14px;transition:border-color .15s,box-shadow .15s" class="wl-focus3">
+              <label for="waddr" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">Full address <span style="font-weight:500;color:#68705F">· optional</span></label>
+              <input id="waddr" name="address" placeholder="24 Bloor St W, Toronto ON" autocomplete="street-address" style="width:100%;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:7px 12px;font-size:14px;transition:border-color .15s,box-shadow .15s" class="wl-focus3">
             </div>
             <div>
               <label for="wpostal" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">Postal code</label>

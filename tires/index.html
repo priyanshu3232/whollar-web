@@ -628,6 +628,14 @@ html{scroll-padding-top:var(--wh-head,92px)}
 .narrow{max-width:880px;margin:0 auto;padding:0 22px}
 .mid{max-width:1120px;margin:0 auto;padding:0 22px}
 
+/* Buttons keep the browser's own outset border and grey fill until something
+   says otherwise, and .btn only ever set a background. That border is the dark
+   edge down the right and bottom of every kit button. join.html carries this
+   reset already; index.html did not, so the same class looked different on the
+   two pages. .btn-ghost and .refbox button declare their own border after this
+   and keep it. */
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+
 /* top bar */
 .top{position:sticky;top:0;z-index:50;background:rgba(250,248,243,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
 .top .in{max-width:1340px;margin:0 auto;padding:0 22px;height:64px;display:flex;align-items:center;gap:12px}

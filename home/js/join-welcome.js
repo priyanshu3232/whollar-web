@@ -93,8 +93,12 @@
    * headline, the card with its sheen, the buttons, the steps, the share
    * panel. The reduced-motion branch sets every class at once. */
 
+  /* Two chips, not three. The first said "Email verified" and nothing on this
+     path verifies an email: the form posts, the row is written, and the page
+     loads. A tick beside a claim we have not checked is the kind of thing a
+     member believes. */
   function playAnim() {
-    var chips = ['chip1', 'chip2', 'chip3'];
+    var chips = ['chip2', 'chip3'];
     var blocks = ['hd', 'cardwrap', 'ctas', 'step1', 'step2', 'step3', 'share'];
 
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -103,9 +107,8 @@
       return;
     }
     var at = function (fn, ms) { setTimeout(fn, ms); };
-    at(function () { $('chip1').classList.add('on'); }, 250);
-    at(function () { $('chip2').classList.add('on'); }, 620);
-    at(function () { $('chip3').classList.add('on'); }, 990);
+    at(function () { $('chip2').classList.add('on'); }, 250);
+    at(function () { $('chip3').classList.add('on'); }, 620);
     at(function () { $('hd').classList.add('play'); }, 1150);
     at(function () {
       $('cardwrap').classList.add('play');

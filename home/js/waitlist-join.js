@@ -139,7 +139,8 @@
       e.preventDefault();
       show('error', false);
 
-      var name = document.getElementById('wname');
+      var first = document.getElementById('wfirst');
+      var last = document.getElementById('wlast');
       var email = document.getElementById('wemail');
       var addr = document.getElementById('waddr');
       var postal = document.getElementById('wpostal');
@@ -148,20 +149,21 @@
 
       var phone = document.getElementById('wphone');
 
-      if (!name.value.trim()) return fail('Add a name so we know who is in the cohort.', name);
-      /* These three mirror what /waitlist-join enforces (a first and a last
-         name of two characters each, and a number normalizePhone can read),
-         so a form that would 400 says which field and why, here, in the
-         page's own words rather than as a bare server message. */
-      var parts = name.value.trim().split(/\s+/);
-      if (parts.length < 2 || parts[0].length < 2 || parts[parts.length - 1].length < 2) {
-        return fail('Add your first and last name.', name);
-      }
+      /* Two boxes, because the record has two columns and /waitlist-join
+         enforces both at two characters each. One box split on the first
+         space guessed wrong for anyone whose given name is two words, and it
+         had no way to ask which half was which. These mirror the route, so a
+         form that would 400 says which field and why, here, in the page's own
+         words rather than as a bare server message. */
+      if (first.value.trim().length < 2) return fail('Add your first name.', first);
+      if (last.value.trim().length < 2) return fail('Add your last name.', last);
       if (!email.value || !email.checkValidity()) return fail('Enter an email we can reach you at.', email);
       if (!phoneOk(phone && phone.value)) {
         return fail('Add a mobile number we can text when a bid lands.', phone);
       }
-      if (addr && !addr.value.trim()) return fail('Add the address the offer would be installed at.', addr);
+      /* The address is not checked, because it is not required and not sent:
+         see unsentAddress below. Blocking the form on a value the route has
+         nowhere to put cost joins and bought nothing. */
       /* W.parsePostal rather than a fresh regex: it already encodes which
          letters are real, canonicalises the spacing, and derives the province
          the profile write wants, which a bare shape test cannot. */
@@ -170,15 +172,10 @@
       if (!terms.checked) return fail('Accept the Terms and Privacy Policy to continue.', terms);
       if (cohort && !cohort.checked) return fail('We need to be able to email you about your cohort and your offer.', cohort);
 
-      /* One field on the form, two on the record: everything after the first
-         space is the last name, so "Priya Raman Singh" keeps all of itself. */
-      var whole = name.value.trim().replace(/\s+/g, ' ');
-      var cut = whole.indexOf(' ');
-
       pending = {
         email: email.value.trim(),
-        firstName: cut < 0 ? whole : whole.slice(0, cut),
-        lastName: cut < 0 ? null : whole.slice(cut + 1),
+        firstName: first.value.trim().replace(/\s+/g, ' '),
+        lastName: last.value.trim().replace(/\s+/g, ' '),
         phone: val('wphone').trim() || null,
         postalCode: pc.full,
         provinceCode: pc.provinceCode,

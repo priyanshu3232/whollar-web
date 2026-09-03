@@ -509,7 +509,7 @@ body{background:#0E2A20;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
 <div style="position:relative;background:linear-gradient(158deg,#0E2A20,#1A4A35 58%,#123B2B);padding:clamp(20px,2.4vw,34px) clamp(20px,2.8vw,40px);display:flex;flex-direction:column;gap:clamp(14px,1.8vh,22px);overflow:hidden;min-width:0">
 
   <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex:none">
-    <a href="/" aria-label="Whollar home" style="display:flex;align-items:center;gap:10px">
+    <a href="https://www.whollar.ca/" data-umbrella aria-label="Whollar home" style="display:flex;align-items:center;gap:10px">
       <svg viewBox="0 0 120 120" aria-hidden="true" style="width:28px;height:28px;flex:none"><rect x="6" y="6" width="108" height="108" rx="32" fill="#FCFAF5"></rect><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#1E4D38" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"></path><circle cx="34" cy="42" r="11" fill="#1E4D38"></circle><circle cx="86" cy="42" r="11" fill="#1E4D38"></circle><circle cx="60" cy="80" r="11" fill="#1E4D38"></circle></svg>
       <b style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:19px;letter-spacing:-.02em;color:#fff">Whollar</b>
     </a>
@@ -672,9 +672,15 @@ body{background:#0E2A20;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
           </div>
 
           <div style="display:flex;flex-direction:column;gap:12px">
-            <div>
-              <label for="wname" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">First and last name</label>
-              <input id="wname" name="name" placeholder="Priya Sharma" autocomplete="name" required style="width:100%;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:7px 12px;font-size:14px;transition:border-color .15s,box-shadow .15s" class="wl-focus3">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+              <div>
+                <label for="wfirst" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">First name</label>
+                <input id="wfirst" name="firstName" placeholder="Priya" autocomplete="given-name" required style="width:100%;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:7px 12px;font-size:14px;transition:border-color .15s,box-shadow .15s" class="wl-focus3">
+              </div>
+              <div>
+                <label for="wlast" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">Last name</label>
+                <input id="wlast" name="lastName" placeholder="Sharma" autocomplete="family-name" required style="width:100%;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:7px 12px;font-size:14px;transition:border-color .15s,box-shadow .15s" class="wl-focus3">
+              </div>
             </div>
             <div>
               <label for="wemail" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">Email</label>
@@ -689,8 +695,8 @@ body{background:#0E2A20;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
 
           <div style="display:flex;flex-direction:column;gap:12px">
             <div>
-              <label for="waddr" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">Full address</label>
-              <input id="waddr" name="address" placeholder="24 Bloor St W, Toronto ON" autocomplete="street-address" required style="width:100%;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:7px 12px;font-size:14px;transition:border-color .15s,box-shadow .15s" class="wl-focus3">
+              <label for="waddr" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">Full address <span style="font-weight:500;color:#68705F">· optional</span></label>
+              <input id="waddr" name="address" placeholder="24 Bloor St W, Toronto ON" autocomplete="street-address" style="width:100%;background:#fff;border:1.5px solid #E1DBCB;border-radius:10px;padding:7px 12px;font-size:14px;transition:border-color .15s,box-shadow .15s" class="wl-focus3">
             </div>
             <div>
               <label for="wpostal" style="display:block;font-size:12px;font-weight:650;color:#3A453E;margin-bottom:3px">Postal code</label>
