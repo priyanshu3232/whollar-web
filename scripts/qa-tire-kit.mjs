@@ -165,6 +165,73 @@ ok(box.height >= 700, `and the height: ${Math.round(box.height)}px of 780`);
 await page.keyboard.press('Escape');
 await page.setViewportSize({ width: 1280, height: 900 });
 
+console.log('\nthe form fields do not overlap');
+await page.locator('[data-wpath="quick"]').click();
+await modal.waitFor({ state: 'visible' });
+const first = await page.locator('#q_first').boundingBox();
+const last = await page.locator('#q_last').boundingBox();
+ok(first.x + first.width <= last.x + 0.5,
+  `first and last name are side by side, not overlapping (gap ${Math.round(last.x - (first.x + first.width))}px)`);
+const wide = await page.locator('#wmodalBody').evaluate(el => el.scrollWidth <= el.clientWidth + 1);
+ok(wide, 'and nothing in the dialog overflows it sideways');
+await page.keyboard.press('Escape');
+await modal.waitFor({ state: 'hidden' });
+
+console.log('\nthe guided panel lays out cleanly');
+await page.locator('[data-wpath="guided"]').click();
+await modal.waitFor({ state: 'visible' });
+await page.locator('#g_first').fill('Ada');
+await page.locator('#g_last').fill('Lovelace');
+await page.locator('#g_email').fill('ada@example.com');
+await page.locator('#g_postal').fill('M4B1B3');
+await page.locator('#g_city .chip[data-v="gta"]').click();
+await page.locator('#g_consent').check();
+await page.locator('#g1 button[type="submit"]').click();
+const meter = await page.locator('#meter').boundingBox();
+const heading = await page.locator('#g2 h3').boundingBox();
+ok(meter.y + meter.height <= heading.y + 1,
+  `the sticky meter sits above the heading, not across it (${Math.round(heading.y - (meter.y + meter.height))}px clear)`);
+const rows = await page.locator('#g_have .chip').evaluateAll(els => {
+  const tops = els.map(e => Math.round(e.getBoundingClientRect().top));
+  const widths = els.map(e => Math.round(e.getBoundingClientRect().width));
+  return { rows: new Set(tops).size, widths: new Set(widths).size };
+});
+ok(rows.rows === 2, `the four starting-point options sit in two even rows (${rows.rows})`);
+ok(rows.widths === 1, `and every one is the same width (${rows.widths} distinct)`);
+const gaps = await page.locator('#g2 .sec-t').evaluateAll(els => els.slice(1).map((el, i) => {
+  const prev = els[i].parentElement.querySelector('.sec-t');
+  return Math.round(el.getBoundingClientRect().top);
+}));
+const secGap = await page.evaluate(() => {
+  const t = document.querySelectorAll('#g2 .sec-t')[1];
+  const cs = getComputedStyle(t);
+  return parseFloat(cs.marginTop) + parseFloat(cs.paddingTop);
+});
+ok(secGap <= 32, `a section break costs ${secGap}px, not v5's 48`);
+const cardPad = await page.locator('#g2').evaluate(el => parseFloat(getComputedStyle(el).paddingTop));
+ok(cardPad === 0, `the panel is not a card inside a card (padding ${cardPad}px)`);
+const nativeArrow = await page.locator('#g_brand').evaluate(el => getComputedStyle(el).appearance);
+ok(nativeArrow === 'none', `the selects use the site's own chevron, not the platform's (appearance: ${nativeArrow})`);
+const selBg = await page.locator('#g_brand').evaluate(el => getComputedStyle(el).backgroundImage);
+ok(selBg.includes('svg'), 'and that chevron is actually painted');
+await page.locator('#wmodalClose').click();
+await modal.waitFor({ state: 'hidden' });
+
+console.log('\nan in-page link glides rather than jumps');
+await page.evaluate(() => window.scrollTo(0, 0));
+const cta = page.locator('a[href="#join"]').first();
+await cta.click();
+await page.waitForTimeout(220);
+const early = await page.evaluate(() => window.pageYOffset);
+ok(early > 0, 'it has started moving a fifth of a second in');
+const joinTop = await page.locator('#join').evaluate(el => el.getBoundingClientRect().top + window.pageYOffset);
+ok(early < joinTop * 0.6, `and is not there yet, which is the point (${Math.round(early)} of ${Math.round(joinTop)})`);
+await page.waitForTimeout(2200);
+const landed = await page.evaluate(() => window.pageYOffset);
+const headPad = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--wh-head')) || 92);
+ok(Math.abs(landed - (joinTop - headPad)) < 4, 'it lands with the section clear of the sticky header');
+await page.evaluate(() => window.scrollTo(0, 0));
+
 console.log('\nno JavaScript is still a working link');
 const hrefs = await page.locator('[data-wtool],[data-wpath]').evaluateAll(els => els.map(e => e.getAttribute('href')));
 ok(hrefs.every(h => h && h.startsWith('/join')), 'all six controls are links to /join underneath');

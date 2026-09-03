@@ -33,6 +33,80 @@
     if (window.ResizeObserver) new window.ResizeObserver(syncHead).observe(head);
   }
 
+  /* ---- how fast an in-page link travels ----
+   * CSS scroll-behavior:smooth hands the duration to the browser, and Chrome
+   * picks something brisk enough that the sections in between are a blur. The
+   * owner wants it slower, so the travel is driven here instead: a fixed floor
+   * so a short hop is still a glide, scaled with distance, and capped so the
+   * longest jump on the page does not become a wait.
+   *
+   * The CSS rule stays as the fallback for anything this does not intercept,
+   * including a page opened on a #hash. It never fights this handler, because
+   * an intercepted click has its default prevented. */
+  var TRAVEL_MIN = 900, TRAVEL_MAX = 1900, TRAVEL_PER_PX = 0.85;
+
+  function easeInOut(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2; }
+
+  function headOffset(){
+    var v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--wh-head'));
+    return isNaN(v) ? 92 : v;
+  }
+
+  function glideTo(target){
+    var start = window.pageYOffset;
+    var end = Math.max(0, Math.min(
+      target.getBoundingClientRect().top + start - headOffset(),
+      document.documentElement.scrollHeight - window.innerHeight));
+    var dist = Math.abs(end - start);
+    if (dist < 2) return;
+    var ms = Math.min(TRAVEL_MAX, Math.max(TRAVEL_MIN, dist * TRAVEL_PER_PX));
+    var t0 = null, cancelled = false;
+
+    /* The CSS rule has to be off while this runs. With scroll-behavior:smooth
+       in force, every scrollTo below starts a browser animation of its own
+       that the next frame interrupts, and the page crawls a couple of pixels
+       and stops. Restored in done(), so anything this handler does not
+       intercept still gets the CSS behaviour. */
+    var root = document.documentElement;
+    var hadBehavior = root.style.scrollBehavior;
+    root.style.scrollBehavior = 'auto';
+
+    /* Any deliberate scroll of their own wins immediately. Without this the
+       page fights the wheel for up to two seconds, which feels broken. */
+    var stop = function(){ cancelled = true; };
+    window.addEventListener('wheel', stop, { passive: true });
+    window.addEventListener('touchstart', stop, { passive: true });
+    window.addEventListener('keydown', stop);
+    var done = function(){
+      root.style.scrollBehavior = hadBehavior;
+      window.removeEventListener('wheel', stop);
+      window.removeEventListener('touchstart', stop);
+      window.removeEventListener('keydown', stop);
+    };
+
+    (function step(now){
+      if (cancelled) return done();
+      if (t0 === null) t0 = now;
+      var p = Math.min(1, (now - t0) / ms);
+      window.scrollTo(0, start + (end - start) * easeInOut(p));
+      if (p < 1) window.requestAnimationFrame(step); else done();
+    })(performance.now());
+  }
+
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest ? e.target.closest('a[href^="#"]') : null;
+    if (!a || a.getAttribute('href') === '#') return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+    var target = document.getElementById(a.getAttribute('href').slice(1));
+    if (!target) return;
+    /* Reduced motion keeps the instant jump, which is what the CSS rule
+       already does for those readers. */
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    e.preventDefault();
+    glideTo(target);
+    if (window.history && history.replaceState) history.replaceState(null, '', a.getAttribute('href'));
+  });
+
   var nodes = Array.prototype.slice.call(document.querySelectorAll('[data-reveal]'));
   if (!nodes.length) return;
 

@@ -493,6 +493,13 @@ html{scroll-padding-top:var(--wh-head,92px)}
 .t-h6:hover{background:#C94E1B}
 .t-h7:hover{background:#E4EDE2}
 
+/* v5's components were authored under a global reset this page does not have
+   and must not gain: the canvas markup around them is inline-styled and
+   assumes default box sizing. Scoped here to the dialog and the parked markup,
+   which reproduces exactly the environment those styles expect. Without it
+   .f-in's width:100% plus its own padding overflows its .frow grid column, and
+   the first and last name inputs overlap. */
+.wm-scope,.wm-scope *,.wmodal,.wmodal *{box-sizing:border-box;margin:0;padding:0}
 /* The dialog. Centred over a dimmed page on a desktop, a full screen sheet on
    a phone, and its body is what scrolls, so the page behind never moves. */
 .wmodal-backdrop{position:fixed;inset:0;background:rgba(14,42,32,.55);display:flex;align-items:center;justify-content:center;padding:24px;z-index:1000}
@@ -512,6 +519,55 @@ html{scroll-padding-top:var(--wh-head,92px)}
   .wmodal{animation:wmPop .18s ease-out}
   @keyframes wmPop{from{transform:translateY(10px);opacity:0}to{transform:none;opacity:1}}
 }
+/* The completeness meter sticks. v5 offset it by 72px to clear that page's
+   own header; in here the dialog body is the scrollport and there is no
+   header below it, so 72px parked it in the middle of the panel and the
+   section heading scrolled under it. Flush to the top of the scroll area. */
+.wm-scope .meter{top:0}
+/* Chip groups whose options carry a second line are cards, not tags, and
+   flex-wrap left them ragged: two on one row, then one, then one, all
+   different widths. An equal column grid lines them up and keeps every option
+   the same size, which is what makes them comparable. Groups of plain chips
+   (Yes / No, 15 inch / 16 inch) have no second line and stay inline. */
+.wm-scope .chips:has(.chip small){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+/* Plain chips are tags, and tags that wrap ragged read as a different width
+   per option when they are really equal choices. Same column rhythm, sized to
+   the shorter labels. */
+.wm-scope .chips:not(:has(.chip small)){display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:9px}
+.wm-scope .chips .chip{width:100%;display:flex;flex-direction:column;justify-content:center}
+@media(max-width:560px){
+  .wm-scope .chips:has(.chip small),
+  .wm-scope .chips:not(:has(.chip small)){grid-template-columns:1fr}
+}
+/* v5's spacing was drawn for a full page, where a form is one column in a lot
+   of air. In a dialog that air is wasted twice over: the panel is already a
+   card inside a card, and every section break cost 48px plus a rule. The card
+   chrome goes, because the dialog is the card, and the rhythm tightens to
+   about half. Nothing is removed, only the gaps between it. */
+.wm-scope .formcard{border:0;padding:0;box-shadow:none;background:transparent;margin-top:0}
+.wm-scope .formcard + .formcard{margin-top:14px}
+.wm-scope .sec-t{margin:16px 0 10px;padding-top:14px}
+.wm-scope .sec-t:first-of-type{margin-top:14px}
+.wm-scope .field{margin-bottom:12px}
+.wm-scope .fgap{margin-top:12px}
+.wm-scope .frow,.wm-scope .frow3{gap:12px}
+.wm-scope .result{margin-top:12px}
+.wm-scope .helperfold{margin:10px 0 2px}
+.wm-scope .stagebar{margin:2px 0 4px}
+.wm-scope .meter{margin-top:12px}
+.wm-scope .formnav{margin-top:18px}
+.wm-scope .capnote{margin-top:10px}
+.wm-scope .checkline{margin:6px 0}
+.wm-scope .signup{padding:0}
+.wm-scope .mid{max-width:none;padding:0}
+/* Selects get the chevron the bill checkup, /become-a-partner and this
+   vertical's own /join already use. The native control draws a different
+   arrow on every platform and none of them match the chip buttons beside it,
+   so Year, Make and Model read as three widgets borrowed from somewhere else.
+   Same SVG and the same offsets as those pages, so it is one control across
+   the site rather than a fourth variant. */
+.wm-scope select.f-in{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%235B655C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
+.wm-scope select.f-in:disabled{background-image:none}
 /* The verdict a tool leaves behind on its card, and the running tally. */
 .wm-verdict{display:none;font-size:13.5px;font-weight:600;color:#14352A;background:#CFE7D6;border-radius:9px;padding:6px 12px;width:fit-content;max-width:100%}
 [data-wtool].done .wm-verdict{display:inline-block}
@@ -1595,7 +1651,7 @@ footer .in{max-width:1340px;margin:0 auto;padding:0 22px;display:flex;flex-wrap:
   </div>
 </div>
 
-<script src="/js/tires.js?v=20260903b"></script>
-<script src="/js/tire-kit.js?v=20260903b"></script>
+<script src="/js/tires.js?v=20260903g"></script>
+<script src="/js/tire-kit.js?v=20260903g"></script>
 </body>
 </html>
