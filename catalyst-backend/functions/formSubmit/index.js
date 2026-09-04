@@ -68,18 +68,32 @@ const ALLOWED_ORIGINS = [
 // names it would silence Express for an origin the gateway does not answer,
 // and every form on the product host would fail CORS. The runbook's owner step
 // widens the console rule first; this list follows in the same change.
-// MEASURED EMPTY 2026-09-04. The documented check above returned ZERO
-// Access-Control-Allow-Origin lines for https://www.whollar.ca, not one. The
-// gateway rule is not answering for it any more, and because this list told
-// Express to stay quiet, every form on the umbrella came back to the browser
-// with no CORS header at all: the request succeeded and the row was written,
-// and the page could only say it could not reach our servers.
+// MEASURED TWICE ON 2026-09-04, and it changed between the two readings.
 //
-// The comment above says what to do when the console rule goes away, and this
-// is that: empty the list and Express resumes the header. Re-run the curl after
-// any console CORS change. Exactly one line back is still the passing result;
-// two means the rule is back and this list needs the origin again.
-const GATEWAY_CORS_ORIGINS = [];
+// Before the deploy the documented curl returned ZERO header lines for
+// https://www.whollar.ca: this list was silencing Express, and the console
+// rule was not answering, so the umbrella's forms reached the browser with no
+// CORS header at all. On that evidence the origin was taken out of this list.
+//
+// Immediately after the deploy the same curl returned TWO, five times out of
+// five: one capitalised from the gateway, one lowercase from Express. So the
+// console rule answers again. It was restored, or re-enabled, in the console
+// between the readings.
+//
+// Two headers is the worse failure of the two, and it is the one this list
+// exists to prevent. The origin goes back in.
+//
+// THE STANDING TRAP, stated once more because it has now fired in both
+// directions: this is console config mirrored into code, and each side is
+// invisible from the other. Turning the console rule on breaks the site unless
+// the origin is in this list; turning it off breaks the site unless the origin
+// is out of it. Neither change announces itself. Run the curl after touching
+// either side, and read the count, not just the value:
+//   curl -sD- -o/dev/null -X POST -H 'Origin: https://www.whollar.ca' \
+//     <function-url> | grep -ci access-control-allow-origin
+// One is the passing result. Zero and two both mean every form on that origin
+// is failing in the browser while the row is written on this side.
+const GATEWAY_CORS_ORIGINS = ['https://www.whollar.ca'];
 
 // Local development: the marketing pages are plain HTML files, opened either
 // via a dev server on an arbitrary port (Live Server, http.server, …) or
