@@ -36,6 +36,17 @@
   ],
   "redirects": [
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "whollar.ca"
+        }
+      ],
+      "destination": "https://www.whollar.ca/",
+      "statusCode": 308
+    },
+    {
       "source": "/:path*",
       "has": [
         {
@@ -47,6 +58,17 @@
       "statusCode": 308
     },
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "whollar.com"
+        }
+      ],
+      "destination": "https://www.whollar.ca/",
+      "statusCode": 308
+    },
+    {
       "source": "/:path*",
       "has": [
         {
@@ -55,6 +77,17 @@
         }
       ],
       "destination": "https://www.whollar.ca/:path*",
+      "statusCode": 308
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.whollar.com"
+        }
+      ],
+      "destination": "https://www.whollar.ca/",
       "statusCode": 308
     },
     {

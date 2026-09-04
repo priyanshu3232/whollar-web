@@ -45,6 +45,17 @@
   ],
   "redirects": [
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "tires.whollar.com"
+        }
+      ],
+      "destination": "https://tires.whollar.ca/",
+      "permanent": true
+    },
+    {
       "source": "/:path*",
       "has": [
         {
