@@ -47,6 +47,28 @@
       "statusCode": 308
     },
     {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "whollar.com"
+        }
+      ],
+      "destination": "https://www.whollar.ca/:path*",
+      "statusCode": 308
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.whollar.com"
+        }
+      ],
+      "destination": "https://www.whollar.ca/:path*",
+      "statusCode": 308
+    },
+    {
       "source": "/bill-checkup",
       "destination": "https://internet.whollar.ca/bill-checkup",
       "statusCode": 301

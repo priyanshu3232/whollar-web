@@ -49,6 +49,17 @@
       "has": [
         {
           "type": "host",
+          "value": "tires.whollar.com"
+        }
+      ],
+      "destination": "https://tires.whollar.ca/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
           "value": "tire.whollar.ca"
         }
       ],

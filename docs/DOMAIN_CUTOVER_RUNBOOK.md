@@ -259,6 +259,16 @@ originates from a `.com` origin so the backend Origin allowlist stays three
 hosts instead of six, and a redirect domain is a Vercel setting rather than
 code, so there is nothing to keep in sync.
 
+**Amended 2026-09-04: the redirect is now also in code, in all three
+`vercel.json` files.** The setting alone was the plan, and it was still not
+made, so on 2026-09-04 all four `.com` hosts were still answering 200 with a
+full copy of their `.ca` twins. A host-matched 308 in `vercel.json` needs
+no dashboard visit, ships with the next deploy, and is visible in review,
+which the setting is not. It is a floor, the same shape as `CANONICAL_ORIGINS`
+in the auth function: if the owner later attaches the twins as redirect
+domains per step 36, Vercel answers first and these rules never run, and
+nothing has to be undone for that to be true.
+
 | Vercel project | GitHub repo | Primary domain | Redirect domains |
 |---|---|---|---|
 | `whollar-web` (exists) | `priyanshu3232/whollar-web` | `internet.whollar.ca` | `internet.whollar.com` |
@@ -321,7 +331,9 @@ SEO cleanup afterwards.
     one irreversible-feeling minute. Section 3 has the live matrix to run
     immediately after, and section 5 has the rollback.
 36. `internet.whollar.com` and `tires.whollar.com` as redirect domains, last.
-    They carry no traffic today and nothing depends on them.
+    They carry no traffic today and nothing depends on them. Optional since
+    2026-09-04: `vercel.json` in each repo now 308s its own `.com` twin to the
+    `.ca` host, so this step buys a saved hop, not a fixed duplicate.
 
 ### What this does to the allowlist
 

@@ -107,6 +107,17 @@
   ],
   "redirects": [
     {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "internet.whollar.com"
+        }
+      ],
+      "destination": "https://internet.whollar.ca/:path*",
+      "statusCode": 308
+    },
+    {
       "source": "/join",
       "destination": "https://www.whollar.ca/join",
       "statusCode": 301
