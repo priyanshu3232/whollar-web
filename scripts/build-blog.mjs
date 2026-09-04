@@ -12,8 +12,9 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-// Canonical host is www: the apex 308-redirects to it, so sitemap/canonical/JSON-LD
-// URLs must all be www or Google chases redirects.
+// Canonical host is internet.whollar.ca, the product host since the 2026-09 domain
+// restructure. www.whollar.ca 301s every page path here, so a sitemap, canonical or
+// JSON-LD URL left on www makes Google chase a redirect.
 const DOMAIN = 'https://internet.whollar.ca';
 const EM_DASH = '—';
 
@@ -324,7 +325,7 @@ console.log('ok  /blog/ (Resources page)');
 // The sitemap covers the whole site, not just the blog: regenerating it must
 // never drop the money/legal pages again. Static entries carry no lastmod (we
 // don't know when they last changed; an invented date is worse than none).
-const STATIC_PAGES = ['/', '/bill-checkup', '/become-a-partner', '/partners', '/waitlist/', '/contact', '/terms', '/privacy'];
+const STATIC_PAGES = ['/', '/bill-checkup', '/become-a-partner', '/partners', '/waitlist/', '/contact', '/greystonewalk', '/terms', '/privacy'];
 const entries = [
   ...STATIC_PAGES.map(p => `  <url><loc>${DOMAIN}${p}</loc></url>`),
   `  <url><loc>${DOMAIN}/blog/</loc><lastmod>${PUBLISH_DATE}</lastmod></url>`,
