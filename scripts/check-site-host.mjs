@@ -28,6 +28,32 @@ const FIX = process.argv.includes('--fix');
 const OLD = /https:\/\/(www\.)?whollar\.ca(?=[/"'\s<)]|$)(?!\/" data-umbrella)/g;
 const NEW = 'https://internet.whollar.ca';
 const EXT = new Set(['.html', '.xml', '.txt', '.json', '.js', '.css']);
+
+/* The second deliberate exception: the brand entity.
+   Whollar is one organisation behind three hosts, so its schema.org
+   Organization is keyed to the umbrella and every host references that one
+   node. Those references are not a claim about where a page lives, which is
+   what this gate is for, so three exact strings are allowed and only inside a
+   JSON-LD block: the entity id, the entity url and the entity logo. Anything
+   else under the umbrella still fails, a canonical or an og:url or a sitemap
+   entry included, and so does any other path in JSON-LD, so a stale
+   "https://www.whollar.ca/blog/..." is still caught. */
+const LD_BLOCK = /<script[^>]+application\/ld\+json[^>]*>[\s\S]*?<\/script>/gi;
+const BRAND_ENTITY = [
+  '"https://www.whollar.ca/#org"',
+  '"https://www.whollar.ca/logo.png"',
+  '"https://www.whollar.ca/"',
+];
+/* Blank the allowed strings before counting, so the match positions of
+   everything else are untouched. */
+function maskBrandEntity(text) {
+  return text.replace(LD_BLOCK, block => {
+    let out = block;
+    for (const literal of BRAND_ENTITY) out = out.split(literal).join('"' + '.'.repeat(literal.length - 2) + '"');
+    return out;
+  });
+}
+
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'home', 'tires', 'catalyst-backend', 'docs', 'scripts', 'admin-console', '.vercel', '.claude']);
 const GENERATED = ['MobileVersion' + sep];
 
@@ -60,12 +86,15 @@ let hits = 0, files = 0, fixed = 0, skippedGen = 0;
 const byFile = [];
 for (const rel of walk(ROOT)) {
   const text = readFileSync(join(ROOT, rel), 'utf8');
-  const n = (text.match(OLD) || []).length;
+  const n = (maskBrandEntity(text).match(OLD) || []).length;
   if (!n) continue;
   hits += n; files++;
   if (FIX) {
     if (GENERATED.some(g => rel.startsWith(g))) { skippedGen++; byFile.push([rel, n, 'generated, regenerate instead']); continue; }
-    writeFileSync(join(ROOT, rel), text.replace(OLD, NEW));
+    /* Rewrite only what the mask left visible, so the brand entity survives. */
+    let masked = maskBrandEntity(text), cursor = 0, rebuilt = '';
+    masked.replace(OLD, (m, _g, at) => { rebuilt += text.slice(cursor, at) + NEW; cursor = at + m.length; return m; });
+    writeFileSync(join(ROOT, rel), rebuilt + text.slice(cursor));
     fixed++; byFile.push([rel, n, 'rewritten']);
   } else byFile.push([rel, n, '']);
 }

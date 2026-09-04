@@ -106,7 +106,7 @@ for (const [file, slug] of SLUGS) {
 
   // 4b. device-router include after the viewport meta: articles are mapped to
   // /MobileVersion/blog/<slug> counterparts, so phones must be routed off them.
-  const routerTag = '<script src="/js/device-router.js?v=20260831c"></script>';
+  const routerTag = '<script src="/js/device-router.js?v=20260905a"></script>';
   if (!html.includes(routerTag)) {
     const viewport = html.match(/<meta name="viewport"[^>]*>/);
     if (!viewport) fail(file, 'viewport meta not found');
@@ -182,7 +182,7 @@ const indexHtml = `<!DOCTYPE html>
 </script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="/js/device-router.js?v=20260831c"></script>
+<script src="/js/device-router.js?v=20260905a"></script>
 <script src="/js/blog-return.js?v=20260901a" defer></script>
 <title>Resources: plain-language reads on internet pricing in Canada · Whollar</title>
 <meta name="description" content="Fifteen plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
@@ -302,7 +302,7 @@ ${tiles}
         <p>Wholesale buying power that saves you dollars</p>
       </div>
       <div class="whl-footer__cols">
-        <div class="whl-footer__col"><a href="/#how">How it works</a><a href="/#why">Why us</a><a href="/#faq">FAQ</a><a href="/blog/" aria-current="page">Resources</a><a href="/contact">Contact</a></div>
+        <div class="whl-footer__col"><a href="/#how">How it works</a><a href="/#why">Why us</a><a href="/#faq">FAQ</a><a href="/blog" aria-current="page">Resources</a><a href="/contact">Contact</a></div>
         <div class="whl-footer__col"><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/partners">For providers</a></div>
       </div>
     </div>
@@ -325,10 +325,10 @@ console.log('ok  /blog/ (Resources page)');
 // The sitemap covers the whole site, not just the blog: regenerating it must
 // never drop the money/legal pages again. Static entries carry no lastmod (we
 // don't know when they last changed; an invented date is worse than none).
-const STATIC_PAGES = ['/', '/bill-checkup', '/become-a-partner', '/partners', '/waitlist/', '/contact', '/greystonewalk', '/terms', '/privacy'];
+const STATIC_PAGES = ['/', '/bill-checkup', '/become-a-partner', '/partners', '/waitlist', '/contact', '/greystonewalk', '/terms', '/privacy'];
 const entries = [
   ...STATIC_PAGES.map(p => `  <url><loc>${DOMAIN}${p}</loc></url>`),
-  `  <url><loc>${DOMAIN}/blog/</loc><lastmod>${PUBLISH_DATE}</lastmod></url>`,
+  `  <url><loc>${DOMAIN}/blog</loc><lastmod>${PUBLISH_DATE}</lastmod></url>`,
   ...SLUGS.map(([, s]) => `  <url><loc>${DOMAIN}/blog/${s}</loc><lastmod>${PUBLISH_DATE}</lastmod></url>`),
 ];
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>

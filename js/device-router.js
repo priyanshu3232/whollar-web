@@ -83,16 +83,16 @@
   function redirect() {
     var t = target();
     if (!t) return;
-    /* Desktop routes served from directories (index.html inside). A trailing
-       slash works on every server. */
+    /* Desktop routes served from directories (index.html inside). Production
+       runs trailingSlash:false, so the slash-less form is the canonical URL
+       and appending a slash would cost a 308 on every routed visit. Only a
+       plain static server, recognised by the .html path we are leaving, still
+       needs the directory form. */
     var isDir = t === '/waitlist' || t === '/blog' || t.indexOf('/blog/') === 0;
     if (/\.html?$/i.test(location.pathname)) {
-      /* Static servers without clean-URL rewrites: stay in .html style. */
       if (t === '/') t = '/index.html';
       else if (isDir) t = t + '/';
       else t = t + '.html';
-    } else if (isDir) {
-      t = t + '/';
     }
     location.replace(t + location.search + location.hash);
   }

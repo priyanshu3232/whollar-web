@@ -5,6 +5,7 @@
 > our resource library for AI crawlers and answer engines.
 
 ## Resources
+- [Resources: the full library](https://internet.whollar.ca/blog): all sixteen reads, newest first.
 - [How much internet speed do you actually need?](https://internet.whollar.ca/blog/internet-speed-how-much-need): activity-by-activity Mbps, what 1 gig is really for, right-sizing.
 - [The $487 problem: why Canadians overpay for internet](https://internet.whollar.ca/blog/overpaying-internet-canada): the size of the overpayment and why most households never ask.
 - [Internet price increase? The promo cliff, explained](https://internet.whollar.ca/blog/internet-price-increase-promo-cliff): why introductory rates expire and how to see it coming.

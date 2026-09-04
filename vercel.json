@@ -3,6 +3,7 @@
     "yul1"
   ],
   "cleanUrls": true,
+  "trailingSlash": false,
   "headers": [
     {
       "source": "/(.*)",
@@ -155,7 +156,7 @@
     },
     {
       "source": "/resources",
-      "destination": "/blog/",
+      "destination": "/blog",
       "statusCode": 301
     },
     {

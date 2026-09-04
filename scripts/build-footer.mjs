@@ -79,7 +79,7 @@ const LEAF = '<svg width="15" height="15" viewBox="0 0 24 24" fill="#1E9E63" ari
    /contact, /privacy and /terms have none and are shared. */
 const DESKTOP = {
   home: '/', how: '/#how', why: '/#why', faq: '/#faq',
-  resources: '/blog/', contact: '/contact',
+  resources: '/blog', contact: '/contact',
   privacy: '/privacy', terms: '/terms', providers: '/partners'
 };
 const MOBILE = {

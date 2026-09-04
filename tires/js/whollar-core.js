@@ -1414,7 +1414,7 @@
     /** The share link for a code, on whatever host this page is served from. */
     link: function (code) {
       var c = normalizeRef(code);
-      return location.origin + '/waitlist/' + (c ? '?ref=' + encodeURIComponent(c) : '');
+      return location.origin + '/waitlist' + (c ? '?ref=' + encodeURIComponent(c) : '');
     },
 
     /**

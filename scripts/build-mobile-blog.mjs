@@ -11,7 +11,7 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, existsSy
 import { join } from 'node:path';
 
 const DOMAIN = 'https://internet.whollar.ca';
-const ROUTER_TAG = '<script src="/js/device-router.js?v=20260831c"></script>';
+const ROUTER_TAG = '<script src="/js/device-router.js?v=20260905a"></script>';
 const RETURN_TAG = '<script src="/js/blog-return.js?v=20260901a" defer></script>';
 
 const slugs = readdirSync('blog').filter(
@@ -50,10 +50,10 @@ for (const slug of slugs) {
   //    speculationrules JSON and the prefetch hint; a plain string swap covers
   //    all of them. "/bill-checkup" appears as an href and as a speculationrules
   //    href_matches pattern; same deal.
-  html = html.split('"/waitlist/"').join('"/MobileVersion/join-the-first-cohort-mobile"');
+  html = html.split('"/waitlist"').join('"/MobileVersion/join-the-first-cohort-mobile"');
   html = html.split('"/bill-checkup"').join('"/MobileVersion/bill-checkup-mobile"');
   html = html.split('"/blog/*"').join('"/MobileVersion/blog/*"');
-  html = html.split('href="/blog/"').join('href="/MobileVersion/resources-mobile"');
+  html = html.split('href="/blog"').join('href="/MobileVersion/resources-mobile"');
   html = html.split('href="/"').join('href="/MobileVersion/consumer-mobile"');
 
   // 4. Device-router include (inherited from the desktop article when
@@ -76,7 +76,7 @@ for (const slug of slugs) {
   // Gates: nothing desktop-namespace may survive outside the canonical/JSON-LD.
   if (html.split(ROUTER_TAG).length - 1 !== 1) fail(slug, 'router include count != 1');
   if (html.split(RETURN_TAG).length - 1 !== 1) fail(slug, 'blog-return include count != 1');
-  if (html.includes('"/waitlist/"')) fail(slug, '/waitlist/ survived');
+  if (html.includes('"/waitlist"')) fail(slug, '/waitlist survived');
   if (html.includes('href="/"')) fail(slug, 'root href survived');
   if (/href="\/blog\//.test(html)) fail(slug, 'desktop article href survived');
   if (!html.includes(`<link rel="canonical" href="${DOMAIN}/blog/${slug}">`)) fail(slug, 'canonical lost');

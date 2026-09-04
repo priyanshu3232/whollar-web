@@ -5,7 +5,7 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="/js/device-router.js?v=20260831c"></script>
+<script src="/js/device-router.js?v=20260905a"></script>
 <!-- Benchmarks + base pricing + estimate bench before core, as on
      /bill-checkup: core reads the tables at call time but the estimator below
      needs them present on first paint. Without these tags every estimate
@@ -17,7 +17,7 @@
 <script src="/js/whollar-benchmarks.js?v=20260806"></script>
 <script src="/js/whollar-base-pricing.js?v=20260807c"></script>
 <script src="/js/whollar-estimate-bench.js?v=20260814a"></script>
-<script src="/js/whollar-core.js?v=20260831a"></script>
+<script src="/js/whollar-core.js?v=20260905a"></script>
 
 
 <title>Whollar: wholesale prices on home internet</title>
@@ -1593,26 +1593,32 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
 {
   "@context": "https://schema.org",
   "@type": "Organization",
-  "@id": "https://internet.whollar.ca/#org",
+  "@id": "https://www.whollar.ca/#org",
   "name": "Whollar",
-  "url": "https://internet.whollar.ca/",
+  "url": "https://www.whollar.ca/",
   "logo": {
     "@type": "ImageObject",
-    "url": "https://internet.whollar.ca/logo.png",
+    "url": "https://www.whollar.ca/logo.png",
     "width": 512,
     "height": 512
   },
-  "description": "Whollar organises household demand for home internet into regional cohorts so independent providers bid for the group."
+  "description": "Whollar organises household demand for home internet into regional cohorts so independent providers bid for the group.",
+  "sameAs": [
+    "https://www.whollar.ca/",
+    "https://internet.whollar.ca/",
+    "https://tires.whollar.ca/"
+  ]
 }
 </script>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "WebSite",
+  "@id": "https://internet.whollar.ca/#website",
   "name": "Whollar",
   "url": "https://internet.whollar.ca/",
   "publisher": {
-    "@id": "https://internet.whollar.ca/#org"
+    "@id": "https://www.whollar.ca/#org"
   }
 }
 </script>
@@ -1644,7 +1650,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
       <a href="#how">How it works</a>
       <a href="#why">Why us</a>
       <a href="#faq">FAQ</a>
-      <a href="/blog/">Resources</a>
+      <a href="/blog">Resources</a>
       <a href="/contact">Contact</a>
     </nav>
     <div class="whl-header__actions">
@@ -1652,7 +1658,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
       </a>
       <a class="whl-btn whl-btn--outline" href="/whollar-login-consumer">Log in</a>
-      <a class="whl-btn whl-header__cta" href="/waitlist/">Join the First Cohort</a>
+      <a class="whl-btn whl-header__cta" href="/waitlist">Join the First Cohort</a>
     </div>
     <button class="whl-burger" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="whl-mobnav" data-burger="">
       <span></span><span></span><span></span>
@@ -1662,13 +1668,13 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
     <a href="#how" data-mobnav-link="">How it works</a>
     <a href="#why" data-mobnav-link="">Why us</a>
     <a href="#faq" data-mobnav-link="">FAQ</a>
-    <a href="/blog/" data-mobnav-link="">Resources</a>
+    <a href="/blog" data-mobnav-link="">Resources</a>
     <a href="/contact" data-mobnav-link="">Contact</a>
     <a class="whl-btn whl-btn--providers whl-btn--block" href="/partners" data-mobnav-link="">For providers
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
     </a>
     <a class="whl-btn whl-btn--outline whl-btn--block" href="/whollar-login-consumer" data-mobnav-link="">Log in</a>
-    <a class="whl-btn whl-btn--block" href="/waitlist/" data-mobnav-link="">Join the First Cohort</a>
+    <a class="whl-btn whl-btn--block" href="/waitlist" data-mobnav-link="">Join the First Cohort</a>
   </nav>
 </header>
 
@@ -1687,7 +1693,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
           <a class="btn btn--primary" href="/bill-checkup">Check if I'm overpaying
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
           </a>
-          <a class="btn btn--ghost" href="/waitlist/">Join the First Cohort
+          <a class="btn btn--ghost" href="/waitlist">Join the First Cohort
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
           </a>
         </div>
@@ -2775,7 +2781,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
       <p style="font-size:18.5px;line-height:1.6;color:rgba(255,255,255,0.72);max-width:520px;margin:0 auto 36px;">Join the households putting an end to the loyalty tax. Check your bill in two minutes. You'll never negotiate alone again.</p>
       <div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:center;">
         <a href="/bill-checkup" class="whl-cta10-btn" style="display:inline-flex;align-items:center;gap:9px;background:#fff;color:var(--ink);font-size:16.5px;font-weight:600;padding:16px 30px;border-radius:13px;text-decoration:none;transition:transform .2s;">Check if I'm overpaying<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
-        <a href="/waitlist/" class="whl-cta10-ghost" style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.1);color:#fff;font-size:16.5px;font-weight:500;padding:16px 26px;border-radius:13px;text-decoration:none;border:1px solid rgba(255,255,255,0.18);transition:background .2s;">Join the cohort</a>
+        <a href="/waitlist" class="whl-cta10-ghost" style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.1);color:#fff;font-size:16.5px;font-weight:500;padding:16px 26px;border-radius:13px;text-decoration:none;border:1px solid rgba(255,255,255,0.18);transition:background .2s;">Join the cohort</a>
       </div>
       <div style="margin-top:26px;display:flex;flex-wrap:wrap;gap:20px;justify-content:center;color:rgba(255,255,255,0.62);font-size:13.5px;">
         <span>Private &amp; secure</span><span style="opacity:.4;">·</span><span>You always choose</span>
@@ -2821,7 +2827,7 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
         <a href="#how">How it works</a>
         <a href="#why">Why us</a>
         <a href="#faq">FAQ</a>
-        <a href="/blog/">Resources</a>
+        <a href="/blog">Resources</a>
         <a href="/contact">Contact</a>
         </div>
         <div class="whl-footer__col">
