@@ -34,6 +34,13 @@ const ALLOWED_ORIGINS = [
   // The winter tire vertical, same treatment as the product host above:
   // Express answers CORS for it because the console rule does not name it yet.
   'https://tires.whollar.ca',
+  // The .com twins. The cutover runbook has these becoming redirect domains,
+  // at which point no request originates from them and these two lines come
+  // out. They are here because that has not happened: tires.whollar.ca has no
+  // DNS record yet, so tires.whollar.com is the ONLY way to reach the tire
+  // site, and every form on it was failing CORS for want of these lines.
+  'https://internet.whollar.com',
+  'https://tires.whollar.com',
   'https://whollar-staging-1w.vercel.app'
 ];
 
@@ -61,7 +68,18 @@ const ALLOWED_ORIGINS = [
 // names it would silence Express for an origin the gateway does not answer,
 // and every form on the product host would fail CORS. The runbook's owner step
 // widens the console rule first; this list follows in the same change.
-const GATEWAY_CORS_ORIGINS = ['https://www.whollar.ca'];
+// MEASURED EMPTY 2026-09-04. The documented check above returned ZERO
+// Access-Control-Allow-Origin lines for https://www.whollar.ca, not one. The
+// gateway rule is not answering for it any more, and because this list told
+// Express to stay quiet, every form on the umbrella came back to the browser
+// with no CORS header at all: the request succeeded and the row was written,
+// and the page could only say it could not reach our servers.
+//
+// The comment above says what to do when the console rule goes away, and this
+// is that: empty the list and Express resumes the header. Re-run the curl after
+// any console CORS change. Exactly one line back is still the passing result;
+// two means the rule is back and this list needs the origin again.
+const GATEWAY_CORS_ORIGINS = [];
 
 // Local development: the marketing pages are plain HTML files, opened either
 // via a dev server on an arbitrary port (Live Server, http.server, …) or
