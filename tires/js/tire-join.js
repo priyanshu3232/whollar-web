@@ -70,8 +70,13 @@
     /* Every tool sits on stage 2 or 3, and stage 1 is the step that actually
        holds the spot, so a tool link opens stage 2 and the panel with it. The
        reader can walk back to stage 1 with the Back button; they cannot
-       submit without it, because g1form validates on the way forward. */
-    gStage(tool === 'insurance' ? 3 : 2);
+       submit without it, because g1form validates on the way forward.
+
+       A bare ?path=guided is not a tool link. It is Build my profile on the
+       landing page, which is the start of the sign-up, so it opens stage 1
+       exactly as the pathcard on this page does. Sending it to stage 2 would
+       open the guided path on the step after the one that holds the spot. */
+    gStage(!tool ? 1 : tool === 'insurance' ? 3 : 2);
     show('s-guided');
     if (!tool) return;
     var panel = $('#h-' + (tool === 'insurance' ? 'ins' : tool === 'rims' ? 'rimcalc' : tool));

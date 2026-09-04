@@ -2476,7 +2476,13 @@ function init(){
 
   // paths and nav
   qsa('[data-wpath="quick"]').forEach(function(el){ el.addEventListener("click", function(e){ e.preventDefault(); pickPath("quick", el); }); });
-  qsa('[data-wpath="guided"]').forEach(function(el){ el.addEventListener("click", function(e){ e.preventDefault(); pickPath("guided", el); setStage(1); }); });
+  /* Build my profile is a page, not a modal. It is the long path, three stages
+     with the four tools built in, so it gets a URL someone can land on, send
+     to a partner and come back to later. The anchor already points at
+     /join?path=guided, and tire-join.js opens straight onto the guided screen
+     from that query, so the click is left alone and the browser navigates.
+     Hold my spot stays a modal above: it is about a minute of typing, and
+     losing the page underneath it costs more than the URL would give back. */
   
   
   $("q_back").addEventListener("click", function(){ WM.close(); });
