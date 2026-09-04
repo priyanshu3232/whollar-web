@@ -84,15 +84,32 @@ function* walk(dir) {
 
 let hits = 0, files = 0, fixed = 0, skippedGen = 0;
 const byFile = [];
+/* robots.txt is allowed one kind of www URL: a Sitemap: directive. The
+   umbrella's /sitemap.xml is a sitemap INDEX that lists this host's sitemap,
+   and the sitemaps protocol only lets an index name another host's pages when
+   that host's robots.txt points back at the index (sitemaps.org, "Sitemaps &
+   Cross Submits"). The directive says where the index is, not where a page
+   lives, which is the only thing this gate is about. Every other line of
+   robots.txt, and every other file, is held to the rule. Masked the same way
+   as the brand entity above, to the same length, so match positions stay put
+   and the fix-mode rebuild below serves both. */
+const SITEMAP_LINE = /^Sitemap:.*$/gm;
+function maskSitemapLines(rel, text) {
+  return rel === 'robots.txt' ? text.replace(SITEMAP_LINE, line => '.'.repeat(line.length)) : text;
+}
+const mask = (rel, text) => maskSitemapLines(rel, maskBrandEntity(text));
+
 for (const rel of walk(ROOT)) {
   const text = readFileSync(join(ROOT, rel), 'utf8');
-  const n = (maskBrandEntity(text).match(OLD) || []).length;
+  const masked = mask(rel, text);
+  const n = (masked.match(OLD) || []).length;
   if (!n) continue;
   hits += n; files++;
   if (FIX) {
     if (GENERATED.some(g => rel.startsWith(g))) { skippedGen++; byFile.push([rel, n, 'generated, regenerate instead']); continue; }
-    /* Rewrite only what the mask left visible, so the brand entity survives. */
-    let masked = maskBrandEntity(text), cursor = 0, rebuilt = '';
+    /* Rewrite only what the mask left visible, so the brand entity and the
+       Sitemap: directive survive. */
+    let cursor = 0, rebuilt = '';
     masked.replace(OLD, (m, _g, at) => { rebuilt += text.slice(cursor, at) + NEW; cursor = at + m.length; return m; });
     writeFileSync(join(ROOT, rel), rebuilt + text.slice(cursor));
     fixed++; byFile.push([rel, n, 'rewritten']);
