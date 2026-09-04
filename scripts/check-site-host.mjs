@@ -58,14 +58,26 @@ function* walk(dir) {
 
 let hits = 0, files = 0, fixed = 0, skippedGen = 0;
 const byFile = [];
+/* robots.txt is allowed one kind of www URL: a Sitemap: directive. The
+   umbrella's /sitemap.xml is a sitemap INDEX that lists this host's sitemap,
+   and the sitemaps protocol only lets an index name another host's pages when
+   that host's robots.txt points back at the index (sitemaps.org, "Sitemaps &
+   Cross Submits"). The directive says where the index is, not where a page
+   lives, which is the only thing this gate is about. Every other line of
+   robots.txt, and every other file, is held to the rule. */
+const SITEMAP_LINE = /^Sitemap:/;
+const perLine = (text, keep, change) => text.split('\n').map(l => SITEMAP_LINE.test(l) ? keep(l) : change(l)).join('\n');
+const scannable = (rel, text) => rel === 'robots.txt' ? perLine(text, () => '', l => l) : text;
+const rewrite = (rel, text) => rel === 'robots.txt' ? perLine(text, l => l, l => l.replace(OLD, NEW)) : text.replace(OLD, NEW);
+
 for (const rel of walk(ROOT)) {
   const text = readFileSync(join(ROOT, rel), 'utf8');
-  const n = (text.match(OLD) || []).length;
+  const n = (scannable(rel, text).match(OLD) || []).length;
   if (!n) continue;
   hits += n; files++;
   if (FIX) {
     if (GENERATED.some(g => rel.startsWith(g))) { skippedGen++; byFile.push([rel, n, 'generated, regenerate instead']); continue; }
-    writeFileSync(join(ROOT, rel), text.replace(OLD, NEW));
+    writeFileSync(join(ROOT, rel), rewrite(rel, text));
     fixed++; byFile.push([rel, n, 'rewritten']);
   } else byFile.push([rel, n, '']);
 }
