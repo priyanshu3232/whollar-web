@@ -52,6 +52,9 @@ for (const slug of slugs) {
   html = html.split('"/waitlist/"').join('"/MobileVersion/join-the-first-cohort-mobile"');
   html = html.split('"/bill-checkup"').join('"/MobileVersion/bill-checkup-mobile"');
   html = html.split('"/blog/*"').join('"/MobileVersion/blog/*"');
+  // The Resources index link. Step 2 only rewrites article slugs, so the bare
+  // "/blog/" href reached the gate below untouched and failed the build.
+  html = html.split('href="/blog/"').join('href="/MobileVersion/resources-mobile"');
   html = html.split('href="/"').join('href="/MobileVersion/consumer-mobile"');
 
   // 4. Device-router include (inherited from the desktop article when

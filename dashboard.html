@@ -20,17 +20,13 @@
      Nothing here recomputes what the engine already decides: the band feeds it
      the member's stored bill and prints what comes back, assumptions included. -->
 <script src="/js/checkup-savings.js?v=20260813"></script>
-<link rel="preconnect" href="https://api.fontshare.com">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/whollar-type.css?v=20260905a">
 <style>
 :root{
   --ink:#2B3A33; --ink2:#0A2018; --accent:#1E9E63; --accent-deep:#178A5A; --mint:#E4F4EC;
   --glow:#7FE3B0; --terra:#C2643B; --terra-soft:#F7E7DD; --paper:#FAF8F3; --card:#ffffff;
-  --line:#e7ebe6; --sub:#54625B; --disp:'Satoshi',system-ui,sans-serif;
-  --body:'Inter',system-ui,sans-serif; --mono:'Space Mono',ui-monospace,monospace;
+  --line:#e7ebe6; --sub:#54625B; --disp:'Playfair Display',Georgia,serif;
+  --body:'DM Sans',system-ui,sans-serif; --mono:'Space Mono',ui-monospace,monospace;
   --panew:264px; --panec:78px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -7807,23 +7803,22 @@ function paintSeatLedger(){
   var closeAt=c.dates&&c.dates.announce_at;
   var closeStr=seatFmtD(closeAt);
   var offersStr=seatFmtD(c.dates&&c.dates.offers_at);
-  var html='';
+  /* Left and right are composed separately now, because the exit button below
+     has to land in the right-hand column of EVERY stage and three of the five
+     branches used to have no right-hand column at all. */
+  var left='',right='';
   if(aff==='leave'){
     var sub=(counts.need
       ?counts.have+' of '+counts.need+' households'
       :counts.have+' households')
       +(closeStr?' · joining closes '+closeStr:' · joining is open');
     var closing=Boolean(closeAt&&((closeAt-(Date.now()+SKEW))<=48*3600*1000));
-    html='<div class="sl__left"><span class="sl__dot"></span><span class="sl__lines">'
+    left='<div class="sl__left"><span class="sl__dot"></span><span class="sl__lines">'
       +'<b>Your seat is held in '+esc(region)+'</b>'
-      +'<span class="m">'+esc(sub)+'</span></span></div>'
-      +'<div class="sl__right">'
-      +(closing&&seatFmtDayTime(closeAt)?'<span class="sl__chip">Roster seals '+esc(seatFmtDayTime(closeAt))+'</span>':'')
-      +'<button class="sl__leave" type="button" data-seatleave-link="'+esc(c.id)+'">'
-      +'<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>'
-      +'Leave this cohort</button></div>';
+      +'<span class="m">'+esc(sub)+'</span></span></div>';
+    right=(closing&&seatFmtDayTime(closeAt)?'<span class="sl__chip">Roster seals '+esc(seatFmtDayTime(closeAt))+'</span>':'');
   }else if(aff==='locked'){
-    html='<div class="sl__left"><span class="sl__dot is-locked"></span><span class="sl__lines">'
+    left='<div class="sl__left"><span class="sl__dot is-locked"></span><span class="sl__lines">'
       +'<b>Roster sealed at '+esc(String(counts.have))+' households.</b>'
       +'<span class="m">Founding partners are pricing against this exact list, so it cannot change now.</span>'
       +'<p class="sl__note">You are still not committed to switch.'
@@ -7832,20 +7827,32 @@ function paintSeatLedger(){
       +' · <button class="tlink" type="button" data-seatnotifymove="'+esc(c.id)+'">Notify me when I can move</button></p>'
       +'</span></div>';
   }else if(aff==='pass'){
-    html='<div class="sl__left"><span class="sl__dot"></span><span class="sl__lines">'
+    left='<div class="sl__left"><span class="sl__dot"></span><span class="sl__lines">'
       +'<b>The offer is in for '+esc(region)+'</b>'
-      +'<span class="m">Take it, or pass and your address frees up the same day.</span></span></div>'
-      +'<div class="sl__right"><button class="btn ghost" type="button" data-seatpass="'+esc(c.id)+'">Pass on this round</button></div>';
+      +'<span class="m">Take it, or pass and your address frees up the same day.</span></span></div>';
+    right='<button class="btn ghost" type="button" data-seatpass="'+esc(c.id)+'">Pass on this round</button>';
   }else if(aff==='cancel'){
-    html='<div class="sl__left"><span class="sl__dot"></span><span class="sl__lines">'
+    left='<div class="sl__left"><span class="sl__dot"></span><span class="sl__lines">'
       +'<b>Confirmation window</b>'
       +'<span class="m">Back out, deposit returned. The controls are on the panel above.</span></span></div>';
   }else if(aff==='concierge'){
-    html='<div class="sl__left"><span class="sl__dot"></span><span class="sl__lines">'
+    left='<div class="sl__left"><span class="sl__dot"></span><span class="sl__lines">'
       +'<b>Your switch is in motion</b>'
-      +'<span class="m">Changes now go through a person, not a button.</span></span></div>'
-      +'<div class="sl__right"><a class="tlink" href="/contact">Message my concierge</a></div>';
+      +'<span class="m">Changes now go through a person, not a button.</span></span></div>';
+    right='<a class="tlink" href="/contact">Message my concierge</a>';
   }
+  /* The way out is never hidden. This button used to be painted only while the
+     cohort was forming, so from the moment the roster sealed the page offered
+     no control with the word "leave" on it - the exits still existed (pass,
+     back out, concierge) but a member had to know that to find them. The button
+     is now constant and what it OPENS is what the stage actually allows, which
+     keeps the promise honest without pretending a sealed roster can be edited. */
+  if(left){
+    right+='<button class="sl__leave" type="button" data-seatleave-link="'+esc(c.id)+'">'
+      +'<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>'
+      +'Leave this cohort</button>';
+  }
+  var html=left?left+'<div class="sl__right">'+right+'</div>':'';
   el.hidden=!html;
   paintOnce('seatledger',el,html);
 }
@@ -7930,9 +7937,79 @@ var SEAT_REASONS=[
   ['other_cohort','I want a different cohort'],
   ['changed_mind','I changed my mind']
 ];
+/* ---------- the exit, at the stages that are not "forming" ----------
+   Same door, different room behind it. A member who taps "Leave this cohort"
+   after the seal is not told "no": they are told what the seal means and given
+   the exit that genuinely exists at that point. Nothing here invents a server
+   action - every button routes to a flow the API already has. */
+var SEAT_STAGE_EXIT={
+  locked:{
+    title:function(r){return 'Leave the '+r+' cohort?'},
+    lede:'Joining closed and the roster sealed, so the seat itself cannot be released right now. Here is what that does and does not mean.',
+    rows:[
+      ['lose','Partners are pricing against this exact list of addresses. Pulling one out now would change the thing they are bidding on.'],
+      ['keep','You are still not committed to switch. When the offer lands you can decline it, and your address frees the same day.'],
+      ['keep','Nothing is owed either way, and declining does not count against you in a later cohort.']
+    ],
+    act:{kind:'notify',label:'Tell me when I can leave'}
+  },
+  pass:{
+    title:function(r){return 'Leave the '+r+' cohort?'},
+    lede:'The offer is in, so leaving this round means passing on it. That is a real exit and it costs nothing.',
+    rows:[
+      ['keep','Pass and your address frees up the same day. You keep your current plan.'],
+      ['keep','Nothing is owed. Your promo cliff watch keeps running.'],
+      ['keep','We flag the next cohort for your region when it forms, and joining again is free.']
+    ],
+    act:{kind:'pass',label:'Pass on this round'}
+  },
+  cancel:{
+    title:function(){return 'Back out of the switch?'},
+    lede:'You are inside the confirmation window, so this is a cancel rather than a leave, and your deposit comes back.',
+    rows:[
+      ['keep','Your deposit is returned in full.'],
+      ['keep','You keep your current plan and nothing changes on your line.'],
+      ['lose','The controls sit on the campaign panel, so the cancel is confirmed there rather than here.']
+    ],
+    act:{kind:'panel',label:'Take me to the controls'}
+  },
+  concierge:{
+    title:function(){return 'Leave while the switch is in motion?'},
+    lede:'Your order is already with the provider, so this stage is handled by a person rather than a button.',
+    rows:[
+      ['lose','An order in flight cannot be cancelled from the dashboard without stranding the line.'],
+      ['keep','Your concierge can stop or unwind it, and will tell you exactly what each option costs.'],
+      ['keep','Reaching them is the fastest route: weekdays, usually within the hour.']
+    ],
+    act:{kind:'concierge',label:'Message my concierge'}
+  }
+};
+function seatExitStageOpen(c,aff){
+  var spec=SEAT_STAGE_EXIT[aff];
+  if(!spec){paintSeatLedger();return}
+  var region=c.region||c.id;
+  var cross='<svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+  var check='<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>';
+  var html='<span class="sxs__eyebrow">Before you go</span>'
+    +'<h3 id="sxs-title">'+esc(spec.title(region))+'</h3>'
+    +'<p class="sxs__lede">'+esc(spec.lede)+'</p>'
+    +'<ul class="sxs__list">'
+    +spec.rows.map(function(r){
+      return '<li class="'+r[0]+'">'+(r[0]==='lose'?cross:check)+'<span>'+esc(r[1])+'</span></li>';
+    }).join('')
+    +'</ul>'
+    +'<div class="sxs__actions">'
+    +'<button class="btn ghost" type="button" data-stsclose>Stay in the cohort</button>'
+    +'<button class="btn terra" type="button" data-seatstageact="'+esc(spec.act.kind)+'" data-seatstagecamp="'+esc(c.id)+'">'+esc(spec.act.label)+'</button>'
+    +'</div>';
+  seatSheetOpen(html,null,'.sxs__actions button');
+  seatSheetEl.setAttribute('data-kind','exit');
+  sTrack('seat_exit_intent',{campaign:c.id,stage:aff});
+}
 function seatExitOpen(id,pendingTargetId){
   var c=campById(id);if(!c)return;
-  if(seatAffordance()!=='leave'){paintSeatLedger();return}
+  var _aff=seatAffordance();
+  if(_aff!=='leave'){seatExitStageOpen(c,_aff);return}
   var region=c.region||c.id;
   var counts=seatCounts(c);
   var dateStr=seatFmtD(c.dates&&c.dates.announce_at);
@@ -8164,6 +8241,24 @@ document.addEventListener('click',function(e){
     openModal('<div class="mhead"><h3>What if I do not want to switch?</h3>'
       +'<button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
       +'<p class="msub">You are not committed to anything. When the offer lands you can take it or pass, and passing costs nothing.</p>',true);
+    return;
+  }
+  /* The stage exits all close the sheet first: openPass() and the modal below
+     both mount their own layer, and two stacked sheets trap focus in the wrong
+     one. */
+  if((t=e.target.closest('[data-seatstageact]'))){
+    var _kind=t.getAttribute('data-seatstageact');
+    var _cid=t.getAttribute('data-seatstagecamp');
+    sTrack('seat_exit_stage_act',{campaign:_cid,act:_kind});
+    seatSheetClose('stageact');
+    if(_kind==='pass'){ if(typeof openPass==='function')openPass(); return }
+    if(_kind==='notify'){ toast('Noted. We’ll text you the moment your seat can move again.',5000); return }
+    if(_kind==='concierge'){ location.href='/contact'; return }
+    if(_kind==='panel'){
+      var _p=document.getElementById('campname');
+      if(_p&&_p.scrollIntoView)_p.scrollIntoView({behavior:'smooth',block:'center'});
+      return;
+    }
     return;
   }
   if((t=e.target.closest('[data-seatnotifymove]'))){
