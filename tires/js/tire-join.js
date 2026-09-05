@@ -330,7 +330,14 @@
     /* Mobile is optional on this form by design, and the route matches that.
        Validated only when something was typed, so a half-typed number is
        caught here rather than saved as digits nobody can call. */
-    if (mob.value.trim() && String(mob.value).replace(/\D/g, '').replace(/^1/, '').length !== 10) {
+    /* The leading 1 is a country code only when there are eleven digits.
+       Stripping it unconditionally turned every ten digit number starting
+       with a 1 into nine, and told the reader their ten digits were not ten
+       digits. normalizePhone() on the route has always read it this way, and
+       this function is meant to mirror the route, not argue with it. */
+    var mobDigits = String(mob.value).replace(/\D/g, '');
+    if (mobDigits.length === 11 && mobDigits.charAt(0) === '1') mobDigits = mobDigits.slice(1);
+    if (mob.value.trim() && mobDigits.length !== 10) {
       fail(mob, 'a 10-digit mobile number, or nothing at all');
     }
     if (!consent.checked) { mark(consent, true); problems.push('your agreement to be emailed about your cohort'); if (!focus) focus = consent; }
