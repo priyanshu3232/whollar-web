@@ -287,13 +287,12 @@ button{font-family:var(--body)}
         <button class="submit" type="submit" id="signin-cta">Sign in</button>
         </form>
 
-        <!-- Opens the in-page signup view. The home page's "Join the First
-             Cohort" lands on that view directly (?view=signup, below), and
-             this is the way there for someone who arrived at sign-in first.
-             Account creation here takes an email and a password; postal code
-             and the rest are asked for on the dashboard, which already carries
-             a card for a member with no postal code on file. -->
-        <p class="foot-switch">New to Whollar? <button type="button" class="linkbtn" id="to-signup">Create an account</button></p>
+        <!-- A link to the founding-member page (/waitlist/), not the in-page
+             signup view: account creation lives there, with the full pitch
+             around it. This link was the signup view's only entry point, so
+             that view and its code step are now unreachable, kept in the
+             file but dead until someone re-links or removes them. -->
+        <p class="foot-switch">New to Whollar? <a class="linkbtn" href="/waitlist">Create an account</a></p>
       </section>
 
       <!-- CREATE ACCOUNT -->
@@ -586,22 +585,6 @@ function showView(name) {
   if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
 }
 
-/* The home page's "Join the First Cohort" links here with ?view=signup and
-   should open on "Create your account", not on sign-in with a link to find.
-   Anything else, or nothing, is the sign-in view the markup already shows.
-   A signed-in member never sees either: the adopt() redirect above wins.
-   Not showView(): that moves focus to the heading, which is right after a
-   button press and a stray focus ring on a page that just opened. Sits
-   below VIEWS on purpose: that is a var, so above it the name exists and
-   the value does not, and the throw takes every handler on the page down
-   with it. */
-(function(){
-  if(new URLSearchParams(location.search).get('view')!=='signup') return;
-  VIEWS.forEach(function (v) {
-    document.getElementById(v).classList.toggle('hidden', v !== 'signup');
-  });
-})();
-
 function setErr(id, msg) {
   var el = document.getElementById(id);
   if (!el) return;
@@ -760,9 +743,6 @@ function serverMessage(err) {
 
 document.getElementById('to-signin').addEventListener('click', function () {
   clearErr('signup-err'); showView('signin');
-});
-document.getElementById('to-signup').addEventListener('click', function () {
-  clearErr('signin-err'); showView('signup');
 });
 document.getElementById('to-forgot').addEventListener('click', function () {
   clearErr('signin-err');
