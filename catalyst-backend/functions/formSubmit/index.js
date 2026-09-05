@@ -728,6 +728,7 @@ const TIRE_WAVE_SIZE = 250;                 // matches CFG.waveSize in tires/js/
 const REF_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';  // no I, O, 0 or 1: these get read aloud
 const CITY_CODES = { gta: 'GTA', ottawa: 'OTT', montreal: 'MTL', calgary: 'CAL',
   vancouver: 'VAN', edmonton: 'EDM', other: 'OTH' };
+const bool = v => (v === true || str(v) === 'true' ? 'true' : 'false');
 
 function tireRef(city) {
   let tail = '';
@@ -781,6 +782,171 @@ async function bumpTireCounter(catalystApp, city) {
   }
 }
 
+// The side tables, written the same way whichever save carries them: the hold
+// on the quick path, which arrives with everything at once, and the profile
+// save on the guided path, which arrives later against a reference that already
+// exists. Nothing in here may fail the request. The household is on the list
+// either way, and losing a car to a bad column is not a reason to tell them
+// they are not.
+//
+// Windows are capped because every one is its own concurrent insert; the page
+// keeps the full list of days in details.payload.days so nothing is lost.
+const TIRE_WINDOW_CAP = 31;
+async function writeTireProfile(catalystApp, ReferenceCode, email, b, now) {
+  const vehicles = Array.isArray(b.vehicles) ? b.vehicles.slice(0, 6) : [];
+  const windows = Array.isArray(b.windows) ? b.windows.slice(0, TIRE_WINDOW_CAP) : [];
+  const toolRuns = Array.isArray(b.toolRuns) ? b.toolRuns.slice(0, 4) : [];
+  const details = b.details && typeof b.details === 'object' ? b.details : null;
+  const later = [];
+  vehicles.forEach((v, i) => {
+    later.push(insertTolerant(catalystApp, 'TireWaitlistVehicles', {
+      VehicleKey: `${ReferenceCode}:${i + 1}`,
+      ReferenceCode,
+      Email: emailKey(email),
+      InputMode: str(v.inputMode) || 'unsure',
+      VehicleYear: orNull(str(v.year)),
+      VehicleMake: orNull(str(v.make)),
+      VehicleModel: orNull(str(v.model)),
+      Vin: orNull(str(v.vin).toUpperCase()),
+      TireSize: orNull(str(v.tireSize)),
+      SizeNormalized: orNull(str(v.sizeNormalized)),
+      Strategy: orNull(str(v.strategy)),
+      RunsWinterNow: orNull(str(v.runsWinterNow)),
+      OwnsRims: orNull(str(v.ownsRims)),
+      SubmittedAt: now,
+      StartingPoint: orNull(str(v.startingPoint)),
+      TireLifeLeft: orNull(str(v.tireLifeLeft)),
+      VehicleTrim: orNull(str(v.trim).slice(0, 80)),
+      WinterSizeChosen: orNull(str(v.winterSizeChosen)),
+      SizeDownsized: v.sizeDownsized == null ? null : bool(v.sizeDownsized),
+      // The record that the "confirm this against your own car" disclaimer
+      // was shown and accepted. The one field here with a consequence
+      // outside the database, so it is written even when it is false.
+      SizeAck: v.sizeAck == null ? null : bool(v.sizeAck),
+      Staggered: v.staggered == null ? null : bool(v.staggered),
+      TpmsPresent: orNull(str(v.tpmsPresent)),
+      RimsRecommendation: orNull(str(v.rimsRecommendation))
+    }, [['StartingPoint', 'TireLifeLeft', 'VehicleTrim', 'WinterSizeChosen', 'SizeDownsized',
+         'SizeAck', 'Staggered', 'TpmsPresent', 'RimsRecommendation']]));
+  });
+
+  if (details) {
+    later.push(insertTolerant(catalystApp, 'TireWaitlistDetails', {
+      ReferenceCode,
+      Email: emailKey(email),
+      Needs: orNull(str(details.needs)),
+      Tier: orNull(str(details.tier)),
+      Brand: orNull(str(details.brand)),
+      Budget: orNull(str(details.budget)),
+      Financing: orNull(str(details.financing)),
+      InstallerType: orNull(str(details.installerType)),
+      SplitPreference: orNull(str(details.splitPreference)),
+      InstallWindows: orNull(str(details.installWindows).slice(0, 255)),
+      NotBefore: orNull(str(details.notBefore)),
+      MustBeOnBy: orNull(str(details.mustBeOnBy)),
+      Memberships: orNull(str(details.memberships)),
+      Priorities: orNull(str(details.priorities)),
+      Readiness: orNull(str(details.readiness)),
+      Notes: orNull(str(details.notes).slice(0, 4000)),
+      // Everything the form asked that has no column of its own, so a new
+      // question is not a schema change and a console visit.
+      Payload: json(details.payload ?? null),
+      SubmittedAt: now,
+      BrandLine: orNull(str(details.brandLine)),
+      TravelRadius: orNull(str(details.travelRadius)),
+      InstallerName: orNull(str(details.installerName)),
+      InstallerAddress: orNull(str(details.installerAddress)),
+      InstallerPostal: orNull(str(details.installerPostal).toUpperCase()),
+      InsuranceHelp: details.insuranceHelp == null ? null : bool(details.insuranceHelp),
+      InsurerProvince: orNull(str(details.insurerProvince)),
+      PremiumAnnual: toNumber(details.premiumAnnual)
+    }, [['BrandLine', 'TravelRadius', 'InstallerName', 'InstallerAddress', 'InstallerPostal',
+         'InsuranceHelp', 'InsurerProvince', 'PremiumAnnual']]));
+  }
+
+  windows.forEach((w, i) => {
+    const rank = Number(w.rank) || i + 1;
+    later.push(insertTolerant(catalystApp, 'TireInstallWindows', {
+      WindowKey: `${ReferenceCode}:${rank}`,
+      ReferenceCode,
+      Email: emailKey(email),
+      WindowDate: str(w.date),
+      Slot: str(w.slot) || 'any',
+      // The order they picked, not the order of the dates. Someone whose
+      // first choice is the latest date is telling you something, and a sort
+      // by date would lose it.
+      Rank: rank,
+      SubmittedAt: now
+    }));
+  });
+
+  toolRuns.forEach((t) => {
+    later.push(insertTolerant(catalystApp, 'TireToolRuns', {
+      RunKey: `${ReferenceCode}:${str(t.tool)}`,
+      ReferenceCode,
+      Tool: str(t.tool),
+      InputJson: json(t.input ?? null).slice(0, 2000),
+      // What we told them, on a date, about their money. If an insurance
+      // estimate is ever disputed this is the only record of what was said.
+      OutputJson: json(t.output ?? null).slice(0, 2000),
+      RanAt: now
+    }));
+  });
+
+  const results = await Promise.allSettled(later);
+  const failed = results.filter(r => r.status === 'rejected');
+  return { total: later.length, failed: failed.length, reason: failed.length ? failed[0].reason : null };
+}
+
+// The guided path on tires.whollar.ca saves twice: once to hold the spot, which
+// is a complete signup on its own, and again to attach the profile. The second
+// save must not create a second household, so it carries the reference the
+// first one returned. The email has to match the one on that row: without the
+// check, knowing a reference (they are read aloud to support) would be enough
+// to write a car and a set of dates onto somebody else's spot.
+//
+// It does not touch the counter: the position was taken at the hold, and
+// finishing a profile must not move anybody. It does not enqueue for the CRM:
+// the household is already queued from the hold.
+async function tireProfile(req, res, b) {
+  const email = str(b.email);
+  const reference = str(b.reference).toUpperCase();
+  if (!/^WHL-TIRE-[A-Z]{3}-[A-HJ-NP-Z2-9]{4}$/.test(reference)) return badRequest(res, 'That reference does not look right.');
+  if (!isEmail(email)) return badRequest(res, 'A valid email is required.');
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const lit = reference.replace(/'/g, "''");
+    const rows = await catalystApp.zcql().executeZCQLQuery(
+      `SELECT ROWID, Email, Wave FROM TireWaitlistSignups WHERE ReferenceCode = '${lit}' LIMIT 1`);
+    const found = rows && rows[0] && rows[0].TireWaitlistSignups;
+    if (!found || emailKey(found.Email) !== emailKey(email)) {
+      return res.status(404).json({ ok: false, error: 'We could not find that spot. Check the reference and the email.' });
+    }
+    const now = catalystNow();
+    const saved = await writeTireProfile(catalystApp, reference, email, b, now);
+    if (saved.failed) {
+      console.error(`[formSubmit] tire profile: ${saved.failed} of ${saved.total} ` +
+        `side tables failed for ${reference}:`, saved.reason);
+    }
+    // The two consents the profile asks that the hold could not: whether the
+    // installers may see the postal code, vehicle and dates, and whether the
+    // household wants to hear about an internet cohort. Columns, not a blob,
+    // because the installer-sharing rule reads the column. Best effort.
+    try {
+      await catalystApp.datastore().table('TireWaitlistSignups').updateRow({
+        ROWID: found.ROWID,
+        ConsentShare: bool(b.consentShare),
+        AlsoInternet: bool(b.alsoInternet)
+      });
+    } catch (err) {
+      console.error(`[formSubmit] tire profile: consent columns not updated for ${reference}:`, err);
+    }
+    return res.status(200).json({ ok: true, reference, wave: found.Wave == null ? null : Number(found.Wave) });
+  } catch (err) {
+    return serverError(res, err, 'tire-waitlist-join profile');
+  }
+}
+
 app.post('/tire-waitlist-join', limit({ key: 'tire-waitlist-join', max: 20, windowSec: 3600 }), async (req, res) => {
   const b = req.body || {};
   const firstName = str(b.firstName);
@@ -789,6 +955,12 @@ app.post('/tire-waitlist-join', limit({ key: 'tire-waitlist-join', max: 20, wind
   const city = str(b.city).toLowerCase();
   const path = str(b.path);
   const postal = normalizePostal(b.postalFull || b.fsa);
+
+  // A profile save is the second half of the guided path. The household is
+  // already on the list, so none of the identity rules below apply to it, and
+  // none of them may run: re-validating a name could only refuse a save the
+  // household cannot fix from where they are.
+  if (str(b.stage) === 'profile') return tireProfile(req, res, b);
 
   // Mirrors what the page checks in its own words, so a form that would fail
   // here has already said so there. The phone is deliberately NOT required:
@@ -800,11 +972,10 @@ app.post('/tire-waitlist-join', limit({ key: 'tire-waitlist-join', max: 20, wind
   if (!CITY_CODES[city]) return badRequest(res, 'Pick the area you park in.');
   if (path !== 'quick' && path !== 'guided') return badRequest(res, 'path must be quick or guided.');
 
-  const bool = v => (v === true || str(v) === 'true' ? 'true' : 'false');
+  // Read here only for what the CRM payload counts. The rows themselves are
+  // written by writeTireProfile, which reads the same fields off the same body.
   const vehicles = Array.isArray(b.vehicles) ? b.vehicles.slice(0, 6) : [];
-  const windows = Array.isArray(b.windows) ? b.windows.slice(0, 5) : [];
-  const toolRuns = Array.isArray(b.toolRuns) ? b.toolRuns.slice(0, 4) : [];
-  const details = b.details && typeof b.details === 'object' ? b.details : null;
+  const windows = Array.isArray(b.windows) ? b.windows.slice(0, TIRE_WINDOW_CAP) : [];
 
   try {
     const catalystApp = catalyst.initialize(req);
@@ -838,110 +1009,10 @@ app.post('/tire-waitlist-join', limit({ key: 'tire-waitlist-join', max: 20, wind
       Wave: wave
     });
 
-    // Everything after the signup is best effort in the sense that a failure
-    // is logged and not raised: the household is already on the list, and
-    // losing a car to a bad column is not a reason to tell them they are not.
-    const later = [];
-    vehicles.forEach((v, i) => {
-      later.push(insertTolerant(catalystApp, 'TireWaitlistVehicles', {
-        VehicleKey: `${ReferenceCode}:${i + 1}`,
-        ReferenceCode,
-        Email: emailKey(email),
-        InputMode: str(v.inputMode) || 'unsure',
-        VehicleYear: orNull(str(v.year)),
-        VehicleMake: orNull(str(v.make)),
-        VehicleModel: orNull(str(v.model)),
-        Vin: orNull(str(v.vin).toUpperCase()),
-        TireSize: orNull(str(v.tireSize)),
-        SizeNormalized: orNull(str(v.sizeNormalized)),
-        Strategy: orNull(str(v.strategy)),
-        RunsWinterNow: orNull(str(v.runsWinterNow)),
-        OwnsRims: orNull(str(v.ownsRims)),
-        SubmittedAt: now,
-        StartingPoint: orNull(str(v.startingPoint)),
-        TireLifeLeft: orNull(str(v.tireLifeLeft)),
-        VehicleTrim: orNull(str(v.trim).slice(0, 80)),
-        WinterSizeChosen: orNull(str(v.winterSizeChosen)),
-        SizeDownsized: v.sizeDownsized == null ? null : bool(v.sizeDownsized),
-        // The record that the "confirm this against your own car" disclaimer
-        // was shown and accepted. The one field here with a consequence
-        // outside the database, so it is written even when it is false.
-        SizeAck: v.sizeAck == null ? null : bool(v.sizeAck),
-        Staggered: v.staggered == null ? null : bool(v.staggered),
-        TpmsPresent: orNull(str(v.tpmsPresent)),
-        RimsRecommendation: orNull(str(v.rimsRecommendation))
-      }, [['StartingPoint', 'TireLifeLeft', 'VehicleTrim', 'WinterSizeChosen', 'SizeDownsized',
-           'SizeAck', 'Staggered', 'TpmsPresent', 'RimsRecommendation']]));
-    });
-
-    if (details) {
-      later.push(insertTolerant(catalystApp, 'TireWaitlistDetails', {
-        ReferenceCode,
-        Email: emailKey(email),
-        Needs: orNull(str(details.needs)),
-        Tier: orNull(str(details.tier)),
-        Brand: orNull(str(details.brand)),
-        Budget: orNull(str(details.budget)),
-        Financing: orNull(str(details.financing)),
-        InstallerType: orNull(str(details.installerType)),
-        SplitPreference: orNull(str(details.splitPreference)),
-        InstallWindows: orNull(str(details.installWindows).slice(0, 255)),
-        NotBefore: orNull(str(details.notBefore)),
-        MustBeOnBy: orNull(str(details.mustBeOnBy)),
-        Memberships: orNull(str(details.memberships)),
-        Priorities: orNull(str(details.priorities)),
-        Readiness: orNull(str(details.readiness)),
-        Notes: orNull(str(details.notes).slice(0, 4000)),
-        // Everything the form asked that has no column of its own, so a new
-        // question is not a schema change and a console visit.
-        Payload: json(details.payload ?? null),
-        SubmittedAt: now,
-        BrandLine: orNull(str(details.brandLine)),
-        TravelRadius: orNull(str(details.travelRadius)),
-        InstallerName: orNull(str(details.installerName)),
-        InstallerAddress: orNull(str(details.installerAddress)),
-        InstallerPostal: orNull(str(details.installerPostal).toUpperCase()),
-        InsuranceHelp: details.insuranceHelp == null ? null : bool(details.insuranceHelp),
-        InsurerProvince: orNull(str(details.insurerProvince)),
-        PremiumAnnual: toNumber(details.premiumAnnual)
-      }, [['BrandLine', 'TravelRadius', 'InstallerName', 'InstallerAddress', 'InstallerPostal',
-           'InsuranceHelp', 'InsurerProvince', 'PremiumAnnual']]));
-    }
-
-    windows.forEach((w, i) => {
-      const rank = Number(w.rank) || i + 1;
-      later.push(insertTolerant(catalystApp, 'TireInstallWindows', {
-        WindowKey: `${ReferenceCode}:${rank}`,
-        ReferenceCode,
-        Email: emailKey(email),
-        WindowDate: str(w.date),
-        Slot: str(w.slot) || 'any',
-        // The order they picked, not the order of the dates. Someone whose
-        // first choice is the latest date is telling you something, and a sort
-        // by date would lose it.
-        Rank: rank,
-        SubmittedAt: now
-      }));
-    });
-
-    toolRuns.forEach((t) => {
-      later.push(insertTolerant(catalystApp, 'TireToolRuns', {
-        RunKey: `${ReferenceCode}:${str(t.tool)}`,
-        ReferenceCode,
-        Tool: str(t.tool),
-        InputJson: json(t.input ?? null).slice(0, 2000),
-        // What we told them, on a date, about their money. If an insurance
-        // estimate is ever disputed this is the only record of what was said.
-        OutputJson: json(t.output ?? null).slice(0, 2000),
-        RanAt: now
-      }));
-    });
-
-    const results = await Promise.allSettled(later);
-    const failed = results.filter(r => r.status === 'rejected');
-    if (failed.length) {
-      console.error(`[formSubmit] tire-waitlist-join: ${failed.length} of ${later.length} ` +
-        `side tables failed for ${ReferenceCode}:`, failed[0].reason);
+    const saved = await writeTireProfile(catalystApp, ReferenceCode, email, b, now);
+    if (saved.failed) {
+      console.error(`[formSubmit] tire-waitlist-join: ${saved.failed} of ${saved.total} ` +
+        `side tables failed for ${ReferenceCode}:`, saved.reason);
     }
 
     await enqueueCrm(catalystApp, {
@@ -951,6 +1022,8 @@ app.post('/tire-waitlist-join', limit({ key: 'tire-waitlist-join', max: 20, wind
         firstName, lastName,
         phone: normalizePhone(b.phone),
         fsa: postal.fsa, postal: postal.full,
+        // Asked only for "Somewhere else"; everywhere else the city says it.
+        province: orNull(str(b.province).toUpperCase().slice(0, 2)),
         city, path, wave,
         // The field the CRM already carries for which product a household is
         // here for. A tire household lands on the same record shape as one
@@ -965,7 +1038,11 @@ app.post('/tire-waitlist-join', limit({ key: 'tire-waitlist-join', max: 20, wind
       }
     });
 
-    res.status(200).json({ ok: true, reference: ReferenceCode, wave });
+    // `joined` is the counted position. Returned so a later page can use it
+    // and deliberately not printed by this one: the counter is a sidecar that
+    // drifts low under concurrency, so it is good for a wave and never for a
+    // number a household would quote.
+    res.status(200).json({ ok: true, reference: ReferenceCode, wave, joined });
   } catch (err) {
     serverError(res, err, 'tire-waitlist-join');
   }
