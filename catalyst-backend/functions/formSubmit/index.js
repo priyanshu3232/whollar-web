@@ -1519,15 +1519,33 @@ app.post('/waitlist-email', limit({ key: 'waitlist-email', max: 20, windowSec: 3
     // they were already on it. Answering 500 would tell them their submission
     // failed and invite a third attempt.
     //
-    // The match is broad and the real error shape is logged whenever an insert
-    // fails, because this backend has never inspected a Catalyst duplicate
-    // error and the wording is the store's to choose. A duplicate this misses
-    // reaches the popup as "that did not go through", and the log line below
-    // is how the pattern gets corrected from the Development logs.
-    const text = `${(err && err.code) || ''} ${(err && err.message) || ''}`;
-    if (/duplicate|unique|already.?exists/i.test(text)) {
-      return res.status(200).json({ ok: true, duplicate: true });
+    // WHY THIS RE-READS INSTEAD OF MATCHING THE ERROR. It matched
+    // /duplicate|unique|already.?exists/ on the error text first, and a live
+    // double submission on 2026-09-05 answered 500: Catalyst words it as
+    // something else, and this backend has never had a reason to learn which
+    // words. Asking the store whether the row is there answers the real
+    // question, and it keeps answering it if Zoho ever rewrites the message.
+    //
+    // The read-after-write hazard that bit the notify outbox does not apply:
+    // the row being looked for was written by an EARLIER request, not by this
+    // one, so there is nothing to be eventually consistent about.
+    try {
+      const catalystApp = catalyst.initialize(req);
+      // ZCQL has no parameter binding, so the literal is escaped by doubling
+      // the quote. `key` came through isEmail and `product` off a closed list,
+      // and this is the belt to that pair of braces.
+      const lit = `${key}:${product}`.replace(/'/g, "''");
+      const rows = await catalystApp.zcql().executeZCQLQuery(
+        `SELECT ROWID FROM WaitlistEmails WHERE EmailKey = '${lit}' LIMIT 1`);
+      const found = rows && rows[0] && rows[0].WaitlistEmails;
+      if (found) return res.status(200).json({ ok: true, duplicate: true, id: found.ROWID });
+    } catch (err2) {
+      console.error('[formSubmit] waitlist-email duplicate re-read failed:', err2);
     }
+    // Not a duplicate, so the insert failed for a reason worth seeing. The
+    // shape is logged in full because a missing column and an unreachable
+    // store read identically from the popup, which only ever says that the
+    // submission did not go through.
     console.error('[formSubmit] waitlist-email insert error shape:', {
       code: err && err.code, message: String((err && err.message) || err).slice(0, 300)
     });
