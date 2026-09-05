@@ -194,8 +194,12 @@ WhollarTireLandingPage
 whollar-waitlist-tyre.html
 # The canvas exported as one self-unpacking file. Same page, same reasons, and
 # it is not covered by the two lines above because it sits at the root under
-# its own name.
+# its own name. The glob catches the copies a second export drops beside it
+# ("... (standalone)-2.html"), which the exact name did not: a 3 MB design
+# export with no guard and no noindex, published at its own path by cleanUrls.
 WhollarWinterTires (standalone).html
+Whollar-Winter-Tires-*.html
+Whollar-Landing-Page-*.html
 
 # The winter tire vertical. tires/ deploys as its OWN Vercel project with its
 # root directory set to tires/, serving tires.whollar.ca. Same reason as home/

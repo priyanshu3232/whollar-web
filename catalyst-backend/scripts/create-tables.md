@@ -2970,3 +2970,83 @@ would have caught the silence this section fixes:
 SELECT VoteId, Product, SubmittedAt FROM ProductVotes
   ORDER BY SubmittedAt DESC LIMIT 10
 ```
+
+## 39. The waitlist popup: one table
+
+All three hosts carry a corner card that asks for an email and nothing else
+(`js/referral-popup.js`, held byte identical in `1whollar`, `whollar-home` and
+`whollar-tires`). `POST /waitlist-email` on the **formSubmit** function records
+what it collects.
+
+**Why not `WaitlistSignups`.** That table's `FirstName`, `LastName`, `Phone`
+and `FSA` are mandatory, and `/waitlist-join` refuses a submission without all
+four, correctly: a household joining a cohort in a place we serve needs every
+one of them. The popup asks one question. Posting it at that route would 400 on
+four fields it never collected, and relaxing those columns to let it through
+would weaken the door that matters to widen the one that does not.
+
+**Why not a referral table.** Nothing here mints a referral code. A code in
+this backend belongs to a **member**: `lib/referral.js` issues it into
+`referral_token` (section 24) and only resolves rows whose `owner_type` is
+`member`, so a code handed to an unverified address would resolve to nobody and
+every referral made with it would count zero. `Referral` below is stored as it
+arrived, for reporting only. The lane that decides attribution is still signup
+writing `users.referral_code`, and the popup does not touch it.
+
+**PascalCase, like every other formSubmit table.** Same warning as sections 35,
+37 and 38: rule 2 at the top of this document governs the auth tables, and this
+is not one. `Email`, not `email`.
+
+**Silent-skip contract:** `Referral`, `SourcePage`, `Host` and `CtaStep` are one
+optional group passed to `insertTolerant`, so rows still land on a store that
+has only the mandatory columns. `EmailKey`, `Email`, `Product`, `ConsentText`,
+`ConsentAt` and `SubmittedAt` are **not** optional. An address kept without the
+sentence agreed to is an address we cannot lawfully mail, so it is better to
+lose the row than to keep it unmailable.
+
+**Until this table exists the route returns a 500 and the popup says the
+submission did not go through**, keeping the field on screen with what was
+typed still in it, and it does not write the `whl_cta=joined` cookie. Nothing
+thanks anybody for a submission that was dropped.
+
+### 39a. `WaitlistEmails` (new table)
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `EmailKey` | Var Char | 280 | ✅ | ✅ | ✅ | `` `${Email}:${Product}` ``: a flattened composite, the same trick as `ProductVotes.VoteKey` and `campaign_members.membership_key`, because the store has no composite unique. One row per address per product, so somebody who holds a spot on the tire page and again on the internet page is two rows and one person, and somebody who submits the same page twice is one row and one `ok` |
+| `Email` | Var Char | 254 | | ✅ | ✅ | lowercased on write. Every table in this backend joins on the lowercased address, because ZCQL has no `LOWER()` and Zoho's equals is not reliably case-insensitive |
+| `Product` | Var Char | 16 | | ✅ | | `home`, `tires` or `internet`. **The host that asked, not what they said they wanted**: the popup has no product question, so this records which page the ask was made on and nothing more. An unrecognised value is stored as `home` rather than refused |
+| `CtaStep` | Var Char | 1 | | | | `1` or `2`. Which of the popup's two asks converted, and the one number that says whether the second ask earns its place. `SELECT CtaStep, COUNT(ROWID) FROM WaitlistEmails GROUP BY CtaStep` |
+| `Referral` | Var Char | 64 | | | | the `?ref=` this page load carried, **as typed**, the same contract as `TireWaitlistSignups.ReferralCode`. Never normalised here: `whollar-core.js` and `lib/token.js` already hold two mirrored copies of the check-digit algorithm and a third would be a third thing to keep in step, for a column that is read by people and not by a count |
+| `SourcePage` | Var Char | 120 | | | | the path the ask was made on, e.g. `/` or `/bill-checkup` |
+| `Host` | Var Char | 64 | | | | from the request `Origin`, scheme stripped. `Product` is derived from the same fact by the browser, and this is the server's own reading of it: the two disagreeing is how a misconfigured copy of the widget gets noticed |
+| `ConsentText` | Text | 4000 | | ✅ | | the exact sentence agreed to. CASL needs what, when and where a year later, and a checkbox state proves none of the three |
+| `ConsentAt` | Date Time | | | ✅ | | server clock, never the browser's |
+| `SubmittedAt` | Date Time | | | ✅ | | server clock, never the browser's |
+
+No name and no phone column, and that is deliberate. The popup asks one
+question, a column nobody fills is a column someone later assumes is populated,
+and the place to collect the rest is `/join`, which the done state links to.
+
+### 39b. What to run once it exists
+
+Whether anything is arriving at all, which is the check that catches a widget
+deployed against a table that does not exist yet:
+
+```sql
+SELECT Email, Product, CtaStep, SubmittedAt FROM WaitlistEmails
+  ORDER BY SubmittedAt DESC LIMIT 10
+```
+
+Whether the second ask earns its build:
+
+```sql
+SELECT CtaStep, COUNT(ROWID) FROM WaitlistEmails GROUP BY CtaStep
+```
+
+And which host is doing the collecting:
+
+```sql
+SELECT Product, COUNT(ROWID) FROM WaitlistEmails GROUP BY Product
+  ORDER BY COUNT(ROWID) DESC
+```

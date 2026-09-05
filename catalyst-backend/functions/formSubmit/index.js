@@ -1445,4 +1445,94 @@ app.post('/city-request', limit({ key: 'city-request', max: 20, windowSec: 3600 
   }
 });
 
+// The waitlist popup's one field. Table: WaitlistEmails (create-tables.md 39).
+//
+// WHY THIS IS NOT /waitlist-join. That route asks for a first name, a last
+// name, a phone number and a postal code, and refuses the submission without
+// all four, because a household joining a cohort in a place we serve needs
+// every one of them. The popup asks for an address and nothing else, so it
+// would 400 on four fields it never collected. Two doors, two shapes, and the
+// popup's door is deliberately the smaller one.
+//
+// WHAT THIS ROUTE IS NOT. It is not a referral system. `Referral` is stored
+// exactly as it arrived, for reporting, and no code is minted here: a referral
+// code in this backend belongs to a member row, is issued by lib/referral.js
+// into `referral_token`, and is spent by signup writing users.referral_code.
+// An address in a popup is none of those things. The popup's done state says
+// so and points at /join.
+//
+// EmailKey is `${email}:${product}`, the flattened composite the store needs
+// because it has no composite unique, the same trick as ProductVotes.VoteKey.
+// One row per address per product: somebody who holds a spot on the tire page
+// and again on the internet page is two rows and one person, and somebody who
+// submits the same page twice is one row and one ok.
+app.post('/waitlist-email', limit({ key: 'waitlist-email', max: 20, windowSec: 3600 }), async (req, res) => {
+  const b = req.body || {};
+  const email = str(b.email);
+  // A closed list for the same reason every other closed list here exists: it
+  // becomes a reporting bucket, and a value nobody knows about is a bucket
+  // nobody counts. Anything unrecognised is the umbrella.
+  const product = ['home', 'tires', 'internet'].includes(str(b.product).toLowerCase())
+    ? str(b.product).toLowerCase() : 'home';
+  // 1 or 2: which of the popup's two asks converted. The one number that says
+  // whether the second ask earns its place.
+  const ctaStep = ['1', '2'].includes(str(b.ctaStep)) ? str(b.ctaStep) : '1';
+
+  if (!isEmail(email)) return badRequest(res, 'A valid email is required.');
+
+  const key = emailKey(email);
+
+  try {
+    const catalystApp = catalyst.initialize(req);
+    // Referral, CtaStep, SourcePage and Host are one optional group: a store
+    // that has only the mandatory columns still records the address, which is
+    // the thing that must not be lost. ConsentText and ConsentAt are NOT
+    // optional, because an address kept without the sentence agreed to is an
+    // address we cannot lawfully mail.
+    const row = await insertTolerant(catalystApp, 'WaitlistEmails', {
+      EmailKey: `${key}:${product}`,
+      Email: key,
+      Product: product,
+      CtaStep: ctaStep,
+      Referral: str(b.referral).slice(0, 64) || null,
+      SourcePage: str(b.sourcePage).slice(0, 120) || null,
+      Host: str(req.headers.origin).replace(/^https?:\/\//, '').slice(0, 64) || null,
+      ConsentText: str(b.consentText).slice(0, 4000),
+      ConsentAt: catalystNow(),
+      SubmittedAt: catalystNow()
+    }, [['Referral', 'SourcePage', 'Host', 'CtaStep']]);
+
+    await enqueueCrm(catalystApp, {
+      source: 'WaitlistEmails', rowId: row.ROWID, email: key, leadType: 'consumer',
+      data: {
+        emailKey: key,
+        product,
+        ctaStep,
+        referral: str(b.referral).slice(0, 64) || null,
+        ...consentFrom(b, req)
+      }
+    });
+    return res.status(200).json({ ok: true, id: row.ROWID });
+  } catch (err) {
+    // The unique on EmailKey firing is somebody holding the same spot twice,
+    // which is a success from where they are sitting: they are on the list and
+    // they were already on it. Answering 500 would tell them their submission
+    // failed and invite a third attempt.
+    //
+    // The match is broad and the real error shape is logged whenever an insert
+    // fails, because this backend has never inspected a Catalyst duplicate
+    // error and the wording is the store's to choose. A duplicate this misses
+    // reaches the popup as "that did not go through", and the log line below
+    // is how the pattern gets corrected from the Development logs.
+    const text = `${(err && err.code) || ''} ${(err && err.message) || ''}`;
+    if (/duplicate|unique|already.?exists/i.test(text)) {
+      return res.status(200).json({ ok: true, duplicate: true });
+    }
+    console.error('[formSubmit] waitlist-email insert error shape:', {
+      code: err && err.code, message: String((err && err.message) || err).slice(0, 300)
+    });
+    return serverError(res, err, 'waitlist-email');
+  }
+});
+
 module.exports = app;
