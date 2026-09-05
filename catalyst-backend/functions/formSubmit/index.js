@@ -41,7 +41,15 @@ const ALLOWED_ORIGINS = [
   // site, and every form on it was failing CORS for want of these lines.
   'https://internet.whollar.com',
   'https://tires.whollar.com',
-  'https://whollar-staging-1w.vercel.app'
+  'https://whollar-staging-1w.vercel.app',
+  // The other two review aliases on the same personal Vercel account, added
+  // 2026-09-05 for the same reason the staging one is here. Without them the
+  // tire preview's sign-up posted and the browser threw the response away for
+  // want of a CORS header, which the page can only report as "Failed to fetch"
+  // while the row was never written. The three hosts are reviewed on three
+  // aliases now, so all three belong on this list.
+  'https://whollar-tires-1w.vercel.app',
+  'https://whollar-home-1w.vercel.app'
 ];
 
 // Origins the Catalyst gateway (ZGS) already answers for, and where Express
