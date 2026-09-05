@@ -83,6 +83,32 @@ var CITIES = [
 ];
 var CITY_PROV = {gta:"ON", ottawa:"ON", montreal:"QC", calgary:"AB", vancouver:"BC", edmonton:"AB", other:"OTHER"};
 
+/* The area a household is in, read off the postal code both forms already
+   take, rather than asked for a second time as its own question.
+
+   Matched on the forward sortation area, the first three characters. M is
+   Toronto and L is the belt around it, so both are the GTA. Every H is
+   metropolitan Montreal. The rest are the two-character prefixes that cover
+   each city: K1/K2/K4 Ottawa, T2/T3 Calgary, T5/T6/T8 Edmonton, and V3 to V7
+   the Lower Mainland. Order matters, since T and V are matched by prefix.
+
+   This is a coarse map and it is meant to be: it decides which cohort a
+   household counts toward, and anything it does not recognise falls to
+   "other", which is the answer the reader would have picked from the list. */
+var FSA_CITY = [
+  [/^[ML]/,           "gta"],
+  [/^K[124]/,         "ottawa"],
+  [/^H/,              "montreal"],
+  [/^T[23]/,          "calgary"],
+  [/^T[568]/,         "edmonton"],
+  [/^V[34567]/,       "vancouver"]
+];
+function cityFromPostal(v){
+  var fsa = String(v||"").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0,3);
+  for(var i=0;i<FSA_CITY.length;i++){ if(FSA_CITY[i][0].test(fsa)) return FSA_CITY[i][1]; }
+  return "other";
+}
+
 var BUDGET = [
   {v:"u120",  n:"Under $120"},
   {v:"120170",n:"$120 to $170"},
@@ -1535,7 +1561,7 @@ function updateHeroCounts(){
    PROFILE COMPLETENESS  (the qualification signal)
    ============================================================ */
 var METER_ITEMS = [
-  {w:20, f:function(){ return $("g_first").value.trim() && $("g_last").value.trim() && RE.email.test($("g_email").value.trim()) && chipVal("g_city"); }},
+  {w:20, f:function(){ return $("g_first").value.trim() && $("g_last").value.trim() && RE.email.test($("g_email").value.trim()) && RE.postal.test($("g_postal").value.trim()); }},
   {w:8,  f:function(){ return !!chipVal("g_have"); }},
   {w:8,  f:function(){ return !!chipVal("g_strategy"); }},
   {w:14, f:function(){ var m=chipVal("g_mode"); return m==="size" ? !!parseSize($("g_size").value) : (m==="vehicle" ? ($("g_make").value && $("g_model").value && $("g_year").value) : false); }},
@@ -1836,14 +1862,6 @@ function fillBudget(id, hintId){
     updateMeter();
   });
 }
-function fillCityChips(id){
-  var box=$(id); if(!box) return;
-  box.innerHTML = CITIES.map(function(c){
-    var sub = c.conf ? 'Confirmed, bidding in October' : (nf(S.counts[c.v])+' of '+nf(CFG.cityThreshold));
-    return '<button type="button" class="chip" data-v="'+c.v+'">'+esc(c.n)+'<small>'+sub+'</small></button>';
-  }).join("");
-  bindChips(box);
-}
 function fillVehicleSelects(yId, mkId, mdId, onChange){
   var yr=$(yId), mkS=$(mkId), mdS=$(mdId);
   if(!yr) return;
@@ -1891,8 +1909,7 @@ function bindQuick(){
     ok = bad("q_last","e_q_last", !$("q_last").value.trim()) && ok;
     ok = bad("q_email","e_q_email", !RE.email.test($("q_email").value.trim())) && ok;
     ok = bad("q_postal","e_q_postal", !RE.postal.test($("q_postal").value.trim())) && ok;
-    var city = chipVal("q_city");
-    $("e_q_city").classList.toggle("on", !city); if(!city) ok=false;
+    var city = cityFromPostal($("q_postal").value);
     if(chipVal("q_mode")==="size"){ ok = bad("q_size","e_q_size", !parseSize($("q_size").value)) && ok; }
     if($("q_sizeAckWrap") && !$("q_sizeAckWrap").classList.contains("hide")){ ok = bad("q_sizeAck","e_q_sizeAck", !$("q_sizeAck").checked) && ok; }
     $("e_q_consent").classList.toggle("on", !$("q_consent").checked); if(!$("q_consent").checked) ok=false;
@@ -1922,8 +1939,7 @@ function bindGuided(){
     ok = bad("g_last","e_g_last", !$("g_last").value.trim()) && ok;
     ok = bad("g_email","e_g_email", !RE.email.test($("g_email").value.trim())) && ok;
     ok = bad("g_postal","e_g_postal", !RE.postal.test($("g_postal").value.trim())) && ok;
-    var city = chipVal("g_city");
-    $("e_g_city").classList.toggle("on", !city); if(!city) ok=false;
+    var city = cityFromPostal($("g_postal").value);
     $("e_g_consent").classList.toggle("on", !$("g_consent").checked); if(!$("g_consent").checked) ok=false;
     if(!ok){ toast("A few fields still need attention."); return; }
 
@@ -2347,7 +2363,6 @@ function init(){
   // chips everywhere
   ["g_lang","g_have","g_worn","g_strategy","g_mode","g_needs","g_tier","g_installer","g_radius",
    "g_finance","g_memb","g_prior","g_ready","q_mode","q_strategy"].forEach(function(id){ bindChips($(id)); });
-  fillCityChips("q_city"); fillCityChips("g_city");
   fillBudget("q_budget","q_budgetSet"); fillBudget("g_budget","g_budgetSet");
   fillBrands();
   fmtPostal($("q_postal")); fmtPostal($("g_postal")); fmtPostal($("g_shopPostal"));
@@ -2396,10 +2411,10 @@ function init(){
   $("g_mode").addEventListener("chipchange", function(){ modeShow("g"); updateMeter(); });
   $("q_mode").addEventListener("chipchange", function(){ modeShow("q"); });
   $("g_installer").addEventListener("chipchange", function(){ show($("ownShopWrap"), chipVal("g_installer")==="own"); updateMeter(); });
-  ["g_tier","g_radius","g_finance","g_memb","g_prior","g_ready","g_city"].forEach(function(id){
+  ["g_tier","g_radius","g_finance","g_memb","g_prior","g_ready"].forEach(function(id){
     $(id).addEventListener("chipchange", updateMeter);
   });
-  ["g_first","g_last","g_email","g_size"].forEach(function(id){ $(id).addEventListener("input", updateMeter); });
+  ["g_first","g_last","g_email","g_postal","g_size"].forEach(function(id){ $(id).addEventListener("input", updateMeter); });
   $("g_size").addEventListener("input", function(){ updateSizeAck("g"); });
   if($("q_size")) $("q_size").addEventListener("input", function(){ updateSizeAck("q"); });
   $("g_brand").addEventListener("change", fillLines);

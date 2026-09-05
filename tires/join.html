@@ -405,6 +405,9 @@ window.clarity('set','mask','true');</script>
 </style>
 <style>
 :root{
+  /* a fixed light design: without this a Mac in dark appearance draws the
+     native select popup dark against a paper page. */
+  color-scheme:light;
   --ink:#1A2520; --ink2:#131C17; --accent:#2C6A4E; --accent-deep:#1E4D38; --mint:#E4EDE2;
   --glow:#A9D3B6; --forest:#0E2A20; --terra:#B0512B; --terra-deep:#8C4622; --terra-soft:#F2E3D6;
   --terra-line:#E7CFB9; --paper:#F1EDE2; --card:#FCFAF5; --line:#E1DBCB; --sub:#5B655C;
@@ -502,11 +505,17 @@ textarea.inp{min-height:72px;resize:vertical}
 .seg2 button{flex:1;padding:9px 8px;border-radius:9px;font-size:13px;font-weight:650;color:#6E4630}
 .seg2 button.on{background:#fff;color:var(--terra-deep);box-shadow:0 1px 3px rgba(140,70,34,.15)}
 
-/* chips */
-.chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{border:1.5px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13.5px;font-weight:600;color:#3A453E;background:#fff;transition:background .12s,border-color .12s,color .12s}
-.chip:hover{background:#EFE7DA}
-.chip.on{background:var(--mint);border-color:var(--accent);color:var(--accent-deep)}
+/* answer controls: one answer is a <select>, several is a panel of checkboxes
+   that reads like one when it is closed */
+.checkdrop{position:relative}
+.cd-toggle{display:block;width:100%;text-align:left;color:#8C8578;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%235B655C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
+.checkdrop.has .cd-toggle{color:var(--ink);font-weight:600}
+.cd-menu{position:absolute;z-index:30;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:6px;box-shadow:0 14px 30px rgba(31,42,33,.14);max-height:264px;overflow:auto}
+.cd-menu[hidden]{display:none}
+.cd-opt{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;font-size:14px;font-weight:600;color:#3A453E;cursor:pointer}
+.cd-opt:hover{background:#F3ECE1}
+.cd-opt[hidden]{display:none}
+.cd-opt input{width:16px;height:16px;accent-color:var(--accent);flex:none}
 
 /* check */
 .check{display:flex;gap:11px;align-items:flex-start;font-size:13.5px;color:#43413B;cursor:pointer;margin:10px 0}
@@ -678,21 +687,25 @@ textarea.inp{min-height:72px;resize:vertical}
           <div data-pane="unsure" hidden><p class="helper-txt" style="padding-top:8px">No problem, we will help you size it when your cohort forms.</p></div>
         </div>
         <div class="field"><label>What do you need?</label>
-          <div class="chips" data-chips="qneed" data-multi="1">
-            <button type="button" class="chip" data-v="new">New winter tires</button>
-            <button type="button" class="chip" data-v="rims">Tires + rims</button>
-            <button type="button" class="chip" data-v="swap">Just a seasonal swap</button>
-            <button type="button" class="chip" data-v="storage">Storage</button>
-            <button type="button" class="chip" data-v="unsure">Help me choose</button>
+          <div class="checkdrop" data-chips="qneed" data-multi="1" data-empty="Choose one or more">
+            <button type="button" class="inp cd-toggle" aria-expanded="false"><span class="cd-label">Choose one or more</span></button>
+            <div class="cd-menu" hidden>
+              <label class="cd-opt"><input type="checkbox" data-v="new"><span>New winter tires</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="rims"><span>Tires + rims</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="swap"><span>Just a seasonal swap</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="storage"><span>Storage</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="unsure"><span>Help me choose</span></label>
+            </div>
           </div>
         </div>
         <div class="field"><label>Tier</label>
-          <div class="chips" data-chips="qtier">
-            <button type="button" class="chip" data-v="recommend">Recommend for me</button>
-            <button type="button" class="chip" data-v="premium">Premium</button>
-            <button type="button" class="chip" data-v="mid">Mid</button>
-            <button type="button" class="chip" data-v="value">Value</button>
-          </div>
+          <select class="inp" data-chips="qtier">
+            <option value="" disabled selected>Choose one</option>
+            <option value="recommend">Recommend for me</option>
+            <option value="premium">Premium</option>
+            <option value="mid">Mid</option>
+            <option value="value">Value</option>
+          </select>
         </div>
       </div>
 
@@ -700,15 +713,16 @@ textarea.inp{min-height:72px;resize:vertical}
         <div class="field"><label>Install by <span class="soft">optional</span></label>
           <input class="inp" type="date" name="by"></div>
         <div class="field"><label>Preferred installer</label>
-          <div class="chips" data-chips="qinst">
-            <button type="button" class="chip" data-v="any">No preference, best price</button>
-            <button type="button" class="chip" data-v="independent">Independent</button>
-            <button type="button" class="chip" data-v="bigbox">Big box</button>
-            <button type="button" class="chip" data-v="dealer">Dealer</button>
-            <button type="button" class="chip" data-v="mobile">Mobile, at home</button>
-          </div>
+          <select class="inp" data-chips="qinst">
+            <option value="" disabled selected>Choose one</option>
+            <option value="any">No preference, best price</option>
+            <option value="independent">Independent</option>
+            <option value="bigbox">Big box</option>
+            <option value="dealer">Dealer</option>
+            <option value="mobile">Mobile, at home</option>
+          </select>
         </div>
-        <label class="check"><input type="checkbox" name="consent" required><span>Email me about my cohort: when my area forms a cohort, opens a rate, and needs me to confirm. Your details reach no seller yet.</span></label>
+        <label class="check"><input type="checkbox" name="consent" required><span>Email me about my cohort</span></label>
         <label class="check"><input type="checkbox" name="share"><span>Later, you may share my details with matched installers so they can quote me. (Optional)</span></label>
       </div>
 
@@ -738,7 +752,7 @@ textarea.inp{min-height:72px;resize:vertical}
           </div>
           <div class="field"><label>Email</label><input class="inp" type="email" name="email" placeholder="you@email.com" required></div>
           <div class="field row2">
-            <div><label>Mobile <span class="soft">for time-sensitive cohort alerts</span></label><input class="inp" type="tel" name="mobile" placeholder="(416) 000 0000"></div>
+            <div><label>Mobile</label><input class="inp" type="tel" name="mobile" placeholder="(416) 000 0000"></div>
             <div><label>Postal code</label><input class="inp" name="postal" placeholder="M5V 2T6" required></div>
           </div>
           <div class="field"><label>Your city</label>
@@ -751,10 +765,12 @@ textarea.inp{min-height:72px;resize:vertical}
             </select>
           </div>
           <div class="field"><label>Write to me in <span class="soft">our emails and texts. This page stays in English for now.</span></label>
-            <div class="chips" data-chips="lang"><button type="button" class="chip on" data-v="en">English</button><button type="button" class="chip" data-v="fr">Français</button></div>
+            <select class="inp" data-chips="lang">
+              <option value="en" selected>English</option>
+              <option value="fr">Français</option>
+            </select>
           </div>
-          <label class="check"><input type="checkbox" name="consent" required><span>Email me about my cohort: when my area forms a cohort, opens a rate, and needs me to confirm. Your details reach no seller yet.</span></label>
-          <label class="check"><input type="checkbox" name="sms"><span>Text me the time-sensitive bits too (cohort opens, confirm-by deadline). (Optional)</span></label>
+          <label class="check"><input type="checkbox" name="consent" required><span>Email me about my cohort</span></label>
         </div>
         <div class="nav">
           <button class="btn btn-ghost back" type="button" data-back="intro">Back</button>
@@ -778,13 +794,34 @@ textarea.inp{min-height:72px;resize:vertical}
           <div class="hh"><svg viewBox="0 0 24 24"><path d="M12 3v18M5 8l7-5 7 5"/></svg><b>Winter vs all-weather</b></div>
           <div class="hbody">
             <div class="field"><label>Your current summer or all-season tires are…</label>
-              <div class="chips" data-chips="sd-life"><button type="button" class="chip" data-v="new">New-ish</button><button type="button" class="chip" data-v="mid">Mid-life</button><button type="button" class="chip" data-v="end">Near end of life</button><button type="button" class="chip" data-v="na">Not sure</button></div></div>
+              <select class="inp" data-chips="sd-life">
+                <option value="" disabled selected>Choose one</option>
+                <option value="new">New-ish</option>
+                <option value="mid">Mid-life</option>
+                <option value="end">Near end of life</option>
+                <option value="na">Not sure</option>
+              </select></div>
             <div class="field"><label>You will keep this car for…</label>
-              <div class="chips" data-chips="sd-own"><button type="button" class="chip" data-v="2">Under 2 yrs</button><button type="button" class="chip" data-v="4">2 to 4 yrs</button><button type="button" class="chip" data-v="5">4 to 5 yrs</button><button type="button" class="chip" data-v="6">5+ yrs</button></div></div>
+              <select class="inp" data-chips="sd-own">
+                <option value="" disabled selected>Choose one</option>
+                <option value="2">Under 2 yrs</option>
+                <option value="4">2 to 4 yrs</option>
+                <option value="5">4 to 5 yrs</option>
+                <option value="6">5+ yrs</option>
+              </select></div>
             <div class="field"><label>Your winter driving is…</label>
-              <div class="chips" data-chips="sd-drive"><button type="button" class="chip" data-v="city">Mostly city, mild</button><button type="button" class="chip" data-v="mixed">Mixed</button><button type="button" class="chip" data-v="heavy">Highway or heavy snow</button></div></div>
+              <select class="inp" data-chips="sd-drive">
+                <option value="" disabled selected>Choose one</option>
+                <option value="city">Mostly city, mild</option>
+                <option value="mixed">Mixed</option>
+                <option value="heavy">Highway or heavy snow</option>
+              </select></div>
             <div class="field"><label>Somewhere to store a second set of tires?</label>
-              <div class="chips" data-chips="sd-store"><button type="button" class="chip" data-v="yes">Yes</button><button type="button" class="chip" data-v="no">No</button></div></div>
+              <select class="inp" data-chips="sd-store">
+                <option value="" disabled selected>Choose one</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select></div>
             <button class="btn btn-g btn-lg" type="button" id="sd-run">Show my recommendation</button>
             <div class="result" id="sd-out" hidden></div>
           </div>
@@ -840,35 +877,63 @@ textarea.inp{min-height:72px;resize:vertical}
       <div class="fcard">
         <h2>What you need</h2>
         <div class="field" style="margin-top:12px"><label>Do you run winter tires now?</label>
-          <div class="chips" data-chips="run"><button type="button" class="chip" data-v="every">Every year</button><button type="button" class="chip" data-v="some">Some years</button><button type="button" class="chip" data-v="never">Never have</button></div></div>
+          <select class="inp" data-chips="run">
+            <option value="" disabled selected>Choose one</option>
+            <option value="every">Every year</option>
+            <option value="some">Some years</option>
+            <option value="never">Never have</option>
+          </select></div>
         <div class="field"><label>Pick what applies</label>
-          <div class="chips" data-chips="need" data-multi="1">
-            <button type="button" class="chip" data-v="tires">New winter tires</button>
-            <button type="button" class="chip" data-v="package">Tires + rims (wheel package)</button>
-            <button type="button" class="chip" data-v="mount">Mount + balance</button>
-            <button type="button" class="chip" data-v="install">Install on car</button>
-            <button type="button" class="chip" data-v="swap">Seasonal swap only</button>
-            <button type="button" class="chip" data-v="align">Alignment</button>
-            <button type="button" class="chip" data-v="disposal">Old-tire disposal</button>
-            <button type="button" class="chip wblock" data-v="storage">Storage (tire hotel)</button>
-            <button type="button" class="chip" data-v="oil">Oil change while on the hoist</button>
+          <div class="checkdrop" data-chips="need" data-multi="1" data-empty="Choose one or more">
+            <button type="button" class="inp cd-toggle" aria-expanded="false"><span class="cd-label">Choose one or more</span></button>
+            <div class="cd-menu" hidden>
+              <label class="cd-opt"><input type="checkbox" data-v="tires"><span>New winter tires</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="package"><span>Tires + rims (wheel package)</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="mount"><span>Mount + balance</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="install"><span>Install on car</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="swap"><span>Seasonal swap only</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="align"><span>Alignment</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="disposal"><span>Old-tire disposal</span></label>
+              <label class="cd-opt wblock"><input type="checkbox" data-v="storage"><span>Storage (tire hotel)</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="oil"><span>Oil change while on the hoist</span></label>
+            </div>
           </div>
         </div>
 
         <!-- rims block, hidden if all-weather -->
         <div class="wblock" id="rims-block">
           <div class="field"><label>Do you already own winter rims?</label>
-            <div class="chips" data-chips="rims"><button type="button" class="chip" data-v="alloy">Yes, alloy</button><button type="button" class="chip" data-v="steel">Yes, steel</button><button type="button" class="chip" data-v="no">No</button></div></div>
+            <select class="inp" data-chips="rims">
+              <option value="" disabled selected>Choose one</option>
+              <option value="alloy">Yes, alloy</option>
+              <option value="steel">Yes, steel</option>
+              <option value="no">No</option>
+            </select></div>
           <button class="helper-open" type="button" data-helper="rimcalc"><svg viewBox="0 0 24 24"><circle cx="7" cy="12" r="4"/><circle cx="17" cy="12" r="4"/></svg> Help me decide: one set of rims, or two?</button>
           <div class="helper" id="h-rimcalc" hidden>
             <div class="hh"><svg viewBox="0 0 24 24"><circle cx="7" cy="12" r="4"/><circle cx="17" cy="12" r="4"/></svg><b>One set of rims, or two?</b></div>
             <div class="hbody">
               <div class="field"><label>Does your car have tire-pressure sensors (TPMS)?</label>
-                <div class="chips" data-chips="rc-tpms"><button type="button" class="chip" data-v="yes">Yes</button><button type="button" class="chip" data-v="no">No</button><button type="button" class="chip" data-v="na">Not sure</button></div></div>
+                <select class="inp" data-chips="rc-tpms">
+                  <option value="" disabled selected>Choose one</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                  <option value="na">Not sure</option>
+                </select></div>
               <div class="field"><label>You will run winter tires for about…</label>
-                <div class="chips" data-chips="rc-years"><button type="button" class="chip" data-v="2">2 yrs</button><button type="button" class="chip" data-v="4">4 yrs</button><button type="button" class="chip" data-v="6">6 yrs</button><button type="button" class="chip" data-v="8">8+ yrs</button></div></div>
+                <select class="inp" data-chips="rc-years">
+                  <option value="" disabled selected>Choose one</option>
+                  <option value="2">2 yrs</option>
+                  <option value="4">4 yrs</option>
+                  <option value="6">6 yrs</option>
+                  <option value="8">8+ yrs</option>
+                </select></div>
               <div class="field"><label>Who does the seasonal change?</label>
-                <div class="chips" data-chips="rc-diy"><button type="button" class="chip" data-v="shop">A shop</button><button type="button" class="chip" data-v="diy">I do it myself</button></div></div>
+                <select class="inp" data-chips="rc-diy">
+                  <option value="" disabled selected>Choose one</option>
+                  <option value="shop">A shop</option>
+                  <option value="diy">I do it myself</option>
+                </select></div>
               <button class="btn btn-g btn-lg" type="button" id="rc-run">Do the math</button>
               <div class="result" id="rc-out" hidden></div>
             </div>
@@ -876,9 +941,20 @@ textarea.inp{min-height:72px;resize:vertical}
         </div>
 
         <div class="field" style="margin-top:16px"><label>Tier</label>
-          <div class="chips" data-chips="tier"><button type="button" class="chip" data-v="recommend">Recommend for me</button><button type="button" class="chip" data-v="premium">Premium</button><button type="button" class="chip" data-v="mid">Mid</button><button type="button" class="chip" data-v="value">Value</button></div></div>
+          <select class="inp" data-chips="tier">
+            <option value="" disabled selected>Choose one</option>
+            <option value="recommend">Recommend for me</option>
+            <option value="premium">Premium</option>
+            <option value="mid">Mid</option>
+            <option value="value">Value</option>
+          </select></div>
         <div class="field"><label>Brand</label>
-          <div class="chips" data-chips="brand"><button type="button" class="chip" data-v="open">Open / recommend</button><button type="button" class="chip" data-v="name">Name brands only</button><button type="button" class="chip" data-v="specific">I have one in mind</button></div></div>
+          <select class="inp" data-chips="brand">
+            <option value="" disabled selected>Choose one</option>
+            <option value="open">Open / recommend</option>
+            <option value="name">Name brands only</option>
+            <option value="specific">I have one in mind</option>
+          </select></div>
       </div>
 
       <div class="nav">
@@ -909,19 +985,48 @@ textarea.inp{min-height:72px;resize:vertical}
       <div class="fcard">
         <h2>Installer and location</h2>
         <div class="field" style="margin-top:12px"><label>Preferred installer</label>
-          <div class="chips" data-chips="inst"><button type="button" class="chip" data-v="any">No preference, best price</button><button type="button" class="chip" data-v="independent">Independent</button><button type="button" class="chip" data-v="bigbox">Big box</button><button type="button" class="chip" data-v="dealer">Dealer</button><button type="button" class="chip" data-v="mobile">Mobile, at home</button></div></div>
+          <select class="inp" data-chips="inst">
+            <option value="" disabled selected>Choose one</option>
+            <option value="any">No preference, best price</option>
+            <option value="independent">Independent</option>
+            <option value="bigbox">Big box</option>
+            <option value="dealer">Dealer</option>
+            <option value="mobile">Mobile, at home</option>
+          </select></div>
         <div class="field"><label>Closer to…</label>
-          <div class="chips" data-chips="anchor"><button type="button" class="chip" data-v="home">Home</button><button type="button" class="chip" data-v="work">Work</button><button type="button" class="chip" data-v="either">Either</button></div></div>
+          <select class="inp" data-chips="anchor">
+            <option value="" disabled selected>Choose one</option>
+            <option value="home">Home</option>
+            <option value="work">Work</option>
+            <option value="either">Either</option>
+          </select></div>
         <div class="field wblock"><label>Split install and storage across two places if it is cheaper?</label>
-          <div class="chips" data-chips="split"><button type="button" class="chip" data-v="prefer">Prefer to</button><button type="button" class="chip" data-v="dontmind">Don't mind</button><button type="button" class="chip" data-v="one">Keep it one place</button></div></div>
+          <select class="inp" data-chips="split">
+            <option value="" disabled selected>Choose one</option>
+            <option value="prefer">Prefer to</option>
+            <option value="dontmind">Don't mind</option>
+            <option value="one">Keep it one place</option>
+          </select></div>
       </div>
 
       <div class="fcard">
         <h2>Budget and insurance</h2>
         <div class="field" style="margin-top:12px"><label>Budget per set</label>
-          <div class="chips" data-chips="budget"><button type="button" class="chip" data-v="u800">Under $800</button><button type="button" class="chip" data-v="800">$800 to $1,100</button><button type="button" class="chip" data-v="1100">$1,100 to $1,500</button><button type="button" class="chip" data-v="1500">Over $1,500</button><button type="button" class="chip" data-v="open">Show me options</button></div></div>
+          <select class="inp" data-chips="budget">
+            <option value="" disabled selected>Choose one</option>
+            <option value="u800">Under $800</option>
+            <option value="800">$800 to $1,100</option>
+            <option value="1100">$1,100 to $1,500</option>
+            <option value="1500">Over $1,500</option>
+            <option value="open">Show me options</option>
+          </select></div>
         <div class="field"><label>Interested in financing?</label>
-          <div class="chips" data-chips="finance"><button type="button" class="chip" data-v="yes">Yes</button><button type="button" class="chip" data-v="maybe">Maybe</button><button type="button" class="chip" data-v="no">No</button></div></div>
+          <select class="inp" data-chips="finance">
+            <option value="" disabled selected>Choose one</option>
+            <option value="yes">Yes</option>
+            <option value="maybe">Maybe</option>
+            <option value="no">No</option>
+          </select></div>
 
         <button class="helper-open" type="button" data-helper="ins"><svg viewBox="0 0 24 24"><path d="M12 2l2.5 5 5.5.8-4 3.9.9 5.5L12 20l-4.9 2.6.9-5.5-4-3.9 5.5-.8z"/></svg> Estimate my insurance savings</button>
         <div class="helper" id="h-ins" hidden>
@@ -941,11 +1046,36 @@ textarea.inp{min-height:72px;resize:vertical}
       <div class="fcard">
         <h2>Memberships and priorities</h2>
         <div class="field" style="margin-top:12px"><label>Memberships you or your household hold <span class="soft">may unlock extra savings</span></label>
-          <div class="chips" data-chips="mem" data-multi="1"><button type="button" class="chip" data-v="costco">Costco</button><button type="button" class="chip" data-v="caa">CAA</button><button type="button" class="chip" data-v="triangle">Canadian Tire Triangle</button><button type="button" class="chip" data-v="club">Warehouse club</button><button type="button" class="chip" data-v="employer">Employer / affinity</button><button type="button" class="chip" data-v="cc">Credit-card benefit</button><button type="button" class="chip" data-v="none">None</button></div></div>
+          <div class="checkdrop" data-chips="mem" data-multi="1" data-empty="Choose any that apply">
+            <button type="button" class="inp cd-toggle" aria-expanded="false"><span class="cd-label">Choose any that apply</span></button>
+            <div class="cd-menu" hidden>
+              <label class="cd-opt"><input type="checkbox" data-v="costco"><span>Costco</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="caa"><span>CAA</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="triangle"><span>Canadian Tire Triangle</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="club"><span>Warehouse club</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="employer"><span>Employer / affinity</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="cc"><span>Credit-card benefit</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="none"><span>None</span></label>
+            </div>
+          </div></div>
         <div class="field"><label>What matters most? <span class="soft">pick up to two</span></label>
-          <div class="chips" data-chips="prio" data-multi="1"><button type="button" class="chip" data-v="price">Lowest price</button><button type="button" class="chip" data-v="early">Earliest install</button><button type="button" class="chip" data-v="brand">A specific brand</button><button type="button" class="chip" data-v="close">Closest location</button><button type="button" class="chip" data-v="rep">Installer reputation</button></div></div>
+          <div class="checkdrop" data-chips="prio" data-multi="1" data-empty="Choose up to two">
+            <button type="button" class="inp cd-toggle" aria-expanded="false"><span class="cd-label">Choose up to two</span></button>
+            <div class="cd-menu" hidden>
+              <label class="cd-opt"><input type="checkbox" data-v="price"><span>Lowest price</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="early"><span>Earliest install</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="brand"><span>A specific brand</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="close"><span>Closest location</span></label>
+              <label class="cd-opt"><input type="checkbox" data-v="rep"><span>Installer reputation</span></label>
+            </div>
+          </div></div>
         <div class="field"><label>Where are you at?</label>
-          <div class="chips" data-chips="ready"><button type="button" class="chip" data-v="ready">Ready to buy this winter</button><button type="button" class="chip" data-v="likely">Likely</button><button type="button" class="chip" data-v="watch">Just watching</button></div></div>
+          <select class="inp" data-chips="ready">
+            <option value="" disabled selected>Choose one</option>
+            <option value="ready">Ready to buy this winter</option>
+            <option value="likely">Likely</option>
+            <option value="watch">Just watching</option>
+          </select></div>
         <div class="field"><label>Anything else? <span class="soft">optional</span></label><textarea class="inp" data-f="g.notes" maxlength="1500" placeholder="Staggered sizes, run-flats, a shop you already use, questions…"></textarea></div>
         <label class="check"><input type="checkbox" id="g-share"><span>Share my details with matched installers so they can quote and contact me when my cohort opens. (Optional)</span></label>
         <label class="check"><input type="checkbox" id="g-internet"><span>Add me to the internet cohort too. Same idea, on a bill that climbs every year. (Optional)</span></label>
@@ -994,6 +1124,6 @@ textarea.inp{min-height:72px;resize:vertical}
 
 </div>
 
-<script src="/js/tire-join.js?v=20260905e"></script>
+<script src="/js/tire-join.js?v=20260905g"></script>
 </body>
 </html>

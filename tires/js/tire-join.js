@@ -120,19 +120,63 @@
     return on ? on.dataset.mode : 'unsure';
   }
 
-  /* ---------- chips ----------
-     `chipSet`, not `group`: CLAUDE.md's vocabulary rule covers variable names,
-     and this codebase's word for a set of households is cohort. */
+  /* ---------- answer controls ----------
+     Every question on this form is a dropdown. A question with one answer is a
+     plain <select>. A question that genuinely takes more than one, four of
+     them, is a panel of checkboxes behind a control that reads like a select
+     when it is closed, because a native <select multiple> is a scroll box on a
+     desktop and unusable on a phone.
 
-  $$('[data-chips]').forEach(function (chipSet) {
-    var multi = chipSet.dataset.multi === '1';
-    chipSet.addEventListener('click', function (e) {
-      var b = e.target.closest('.chip');
-      if (!b) return;
-      if (multi) { b.classList.toggle('on'); }
-      else { chipSet.querySelectorAll('.chip').forEach(function (x) { x.classList.toggle('on', x === b); }); }
-      F.fields[chipSet.dataset.chips] = $$('.chip.on', chipSet).map(function (x) { return x.dataset.v; });
+     Both kinds write the same shape into F.fields, an array of values, so
+     chosen() and one() below never learn which kind an answer came from.
+
+     `answerSet`, not `group`: CLAUDE.md's vocabulary rule covers variable
+     names, and this codebase's word for a set of households is cohort. */
+
+  $$('select[data-chips]').forEach(function (answerSet) {
+    function read() {
+      F.fields[answerSet.dataset.chips] = answerSet.value ? [answerSet.value] : [];
+    }
+    answerSet.addEventListener('change', read);
+    read();  /* an option marked selected in the markup counts from the start */
+  });
+
+  function closeDrops(except) {
+    $$('.checkdrop').forEach(function (d) {
+      if (d === except) return;
+      $('.cd-menu', d).hidden = true;
+      $('.cd-toggle', d).setAttribute('aria-expanded', 'false');
     });
+  }
+
+  $$('.checkdrop').forEach(function (answerSet) {
+    var toggle = $('.cd-toggle', answerSet);
+    var menu = $('.cd-menu', answerSet);
+    var label = $('.cd-label', answerSet);
+    var empty = answerSet.dataset.empty || 'Choose';
+    function read() {
+      var on = $$('input[type="checkbox"]', menu).filter(function (x) { return x.checked; });
+      F.fields[answerSet.dataset.chips] = on.map(function (x) { return x.dataset.v; });
+      label.textContent = on.length === 0 ? empty
+        : (on.length === 1 ? $('span', on[0].parentNode).textContent : on.length + ' selected');
+      answerSet.classList.toggle('has', on.length > 0);
+    }
+    toggle.addEventListener('click', function () {
+      var opening = menu.hidden;
+      closeDrops(answerSet);
+      menu.hidden = !opening;
+      toggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
+    });
+    menu.addEventListener('change', read);
+    read();
+  });
+
+  /* A click anywhere else, or Escape, closes the open panel. */
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.checkdrop')) closeDrops(null);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeDrops(null);
   });
   function chosen(name) { return F.fields[name] || []; }
   function one(name) { return chosen(name)[0] || ''; }
@@ -432,7 +476,7 @@
       city: form.querySelector('[name=city]').value,
       language: one('lang') || 'en',
       consent: consentRecord(form.querySelector('[name=consent]'), 'tire-waitlist'),
-      consentSms: !!form.querySelector('[name=sms]').checked,
+      consentSms: !!(form.querySelector('[name=sms]') && form.querySelector('[name=sms]').checked),
       consentShare: !!($('#g-share') && $('#g-share').checked),
       alsoInternet: !!($('#g-internet') && $('#g-internet').checked),
       vehicles: [vehicleFrom('g')],
