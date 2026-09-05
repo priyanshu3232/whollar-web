@@ -1393,6 +1393,87 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   }
 }
 </script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "@id": "https://internet.whollar.ca/#faq",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is Whollar?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Whollar is a household buying platform. We bring households with the same need together into cohorts, use that combined size to win better prices from suppliers, and hand the saving back to you. Internet is the first service, and winter tires follow."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does Whollar work?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "On your own, you are one household with very little leverage. Whollar brings together the households in your area whose renewals land in the same window, then puts that whole cohort in front of providers as one sealed bid. A cohort is worth far more than any one household, so providers compete for it, and you get a price you could not get alone."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is it free to join?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Joining a cohort costs nothing, and seeing what your cohort's price turns out to be costs nothing. A provider pays us only once a switch is live and the line tests clean, so you are never charged to use Whollar."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Am I obligated to switch?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Never. You see your cohort's best price and decide. If nothing beats what you have, you can walk away."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "I'm still locked into a contract. Can I join now?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, and you should. Upload your bill and we log your contract end date. We match you into a cohort timed to your renewal window, so bids land exactly when you're free to switch, with no early termination fees. Joining early just means you never miss the window."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Why is a cohort price better than what I can get myself?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Providers spend a lot to win one household at a time. A cohort hands them a whole run of committed demand at once, which is cheaper to serve and cheaper to win. That efficiency is where the better price comes from."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which providers take part?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Both national carriers and independent regional providers take part. Any provider that wants to participate can compete."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What if my internet goes down?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Backup internet is on our roadmap as an upcoming premium add-on: It's not live yet, so it's marked 'Coming soon' in the feature list. Founding members will get early access when it launches."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Where is Whollar available?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Whollar brings households together across Canada by region and by renewal timing. A cohort opens once enough households in an area have joined, so if yours is not open yet, joining tells us where to go next."
+      }
+    }
+  ]
+}
+</script>
 </head>
 <body>
 
@@ -2516,20 +2597,40 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
       </div>
       <div class="whl-faqwrap whl-reveal" data-faqwrap="">
       <div class="whl-faq" data-open="true">
-        <button class="whl-faq__q" type="button" aria-expanded="true"><span>Am I obligated to switch?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button>
-        <div class="whl-faq__a">Never. You see your group's best price and decide. If nothing beats what you have, you can walk away.</div>
+        <button class="whl-faq__q" type="button" aria-expanded="true"><span>What is Whollar?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div class="whl-faq__a">Whollar is a household buying platform. We bring households with the same need together into cohorts, use that combined size to win better prices from suppliers, and hand the saving back to you. Internet is the first service, and winter tires follow.</div>
+      </div>
+      <div class="whl-faq" data-open="false">
+        <button class="whl-faq__q" type="button" aria-expanded="false"><span>How does Whollar work?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div class="whl-faq__a">On your own, you are one household with very little leverage. Whollar brings together the households in your area whose renewals land in the same window, then puts that whole cohort in front of providers as one sealed bid. A cohort is worth far more than any one household, so providers compete for it, and you get a price you could not get alone.</div>
+      </div>
+      <div class="whl-faq" data-open="false">
+        <button class="whl-faq__q" type="button" aria-expanded="false"><span>Is it free to join?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div class="whl-faq__a">Yes. Joining a cohort costs nothing, and seeing what your cohort's price turns out to be costs nothing. A provider pays us only once a switch is live and the line tests clean, so you are never charged to use Whollar.</div>
+      </div>
+      <div class="whl-faq" data-open="false">
+        <button class="whl-faq__q" type="button" aria-expanded="false"><span>Am I obligated to switch?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div class="whl-faq__a">Never. You see your cohort's best price and decide. If nothing beats what you have, you can walk away.</div>
       </div>
       <div class="whl-faq" data-open="false">
         <button class="whl-faq__q" type="button" aria-expanded="false"><span>I'm still locked into a contract. Can I join now?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button>
         <div class="whl-faq__a">Yes, and you should. Upload your bill and we log your contract end date. We match you into a cohort timed to your renewal window, so bids land exactly when you're free to switch, with no early termination fees. Joining early just means you never miss the window.</div>
       </div>
       <div class="whl-faq" data-open="false">
-        <button class="whl-faq__q" type="button" aria-expanded="false"><span>What if my internet goes down?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="whl-faq__chev"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
-        <div class="whl-faq__a">Backup internet is on our roadmap as an upcoming premium add-on: It's not live yet, so it's marked 'Coming soon' in the feature list. Founding members will get early access when it launches.</div>
+        <button class="whl-faq__q" type="button" aria-expanded="false"><span>Why is a cohort price better than what I can get myself?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div class="whl-faq__a">Providers spend a lot to win one household at a time. A cohort hands them a whole run of committed demand at once, which is cheaper to serve and cheaper to win. That efficiency is where the better price comes from.</div>
       </div>
       <div class="whl-faq" data-open="false">
         <button class="whl-faq__q" type="button" aria-expanded="false"><span>Which providers take part?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button>
         <div class="whl-faq__a">Both national carriers and independent regional providers take part. Any provider that wants to participate can compete.</div>
+      </div>
+      <div class="whl-faq" data-open="false">
+        <button class="whl-faq__q" type="button" aria-expanded="false"><span>What if my internet goes down?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div class="whl-faq__a">Backup internet is on our roadmap as an upcoming premium add-on: It's not live yet, so it's marked 'Coming soon' in the feature list. Founding members will get early access when it launches.</div>
+      </div>
+      <div class="whl-faq" data-open="false">
+        <button class="whl-faq__q" type="button" aria-expanded="false"><span>Where is Whollar available?</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E2A20" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div class="whl-faq__a">Whollar brings households together across Canada by region and by renewal timing. A cohort opens once enough households in an area have joined, so if yours is not open yet, joining tells us where to go next.</div>
       </div>
       </div>
     </div>
@@ -2667,13 +2768,23 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   var crowd = document.getElementById('whl-crowd');
   if(crowd){ var f=document.createDocumentFragment(); for(var i=0;i<56;i++){ var s=document.createElement('i'); f.appendChild(s);} crowd.appendChild(f); }
 
-  /* FAQ accordion */
-  document.querySelectorAll('[data-faqwrap] .whl-faq').forEach(function(item){
+  /* FAQ accordion: one open at a time.
+     Byte for byte what MobileVersion/consumer-mobile.html has always run. The
+     two pages disagreed: the phone closed the last answer and this one did
+     not, so a reader who opened four questions here had to close four. */
+  var faqItems = document.querySelectorAll('[data-faqwrap] .whl-faq');
+  function setFaq(item, open){
+    item.setAttribute('data-open', open ? 'true':'false');
+    var q = item.querySelector('.whl-faq__q');
+    if(q) q.setAttribute('aria-expanded', open ? 'true':'false');
+  }
+  faqItems.forEach(function(item){
     var btn = item.querySelector('.whl-faq__q');
+    if(!btn) return;
     btn.addEventListener('click', function(){
       var open = item.getAttribute('data-open') === 'true';
-      item.setAttribute('data-open', open ? 'false':'true');
-      btn.setAttribute('aria-expanded', open ? 'false':'true');
+      faqItems.forEach(function(other){ if(other !== item) setFaq(other, false); });
+      setFaq(item, !open);
     });
   });
 
