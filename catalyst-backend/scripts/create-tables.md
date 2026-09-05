@@ -3060,3 +3060,125 @@ And which host is doing the collecting:
 SELECT Product, COUNT(ROWID) FROM WaitlistEmails GROUP BY Product
   ORDER BY COUNT(ROWID) DESC
 ```
+
+---
+
+## 40. The waitlist share code: two tables
+
+The popup's done state now hands the reader a link of their own, and the two
+tables here are what makes that link belong to somebody and what counts what it
+does.
+
+**Read section 39 first.** `WaitlistEmails` holds one row per address **per
+product**, on purpose: somebody who holds a spot on the tire page and again on
+the internet page is two rows there. They are still one person, and a person
+gets one code, which is the entire reason `WaitlistShareCodes` is a second
+table rather than a column on the first one. Key it on the address or the same
+household ends up handing out two different links.
+
+**This is not `referral_token`, and the difference is deliberate.** Section 24a
+mints codes that belong to a **member**, and `lib/referral.js` resolves only
+rows whose `owner_type` is `member`. A code here belongs to an email address
+with no account behind it, can never pay out a member referral, and is never
+resolved by that module at all. Putting the two kinds in one table would leave
+a single guard doing the work of telling them apart forever, so they are kept
+apart at the table level instead.
+
+The code is shaped so the two can never be confused by accident:
+
+```
+WS + 7 characters from ABCDEFGHJKLMNPQRSTUVWXYZ23456789 + 1 from GHJKLMNPQRSTVWXYZ
+```
+
+Ten characters, so `lib/token.js` (which normalises to exactly 8) rejects it on
+length. No `whl` substring, so `referral.normalize`'s legacy branch is never
+entered. And **a final character that cannot be read as hex**, which is the
+subtle one: `referral.js` reads a legacy code with a forgiving trailing hex
+scan, so a code ending in eight hex readable characters would be claimed by it
+and turned into a plausible `WHL-` code belonging to whichever member's
+`user_id` began with those digits.
+
+### 40a. `WaitlistShareCodes` (new table)
+
+One row per address, for all time, across every product and host.
+
+| Column | Type | Length | Unique | Mandatory | PII |
+|---|---|---|:--:|:--:|:--:|
+| `EmailKey` | Var Char | 254 | yes | yes | yes |
+| `ShareCode` | Var Char | 16 | yes | yes | |
+| `CreatedAt` | Date Time | | | yes | |
+
+**Both Unique flags are load bearing and they do different jobs.** `EmailKey`
+is what makes two simultaneous first submissions of one address produce one
+code: the loser of that race re-reads and returns the winner's code rather than
+retrying, and without the constraint both would insert. `ShareCode` is what
+turns a collision into a failed insert rather than two people quietly sharing a
+link, and `ensureShareCode` retries four times on it.
+
+If this table is missing, `POST /waitlist-email` still records the address and
+still answers `ok:true`. The response simply carries no `shareCode`, and the
+card falls back to a done state with no link. Nothing is lost except the link.
+
+### 40b. `ReferralClicks` (new table)
+
+| Column | Type | Length | Unique | Mandatory | PII |
+|---|---|---|:--:|:--:|:--:|
+| `ClickKey` | Var Char | 96 | yes | yes | |
+| `ShareCode` | Var Char | 16 | | yes | |
+| `Host` | Var Char | 64 | | | |
+| `SourcePage` | Var Char | 120 | | | |
+| `ClickedAt` | Date Time | | | yes | |
+
+`ClickKey` is `<code>:<YYYY-MM-DD>:<12 hex>`, the flattened composite this store
+needs because it has no composite unique, the same trick as
+`WaitlistEmails.EmailKey` and `ProductVotes.VoteKey`. The hex is
+`sha256(ip + user agent + CLICK_PEPPER)`, so **one row per code per reader per
+day**: somebody refreshing the landing page ten times is one click. The
+Unique firing is the ordinary case, not an error, and `/ref-click` answers
+`ok:true` either way.
+
+**No PII column, and there is nothing here to add one to.** The hash is the
+whole record of who: no address, no raw IP, no user agent. That is the same
+standard `invite_click` (section 25a) holds itself to, and it means this table
+can never later be joined to a person.
+
+If this table is missing, links still work and clicks are not counted.
+
+### 40c. What to run once they exist
+
+Who holds a code, newest first:
+
+```sql
+SELECT EmailKey, ShareCode, CreatedAt FROM WaitlistShareCodes
+  ORDER BY CreatedAt DESC LIMIT 20
+```
+
+**The test that matters most.** One address, submitted on two hosts, must be
+two rows in `WaitlistEmails` and exactly one here:
+
+```sql
+SELECT COUNT(ROWID) FROM WaitlistShareCodes WHERE EmailKey = 'test+1@example.com'
+```
+
+Which links are being clicked:
+
+```sql
+SELECT ShareCode, COUNT(ROWID) FROM ReferralClicks GROUP BY ShareCode
+  ORDER BY COUNT(ROWID) DESC
+```
+
+The report that reads all of this and counts signups against it is
+`GET /admin/referral/waitlist` on the auth function.
+
+### 40d. Environment, not tables
+
+The confirmation mail rides the notification outbox on the **auth** function,
+so `POST /waitlist-email` carries the ask across with one server to server
+call. Four values, and the mail is silent until all four exist:
+
+| Key | Function | Why |
+|---|---|---|
+| `AUTH_FUNCTION_URL` | formSubmit | where to send the ask |
+| `NOTIFY_CRON_SECRET` | formSubmit and auth | the same value on both, compared in constant time |
+| `MAIL_POSTAL_ADDRESS` | auth | **a hard gate.** `waitlist.welcome` is the registry's first `cem` template, and `outbox.js` writes a commercial send as `failed` with `no_postal_address` rather than sending one without it |
+| `CLICK_PEPPER` | formSubmit | optional. A missing one falls back to a build constant, which weakens click dedupe and breaks nothing |

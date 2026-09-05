@@ -429,6 +429,10 @@ const SOURCE_META = {
      name. Its own label rather than the internet waitlist's, because
      Lead_Source is how the CRM tells the two products apart. */
   TireWaitlistSignups:    { label: 'Winter Tire Waitlist', hasName: true },
+  /* The waitlist popup on all three hosts. Missing until 2026-09-05, which is
+     exactly the failure the tire comment above describes: with no row here
+     hasName was undefined and Last_Name was being set to the email address. */
+  WaitlistEmails:         { label: 'Waitlist Popup', hasName: false },
   WaitlistDetails:        { label: 'Waitlist Details', hasName: false },
   BillCheckupSubmissions: { label: 'Bill Checkup', hasName: false },
   DeepReadRequests:       { label: 'Deep Read', hasName: false, hot: true },
@@ -853,6 +857,9 @@ function noteFor(source, email, data, isProd, dropped, queuedAt) {
   add('FSA', data.fsa);
   add('Province', data.provinceCode ? `${data.province || ''} (${data.provinceCode})`.trim() : data.province);
   add('Referral code', data.referral);
+  /* The code THIS person now holds and can share, which is the opposite
+     direction to the line above: that one says who sent them. */
+  add('Share code', data.shareCode);
   add('Role', data.role);
   add('Provinces', data.provinces);
   add('Access techs', data.techs);

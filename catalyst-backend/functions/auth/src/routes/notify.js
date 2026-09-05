@@ -330,6 +330,77 @@ function mount(router, cfg) {
    * in a URL lands in access logs and in the scheduler's own run history, and
    * there is no legacy job here that needs the concession.
    */
+  /**
+   * A welcome to an address that just held a spot in the waitlist popup.
+   *
+   * WHY THIS ROUTE EXISTS AT ALL. The popup posts to the formSubmit function,
+   * which owns the marketing tables and the share code. But everything that
+   * decides whether we are ALLOWED to write to an address lives here and only
+   * here: the CASL category table, the suppression list, the unsubscribe token
+   * that must be in a commercial footer, the postal address that must be there
+   * with it, the notify_key that stops a double submit sending twice, and a
+   * transport with an SMTP fallback that works while ZeptoMail is refusing.
+   * Rebuilding any of that in formSubmit would be a second copy of the rules
+   * that govern whether a message is lawful, kept in step by nothing.
+   *
+   * So formSubmit carries the ask across in one call and this does the work.
+   *
+   * AUTHENTICATED BY THE SHARED SECRET, never by a session, because the caller
+   * is a server. Same header and same constant time comparison as the tick,
+   * and lib/csrf.js grants the same conditional exemption on the same
+   * reasoning: a custom header cannot be set from a browser here.
+   *
+   * IT DRAINS BEFORE IT ANSWERS. There is still no cron in this stack, so a
+   * row left in the outbox waits for the next dashboard load by anybody, which
+   * for a confirmation somebody is watching for is not a schedule. The drain
+   * is capped and best effort; the enqueue is what matters and it has already
+   * happened by then.
+   */
+  router.post('/internal/waitlist-welcome', wrap(async (req, res) => {
+    requireTickCaller(req, cfg);
+
+    const b = req.body || {};
+    const email = String(b.email || '').trim().toLowerCase();
+    if (!email || email.indexOf('@') < 1) throw badRequest('A valid email is required.');
+
+    /* The label the copy says out loud. A closed list, because an unrecognised
+       product reaching a subject line is how a letter goes out naming
+       something we do not sell. */
+    const LABELS = { tires: 'winter tires', internet: 'home internet', home: 'what you are waiting for' };
+    const product = String(b.product || '').toLowerCase();
+
+    const shareUrl = String(b.shareUrl || '').trim();
+    const context = {
+      product_label: LABELS[product] || LABELS.home,
+      join_url: 'https://www.whollar.ca/join',
+    };
+    /* Only when there is one. The template drops the sharing half rather than
+       rendering an empty link, which is why share_url is not in `required`. */
+    if (shareUrl) {
+      context.share_url = shareUrl;
+      context.share_code = String(b.shareCode || '').trim() || null;
+    }
+
+    const result = await outbox.enqueue(req.catalyst, cfg, {
+      templateKey: 'waitlist.welcome',
+      /* Keyed on the address and nothing else, so the same person holding a
+         spot twice, or on two hosts, is one letter. The notify_key is built
+         from this with the template and the recipient, and the store's Unique
+         on it is what actually enforces the promise. */
+      eventKey: `waitlist.welcome:${email}`,
+      recipient: { type: 'address', id: email, email },
+      context,
+    });
+
+    /* Never sends inline. `informational` waits for the drain by design, so
+       trigger one rather than leaving a confirmation somebody is watching for
+       to wait on a page load by a stranger. */
+    const drained = await outbox.drain(req.catalyst, cfg, { now: Date.now() })
+      .catch((err) => { console.error('[notify] waitlist welcome drain failed:', err); return null; });
+
+    res.status(200).json({ ok: true, status: result && result.status, drain: drained });
+  }));
+
   router.post('/admin/notify/tick', wrap(async (req, res) => {
     requireTickCaller(req, cfg);
     const now = Date.now();

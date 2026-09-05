@@ -166,6 +166,7 @@ const MODULES = [
   require('./templates/member'),
   require('./templates/partner'),
   require('./templates/reminders'),
+  require('./templates/marketing'),
 ];
 
 const TEMPLATES = new Map();

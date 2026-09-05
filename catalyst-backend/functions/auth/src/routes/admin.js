@@ -177,6 +177,13 @@ const LEAD_TABLES = Object.freeze({
   CalculatorEstimates: ['PostalCode', 'FSA', 'MonthlyBill', 'EstimatedAnnualSavings', 'SubmittedAt'],
   ContactSubmissions: ['FirstName', 'LastName', 'Email', 'Phone', 'Company', 'Topic', 'Message', 'SubmittedAt'],
   CrmSyncQueue: ['Source', 'SourceRowId', 'Email', 'LeadType', 'Status', 'Attempts', 'LastError', 'SyncedAt'],
+  /* The waitlist popup's addresses. Absent from this map until 2026-09-05,
+     which meant every address the popup had ever captured was invisible to
+     anyone who did not open the Catalyst console and write ZCQL by hand. */
+  WaitlistEmails: ['Email', 'Product', 'CtaStep', 'Referral', 'SourcePage', 'Host', 'SubmittedAt'],
+  /* Who holds a share code. ShareCode is not secret: it is printed on a card
+     and shared on purpose. */
+  WaitlistShareCodes: ['EmailKey', 'ShareCode', 'CreatedAt'],
 });
 
 /* ------------------------------------------------------------------ *
@@ -1916,6 +1923,82 @@ function mount(router, cfg) {
     }
 
     res.status(200).json({ ok: true, table, columns, rows: page.rows, next: page.next });
+  }));
+
+  /**
+   * What a waitlist share code actually did.
+   *
+   * THE FIRST REFERRAL REPORT IN THIS SYSTEM, member codes included. Until now
+   * the only counting function was `referral.countFor`, and it is scoped to a
+   * logged-in member asking about their own codes. A marketing code has no
+   * member to log in, so nothing could ever have asked the question.
+   *
+   * THREE TABLES, COUNTED IN CODE, NOT JOINED. The store has no joins and no
+   * aggregate grammar worth relying on, so each is read capped and tallied
+   * here, the same shape /admin/intake/geo already uses. Every one is
+   * tolerated absent: a console that has WaitlistShareCodes but not yet
+   * ReferralClicks answers with codes and zero clicks rather than a 500.
+   *
+   *   WaitlistShareCodes  who holds which code
+   *   ReferralClicks      arrivals on the link, one per reader per day
+   *   WaitlistSignups     signups carrying the code, exact match on
+   *                       ReferralCode, which is stored as typed
+   *
+   * `signups` counts the join form only. It is not a member count: joining the
+   * waitlist is not creating an account, and this report deliberately does not
+   * reach into `users` to imply otherwise.
+   */
+  router.get('/admin/referral/waitlist', wrap(async (req, res) => {
+    requireAdmin(req);
+
+    const soft = async (table, columns) => {
+      try {
+        return await datastore.queryAll(req.catalyst, table, columns, null);
+      } catch (err) {
+        console.error(`[admin] referral report: ${table} unreadable:`, String((err && err.message) || err).slice(0, 200));
+        return null;
+      }
+    };
+
+    const codes = await soft('WaitlistShareCodes', ['EmailKey', 'ShareCode', 'CreatedAt']);
+    if (!codes) {
+      throw new AppError('SERVER_ERROR', 'The share code table could not be read.', {
+        logDetail: 'WaitlistShareCodes unreadable: has it been created in the console?',
+      });
+    }
+    const clicks = (await soft('ReferralClicks', ['ShareCode', 'ClickedAt'])) || [];
+    const signups = (await soft('WaitlistSignups', ['ReferralCode'])) || [];
+
+    const clicksBy = new Map();
+    for (const r of clicks) {
+      const c = String(r.ShareCode || '');
+      if (c) clicksBy.set(c, (clicksBy.get(c) || 0) + 1);
+    }
+    /* Uppercased on both sides: the column is "as typed", so somebody who
+       retyped their code in lower case is the same code. */
+    const signupsBy = new Map();
+    for (const r of signups) {
+      const c = String(r.ReferralCode || '').trim().toUpperCase();
+      if (c) signupsBy.set(c, (signupsBy.get(c) || 0) + 1);
+    }
+
+    const rows = codes.map((r) => ({
+      email: r.EmailKey,
+      code: r.ShareCode,
+      createdAt: r.CreatedAt,
+      clicks: clicksBy.get(r.ShareCode) || 0,
+      signups: signupsBy.get(String(r.ShareCode || '').toUpperCase()) || 0,
+    })).sort((a, b) => (b.signups - a.signups) || (b.clicks - a.clicks));
+
+    res.status(200).json({
+      ok: true,
+      rows,
+      totals: {
+        codes: rows.length,
+        clicks: rows.reduce((n, r) => n + r.clicks, 0),
+        signups: rows.reduce((n, r) => n + r.signups, 0),
+      },
+    });
   }));
 
   /**

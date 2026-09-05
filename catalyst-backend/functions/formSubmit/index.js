@@ -4,6 +4,7 @@ const catalyst = require('zcatalyst-sdk-node');
 const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
+const crypto = require('node:crypto');
 
 const app = express();
 
@@ -596,6 +597,21 @@ app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 360
 
   try {
     const catalystApp = catalyst.initialize(req);
+
+    // SELF REFERRAL, refused at the door rather than filtered out of the count
+    // later. Somebody can hold a spot in the popup, receive their own share
+    // link, click it, and arrive here carrying their own code. Only a code
+    // shaped like ours costs a read, and only a match costs the value: an
+    // ordinary referral, a typo, or a member code all fall straight through.
+    let referral = orNull(str(b.referral));
+    if (referral && SHARE_CODE_RE.test(referral.toUpperCase())) {
+      const owner = await ownerOfShareCode(catalystApp, referral.toUpperCase());
+      if (owner && owner === emailKey(email)) {
+        console.log('[formSubmit] waitlist-join: own share code dropped');
+        referral = null;
+      }
+    }
+
     // PoolingFor is the one column that may not exist yet (create-tables.md
     // and README.md name it); insertTolerant drops it and keeps the row.
     const row = await insertTolerant(catalystApp, 'WaitlistSignups', {
@@ -606,7 +622,7 @@ app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 360
       // stored shape stable and send the canonical form to the CRM.
       Phone: digits(b.phone),
       FSA: postal.fsa,
-      ReferralCode: orNull(str(b.referral)),
+      ReferralCode: referral,
       PoolingFor: poolingFor,
       SubmittedAt: catalystNow()
     }, ['PoolingFor']);
@@ -617,7 +633,7 @@ app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 360
         emailKey: emailKey(email),
         fsa: postal.fsa, postal: postal.full,
         province: str(b.province) || null, provinceCode: str(b.provinceCode) || null,
-        referral: str(b.referral),
+        referral: referral || '',
         poolingFor,
         ...consentFrom(b, req)
       }
@@ -1521,6 +1537,212 @@ app.post('/city-request', limit({ key: 'city-request', max: 20, windowSec: 3600 
   }
 });
 
+/* ------------------------------------------------------------------ *
+ * THE WAITLIST SHARE CODE
+ * ------------------------------------------------------------------
+ * A code that belongs to an EMAIL ADDRESS, and to nothing else.
+ *
+ * WHY THIS IS NOT lib/referral.js. That module mints into `referral_token`,
+ * resolves only rows whose owner_type is 'member', and is the ledger behind
+ * every member's referral count. A marketing code has no member behind it and
+ * can never pay out, so putting it in that table would leave one guard doing
+ * the load bearing work of telling the two kinds apart forever. They are kept
+ * apart at the table level instead: this code lives in WaitlistShareCodes, is
+ * never resolved by lib/referral.js, and is SHAPED so it cannot be mistaken
+ * for a member code even by accident. See the two rules below.
+ *
+ * WHAT "EMAIL IDENTITY SPECIFIC" MEANS HERE. The registry is keyed on the
+ * address, not on a submission and not on a product. WaitlistEmails already
+ * holds one row per address PER PRODUCT, on purpose, so somebody who holds a
+ * spot on the tire page and again on the internet page is two rows there. They
+ * are one person, so they get one code, and that is why this is a second table
+ * rather than a column on the first one.
+ * ------------------------------------------------------------------ */
+
+// Same alphabet as tireRef: no I, O, 0 or 1, because these get read aloud.
+const SHARE_ALPHABET = REF_ALPHABET;
+// The last character is drawn from the letters that CANNOT be read as hex.
+// This is rule two below, and it is the whole reason the subset exists.
+const SHARE_TAIL_ALPHABET = 'GHJKLMNPQRSTVWXYZ';
+const SHARE_PREFIX = 'WS';
+const SHARE_BODY_LEN = 8;
+const SHARE_CODE_RE = /^WS[A-HJ-NP-Z2-9]{8}$/;
+
+// The one place the share URL is spelled. Not the request origin: the code
+// belongs to the person, not to the host they happened to be reading, and
+// www.whollar.ca/join is the only join form that exists and answers 200
+// without a redirect. internet.whollar.ca/join is 301'd away to www, and
+// W.referral.link() in whollar-core.js builds /waitlist, which is a 404 on
+// both www and tires. Neither is usable.
+const SHARE_BASE = 'https://www.whollar.ca/join?ref=';
+
+/* One character, drawn without modulo bias.
+ *
+ * Math.random() is what tireRef uses and it is wrong for anything anyone can
+ * guess their way into: a share code is a name a stranger can type. 256 % 32
+ * is 0 so the rejection ceiling is the whole byte for the 32 symbol alphabet,
+ * and 256 - (256 % 17) = 255 for the 17 symbol tail.
+ */
+function pickFrom(alphabet) {
+  const n = alphabet.length;
+  const ceiling = 256 - (256 % n);
+  for (;;) {
+    const b = crypto.randomBytes(1)[0];
+    if (b < ceiling) return alphabet[b % n];
+  }
+}
+
+/* WS + 7 body characters + 1 non hex tail character. Ten in total.
+ *
+ * TWO SHAPING RULES, and both of them are load bearing:
+ *
+ *   1. TEN CHARACTERS. lib/token.js normalises to exactly 8 and rejects every
+ *      other length, so a member token reader can never accept this. It also
+ *      carries no `whl` substring, so referral.normalize's legacy branch is
+ *      never entered on the way past.
+ *
+ *   2. THE LAST CHARACTER IS NEVER HEX. referral.js reads a legacy code with
+ *      a forgiving TRAILING hex scan (coreOf), so a code ending in eight hex
+ *      readable characters is claimed by it and normalised into a plausible
+ *      WHL- code, which would then attribute a signup to whichever member's
+ *      user_id happened to start with those digits.
+ *
+ *      THIS IS MEASURED, NOT FEARED. Drawing the last character from the full
+ *      alphabet and running 200,000 codes through the real referral.normalize
+ *      claimed 260 of them, one in 770: WS4FACE762 comes back as
+ *      WHL-4FACE762. Drawing it from the 17 letters that cannot be read as
+ *      hex claimed none in 50,000.
+ *
+ * 32^7 * 17 is about 5.8 x 10^11 codes.
+ */
+function mintShareCode() {
+  let body = '';
+  for (let i = 0; i < SHARE_BODY_LEN - 1; i++) body += pickFrom(SHARE_ALPHABET);
+  return SHARE_PREFIX + body + pickFrom(SHARE_TAIL_ALPHABET);
+}
+
+/* Read the code for an address, or mint one.
+ *
+ * The EmailKey Unique in the console is what makes this safe under a double
+ * submit: two simultaneous first submissions of one address cannot both
+ * insert, and the loser re-reads rather than retrying, so both requests answer
+ * with the SAME code. Retrying on that path is what would produce two.
+ *
+ * Never throws. A store that cannot answer costs the reader a share link, not
+ * their place on the list, and the caller carries on with null.
+ */
+async function readShareCode(catalystApp, key) {
+  // ZCQL has no parameter binding, so the literal is escaped by doubling the
+  // quote. `key` has already been through isEmail.
+  const lit = String(key).replace(/'/g, "''");
+  const rows = await catalystApp.zcql().executeZCQLQuery(
+    `SELECT ShareCode FROM WaitlistShareCodes WHERE EmailKey = '${lit}' LIMIT 1`);
+  const found = rows && rows[0] && rows[0].WaitlistShareCodes;
+  return (found && found.ShareCode) || null;
+}
+
+async function ensureShareCode(catalystApp, key) {
+  try {
+    const existing = await readShareCode(catalystApp, key);
+    if (existing) return existing;
+  } catch (err) {
+    // A read that failed is not a read that said "no row". Minting now would
+    // risk a second code for somebody who already has one, and the Unique on
+    // EmailKey would refuse it anyway, so stop here and let them share later.
+    console.error('[formSubmit] share code read failed, not minting:', err);
+    return null;
+  }
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const ShareCode = mintShareCode();
+    try {
+      await insert(catalystApp, 'WaitlistShareCodes', {
+        EmailKey: key, ShareCode, CreatedAt: catalystNow()
+      });
+      return ShareCode;
+    } catch (err) {
+      // Two Uniques can fire here and they mean opposite things, so ask the
+      // store which one it was rather than reading the error text. Catalyst
+      // does not word a unique violation the way a regex expects: that is the
+      // lesson /waitlist-email's own duplicate path learned on 2026-09-05.
+      let mine = null;
+      try { mine = await readShareCode(catalystApp, key); } catch (e2) { /* fall through to retry */ }
+      if (mine) return mine;   // EmailKey fired: another request minted for this same person
+      console.error(`[formSubmit] share code collision or insert failure on attempt ${attempt + 1}:`, err);
+    }
+  }
+  console.error('[formSubmit] share code could not be minted after 4 attempts');
+  return null;
+}
+
+/* Who is the code for. Used by the self referral guard, and by nothing else.
+ * Returns the address that owns a code, or null. */
+async function ownerOfShareCode(catalystApp, code) {
+  if (!SHARE_CODE_RE.test(String(code || ''))) return null;
+  try {
+    const lit = String(code).replace(/'/g, "''");
+    const rows = await catalystApp.zcql().executeZCQLQuery(
+      `SELECT EmailKey FROM WaitlistShareCodes WHERE ShareCode = '${lit}' LIMIT 1`);
+    const found = rows && rows[0] && rows[0].WaitlistShareCodes;
+    return (found && found.EmailKey) || null;
+  } catch (err) {
+    console.error('[formSubmit] share code owner read failed:', err);
+    return null;
+  }
+}
+
+/* The two fields the card reads, added only when there is something to add.
+ * A response with no shareCode is not an error: the card falls back to a done
+ * state with no link, and the address is on the list either way. */
+function shareResponse(base, code) {
+  if (!code) return base;
+  return { ...base, shareCode: code, shareUrl: SHARE_BASE + encodeURIComponent(code) };
+}
+
+/* The confirmation mail.
+ *
+ * WHY THIS CALLS THE AUTH FUNCTION INSTEAD OF SENDING. Everything that makes a
+ * marketing send lawful and repeatable already lives over there and only over
+ * there: the CASL category table, the suppression list, unsubscribe tokens,
+ * the notify_key that stops a double submit sending twice, and a transport
+ * with an SMTP fallback that works while ZeptoMail is refusing. This function's
+ * only sender is notifyTeam, which is ZeptoMail only and addressed to the team
+ * inbox. Rebuilding any of that here would be a second copy of the rules that
+ * decide whether we are allowed to write to somebody.
+ *
+ * So one HTTPS call carries the ask across, and the auth route does the
+ * enqueue and the drain with the real machinery. Best effort in every
+ * direction: no URL configured, no secret, auth cold or unreachable, all of it
+ * costs the mail and nothing else. The row is saved and the response is
+ * already decided before this runs.
+ */
+async function sendWaitlistWelcome(key, product, shareCode) {
+  const base = (process.env.AUTH_FUNCTION_URL || '').trim().replace(/\/+$/, '');
+  const secret = (process.env.NOTIFY_CRON_SECRET || '').trim();
+  if (!base || !secret) {
+    console.log('[formSubmit] waitlist welcome not sent: AUTH_FUNCTION_URL or NOTIFY_CRON_SECRET is unset');
+    return;
+  }
+  try {
+    const res = await fetch(`${base}/internal/waitlist-welcome`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Cron-Secret': secret },
+      body: JSON.stringify({
+        email: key,
+        product,
+        shareCode: shareCode || null,
+        shareUrl: shareCode ? SHARE_BASE + encodeURIComponent(shareCode) : null
+      })
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`waitlist-welcome ${res.status}: ${body.slice(0, 300)}`);
+    }
+  } catch (err) {
+    console.error('[formSubmit] waitlist welcome failed:', err);
+  }
+}
+
 // The waitlist popup's one field. Table: WaitlistEmails (create-tables.md 39).
 //
 // WHY THIS IS NOT /waitlist-join. That route asks for a first name, a last
@@ -1557,9 +1779,21 @@ app.post('/waitlist-email', limit({ key: 'waitlist-email', max: 20, windowSec: 3
   if (!isEmail(email)) return badRequest(res, 'A valid email is required.');
 
   const key = emailKey(email);
+  // Declared out here because the duplicate path in the catch answers with it
+  // too, and a person who submits twice must see one code, never two.
+  let shareCode = null;
 
   try {
     const catalystApp = catalyst.initialize(req);
+
+    // MINTED BEFORE THE INSERT, and that ordering is the point. When the
+    // EmailKey Unique on WaitlistEmails fires because somebody held the same
+    // spot twice, the catch below re-reads the row and answers ok:true. The
+    // code is already in hand by then, so that answer carries the SAME code as
+    // the first submission did. Minting after the insert would have left the
+    // duplicate path with nothing to say, or with a second code.
+    shareCode = await ensureShareCode(catalystApp, key);
+
     // Referral, CtaStep, SourcePage and Host are one optional group: a store
     // that has only the mandatory columns still records the address, which is
     // the thing that must not be lost. ConsentText and ConsentAt are NOT
@@ -1585,10 +1819,17 @@ app.post('/waitlist-email', limit({ key: 'waitlist-email', max: 20, windowSec: 3
         product,
         ctaStep,
         referral: str(b.referral).slice(0, 64) || null,
+        shareCode,
         ...consentFrom(b, req)
       }
     });
-    return res.status(200).json({ ok: true, id: row.ROWID });
+
+    // The confirmation the card promises. Best effort in both directions: it
+    // never fails the request, and a reader who never gets the mail still has
+    // their place and their link on screen.
+    await sendWaitlistWelcome(key, product, shareCode);
+
+    return res.status(200).json(shareResponse({ ok: true, id: row.ROWID }, shareCode));
   } catch (err) {
     // The unique on EmailKey firing is somebody holding the same spot twice,
     // which is a success from where they are sitting: they are on the list and
@@ -1614,7 +1855,10 @@ app.post('/waitlist-email', limit({ key: 'waitlist-email', max: 20, windowSec: 3
       const rows = await catalystApp.zcql().executeZCQLQuery(
         `SELECT ROWID FROM WaitlistEmails WHERE EmailKey = '${lit}' LIMIT 1`);
       const found = rows && rows[0] && rows[0].WaitlistEmails;
-      if (found) return res.status(200).json({ ok: true, duplicate: true, id: found.ROWID });
+      if (found) {
+        return res.status(200).json(
+          shareResponse({ ok: true, duplicate: true, id: found.ROWID }, shareCode));
+      }
     } catch (err2) {
       console.error('[formSubmit] waitlist-email duplicate re-read failed:', err2);
     }
@@ -1627,6 +1871,66 @@ app.post('/waitlist-email', limit({ key: 'waitlist-email', max: 20, windowSec: 3
     });
     return serverError(res, err, 'waitlist-email');
   }
+});
+
+/* ------------------------------------------------------------------ *
+ * A CLICK ON A SHARE LINK. Table: ReferralClicks (create-tables.md 40).
+ * ------------------------------------------------------------------
+ * The share link is https://www.whollar.ca/join?ref=CODE, which never touches
+ * this backend, so the landing page reports the arrival instead. That is the
+ * price of a clean link with no redirect hop in it, and it was the trade the
+ * owner chose.
+ *
+ * WHY NOT auth's invite_click, WHICH ALREADY DOES THIS. Because its writer is
+ * GET /r/:token on the auth function, and that lane is routed on internet and
+ * on www but NOT on tires, whose vercel.json has no rewrite for it at all.
+ * The auth function's ALLOWED_ORIGINS also has a standing production gap. This
+ * function's allowlist already covers all three hosts, both .com twins and the
+ * three preview aliases, so the click rides the door that already works
+ * everywhere rather than the one that would have to be widened first.
+ *
+ * WHAT IT STORES ABOUT A PERSON: nothing. A peppered hash of address and user
+ * agent, and only so that a reader refreshing the page ten times counts once.
+ * That is the same standard invite_click holds itself to, and the hash is the
+ * whole record: there is no column here that could later be joined to anybody.
+ */
+const CLICK_PEPPER = (process.env.CLICK_PEPPER || 'whollar-referral-clicks').trim();
+
+function clickKey(code, req) {
+  const day = new Date().toISOString().slice(0, 10);
+  const who = crypto.createHash('sha256')
+    .update(`${clientIp(req)}|${str(req.headers['user-agent'])}|${CLICK_PEPPER}`)
+    .digest('hex').slice(0, 12);
+  return `${code}:${day}:${who}`;
+}
+
+app.post('/ref-click', limit({ key: 'ref-click', max: 120, windowSec: 3600 }), async (req, res) => {
+  const b = req.body || {};
+  const code = str(b.code).toUpperCase();
+
+  // ALWAYS ok:true, for a real code and for one somebody invented. A route
+  // that answers differently for the two is a route that tells a stranger
+  // which codes exist, one guess at a time.
+  if (!SHARE_CODE_RE.test(code)) return res.status(200).json({ ok: true });
+
+  try {
+    const catalystApp = catalyst.initialize(req);
+    await insert(catalystApp, 'ReferralClicks', {
+      ClickKey: clickKey(code, req),
+      ShareCode: code,
+      Host: str(req.headers.origin).replace(/^https?:\/\//, '').slice(0, 64) || null,
+      SourcePage: str(b.sourcePage).slice(0, 120) || null,
+      ClickedAt: catalystNow()
+    });
+  } catch (err) {
+    // The ClickKey Unique firing IS the ordinary case: the same reader, the
+    // same code, the same day, a second look. Nothing to record and nothing
+    // wrong. Anything else is worth a log line and still not worth an error,
+    // because a counter that cannot write must not break the page it sits on.
+    console.log('[formSubmit] ref-click not recorded (duplicate or store error):',
+      String((err && err.message) || err).slice(0, 200));
+  }
+  return res.status(200).json({ ok: true });
 });
 
 module.exports = app;

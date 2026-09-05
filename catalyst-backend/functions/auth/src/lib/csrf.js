@@ -84,10 +84,26 @@ const EXEMPT = [
  */
 const TICK = /^\/(auth\/)?admin\/notify\/tick$/;
 
+/**
+ * The same conditional exemption, for the same reason, granted to the routes
+ * another Catalyst function calls server to server.
+ *
+ * POST /internal/waitlist-welcome is called by the formSubmit function when
+ * somebody holds a spot in the waitlist popup. There is no browser anywhere in
+ * that call and no session to carry a token, and the reasoning above transfers
+ * without change: a custom header makes a cross-origin request non-simple, the
+ * gateway answers the preflight without CORS headers, so nothing in a browser
+ * can set this header, and whatever can set it had to know the secret.
+ *
+ * Presence only, again. requireTickCaller compares it in constant time.
+ */
+const INTERNAL = /^\/(auth\/)?internal\/[a-z0-9-]+$/;
+
 function isExempt(req) {
   const path = req.path;
   if (EXEMPT.some((re) => re.test(path))) return true;
-  return TICK.test(path) && Boolean(req.headers['x-cron-secret']);
+  const bySecret = TICK.test(path) || INTERNAL.test(path);
+  return bySecret && Boolean(req.headers['x-cron-secret']);
 }
 
 function middleware(cfg) {
