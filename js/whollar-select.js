@@ -397,6 +397,65 @@
   /* The gap between trigger and panel, and the margin the panel keeps off
      every edge of the window. */
   var GAP = 6, EDGE = 8;
+  /* THE PANEL'S ZERO POINT, which is not always the window's.
+     `position:fixed` means "measured from the viewport" only while no ancestor
+     has taken the containing block over, and a dozen ordinary properties do
+     exactly that: a transform, an individual translate/rotate/scale, a
+     perspective, a filter, a backdrop-filter, a will-change naming any of
+     those, contain:paint or layout, or a container-type. Then left and top are
+     measured from that ancestor's PADDING edge, and viewport coordinates put
+     the panel wherever the ancestor happens to sit instead of under the
+     trigger.
+
+     The dashboard is the page that found this. Every card in an open view
+     carries `animation:rise .5s ease both`, and a filled animation that
+     interpolated a transform leaves the IDENTITY MATRIX behind for the life of
+     the page rather than the keyword `none`. An identity transform is still a
+     transform, so the card is a containing block for ever, and the switch
+     threshold dropdown opened 305px to the right and 281px below its control,
+     over the rail beside it. Nothing about that is the host page's mistake to
+     fix: this widget promises viewport coordinates, and a promise that holds
+     only until somebody animates a card is not one worth making.
+
+     Resolved once per open, because the chain cannot change while the panel is
+     open, only its position can. place() re-reads the rect on every scroll. */
+  var NONE = /^(none|normal)$/;
+  var CB_WILL_CHANGE = /transform|perspective|filter|translate|rotate|scale/;
+  var CB_CONTAIN = /paint|layout|strict|content/;
+  function stealsContainingBlock(s) {
+    return !NONE.test(s.transform || 'none')
+      || !NONE.test(s.translate || 'none')
+      || !NONE.test(s.rotate || 'none')
+      || !NONE.test(s.scale || 'none')
+      || !NONE.test(s.perspective || 'none')
+      || !NONE.test(s.filter || 'none')
+      || !NONE.test(s.backdropFilter || s.webkitBackdropFilter || 'none')
+      || CB_WILL_CHANGE.test(s.willChange || '')
+      || CB_CONTAIN.test(s.contain || '')
+      || !NONE.test(s.containerType || 'normal');
+  }
+  /* The nearest ancestor that has, with the border widths that separate its
+     border box, which is what getBoundingClientRect reports, from its padding
+     box, which is what a fixed child is placed against. */
+  function containingBlock(el) {
+    for (var p = el.parentElement; p && p !== doc.documentElement; p = p.parentElement) {
+      var s = root.getComputedStyle(p);
+      if (!stealsContainingBlock(s)) continue;
+      return { el: p, bx: parseFloat(s.borderLeftWidth) || 0, by: parseFloat(s.borderTopWidth) || 0 };
+    }
+    return null;
+  }
+  /* What to subtract from a viewport coordinate to get one the panel can be
+     placed at. Zero in the ordinary case, which is every page but the ones
+     above, so the arithmetic below is unchanged where nothing is wrong. */
+  var ZERO = { x: 0, y: 0 };
+  function zeroPoint(ctl) {
+    if (!ctl.cb) return ZERO;
+    if (!doc.contains(ctl.cb.el)) { ctl.cb = null; return ZERO; }
+    var r = ctl.cb.el.getBoundingClientRect();
+    return { x: r.left + ctl.cb.bx, y: r.top + ctl.cb.by };
+  }
+
   /* The least room below a trigger that is still worth opening into: about four
      rows. Below this a downward panel is a slot too thin to pick from and the
      panel goes above instead. Above it, DOWN WINS, even when the list would
@@ -425,13 +484,17 @@
   function place(ctl) {
     var panel = ctl.panel, t = ctl.trig.getBoundingClientRect();
     var vw = root.innerWidth, vh = root.innerHeight;
+    /* Every number from here on is a viewport coordinate, decided against the
+       window, and turned into one the panel can be placed at only on the way
+       into a style. */
+    var z = zeroPoint(ctl);
     /* Anchored before it is measured. A fixed box with `left:auto` falls back
        to its static position, and measuring it there means measuring a panel
        that may be wrapping against the window's right edge rather than the one
        we are about to place. Nothing paints between here and the final values
        below, so this costs a reflow and not a flicker. */
-    panel.style.left = Math.max(EDGE, Math.round(t.left)) + 'px';
-    panel.style.top = Math.round(t.bottom + GAP) + 'px';
+    panel.style.left = (Math.max(EDGE, Math.round(t.left)) - z.x) + 'px';
+    panel.style.top = (Math.round(t.bottom + GAP) - z.y) + 'px';
     /* Measured with the cap lifted, so "does it fit below" is asked of the
        list's real height and not of the height it was last squeezed into. */
     panel.style.maxHeight = '';
@@ -446,8 +509,8 @@
     var h = Math.min(want, Math.max(96, up ? above : below));
     panel.style.maxHeight = h + 'px';
     var top = up ? t.top - GAP - h : t.bottom + GAP;
-    panel.style.top = Math.max(EDGE, Math.min(top, vh - EDGE - h)) + 'px';
-    panel.style.left = Math.max(EDGE, Math.min(t.left, vw - EDGE - panel.offsetWidth)) + 'px';
+    panel.style.top = (Math.max(EDGE, Math.min(top, vh - EDGE - h)) - z.y) + 'px';
+    panel.style.left = (Math.max(EDGE, Math.min(t.left, vw - EDGE - panel.offsetWidth)) - z.x) + 'px';
     /* Kept as a class as well, so a host page can still tell the two
        directions apart, even though placement no longer depends on it. */
     ctl.wrap.classList.toggle('wsel-up', up);
@@ -504,6 +567,8 @@
     if (signature(ctl.sel) !== ctl.sig) render(ctl); else sync(ctl);
     ctl.trig.setAttribute('aria-expanded', 'true');
     ctl.panel.hidden = false;
+    /* Before the first place(), and once for the whole time the panel is up. */
+    ctl.cb = containingBlock(ctl.panel);
     place(ctl);
     track(ctl);
     if (!toRow) return;
@@ -520,6 +585,10 @@
     /* Cleared rather than left behind: the next open measures the list before
        it places it, and last time's height would be the thing it measured. */
     ctl.panel.style.cssText = '';
+    /* Resolved again on the next open. A panel that moves between opens, which
+       the dashboard's editors do because a row builds its editor each time it
+       is clicked, would otherwise be placed against the card it used to sit in. */
+    ctl.cb = null;
     if (refocus) ctl.trig.focus();
   }
 
