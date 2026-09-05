@@ -26,6 +26,9 @@
  *  11. one set of tracks across every tab
  *  12. THE COHORT ROW: exactly four cards, equal heights, their progress bars on
  *      one line, no button inside a card, and the row above all reading content
+ *  14. DROPDOWNS: every panel in the bills view opens against its own trigger,
+ *      which is the one thing a fixed-position panel stops doing the moment an
+ *      ancestor takes its containing block
  *  13. THE SPLIT BAND: two columns finishing on the same line with the surplus
  *      spread across the rows, three articles at one weight over one thumbnail
  *      each, and no stock photography left in the band
@@ -618,6 +621,116 @@ for (const [vw, want] of [[940, 2], [768, 2], [390, 'scroll']]) {
     ok(m.perRow === want, `${want} cards per row (${m.perRow})`);
   }
   await c.close();
+}
+
+
+/* WHY THIS GROUP EXISTS. Every card in an open view carries
+   `animation:rise .5s ease both`, and a filled animation that interpolated a
+   transform leaves the identity matrix behind for the life of the page rather
+   than the keyword `none`. An identity transform is still a transform, so the
+   card became the containing block for any `position:fixed` child, and
+   js/whollar-select.js places its panel in viewport coordinates. The switch
+   threshold dropdown opened 305px right and 281px below the control it belongs
+   to, over the rail beside it. The widget compensates now, and this is the
+   check that says so: a panel is anchored to its own trigger or it is not, and
+   no amount of CSS above it may change that.
+
+   MEASURED INSIDE ONE TASK for the inline editors. A real mouse click moves
+   focus to the trigger, the native select blurs, and startEdit's blur handler
+   saves and repaints the row 120ms later, taking the editor with it. That is
+   the page's own behaviour; measuring synchronously asks the only question
+   this group is about, which is where the panel was put. */
+console.log('\n=== every dropdown opens against its own trigger ===');
+{
+  const anchored = (a) => a && !a.empty && Math.abs(a.dx) < 1.5
+    && (Math.abs(a.below - 6) < 1.5 || Math.abs(a.above - 6) < 1.5);
+  const say = (a) => a ? `dx=${a.dx.toFixed(1)} below=${a.below.toFixed(1)} above=${a.above.toFixed(1)} onscreen=${a.onscreen}` : 'no panel open';
+  /* The open panel against the trigger it belongs to, both in viewport pixels. */
+  const READ = `(() => {
+    const panel = document.querySelector('.wselpanel:not([hidden])');
+    if (!panel) return null;
+    const t = panel.closest('.wsel').querySelector('.wseltrig').getBoundingClientRect();
+    const r = panel.getBoundingClientRect();
+    return { dx: r.left - t.left, below: r.top - t.bottom, above: t.top - r.bottom,
+      onscreen: r.left >= -0.5 && r.right <= innerWidth + 0.5 && r.top >= -0.5 && r.bottom <= innerHeight + 0.5,
+      w: r.width, tw: t.width, empty: r.width === 0 || r.height === 0 };
+  })()`;
+  const V = '.view[data-v="bills"] ';
+  const toBills = (p) => p.evaluate(() => document.querySelector('#pnav [data-view="bills"], [data-nav="bills"]').click());
+
+  for (const [vw, vh, label] of [[1360, 900, 'full window'], [1360, 430, 'short window, the panel flips'], [420, 780, 'phone width']]) {
+    const c = await ctx(browser, { width: vw, height: vh });
+    const p = await c.newPage();
+    p.on('pageerror', e => errors.push(String(e)));
+    await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+    await toBills(p);
+    await p.waitForTimeout(500);
+    console.log(`\n--- ${label} (${vw}x${vh}) ---`);
+
+    /* The field list's inline editors, the switch threshold being the report. */
+    for (const fld of ['threshold', 'provider', 'speed', 'tech', 'contractLength']) {
+      const row = p.locator(V + `[data-fld="${fld}"]`).first();
+      await row.scrollIntoViewIfNeeded();
+      await row.click();
+      const trig = p.locator(V + `[data-fld="${fld}"] .wseltrig`).first();
+      if (!await trig.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false)) {
+        note(`${fld}: the inline editor did not stay open, not measured`);
+        continue;
+      }
+      const a = await p.evaluate(([sel, read]) => {
+        const t = document.querySelector(sel);
+        /* The previous row's pending save can repaint the list out from under
+           this one. Said out loud rather than failed: a row that is not there
+           is not a row placed wrongly. */
+        if (!t) return 'gone';
+        t.click();
+        return eval(read);
+      }, [V + `[data-fld="${fld}"] .wseltrig`, READ]);
+      if (a === 'gone') note(`${fld}: the row repainted before it could be measured`);
+      else ok(anchored(a) && a.onscreen, `${fld}: ${say(a)}`);
+      await p.keyboard.press('Escape');
+      /* Long enough for startEdit's 120ms blur commit and its repaint to land,
+         so the next row is built against a settled list. */
+      await p.waitForTimeout(500);
+    }
+
+    /* The same card's "finish your file" form, whose selects are on the page
+       from the start rather than built on a click. */
+    const n = await p.locator('#bu-card .wsel .wseltrig').count();
+    for (let i = 0; i < n; i++) {
+      const trig = p.locator('#bu-card .wsel .wseltrig').nth(i);
+      await trig.scrollIntoViewIfNeeded();
+      await trig.click();
+      await p.waitForTimeout(250);
+      const a = await p.evaluate(read => eval(read), READ);
+      ok(anchored(a) && a.onscreen, `bill form select ${i + 1}/${n}: ${say(a)}`);
+      await p.keyboard.press('Escape');
+      await p.waitForTimeout(120);
+    }
+    await c.close();
+  }
+
+  /* A fixed panel does not travel with its anchor on its own, so the widget
+     re-places it on every scroll. If the zero point were read once and cached,
+     this is the check that would catch it. */
+  {
+    const c = await ctx(browser, { width: 1360, height: 900 });
+    const p = await c.newPage();
+    p.on('pageerror', e => errors.push(String(e)));
+    await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+    await toBills(p);
+    await p.waitForTimeout(500);
+    const trig = p.locator('#bu-card .wsel .wseltrig').first();
+    await trig.scrollIntoViewIfNeeded();
+    await trig.click();
+    await p.waitForTimeout(250);
+    ok(anchored(await p.evaluate(read => eval(read), READ)), 'anchored before the page scrolls');
+    await p.evaluate(() => window.scrollBy(0, 140));
+    await p.waitForTimeout(250);
+    const a = await p.evaluate(read => eval(read), READ);
+    ok(anchored(a) && a.onscreen, `still anchored after a 140px scroll: ${say(a)}`);
+    await c.close();
+  }
 }
 
 ok(errors.length === 0, `no console errors${errors.length ? ' :: ' + [...new Set(errors)].slice(0, 3).join(' | ') : ''}`);

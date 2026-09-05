@@ -40,9 +40,9 @@ import { MIX_TYPES, MIX_TYPE_LABEL, MIX_MAX_ROWS, checkMix, tierSnapshot, rowLab
 /* Suggested prices per tier, from the prototype (SUGG / SUGGUP / SUGGSTICKER,
    lines 2142-2143 and 2563). Suggestions only: everything is editable and the
    server validates whatever arrives. */
-var SUGG = { '100 Mbps': 44, '300 Mbps': 49, '500 Mbps': 56, '1 Gig': 64, '1.5 Gig': 74, '2.5 Gig': 84 };
-var SUGGUP = { '100 Mbps': '20', '300 Mbps': '30', '500 Mbps': '50', '1 Gig': '100', '1.5 Gig': '150', '2.5 Gig': '250' };
-var SUGGSTICKER = { '100 Mbps': 65, '300 Mbps': 75, '500 Mbps': 86, '1 Gig': 99, '1.5 Gig': 115, '2.5 Gig': 135 };
+var SUGG = { '50 Mbps': 39, '100 Mbps': 44, '300 Mbps': 49, '500 Mbps': 56, '1 Gig': 64, '1.5 Gig': 74, '2.5 Gig': 84 };
+var SUGGUP = { '50 Mbps': '10', '100 Mbps': '20', '300 Mbps': '30', '500 Mbps': '50', '1 Gig': '100', '1.5 Gig': '150', '2.5 Gig': '250' };
+var SUGGSTICKER = { '50 Mbps': 55, '100 Mbps': 65, '300 Mbps': 75, '500 Mbps': 86, '1 Gig': 99, '1.5 Gig': 115, '2.5 Gig': 135 };
 
 /* ------------------------------------------------------------------ *
  * the custom mix
@@ -263,6 +263,34 @@ function mixEditorHTML(scope, rows, head, st) {
 }
 
 function noteHTML(cls, text) { return '<p class="' + cls + '">' + esc(text) + '</p>'; }
+
+/**
+ * The reachable-household line, section 5.4, or nothing.
+ *
+ * ONE AGGREGATE AND NOTHING ELSE. Not which households, not how many excluded
+ * which brand, not whether a rival is reachable where this partner is not. The
+ * number exists because bidding against volume that cannot be won damages
+ * partner trust and the fee model both: a partner who prices for 300
+ * households and can reach 240 has been quoted the wrong market.
+ *
+ * Rendered only when the server has answered. An absent or unavailable reach
+ * read says nothing at all rather than guessing the cohort's full size, which
+ * would be the one wrong number worse than no number.
+ */
+function reachHTML(a) {
+  var S = get();
+  var r = (S.reach || {})[a.id];
+  if (!r || r.available === false) return '';
+  if (r.reachable_households == null || r.total_households == null) return '';
+  var line = 'Reachable households in this cohort for your brands: '
+    + r.reachable_households + ' of ' + r.total_households;
+  return '<p class="cardnote" data-testid="prov-reach-line">' + esc(line)
+    + (r.reachable_households < r.total_households
+      ? ' <small class="hint">Some households have excluded a brand you operate. Your bid is never shown to them.</small>'
+      : '')
+    + '</p>';
+}
+
 
 /**
  * The arithmetic on the right: per tier, the prices, the reduction, each named
@@ -585,6 +613,47 @@ function rosterReleased(S, campaignId) {
  * setup, a roster already released says go and schedule it. One copy for both
  * told a partner who had finished the gate to go and finish the gate.
  */
+/**
+ * The per-tier result for the tiers THIS bid won: the tier, this partner's
+ * own price, how many households sat at that speed, and how many have
+ * confirmed at it. Lost tiers are not listed beyond their absence, and
+ * nothing here is another partner's: not how many bid a tier, not that a
+ * price was matched.
+ *
+ * The fee line is N confirmed times the configured fee, capped at the
+ * commitment ("your cap"), the same arithmetic the scenario table shows
+ * before sealing. Over the commitment the overflow is said, not hidden: the
+ * commitment is a soft signal and the partner serves every household that
+ * confirmed.
+ */
+function wonTiersHTML(mine, fee) {
+  var rows = mine.won || [];
+  if (!rows.length) return '';
+  var conf = Number(mine.confirmed || 0);
+  var commit = mine.committedHouseholds != null ? Number(mine.committedHouseholds) : null;
+  var served = commit != null ? Math.min(conf, commit) : conf;
+  var f = Number(fee || 0);
+  var body = rows.map(function (t) {
+    return '<tr><td>' + esc(t.tier) + '</td>'
+      + '<td class="num">' + (t.price != null ? money(String(t.price)) : '·') + '</td>'
+      + '<td class="num">' + (t.demandCount != null ? t.demandCount : '·') + '</td>'
+      + '<td class="num">' + (t.confirmed != null ? t.confirmed : '·') + '</td></tr>';
+  }).join('');
+  var feeLine = f
+    ? '<p class="fnote" style="margin-top:8px">Success fees at your fee: <b>' + money(String(served * f)) + '</b>'
+      + ' (' + served + ' × ' + money(String(f)) + (commit != null && served < conf ? ', your cap of ' + commit : '') + ')'
+      + ', billed per completed switch only.'
+      + (commit != null && conf > commit ? ' <b>' + conf + ' confirmed, ' + (conf - commit) + ' over your commitment.</b>' : '')
+      + '</p>'
+    : (commit != null && conf > commit
+      ? '<p class="fnote" style="margin-top:8px"><b>' + conf + ' confirmed, ' + (conf - commit) + ' over your commitment of ' + commit + '.</b></p>'
+      : '');
+  return '<div class="twrap" style="margin-top:12px"><table class="tbl"><thead><tr>'
+    + '<th>Speed you won</th><th class="num">Your price</th><th class="num">Households at this speed</th>'
+    + '<th class="num">Confirmed</th></tr></thead><tbody>'
+    + body + '</tbody></table></div>' + feeLine;
+}
+
 export function ticketHTML(a, data, mine) {
   var S = get();
   var d = a.dates || {};
@@ -599,12 +668,17 @@ export function ticketHTML(a, data, mine) {
         + '<button class="btn ghost" type="button" data-action="nav" data-view="desk" style="margin-top:12px">See what’s coming</button></div>';
     }
     var fee = data && data.brief && data.brief.successFee;
-    var conf = a.confirmed;
+    /* The count is this org's own orders on this cohort, served on the bid by
+       GET /provider/bids and memoized a minute server side. Zero is a real
+       answer ("Won · 0 confirmed"), distinct from unknown. */
+    var conf = mine.confirmed != null ? Number(mine.confirmed) : null;
     var wonLine = conf
       ? conf + ' households confirmed you. That’s ' + conf + ' installs to plan'
         + (fee ? ' and, at your fee, up to ' + money(String(conf * Number(fee))) + ' in success fees, billed per completed switch only' : '')
         + '.'
-      : 'Household confirmations route to your delivery board.';
+      : (conf === 0
+        ? 'No household has confirmed you yet. Confirmations route to your delivery board.'
+        : 'Household confirmations route to your delivery board.');
 
     /* The next step, from what is actually known. A released roster is past
        the gate; a card on file means only capacity is left, and that half is
@@ -620,7 +694,8 @@ export function ticketHTML(a, data, mine) {
         : ' Complete billing setup and confirm capacity, and the roster releases to you.');
 
     return '<div class="tkt"><div class="dh">Result</div><div class="receipt">'
-      + '<b>Won.</b> ' + wonLine + next + '</div>'
+      + '<b>Won' + (conf != null ? ' · ' + conf + ' confirmed' : '') + '.</b> ' + wonLine + next + '</div>'
+      + wonTiersHTML(mine, fee)
       + '<button class="btn" type="button" data-action="nav" data-view="delivery" style="margin-top:12px">Open the delivery board</button></div>';
   }
 
@@ -634,14 +709,24 @@ export function ticketHTML(a, data, mine) {
    * a fraction, and it stays gated on `mine`: a confirmation count on a cohort
    * another partner won is that partner's count. */
   if (a.stage === 'offers_out') {
+    var won = mine && (mine.tiersWon || []).length > 0;
+    var decidedLine = '';
+    if (mine && (mine.state === 'won' || mine.state === 'not_selected')) {
+      decidedLine = won
+        ? 'The lowest sealed bid won each speed, and yours took <b>' + esc(mine.tiersWon.join(', ')) + '</b>. '
+        : 'The lowest sealed bid won each speed, and none of yours was the lowest at its speed. ';
+    }
     return '<div class="tkt"><div class="dh">Bids closed</div><div class="receipt">'
       + (mine
         ? '<b>Your bid is in:</b> ' + bidLine(mine) + (mine.reference ? ' · Receipt ' + esc(mine.reference) : '') + '. '
         : '<b>You did not bid on this cohort.</b> ')
+      + decidedLine
       + 'Offers are out to every household, individually. '
-      + (mine && a.confirmed != null ? 'Confirmed so far: <b>' + a.confirmed + '</b>. ' : '')
+      + (won && mine.confirmed != null ? 'Confirmed so far: <b>' + Number(mine.confirmed) + '</b>. ' : '')
       + (d.decision_at ? 'Decisions lock ' + fmtDate(d.decision_at) + '; there' : 'There')
-      + ' is nothing for you to do, and no way to see other bids.</div></div>';
+      + ' is nothing for you to do, and no way to see other bids.</div>'
+      + (won ? wonTiersHTML(mine, data && data.brief && data.brief.successFee) : '')
+      + '</div>';
   }
 
   /* Decided, and none of it was ours. The state the prototype dropped into a
@@ -779,6 +864,7 @@ function formHTML(a, data, t, improving) {
           + 'Nothing is sent until you seal, every field is editable, and your commitment has been set to this cohort\u2019s size. '
           + '<button class="tlink" type="button" data-action="ticket:fresh" data-id="' + esc(a.id) + '">Start from blank terms</button></div>'
         : ''))
+    + reachHTML(a)
     + '<label class="blk">Price by service <small class="lsub">sticker is your rate card; effective is what the cohort pays</small></label>'
     + '<table class="tiert t7"><thead><tr><th>Tier</th><th>Upload, Mbps</th><th>Technology</th><th>Sticker /mo</th><th>Effective /mo</th><th class="tac">After</th><th></th></tr></thead><tbody class="tierbody">'
     + rows
@@ -970,7 +1056,7 @@ export function refreshScn() {
   var data = S.briefs[id];
   if (!a || !data || data === 'loading' || data.failed) return;
   var b = data.brief || {};
-  if (!b.speedMix) return;
+  if (!b.speedMix && !b.speedDemand) return;
 
   var grid = form.closest('.dgrid');
   if (!grid) return;
@@ -987,23 +1073,37 @@ export function refreshScn() {
   }
   function subGig() {
     var c = null;
-    ['100 Mbps', '300 Mbps'].forEach(function (n) {
+    ['50 Mbps', '100 Mbps', '300 Mbps'].forEach(function (n) {
       var p = effOf(n);
       if (p != null && (c == null || p < c)) c = p;
     });
     return c;
   }
   var blend = 0, tot = 0;
-  b.speedMix.forEach(function (sx) {
-    var share = sx[1];
-    tot += share;
-    var p;
-    if (sx[0] === '1 Gig') p = effOf('1 Gig');
-    else if (sx[0] === 'Under 500') p = subGig();
-    else p = effOf('500 Mbps');
-    if (p == null) p = d.tiers.length ? Number(d.tiers[0].effectivePrice) : 0;
-    blend += share * p;
-  });
+  if (b.speedDemand) {
+    /* Measured demand is per ladder tier, so the blend is this bid's price at
+       each tier the cohort wants, weighted by how many want it. A tier this
+       bid does not quote weighs nothing: the households there are not this
+       partner's to serve at any price. */
+    b.speedDemand.forEach(function (sx) {
+      var p = effOf(sx[0]);
+      if (p == null) return;
+      tot += sx[1];
+      blend += sx[1] * p;
+    });
+    if (!tot && d.tiers.length) { blend = Number(d.tiers[0].effectivePrice); tot = 1; }
+  } else {
+    b.speedMix.forEach(function (sx) {
+      var share = sx[1];
+      tot += share;
+      var p;
+      if (sx[0] === '1 Gig') p = effOf('1 Gig');
+      else if (sx[0] === 'Under 500') p = subGig();
+      else p = effOf('500 Mbps');
+      if (p == null) p = d.tiers.length ? Number(d.tiers[0].effectivePrice) : 0;
+      blend += share * p;
+    });
+  }
   blend = tot ? blend / tot : 0;
 
   var fee = Number(b.successFee || 0);

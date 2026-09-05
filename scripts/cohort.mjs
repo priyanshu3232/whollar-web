@@ -42,6 +42,8 @@ import { backend } from './backend-module.mjs';
 
 const catalog = backend('lib/catalog.js');
 const places = backend('lib/places.js');
+const geo = backend('lib/geo.js');
+const fsaref = backend('lib/fsaref.js');
 const { KINDS, JOIN_STATUS, ID_RE, TRANSITIONS, DATE_COLUMNS } = catalog;
 
 /* ------------------------------------------------------------------ *
@@ -206,6 +208,38 @@ function emit(title, statements, campaign, notes = []) {
  * Declaring coverage does not need it, because a partner may register interest
  * in a queued city and an operator leaves that row 'soon'.
  */
+/**
+ * --fsas M2M,M2N,M2R -> the stored string, or ''.
+ *
+ * The SAME parse the server does, through lib/geo.js, so a list typed here and
+ * a list typed in the console cannot become two different strings in one
+ * column. Refused rather than silently dropped: this command's whole job is to
+ * produce a statement somebody pastes into a window with write access, and an
+ * entry that vanishes between the flag and the SQL is the worst possible place
+ * for it to go missing.
+ */
+function fsaList(raw, kind_) {
+  if (raw === undefined || raw === true || raw === '') {
+    /* A cohort taking joins with no FSA set is open to everyone. Allowed here,
+       because the ZCQL path is also how an operator repairs a row, and refused
+       by POST /admin/campaigns, which is the door with a human at it. */
+    return '';
+  }
+  const parts = String(raw).split(/[^A-Za-z0-9]+/).filter(Boolean);
+  const bad = parts.filter((f) => !geo.isFsa(f));
+  if (bad.length) {
+    die(`--fsas: ${bad.slice(0, 5).join(', ')} is not shaped like an FSA.\n`
+      + '  An FSA is three characters: a letter, a digit, a letter, e.g. M2N.');
+  }
+  const unknown = parts.filter((f) => !fsaref.has(f));
+  if (unknown.length) {
+    die(`--fsas: ${unknown.slice(0, 5).join(', ')} is not in the FSA reference.\n`
+      + '  A cohort scoped to an FSA nobody lives in refuses every household that tries\n'
+      + '  to join it, and it looks exactly like a cohort nobody wants.');
+  }
+  return geo.formatFsaList(parts);
+}
+
 function region(raw, { what = '--region', launch = true } = {}) {
   if (!raw || raw === true) die(`${what} is required, and it is what provider_coverage matches on`);
   const name = String(raw).trim();
@@ -249,8 +283,9 @@ function cmdNew() {
      surfaces, so a non-zero seed is padding a partner will eventually bid
      against. Opt in with --seed if you are staging a demo. */
   const seed = num(flag('seed', '0'), 'seed');
+  const fsas = fsaList(flag('fsas'), k);
   const cols = ['campaign_id', 'region', 'sub', 'kind', 'target', 'seed_members',
-    'seed_households', 'bidding_open', 'sort_order', 'updated_by', 'updated_at'];
+    'seed_households', 'bidding_open', 'sort_order', 'fsas', 'updated_by', 'updated_at'];
   const vals = [
     lit(id, { max: 64, what: 'campaign_id' }),
     lit(region_, { max: 100, what: '--region' }),
@@ -260,6 +295,7 @@ function cmdNew() {
     lit(seed), lit(seed),
     'false',
     lit(sort),
+    fsas ? lit(fsas, { max: 4000, what: '--fsas' }) : 'NULL',
     lit('manual', { max: 64 }),
     lit(utc(new Date())),
   ];
@@ -268,6 +304,9 @@ function cmdNew() {
     `VALUES (${vals.join(', ')});`,
   ], campaignFrom({ id, region: region_, kind: k }), [
     'The slug is permanent: it is the id both dashboards key on and every bid_key is built from.',
+    ...(fsas ? [] : ['NO FSAs SET, so this cohort is open to every household in Canada.',
+      '  That is the pre-coverage behaviour and it is what /admin/campaigns/reconcile',
+      '  will list until it is scoped. Set them with --fsas M2M,M2N,M2R.']),
     'No calendar is set. That is the normal state of a new cohort, and stage falls back to kind alone.',
     `Set one with:  node scripts/cohort.mjs calendar ${id}`,
   ]);
@@ -422,7 +461,7 @@ function regionFromId(id) {
 
 /* Every seed flag takes a value, and POSITIONAL only drops the flags
    themselves, so `--seed 87` would otherwise offer 87 as a campaign_id. */
-const SEED_FLAGS = new Set(['regions', 'first', 'every', 'hour', 'sub', 'seed', 'sort', 'minutes']);
+const SEED_FLAGS = new Set(['regions', 'first', 'every', 'hour', 'sub', 'seed', 'sort', 'minutes', 'fsas']);
 
 function seedIds() {
   const out = [];
@@ -490,6 +529,12 @@ function cmdSeed() {
      off per batch; within a batch the ids stay in the order given, which is
      closing order. */
   const sortBase = num(flag('sort', '0'), 'sort');
+  /* One FSA list across the batch, which is only ever right for a test rail:
+     six cohorts covering the same postal codes is six cohorts every household
+     in them can see. A real launch scopes each one, and the console is where
+     that is done. Left unset, every seeded cohort is unscoped and reconcile
+     says so, which is the honest default for a batch nobody has scoped. */
+  const seedFsas = fsaList(flag('fsas'), 'auction');
   /* A duplicate-key refusal means the row is already there. Rescheduling it is
      an UPDATE: DELETE is never the answer, because there are no foreign keys
      and any campaign_members row would survive pointing at nothing. */
@@ -560,6 +605,7 @@ function cmdSeed() {
       ['seed_households', lit(seed)],
       ['bidding_open', lit(r.biddingOpen)],
       ['sort_order', lit(sortBase + i)],
+      ['fsas', seedFsas ? lit(seedFsas, { max: 4000, what: '--fsas' }) : null],
       ['updated_by', lit('manual', { max: 64 })],
       ['updated_at', lit(utc(new Date()))],
       ...DATE_COLUMNS.map((c) => [c, lit(utc(new Date(r.dates[c])))]),

@@ -38,7 +38,17 @@ const IDENTITIES = 'auth_identities';
 const USER_COLUMNS_BASE = ['ROWID', 'user_id', 'email_normalized', 'email_display',
   'first_name', 'last_name', 'user_type', 'status',
   'postal_code', 'fsa', 'province_code', 'phone'];
-const USER_COLUMNS = USER_COLUMNS_BASE.concat(['referral_code', 'crm_contact_id']);
+const USER_COLUMNS_MID = USER_COLUMNS_BASE.concat(['referral_code', 'crm_contact_id']);
+/* The notification layer's two: which language to write in, and which clock
+   to hold a message against overnight. Newest, so widest, so tried first. */
+const USER_COLUMNS = USER_COLUMNS_MID.concat(['locale', 'timezone']);
+
+/* Widest first, and each rung drops only what the rung above added. Two rungs
+   was enough while the only optional columns arrived together; three is what
+   keeps a missing `timezone` from also costing the read its `referral_code`,
+   which is the failure mode a two-rung ladder has as soon as there are two
+   independent additions. */
+const USER_COLUMN_LISTS = Object.freeze([USER_COLUMNS, USER_COLUMNS_MID, USER_COLUMNS_BASE]);
 
 /**
  * The signup fields that are not identity: everything the waitlist form
@@ -116,18 +126,30 @@ function firstNameFrom(email, given) {
  * degraded is exactly the thing that should be noisy.
  */
 async function readUser(catalystApp, column, value) {
-  try {
-    return await datastore.findBy(catalystApp, USERS, column, value, USER_COLUMNS);
-  } catch (err) {
-    const row = await datastore.findBy(catalystApp, USERS, column, value, USER_COLUMNS_BASE);
-    console.error(JSON.stringify({
-      level: 'error',
-      message: 'users read fell back to the base projection',
-      detail: String((err && err.message) || err).slice(0, 200),
-      missing_one_of: ['referral_code', 'crm_contact_id'],
-    }));
-    return row;
+  let lastErr = null;
+  for (let i = 0; i < USER_COLUMN_LISTS.length; i++) {
+    const cols = USER_COLUMN_LISTS[i];
+    try {
+      /* eslint-disable-next-line no-await-in-loop */
+      const row = await datastore.findBy(catalystApp, USERS, column, value, cols);
+      if (i > 0) {
+        console.error(JSON.stringify({
+          level: 'error',
+          message: 'users read fell back to a narrower projection',
+          rung: i,
+          detail: String((lastErr && lastErr.message) || lastErr).slice(0, 200),
+          dropped: USER_COLUMN_LISTS[i - 1].filter((c) => !cols.includes(c)),
+        }));
+      }
+      return row;
+    } catch (err) {
+      lastErr = err;
+      /* The last rung is what authentication genuinely needs. If that throws
+         the table really is broken and the caller has to see it. */
+      if (i === USER_COLUMN_LISTS.length - 1) throw err;
+    }
   }
+  return null;
 }
 
 const findByEmail = (catalystApp, email) =>
@@ -272,7 +294,7 @@ async function touchLastLogin(catalystApp, user) {
 }
 
 module.exports = {
-  USERS, IDENTITIES, USER_COLUMNS, USER_COLUMNS_BASE,
+  USERS, IDENTITIES, USER_COLUMNS, USER_COLUMNS_MID, USER_COLUMNS_BASE, USER_COLUMN_LISTS,
   normalizeEmail, isEmail, firstNameFrom, profileFrom,
   findByEmail, findById, findOrCreate,
   linkIdentity, findByIdentity, touchLastLogin, setStatus, updateProfile,

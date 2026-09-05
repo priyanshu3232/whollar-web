@@ -25,10 +25,15 @@ const referral = require('../lib/referral');
 const sessions = require('../lib/sessions');
 const prefs = require('../lib/prefs');
 const audit = require('../lib/audit');
+const crm = require('../lib/crm/outbox');
 const cookies = require('../lib/cookies');
 const ratelimit = require('../lib/ratelimit');
 const guards = require('../lib/guards');
-const { wrap, badRequest, forbidden } = require('../lib/errors');
+const geo = require('../lib/geo');
+const seats = require('../lib/seats');
+const catalog = require('../lib/catalog');
+const cohorts = require('../lib/cohorts');
+const { wrap, badRequest, forbidden, AppError } = require('../lib/errors');
 
 const EVENTS = 'user_events';
 /* A CLOSED SET, and the only place it is declared. 'feedback' is the open box
@@ -67,6 +72,89 @@ async function recordEvent(catalystApp, user, kind, payload) {
   });
 }
 
+/* ------------------------------------------------------------------ *
+ * The postal code, which is also the cohort
+ * ------------------------------------------------------------------ */
+
+/**
+ * Three changes a day per account.
+ *
+ * NOT AN ANTI-FRAUD MEASURE, and it should not be mistaken for one. A
+ * household that genuinely moves changes its postal code once; a household
+ * shopping for a cohort it likes the look of changes it repeatedly, and the
+ * honest answer to that is the copy in the not-in-your-area card, which says
+ * the cohort is somewhere else and offers the household its own. This limit
+ * only stops the shopping being free and fast enough to be worth automating.
+ * It matches the three-moves-a-day the seat ledger already applies to the
+ * other way of reaching another cohort, deliberately: two doors to the same
+ * room should not have different locks.
+ */
+const POSTAL_CHANGE_MAX = 3;
+const POSTAL_CHANGE_WINDOW_SEC = 86400;
+
+/** Columns that ship after the code. Absent until an operator adds them. */
+const POSTAL_META_COLUMNS = ['postal_code_updated_at', 'postal_code_source'];
+
+/**
+ * Write the profile, retrying without the columns that may not exist yet.
+ *
+ * `users.postal_code_updated_at` and `postal_code_source` are new, and this
+ * stack has no DDL API: they are rows an operator adds by hand in the Zoho
+ * console (see catalyst-backend/scripts/create-tables.md). Until they do, an
+ * update naming them fails and would take the postal code change down with
+ * it, so the stamp is dropped and the change lands. Same trade, and the same
+ * reason, as campaign_members.referral_code in routes/campaigns.js: the
+ * feature is the change, the stamp is the audit nicety.
+ */
+async function writeProfile(catalystApp, fields) {
+  try {
+    await datastore.updateRow(catalystApp, users.USERS, fields);
+    return true;
+  } catch (err) {
+    const trimmed = { ...fields };
+    let dropped = false;
+    for (const c of POSTAL_META_COLUMNS) {
+      if (c in trimmed) { delete trimmed[c]; dropped = true; }
+    }
+    if (!dropped) throw err;
+    await datastore.updateRow(catalystApp, users.USERS, trimmed);
+    return false;
+  }
+}
+
+/**
+ * What changing to `newFsa` does to the seat this address holds, if any.
+ * -> { claim, cohort, leaves } where `leaves` is true when the held cohort
+ * does not cover the new area and the seat has to go back.
+ *
+ * A cohort with NO FSA set covers everyone, so a member never loses a seat in
+ * an unscoped cohort by moving. See geo.eligibilityOf on why unscoped is
+ * permissive and how it is being closed off.
+ */
+async function seatImpact(catalystApp, user, newFsa) {
+  const addressId = seats.addressIdFor(user);
+  const vertical = seats.VERTICAL_DEFAULT;
+  let row = null;
+  try {
+    row = await seats.getClaim(catalystApp, addressId, vertical);
+  } catch {
+    /* Ledger unreadable. Refuse rather than guess: saving the postal code
+       here could silently orphan a seat this function cannot see, and the
+       member can try again in a moment. Same contract as every other read of
+       this table, which fails closed. */
+    throw new AppError('SERVER_ERROR',
+      'We could not check your cohort just now. Please try again shortly.', {
+        logDetail: 'postal change refused: seat_claim unreadable',
+      });
+  }
+  const claim = seats.publicClaim(row);
+  if (!claim || claim.status !== 'active') return { claim: null, cohort: null, leaves: false };
+  const cat = await catalog.load(catalystApp);
+  const cohort = cat.byId.get(claim.cohort_id) || null;
+  const fsas = (cohort && cohort.fsas) || [];
+  return { claim, cohort, leaves: Boolean(fsas.length) && !fsas.includes(newFsa) };
+}
+
 function mount(router) {
   /**
    * Update the profile fields a member may change about themselves. Selective:
@@ -93,39 +181,247 @@ function mount(router) {
       const s = String(body.phone == null ? '' : body.phone).replace(/[^\d+\-() .]/g, '').trim().slice(0, 32);
       fields.phone = s || null;
     }
+    /* THE POSTAL CODE IS THE COHORT, so it is the one profile field with a
+       consequence beyond itself and the only one that can refuse. Everything
+       it can do is below; the plain fields above cannot reach any of it. */
+    let postalChange = null;
     if ('postalCode' in body) {
-      const postal = String(body.postalCode || '').trim().toUpperCase().slice(0, 10);
-      if (postal && !/^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/.test(postal)) {
-        throw badRequest('That does not look like a Canadian postal code, e.g. N5Y 2T6.');
+      const raw = String(body.postalCode == null ? '' : body.postalCode).trim();
+      if (!raw) {
+        /* Clearing it is allowed and it is not a cohort change: a household
+           with no postal code is eligible for nothing, which is the state a
+           new account is in, and it keeps whatever seat it already holds. */
+        fields.postal_code = null;
+        fields.fsa = null;
+      } else {
+        const parsed = geo.normalizePostalCode(raw);
+        if (parsed.error) {
+          throw badRequest('That doesn’t look like a Canadian postal code. Check it and try again.', {
+            logDetail: `postal rejected, length ${raw.length}`,
+          });
+        }
+        fields.postal_code = parsed.postal_code;
+        /* Derived here, never taken from the client: the FSA decides the
+           cohort, so a member who could send one could pick any cohort. */
+        fields.fsa = parsed.fsa;
+        if (parsed.fsa !== (user.fsa || null)) postalChange = parsed;
       }
-      fields.postal_code = postal || null;
-      // Derived here, never taken from the client: the FSA decides the cohort.
-      fields.fsa = postal ? postal.replace(/\s+/g, '').slice(0, 3) : null;
     }
     if ('provinceCode' in body) {
       const s = String(body.provinceCode || '').trim().toUpperCase().slice(0, 2);
       fields.province_code = s || null;
+    }
+    /* WHAT THEY ASKED FOR ON /join. Not a users column: it lives in the
+       user_prefs blob beside the other facts a dashboard writes, and it rides
+       along with a details save rather than getting a route of its own. A
+       closed list, because it becomes a CRM picklist and a value the picklist
+       does not know is a field Zoho refuses and offendingField drops. */
+    let poolingFor = null;
+    if ('poolingFor' in body) {
+      const s = String(body.poolingFor || '').trim().toLowerCase();
+      if (!['internet', 'tires', 'both'].includes(s)) throw badRequest('Unknown product.');
+      poolingFor = s;
     }
 
     if (Object.keys(fields).length === 1) {
       throw badRequest('Nothing to update.');
     }
 
-    await datastore.updateRow(catalyst(req), users.USERS, fields);
-    const fresh = await users.findById(catalyst(req), user.user_id);
+    const app = catalyst(req);
+    let left = null;
 
-    audit.recordAsync(catalyst(req), req, {
+    if (postalChange) {
+      /* Limited only when the FSA actually moves. Correcting the last three
+         characters of your own postal code is not cohort shopping, and a
+         member who mistyped an LDU twice should not be locked out of fixing
+         it a third time. */
+      if (!await ratelimit.withinLimitFor(app, req, user.user_id,
+        { key: 'me.postal', max: POSTAL_CHANGE_MAX, windowSec: POSTAL_CHANGE_WINDOW_SEC })) {
+        throw new AppError('RATE_LIMITED',
+          'You’ve changed your postal code a few times today. Try again tomorrow, or message us if you’ve moved.', {
+            logDetail: `postal change limit for ${user.user_id}`,
+            headers: { 'Retry-After': String(POSTAL_CHANGE_WINDOW_SEC) },
+            extra: { reason: 'postal_code_change_limit' },
+          });
+      }
+
+      fields.postal_code_updated_at = datastore.nowDb();
+      fields.postal_code_source = 'profile_edit';
+
+      const impact = await seatImpact(app, user, postalChange.fsa);
+      if (impact.leaves) {
+        const now = Date.now();
+        /* THE SEAL OUTRANKS THE CONFIRMATION. Once a cohort's roster is fixed
+           its households are its brief, and partners are bidding against that
+           count: a seat cannot be handed back after the seal by any route, and
+           a postal code change is not a way around the rule that
+           POST /cohorts/:id/leave enforces to its face. The household keeps
+           the seat and the cohort it is in; the postal code waits. */
+        if (!cohorts.joinsOpen(impact.cohort, now)) {
+          throw new AppError('SEAL_RACE',
+            `${impact.cohort.region} has sealed, so your place in it is fixed for this round. `
+            + 'Your postal code can change once the cohort finishes.', {
+              logDetail: `postal change refused: ${impact.cohort.id} past join window`,
+              extra: { reason: 'cohort_sealed', cohort: { id: impact.cohort.id, region: impact.cohort.region } },
+            });
+        }
+        /* AN EXPLICIT SECOND ANSWER, because the cost is not on the screen
+           the member is looking at. They opened a postal code field; the
+           consequence is leaving a cohort, and a field that quietly does that
+           is a field that lies about what it is. The client renders the
+           confirmation from this refusal rather than deciding for itself when
+           to show one, so a client that has never heard of cohorts cannot
+           skip it. */
+        if (body.confirmLeaveCohort !== true) {
+          throw new AppError('CONFLICT',
+            `${impact.cohort.region} covers your current postal code, not the new one. `
+            + 'Save the change and you’ll leave the cohort.', {
+              logDetail: `postal change needs confirmation: leaves ${impact.cohort.id}`,
+              extra: {
+                reason: 'leave_cohort_required',
+                cohort: { id: impact.cohort.id, region: impact.cohort.region, sub: impact.cohort.sub || '' },
+              },
+            });
+        }
+
+        /* The seat goes back FIRST and the postal code follows, so the two
+           can never disagree in the direction that matters: a household
+           holding a seat in a cohort that does not cover it is a household
+           counted on a partner's desk under a false address. 'moving' is the
+           ledger's own word for this and it is already in seats.REASONS. */
+        await seats.transition(app, {
+          user, addressId: seats.addressIdFor(user), vertical: seats.VERTICAL_DEFAULT,
+          action: 'leave', fromCohortId: impact.cohort.id, toCohortId: null,
+          reason: 'moving', requestId: seats.cleanRequestId(req.get('Idempotency-Key')),
+        });
+        try {
+          const held = await datastore.findBy(app, cohorts.MEMBERS_TABLE, 'membership_key',
+            `${impact.cohort.id}:${user.user_id}`, ['ROWID']);
+          if (held) await datastore.deleteRow(app, cohorts.MEMBERS_TABLE, held.ROWID);
+        } catch {
+          /* Snapshot row missing or unreadable: the claim is the truth and it
+             is already released. seatCount reads both and counts the union. */
+        }
+        cohorts.invalidate(impact.cohort.id);
+        await seats.recount(app, impact.cohort.id);
+        left = { id: impact.cohort.id, region: impact.cohort.region };
+      }
+    }
+
+    try {
+      await writeProfile(app, fields);
+    } catch (err) {
+      if (left) {
+        /* The seat was released for a change that then failed to save. Put it
+           back rather than leave the household seatless AND unmoved, which is
+           the one outcome worse than either. If this throws in turn, the seat
+           ledger's own contract applies: nothing silently no-ops, and the
+           failure is loud. */
+        await seats.transition(app, {
+          user, addressId: seats.addressIdFor(user), vertical: seats.VERTICAL_DEFAULT,
+          action: 'rejoin', fromCohortId: null, toCohortId: left.id,
+          reason: null, requestId: null,
+        });
+        cohorts.invalidate(left.id);
+        await seats.recount(app, left.id);
+      }
+      throw err;
+    }
+
+    const fresh = await users.findById(app, user.user_id);
+
+    audit.recordAsync(app, req, {
       type: 'member.profile.update',
       outcome: 'success',
       userId: user.user_id,
       email: user.email_normalized,
-      detail: { fields: Object.keys(fields).filter((k) => k !== 'ROWID') },
+      detail: {
+        fields: Object.keys(fields).filter((k) => k !== 'ROWID'),
+        /* The FSA and the cohort left, never the postal code: the audit trail
+           answers "did this account hop between cohorts" without becoming a
+           second copy of where everybody lives. `return_to` is the campaign
+           the member was reading when they changed it, which is the whole
+           shape of a hop. */
+        fsa: postalChange ? postalChange.fsa : undefined,
+        left_cohort: left ? left.id : undefined,
+        return_to: postalChange && body.returnTo ? String(body.returnTo).slice(0, 64) : undefined,
+      },
     });
 
-    res.status(200).json({
+    /* WHERE A MEMBER'S DETAILS ACTUALLY ARRIVE. Signup mints an account from an
+       email and a code and nothing else: no name, no number, no postal code.
+       They are entered here, so a CRM record built from the signup event alone
+       is a lead with an address and nothing to call.
+    
+       This one DOES carry the postal code, where the audit line above
+       deliberately does not, and the difference is the audience. That is an
+       append-only security trail which must not become a second copy of where
+       everybody lives; this is a customer record, where a postal code is the
+       ordinary field a person expects to find and the thing that makes a lead
+       reachable. `fresh` and not `fields`, so what goes out is what the row
+       now holds rather than what this request happened to touch. */
+    /* Same principle for the product: the payload carries what the prefs blob
+       now holds, read back from the merge, never the request value. A write
+       that failed leaves the payload null rather than telling the CRM
+       something the store does not know. Best effort for the same reason the
+       enqueue is: a prefs table that is missing must not fail a details save
+       at the one moment a new member is filling them in. */
+    let poolingStored = null;
+    if (poolingFor) {
+      try {
+        const merged = await prefs.merge(app, user.user_id, { pooling_for: poolingFor });
+        poolingStored = (merged && merged.pooling_for) || null;
+      } catch (err) {
+        console.warn('[me.profile] pooling_for not stored:', String((err && err.message) || err).slice(0, 160));
+      }
+    }
+
+    crm.enqueueAsync(app, req, {
+      eventType: 'household.updated',
+      entityRowid: user.user_id,
+      email: user.email_display || user.email_normalized,
+      payload: {
+        first_name: (fresh && fresh.first_name) || null,
+        last_name: (fresh && fresh.last_name) || null,
+        phone: (fresh && fresh.phone) || null,
+        postal: (fresh && fresh.postal_code) || null,
+        fsa: (fresh && fresh.fsa) || null,
+        province: (fresh && fresh.province_code) || null,
+        pooling_for: poolingStored,
+        changed: Object.keys(fields).filter((k) => k !== 'ROWID').concat(poolingStored ? ['pooling_for'] : []),
+      },
+    });
+
+    const payload = {
       ok: true,
       user: sessions.publicUser({ ...user, ...fresh }),
-    });
+      leftCohort: left,
+    };
+
+    /* WHAT THIS CHANGE DID TO THE COHORT THEY WERE LOOKING AT. The member
+       reached this field from a campaign page that told them it was not their
+       area, and the answer they came for is whether it is now. Recomputed
+       server side against the SAVED row, so the page they land back on cannot
+       show a join button the join route would refuse. An unknown or archived
+       slug answers null and the client returns them to the dashboard. */
+    if (body.returnTo) {
+      const cat = await catalog.load(app, { fresh: true });
+      const target = cat.byId.get(String(body.returnTo).trim());
+      if (target && target.kind !== 'archived') {
+        const now = Date.now();
+        const st = cohorts.state(target, await cohorts.seatCount(app, target), now);
+        const standing = await datastore.findBy(app, cohorts.MEMBERS_TABLE, 'membership_key',
+          `${target.id}:${user.user_id}`, ['status']).catch(() => null);
+        payload.returnTo = {
+          id: target.id,
+          eligibility: cohorts.eligibilityFor(st, (fresh && fresh.fsa) || null, standing),
+        };
+      } else {
+        payload.returnTo = null;
+      }
+    }
+
+    res.status(200).json(payload);
   }));
 
   /** The preference blob, whichever dashboard is asking. -> { ok, prefs } */

@@ -20,6 +20,9 @@
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Internet bill breakdown: where your $90 actually goes">
 <meta name="twitter:description" content="Your internet bill, taken apart: roughly 63 cents of every reseller dollar is network rent. See where the rest goes and where real savings room sits.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -31,11 +34,43 @@
   "image": "",
   "datePublished": "",
   "dateModified": "",
-  "author": { "@type": "Organization", "name": "Whollar", "url": "https://whollar.ca" },
-  "publisher": { "@type": "Organization", "name": "Whollar", "logo": { "@type": "ImageObject", "url": "https://whollar.ca/logo.png" } },
+  "author": { "@id": "https://www.whollar.ca/#org" },
+  "publisher": {
+    "@type": "Organization",
+    "@id": "https://www.whollar.ca/#org",
+    "name": "Whollar",
+    "url": "https://www.whollar.ca/",
+    "logo": { "@type": "ImageObject", "url": "https://www.whollar.ca/logo.png" }
+  },
   "keywords": ["internet bill", "internet bill breakdown", "why is my internet bill so high", "wholesale internet"],
   "articleSection": "Explainers",
   "url": "https://whollar.ca/blog/internet-bill-breakdown-canada"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://internet.whollar.ca/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Resources",
+      "item": "https://internet.whollar.ca/blog"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "Internet bill breakdown: where your $90 actually goes",
+      "item": "https://whollar.ca/blog/internet-bill-breakdown-canada"
+    }
+  ]
 }
 </script>
 <script type="application/ld+json">
@@ -78,17 +113,16 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="/css/whollar-type.css?v=20260905a">
 <style>
   :root{
-    --paper:#FAFAF5; --ink:#0E2A20; --ink-body:#27332C; --muted:#6E7B72;
+    --paper:#FAFAF5; --ink:#0E2A20; --body:#27332C; --muted:#6E7B72;
     --accent:#12805A; --accent-2:#1E9E63; --wash:#EBF3ED; --line:#E5E4DA; --line-2:#D8D7CC;
     --read:700px;
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
-  body{margin:0;background:var(--paper);color:var(--ink-body);
-    font-family:'DM Sans',system-ui,sans-serif;font-size:20px;line-height:1.72;
+  body{margin:0;background:var(--paper);color:var(--body);
+    font-family:'Source Serif 4',Georgia,serif;font-size:20px;line-height:1.72;
     -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
   ::selection{background:var(--accent-2);color:#fff}
   .wrap{max-width:var(--read);margin:0 auto;padding:0 26px}
@@ -98,8 +132,8 @@
   .mast .in{max-width:var(--read);margin:0 auto;padding:14px 26px;display:flex;align-items:center;justify-content:space-between;gap:16px}
   .brand{display:inline-flex;align-items:center;gap:9px;border:0}
   .brand svg{width:26px;height:26px;display:block}
-  .brand b{font-family:'Playfair Display',Georgia,serif;font-weight:800;font-size:18px;color:var(--ink);letter-spacing:-.02em}
-  .mast .cta{font-family:'DM Sans',system-ui,sans-serif;font-size:12px;font-weight:700;letter-spacing:.02em;color:#fff;background:var(--accent);padding:8px 14px;border-radius:8px;border:0}
+  .brand b{font-family:'Bricolage Grotesque';font-weight:800;font-size:18px;color:var(--ink);letter-spacing:-.02em}
+  .mast .cta{font-family:'Space Mono';font-size:12px;font-weight:700;letter-spacing:.02em;color:#fff;background:var(--accent);padding:8px 14px;border-radius:8px;border:0}
   .mast .cta:hover{background:var(--ink)}
   /* Back out of the article, in the STICKY bar rather than above the headline,
      so it is still there four screens down where a reader actually decides to
@@ -107,7 +141,7 @@
      and they are the site's search-landing surface, so a visitor who arrived
      from Google has no history to go back through. */
   .mast .left{display:inline-flex;align-items:center;gap:14px;min-width:0}
-  .mast .back{display:inline-flex;align-items:center;gap:7px;flex:none;font-family:'DM Sans',system-ui,sans-serif;font-size:12px;font-weight:700;letter-spacing:.02em;
+  .mast .back{display:inline-flex;align-items:center;gap:7px;flex:none;font-family:'Space Mono';font-size:12px;font-weight:700;letter-spacing:.02em;
     color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 12px}
   .mast .back:hover{color:var(--ink);border-color:var(--ink)}
   .mast .back svg{width:13px;height:13px;flex:none}
@@ -122,76 +156,97 @@
     .brand b{display:none}
   }
   article{padding:46px 0 20px}
-  .eyebrow{font-family:'DM Sans',system-ui,sans-serif;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:18px}
-  h1{font-family:'Playfair Display',Georgia,serif;font-weight:800;color:var(--ink);font-size:clamp(33px,5.4vw,50px);line-height:1.04;letter-spacing:-.025em;margin:0}
+  .eyebrow{font-family:'Space Mono';font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:18px}
+  h1{font-family:'Bricolage Grotesque';font-weight:800;color:var(--ink);font-size:clamp(33px,5.4vw,50px);line-height:1.04;letter-spacing:-.025em;margin:0}
   .deck{font-size:clamp(19px,2.4vw,23px);color:var(--muted);font-weight:400;margin:20px 0 0;line-height:1.5;font-style:italic}
-  .byline{display:flex;align-items:center;gap:14px;margin:26px 0 0;padding:16px 0 0;border-top:1px solid var(--line);font-family:'DM Sans',system-ui,sans-serif;font-size:12.5px;color:var(--muted);letter-spacing:.02em;flex-wrap:wrap}
+  .byline{display:flex;align-items:center;gap:14px;margin:26px 0 0;padding:16px 0 0;border-top:1px solid var(--line);font-family:'Space Mono';font-size:12.5px;color:var(--muted);letter-spacing:.02em;flex-wrap:wrap}
   .byline .who{color:var(--ink);font-weight:700}
   .byline .dot{color:var(--line-2)}
   .draft{color:var(--accent);border:1px solid rgba(18,128,90,.3);border-radius:5px;padding:1px 7px;font-weight:700}
   .body{padding:8px 0 0}
   .body p{margin:24px 0}
   .body p.lead{font-size:22px;line-height:1.6}
-  h2{font-family:'Playfair Display',Georgia,serif;font-weight:700;color:var(--ink);font-size:clamp(24px,3.2vw,31px);line-height:1.12;letter-spacing:-.02em;margin:52px 0 0}
+  h2{font-family:'Bricolage Grotesque';font-weight:700;color:var(--ink);font-size:clamp(24px,3.2vw,31px);line-height:1.12;letter-spacing:-.02em;margin:52px 0 0}
   h2 + p{margin-top:16px}
   .tldr{margin:34px 0 0;border:1px solid var(--line-2);border-radius:16px;background:#fff;padding:24px 26px 22px}
-  .tldr .lbl{font-family:'DM Sans',system-ui,sans-serif;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:14px}
+  .tldr .lbl{font-family:'Space Mono';font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:14px}
   .tldr ul{list-style:none;margin:0;padding:0}
-  .tldr li{font-family:'DM Sans',system-ui,sans-serif;font-size:17.5px;line-height:1.5;color:var(--ink-body);padding:8px 0 8px 26px;position:relative;border-bottom:1px solid var(--line)}
+  .tldr li{font-family:'Source Serif 4';font-size:17.5px;line-height:1.5;color:var(--body);padding:8px 0 8px 26px;position:relative;border-bottom:1px solid var(--line)}
   .tldr li:last-child{border-bottom:0}
   .tldr li::before{content:"";position:absolute;left:2px;top:16px;width:8px;height:8px;border-radius:2px;background:var(--accent-2)}
   .tldr li b{color:var(--ink);font-weight:600}
   .pq{margin:44px 0;padding:6px 0 6px 26px;border-left:3px solid var(--accent-2)}
-  .pq p{font-family:'Playfair Display',Georgia,serif;font-weight:600;color:var(--ink);font-size:clamp(23px,3vw,29px);line-height:1.2;letter-spacing:-.02em;margin:0}
+  .pq p{font-family:'Bricolage Grotesque';font-weight:600;color:var(--ink);font-size:clamp(23px,3vw,29px);line-height:1.2;letter-spacing:-.02em;margin:0}
   figure{margin:44px 0;padding:0}
   .figbox{border:1px solid var(--line-2);border-radius:18px;background:#fff;padding:26px 26px 20px}
   .figbox svg{width:100%;height:auto;display:block}
-  figcaption{font-family:'DM Sans',system-ui,sans-serif;font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5}
+  figcaption{font-family:'Space Mono';font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5}
   figcaption b{color:var(--ink)}
   .checkline{margin:36px 0;border:1px solid var(--line-2);border-left:3px solid var(--accent-2);border-radius:14px;background:var(--wash);padding:20px 22px;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
-  .checkline p{margin:0 0 0;font-size:17px;line-height:1.5;color:var(--ink-body);flex:1 1 320px}
+  .checkline p{margin:0 0 0;font-size:17px;line-height:1.5;color:var(--body);flex:1 1 320px}
   .checkline p b{color:var(--ink)}
   .checkline .btn{white-space:nowrap}
-  .invite{margin:40px 0 0;border:1px solid var(--line-2);border-radius:18px;background:linear-gradient(180deg,#fff,#F7FAF7);padding:28px 28px 26px}
-  .invite h3{font-family:'Playfair Display',Georgia,serif;font-weight:700;color:var(--ink);font-size:23px;letter-spacing:-.02em;margin:0 0 8px}
-  .invite p{margin:0 0 18px;font-size:18px;color:var(--ink-body);line-height:1.55}
-  .invite .row{display:flex;gap:12px;flex-wrap:wrap}
-  .btn{font-family:'DM Sans',system-ui,sans-serif;font-size:13px;font-weight:700;letter-spacing:.01em;padding:12px 18px;border-radius:10px;border:1px solid var(--accent);text-decoration:none}
+  .btn{font-family:'Space Mono';font-size:13px;font-weight:700;letter-spacing:.01em;padding:12px 18px;border-radius:10px;border:1px solid var(--accent);text-decoration:none}
   .btn.solid{background:var(--accent);color:#fff;border-color:var(--accent)}
   .btn.solid:hover{background:var(--ink);border-color:var(--ink)}
-  .btn.ghost{background:transparent;color:var(--accent)}
-  .btn.ghost:hover{background:var(--wash)}
-  .fineprint{font-family:'DM Sans',system-ui,sans-serif;font-size:11.5px;color:var(--muted);margin:14px 0 0;letter-spacing:.01em}
+  /* End-of-article call to action. Interface, not prose: the whole block is set
+     in the display sans so the eye stops on it rather than reading another
+     paragraph, and the two actions share one auto-fit grid track so their outer
+     edges line up. Four parts became two: the monospace trust line that used to
+     sit under the buttons was the heaviest element in the card carrying the
+     least important words in it, and the eyebrow above the headline was a label
+     on something that needs no labelling. What is left is the sentence, the
+     reason, and the two things a reader can do about it. */
+  .invite{margin:44px 0 0;border:1px solid var(--line-2);border-radius:12px;background:#fff;overflow:hidden;
+    font-family:'Bricolage Grotesque',system-ui,sans-serif}
+  .invite .top{padding:24px 24px 20px}
+  .invite h3{font-family:inherit;font-weight:700;color:var(--ink);font-size:23px;line-height:1.3;letter-spacing:-.02em;margin:0 0 10px}
+  .invite .top p{font-family:inherit;font-size:17.5px;line-height:1.6;color:var(--muted);max-width:52ch;margin:0}
+  .invite .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;padding:0 24px 24px}
+  .invite .btn{display:flex;align-items:center;justify-content:center;gap:8px;height:50px;border-radius:10px;
+    font-family:inherit;font-size:15px;font-weight:600;letter-spacing:0;border:1px solid transparent;
+    text-decoration:none;transition:background .15s ease,border-color .15s ease,color .15s ease}
+  .invite .btn svg{width:17px;height:17px;flex:none}
+  .invite .btn.solid{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .invite .btn.solid:hover{background:var(--ink);border-color:var(--ink)}
+  .invite .btn.ghost{background:transparent;color:var(--accent);border-color:var(--accent-2)}
+  .invite .btn.ghost:hover{background:var(--wash)}
+  .invite .btn:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
+  @media(max-width:480px){
+    .invite .top{padding:20px 20px 16px}
+    .invite h3{font-size:19px}
+    .invite .row{padding:0 20px 20px}
+  }
   .faq{margin:56px 0 0;border-top:1px solid var(--line);padding-top:12px}
   .faq h2{margin-top:28px}
-  .faq h3{font-family:'Playfair Display',Georgia,serif;font-weight:700;color:var(--ink);font-size:20px;letter-spacing:-.01em;margin:30px 0 0}
-  .faq p{margin:10px 0 0;font-size:18px;color:var(--ink-body)}
+  .faq h3{font-family:'Bricolage Grotesque';font-weight:700;color:var(--ink);font-size:20px;letter-spacing:-.01em;margin:30px 0 0}
+  .faq p{margin:10px 0 0;font-size:18px;color:var(--body)}
   .sources{margin:52px 0 0;border-top:1px solid var(--line);padding-top:22px}
-  .sources .lbl{font-family:'DM Sans',system-ui,sans-serif;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:12px}
+  .sources .lbl{font-family:'Space Mono';font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:12px}
   .sources ol{margin:0;padding-left:22px}
-  .sources li{font-family:'DM Sans',system-ui,sans-serif;font-size:12.5px;color:var(--muted);line-height:1.6;margin:8px 0}
+  .sources li{font-family:'Space Mono';font-size:12.5px;color:var(--muted);line-height:1.6;margin:8px 0}
   .sources li a{color:var(--accent)}
   .sources li b{color:var(--ink);font-weight:700}
   .prod{margin:50px 0 0;border:1px dashed var(--line-2);border-radius:14px;background:#fff;padding:20px 22px}
-  .prod .lbl{font-family:'DM Sans',system-ui,sans-serif;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:6px}
-  .prod p{font-family:'DM Sans',system-ui,sans-serif;font-size:12px;color:var(--muted);margin:0 0 12px;line-height:1.6}
-  pre{background:var(--ink);color:#E9EDEA;border-radius:12px;padding:16px 18px;overflow-x:auto;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;line-height:1.7;margin:0}
+  .prod .lbl{font-family:'Space Mono';font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:6px}
+  .prod p{font-family:'Space Mono';font-size:12px;color:var(--muted);margin:0 0 12px;line-height:1.6}
+  pre{background:var(--ink);color:#E9EDEA;border-radius:12px;padding:16px 18px;overflow-x:auto;font-family:'Space Mono';font-size:12px;line-height:1.7;margin:0}
   pre .c{color:#7FA79B}
   pre .k{color:#8FD9B6}
   .dwrap{margin:38px 0;border:1px solid var(--line-2);border-radius:16px;overflow:hidden;background:#fff}
   table.dtable{width:100%;border-collapse:collapse;font-size:16px}
-  .dtable th{font-family:'DM Sans',system-ui,sans-serif;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:var(--ink);text-align:left;padding:12px 16px}
-  .dtable td{padding:12px 16px;border-bottom:1px solid var(--line);color:var(--ink-body);vertical-align:top}
+  .dtable th{font-family:'Space Mono';font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:var(--ink);text-align:left;padding:12px 16px}
+  .dtable td{padding:12px 16px;border-bottom:1px solid var(--line);color:var(--body);vertical-align:top}
   .dtable tr:last-child td{border-bottom:0}
   .dtable td b{color:var(--ink);font-weight:600}
-  .dtable td.num{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:14px;white-space:nowrap;color:var(--ink)}
+  .dtable td.num{font-family:'Space Mono';font-size:14px;white-space:nowrap;color:var(--ink)}
   ol.steps{margin:38px 0;padding:0;list-style:none;counter-reset:st;border:1px solid var(--line-2);border-radius:16px;background:#fff;overflow:hidden}
   ol.steps li{counter-increment:st;padding:16px 20px 16px 66px;position:relative;border-bottom:1px solid var(--line);font-size:17.5px;line-height:1.55}
   ol.steps li:last-child{border-bottom:0}
-  ol.steps li::before{content:counter(st);position:absolute;left:18px;top:15px;width:30px;height:30px;border-radius:9px;background:var(--wash);color:var(--accent);font-family:'DM Sans',system-ui,sans-serif;font-weight:700;font-size:14px;display:grid;place-items:center}
+  ol.steps li::before{content:counter(st);position:absolute;left:18px;top:15px;width:30px;height:30px;border-radius:9px;background:var(--wash);color:var(--accent);font-family:'Space Mono';font-weight:700;font-size:14px;display:grid;place-items:center}
   ol.steps li b{color:var(--ink);font-weight:600}
   footer{margin-top:56px;border-top:1px solid var(--line);padding:26px 0 60px}
-  footer .in{max-width:var(--read);margin:0 auto;padding:0 26px;font-family:'DM Sans',system-ui,sans-serif;font-size:12px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+  footer .in{max-width:var(--read);margin:0 auto;padding:0 26px;font-family:'Space Mono';font-size:12px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
   footer a{color:var(--accent);border:0}
   @media(max-width:640px){body{font-size:19px}.body p.lead{font-size:20px}}
 </style>
@@ -201,8 +256,8 @@
 <div class="mast">
   <div class="in">
     <div class="left">
-      <a class="back" href="/blog/" aria-label="Back to all articles"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg><span>All articles</span></a>
-      <a class="brand" href="https://whollar.ca" aria-label="Whollar home">
+      <a class="back" href="/blog" aria-label="Back to all articles"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg><span>All articles</span></a>
+      <a class="brand" href="https://www.whollar.ca/" data-umbrella aria-label="Whollar home">
         <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
         <b>Whollar</b>
       </a>
@@ -262,37 +317,38 @@
       <p>Three practical rules fall out of the anatomy. Compare 24-month totals, never advertised monthly rates, because the promo is acquisition spend with an expiry. Treat <a href="https://whollar.ca/blog/teksavvy-vs-rogers-same-cable">same-line resellers</a> as the honest benchmark for what your connection costs without the brand premium. And remember that the one layer of the bill you cannot negotiate alone, the structure itself, is negotiable in aggregate: a pooled cohort makes providers bid their acquisition budget openly instead of spending it one doorstep at a time. That is the layer Whollar works on.</p>
 
 <div class="invite">
-        <h3>Now read your own bill the same way.</h3>
-        <p>The checkup takes two minutes and tells you whether there is room in your bill worth acting on. And when your region's cohort opens, the structural layer, the one no single caller can move, gets negotiated for the whole group at once.</p>
-        <div class="row">
-          <a class="btn solid" href="https://whollar.ca/checkup">Check if I'm overpaying</a>
-          <a class="btn ghost" href="https://whollar.ca/join">Hold your spot in the first cohort</a>
-        </div>
-        <p class="fineprint">Free for households · nothing to buy today · you only act if a bid comes back that you want.</p>
-      </div>
+  <div class="top">
+    <h3>Now read your own bill the same way.</h3>
+    <p>The checkup takes two minutes and tells you whether there is room in your bill worth acting on. And when your region's cohort opens, the structural layer, the one no single caller can move, gets negotiated for the whole group at once.</p>
+  </div>
+  <div class="row">
+    <a class="btn solid" href="https://whollar.ca/join">Hold your spot <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9.5M9 4.5 12.5 8 9 11.5"/></svg></a>
+    <a class="btn ghost" href="https://whollar.ca/checkup"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.6V8l2.3 1.5"/></svg> Run a 2-minute checkup</a>
+  </div>
+</div>
 
       <figure>
         <div class="figbox">
           <svg viewBox="0 0 640 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A stacked bar showing the split of a typical wholesale-based internet bill: 63 percent wholesale network access, 17 percent equipment and operations, 12 percent support and billing, 8 percent reseller margin.">
-            <text x="40" y="30" font-family="'Playfair Display',Georgia,serif" font-size="17" font-weight="700" fill="#0E2A20">Where each retail dollar goes.</text>
+            <text x="40" y="30" font-family="'Bricolage Grotesque',sans-serif" font-size="17" font-weight="700" fill="#0E2A20">Where each retail dollar goes.</text>
             <g>
               <rect x="40" y="70" width="352" height="64" rx="8" fill="#0E2A20"/>
-              <text x="216" y="98" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size="15" font-weight="700" fill="#fff">63% · wholesale network access</text>
-              <text x="216" y="118" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size="11" fill="#9DB3A8">rent on the incumbent's line</text>
+              <text x="216" y="98" text-anchor="middle" font-family="'Space Mono',monospace" font-size="15" font-weight="700" fill="#fff">63% · wholesale network access</text>
+              <text x="216" y="118" text-anchor="middle" font-family="'Space Mono',monospace" font-size="11" fill="#9DB3A8">rent on the incumbent's line</text>
               <rect x="396" y="70" width="95" height="64" fill="#12805A"/>
-              <text x="443" y="106" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size="13" font-weight="700" fill="#fff">17%</text>
+              <text x="443" y="106" text-anchor="middle" font-family="'Space Mono',monospace" font-size="13" font-weight="700" fill="#fff">17%</text>
               <rect x="495" y="70" width="67" height="64" fill="#1E9E63"/>
-              <text x="528" y="106" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size="13" font-weight="700" fill="#fff">12%</text>
+              <text x="528" y="106" text-anchor="middle" font-family="'Space Mono',monospace" font-size="13" font-weight="700" fill="#fff">12%</text>
               <rect x="566" y="70" width="45" height="64" rx="8" fill="#DD862B"/>
-              <text x="588" y="106" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size="13" font-weight="700" fill="#fff">8%</text>
+              <text x="588" y="106" text-anchor="middle" font-family="'Space Mono',monospace" font-size="13" font-weight="700" fill="#fff">8%</text>
             </g>
-            <g font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size="12" fill="#6E7B72">
+            <g font-family="'Space Mono',monospace" font-size="12" fill="#6E7B72">
               <text x="396" y="160">17% equipment, provisioning &amp; ops</text>
               <text x="396" y="182">12% support &amp; billing</text>
               <text x="396" y="204" fill="#A8470F">8% the reseller's entire margin</text>
             </g>
-            <text x="40" y="250" font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size="12" fill="#6E7B72">Compiled industry breakdown for a typical 100 Mbps wholesale-based connection.</text>
-            <text x="40" y="268" font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size="12" fill="#6E7B72">Individual providers vary; the shape does not.</text>
+            <text x="40" y="250" font-family="'Space Mono',monospace" font-size="12" fill="#6E7B72">Compiled industry breakdown for a typical 100 Mbps wholesale-based connection.</text>
+            <text x="40" y="268" font-family="'Space Mono',monospace" font-size="12" fill="#6E7B72">Individual providers vary; the shape does not.</text>
           </svg>
         </div>
         <figcaption><b>The 63 / 17 / 12 / 8 split.</b> A reseller's whole competitive life happens inside the last, thin slice.</figcaption>

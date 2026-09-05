@@ -34,8 +34,10 @@
 const catalog = require('../lib/catalog');
 const awards = require('../lib/awards');
 const orders = require('../lib/orders');
+const events = require('../lib/notify/events');
 const billing = require('../lib/billing');
 const audit = require('../lib/audit');
+const crm = require('../lib/crm/outbox');
 const datastore = require('../lib/datastore');
 const { ok } = require('../lib/envelope');
 const { requirePartner: guardPartner, requireApproved } = require('../lib/guards');
@@ -81,8 +83,19 @@ async function buildStatements(req, context) {
     (byCampaign[r.campaign_id] || (byCampaign[r.campaign_id] = [])).push(r);
   });
 
+  /* ONE STATEMENT PER COHORT, defensively. An award row is one per (cohort,
+     org) now that a cohort can be won tier by tier, so this should already be
+     true. It is asserted rather than assumed because the failure is silent and
+     expensive in the wrong direction: a duplicate row here bills a partner
+     twice for one cohort, and the first anyone would know is the invoice. */
+  const seenCampaign = new Set();
   const statements = (awardRows || [])
     .filter((a) => byId.get(a.campaign_id))
+    .filter((a) => {
+      if (seenCampaign.has(a.campaign_id)) return false;
+      seenCampaign.add(a.campaign_id);
+      return true;
+    })
     .map((a) => billing.statementFor({
       campaign: byId.get(a.campaign_id),
       rows: byCampaign[a.campaign_id] || [],
@@ -119,6 +132,31 @@ function mount(router) {
     const { context } = await requirePartner(req);
     requireApproved(context);
     const { statements, t, live } = await buildStatements(req, context);
+
+    /* ISSUED, NOT ACCRUING. A statement accrues from the first activation and
+       changes every time another install lands, so a letter on that state
+       would arrive once per household. `issuedAt` is the moment it stops
+       moving and becomes a thing that falls due, and that is the only version
+       worth putting in an inbox.
+       Read-triggered, like the award letters and for the same reason: there is
+       no cron here. The outbox key carries the issue timestamp, so a statement
+       announces itself once and every later board load enqueues nothing. */
+    for (const st of statements) {
+      if (st.state === 'accruing' || !st.issuedAt) continue;
+      /* eslint-disable-next-line no-await-in-loop */
+      await events.statementReady(req, {
+        campaign: { id: st.campaignId, region: st.region, sub: st.sub || null },
+        orgId: context.orgId,
+        ref: `${st.campaignId}:${st.issuedAt}`,
+        /* No document number exists on a statement yet, so none is printed.
+           An invented one would be a reference a partner could not quote. */
+        statementRef: null,
+        total: st.total,
+        lineCount: st.counts ? st.counts.act : null,
+        dueAt: st.dueAt || null,
+      });
+    }
+
     const method = await billing.methodFor(req.catalyst, context.orgId);
     return ok(res, {
       statements,
@@ -203,6 +241,15 @@ function mount(router) {
       detail: `org=${context.orgId} order=${row.order_no || row.order_key}`,
     });
 
+    /* To the billing contacts rather than the bid desk, so a held line is read
+       by whoever pays. Falls back to everyone at the org while
+       provider_users.notify_roles does not exist, which is today. */
+    await events.disputeLogged(req, {
+      orgId: context.orgId,
+      orderRef: row.order_no || row.order_key,
+      campaignId: row.campaign_id || null,
+    });
+
     return ok(res, { disputed: true, key: row.order_key });
   }));
 
@@ -242,6 +289,14 @@ function mount(router) {
       outcome: 'success',
       userId: user.user_id,
       detail: `org=${context.orgId} method=invoice`,
+    });
+    crm.enqueueAsync(req.catalyst, req, {
+      eventType: 'partner.updated',
+      entityRowid: context.orgId,
+      email: user.email_display || user.email_normalized,
+      leadType: 'partner',
+      payload: { org_id: context.orgId, org_name: context.orgName || null,
+        method: 'invoice', billing_email: email, billing_contact: contact || null },
     });
     return ok(res, { method: billing.publicMethod(method) });
   }));

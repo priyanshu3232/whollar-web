@@ -4,8 +4,13 @@ node_modules/
 .claude/settings.local.json
 *.textClipping
 .env
-# Catalyst build artifacts
+# Catalyst build artifacts. .build/ is what `catalyst deploy` stages: 35 MB of
+# generated copies of the functions plus their node_modules, regenerated on
+# every deploy, and the debug log beside it is one machine's console output.
+# Neither is source, and .build/ carries a second, stale copy of every route.
 catalyst-backend/**/.output/
+catalyst-backend/.build/
+catalyst-backend/catalyst-debug.log
 .vercel
 .env*
 # Raw source images (site serves optimized copies from images/resources/)
@@ -29,3 +34,6 @@ catalyst-backend/Export_*.zip
 # Local QA screenshots. Working files, not site source, and cleanUrls would
 # otherwise serve them verbatim at /private/tmp-shots/.
 private/
+
+# Timestamped local backups from in-place edits, never source.
+*.bak-*

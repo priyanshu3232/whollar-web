@@ -24,13 +24,30 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const PAGES = [
   'index.html', 'partners.html', 'bill-checkup.html', 'become-a-partner.html',
-  'waitlist/index.html', 'blog/index.html', 'terms.html', 'privacy.html', 'contact.html',
+  'waitlist/index.html', 'blog/index.html', 'blog/cheap-internet-chatham-ontario/index.html',
+  'MobileVersion/blog/cheap-internet-chatham-ontario.html',
+  'blog/rural-internet-ontario/index.html',
+  'MobileVersion/blog/rural-internet-ontario.html',
+  'blog/best-internet-toronto/index.html', 'MobileVersion/blog/best-internet-toronto.html',
+  'terms.html', 'privacy.html', 'contact.html',
   'thank-you.html', 'dashboard.html', 'partner/index.html',
+  'greystonewalk.html',
+  'landing.html',
+  'join.html',
+  'join-welcome.html',
+  'join-welcome-tires.html',
+  /* The umbrella project at whollar.ca. Its own Vercel root, so its pages are
+     listed here by their repo path; the gate reads files, not deployments. */
+  'tires/index.html', 'tires/join.html', 'tires/404.html',
+  'home/index.html', 'home/join.html', 'home/join-welcome.html',
+  'home/join-welcome-tires.html', 'home/404.html',
   'whollar-login-consumer.html', 'whollar-login-provider.html',
   'welcome-member.html', 'welcome-partner.html',
   'MobileVersion/consumer-mobile.html', 'MobileVersion/provider-mobile.html',
   'MobileVersion/bill-checkup-mobile.html', 'MobileVersion/become-a-partner-mobile.html',
-  'MobileVersion/join-the-first-cohort-mobile.html', 'MobileVersion/resources-mobile.html'
+  'MobileVersion/join-the-first-cohort-mobile.html', 'MobileVersion/resources-mobile.html',
+  'blog/internet-speed-how-much-need/index.html', 'MobileVersion/blog/internet-speed-how-much-need.html',
+  'blog/internet-providers-mississauga/index.html', 'MobileVersion/blog/internet-providers-mississauga.html'
 ];
 
 /* <script> with a src, or a non-JS type (JSON-LD, speculation rules, the

@@ -57,13 +57,13 @@ const PAGES = [
     source: 'bill-checkup.html',
     output: 'MobileVersion/bill-checkup-mobile.html',
     overlay: 'MobileVersion/overlays/bill-checkup.css',
-    canonical: 'https://www.whollar.ca/bill-checkup'
+    canonical: 'https://internet.whollar.ca/bill-checkup'
   },
   {
     source: 'become-a-partner.html',
     output: 'MobileVersion/become-a-partner-mobile.html',
     overlay: 'MobileVersion/overlays/become-a-partner.css',
-    canonical: 'https://www.whollar.ca/become-a-partner'
+    canonical: 'https://internet.whollar.ca/become-a-partner'
   }
 ];
 

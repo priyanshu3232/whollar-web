@@ -139,3 +139,85 @@ docs/console/cohort-launch-guide.pdf
 # the source at /docs/console/cohort-stage-ladder and serve the PDF beside it.
 docs/console/cohort-stage-ladder.html
 docs/console/cohort-stage-ladder.pdf
+
+# The Phase 0 delivery audit. Same reason as the two guides above, and one more
+# besides: docs/ IS deployed, and this file names internal tables, internal
+# columns, and an erasure gap that is live and not yet fixed. A .md publishes
+# verbatim at its own path, so without this line the audit would be readable at
+# /docs/DELIVERY_AUDIT.md by anyone. It stays in the repo and in git history,
+# which is where it is useful, and off the site, which is where it is not.
+docs/DELIVERY_AUDIT.md
+
+# The admin console v2 brief. docs/ IS deployed, and a .md publishes
+# verbatim at its own path: this one names internal tables, internal columns
+# and open gaps, and is written for staff.
+docs/ADMIN_CONSOLE_V2_BRIEF.md
+
+# The Greystone Walk cohort page design reference. Same reason as the
+# prototypes above: cleanUrls would otherwise publish this raw file at
+# /whollargreystonewalkcohortpage, where it would serve a SECOND, unguarded
+# copy of the cohort page carrying its demo data (invented usernames, points,
+# ratings and a sample verdict) and its Viewing-as-member toggle. Its content
+# was ported into greystonewalk.html on 2026-09-01; kept in the repo so the
+# port can be checked against its source.
+whollargreystonewalkcohortpage.html
+
+# The landing page design source: a Claude Design canvas plus the assets it was
+# built from. Working files, not site source, and three separate reasons it must
+# never deploy. cleanUrls would publish the raw pages at their own paths, and
+# they carry no login guard and no noindex. `Whollar Landing Page.html` is a
+# 13 MB single file with its assets inlined, which is a design export and not
+# something to serve. And uploads/ holds two licensed stock .mp4s and the .docx
+# content spec, none of which belong on the public site. Kept in the repo so the
+# port into a real page can be checked against its source.
+Landingpagedesignstructure
+
+# The waitlist design sources: commonwaitlist.html is the cut /join was ported
+# from, and commonwaitlist/ holds an older one (account creation with a
+# password) plus the brand sheet and the uploads behind both. Same three
+# reasons as the landing design above. cleanUrls would publish the raw pages at
+# their own paths with no guard and no noindex, they are self-unpacking bundles
+# whose runtime the CSP blocks anyway, and uploads/ is working material. Kept
+# in the repo so the port can be checked against its source.
+commonwaitlist.html
+commonwaitlist
+
+# The winter tire design sources: the landing canvas plus the waitlist
+# prototype it links to. Same three reasons as the landing and waitlist designs
+# above. cleanUrls would publish the raw pages at their own paths with no guard
+# and no noindex, the canvas runtime compiles itself with new Function which
+# the CSP blocks, and uploads/ holds licensed .mp4s and the .docx build spec.
+# Both still name www.whollar.ca, so leaving them deployable also fails
+# scripts/check-site-host.mjs. Kept in the repo so the port into tires/ can be
+# checked against its source.
+WhollarTireLandingPage
+whollar-waitlist-tyre.html
+# The canvas exported as one self-unpacking file. Same page, same reasons, and
+# it is not covered by the two lines above because it sits at the root under
+# its own name. The glob catches the copies a second export drops beside it
+# ("... (standalone)-2.html"), which the exact name did not: a 3 MB design
+# export with no guard and no noindex, published at its own path by cleanUrls.
+WhollarWinterTires (standalone).html
+Whollar-Winter-Tires-*.html
+Whollar-Landing-Page-*.html
+
+# The winter tire vertical. tires/ deploys as its OWN Vercel project with its
+# root directory set to tires/, serving tires.whollar.ca. Same reason as home/
+# below: left in this deploy, cleanUrls would publish a second copy of it at
+# /tires/index on the product host.
+tires
+
+# The umbrella project. home/ deploys as its OWN Vercel project with its root
+# directory set to home/, serving whollar.ca. Left in this deploy, cleanUrls
+# would publish a second copy of the umbrella at /home/index and every page
+# under it, on the product host. Nothing in home/ belongs to this project.
+home
+
+# The domain restructure documents. docs/ IS deployed, and each of these names
+# the redirect map, owner steps, environment variables and internal hosts. In
+# the repo and in history, never on the site.
+docs/REDIRECT_MAP_2026-09.md
+docs/DOMAIN_CUTOVER_RUNBOOK.md
+docs/VERTICAL_PLAYBOOK.md
+docs/DEPLOY_READINESS_2026-09.md
+docs/REPO_SPLIT_2026-09.md

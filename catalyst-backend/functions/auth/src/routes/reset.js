@@ -25,7 +25,7 @@ const users = require('../lib/users');
 const credentials = require('../lib/credentials');
 const challenges = require('../lib/challenges');
 const sessions = require('../lib/sessions');
-const mailer = require('../lib/mailer');
+const notify = require('../lib/notify');
 const audit = require('../lib/audit');
 const ratelimit = require('../lib/ratelimit');
 const { canRevealCode } = require('./otp');
@@ -41,18 +41,17 @@ const PURPOSE = 'password_reset';
  * to be. The failure is recorded on the audit row, which is where it is
  * actually useful.
  */
-async function sendQuietly(req, cfg, to, message, label) {
-  try {
-    await mailer.send(cfg, { to, ...message });
-    return { delivered: true, error: null };
-  } catch (err) {
-    const detail = String((err && err.message) || err).slice(0, 300);
-    console.error(JSON.stringify({
-      req_id: req.id, level: 'error', message: `${label} mail send failed`, detail,
-    }));
-    return { delivered: false, error: detail };
-  }
+async function sendQuietly(req, spec) {
+  const sent = await notify.dispatch(req, spec);
+  return {
+    delivered: Boolean(sent.delivered),
+    error: sent.status === 'failed' ? 'send_failed' : null,
+    status: sent.status,
+  };
 }
+
+/** The site's own origin, with any trailing slash removed. */
+const base = (cfg) => String(cfg.APP_BASE_URL || '').replace(/\/+$/, '');
 
 function mount(router, cfg) {
   /**
@@ -81,9 +80,12 @@ function mount(router, cfg) {
     const user = await users.findByEmail(req.catalyst, email);
 
     if (!user) {
-      const sent = await sendQuietly(
-        req, cfg, email, mailer.noAccountEmail({ appBaseUrl: cfg.APP_BASE_URL }), 'no-account'
-      );
+      const sent = await sendQuietly(req, {
+        templateKey: 'account.no_account',
+        eventKey: `password.forgot.no_account:${req.id}`,
+        to: email,
+        context: { sign_up_url: `${base(cfg)}/whollar-login-consumer` },
+      });
       audit.recordAsync(req.catalyst, req, {
         type: 'password.forgot', outcome: 'failure', email,
         detail: { branch: 'no_account', delivered: sent.delivered, send_error: sent.error },
@@ -94,11 +96,13 @@ function mount(router, cfg) {
     const { code, ttlMinutes } = await challenges.start(req.catalyst, req, {
       email, purpose: PURPOSE,
     });
-    const sent = await sendQuietly(
-      req, cfg, email,
-      mailer.passwordResetEmail({ code, ttlMinutes, firstName: user.first_name }),
-      'password-reset'
-    );
+    const sent = await sendQuietly(req, {
+      templateKey: 'account.password_reset',
+      eventKey: `password.forgot:${req.id}`,
+      to: email,
+      user,
+      context: { code, ttl_minutes: ttlMinutes },
+    });
 
     audit.recordAsync(req.catalyst, req, {
       type: 'password.forgot', outcome: 'success', email, userId: user.user_id,
@@ -181,13 +185,16 @@ function mount(router, cfg) {
     // This is the only message that reaches a victim after a takeover has
     // already succeeded; making it conditional would remove it from exactly
     // the case it exists for.
-    const sent = await sendQuietly(
-      req, cfg, email,
-      mailer.passwordChangedEmail({
-        appBaseUrl: cfg.APP_BASE_URL, firstName: user.first_name, changedAt: new Date(),
-      }),
-      'password-changed'
-    );
+    const sent = await sendQuietly(req, {
+      templateKey: 'account.password_changed',
+      eventKey: `password.changed:${req.id}`,
+      to: email,
+      user,
+      context: {
+        reset_url: `${base(cfg)}/whollar-login-consumer`,
+        changed_at: Date.now(),
+      },
+    });
 
     audit.recordAsync(req.catalyst, req, {
       type: 'password.reset', outcome: 'success', email, userId: user.user_id,

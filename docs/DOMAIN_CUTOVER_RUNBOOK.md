@@ -1,0 +1,348 @@
+# Domain cutover runbook: whollar.ca becomes the umbrella, the product moves to internet.whollar.ca
+
+Written 2026-09-02 for the domain restructure on branch `domain-restructure`.
+Sequenced so the product is never unreachable: the new host is proven before
+the old one changes hands. Steps marked **OWNER** need an account only the
+owner holds (Vercel team, IONOS DNS, Catalyst console, ZeptoMail, Search
+Console). Everything else is code already in the branch.
+
+Decisions this runbook assumes, locked on 2026-09-02:
+
+- `www.whollar.ca` stays the canonical host. The umbrella's canonical is
+  `https://www.whollar.ca/`; the apex 308s to www, as it does today.
+- `/join`, `/join-welcome` and `/join-welcome-tires` live on the umbrella.
+- Everything else, blog included, lives at `https://internet.whollar.ca`.
+- The 301 map in `home/vercel.json` and `docs/REDIRECT_MAP_2026-09.md` is
+  **permanent**. Rules are added, never removed.
+
+## 0. Before the window
+
+1. **Merge order.** `landing-page-port` first (the second session's work), then
+   `domain-restructure`. The restructure branch keeps the root copies of the
+   umbrella pages and redirects them rather than deleting them, precisely so
+   this merge has no modify/delete conflict. Delete them in step 11.
+2. **OWNER: Vercel access for the session.** The MCP connection is currently
+   authorised against a Hobby team, not the team that owns `whollar-web`.
+   Reconnect it to that team, or run the `vercel` commands below yourself.
+3. **OWNER: create the umbrella project.** Vercel, same team as `whollar-web`:
+   import this repository again as a project named `whollar-home`, Root
+   Directory `home`, Framework Preset `Other`, no build command, output `.`.
+   No production domain yet. The first deploy of `main` after the merge gives
+   it a preview URL; keep that URL for step 5.
+4. **Preview gates, both projects.** Run `node scripts/check-redirect-map.mjs`
+   and `node scripts/check-site-host.mjs` locally (both are CI gates), then
+   against the previews:
+
+   ```
+   curl -sI <home-preview>/            | grep -i "x-robots-tag\|content-security"
+   curl -sI <home-preview>/join        | grep -i "^HTTP"
+   curl -sI <home-preview>/blog/x      | grep -i "^HTTP\|^location"
+   curl -sI <internet-preview>/blog/   | grep -i "^HTTP"
+   curl -s  <internet-preview>/sitemap.xml | grep -c internet.whollar.ca
+   ```
+
+   Previews carry `x-robots-tag: noindex` by Vercel default; the 301 on the
+   home preview will point at the real internet host, which is expected.
+
+## 1. Backend first: the product host must be allowed before it exists
+
+These are environment and console changes on Catalyst. Do them BEFORE any
+domain moves; nothing here breaks the current site.
+
+5. **OWNER: auth function environment** (Development and Production alike):
+
+   | Variable | Change |
+   | --- | --- |
+   | `ALLOWED_ORIGINS` | **append** `https://internet.whollar.ca`. Keep `https://www.whollar.ca` and `https://whollar.ca` (step 10 removes them later). |
+   | `APP_BASE_URL` | `https://internet.whollar.ca` |
+   | `API_BASE_URL` | `https://internet.whollar.ca` |
+   | `COOKIE_DOMAIN` | unchanged. Cookies are host-only and follow the serving host. |
+
+   The code fallback for notify links is already the internet host, so a
+   missing `APP_BASE_URL` no longer points mail at www.
+6. **OWNER: Catalyst console CORS rule.** The gateway rule that today names
+   `https://www.whollar.ca` alone must ALSO name `https://internet.whollar.ca`.
+   Then, in the same change, add the internet host to `GATEWAY_CORS_ORIGINS`
+   in `functions/formSubmit/index.js` and `functions/billOcr/index.js` and
+   redeploy both. Not before: the code comment above that constant explains
+   why the order matters (two `Access-Control-Allow-Origin` headers, or none).
+   Until this step, Express answers CORS for the internet host itself, which
+   works, so this step is correctness, not a blocker.
+7. **Deploy the three functions** (`catalyst deploy`): auth (notify fallbacks
+   and the origin comments), formSubmit and billOcr (the widened allowlists).
+   Verify with `curl -sI https://<function-url>/health` and, for the forms,
+   the curl in the `GATEWAY_CORS_ORIGINS` comment with
+   `-H 'Origin: https://internet.whollar.ca'`: exactly one
+   `access-control-allow-origin` line back.
+
+## 2. The new host, proven while the old one still serves
+
+8. **OWNER: attach `internet.whollar.ca` to `whollar-web`** in Vercel. DNS is
+   external at IONOS: add `CNAME internet -> cname.vercel-dns.com` there.
+   Wait for the certificate. Nothing about www changes yet.
+9. **Verify the product host fully** before touching www:
+
+   ```
+   node scripts/check-redirect-map.mjs           # still green
+   curl -sI https://internet.whollar.ca/                       | grep "^HTTP"
+   curl -sI https://internet.whollar.ca/blog/best-internet-toronto | grep "^HTTP"
+   curl -s  https://internet.whollar.ca/api/auth/health        # the rewrite works
+   curl -s  https://internet.whollar.ca/sitemap.xml | grep -c internet.whollar.ca   # 26
+   ```
+
+   Then a **login round trip in a browser** on the internet host: request a
+   code, verify it, land on the dashboard. That proves `ALLOWED_ORIGINS`, the
+   cookie on the new host, and the rewrite together. A referral link and an
+   unsubscribe link from a real email should also resolve there.
+
+## 3. The cutover: one domain move, in the agreed window
+
+10. **OWNER: move `whollar.ca` and `www.whollar.ca` from `whollar-web` to
+    `whollar-home`.** In the home project set `www.whollar.ca` as the primary
+    domain and the apex to redirect to it (the config also carries this as a
+    host rule, so a missed setting cannot break it). The product host stays
+    attached to `whollar-web` throughout. Vercel handles the certificate; the
+    IONOS records do not change.
+11. **Immediately, the live matrix:**
+
+    ```
+    node scripts/check-redirect-map.mjs --live   # every legacy URL, <= 2 hops, 200 on the new host
+    curl -sI https://whollar.ca/                 | grep "^HTTP\|^location"   # 308 -> www
+    curl -sI https://www.whollar.ca/             | grep "^HTTP"              # 200, the umbrella
+    curl -sI https://www.whollar.ca/join         | grep "^HTTP"              # 200
+    curl -sI https://www.whollar.ca/blog/rural-internet-ontario | grep "^location"
+    curl -sI https://www.whollar.ca/waitlist/    | grep "^location"
+    curl -sI https://www.whollar.ca/r/ABCDEF     | grep "^location"          # emails still work
+    ```
+
+    `admin.whollar.ca` does not resolve today (NXDOMAIN); it is not touched by
+    any step here and its project is separate.
+
+## 4. Same day, and the two weeks after
+
+12. **OWNER: Search Console.** Add the `internet.whollar.ca` property. Submit
+    `https://www.whollar.ca/sitemap.xml` (2 URLs) and
+    `https://internet.whollar.ca/sitemap.xml` (26). Request indexing for the
+    umbrella page and the top blog posts. No Change of Address tool: this is a
+    same-domain restructure and the 301s plus sitemaps are the mechanism.
+13. **Sessions are per host.** Members and partners sign in once more on the
+    new host. Accepted; not engineered around.
+14. **Monitor for two weeks.** Vercel 404 logs on `whollar-home`: each 404 is
+    a missing rule. Add it to `docs/REDIRECT_MAP_2026-09.md` and to
+    `home/vercel.json` together, run `node scripts/check-redirect-map.mjs`,
+    commit. GSC coverage on both properties. Expect a ranking dip of roughly
+    two to eight weeks; the answer is patience and 404 patching, never a
+    revert.
+15. **OWNER: the audit workbook and the deploy-check mirror.** The canonical
+    host for every blog and product check is now `internet.whollar.ca`; the
+    www canonical applies to the umbrella page and `/join` only. Without this
+    every future audit false-fails canonical parity. The workbook is not in
+    the repository; the deploy-check skill was not available in the session
+    that wrote this, so its mirror is a note to whoever runs it next.
+
+## 5. Later, deliberate
+
+16. **OWNER: ZeptoMail webhook.** Repoint it from
+    `https://www.whollar.ca/hooks/zeptomail` to the same path on the internet
+    host. Then remove the `/hooks/zeptomail` rewrite from `home/vercel.json`.
+    Until then the umbrella rewrites the POST to the function, so nothing is
+    lost.
+17. **OWNER: trim the auth allowlist.** Once traffic confirms nothing on the
+    umbrella calls the auth function (it does not: the welcome screens tolerate
+    a missing session and `home/` has no `/api/auth` rewrite), remove
+    `https://www.whollar.ca` and `https://whollar.ca` from the auth function's
+    `ALLOWED_ORIGINS`. Do NOT remove them from formSubmit or billOcr: `/join`
+    on the umbrella posts to formSubmit.
+18. **Delete the root copies.** After `landing-page-port` is retired: remove
+    `landing.html`, `join.html`, `join-welcome.html`, `join-welcome-tires.html`,
+    `js/landing.js`, `js/waitlist-join.js`, `js/join-welcome.js`,
+    `images/landing/`, `images/waitlist/`, `fonts/landing-*`, `fonts/waitlist-*`
+    from the repo root, and their entries in `scripts/check-inline-scripts.mjs`,
+    `scripts/check-console-copy.mjs`, `scripts/build-footer.mjs` and the three
+    parse steps in `.github/workflows/check-frontend.yml`. Keep the four
+    redirects in `vercel.json`. `scripts/port-landing.mjs` and
+    `scripts/port-waitlist.mjs` are already guarded against recreating them.
+19. Unrelated but visible from here: the Catalyst rewrites still target the
+    Development environment and `NODE_ENV` is still `development`. Not part of
+    this cutover; noted so nobody attributes it to the domain move.
+
+## 6. The tire vertical, which depends on none of the above
+
+`tires/` is a third Vercel project on a third host. It touches `whollar.ca`
+nowhere, calls no backend, and shares no session, so **it can go live before
+the cutover, after it, or in the middle**, and a failure here cannot take the
+product down. The only tie to the rest is the umbrella's Winter tires card,
+which already points at `https://tires.whollar.ca/` and is a dead link until
+this section is done.
+
+20. **OWNER: create the project.** Vercel, same team as `whollar-web`: import
+    this repository again as `whollar-tires`, Root Directory `tires`, Framework
+    Preset `Other`, no build command, output `.`. `tires` is already in the root
+    `.vercelignore`, so the product project cannot publish a second copy of it.
+21. **OWNER: attach `tires.whollar.ca`.** At IONOS add
+    `CNAME tires -> cname.vercel-dns.com`. Wait for the certificate.
+22. **OWNER, optional: the two alias spellings.** `tire.whollar.ca` and
+    `tyre.whollar.ca` are both handled by `tires/vercel.json`, which 308s them
+    to the canonical host. They only work if they are attached in Vercel and
+    given their own CNAME at IONOS. Attach them if either spelling will be
+    printed or typed anywhere; skip them otherwise. **The canonical host is
+    `tires.whollar.ca` either way**, because every row, field and file in this
+    repository spells it that way: the pool value, `join-welcome-tires.html`,
+    `Whollar_Pooling_For`, and the seat vertical.
+23. **Verify, no login round trip needed because there is no login:**
+
+    ```
+    curl -sI https://tires.whollar.ca/            | grep "^HTTP"       # 200
+    curl -sI https://tires.whollar.ca/join        | grep "^HTTP"       # 200
+    curl -sI https://tires.whollar.ca/robots.txt  | grep "^HTTP"       # 200
+    curl -s  https://tires.whollar.ca/sitemap.xml | grep -c tires.whollar.ca   # 1
+    curl -sI https://tires.whollar.ca/nope        | grep "^HTTP"       # 404, real
+    curl -s  https://tires.whollar.ca/ | grep -o 'rel="canonical" href="[^"]*"'
+    curl -sI https://tire.whollar.ca/  | grep "^HTTP\|^location"      # 308, if attached
+    ```
+
+24. **OWNER: Search Console.** Add the `tires.whollar.ca` property and submit
+    its sitemap. One URL today; it grows with the vertical.
+25. **The form on `/join` still saves nothing**, and the page does not claim
+    otherwise. Section 35 of `catalyst-backend/scripts/create-tables.md` has the
+    three tables to create, and `docs/TIRE_VERTICAL_BUILD.md` section 6 has the
+    route that writes them. Putting the host live before that is fine: what
+    goes live is a landing page and a form that tells the truth. Do not
+    announce the waitlist until the route exists.
+26. **When the route does exist, CORS in four places, in this order:** the
+    Catalyst console rule, `GATEWAY_CORS_ORIGINS` on both functions, the
+    hardcoded `ALLOWED_ORIGINS` array in `formSubmit/index.js`, and the auth
+    env var only if the vertical ever calls `/api/auth` (today it does not).
+    Same ordering trap as step 6.
+
+---
+
+**The 301 map is permanent.** It is recorded as such in
+`docs/REDIRECT_MAP_2026-09.md`, enforced by a CI gate, and not subject to
+cleanup.
+
+---
+
+## 7. Three projects, two TLDs (added 2026-09-03, after the repo split)
+
+Sections 0 to 6 were written when all three sites lived in one repo and one
+Vercel project with three root directories. They are now three repos, and both
+`.ca` and `.com` are in play. This section replaces the project-creation steps
+and adds the `.com` family. Everything else above still stands.
+
+### Where it actually stands, measured 2026-09-03
+
+| Host | DNS | HTTP today |
+|---|---|---|
+| `whollar.ca` | Vercel apex | 308 to `www.whollar.ca` |
+| `www.whollar.ca` | Vercel | **200, the product** |
+| `whollar.com` | Vercel apex | 308 to `www.whollar.com` |
+| `www.whollar.com` | Vercel | **200, the same product, a second live copy** |
+| `internet.whollar.ca` / `.com` | none | does not resolve |
+| `tires.whollar.ca` / `.com` | none | does not resolve |
+| `admin.whollar.ca` | **none** | does not resolve, despite the console being built for it |
+
+Two things worth knowing before touching anything. The apexes and both `www`
+records already point at Vercel, so no apex A record has to change: the only
+new DNS is four subdomain CNAMEs. And the site is **already serving on two
+TLDs**, which is a duplicate of every page; the canonical tags all name
+`www.whollar.ca`, which is what has kept it from costing anything so far.
+
+### The shape to aim for
+
+**One canonical host per surface, `.ca`, with the `.com` twin attached as a
+redirect domain in Vercel.** Not as a second live copy.
+
+That is one decision doing four jobs: it ends the duplicate that exists today,
+it keeps one sitemap and one canonical per page, it means no request ever
+originates from a `.com` origin so the backend Origin allowlist stays three
+hosts instead of six, and a redirect domain is a Vercel setting rather than
+code, so there is nothing to keep in sync.
+
+**Amended 2026-09-04: the redirect is now also in code, in all three
+`vercel.json` files.** The setting alone was the plan, and it was still not
+made, so on 2026-09-04 all four `.com` hosts were still answering 200 with a
+full copy of their `.ca` twins. A host-matched 308 in `vercel.json` needs
+no dashboard visit, ships with the next deploy, and is visible in review,
+which the setting is not. It is a floor, the same shape as `CANONICAL_ORIGINS`
+in the auth function: if the owner later attaches the twins as redirect
+domains per step 36, Vercel answers first and these rules never run, and
+nothing has to be undone for that to be true.
+
+| Vercel project | GitHub repo | Primary domain | Redirect domains |
+|---|---|---|---|
+| `whollar-web` (exists) | `priyanshu3232/whollar-web` | `internet.whollar.ca` | `internet.whollar.com` |
+| `whollar-home` (new) | `priyanshu3232/whollar-home` | `www.whollar.ca` | `whollar.ca`, `whollar.com`, `www.whollar.com` |
+| `whollar-tires` (new) | `priyanshu3232/whollar-tires` | `tires.whollar.ca` | `tires.whollar.com` |
+
+The apex to www direction is what section 0 of this runbook fixed on, and
+`whollar-home` is built that way: its canonicals, og:urls and sitemap all name
+`www.whollar.ca`. **If you would rather the apex be canonical, say so before
+the domains move**: it is four files and a Vercel setting on the day, and an
+SEO cleanup afterwards.
+
+### OWNER: create the two projects
+
+27. **Grant Vercel access to the two new repos.** They are private and were
+    created after the Vercel GitHub app was installed, so the app cannot see
+    them yet. GitHub, Settings, Applications, Vercel, Configure, add
+    `whollar-home` and `whollar-tires` to the repository list. Skipping this
+    is why an import shows an empty repo list.
+28. **Import both, into the same team as `whollar-web`.** Framework preset
+    Other, Root Directory left at the repo root (that is the whole point of
+    the split), no build command, no output directory. Both are static.
+29. **The assistant cannot do steps 27 and 28.** The Vercel CLI on this
+    machine is authenticated as `priyanshu-7390's projects` and cannot see the
+    team that owns `whollar-web`. Creating the projects in the wrong account
+    is worse than not creating them.
+
+### OWNER: DNS at IONOS, four records
+
+30. On **whollar.ca** and **whollar.com** alike:
+
+    | Type | Name | Value |
+    |---|---|---|
+    | CNAME | `internet` | `cname.vercel-dns.com` |
+    | CNAME | `tires` | `cname.vercel-dns.com` |
+
+    Use whatever value the Vercel dashboard prints for the domain you are
+    attaching. It is authoritative and it has changed before.
+
+31. **Do not change the nameservers.** Both domains have live IONOS MX
+    records and mail runs on them: `info@` on `.com`, `partners@` on `.ca`.
+    Moving nameservers to Vercel DNS silently drops MX and mail stops.
+    Adding CNAMEs for subdomains does not touch mail. See
+    `docs/MAIL_AUTH_RUNBOOK.md`.
+
+32. **`admin.whollar.ca` does not resolve.** The console is built and its
+    runbook assumes that host. Either it was never attached or it lives
+    somewhere else. Find out before the cutover rather than during it.
+
+### Order, so nothing is dark
+
+33. `internet.whollar.ca` first, attached to `whollar-web` while
+    `www.whollar.ca` still serves it. Verify with section 2's checks: the
+    dashboard, a login round trip, a form POST. Nothing has moved yet, so a
+    failure here costs nothing.
+34. `tires.whollar.ca` next. It is a new host with no incoming links and no
+    login, so it can go live whenever it is ready, independently of the rest.
+35. **Then, and only then, the umbrella move**: `whollar.ca`, `www.whollar.ca`
+    and their `.com` twins from `whollar-web` to `whollar-home`. That is the
+    one irreversible-feeling minute. Section 3 has the live matrix to run
+    immediately after, and section 5 has the rollback.
+36. `internet.whollar.com` and `tires.whollar.com` as redirect domains, last.
+    They carry no traffic today and nothing depends on them. Optional since
+    2026-09-04: `vercel.json` in each repo now 308s its own `.com` twin to the
+    `.ca` host, so this step buys a saved hop, not a fixed duplicate.
+
+### What this does to the allowlist
+
+37. With the `.com` hosts redirecting, no request originates from them, so
+    `ALLOWED_ORIGINS` in `formSubmit/index.js` needs no new entries: the three
+    canonical hosts are already there. The `https://whollar.com` and
+    `https://www.whollar.com` entries that are in it today become dead the day
+    those hosts stop serving, and step 17 is where they come out.
+38. **If you decide to serve `.com` rather than redirect it**, that changes:
+    three more origins in `ALLOWED_ORIGINS`, three more in the Catalyst
+    console rule and `GATEWAY_CORS_ORIGINS`, a canonical decision per page,
+    and a second sitemap. It is the more expensive answer in every direction.

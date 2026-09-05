@@ -21,10 +21,32 @@ const SLUGS = [
   'collective-switching-energy-proof',
   'big-three-telecom-canada',
   'crtc-internet-prices-canada',
+  'cheap-internet-chatham-ontario',
+  'best-internet-toronto',
+  'internet-speed-how-much-need',
+  'rural-internet-ontario',
+  'internet-providers-mississauga',
 ];
 
 // Posts published after the 2026-07-20 launch carry their own dates.
-const POST_DATES = { 'crtc-internet-prices-canada': '2026-08-06' };
+const POST_DATES = {
+  'overpaying-internet-canada': '2026-08-01',
+  'internet-price-increase-promo-cliff': '2026-08-03',
+  'collective-switching-internet-canada': '2026-08-05',
+  'teksavvy-vs-rogers-same-cable': '2026-08-07',
+  'internet-bill-breakdown-canada': '2026-08-09',
+  'negotiate-internet-bill-canada': '2026-08-11',
+  'internet-retention-offer-win-back': '2026-08-13',
+  'independent-internet-providers-canada': '2026-08-15',
+  'collective-switching-energy-proof': '2026-08-17',
+  'big-three-telecom-canada': '2026-08-19',
+  'crtc-internet-prices-canada': '2026-08-21',
+  'cheap-internet-chatham-ontario': '2026-08-23',
+  'best-internet-toronto': '2026-08-25',
+  'internet-speed-how-much-need': '2026-08-27',
+  'rural-internet-ontario': '2026-08-29',
+  'internet-providers-mississauga': '2026-08-31',
+};
 
 let failures = 0;
 const results = [];
@@ -88,8 +110,8 @@ for (const [route, label] of [['/join', 'JOIN_ROUTE /join'], ['/checkup', 'CHECK
   console.log('page /blog/ (Resources)');
   check('/blog/: 200', status === 200, `got ${status}`);
   const tiles = [...body.matchAll(/<a class="tile(?: featured)?" href="\/blog\/([a-z0-9-]+)">/g)].map(m => m[1]);
-  check('/blog/: exactly 11 tiles', tiles.length === 11, `got ${tiles.length}`);
-  check('/blog/: tiles in order 01-11', JSON.stringify(tiles) === JSON.stringify(SLUGS));
+  check(`/blog/: exactly ${SLUGS.length} tiles`, tiles.length === SLUGS.length, `got ${tiles.length}`);
+  check('/blog/: tiles in SLUGS order', JSON.stringify(tiles) === JSON.stringify(SLUGS));
   check('/blog/: tile is the full-card anchor', /<a class="tile"[^>]*>[\s\S]*?<h2>/.test(body));
   check('/blog/: no em dash', !body.includes(EM_DASH));
   check('/blog/: no "Draft"', !body.includes('Draft'));
@@ -121,7 +143,8 @@ for (const [route, label] of [['/join', 'JOIN_ROUTE /join'], ['/checkup', 'CHECK
   check('sitemap: 200', status === 200);
   const locs = [...body.matchAll(/<loc>([^<]*)<\/loc>/g)].map(m => m[1]);
   const STATIC_PAGES = ['/', '/bill-checkup', '/become-a-partner', '/partners', '/waitlist/', '/contact', '/terms', '/privacy'];
-  check('sitemap: exactly 20 URLs (8 static + blog index + 11 posts)', locs.length === 20, `got ${locs.length}`);
+  const expectedUrls = STATIC_PAGES.length + 1 + SLUGS.length; // static + /blog/ + posts
+  check(`sitemap: exactly ${expectedUrls} URLs (${STATIC_PAGES.length} static + blog index + ${SLUGS.length} posts)`, locs.length === expectedUrls, `got ${locs.length}`);
   for (const p of STATIC_PAGES) check(`sitemap: includes ${p}`, locs.includes(`${DOMAIN}${p}`));
   check('sitemap: includes /blog/', locs.includes(`${DOMAIN}/blog/`));
   for (const slug of SLUGS) check(`sitemap: includes ${slug}`, locs.includes(`${DOMAIN}/blog/${slug}`));

@@ -4,6 +4,7 @@ const catalyst = require('zcatalyst-sdk-node');
 const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
+const crypto = require('node:crypto');
 
 const app = express();
 
@@ -28,7 +29,28 @@ const ALLOWED_ORIGINS = [
   'https://www.whollar.com',
   'https://whollar.ca',
   'https://www.whollar.ca',
-  'https://whollar-staging-1w.vercel.app'
+  // The product host since the September 2026 restructure. Express answers CORS
+  // for it until the console rule is widened; see GATEWAY_CORS_ORIGINS.
+  'https://internet.whollar.ca',
+  // The winter tire vertical, same treatment as the product host above:
+  // Express answers CORS for it because the console rule does not name it yet.
+  'https://tires.whollar.ca',
+  // The .com twins. The cutover runbook has these becoming redirect domains,
+  // at which point no request originates from them and these two lines come
+  // out. They are here because that has not happened: tires.whollar.ca has no
+  // DNS record yet, so tires.whollar.com is the ONLY way to reach the tire
+  // site, and every form on it was failing CORS for want of these lines.
+  'https://internet.whollar.com',
+  'https://tires.whollar.com',
+  'https://whollar-staging-1w.vercel.app',
+  // The other two review aliases on the same personal Vercel account, added
+  // 2026-09-05 for the same reason the staging one is here. Without them the
+  // tire preview's sign-up posted and the browser threw the response away for
+  // want of a CORS header, which the page can only report as "Failed to fetch"
+  // while the row was never written. The three hosts are reviewed on three
+  // aliases now, so all three belong on this list.
+  'https://whollar-tires-1w.vercel.app',
+  'https://whollar-home-1w.vercel.app'
 ];
 
 // Origins the Catalyst gateway (ZGS) already answers for, and where Express
@@ -51,6 +73,35 @@ const ALLOWED_ORIGINS = [
 //     <function-url> | grep -i access-control-allow-origin
 // Exactly one line back is the passing result. If the console rule is ever
 // removed, empty this list in the same change and Express resumes the header.
+// NOT YET https://internet.whollar.ca. Adding it here before the console rule
+// names it would silence Express for an origin the gateway does not answer,
+// and every form on the product host would fail CORS. The runbook's owner step
+// widens the console rule first; this list follows in the same change.
+// MEASURED TWICE ON 2026-09-04, and it changed between the two readings.
+//
+// Before the deploy the documented curl returned ZERO header lines for
+// https://www.whollar.ca: this list was silencing Express, and the console
+// rule was not answering, so the umbrella's forms reached the browser with no
+// CORS header at all. On that evidence the origin was taken out of this list.
+//
+// Immediately after the deploy the same curl returned TWO, five times out of
+// five: one capitalised from the gateway, one lowercase from Express. So the
+// console rule answers again. It was restored, or re-enabled, in the console
+// between the readings.
+//
+// Two headers is the worse failure of the two, and it is the one this list
+// exists to prevent. The origin goes back in.
+//
+// THE STANDING TRAP, stated once more because it has now fired in both
+// directions: this is console config mirrored into code, and each side is
+// invisible from the other. Turning the console rule on breaks the site unless
+// the origin is in this list; turning it off breaks the site unless the origin
+// is out of it. Neither change announces itself. Run the curl after touching
+// either side, and read the count, not just the value:
+//   curl -sD- -o/dev/null -X POST -H 'Origin: https://www.whollar.ca' \
+//     <function-url> | grep -ci access-control-allow-origin
+// One is the passing result. Zero and two both mean every form on that origin
+// is failing in the browser while the row is written on this side.
 const GATEWAY_CORS_ORIGINS = ['https://www.whollar.ca'];
 
 // Local development: the marketing pages are plain HTML files, opened either
@@ -386,9 +437,77 @@ async function storeFiles(catalystApp, files) {
   return stored.filter(Boolean);
 }
 
+// The store's own spelling of every column, per table, so a row is written to
+// the columns that exist rather than the columns the doc says should. The
+// tables are created by hand and have drifted from create-tables.md in case
+// alone more than once: CityRequests carries `province` where the code and
+// section 37a say `Province`, and the Data Store rejects an unknown column at
+// runtime, which serverError then hides, so one lower-case letter answered 500
+// to every "Bring Whollar to your city" submission. A key that matches a live
+// column exactly is used as it is; a key that matches one ignoring case is
+// written to the live name, and the drift is logged once so it stays visible
+// until the column is renamed; a key that matches nothing is passed through
+// unchanged, so the store's own error still reaches insertTolerant and its
+// optional groups. Names are cached per table for ten minutes and refreshed
+// once when an insert fails, so a column added or renamed in the console is
+// picked up without a redeploy.
+const LIVE_COLUMNS_MS = 10 * 60 * 1000;
+const liveColumns = new Map();
+async function columnNames(catalystApp, tableName, refresh) {
+  const hit = liveColumns.get(tableName);
+  if (!refresh && hit && Date.now() - hit.at < LIVE_COLUMNS_MS) return hit.names;
+  const cols = await catalystApp.datastore().table(tableName).getAllColumns();
+  const names = (cols || []).map(c => c && c.column_name).filter(Boolean);
+  // An empty list is not an answer, it is a read that told us nothing, and
+  // caching it hands every insert on this table ten minutes of writing the
+  // declared spelling. On a store that spells a column differently that is ten
+  // minutes of 500s with no row saved, so leave the cache alone and re-read.
+  if (!names.length) return names;
+  liveColumns.set(tableName, { names, at: Date.now() });
+  return names;
+}
+const driftLogged = new Set();
+function toLiveColumns(tableName, row, names) {
+  const byLower = new Map(names.map(n => [n.toLowerCase(), n]));
+  const out = {};
+  for (const key of Object.keys(row)) {
+    const live = names.includes(key) ? key : (byLower.get(key.toLowerCase()) || key);
+    if (live !== key && !driftLogged.has(`${tableName}.${key}`)) {
+      driftLogged.add(`${tableName}.${key}`);
+      console.error(`[formSubmit] ${tableName}: the store spells ${key} as ${live}; writing to the live name. ` +
+        'Rename the column in the Catalyst console to match create-tables.md.');
+    }
+    out[live] = row[key];
+  }
+  return out;
+}
 async function insert(catalystApp, tableName, row) {
   const table = catalystApp.datastore().table(tableName);
-  return table.insertRow(row);
+  let names = null;
+  try { names = await columnNames(catalystApp, tableName); } catch (err) {
+    console.error(`[formSubmit] ${tableName}: could not read live columns, writing the row as declared:`, err);
+  }
+  // A read that returned nothing is as good as no read at all: fall through to
+  // the retry below rather than trusting an empty list to map anything.
+  if (names && !names.length) names = null;
+  try {
+    return await table.insertRow(names ? toLiveColumns(tableName, row, names) : row);
+  } catch (err) {
+    // The first attempt used a cached list, a stale one, or none at all, so ask
+    // the store again before giving up. This retry used to be skipped entirely
+    // when the first read had FAILED, which was the hole: a transient
+    // getAllColumns() error sent the DECLARED spelling, and where the store
+    // spells a column differently insertTolerant cannot recover, because
+    // dropping optional columns never fixes the name of a mandatory one. That
+    // cost /city-request a 500 with no row saved on 2026-09-05. The store's own
+    // spelling is the fix for that, in the console; this retry is what keeps a
+    // momentary read failure from losing a submission in the meantime.
+    let fresh = null;
+    try { fresh = await columnNames(catalystApp, tableName, true); } catch (e2) { /* the first error is the one to surface */ }
+    const worthRetrying = fresh && fresh.length && !(names && fresh.join('\n') === names.join('\n'));
+    if (!worthRetrying) throw err;
+    return table.insertRow(toLiveColumns(tableName, row, fresh));
+  }
 }
 
 // Same as insert(), but tolerant of named sets of columns not existing yet
@@ -461,6 +580,13 @@ app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 360
   const email = str(b.email);
   const phone = normalizePhone(b.phone);
   const postal = normalizePostal(b.fsa || b.postalFull);
+  // What /join asked: which product the household is pooling for. A closed
+  // list, because it becomes a CRM picklist and a value the picklist does not
+  // know is a field Zoho refuses. Not required and never a 400: the older
+  // /waitlist/ page posts here too and has no such question, and a bad value
+  // from anywhere is worth less than the row it would block.
+  const poolingFor = ['internet', 'tires', 'both'].includes(str(b.poolingFor).toLowerCase())
+    ? str(b.poolingFor).toLowerCase() : null;
 
   if (firstName.length < 2) return badRequest(res, 'firstName is required.');
   if (lastName.length < 2) return badRequest(res, 'lastName is required.');
@@ -471,7 +597,24 @@ app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 360
 
   try {
     const catalystApp = catalyst.initialize(req);
-    const row = await insert(catalystApp, 'WaitlistSignups', {
+
+    // SELF REFERRAL, refused at the door rather than filtered out of the count
+    // later. Somebody can hold a spot in the popup, receive their own share
+    // link, click it, and arrive here carrying their own code. Only a code
+    // shaped like ours costs a read, and only a match costs the value: an
+    // ordinary referral, a typo, or a member code all fall straight through.
+    let referral = orNull(str(b.referral));
+    if (referral && SHARE_CODE_RE.test(referral.toUpperCase())) {
+      const owner = await ownerOfShareCode(catalystApp, referral.toUpperCase());
+      if (owner && owner === emailKey(email)) {
+        console.log('[formSubmit] waitlist-join: own share code dropped');
+        referral = null;
+      }
+    }
+
+    // PoolingFor is the one column that may not exist yet (create-tables.md
+    // and README.md name it); insertTolerant drops it and keeps the row.
+    const row = await insertTolerant(catalystApp, 'WaitlistSignups', {
       FirstName: firstName,
       LastName: lastName,
       Email: email,
@@ -479,9 +622,10 @@ app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 360
       // stored shape stable and send the canonical form to the CRM.
       Phone: digits(b.phone),
       FSA: postal.fsa,
-      ReferralCode: orNull(str(b.referral)),
+      ReferralCode: referral,
+      PoolingFor: poolingFor,
       SubmittedAt: catalystNow()
-    });
+    }, ['PoolingFor']);
     await enqueueCrm(catalystApp, {
       source: 'WaitlistSignups', rowId: row.ROWID, email, leadType: 'consumer',
       data: {
@@ -489,7 +633,8 @@ app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 360
         emailKey: emailKey(email),
         fsa: postal.fsa, postal: postal.full,
         province: str(b.province) || null, provinceCode: str(b.provinceCode) || null,
-        referral: str(b.referral),
+        referral: referral || '',
+        poolingFor,
         ...consentFrom(b, req)
       }
     });
@@ -563,12 +708,275 @@ app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSe
   }
 });
 
+/* ------------------------------------------------------------------ *
+ * The winter tire cohort: tires.whollar.ca
+ * ------------------------------------------------------------------ */
+
+// One submission from the tire vertical writes up to five tables, because one
+// household can bring several cars and several appointment windows and the
+// ranking of those windows is what an installer bids against. Tables and
+// columns: catalyst-backend/scripts/create-tables.md sections 35 and 36.
+//
+// WHY NOT /waitlist-join. That route is the internet product's and its shape
+// is fixed: one row, one table, a mandatory phone. This form asks about a car,
+// a tire size, a strategy, and up to five ranked dates, and the phone is
+// optional here because the tire form says it is. Widening the internet route
+// to carry all of that would make one handler serve two products with two
+// different required fields, which is how the wrong validation ends up in
+// front of the wrong household.
+const TIRE_WAVE_SIZE = 250;                 // matches CFG.waveSize in tires/js/tire-kit.js
+const REF_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';  // no I, O, 0 or 1: these get read aloud
+const CITY_CODES = { gta: 'GTA', ottawa: 'OTT', montreal: 'MTL', calgary: 'CAL',
+  vancouver: 'VAN', edmonton: 'EDM', other: 'OTH' };
+
+function tireRef(city) {
+  let tail = '';
+  for (let i = 0; i < 4; i++) tail += REF_ALPHABET[Math.floor(Math.random() * REF_ALPHABET.length)];
+  return `WHL-TIRE-${CITY_CODES[city] || 'OTH'}-${tail}`;
+}
+
+// The reference code is minted here and never in the browser: it is what a
+// household quotes back to change anything, so two people holding the same one
+// is a support problem with no clean answer. ReferenceCode is Unique in the
+// console, which turns a collision into a failed insert rather than a
+// duplicate, and this retries on that failure rather than trusting randomness.
+// 32^4 is a million codes per city, so a second attempt is already unlikely and
+// a fourth is a bug somewhere else.
+async function insertSignupWithRef(catalystApp, city, row) {
+  let lastErr = null;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const ReferenceCode = tireRef(city);
+    try {
+      const saved = await insertTolerant(catalystApp, 'TireWaitlistSignups',
+        { ...row, ReferenceCode }, [['Wave']]);
+      return { row: saved, ReferenceCode };
+    } catch (err) {
+      lastErr = err;
+      console.error(`[formSubmit] tire reference collision or insert failure on attempt ${attempt + 1}:`, err);
+    }
+  }
+  throw lastErr;
+}
+
+// The counter is a sidecar, exactly like cohort_counter in section 26: it must
+// never fail a submission. Read, add one, write. Two submissions in the same
+// second can read the same number and the count drifts low, which is why this
+// is used for a wave and never for anything that has to be exact. It is also
+// the only honest source of a count at all: ZCQL refuses any LIMIT over 300, so
+// counting the rows tops out at "300+".
+async function bumpTireCounter(catalystApp, city) {
+  try {
+    const key = `tires:${city}`;
+    const rows = await catalystApp.zcql().executeZCQLQuery(
+      `SELECT ROWID, Joined FROM TireCohortCounter WHERE CounterKey = '${key}' LIMIT 1`);
+    const found = rows && rows[0] && rows[0].TireCohortCounter;
+    const joined = found ? Number(found.Joined || 0) + 1 : 1;
+    const table = catalystApp.datastore().table('TireCohortCounter');
+    if (found) await table.updateRow({ ROWID: found.ROWID, Joined: joined, UpdatedAt: catalystNow() });
+    else await table.insertRow({ CounterKey: key, Vertical: 'tires', City: city, Joined: joined, UpdatedAt: catalystNow() });
+    return joined;
+  } catch (err) {
+    console.error('[formSubmit] TireCohortCounter write skipped:', err);
+    return null;
+  }
+}
+
+app.post('/tire-waitlist-join', limit({ key: 'tire-waitlist-join', max: 20, windowSec: 3600 }), async (req, res) => {
+  const b = req.body || {};
+  const firstName = str(b.firstName);
+  const lastName = str(b.lastName);
+  const email = str(b.email);
+  const city = str(b.city).toLowerCase();
+  const path = str(b.path);
+  const postal = normalizePostal(b.postalFull || b.fsa);
+
+  // Mirrors what the page checks in its own words, so a form that would fail
+  // here has already said so there. The phone is deliberately NOT required:
+  // the tire form marks mobile optional and the page must not be made to lie.
+  if (firstName.length < 2) return badRequest(res, 'firstName is required.');
+  if (lastName.length < 2) return badRequest(res, 'lastName is required.');
+  if (!isEmail(email)) return badRequest(res, 'A valid email is required.');
+  if (!postal.fsa) return badRequest(res, 'A valid Canadian postal code is required.');
+  if (!CITY_CODES[city]) return badRequest(res, 'Pick the area you park in.');
+  if (path !== 'quick' && path !== 'guided') return badRequest(res, 'path must be quick or guided.');
+
+  const bool = v => (v === true || str(v) === 'true' ? 'true' : 'false');
+  const vehicles = Array.isArray(b.vehicles) ? b.vehicles.slice(0, 6) : [];
+  const windows = Array.isArray(b.windows) ? b.windows.slice(0, 5) : [];
+  const toolRuns = Array.isArray(b.toolRuns) ? b.toolRuns.slice(0, 4) : [];
+  const details = b.details && typeof b.details === 'object' ? b.details : null;
+
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const now = catalystNow();
+    const consent = consentFrom(b, req);
+    const joined = await bumpTireCounter(catalystApp, city);
+    const wave = joined ? Math.max(1, Math.ceil(joined / TIRE_WAVE_SIZE)) : null;
+
+    const { row, ReferenceCode } = await insertSignupWithRef(catalystApp, city, {
+      // Lowercased for the same reason as every other table here: the CRM and
+      // the auth fallback both find a household by exact match, and ZCQL has
+      // no LOWER().
+      Email: emailKey(email),
+      FirstName: firstName,
+      LastName: lastName,
+      Phone: digits(b.phone) || null,
+      FSA: postal.fsa,
+      PostalFull: postal.full,
+      City: city,
+      Path: path,
+      Source: str(b.source) || 'tires-site',
+      Language: orNull(str(b.language)) || 'en',
+      ReferralCode: orNull(str(b.referral)),
+      ConsentEmail: bool(b.consentEmail),
+      ConsentSms: bool(b.consentSms),
+      ConsentShare: bool(b.consentShare),
+      AlsoInternet: bool(b.alsoInternet),
+      ConsentText: str(b.consentText).slice(0, 4000) || null,
+      ConsentAt: now,
+      SubmittedAt: now,
+      Wave: wave
+    });
+
+    // Everything after the signup is best effort in the sense that a failure
+    // is logged and not raised: the household is already on the list, and
+    // losing a car to a bad column is not a reason to tell them they are not.
+    const later = [];
+    vehicles.forEach((v, i) => {
+      later.push(insertTolerant(catalystApp, 'TireWaitlistVehicles', {
+        VehicleKey: `${ReferenceCode}:${i + 1}`,
+        ReferenceCode,
+        Email: emailKey(email),
+        InputMode: str(v.inputMode) || 'unsure',
+        VehicleYear: orNull(str(v.year)),
+        VehicleMake: orNull(str(v.make)),
+        VehicleModel: orNull(str(v.model)),
+        Vin: orNull(str(v.vin).toUpperCase()),
+        TireSize: orNull(str(v.tireSize)),
+        SizeNormalized: orNull(str(v.sizeNormalized)),
+        Strategy: orNull(str(v.strategy)),
+        RunsWinterNow: orNull(str(v.runsWinterNow)),
+        OwnsRims: orNull(str(v.ownsRims)),
+        SubmittedAt: now,
+        StartingPoint: orNull(str(v.startingPoint)),
+        TireLifeLeft: orNull(str(v.tireLifeLeft)),
+        VehicleTrim: orNull(str(v.trim).slice(0, 80)),
+        WinterSizeChosen: orNull(str(v.winterSizeChosen)),
+        SizeDownsized: v.sizeDownsized == null ? null : bool(v.sizeDownsized),
+        // The record that the "confirm this against your own car" disclaimer
+        // was shown and accepted. The one field here with a consequence
+        // outside the database, so it is written even when it is false.
+        SizeAck: v.sizeAck == null ? null : bool(v.sizeAck),
+        Staggered: v.staggered == null ? null : bool(v.staggered),
+        TpmsPresent: orNull(str(v.tpmsPresent)),
+        RimsRecommendation: orNull(str(v.rimsRecommendation))
+      }, [['StartingPoint', 'TireLifeLeft', 'VehicleTrim', 'WinterSizeChosen', 'SizeDownsized',
+           'SizeAck', 'Staggered', 'TpmsPresent', 'RimsRecommendation']]));
+    });
+
+    if (details) {
+      later.push(insertTolerant(catalystApp, 'TireWaitlistDetails', {
+        ReferenceCode,
+        Email: emailKey(email),
+        Needs: orNull(str(details.needs)),
+        Tier: orNull(str(details.tier)),
+        Brand: orNull(str(details.brand)),
+        Budget: orNull(str(details.budget)),
+        Financing: orNull(str(details.financing)),
+        InstallerType: orNull(str(details.installerType)),
+        SplitPreference: orNull(str(details.splitPreference)),
+        InstallWindows: orNull(str(details.installWindows).slice(0, 255)),
+        NotBefore: orNull(str(details.notBefore)),
+        MustBeOnBy: orNull(str(details.mustBeOnBy)),
+        Memberships: orNull(str(details.memberships)),
+        Priorities: orNull(str(details.priorities)),
+        Readiness: orNull(str(details.readiness)),
+        Notes: orNull(str(details.notes).slice(0, 4000)),
+        // Everything the form asked that has no column of its own, so a new
+        // question is not a schema change and a console visit.
+        Payload: json(details.payload ?? null),
+        SubmittedAt: now,
+        BrandLine: orNull(str(details.brandLine)),
+        TravelRadius: orNull(str(details.travelRadius)),
+        InstallerName: orNull(str(details.installerName)),
+        InstallerAddress: orNull(str(details.installerAddress)),
+        InstallerPostal: orNull(str(details.installerPostal).toUpperCase()),
+        InsuranceHelp: details.insuranceHelp == null ? null : bool(details.insuranceHelp),
+        InsurerProvince: orNull(str(details.insurerProvince)),
+        PremiumAnnual: toNumber(details.premiumAnnual)
+      }, [['BrandLine', 'TravelRadius', 'InstallerName', 'InstallerAddress', 'InstallerPostal',
+           'InsuranceHelp', 'InsurerProvince', 'PremiumAnnual']]));
+    }
+
+    windows.forEach((w, i) => {
+      const rank = Number(w.rank) || i + 1;
+      later.push(insertTolerant(catalystApp, 'TireInstallWindows', {
+        WindowKey: `${ReferenceCode}:${rank}`,
+        ReferenceCode,
+        Email: emailKey(email),
+        WindowDate: str(w.date),
+        Slot: str(w.slot) || 'any',
+        // The order they picked, not the order of the dates. Someone whose
+        // first choice is the latest date is telling you something, and a sort
+        // by date would lose it.
+        Rank: rank,
+        SubmittedAt: now
+      }));
+    });
+
+    toolRuns.forEach((t) => {
+      later.push(insertTolerant(catalystApp, 'TireToolRuns', {
+        RunKey: `${ReferenceCode}:${str(t.tool)}`,
+        ReferenceCode,
+        Tool: str(t.tool),
+        InputJson: json(t.input ?? null).slice(0, 2000),
+        // What we told them, on a date, about their money. If an insurance
+        // estimate is ever disputed this is the only record of what was said.
+        OutputJson: json(t.output ?? null).slice(0, 2000),
+        RanAt: now
+      }));
+    });
+
+    const results = await Promise.allSettled(later);
+    const failed = results.filter(r => r.status === 'rejected');
+    if (failed.length) {
+      console.error(`[formSubmit] tire-waitlist-join: ${failed.length} of ${later.length} ` +
+        `side tables failed for ${ReferenceCode}:`, failed[0].reason);
+    }
+
+    await enqueueCrm(catalystApp, {
+      source: 'TireWaitlistSignups', rowId: row.ROWID, email, leadType: 'consumer',
+      data: {
+        emailKey: emailKey(email),
+        firstName, lastName,
+        phone: normalizePhone(b.phone),
+        fsa: postal.fsa, postal: postal.full,
+        city, path, wave,
+        // The field the CRM already carries for which product a household is
+        // here for. A tire household lands on the same record shape as one
+        // that came through the umbrella's /join and ticked tires.
+        pooling_for: 'tires',
+        reference: ReferenceCode,
+        vehicles: vehicles.length,
+        tireSizes: vehicles.map(v => str(v.winterSizeChosen) || str(v.sizeNormalized) || str(v.tireSize)).filter(Boolean),
+        windows: windows.length,
+        alsoInternet: bool(b.alsoInternet) === 'true',
+        ...consent
+      }
+    });
+
+    res.status(200).json({ ok: true, reference: ReferenceCode, wave });
+  } catch (err) {
+    serverError(res, err, 'tire-waitlist-join');
+  }
+});
+
 // Bill checkup: every "join the waitlist" entry point on the checkup tool
 // (both the quick-join rails and the main check-button flow feed this).
 // Table: BillCheckupSubmissions
 //
 // This route stores the LEAD, never the signed-in member's bill, and it cannot:
-// the session cookie is host-only to www.whollar.ca (see auth/lib/cookies.js)
+// the session cookie is host-only to internet.whollar.ca (see auth/lib/cookies.js)
 // and this function is called cross-origin on the Catalyst domain, so the cookie
 // is not in the request at all: there is no session here to read. A signed-in
 // member's copy is written by the auth function, which owns sessions:
@@ -577,6 +985,84 @@ app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSe
 //     which is what covers the case where that POST never arrived.
 // Making this route session-aware would mean proxying it same-origin and
 // duplicating session verification into the public forms endpoint. Don't.
+// ---------------------------------------------------------------------------
+// The umbrella's show of hands: what should Whollar help you buy after tires
+// ---------------------------------------------------------------------------
+//
+// ANONYMOUS BY DESIGN, and that is why this is not `product_interest`
+// (create-tables.md section 23). That table is a signed-in member answering a
+// detailed survey, keyed on `${user_id}:${product}`. whollar.ca has no login,
+// no session and no /api/auth rewrite, so there is no user_id to key on. This
+// is a show of hands on a public page.
+//
+// ONE ROW PER PICK, not one per submission. The only question anyone will ever
+// ask this table is "how many hands for each", and the Data Store has no joins
+// and caps a read at 300 rows, so the shape that answers it in one query is
+// GROUP BY Product. VoteId groups the picks of one submission, so counting
+// voters rather than picks stays one query too, and VoteKey is Unique so a
+// double click cannot be counted twice.
+//
+// The keys are values, never labels, for the same reason the member survey
+// gives: the copy on those buttons will be edited, and storing "Car
+// maintenance" would open a second bucket the day it becomes "Car servicing".
+const VOTE_PRODUCTS = [
+  'home-insurance', 'mobile-plans', 'car-maintenance', 'home-services',
+  'energy', 'travel', 'pet-care', 'other'
+];
+
+function voteId() {
+  let id = '';
+  for (let i = 0; i < 10; i++) id += REF_ALPHABET[Math.floor(Math.random() * REF_ALPHABET.length)];
+  return id;
+}
+
+app.post('/product-vote', limit({ key: 'product-vote', max: 30, windowSec: 3600 }), async (req, res) => {
+  const b = req.body || {};
+  // Unknown keys are dropped rather than refused, the same rule the member
+  // survey uses: a stale tab contributes the picks that still exist instead of
+  // having the whole vote thrown away.
+  const picks = [...new Set(
+    (Array.isArray(b.products) ? b.products : []).map(str).filter(p => VOTE_PRODUCTS.includes(p))
+  )];
+  if (!picks.length) return badRequest(res, 'Pick at least one.');
+
+  const otherText = str(b.otherText).slice(0, 120);
+  const sourcePage = str(b.sourcePage).slice(0, 120);
+
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const now = catalystNow();
+    const id = voteId();
+
+    const results = await Promise.allSettled(picks.map(product => insertTolerant(
+      catalystApp,
+      'ProductVotes',
+      {
+        VoteKey: `${id}:${product}`,
+        VoteId: id,
+        Product: product,
+        OtherText: product === 'other' && otherText ? otherText : null,
+        SourcePage: sourcePage || null,
+        SubmittedAt: now
+      },
+      [['OtherText', 'SourcePage']]
+    )));
+
+    const counted = results.filter(r => r.status === 'fulfilled').length;
+    for (const r of results) {
+      if (r.status === 'rejected') console.error('[formSubmit] ProductVotes row failed:', r.reason);
+    }
+    // Every row here is equal, so unlike the waitlist there is no anchor row
+    // whose failure should fail the request. Nothing saved is a real failure;
+    // some saved is a vote, and the page is told how many so it cannot thank
+    // someone for a vote that was entirely dropped.
+    if (!counted) return serverError(res, new Error('no ProductVotes rows were written'), 'product-vote');
+    res.json({ ok: true, counted, voteId: id });
+  } catch (err) {
+    return serverError(res, err, 'product-vote');
+  }
+});
+
 app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, windowSec: 3600 }), tolerantUpload(upload.single('billFile')), async (req, res) => {
   const b = req.body || {};
   const email = str(b.email);
@@ -978,6 +1464,473 @@ app.post('/contact', limit({ key: 'contact', max: 10, windowSec: 3600 }), async 
   } catch (err) {
     serverError(res, err, 'contact');
   }
+});
+
+// Bring Whollar to my city: the demand signal from a place we do not serve.
+// Table: CityRequests (create-tables.md section 37)
+//
+// WHAT THIS IS NOT. It is not a join and it is not a waitlist row. /waitlist-join
+// records a household in a place a cohort can actually form, and it asks for the
+// name, the mobile and the postal code that make that possible. This asks one
+// question, "where should we open next", of someone we cannot serve today, and
+// asking them for a phone number to answer it is how you get no answer.
+//
+// THE CITY IS FREE TEXT, THE PROVINCE IS NOT. There is no list of Canadian city
+// names worth shipping inside a function: it changes, it disagrees with itself
+// about what is a city and what is a borough, and the day it goes stale it drops
+// exactly the small places this question exists to find. So the city is validated
+// by shape, capped, and off a charset that cannot carry markup or a URL. The
+// province is a closed list because it is the dimension the answers get counted
+// on, and thirteen values that never change cost nothing to enforce.
+//
+// NO MAIL. Every sibling route here tells the team by email; this one does not,
+// on purpose. It is a one-click answer to a one-line question, so the volume is
+// nothing like a contact form's, and a mailbox filling with "Ottawa" teaches
+// less than one ZCQL count does.
+const PROVINCES = ['AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT'];
+// A place name and nothing else: letters, spaces, hyphens, apostrophes, periods.
+// Accents included, because Montreal and Trois-Rivieres are spelled with them.
+const CITY_RE = /^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ '.\-]{1,59}$/;
+
+app.post('/city-request', limit({ key: 'city-request', max: 20, windowSec: 3600 }), async (req, res) => {
+  const b = req.body || {};
+  const city = str(b.city).replace(/\s+/g, ' ').trim();
+  const province = str(b.province).toUpperCase();
+  const email = str(b.email);
+  const postal = normalizePostal(b.postal);
+  // Same closed list and the same reasoning as /waitlist-join: it becomes a CRM
+  // picklist, and a value the picklist does not know is a field Zoho refuses.
+  const poolingFor = ['internet', 'tires', 'both'].includes(str(b.poolingFor).toLowerCase())
+    ? str(b.poolingFor).toLowerCase() : null;
+
+  if (!CITY_RE.test(city)) return badRequest(res, 'A city name is required.');
+  if (!PROVINCES.includes(province)) return badRequest(res, 'A province is required.');
+  if (!isEmail(email)) return badRequest(res, 'A valid email is required.');
+
+  try {
+    const catalystApp = catalyst.initialize(req);
+    // FSA and PoolingFor are the columns most likely to be missing on a store
+    // that has not caught up with section 37 yet, and a city with no postal code
+    // is still worth counting. insertTolerant drops them and keeps the row.
+    const row = await insertTolerant(catalystApp, 'CityRequests', {
+      City: city,
+      Province: province,
+      Email: email,
+      FSA: postal.fsa,
+      PoolingFor: poolingFor,
+      Marketing: b.marketing ? 'yes' : 'no',
+      SubmittedAt: catalystNow()
+    }, ['FSA', 'PoolingFor', 'Marketing']);
+    await enqueueCrm(catalystApp, {
+      source: 'CityRequests', rowId: row.ROWID, email, leadType: 'consumer',
+      data: {
+        city, province,
+        emailKey: emailKey(email),
+        fsa: postal.fsa, postal: postal.full,
+        poolingFor,
+        ...consentFrom(b, req)
+      }
+    });
+    res.status(200).json({ ok: true, id: row.ROWID });
+  } catch (err) {
+    serverError(res, err, 'city-request');
+  }
+});
+
+/* ------------------------------------------------------------------ *
+ * THE WAITLIST SHARE CODE
+ * ------------------------------------------------------------------
+ * A code that belongs to an EMAIL ADDRESS, and to nothing else.
+ *
+ * WHY THIS IS NOT lib/referral.js. That module mints into `referral_token`,
+ * resolves only rows whose owner_type is 'member', and is the ledger behind
+ * every member's referral count. A marketing code has no member behind it and
+ * can never pay out, so putting it in that table would leave one guard doing
+ * the load bearing work of telling the two kinds apart forever. They are kept
+ * apart at the table level instead: this code lives in WaitlistShareCodes, is
+ * never resolved by lib/referral.js, and is SHAPED so it cannot be mistaken
+ * for a member code even by accident. See the two rules below.
+ *
+ * WHAT "EMAIL IDENTITY SPECIFIC" MEANS HERE. The registry is keyed on the
+ * address, not on a submission and not on a product. WaitlistEmails already
+ * holds one row per address PER PRODUCT, on purpose, so somebody who holds a
+ * spot on the tire page and again on the internet page is two rows there. They
+ * are one person, so they get one code, and that is why this is a second table
+ * rather than a column on the first one.
+ * ------------------------------------------------------------------ */
+
+// Same alphabet as tireRef: no I, O, 0 or 1, because these get read aloud.
+const SHARE_ALPHABET = REF_ALPHABET;
+// The last character is drawn from the letters that CANNOT be read as hex.
+// This is rule two below, and it is the whole reason the subset exists.
+const SHARE_TAIL_ALPHABET = 'GHJKLMNPQRSTVWXYZ';
+const SHARE_PREFIX = 'WS';
+const SHARE_BODY_LEN = 8;
+const SHARE_CODE_RE = /^WS[A-HJ-NP-Z2-9]{8}$/;
+
+// The one place the share URL is spelled. Not the request origin: the code
+// belongs to the person, not to the host they happened to be reading, and
+// www.whollar.ca/join is the only join form that exists and answers 200
+// without a redirect. internet.whollar.ca/join is 301'd away to www, and
+// W.referral.link() in whollar-core.js builds /waitlist, which is a 404 on
+// both www and tires. Neither is usable.
+const SHARE_BASE = 'https://www.whollar.ca/join?ref=';
+
+/* One character, drawn without modulo bias.
+ *
+ * Math.random() is what tireRef uses and it is wrong for anything anyone can
+ * guess their way into: a share code is a name a stranger can type. 256 % 32
+ * is 0 so the rejection ceiling is the whole byte for the 32 symbol alphabet,
+ * and 256 - (256 % 17) = 255 for the 17 symbol tail.
+ */
+function pickFrom(alphabet) {
+  const n = alphabet.length;
+  const ceiling = 256 - (256 % n);
+  for (;;) {
+    const b = crypto.randomBytes(1)[0];
+    if (b < ceiling) return alphabet[b % n];
+  }
+}
+
+/* WS + 7 body characters + 1 non hex tail character. Ten in total.
+ *
+ * TWO SHAPING RULES, and both of them are load bearing:
+ *
+ *   1. TEN CHARACTERS. lib/token.js normalises to exactly 8 and rejects every
+ *      other length, so a member token reader can never accept this. It also
+ *      carries no `whl` substring, so referral.normalize's legacy branch is
+ *      never entered on the way past.
+ *
+ *   2. THE LAST CHARACTER IS NEVER HEX. referral.js reads a legacy code with
+ *      a forgiving TRAILING hex scan (coreOf), so a code ending in eight hex
+ *      readable characters is claimed by it and normalised into a plausible
+ *      WHL- code, which would then attribute a signup to whichever member's
+ *      user_id happened to start with those digits.
+ *
+ *      THIS IS MEASURED, NOT FEARED. Drawing the last character from the full
+ *      alphabet and running 200,000 codes through the real referral.normalize
+ *      claimed 260 of them, one in 770: WS4FACE762 comes back as
+ *      WHL-4FACE762. Drawing it from the 17 letters that cannot be read as
+ *      hex claimed none in 50,000.
+ *
+ * 32^7 * 17 is about 5.8 x 10^11 codes.
+ */
+function mintShareCode() {
+  let body = '';
+  for (let i = 0; i < SHARE_BODY_LEN - 1; i++) body += pickFrom(SHARE_ALPHABET);
+  return SHARE_PREFIX + body + pickFrom(SHARE_TAIL_ALPHABET);
+}
+
+/* Read the code for an address, or mint one.
+ *
+ * The EmailKey Unique in the console is what makes this safe under a double
+ * submit: two simultaneous first submissions of one address cannot both
+ * insert, and the loser re-reads rather than retrying, so both requests answer
+ * with the SAME code. Retrying on that path is what would produce two.
+ *
+ * Never throws. A store that cannot answer costs the reader a share link, not
+ * their place on the list, and the caller carries on with null.
+ */
+async function readShareCode(catalystApp, key) {
+  // ZCQL has no parameter binding, so the literal is escaped by doubling the
+  // quote. `key` has already been through isEmail.
+  const lit = String(key).replace(/'/g, "''");
+  const rows = await catalystApp.zcql().executeZCQLQuery(
+    `SELECT ShareCode FROM WaitlistShareCodes WHERE EmailKey = '${lit}' LIMIT 1`);
+  const found = rows && rows[0] && rows[0].WaitlistShareCodes;
+  return (found && found.ShareCode) || null;
+}
+
+async function ensureShareCode(catalystApp, key) {
+  try {
+    const existing = await readShareCode(catalystApp, key);
+    if (existing) return existing;
+  } catch (err) {
+    // A read that failed is not a read that said "no row". Minting now would
+    // risk a second code for somebody who already has one, and the Unique on
+    // EmailKey would refuse it anyway, so stop here and let them share later.
+    console.error('[formSubmit] share code read failed, not minting:', err);
+    return null;
+  }
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const ShareCode = mintShareCode();
+    try {
+      await insert(catalystApp, 'WaitlistShareCodes', {
+        EmailKey: key, ShareCode, CreatedAt: catalystNow()
+      });
+      return ShareCode;
+    } catch (err) {
+      // Two Uniques can fire here and they mean opposite things, so ask the
+      // store which one it was rather than reading the error text. Catalyst
+      // does not word a unique violation the way a regex expects: that is the
+      // lesson /waitlist-email's own duplicate path learned on 2026-09-05.
+      let mine = null;
+      try { mine = await readShareCode(catalystApp, key); } catch (e2) { /* fall through to retry */ }
+      if (mine) return mine;   // EmailKey fired: another request minted for this same person
+      console.error(`[formSubmit] share code collision or insert failure on attempt ${attempt + 1}:`, err);
+    }
+  }
+  console.error('[formSubmit] share code could not be minted after 4 attempts');
+  return null;
+}
+
+/* Who is the code for. Used by the self referral guard, and by nothing else.
+ * Returns the address that owns a code, or null. */
+async function ownerOfShareCode(catalystApp, code) {
+  if (!SHARE_CODE_RE.test(String(code || ''))) return null;
+  try {
+    const lit = String(code).replace(/'/g, "''");
+    const rows = await catalystApp.zcql().executeZCQLQuery(
+      `SELECT EmailKey FROM WaitlistShareCodes WHERE ShareCode = '${lit}' LIMIT 1`);
+    const found = rows && rows[0] && rows[0].WaitlistShareCodes;
+    return (found && found.EmailKey) || null;
+  } catch (err) {
+    console.error('[formSubmit] share code owner read failed:', err);
+    return null;
+  }
+}
+
+/* The two fields the card reads, added only when there is something to add.
+ * A response with no shareCode is not an error: the card falls back to a done
+ * state with no link, and the address is on the list either way. */
+function shareResponse(base, code) {
+  if (!code) return base;
+  return { ...base, shareCode: code, shareUrl: SHARE_BASE + encodeURIComponent(code) };
+}
+
+/* The confirmation mail.
+ *
+ * WHY THIS CALLS THE AUTH FUNCTION INSTEAD OF SENDING. Everything that makes a
+ * marketing send lawful and repeatable already lives over there and only over
+ * there: the CASL category table, the suppression list, unsubscribe tokens,
+ * the notify_key that stops a double submit sending twice, and a transport
+ * with an SMTP fallback that works while ZeptoMail is refusing. This function's
+ * only sender is notifyTeam, which is ZeptoMail only and addressed to the team
+ * inbox. Rebuilding any of that here would be a second copy of the rules that
+ * decide whether we are allowed to write to somebody.
+ *
+ * So one HTTPS call carries the ask across, and the auth route does the
+ * enqueue and the drain with the real machinery. Best effort in every
+ * direction: no URL configured, no secret, auth cold or unreachable, all of it
+ * costs the mail and nothing else. The row is saved and the response is
+ * already decided before this runs.
+ */
+async function sendWaitlistWelcome(key, product, shareCode) {
+  const base = (process.env.AUTH_FUNCTION_URL || '').trim().replace(/\/+$/, '');
+  const secret = (process.env.NOTIFY_CRON_SECRET || '').trim();
+  if (!base || !secret) {
+    console.log('[formSubmit] waitlist welcome not sent: AUTH_FUNCTION_URL or NOTIFY_CRON_SECRET is unset');
+    return;
+  }
+  try {
+    const res = await fetch(`${base}/internal/waitlist-welcome`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Cron-Secret': secret },
+      body: JSON.stringify({
+        email: key,
+        product,
+        shareCode: shareCode || null,
+        shareUrl: shareCode ? SHARE_BASE + encodeURIComponent(shareCode) : null
+      })
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`waitlist-welcome ${res.status}: ${body.slice(0, 300)}`);
+    }
+  } catch (err) {
+    console.error('[formSubmit] waitlist welcome failed:', err);
+  }
+}
+
+// The waitlist popup's one field. Table: WaitlistEmails (create-tables.md 39).
+//
+// WHY THIS IS NOT /waitlist-join. That route asks for a first name, a last
+// name, a phone number and a postal code, and refuses the submission without
+// all four, because a household joining a cohort in a place we serve needs
+// every one of them. The popup asks for an address and nothing else, so it
+// would 400 on four fields it never collected. Two doors, two shapes, and the
+// popup's door is deliberately the smaller one.
+//
+// WHAT THIS ROUTE IS NOT. It is not a referral system. `Referral` is stored
+// exactly as it arrived, for reporting, and no code is minted here: a referral
+// code in this backend belongs to a member row, is issued by lib/referral.js
+// into `referral_token`, and is spent by signup writing users.referral_code.
+// An address in a popup is none of those things. The popup's done state says
+// so and points at /join.
+//
+// EmailKey is `${email}:${product}`, the flattened composite the store needs
+// because it has no composite unique, the same trick as ProductVotes.VoteKey.
+// One row per address per product: somebody who holds a spot on the tire page
+// and again on the internet page is two rows and one person, and somebody who
+// submits the same page twice is one row and one ok.
+app.post('/waitlist-email', limit({ key: 'waitlist-email', max: 20, windowSec: 3600 }), async (req, res) => {
+  const b = req.body || {};
+  const email = str(b.email);
+  // A closed list for the same reason every other closed list here exists: it
+  // becomes a reporting bucket, and a value nobody knows about is a bucket
+  // nobody counts. Anything unrecognised is the umbrella.
+  const product = ['home', 'tires', 'internet'].includes(str(b.product).toLowerCase())
+    ? str(b.product).toLowerCase() : 'home';
+  // 1 or 2: which of the popup's two asks converted. The one number that says
+  // whether the second ask earns its place.
+  const ctaStep = ['1', '2'].includes(str(b.ctaStep)) ? str(b.ctaStep) : '1';
+
+  if (!isEmail(email)) return badRequest(res, 'A valid email is required.');
+
+  const key = emailKey(email);
+  // Declared out here because the duplicate path in the catch answers with it
+  // too, and a person who submits twice must see one code, never two.
+  let shareCode = null;
+
+  try {
+    const catalystApp = catalyst.initialize(req);
+
+    // MINTED BEFORE THE INSERT, and that ordering is the point. When the
+    // EmailKey Unique on WaitlistEmails fires because somebody held the same
+    // spot twice, the catch below re-reads the row and answers ok:true. The
+    // code is already in hand by then, so that answer carries the SAME code as
+    // the first submission did. Minting after the insert would have left the
+    // duplicate path with nothing to say, or with a second code.
+    shareCode = await ensureShareCode(catalystApp, key);
+
+    // Referral, CtaStep, SourcePage and Host are one optional group: a store
+    // that has only the mandatory columns still records the address, which is
+    // the thing that must not be lost. ConsentText and ConsentAt are NOT
+    // optional, because an address kept without the sentence agreed to is an
+    // address we cannot lawfully mail.
+    const row = await insertTolerant(catalystApp, 'WaitlistEmails', {
+      EmailKey: `${key}:${product}`,
+      Email: key,
+      Product: product,
+      CtaStep: ctaStep,
+      Referral: str(b.referral).slice(0, 64) || null,
+      SourcePage: str(b.sourcePage).slice(0, 120) || null,
+      Host: str(req.headers.origin).replace(/^https?:\/\//, '').slice(0, 64) || null,
+      ConsentText: str(b.consentText).slice(0, 4000),
+      ConsentAt: catalystNow(),
+      SubmittedAt: catalystNow()
+    }, [['Referral', 'SourcePage', 'Host', 'CtaStep']]);
+
+    await enqueueCrm(catalystApp, {
+      source: 'WaitlistEmails', rowId: row.ROWID, email: key, leadType: 'consumer',
+      data: {
+        emailKey: key,
+        product,
+        ctaStep,
+        referral: str(b.referral).slice(0, 64) || null,
+        shareCode,
+        ...consentFrom(b, req)
+      }
+    });
+
+    // The confirmation the card promises. Best effort in both directions: it
+    // never fails the request, and a reader who never gets the mail still has
+    // their place and their link on screen.
+    await sendWaitlistWelcome(key, product, shareCode);
+
+    return res.status(200).json(shareResponse({ ok: true, id: row.ROWID }, shareCode));
+  } catch (err) {
+    // The unique on EmailKey firing is somebody holding the same spot twice,
+    // which is a success from where they are sitting: they are on the list and
+    // they were already on it. Answering 500 would tell them their submission
+    // failed and invite a third attempt.
+    //
+    // WHY THIS RE-READS INSTEAD OF MATCHING THE ERROR. It matched
+    // /duplicate|unique|already.?exists/ on the error text first, and a live
+    // double submission on 2026-09-05 answered 500: Catalyst words it as
+    // something else, and this backend has never had a reason to learn which
+    // words. Asking the store whether the row is there answers the real
+    // question, and it keeps answering it if Zoho ever rewrites the message.
+    //
+    // The read-after-write hazard that bit the notify outbox does not apply:
+    // the row being looked for was written by an EARLIER request, not by this
+    // one, so there is nothing to be eventually consistent about.
+    try {
+      const catalystApp = catalyst.initialize(req);
+      // ZCQL has no parameter binding, so the literal is escaped by doubling
+      // the quote. `key` came through isEmail and `product` off a closed list,
+      // and this is the belt to that pair of braces.
+      const lit = `${key}:${product}`.replace(/'/g, "''");
+      const rows = await catalystApp.zcql().executeZCQLQuery(
+        `SELECT ROWID FROM WaitlistEmails WHERE EmailKey = '${lit}' LIMIT 1`);
+      const found = rows && rows[0] && rows[0].WaitlistEmails;
+      if (found) {
+        return res.status(200).json(
+          shareResponse({ ok: true, duplicate: true, id: found.ROWID }, shareCode));
+      }
+    } catch (err2) {
+      console.error('[formSubmit] waitlist-email duplicate re-read failed:', err2);
+    }
+    // Not a duplicate, so the insert failed for a reason worth seeing. The
+    // shape is logged in full because a missing column and an unreachable
+    // store read identically from the popup, which only ever says that the
+    // submission did not go through.
+    console.error('[formSubmit] waitlist-email insert error shape:', {
+      code: err && err.code, message: String((err && err.message) || err).slice(0, 300)
+    });
+    return serverError(res, err, 'waitlist-email');
+  }
+});
+
+/* ------------------------------------------------------------------ *
+ * A CLICK ON A SHARE LINK. Table: ReferralClicks (create-tables.md 40).
+ * ------------------------------------------------------------------
+ * The share link is https://www.whollar.ca/join?ref=CODE, which never touches
+ * this backend, so the landing page reports the arrival instead. That is the
+ * price of a clean link with no redirect hop in it, and it was the trade the
+ * owner chose.
+ *
+ * WHY NOT auth's invite_click, WHICH ALREADY DOES THIS. Because its writer is
+ * GET /r/:token on the auth function, and that lane is routed on internet and
+ * on www but NOT on tires, whose vercel.json has no rewrite for it at all.
+ * The auth function's ALLOWED_ORIGINS also has a standing production gap. This
+ * function's allowlist already covers all three hosts, both .com twins and the
+ * three preview aliases, so the click rides the door that already works
+ * everywhere rather than the one that would have to be widened first.
+ *
+ * WHAT IT STORES ABOUT A PERSON: nothing. A peppered hash of address and user
+ * agent, and only so that a reader refreshing the page ten times counts once.
+ * That is the same standard invite_click holds itself to, and the hash is the
+ * whole record: there is no column here that could later be joined to anybody.
+ */
+const CLICK_PEPPER = (process.env.CLICK_PEPPER || 'whollar-referral-clicks').trim();
+
+function clickKey(code, req) {
+  const day = new Date().toISOString().slice(0, 10);
+  const who = crypto.createHash('sha256')
+    .update(`${clientIp(req)}|${str(req.headers['user-agent'])}|${CLICK_PEPPER}`)
+    .digest('hex').slice(0, 12);
+  return `${code}:${day}:${who}`;
+}
+
+app.post('/ref-click', limit({ key: 'ref-click', max: 120, windowSec: 3600 }), async (req, res) => {
+  const b = req.body || {};
+  const code = str(b.code).toUpperCase();
+
+  // ALWAYS ok:true, for a real code and for one somebody invented. A route
+  // that answers differently for the two is a route that tells a stranger
+  // which codes exist, one guess at a time.
+  if (!SHARE_CODE_RE.test(code)) return res.status(200).json({ ok: true });
+
+  try {
+    const catalystApp = catalyst.initialize(req);
+    await insert(catalystApp, 'ReferralClicks', {
+      ClickKey: clickKey(code, req),
+      ShareCode: code,
+      Host: str(req.headers.origin).replace(/^https?:\/\//, '').slice(0, 64) || null,
+      SourcePage: str(b.sourcePage).slice(0, 120) || null,
+      ClickedAt: catalystNow()
+    });
+  } catch (err) {
+    // The ClickKey Unique firing IS the ordinary case: the same reader, the
+    // same code, the same day, a second look. Nothing to record and nothing
+    // wrong. Anything else is worth a log line and still not worth an error,
+    // because a counter that cannot write must not break the page it sits on.
+    console.log('[formSubmit] ref-click not recorded (duplicate or store error):',
+      String((err && err.message) || err).slice(0, 200));
+  }
+  return res.status(200).json({ ok: true });
 });
 
 module.exports = app;

@@ -27,6 +27,7 @@ const datastore = require('../lib/datastore');
 const orgs = require('../lib/orgs');
 const terms = require('../lib/terms');
 const audit = require('../lib/audit');
+const crm = require('../lib/crm/outbox');
 const bids = require('../lib/bids');
 const { ok, ms } = require('../lib/envelope');
 const { requirePartner: guardPartner } = require('../lib/guards');
@@ -211,6 +212,19 @@ function mount(router) {
         repeat: result.alreadyAccepted,
       },
     });
+    /* Only a first acceptance is news. Re-accepting the version already on
+       file is the console re-posting on a reload, and a CRM note per reload
+       is noise on the one record a person actually reads. */
+    if (!result.alreadyAccepted) {
+      crm.enqueueAsync(req.catalyst, req, {
+        eventType: 'partner.updated',
+        entityRowid: `${context.orgId}:${terms.DOC_TYPE}:${result.version}`,
+        email: user.email_display || user.email_normalized,
+        leadType: 'partner',
+        payload: { org_id: context.orgId, org_name: context.orgName || null,
+          doc_type: terms.DOC_TYPE, doc_version: result.version },
+      });
+    }
 
     return ok(res, { terms: await terms.status(req.catalyst, context.orgId) });
   }));

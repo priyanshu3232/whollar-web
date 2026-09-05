@@ -57,12 +57,20 @@ const RECFULL = { ...REC, phone: '(416) 555 0134', postal: 'M5S 2J7', fsa: 'M5S'
 
 const DAY = 86400000;
 /* A campaign shaped like publicCampaign() in routes/campaigns.js. */
+/* `eligibility` and `nearbyTier` are OMITTED by default, on purpose. Every
+   fixture above this line was written before cohorts had postal code areas,
+   and a default here would quietly change what all of them assert. Absent is
+   also a real wire state: a page running against a function deployed before
+   eligibility existed gets exactly this, and has to behave as it did then. The
+   eligibility group passes them explicitly. */
 function camp(id, region, sub, { you = null, kind = 'forming', stage = 'forming', members = 44,
-  joinable = true } = {}) {
+  joinable = true, eligibility, nearbyTier } = {}) {
   const t = Date.now();
   return {
     id, region, sub, kind, target: 100, members, households: members, watching: 0,
     joinable, you, stage, stageLabel: stage, next: null,
+    ...(eligibility === undefined ? {} : { eligibility }),
+    ...(nearbyTier === undefined ? {} : { nearbyTier }),
     dates: {
       announce_at: t - 9 * DAY, bidding_opens_at: t + 9 * DAY,
       bidding_closes_at: t + 11 * DAY, decision_at: t + 18 * DAY, switch_window_at: t + 30 * DAY,
@@ -70,7 +78,8 @@ function camp(id, region, sub, { you = null, kind = 'forming', stage = 'forming'
   };
 }
 
-async function ctx(browser, { record = REC, campaigns = [], live = true, sessionAuthed = true, bill = null } = {}) {
+async function ctx(browser, { record = REC, campaigns = [], live = true, sessionAuthed = true, bill = null,
+  memberFsa, postalCodeState, profileSave } = {}) {
   const c = await browser.newContext({ viewport: { width: 1360, height: 1000 } });
   /* CATCH-ALL FIRST. Playwright matches most-recently-registered first, so the
      named handlers below still win and everything else lands here rather than
@@ -82,8 +91,20 @@ async function ctx(browser, { record = REC, campaigns = [], live = true, session
   }));
   await c.route('**/api/auth/campaigns', r => r.fulfill({
     status: 200, contentType: 'application/json',
-    body: JSON.stringify({ ok: true, live, serverTime: Date.now(), campaigns }),
+    body: JSON.stringify({
+      ok: true, live, serverTime: Date.now(), campaigns,
+      /* Same rule as `camp` above: absent unless a test says otherwise, so the
+         older fixtures keep asserting what they asserted. */
+      ...(memberFsa === undefined ? {} : { memberFsa }),
+      ...(postalCodeState === undefined ? {} : { postalCodeState }),
+    }),
   }));
+  if (profileSave) {
+    await c.route('**/api/auth/me/profile', r => r.fulfill({
+      status: profileSave.status || 200, contentType: 'application/json',
+      body: JSON.stringify(profileSave.body),
+    }));
+  }
   await c.route('**/api/auth/me/bill', r => r.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, bill }),
   }));
@@ -390,6 +411,11 @@ console.log('\n6d. the offer panel shows the real winning bid');
     status: 200, contentType: 'application/json',
     body: JSON.stringify({
       ok: true, sealed: false, live: true, closesAt: t - 5 * MIN, bidCount: 1,
+      book: [
+        { tier: '500 Mbps', price: '50', partner: 'Testline Fibre', guaranteeMonths: 24,
+          afterPrice: null, equipment: 'inc', rentalMonthly: null, technology: 'fibre',
+          uploadMbps: '500', mix: null, reference: 'WR-TEST' },
+      ],
       offer: {
         partner: 'Testline Fibre', price: '50', speed: '500 Mbps', technology: 'fibre',
         guaranteeMonths: 24, afterLine: 'no scheduled change', equipment: 'inc',
@@ -600,7 +626,11 @@ console.log('\n6i. a cohort shows its own dates, and nothing where it has none')
   ok(/^(Aug|Sep|Oct|Nov|Dec|Jan|Feb|Mar|Apr|May|Jun|Jul)/.test(tiles.close || ''),
     `and the one date it does carry is shown (${tiles.close})`);
   ok(!/September 15/.test(panel), 'the locked panel no longer invents a bidding date');
-  ok(/text you the day bidding opens/.test(panel),
+  /* The channel word is the copy's to choose, not this test's: the panel said
+     "text you" when this was written and says "email you" now. What must hold
+     is that it names WHEN it will tell you instead of inventing a date, so the
+     assertion accepts either word and still fails if the promise disappears. */
+  ok(/(text|email) you the day bidding opens/.test(panel),
     'and says what it actually knows instead');
   await c.close();
 }
@@ -649,15 +679,27 @@ console.log('\n6k. taking the offer is not undone by the next poll');
     },
   };
   const c = await ctx(browser, { campaigns: [mine] });
-  /* The offer the panel is about. Sealed is false because the cohort closed. */
+  /* The offer the panel is about. Sealed is false because the cohort closed.
+     `book` is the cards; `offer` is the entry the server centres on and is
+     kept beside it. A cohort with one bidder still has a book, it is just one
+     partner's name on every entry. See scripts/qa-offers.mjs for the window
+     rules themselves; this group is only about the advance/repoll race. */
   await c.route('**/api/auth/campaigns/*/offer', r => r.fulfill({
     status: 200, contentType: 'application/json',
     body: JSON.stringify({
       ok: true, sealed: false, live: true, closesAt: t - 20 * MIN, bidCount: 1,
+      book: [
+        { tier: '100 Mbps', price: '43', partner: 'Northline', guaranteeMonths: 24,
+          afterPrice: null, equipment: 'byod', rentalMonthly: null, mix: null, reference: 'WB-1' },
+        { tier: '300 Mbps', price: '51', partner: 'Northline', guaranteeMonths: 24,
+          afterPrice: null, equipment: 'byod', rentalMonthly: null, mix: null, reference: 'WB-1' },
+        { tier: '500 Mbps', price: '58', partner: 'Northline', guaranteeMonths: 24,
+          afterPrice: null, equipment: 'byod', rentalMonthly: null, mix: null, reference: 'WB-1' },
+      ],
       offer: {
         partner: 'Northline', price: '43', speed: '100 Mbps', technology: 'cable',
-        guaranteeMonths: 24, afterLine: 'no scheduled change', equipment: 'byo',
-        rentalMonthly: null, committedHouseholds: 4, reference: 'WB-1', tiers: [],
+        guaranteeMonths: 24, afterLine: 'no scheduled change', equipment: 'byod',
+        rentalMonthly: null, reference: 'WB-1',
       },
     }),
   }));
@@ -1031,6 +1073,15 @@ const OFFERCAMP = (t => ({
 }))(Date.now());
 const OFFERBODY = {
   ok: true, sealed: false, live: true, closesAt: Date.now() - 20 * 60000, bidCount: 1,
+  /* One bidder, so every entry of the book carries the same name. It is still
+     a book: the cards render from it, and `offer` beside it is only the entry
+     the server centres on. */
+  book: [
+    { tier: '100 Mbps', price: '43', partner: 'Northline', guaranteeMonths: 24,
+      afterPrice: null, equipment: 'byod', rentalMonthly: null, mix: null, reference: 'WB-1' },
+    { tier: '300 Mbps', price: '52', partner: 'Northline', guaranteeMonths: 24,
+      afterPrice: null, equipment: 'byod', rentalMonthly: null, mix: null, reference: 'WB-1' },
+  ],
   offer: {
     partner: 'Northline', price: '43', speed: '100 Mbps', technology: 'cable',
     guaranteeMonths: 24, afterLine: 'no scheduled change', equipment: 'byo',
@@ -1060,16 +1111,30 @@ console.log('\n12. taking the offer posts the accept, and a reload restores it')
   await p.click('#panel [data-take]');
   await p.waitForTimeout(300);
   ok(await p.locator('#svcaddr').count() === 1, 'the live confirm screen asks for the service address');
+  ok(await p.locator('#svcphone').count() === 1, 'and the mobile number for the installer');
+  ok(await p.locator('.slotday').count() === 15, 'and offers fifteen install days');
+  ok(await p.locator('.slotwin').count() === 3, 'in three arrival windows');
   ok(await p.evaluate(() => document.querySelector('#paydep').disabled), 'the confirm button starts disarmed');
   await p.fill('#svcaddr', '12 Maple Street, Kleinburg');
   await p.click('#consent');
   await p.waitForTimeout(150);
-  ok(await p.evaluate(() => !document.querySelector('#paydep').disabled), 'address plus consent arms it');
+  ok(await p.evaluate(() => document.querySelector('#paydep').disabled), 'address plus consent alone does not arm it');
+  await p.fill('#svcphone', '416 555 0123');
+  await p.click('.slotday:not([disabled]) >> nth=2');
+  await p.click('.slotwin[data-win="pm"]');
+  await p.waitForTimeout(150);
+  ok(await p.evaluate(() => document.querySelector('.slotday.sel') && document.querySelector('.slotwin.sel[data-win="pm"]')), 'the picked day and window read as selected');
+  ok(await p.evaluate(() => !document.querySelector('#paydep').disabled), 'number, day and window arm it');
+  const dayMs = await p.evaluate(() => Number(document.querySelector('.slotday.sel').getAttribute('data-day')));
   await p.click('#paydep');
   await p.waitForTimeout(700);
   ok(accepted !== null, 'the accept reaches the server');
   ok(accepted && accepted.consent === true, 'with the consent tick');
   ok(accepted && accepted.address === '12 Maple Street, Kleinburg', `and the address (${accepted && accepted.address})`);
+  ok(accepted && accepted.phone === '416 555 0123', `and the number (${accepted && accepted.phone})`);
+  ok(accepted && accepted.slotWindow === 'pm', `and the window (${accepted && accepted.slotWindow})`);
+  ok(accepted && new Date(accepted.slotAt).getHours() === 12 && accepted.slotAt > dayMs && accepted.slotAt - dayMs < 24 * 3600 * 1000,
+    `and the slot is noon on the picked day (${accepted && new Date(accepted.slotAt).toString()})`);
   const panel = (await p.locator('#panel').innerText());
   ok(/concierge has it from here/i.test(panel), 'the panel moves to switching');
   ok(panel.includes('WHL-77AB-C'), 'and names the order');
@@ -1077,7 +1142,7 @@ console.log('\n12. taking the offer posts the accept, and a reload restores it')
 }
 {
   const c = await ctx(browser, {
-    campaigns: [{ ...OFFERCAMP, yourOrder: { orderNo: 'WHL-77AB-C', state: 'acc' } }],
+    campaigns: [{ ...OFFERCAMP, yourOrder: { orderNo: 'WHL-77AB-C', state: 'bkd', slotAt: new Date(2026, 8, 3, 8).getTime() } }],
   });
   await c.route('**/api/auth/campaigns/*/offer', r => r.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify(OFFERBODY),
@@ -1089,6 +1154,7 @@ console.log('\n12. taking the offer posts the accept, and a reload restores it')
   const panel = (await p.locator('#panel').innerText());
   ok(/concierge has it from here/i.test(panel), 'a fresh load lands on switching, not Offers');
   ok(panel.includes('WHL-77AB-C'), 'still naming the order');
+  ok(/Booked for Thu, September 3, morning \(8am to 12pm\)/.test(panel), `and the day and window it booked (${(panel.match(/Booked for[^.]*/) || [''])[0]})`);
   ok(await p.evaluate(() => !document.querySelector('#panel [data-take]')), 'and the take button is gone');
   await c.close();
 }
@@ -1149,6 +1215,263 @@ console.log('\n12b. passing posts the leave, survives the poll, and a failure re
   const expected = errors.findIndex(t => /500/.test(t));
   ok(expected >= 0, 'and the browser logged the provoked 500, nothing else new');
   if (expected >= 0) errors.splice(expected, 1);
+  await c.close();
+}
+
+/* ------------------------------------------------------------------ *
+ * 13. Eligibility: which cohort is offered, and to whom
+ *
+ * The rule can fail silently in BOTH directions and neither failure looks
+ * broken from this page: too tight and a live cohort quietly stops taking the
+ * households it was built for, too loose and the wrong end of the province
+ * lands on a partner's desk. So what is asserted here is not "the right thing
+ * renders" but "the wrong thing cannot be pressed": the featured tile, the one
+ * green pill, and above all which cards carry a join target.
+ *
+ * Server-side enforcement is NOT tested here and cannot be: this harness
+ * fulfils the routes itself. guards.requireEligible is held by
+ * scripts/test-geo.mjs, and it is the authority in any case.
+ * ------------------------------------------------------------------ */
+const elig = (id, region, e, extra = {}) => camp(id, region, 'Autumn cohort',
+  { eligibility: e, joinable: e === 'eligible' || e === 'unscoped', ...extra });
+
+console.log('\n13a. a cohort open to this postal code is the featured tile');
+{
+  const c = await ctx(browser, {
+    memberFsa: 'M2N', postalCodeState: 'present',
+    campaigns: [
+      /* Sorts first and is somewhere else: under the old rule it was featured. */
+      elig('downtown-core', 'Downtown Core', 'not_in_area', { nearbyTier: 1 }),
+      elig('north-york-central', 'North York Central', 'eligible', { nearbyTier: 0 }),
+    ],
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  const s = await snapshot(p);
+  ok(/North York Central/.test(s.regmono || ''),
+    `the eligible cohort is featured over the one that sorts first (${s.regmono})`);
+  const pills = await p.evaluate(() => Array.from(document.querySelectorAll('#crow .badge'))
+    .map(e => e.innerText.trim()));
+  ok(pills.filter(t => /Open to you/.test(t)).length === 1,
+    `exactly one card claims Open to you (${pills.join(' | ')})`);
+  ok(await p.evaluate(() => document.querySelectorAll('#crow [data-choose]').length === 1),
+    'and exactly one card carries a join target');
+  ok(await p.evaluate(() => !!document.querySelector('#crow [data-away]')),
+    'the cohort somewhere else is still a card, and still pressable');
+  await c.close();
+}
+
+console.log('\n13b. a cohort somewhere else can be read and cannot be joined');
+{
+  const c = await ctx(browser, {
+    memberFsa: 'M2N', postalCodeState: 'present',
+    campaigns: [elig('scarborough-east', 'Scarborough East', 'not_in_area', { nearbyTier: 1 })],
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  ok(await p.evaluate(() => !document.querySelector('#crow [data-choose]')),
+    'no join target anywhere on the row');
+  ok(await p.evaluate(() => !Array.from(document.querySelectorAll('#crow .badge'))
+    .some(e => /Open to you/.test(e.innerText))), 'and nothing claims Open to you');
+  const tile = await p.evaluate(() => (document.querySelector('.is-main') || {}).innerText || '');
+  ok(/Nothing open near you yet/.test(tile),
+    'the tile says nothing is open rather than offering a cohort elsewhere');
+  /* THE PRESS IS NOT DEAD. A card with no reason on it is the worse lie. */
+  await p.click('#crow [data-away]');
+  await p.waitForTimeout(300);
+  const modal = await p.evaluate(() => (document.querySelector('#mbody') || {}).innerText || '');
+  ok(/isn.t in your area/i.test(modal), 'pressing it explains why, in its own words');
+  ok(/Change my postal code/.test(modal), 'and offers the one thing that can change the answer');
+  ok(!/M2N|M4C|FSA/.test(modal), 'without naming a postal code area anywhere');
+  await c.close();
+}
+
+console.log('\n13c. no postal code on file is its own card, not "nothing open"');
+{
+  const c = await ctx(browser, {
+    memberFsa: null, postalCodeState: 'missing',
+    campaigns: [elig('north-york-central', 'North York Central', 'not_in_area')],
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  const tile = await p.evaluate(() => (document.querySelector('.is-main') || {}).innerText || '');
+  ok(/Add your postal code to see cohorts/.test(tile),
+    'the tile asks for the postal code');
+  ok(!/Nothing open near you yet/.test(tile),
+    'and does not claim to know what is open near somebody it cannot place');
+  await p.click('.is-main [data-act="setpostal"]');
+  await p.waitForTimeout(300);
+  ok(await p.evaluate(() => !!document.querySelector('#pe-in')),
+    'and the button opens the field');
+  await c.close();
+}
+
+console.log('\n13d. a stored postal code this stack can no longer parse says so');
+{
+  const c = await ctx(browser, {
+    memberFsa: null, postalCodeState: 'invalid',
+    campaigns: [elig('north-york-central', 'North York Central', 'not_in_area')],
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  const tile = await p.evaluate(() => (document.querySelector('.is-main') || {}).innerText || '');
+  ok(/Add your postal code to see cohorts/.test(tile),
+    'the same prompt, rather than an empty dashboard with no explanation');
+  await c.close();
+}
+
+console.log('\n13e. a cohort in your area that has closed beats "nothing open"');
+{
+  const c = await ctx(browser, {
+    memberFsa: 'M2N', postalCodeState: 'present',
+    campaigns: [camp('north-york-central', 'North York Central', 'Autumn cohort',
+      { kind: 'auction', stage: 'bidding', stageLabel: 'Sealed bidding',
+        joinable: false, eligibility: 'joins_closed', nearbyTier: 0 })],
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  const tile = await p.evaluate(() => (document.querySelector('.is-main') || {}).innerText || '');
+  ok(/past its join window/.test(tile),
+    'the tile names the cohort and the fact that this round has shut');
+  ok(!/Nothing open near you yet/.test(tile),
+    'rather than telling a member with a live region that we have never heard of it');
+  ok(await p.evaluate(() => !document.querySelector('.is-main [data-choose][data-join]')),
+    'and offers no join');
+  await c.close();
+}
+
+console.log('\n13f. an unscoped cohort behaves exactly as it did before coverage');
+{
+  /* The migration state: a campaign written before postal code areas existed.
+     It is open to everyone, which is what was true yesterday, and the card
+     must not claim a match nothing computed. */
+  const c = await ctx(browser, {
+    memberFsa: 'M2N', postalCodeState: 'present',
+    campaigns: [elig('north-york-central', 'North York Central', 'unscoped')],
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  ok(await p.evaluate(() => !!document.querySelector('#crow [data-choose]')),
+    'it can still be joined');
+  ok(await p.evaluate(() => !Array.from(document.querySelectorAll('#crow .badge'))
+    .some(e => /Open to you/.test(e.innerText))),
+    'and does not claim to be open to this postal code in particular');
+  await c.close();
+}
+
+console.log('\n13g. two eligible cohorts: one featured, the other first in the rail');
+{
+  const c = await ctx(browser, {
+    memberFsa: 'M2N', postalCodeState: 'present',
+    campaigns: [
+      elig('north-york-central', 'North York Central', 'eligible', { nearbyTier: 0 }),
+      elig('north-york-east', 'North York East', 'eligible', { nearbyTier: 0 }),
+      elig('scarborough-east', 'Scarborough East', 'not_in_area', { nearbyTier: 1 }),
+    ],
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  const cards = await p.evaluate(() => Array.from(document.querySelectorAll('#crow .cc'))
+    .map(e => e.innerText.replace(/\s+/g, ' ').trim()));
+  ok(/North York Central/.test(cards[0] || ''), 'the featured cohort leads the row');
+  ok(/North York East/.test(cards[1] || ''),
+    'the second eligible one is next, not buried under the one nearby');
+  /* Reads the card's own NAME, which is the assertion that caught a <button>
+     inside a <button>: the bell and the not-in-area target both rendered, the
+     parser closed the outer one early, and this card's name and subtitle ended
+     up outside the card as an empty pill. */
+  ok(/Scarborough East/.test(cards[2] || ''),
+    `and the one elsewhere follows both, whole (${cards[2]})`);
+  ok(await p.evaluate(() => Array.from(document.querySelectorAll('#crow .badge'))
+    .filter(e => /Open to you/.test(e.innerText)).length === 2),
+    'both eligible cards carry the pill');
+  await c.close();
+}
+
+console.log('\n13h. a change of postal code that costs a cohort asks first');
+{
+  const c = await ctx(browser, {
+    memberFsa: 'M2N', postalCodeState: 'present',
+    campaigns: [elig('scarborough-east', 'Scarborough East', 'not_in_area', { nearbyTier: 1 })],
+    profileSave: {
+      status: 409,
+      body: { error: { code: 'CONFLICT',
+        message: 'North York Central covers your current postal code, not the new one. Save the change and you’ll leave the cohort.',
+        reason: 'leave_cohort_required',
+        cohort: { id: 'north-york-central', region: 'North York Central', sub: 'Autumn cohort' } } },
+    },
+  });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  await p.click('#crow [data-away]');
+  await p.waitForTimeout(250);
+  await p.click('[data-postal]');
+  await p.waitForTimeout(250);
+  await p.fill('#pe-in', 'M1B 2C3');
+  await p.click('#pe-save');
+  await p.waitForTimeout(600);
+  const modal = await p.evaluate(() => (document.querySelector('#mbody') || {}).innerText || '');
+  ok(/leaves your cohort/i.test(modal),
+    'the server names the consequence and the dialog reopens carrying it');
+  ok(/Save and leave cohort/.test(modal) && /Keep my postal code/.test(modal),
+    'with both answers on it');
+  /* The typed value survives the second dialog: a member who has to confirm
+     should not have to retype what they confirmed. */
+  ok(/M1B ?2C3/.test(await p.inputValue('#pe-in')), 'and the value they typed is still in the field');
+  /* The 409 is the fixture, not a finding. */
+  const provoked = errors.findIndex(t => /409/.test(t));
+  if (provoked >= 0) errors.splice(provoked, 1);
+  await c.close();
+}
+
+console.log('\n13i. an invalid postal code is refused in the field, without a round trip');
+{
+  let posted = 0;
+  const c = await ctx(browser, {
+    memberFsa: 'M2N', postalCodeState: 'present',
+    campaigns: [elig('north-york-central', 'North York Central', 'eligible')],
+  });
+  await c.route('**/api/auth/me/profile', r => { posted += 1; r.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, user: {} }) }); });
+  const p = await c.newPage();
+  collect(p, errors);
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  /* Opened through the document listener rather than through whichever tile
+     happens to be showing, so this group is about the field and not about the
+     route to it. Dispatched rather than clicked: the handle is appended with
+     no box of its own and Playwright will not click something invisible. */
+  await p.evaluate(() => {
+    const b = document.createElement('button');
+    b.setAttribute('data-postal', 'north-york-central');
+    document.body.appendChild(b);
+    b.click();
+  });
+  await p.waitForTimeout(250);
+  for (const bad of ['D1A 1A1', 'M2N4K', '12345']) {
+    await p.fill('#pe-in', bad);
+    await p.click('#pe-save');
+    await p.waitForTimeout(200);
+    ok(await p.evaluate(() => { const e = document.querySelector('#pe-err'); return e && !e.hidden; }),
+      `${bad} is refused in the field`);
+  }
+  ok(posted === 0, `and nothing was posted while it was wrong (${posted} requests)`);
   await c.close();
 }
 

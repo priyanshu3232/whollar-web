@@ -31,26 +31,86 @@ const { claimedOrigin } = require('./request');
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /**
- * The OAuth callback is the one legitimate exception.
+ * Three exemptions, each because the route carries a stronger check than an
+ * origin match rather than a weaker one.
  *
- * The visitor arrives back on it by top-level navigation from the provider, so
- * whatever Origin the browser attaches is a third party that could never appear
- * in our allowlist. That is safe here because the route carries its own,
- * stronger defence: a single-use `state` row that is looked up and deleted in
- * one operation. A replayed or forged callback finds no row and is rejected,
- * which is a stricter test than an origin match, not a weaker one.
+ * The OAuth callback: the visitor arrives back on it by top-level navigation
+ * from the provider, so whatever Origin the browser attaches is a third party
+ * that could never appear in our allowlist. The route's own defence is a
+ * single-use `state` row, looked up and deleted in one operation, so a
+ * replayed or forged callback finds no row.
+ *
+ * POST /u/:token, the unsubscribe: the token is the authorisation. Sixteen
+ * checked characters, no identity encoded in it, and RFC 8058 requires the
+ * one-click POST to work from a mail client that sends no Origin this
+ * function could ever recognise. A forger who has the token can already open
+ * the page and press the button by hand.
+ * The pattern is the STRICT token shape, not the lenient one optoken.normalize
+ * accepts: a hyphenated or lowercased token still opens the page, and the
+ * page's form posts the canonical form back. Widening this to match the
+ * leniency would widen a CSRF exemption to buy nothing.
+ *
+ * POST /hooks/zeptomail, the delivery webhook: a shared secret compared in
+ * constant time, and no session is involved at all.
  */
-const EXEMPT = [/^\/(auth\/)?google\/callback$/];
+const EXEMPT = [
+  /^\/(auth\/)?google\/callback$/,
+  /^\/(auth\/)?u\/[A-Za-z0-9]+$/,
+  /^\/(auth\/)?hooks\/zeptomail$/,
+];
 
-function isExempt(path) {
-  return EXEMPT.some((re) => re.test(path));
+/**
+ * A fourth exemption, and it is CONDITIONAL, which none of the three above is.
+ *
+ * POST /admin/notify/tick is what Catalyst Job Scheduling calls to sweep for
+ * due reminders and drain the outbox. A timer sends no Origin and no Referer,
+ * so an unconditional origin check refuses every run, and the failure is the
+ * quiet kind: the job reports a 403, nobody reads the job's run history, and
+ * the reminder lane simply never fires.
+ *
+ * But the route ALSO accepts an admin session, and exempting it outright would
+ * mean a page on any origin could make a signed-in admin's browser trigger a
+ * send. So the exemption is granted only when the request carries the
+ * `x-cron-secret` header at all. That is safe for a reason worth stating: a
+ * custom header makes a cross-origin request non-simple, so the browser sends
+ * a CORS preflight first, and the Catalyst gateway answers preflight without
+ * CORS headers, so the browser refuses to send the real request. A forger in a
+ * browser therefore cannot set this header, and anything that can set it is
+ * not a browser and has to know the secret anyway.
+ *
+ * The header only has to be PRESENT here. Whether it is correct is settled in
+ * constant time by requireTickCaller in routes/notify.js, which is where a
+ * secret comparison belongs.
+ */
+const TICK = /^\/(auth\/)?admin\/notify\/tick$/;
+
+/**
+ * The same conditional exemption, for the same reason, granted to the routes
+ * another Catalyst function calls server to server.
+ *
+ * POST /internal/waitlist-welcome is called by the formSubmit function when
+ * somebody holds a spot in the waitlist popup. There is no browser anywhere in
+ * that call and no session to carry a token, and the reasoning above transfers
+ * without change: a custom header makes a cross-origin request non-simple, the
+ * gateway answers the preflight without CORS headers, so nothing in a browser
+ * can set this header, and whatever can set it had to know the secret.
+ *
+ * Presence only, again. requireTickCaller compares it in constant time.
+ */
+const INTERNAL = /^\/(auth\/)?internal\/[a-z0-9-]+$/;
+
+function isExempt(req) {
+  const path = req.path;
+  if (EXEMPT.some((re) => re.test(path))) return true;
+  const bySecret = TICK.test(path) || INTERNAL.test(path);
+  return bySecret && Boolean(req.headers['x-cron-secret']);
 }
 
 function middleware(cfg) {
   const allowed = new Set(cfg.ALLOWED_ORIGINS);
 
   return function checkOrigin(req, res, next) {
-    if (SAFE_METHODS.has(req.method) || isExempt(req.path)) return next();
+    if (SAFE_METHODS.has(req.method) || isExempt(req)) return next();
 
     const origin = claimedOrigin(req);
 

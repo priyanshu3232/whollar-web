@@ -5,11 +5,11 @@
  *
  * Path shape: Advanced I/O functions are served under `/server/<fn>/…`, so on
  * the raw Catalyst domain this function lives at `/server/auth`. The browser
- * reaches it same-origin at `https://www.whollar.ca/api/auth/*` via the rewrite
+ * reaches it same-origin at `https://internet.whollar.ca/api/auth/*` via the rewrite
  * in `vercel.json`. To keep one contract across both, the router is mounted at
  * BOTH `/` and `/auth`, so these are all the same endpoint:
  *
- *   https://www.whollar.ca/api/auth/health                       (browser)
+ *   https://internet.whollar.ca/api/auth/health                       (browser)
  *   https://<project>.development.catalystserverless.ca/server/auth/health
  *   https://<project>.development.catalystserverless.ca/server/auth/auth/health
  */
@@ -44,6 +44,9 @@ const adminRoutes = require('./routes/admin');
 const publicRoutes = require('./routes/public');
 const shareRoutes = require('./routes/share');
 const seatRoutes = require('./routes/seat');
+const notifyRoutes = require('./routes/notify');
+const exclusionRoutes = require('./routes/exclusions');
+const outbox = require('./lib/notify/outbox');
 
 /**
  * Strip anything address-shaped out of a provider error before it is returned.
@@ -135,6 +138,21 @@ function buildApp(cfg) {
       // send with an error that does not mention the domain.
       mail_from: cfg.FEATURES.mail ? (cfg.ZEPTOMAIL_FROM || null)
         : (cfg.FEATURES.smtp ? (cfg.SMTP_FROM || null) : null),
+      /* The addresses mail actually leaves as, per transport, because "which
+         sender" is the question a delivery failure most often turns out to be
+         and it was answerable nowhere. A transactional sender naming a
+         subdomain with no verified Mail Agent behind it refuses every send,
+         and the relay's own mailbox is the only address the fallback can use.
+         Public for the same reason `mail_from` is: these appear in the From
+         line of every email this system sends. */
+      mail_senders: {
+        /* Resolved through the outbox's own function rather than restated
+           here, so a health check cannot report a sender the mail path does
+           not use. */
+        transactional: outbox.senderAddress(cfg, { casl: 'transactional' }) || null,
+        cem: outbox.senderAddress(cfg, { casl: 'cem' }) || null,
+        smtp_relay: cfg.FEATURES.smtp ? (cfg.SMTP_FROM || null) : null,
+      },
     });
   });
 
@@ -187,15 +205,123 @@ function buildApp(cfg) {
       });
     }
 
+    /* The outbox's own view, alongside the audit one.
+     *
+     * The audit rows above are what the mail path recorded before the outbox
+     * existed and are kept because they cover the whole history. This is the
+     * answer to the questions the audit rows cannot reach: how many messages
+     * are waiting, how many are held for quiet hours, how many failed and
+     * why, and how many addresses are suppressed. `available: false` means the
+     * tables are not created yet, which is a different fault from zero rows
+     * and worth telling apart.
+     *
+     * ADMIN ONLY, unlike the rest of this route.
+     *
+     * The route above it is deliberately public, and the paragraph explaining
+     * why is careful about what that costs: outcomes, never addresses. These
+     * fields are a different kind of thing. A complaint count is business
+     * telemetry, send volume by status is a picture of how much mail this
+     * company moves, and `webhook_configured: false` tells a stranger that
+     * bounce handling is off, which is a recon signal rather than a health
+     * check. So the public answer stays exactly what it was, and the
+     * operational detail needs a session. */
+    const isAdmin = Boolean(req.auth && req.auth.user && req.auth.user.user_type === 'admin');
+
+    /* CAN WE SEE THE TABLES, asked separately from what is in them.
+     *
+     * These two booleans are public and the counts beside them are not, and the
+     * line between them is the line between a schema fact and business
+     * telemetry. "notification_outbox exists and is readable" tells an outsider
+     * nothing they could not learn by watching an email arrive. "there are 412
+     * queued and 9 complaints" tells them how much mail this company moves and
+     * how much of it people hate, which is nobody's business.
+     *
+     * It is public because it is the go/no-go for a deploy, and a deploy check
+     * that needs a session is a deploy check nobody runs. That is not a
+     * hypothetical: this exact endpoint was unreadable at the moment it was
+     * most needed, because the admin console it assumed has never been
+     * deployed. */
+    const readable = async (table) => {
+      try {
+        await datastore.queryAll(req.catalyst, table, ['ROWID'], 'ROWID > 0', { maxPages: 1 });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const outboxAvailable = await readable(outbox.TABLE);
+    const suppressionsAvailable = await readable('email_suppressions');
+
+    let outboxSummary = { available: outboxAvailable };
+    let suppressions = { available: suppressionsAvailable };
+
+    if (isAdmin && outboxAvailable) {
+      try {
+        const counts = {};
+        for (const status of outbox.STATUS) {
+          /* eslint-disable-next-line no-await-in-loop */
+          const page = await datastore.queryAll(req.catalyst, outbox.TABLE, ['notify_key'],
+            `status = ${datastore.lit(status)}`);
+          counts[status] = (page || []).length;
+        }
+        const failedRows = await datastore.queryAll(req.catalyst, outbox.TABLE,
+          ['last_error'], "status = 'failed'");
+        const reasons = {};
+        for (const r of failedRows || []) {
+          const kind = String(r.last_error || 'unknown').split(':')[0];
+          reasons[kind] = (reasons[kind] || 0) + 1;
+        }
+        outboxSummary = { available: true, counts, failure_reasons: reasons };
+      } catch {
+        /* The table answered a moment ago and will not now. Leave the boolean. */
+      }
+    }
+
+    if (isAdmin && suppressionsAvailable) {
+      try {
+        const rows2 = await datastore.queryAll(req.catalyst, 'email_suppressions', ['reason'], 'ROWID > 0');
+        const byReason = {};
+        for (const r of rows2 || []) byReason[r.reason] = (byReason[r.reason] || 0) + 1;
+        suppressions = { available: true, total: (rows2 || []).length, by_reason: byReason };
+      } catch {
+        /* ditto */
+      }
+    }
+
     res.status(200).json({
       service: 'auth',
       request_id: req.id,
       transport: mailer.transportName(cfg),
       mail_from: cfg.FEATURES.mail ? (cfg.ZEPTOMAIL_FROM || null)
         : (cfg.FEATURES.smtp ? (cfg.SMTP_FROM || null) : null),
+      /* Which endpoint the bytes actually leave through. It is regional, and
+         "is this the Canadian host" is a question that should be answerable
+         without reading environment variables. Public, because it names no
+         volume and no recipient, and because a US host here is the kind of
+         mistake that should be findable by anyone who thinks to look. */
+      mail_endpoint: cfg.ZEPTOMAIL_API_BASE || mailer.DEFAULT_API_BASE,
       scanned: rows.length,
       delivered,
       failed,
+      /* Public: whether the layer can function at all. Carries no volume and
+         no configured value, only whether a table answers and whether a
+         variable is set. This is the deploy check. */
+      outbox: outboxSummary,
+      suppressions,
+      /* A commercial send is refused outright without this, so its absence is
+         a fact about what the system will do, not a note about config. */
+      postal_address_configured: Boolean(cfg.MAIL_POSTAL_ADDRESS),
+      /* Unset, the delivery webhook answers 503 and the suppression list never
+         grows, which from outside is indistinguishable from nothing ever
+         bouncing. */
+      webhook_configured: Boolean(cfg.MAIL_WEBHOOK_SECRET),
+      /* Unset, POST /admin/notify/tick is admin-only and the timer cannot call
+         it, so no reminder ever fires on a clock. Reported because the failure
+         a wrong secret produces is UNAUTHENTICATED, which reads as "the header
+         did not match" and is equally consistent with "the variable is not set
+         at all". This is the one bit that tells those apart, and hunting the
+         difference by hand is a bad half hour. The VALUE is never reported. */
+      cron_configured: Boolean(cfg.NOTIFY_CRON_SECRET),
       events,
     });
   }));
@@ -255,6 +381,12 @@ function buildApp(cfg) {
   publicRoutes.mount(router);
   shareRoutes.mount(router);
   seatRoutes.mount(router);
+  /* The unsubscribe door and the delivery webhook. Both are reached without a
+     session: see routes/notify.js for why each is safe without one. */
+  notifyRoutes.mount(router, cfg);
+  /* The brand registry, member exclusions, and the partner roster. Mounted
+     after campaigns so nothing here shadows an existing /provider path. */
+  exclusionRoutes.mount(router);
 
   /**
    * Schema + request-shape diagnostics.

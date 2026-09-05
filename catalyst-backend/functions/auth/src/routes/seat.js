@@ -39,9 +39,12 @@
 const catalog = require('../lib/catalog');
 const datastore = require('../lib/datastore');
 const seats = require('../lib/seats');
+const orders = require('../lib/orders');
+const events = require('../lib/notify/events');
 const cohorts = require('../lib/cohorts');
 const guards = require('../lib/guards');
 const audit = require('../lib/audit');
+const crm = require('../lib/crm/outbox');
 const ratelimit = require('../lib/ratelimit');
 const campaigns = require('./campaigns');
 const { ok } = require('../lib/envelope');
@@ -51,6 +54,13 @@ const requireMember = (req) => guards.requireMember(req, '/cohorts');
 
 const MOVE_MAX = 3;              // moves per address per rolling day
 const MOVE_WINDOW_SEC = 86400;
+/* Leaves per address per rolling day, on a budget of their OWN. Sharing one
+   with the move would mean three moves in the morning could stop a household
+   giving its seat back in the afternoon, and a seat you cannot give back is
+   the thing this whole feature exists not to be. Passing is deliberately not
+   limited at all: see the note on the pass route. */
+const LEAVE_MAX = 3;
+const LEAVE_WINDOW_SEC = 86400;
 const CLOSING_WINDOW_MS = 48 * 3600 * 1000; // the "closing" chip, presentational
 
 /* ------------------------------------------------------------------ *
@@ -174,11 +184,24 @@ function mount(router) {
       c = cat.byId.get(claim.cohort_id) || null;
       if (c) cohort = cohortShape(c, now, await cohorts.seatCount(req.catalyst, c.id));
     }
+    const affordance = affordanceFor(claim, c, now);
     return ok(res, {
       claim,
       cohort,
-      affordance: affordanceFor(claim, c, now),
+      affordance,
       rejoin_until: cohort ? cohort.join_close_at : null,
+      /* WHAT A PASS WOULD ACTUALLY GIVE UP. The dashboard has to warn a
+         household before it releases a seat at the offers stage, and a
+         warning it composed itself would be a guess: only the server knows
+         whether an order stands. Null means nothing is outstanding, and the
+         copy says the milder thing.
+
+         READ ONLY WHERE A PASS IS OFFERED. This endpoint is polled every two
+         minutes by every open dashboard, and at every other stage the answer
+         is known without asking: before offers no order can exist, and after
+         confirmations lock the exit is a person, not a button. One keyed read
+         on the one screen that spends it. */
+      standing_order: (c && affordance === 'pass') ? await standingOrder(req, c, user) : null,
     });
   }));
 
@@ -205,6 +228,21 @@ function mount(router) {
 
     const existingRow = await seats.getClaim(req.catalyst, addressId, vertical);
     const existing = seats.publicClaim(existingRow);
+
+    /* THE SAME GEOGRAPHY GATE THE OTHER DOOR RUNS. This route arrived after
+       POST /campaigns/join and is the one a deep link from an email reaches,
+       so an eligibility check written only over there would be a check with a
+       hole in it that nothing about either route would show. guards.js is
+       where both read it from.
+
+       Held after the window check and before any write, so a household outside
+       the area is told the honest reason rather than "joining has closed",
+       and so nothing is spent finding that out. An address already holding
+       this cohort's seat passes: the branch below returns it idempotently, and
+       a member must not lose a seat because a coverage edit moved under it. */
+    guards.requireEligible(target, user, now, {
+      mine: existing && existing.status === 'active' && existing.cohort_id === target.id,
+    });
 
     if (existing && existing.status === 'active') {
       if (existing.cohort_id === target.id) {
@@ -252,8 +290,37 @@ function mount(router) {
       userId: user.user_id, email: user.email_normalized,
       detail: { cohort: target.id, source: String((req.body || {}).source || 'direct') },
     });
+    crm.enqueueAsync(req.catalyst, req, {
+      eventType: 'cohort_membership.joined',
+      entityRowid: `${target.id}:${user.user_id}`,
+      version: rejoin ? 'rejoined' : 'joined',
+      email: user.email_display || user.email_normalized,
+      payload: {
+        event: rejoin ? 'rejoined' : 'joined',
+        cohort: target.id, region: target.region || null, fsa: user.fsa || null,
+      },
+    });
 
     const after = await cohorts.seatCount(req.catalyst, target.id);
+
+    /* Only on a first join. A rejoin is a household coming back to a seat it
+       already had, and "you are in" reads as news to somebody who never
+       thought they were out. The event key is per (cohort, member) anyway, so
+       a rejoin would be deduplicated against the original letter, but saying
+       it here means the rule is a decision rather than a side effect. */
+    if (!rejoin) {
+      await events.cohortJoined(req, {
+        campaign: target,
+        user,
+        /* `seats` is what cohorts.seatCount actually returns for households
+           standing in the cohort; `waitlist` and `watching` are not seats and
+           must not be counted into a progress line. Only sent when the read
+           was live: a count assembled from a table that would not answer is
+           the "0 of 100" a household reads as the cohort collapsing. */
+        have: after && after.live && typeof after.seats === 'number' ? after.seats : null,
+        need: target.target || null,
+      });
+    }
     return ok(res, { claim, cohort: cohortShape(target, now, after) });
   }));
 
@@ -289,6 +356,19 @@ function mount(router) {
       throw sealRace(cohort, now, await cohorts.seatCount(req.catalyst, cohort.id));
     }
 
+    /* Roster stability, same shape as the move limit and on its own budget.
+       Charged HERE and not at the top: a leave that is a no-op (no seat on
+       this cohort) and a leave the seal refuses both return above without
+       spending anything, so the budget only ever counts leaves that happen. */
+    if (!await ratelimit.withinLimitFor(req.catalyst, req, addressId,
+      { key: 'seat.leave', max: LEAVE_MAX, windowSec: LEAVE_WINDOW_SEC })) {
+      throw new AppError('RATE_LIMITED',
+        `That is three cohort changes today. Your seat stays in ${cohort.region} and you can leave again tomorrow.`, {
+          logDetail: `seat.leave rate limit for ${addressId}`,
+          headers: { 'Retry-After': String(LEAVE_WINDOW_SEC) },
+        });
+    }
+
     const { claim: fresh } = await seats.transition(req.catalyst, {
       user, addressId, vertical,
       action: 'leave', fromCohortId: cohort.id, toCohortId: null,
@@ -303,6 +383,14 @@ function mount(router) {
       type: 'seat.leave', outcome: 'success', userId: user.user_id,
       email: user.email_normalized,
       detail: { cohort: cohort.id, reason: seats.cleanReason((req.body || {}).reason) },
+    });
+    crm.enqueueAsync(req.catalyst, req, {
+      eventType: 'cohort_membership.exited',
+      entityRowid: `${cohort.id}:${user.user_id}`,
+      version: 'left',
+      email: user.email_display || user.email_normalized,
+      payload: { event: 'left', cohort: cohort.id, region: cohort.region || null,
+        reason: seats.cleanReason((req.body || {}).reason) },
     });
 
     const counter = await cohorts.seatCount(req.catalyst, cohort.id);
@@ -357,6 +445,12 @@ function mount(router) {
         extra: { cohort: cohortShape(to, now, null) },
       });
     }
+    /* A move is a join into `to`, so it takes the join's geography gate. The
+       seat being held elsewhere is not a licence to land it anywhere: without
+       this, a household could reach a cohort through move that /cohorts/:id/join
+       and /campaigns/join would both have refused. `mine` is deliberately
+       false, because this address's standing is in `from`, not here. */
+    guards.requireEligible(to, user, now, { mine: false });
     const toCounter = await cohorts.seatCount(req.catalyst, to.id);
     if (rosterFull(to, toCounter)) {
       throw new AppError('ROSTER_FULL', `${to.region} is full for this round.`, {
@@ -412,6 +506,15 @@ function mount(router) {
         reason: seats.cleanReason((req.body || {}).reason),
       },
     });
+    crm.enqueueAsync(req.catalyst, req, {
+      eventType: 'cohort_membership.joined',
+      entityRowid: `${to.id}:${user.user_id}`,
+      version: 'moved',
+      email: user.email_display || user.email_normalized,
+      payload: { event: 'moved', cohort: to.id, region: to.region || null,
+        from_cohort: from.id, from_region: from.region || null,
+        reason: seats.cleanReason((req.body || {}).reason) },
+    });
 
     return ok(res, {
       claim: fresh,
@@ -423,6 +526,13 @@ function mount(router) {
   /**
    * Pass on the round. The honest exit at the offers stage: releases the
    * claim the same day and says what is still forming. R4.
+   *
+   * DELIBERATELY UNLIMITED. Leave and move carry a three-a-day budget because
+   * cycling between forming rosters churns the number partners price against.
+   * A pass is not that: it is the one act that makes "you are never obligated
+   * to accept" true, it can only happen once per cohort per household, and a
+   * household told "you have passed too often today" while an offer sits on
+   * its dashboard has been told the promise has a quota. It does not.
    */
   router.post('/cohorts/:id/pass', wrap(async (req, res) => {
     const user = requireMember(req);
@@ -433,18 +543,35 @@ function mount(router) {
     const now = Date.now();
     const requestId = seats.cleanRequestId(req.get('Idempotency-Key'));
 
-    const row = await seats.getClaim(req.catalyst, addressId, vertical);
-    const claim = seats.publicClaim(row);
-    if (!claim || claim.status !== 'active' || claim.cohort_id !== cohort.id) {
-      return ok(res, {
-        claim, cohort: cohortShape(cohort, now, null),
-        open_alternatives: openAlternatives(cat, now, cohort.id),
+    /* CONFIRMATIONS LOCK AT decision_at. The member ladder's `confirm` stage
+       BEGINS there (lib/catalog.js MEMBER_GATES), so "offers" is the whole
+       window in which a pass is honest, an accepted order included: a
+       household may take a card and then pass on it, until the deadline. */
+    const stage = catalog.memberStageOf(cohort, now);
+    const decisionAt = (cohort.dates && cohort.dates.decision_at) || null;
+    if (decisionAt && now >= decisionAt) {
+      throw new AppError('DECISIONS_LOCKED', 'Confirmations have locked on this cohort. Your installer books from here.', {
+        logDetail: `pass refused: ${cohort.id} decisions locked`,
       });
     }
-    const stage = catalog.memberStageOf(cohort, now);
     if (stage !== 'offers') {
       throw new AppError('CONFLICT', 'There is no offer on the table to pass on yet.', {
         logDetail: `pass refused: ${cohort.id} stage=${stage}`,
+      });
+    }
+
+    const row = await seats.getClaim(req.catalyst, addressId, vertical);
+    const claim = seats.publicClaim(row);
+    if (!claim || claim.status !== 'active' || claim.cohort_id !== cohort.id) {
+      /* No seat on this cohort, but an order may still stand (a household
+         that joined before the ledger, or whose seat moved another way):
+         the pass releases it and drops the membership, which is the whole
+         act for such a household. */
+      const released = await releaseOrder(req, cohort, user, now);
+      if (released) await dropMembershipRow(req.catalyst, cohort.id, user.user_id);
+      return ok(res, {
+        claim, released, cohort: cohortShape(cohort, now, null),
+        open_alternatives: openAlternatives(cat, now, cohort.id),
       });
     }
 
@@ -457,18 +584,94 @@ function mount(router) {
     await dropMembershipRow(req.catalyst, cohort.id, user.user_id);
     await seats.recount(req.catalyst, cohort.id);
 
+    /* THE ORDER RELEASES LAST. The seat move is the write that can refuse
+       (a race, an idempotency conflict); releasing the order before it
+       would hand the partner a loss while the household was told nothing
+       changed. Done here, the household has left; a release that fails
+       leaves an order for a departed household on the board, which is
+       logged and visible, not silent. */
+    let released = false;
+    try {
+      released = await releaseOrder(req, cohort, user, now);
+    } catch (err) {
+      console.warn(JSON.stringify({
+        at: 'seat.pass', cohort: cohort.id, note: 'order release failed after the seat moved',
+        error: String((err && err.message) || err).slice(0, 200),
+      }));
+    }
+
     audit.recordAsync(req.catalyst, req, {
       type: 'seat.pass', outcome: 'success', userId: user.user_id,
       email: user.email_normalized,
       detail: { cohort: cohort.id, reason: seats.cleanReason((req.body || {}).reason) },
     });
+    crm.enqueueAsync(req.catalyst, req, {
+      eventType: 'cohort_membership.exited',
+      entityRowid: `${cohort.id}:${user.user_id}`,
+      version: 'passed',
+      email: user.email_display || user.email_normalized,
+      payload: { event: 'passed', cohort: cohort.id, region: cohort.region || null,
+        reason: seats.cleanReason((req.body || {}).reason) },
+    });
+
+    /* One letter, not two. The order release below writes 'household_passed',
+       and lib/notify/events.js refuses to send the released letter for that
+       reason precisely so a household that just left is not also told its
+       install was cancelled, which reads as a second and worse thing having
+       happened. */
+    await events.offerPassed(req, { campaign: cohort, user, released });
 
     return ok(res, {
       claim: fresh,
+      released,
       cohort: cohortShape(cohort, now, await cohorts.seatCount(req.catalyst, cohort.id)),
       open_alternatives: openAlternatives(cat, now, cohort.id),
     });
   }));
+}
+
+/**
+ * The order this household holds on this cohort, reduced to the three facts a
+ * warning needs: whether it stands, what speed, what price.
+ *
+ * Read fresh on every /me/seat rather than cached, because the whole point of
+ * it is the sentence "passing releases the offer you accepted" and that
+ * sentence must not be printed against an order a partner already released.
+ * A released or unreadable row is null, which the copy reads as "no offer
+ * outstanding": the milder warning, and the true one.
+ */
+async function standingOrder(req, cohort, user) {
+  let row = null;
+  try {
+    row = await orders.findAnyByKey(req.catalyst, `${cohort.id}:${user.user_id}`.slice(0, 200));
+  } catch {
+    return null;
+  }
+  if (!row || row.state === 'rel' || row.state === 'act') return null;
+  return { state: row.state, tier: row.tier || null, price: row.price || null };
+}
+
+/**
+ * Release this household's order on this cohort, if one stands. True when a
+ * row moved to 'rel'. A row the partner has already served refuses through
+ * orders.requireTransition, which is the right answer: a household cannot
+ * pass on a line that is live. Unreadable table is "no order", not an error.
+ */
+async function releaseOrder(req, cohort, user, now) {
+  let row = null;
+  try {
+    row = await orders.findAnyByKey(req.catalyst, `${cohort.id}:${user.user_id}`.slice(0, 200));
+  } catch {
+    row = null;
+  }
+  if (!row || row.state === 'rel') return false;
+  await orders.releaseByHousehold(req.catalyst, row, now);
+  audit.recordAsync(req.catalyst, req, {
+    type: 'offer.pass', outcome: 'success', userId: user.user_id,
+    email: user.email_normalized,
+    detail: { cohort: cohort.id, org: row.org_id, tier: row.tier || null, from: row.state },
+  });
+  return true;
 }
 
 module.exports = { mount, affordanceFor, joinWindowOpen, cohortShape };

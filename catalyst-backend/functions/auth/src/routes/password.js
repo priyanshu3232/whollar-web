@@ -24,7 +24,7 @@
  * WHAT IS DELIBERATELY NOT HERE. No response anywhere tells the caller whether
  * an address already has an account. `/signup` answers identically either way
  * and the owner of the address is told by email instead: see
- * `mailer.existingAccountEmail`. Login collapses every failure into one
+ * the `account.signup_collision` template. Login collapses every failure into one
  * message. Both rules exist so that this pair cannot be used to ask "does this
  * person bank here?", the same property `routes/otp.js` is built around.
  */
@@ -36,6 +36,7 @@ const challenges = require('../lib/challenges');
 const consents = require('../lib/consents');
 const sessions = require('../lib/sessions');
 const mailer = require('../lib/mailer');
+const notify = require('../lib/notify');
 const audit = require('../lib/audit');
 const ratelimit = require('../lib/ratelimit');
 const referral = require('../lib/referral');
@@ -49,29 +50,40 @@ const { canRevealCode } = require('./otp');
  * a bad day, or the timing alone becomes the oracle. The failure is recorded on
  * the audit row instead, which is where `/dev/events` will show it.
  */
-async function issueCode(req, cfg, email, purpose, firstName = null) {
+async function issueCode(req, cfg, email, purpose, firstName = null, user = null) {
   const { code, ttlMinutes } = await challenges.start(req.catalyst, req, { email, purpose });
   // The wording follows what the code is FOR, not the challenge purpose string.
   // 'login_mfa' is a second factor on a sign-in, and an email telling someone to
   // "finish creating your Whollar account" when they were signing into an
   // account they have had for a year reads as though something is wrong.
-  const message = mailer.otpEmail({
-    code, purpose: purpose === 'signup' ? 'signup' : 'login', ttlMinutes, firstName,
+  //
+  // Through the outbox, which records the send, refuses a suppressed address
+  // and deduplicates on the request id, and which drains `security` priority
+  // inline so a person at a signup form is not waiting on a scheduler.
+  const sent = await notify.dispatch(req, {
+    templateKey: 'account.otp',
+    eventKey: `signup.code:${req.id}`,
+    to: email,
+    user,
+    context: {
+      code,
+      purpose: purpose === 'signup' ? 'signup' : 'login',
+      ttl_minutes: ttlMinutes,
+      first_name: firstName,
+    },
   });
 
-  let delivered = false;
-  let sendError = null;
-  try {
-    const result = await mailer.send(cfg, { to: email, ...message });
-    delivered = Boolean(result.delivered);
-  } catch (err) {
-    sendError = String((err && err.message) || err).slice(0, 300);
-    console.error(JSON.stringify({
-      req_id: req.id, level: 'error', message: 'signup mail send failed', detail: sendError,
-    }));
-  }
-
-  return { code, ttlMinutes, delivered, sendError };
+  return {
+    code,
+    ttlMinutes,
+    delivered: Boolean(sent.delivered),
+    /* The transport's own reason, not a restatement of the enqueue status. A
+       relay that refused the sender and a queue that has not run yet are
+       different faults and the audit line has to be able to tell them apart. */
+    sendError: sent.sendError || null,
+    transport: sent.transport || null,
+    outboxStatus: sent.status,
+  };
 }
 
 /**
@@ -148,19 +160,15 @@ function mount(router, cfg) {
     if (existing && existing.status === 'active') {
       // Tell the owner, not the caller. Best-effort: a failure here must not
       // change the response, or the timing difference reinstates the oracle.
-      try {
-        await mailer.send(cfg, {
-          to: email,
-          ...mailer.existingAccountEmail({
-            appBaseUrl: cfg.APP_BASE_URL, firstName: existing.first_name,
-          }),
-        });
-      } catch (err) {
-        console.error(JSON.stringify({
-          req_id: req.id, level: 'error', message: 'existing-account notice failed',
-          detail: String((err && err.message) || err).slice(0, 300),
-        }));
-      }
+      await notify.dispatch(req, {
+        templateKey: 'account.signup_collision',
+        eventKey: `signup.collision:${req.id}`,
+        to: email,
+        user: existing,
+        context: {
+          sign_in_url: `${String(cfg.APP_BASE_URL || '').replace(/\/+$/, '')}/whollar-login-consumer`,
+        },
+      });
       audit.recordAsync(req.catalyst, req, {
         type: 'signup.start', outcome: 'success', email, userId: existing.user_id,
         detail: { branch: 'already_active', notified: true },
@@ -205,14 +213,14 @@ function mount(router, cfg) {
       });
 
     await credentials.set(req.catalyst, user.user_id, password);
-    const issued = await issueCode(req, cfg, email, 'signup', user.first_name);
+    const issued = await issueCode(req, cfg, email, 'signup', user.first_name, user);
 
     audit.recordAsync(req.catalyst, req, {
       type: 'signup.start', outcome: 'success', email, userId: user.user_id,
       detail: {
         branch: existing ? 'pending_retry' : 'created',
         delivered: issued.delivered,
-        transport: mailer.transportName(cfg),
+        transport: issued.transport || mailer.transportName(cfg),
         send_error: issued.sendError,
         referral_code: profile.referralCode,
         referred_by: (!selfReferred && referredBy) ? referredBy.user_id : null,
@@ -377,7 +385,7 @@ function mount(router, cfg) {
     if (user.status === 'pending') {
       // Correct password, unproven address. Send a fresh code so the dead end
       // comes with the way out of it.
-      const issued = await issueCode(req, cfg, email, 'signup', user.first_name);
+      const issued = await issueCode(req, cfg, email, 'signup', user.first_name, user);
       audit.recordAsync(req.catalyst, req, {
         type: 'login', outcome: 'failure', email, userId: user.user_id,
         detail: { reason: 'email_unverified', delivered: issued.delivered },
@@ -400,14 +408,14 @@ function mount(router, cfg) {
     // The password is proven. Deliberately no session, no cookie, and nothing
     // in the response that a later step could be talked out of requiring: the
     // only thing this hands back is "we emailed you".
-    const issued = await issueCode(req, cfg, email, 'login_mfa', user.first_name);
+    const issued = await issueCode(req, cfg, email, 'login_mfa', user.first_name, user);
 
     audit.recordAsync(req.catalyst, req, {
       type: 'login.challenge', outcome: 'success', email, userId: user.user_id,
       detail: {
         rehashed: Boolean(check.rehashed),
         delivered: issued.delivered,
-        transport: mailer.transportName(cfg),
+        transport: issued.transport || mailer.transportName(cfg),
         send_error: issued.sendError,
       },
     });

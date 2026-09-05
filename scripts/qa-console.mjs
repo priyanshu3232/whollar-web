@@ -18,7 +18,7 @@
  * COVERS: the four boot-guard paths (signed out, approved, pending, expired),
  * the one that must NOT sign anyone out (a network failure), the router across
  * all 11 views, four widths, the burger's two behaviours, the completeness of
- * the 67-endpoint register, all 20 fixture states, the fixture layer declining
+ * the 72-endpoint register, all 20 fixture states, the fixture layer declining
  * to install off localhost, the bid ticket (seven-column tier table, consent
  * gate, a sealed place round-trip), the custom mix as shares of the reduction
  * (per tier or shared, cents that add up, the seal body and the seed that
@@ -298,9 +298,14 @@ console.log('\n10. the endpoint register is complete');
   await p.goto(`${BASE}/partner`, { waitUntil: 'networkidle' });
   const reg = await p.evaluate(() => {
     const a = window.WHOLLAR.console.api;
-    return { total: a.__count, live: a.__implemented, pending: a.__pending.length };
+    return { total: a.__count, live: a.__implemented, pending: a.__pending.length,
+      collisions: a.__collisions };
   });
-  ok(reg.total === 67, `67 endpoints present (${reg.total})`);
+  ok(reg.total === 72, `72 endpoints present (${reg.total})`);
+  /* Zero collisions. A method assigned twice replaces the first silently and
+     leaves the count unmoved, which is how api.roster (the delivery cohort's
+     households) was once overwritten by the brand roster. */
+  ok(reg.collisions === 0, `no endpoint name is assigned twice (${reg.collisions})`);
   ok(reg.live + reg.pending === reg.total, `every one is either live or a tagged stub (${reg.live} live, ${reg.pending} stubbed)`);
   /* The auction core flipped four stubs live (brief, improve, bid, versions),
      bringing the register to 24, and the contracts registry flipped two more
@@ -726,11 +731,11 @@ console.log('\n16b. the custom mix: shares of the reduction, per tier or shared,
   await type('.mrow >> nth=1 >> .mamt', '30');
   await p.click('[data-action="ticket:add"]');
   await p.waitForTimeout(160);
-  ok(await p.locator('.trow').count() === 2, 'a second tier (100 Mbps, $65 sticker, $44 effective)');
+  ok(await p.locator('.trow').count() === 2, 'a second tier (50 Mbps, $55 sticker, $39 effective)');
   sum = await panel();
   ok(/\$14\.00 \/mo/.test(sum) && /\$6\.00 \/mo/.test(sum), '70/30 of the $20 gap is $14.00 and $6.00');
-  ok(/\$14\.70 \/mo/.test(sum) && /\$6\.30 \/mo/.test(sum), 'and of the $21 gap is $14.70 and $6.30, to the cent');
-  ok(/500 Mbps \$14\.00 · 100 Mbps \$14\.70 \/mo/.test(await p.locator('.mrow >> nth=0 >> .mamtv').innerText()),
+  ok(/\$11\.20 \/mo/.test(sum) && /\$4\.80 \/mo/.test(sum), 'and of the $16 gap is $11.20 and $4.80, to the cent');
+  ok(/500 Mbps \$14\.00 · 50 Mbps \$11\.20 \/mo/.test(await p.locator('.mrow >> nth=0 >> .mamtv').innerText()),
     'the shared editor shows each tier\u2019s dollars on the row');
 
   /* Per tier. */
@@ -740,7 +745,7 @@ console.log('\n16b. the custom mix: shares of the reduction, per tier or shared,
   ok(await p.locator('.mixed[data-scope]').count() === 2 && await p.locator('.mixed[data-scope="shared"]').count() === 0,
     'one editor per tier');
   const heads = await p.locator('.mixhead').allInnerTexts();
-  ok(/500 Mbps/.test(heads[0]) && /reduction \$20\.00 \/mo/.test(heads[0]) && /100 Mbps/.test(heads[1]) && /reduction \$21\.00 \/mo/.test(heads[1]),
+  ok(/500 Mbps/.test(heads[0]) && /reduction \$20\.00 \/mo/.test(heads[0]) && /50 Mbps/.test(heads[1]) && /reduction \$16\.00 \/mo/.test(heads[1]),
     'each headed by its tier and its live reduction, in table order');
   ok(await p.locator('.mixed[data-scope] >> nth=1 >> .mrow').count() === 2, 'each tier opened on a copy of the shared mix');
   await p.click('.mixed[data-scope] >> nth=1 >> [data-action="ticket:mixrm"] >> nth=1');
@@ -749,14 +754,14 @@ console.log('\n16b. the custom mix: shares of the reduction, per tier or shared,
     && await p.locator('.mixed[data-scope] >> nth=1 >> .mamt').inputValue() === '100',
     'removing down to one row locks it back at 100%');
   sum = await panel();
-  ok(/\$21\.00 \/mo/.test(sum) && /\$14\.00 \/mo/.test(sum) && !/\$14\.70/.test(sum), 'the two tiers now carry different mixes');
+  ok(/\$16\.00 \/mo/.test(sum) && /\$14\.00 \/mo/.test(sum) && !/\$11\.20/.test(sum), 'the two tiers now carry different mixes');
 
   /* Ticking apply-to-all asks first, every time, and says what it replaces. */
   await p.click('.bmixall');
   await p.waitForTimeout(160);
   ok(await p.locator('#modal').isVisible() && /Apply one mix to all tiers\?/.test(await p.locator('#modal').innerText()),
     'ticking it opens the dialog');
-  ok(/500 Mbps and 100 Mbps/.test(await p.locator('#modal').innerText()), 'which names the tiers being replaced');
+  ok(/500 Mbps and 50 Mbps/.test(await p.locator('#modal').innerText()), 'which names the tiers being replaced');
   await p.click('#modal [data-mclose]');
   await p.waitForTimeout(160);
   ok(!(await p.locator('#modal').isVisible()) && !(await p.locator('.bmixall').isChecked()) && await p.locator('.mixed[data-scope]').count() === 2,
@@ -766,7 +771,7 @@ console.log('\n16b. the custom mix: shares of the reduction, per tier or shared,
   await p.click('[data-action="ticket:mixall-yes"]');
   await p.waitForTimeout(160);
   ok(await p.locator('.bmixall').isChecked() && await p.locator('.mixed[data-scope="shared"]').count() === 1, 'replacing returns the one shared editor');
-  ok(/\$14\.70 \/mo/.test(await panel()), 'and the shared 70/30 applies to every tier again');
+  ok(/\$11\.20 \/mo/.test(await panel()), 'and the shared 70/30 applies to every tier again');
   await p.click('.bmixall');
   await p.waitForTimeout(160);
   ok(await p.locator('.mixed[data-scope] >> nth=1 >> .mrow').count() === 1, 'unticking again restores the per-tier edit from session memory');
@@ -775,17 +780,17 @@ console.log('\n16b. the custom mix: shares of the reduction, per tier or shared,
   await p.selectOption('.bguar', '12');
   await p.waitForTimeout(200);
   sum = await panel();
-  ok(/12-month guarantee/i.test(sum) && /\$240\.00/.test(sum) && /\$252\.00/.test(sum), 'a 12 month guarantee totals $240.00 and $252.00');
+  ok(/12-month guarantee/i.test(sum) && /\$240\.00/.test(sum) && /\$192\.00/.test(sum), 'a 12 month guarantee totals $240.00 and $192.00');
 
   /* Gap zero and a negative gap, each on its own tier. */
-  await type('.trow >> nth=1 >> .teff', '65');
+  await type('.trow >> nth=1 >> .teff', '55');
   ok(/no reduction to name/.test(await panel()) && await p.locator('.mixed[data-scope]').count() === 1,
     'sticker equal to effective is a note, not an error, and that tier has no editor');
   ok(await p.locator('[data-action="ticket:place"]:not([disabled])').count() === 1, 'the other tier still seals');
-  await type('.trow >> nth=1 >> .teff', '70');
+  await type('.trow >> nth=1 >> .teff', '60');
   ok(/cannot sit above sticker/.test(await panel()) && await p.locator('[data-action="ticket:place"][disabled]').count() === 1,
     'effective above sticker is an error on that tier and blocks the seal');
-  await type('.trow >> nth=1 >> .teff', '44');
+  await type('.trow >> nth=1 >> .teff', '39');
 
   /* Leaving custom puts the mix away without losing it. */
   await p.selectOption('.bmech', 'member');
@@ -815,7 +820,7 @@ console.log('\n16b. the custom mix: shares of the reduction, per tier or shared,
     'shares only: 70/30 on one tier, a single row on the other, no money in the body');
   ok(sent && sent.mechanismLabel === 'Member discount, Promotional credit', 'and the derived label beside it');
   const seed = await p.evaluate(() => JSON.parse(localStorage.getItem('whollar.partner.bidseed') || 'null'));
-  ok(seed && seed.draft && seed.draft.mix && seed.draft.mix.applyToAll === false && seed.draft.mix.perTierByName['100 Mbps'].length === 1,
+  ok(seed && seed.draft && seed.draft.mix && seed.draft.mix.applyToAll === false && seed.draft.mix.perTierByName['50 Mbps'].length === 1,
     'the stored seed keeps the per-tier mix, keyed by tier name');
   await p.goto(`${BASE}/partner?fixture=open`, { waitUntil: 'networkidle' });
   await p.waitForTimeout(120);

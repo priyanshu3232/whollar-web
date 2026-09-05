@@ -40,6 +40,36 @@ const STATEMENTS = 'provider_statements';
 
 const BILLING_COLS = Object.freeze(['org_id', 'method', 'billing_email', 'billing_contact',
   'state', 'added_by', 'added_at', 'updated_at']);
+/* The five columns create-tables.md marks required, and nothing else.
+ *
+ * WHY THIS LADDER EXISTS. lib/orders.js and lib/awards.js have carried one
+ * since they shipped, because tables here are created by hand and code and
+ * schema deploy separately. This table did not, and the consequence was worse
+ * than a missing feature: findBy() throws on an absent column, methodFor()
+ * caught it and returned null, null reads as "no method on file", and the
+ * roster gate is the thing that reads it. A partner could add a billing method
+ * and watch the gate stay shut, with no error anywhere, as many times as they
+ * cared to try. billing_contact, added_by and updated_at are all optional in
+ * the schema, so they are exactly the three a hand-created table loses.
+ *
+ * Failing closed on an UNREADABLE TABLE is deliberate and stays. Failing
+ * closed forever because one optional column is absent was never the intent. */
+const BILLING_COLS_MIN = Object.freeze(['org_id', 'method', 'billing_email',
+  'state', 'added_at']);
+const BILLING_COL_LISTS = Object.freeze([BILLING_COLS, BILLING_COLS_MIN]);
+
+/** The first column list this table can answer, or null when none can. */
+async function firstReadable(read) {
+  for (const cols of BILLING_COL_LISTS) {
+    try {
+      /* eslint-disable-next-line no-await-in-loop */
+      return await read(cols);
+    } catch {
+      /* try the next narrower projection */
+    }
+  }
+  return null;
+}
 const STATEMENT_COLS = Object.freeze(['statement_key', 'campaign_id', 'org_id', 'state',
   'activated_count', 'fee_each', 'subtotal', 'tax', 'total', 'issued_at', 'due_at', 'paid_at']);
 
@@ -83,12 +113,8 @@ const toInt = (v) => {
  * address released against a billing record nobody could confirm.
  */
 async function methodFor(catalystApp, orgId) {
-  let row = null;
-  try {
-    row = await datastore.findBy(catalystApp, BILLING, 'org_id', orgId, ['ROWID'].concat(BILLING_COLS));
-  } catch {
-    return null;
-  }
+  const row = await firstReadable((cols) =>
+    datastore.findBy(catalystApp, BILLING, 'org_id', orgId, ['ROWID'].concat(cols)));
   if (!row) return null;
   return {
     ROWID: row.ROWID,
@@ -119,26 +145,61 @@ function publicMethod(m) {
 async function putMethod(catalystApp, { orgId, email, contact, userId, at }) {
   const stamp = datastore.toDb(new Date(at || Date.now()));
   const existing = await methodFor(catalystApp, orgId);
+
+  /* The write side of the same problem. A row carrying a column the table does
+     not have is rejected whole, so the optional columns are dropped and the
+     write retried rather than losing the method a partner just entered. The
+     required five are never dropped: a row without them is not a billing
+     arrangement, and it must fail loudly instead of half-saving. */
+  const write = async (full, minimal) => {
+    try {
+      return await full();
+    } catch (err) {
+      console.warn(JSON.stringify({
+        at: 'billing.putMethod', org: orgId, retry: 'without optional columns',
+        error: String((err && err.message) || err).slice(0, 200),
+      }));
+      return minimal();
+    }
+  };
+
   if (existing) {
-    await datastore.updateRow(catalystApp, BILLING, {
-      ROWID: existing.ROWID,
-      method: 'invoice',
-      billing_email: email,
-      billing_contact: contact,
-      state: 'active',
-      updated_at: stamp,
-    });
+    await write(
+      () => datastore.updateRow(catalystApp, BILLING, {
+        ROWID: existing.ROWID,
+        method: 'invoice',
+        billing_email: email,
+        billing_contact: contact,
+        state: 'active',
+        updated_at: stamp,
+      }),
+      () => datastore.updateRow(catalystApp, BILLING, {
+        ROWID: existing.ROWID,
+        method: 'invoice',
+        billing_email: email,
+        state: 'active',
+      })
+    );
   } else {
-    await datastore.insertRow(catalystApp, BILLING, {
-      org_id: orgId,
-      method: 'invoice',
-      billing_email: email,
-      billing_contact: contact,
-      state: 'active',
-      added_by: userId,
-      added_at: stamp,
-      updated_at: stamp,
-    });
+    await write(
+      () => datastore.insertRow(catalystApp, BILLING, {
+        org_id: orgId,
+        method: 'invoice',
+        billing_email: email,
+        billing_contact: contact,
+        state: 'active',
+        added_by: userId,
+        added_at: stamp,
+        updated_at: stamp,
+      }),
+      () => datastore.insertRow(catalystApp, BILLING, {
+        org_id: orgId,
+        method: 'invoice',
+        billing_email: email,
+        state: 'active',
+        added_at: stamp,
+      })
+    );
   }
   return methodFor(catalystApp, orgId);
 }
@@ -290,7 +351,7 @@ async function settlementsFor(catalystApp, orgId) {
 }
 
 module.exports = {
-  BILLING, STATEMENTS, BILLING_COLS, STATEMENT_COLS,
+  BILLING, STATEMENTS, BILLING_COLS, BILLING_COLS_MIN, STATEMENT_COLS,
   METHODS, STATEMENT_STATES, LINE_STATES, NET_DAYS,
   methodFor, publicMethod, putMethod,
   terms, statementFor, cycleFor, settlementsFor,

@@ -5,6 +5,28 @@ Read on every session. Only things that must never drift belong here.
 Reference prototype: `docs/prototype/provider-console-v12.html` (demo data, do not deploy)
 Plan and porting notes: `docs/console/`
 
+## Three repos, one backend
+
+This repo is the internet product at `internet.whollar.ca`, and it holds the
+one Catalyst backend all three hosts write to. The other two are siblings on
+disk and their own GitHub repos, each with its own CLAUDE.md:
+
+| Repo | Folder | Host |
+|---|---|---|
+| this one | `~/1whollar` | `internet.whollar.ca` |
+| `whollar-home` | `~/whollar-home` | `www.whollar.ca` |
+| `whollar-tires` | `~/whollar-tires` | `tires.whollar.ca` |
+
+`docs/REPO_SPLIT_2026-09.md` is the record: what moved, what did not, and the
+four facts that are now written in two places and agreed by nothing. The one
+that bites: **changing `js/whollar-core.js` is three commits**, here and a copy
+plus a new checksum in each sibling, because the `cmp` that used to hold them
+equal cannot reach across repos.
+
+`home/` and `tires/` are still in this repo and are now duplicates. Nothing
+serves them from here. The removal, gates and `.vercelignore` lines included,
+is written out in the split document.
+
 ## The stack, in one line each
 
 - The site is **static HTML at repo root**. No framework, no bundler, **no build step**,

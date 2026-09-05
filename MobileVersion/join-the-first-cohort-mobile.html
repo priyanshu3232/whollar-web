@@ -2,7 +2,7 @@
 <html lang="en-CA"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="/js/device-router.js?v=20260806a"></script>
+<script src="/js/device-router.js?v=20260905a"></script>
 <script type="text/javascript">
     (function(c,l,a,r,i,t,y){
         c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
@@ -14,12 +14,12 @@
        Law 25). */
     window.clarity('set','mask','true');
 </script>
-<script src="/js/whollar-core.js?v=20260823a"></script>
+<script src="/js/whollar-core.js?v=20260906a"></script>
 <title>Join the waitlist · Whollar</title>
 <meta name="description" content="Hold your spot in your neighbourhood's cohort. Whollar gets providers to bid for whole streets at once, so everyone gets the group price.">
-<link rel="canonical" href="https://www.whollar.ca/waitlist/">
+<link rel="canonical" href="https://internet.whollar.ca/waitlist">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://www.whollar.ca/waitlist/">
+<meta property="og:url" content="https://internet.whollar.ca/waitlist">
 <meta property="og:title" content="Join the waitlist · Whollar">
 <meta property="og:description" content="Hold your spot in your neighbourhood's cohort. Whollar gets providers to bid for whole streets at once, so everyone gets the group price.">
 <meta property="og:site_name" content="Whollar">
@@ -425,7 +425,7 @@
 <div class="whl">
 <nav class="whl-nav">
   <div class="whl-nav__in">
-    <a class="whl-mark" href="#top">
+    <a class="whl-mark" href="https://www.whollar.ca/" data-umbrella>
       <svg viewBox="0 0 120 120"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"></stop><stop offset="1" stop-color="#1E9E63"></stop></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"></rect><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"></path><circle cx="34" cy="42" r="11" fill="#fff"></circle><circle cx="86" cy="42" r="11" fill="#fff"></circle><circle cx="60" cy="80" r="11" fill="#fff"></circle></svg>
       <b>Whollar</b>
     </a>
@@ -481,7 +481,9 @@
           <input type="text" id="j-ref" placeholder="Optional" autocomplete="off" autocapitalize="characters" spellcheck="false">
           <span class="okc" id="j-refok"></span>
         </div>
-        <label class="j-terms" style="display:flex;align-items:flex-start;gap:9px;margin:16px 0 6px;font-size:13px;line-height:1.5;color:#54625B;cursor:pointer;"><input type="checkbox" id="j-terms" style="margin-top:1px;width:16px;height:16px;accent-color:#1E9E63;flex:none;cursor:pointer;"><span>I accept the <a href="/terms" target="_blank" rel="noopener noreferrer" style="color:#178A5A;text-decoration:underline;text-underline-offset:2px;">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style="color:#178A5A;text-decoration:underline;text-underline-offset:2px;">Privacy&nbsp;Policy</a>, and agree to receive email about my cohort and offers. I can unsubscribe at any time.</span></label>
+        <label class="j-terms" style="display:flex;align-items:flex-start;gap:9px;margin:16px 0 6px;font-size:13px;line-height:1.5;color:#54625B;cursor:pointer;"><input type="checkbox" id="j-terms" style="margin-top:1px;width:16px;height:16px;accent-color:#1E9E63;flex:none;cursor:pointer;"><span>I accept the <a href="/terms" target="_blank" rel="noopener noreferrer" style="color:#178A5A;text-decoration:underline;text-underline-offset:2px;">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style="color:#178A5A;text-decoration:underline;text-underline-offset:2px;">Privacy&nbsp;Policy</a>.</span></label>
+        <label class="j-terms" style="display:flex;align-items:flex-start;gap:9px;margin:0 0 4px;font-size:13px;line-height:1.5;color:#54625B;cursor:pointer;"><input type="checkbox" id="j-marketing" style="margin-top:1px;width:16px;height:16px;accent-color:#1E9E63;flex:none;cursor:pointer;"><span>Email me when a new region opens or Whollar adds something beyond internet. Optional, and one click unsubscribes.</span></label>
+        <p style="margin:0 0 6px 25px;font-size:11.5px;line-height:1.5;color:#7C8A84;">Email about your own cohort, your offer and your install arrives either way: that is the service, not marketing.</p>
         <button class="whl-btn go" id="j-go" type="button">Become a founding member</button>
         <p class="perksline"><b>Founding perks, locked in for joining now.</b> Early access and first pick on every market we open next.</p>
       </div>
@@ -775,16 +777,20 @@ document.addEventListener('DOMContentLoaded',function(){
       const btn=$('#j-go');clearErr(btn);
       if(busy(btn,true,'Joining…')===false)return;
       try{
-        /* Creates the account in `status: pending` and emails a code. Consent
-           travels with it and the server writes a `consents` row inside the
-           same request that creates the account. CASL needs it provable, and
-           consent recorded "shortly after" is consent you cannot prove came
-           first. The checkbox wording covers cohort and offer email, so it is
-           the marketing consent. */
+        /* Creates the account in `status: pending` and emails a code. The
+           marketing consent is whatever the optional box says, never `true`:
+           it is recorded as its own withdrawable row, and a row nobody could
+           have declined is not evidence of anything. Cohort and offer email
+           is not covered by it and never was, being the service the person
+           just signed up for.
+           HAND-PATCHED, and it has to be: this page is not generated from
+           waitlist/index.html (see scripts/build-mobile-pages.mjs, which
+           lists exactly two pages and says so). Change one, change both. */
+        S.marketing=!!($('#j-marketing')&&$('#j-marketing').checked);
         const r=await W.session.signup({
           email:em,password:pw,firstName:nm,lastName:ln,phone:ph,
           postalCode:S.postalFull||'',provinceCode:S.provinceCode||'',
-          referralCode:$('#j-ref').value.trim()||null,marketing:true
+          referralCode:$('#j-ref').value.trim()||null,marketing:S.marketing
         });
         busy(btn,false);
         openCodeStep(r);
@@ -843,7 +849,7 @@ document.addEventListener('DOMContentLoaded',function(){
         const r=await W.session.signup({
           email:S.email,password:S.pw,firstName:S.name,lastName:S.last,
           phone:S.phone,postalCode:S.postalFull||'',provinceCode:S.provinceCode||'',
-          referralCode:$('#j-ref').value.trim()||null,marketing:true
+          referralCode:$('#j-ref').value.trim()||null,marketing:!!S.marketing
         });
         clearCode();lastTried=null;showDevCode(r&&r.dev);startCountdown();otpBoxes()[0].focus();
       }catch(err){this.disabled=false;this.textContent='Resend code';submitErr($('#j-verify'),err);}
@@ -859,7 +865,7 @@ document.addEventListener('DOMContentLoaded',function(){
       try{
         /* marketing travels with the verify, not the signup: the server writes
            the consent rows when the account becomes real. */
-        await W.session.signupVerify({email:S.email,code:code,marketing:true});
+        await W.session.signupVerify({email:S.email,code:code,marketing:!!S.marketing});
       }catch(err){
         busy(btn,false);$('#j-otp').classList.add('err');
         submitErr(btn,err);clearCode();otpBoxes()[0].focus();return;
@@ -905,7 +911,7 @@ document.addEventListener('DOMContentLoaded',function(){
     function maybeAuto(){const c=readCode();if(c.length===6&&c!==lastTried)verifyCode();}
 
     /* welcome modal */
-    let SHARE_URL='https://whollar.ca/join';
+    let SHARE_URL='https://internet.whollar.ca/join';
     const SHARE_TXT='I just joined Whollar so providers bid for our whole street’s internet at once. Join our cohort:';
     function shareApps(){
       const u=encodeURIComponent(SHARE_URL),t=encodeURIComponent(SHARE_TXT);
@@ -919,7 +925,7 @@ document.addEventListener('DOMContentLoaded',function(){
     function copyModalLink(){const done=()=>{const c=$('#wm-copy');if(c){c.textContent='Copied';setTimeout(()=>c.textContent='Copy',1500);}};
       if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(SHARE_URL).then(done,done);else done();}
     function openWelcome(nm){
-      if(S.fsa)SHARE_URL='https://whollar.ca/join?fsa='+S.fsa;
+      if(S.fsa)SHARE_URL='https://internet.whollar.ca/join?fsa='+S.fsa;
       $('#wm-link').value=SHARE_URL;
       if(nm)$('#wm-sub').textContent='Welcome, '+nm+'. Let’s make pricing transparent, together. You just joined the households rewriting how internet is bought in Canada.';
       const wrap=$('#wm-apps');

@@ -66,10 +66,83 @@ jobs:
       - name: Shared core parses
         run: node --check js/whollar-core.js
 
+      # The waitlist popup, held byte identical in whollar-home and
+      # whollar-tires as well. This gate only proves it parses here; the
+      # checksum in js/referral-popup.sha256 is what records the version the
+      # three repos are meant to agree on, because `cmp` cannot reach across
+      # repos since the September 2026 split. Changing it is three commits.
+      - name: Waitlist popup parses
+        run: node --check js/referral-popup.js
+
+      # Fails when the popup on disk is not the one the checksum names, which
+      # is the only signal a hand-edit in one repo leaves behind.
+      - name: Waitlist popup matches its checksum
+        run: shasum -a 256 -c js/referral-popup.sha256
+
+      # The popup run for real against a DOM stub: it opens on a trigger and
+      # not before, stays silent where the full form already is, refuses an
+      # incomplete address without touching the network, and turns over to
+      # "You are in" only after the post came back. No install, on purpose.
+      - name: Waitlist popup behaves
+        run: node scripts/smoke-referral-popup.mjs
+
       # The site-wide dropdown. It rewrites every <select> on the pages that
       # load it, so a parse error takes out four forms at once rather than one.
       - name: Shared select parses
         run: node --check js/whollar-select.js
+
+      # The landing page behaviour: picker, vote, join form, scroll reveal.
+      - name: Landing page script parses
+        run: node --check js/landing.js
+
+      # The winter tire vertical: the scroll reveal, and nothing else.
+      - name: Tire landing script parses
+        run: node --check tires/js/tires.js
+
+      # The tire waitlist: two paths, four calculators.
+      - name: Tire waitlist script parses
+        run: node --check tires/js/tire-join.js
+
+      # The tire landing page's six modals: the same four calculators and the
+      # same two paths, ported from the v5 drop by scripts/port-tires.mjs.
+      - name: Tire smart-buy kit parses
+        run: node --check tires/js/tire-kit.js
+
+      # /join on the tire host loads the shared module, so the same rule as the
+      # umbrella below applies: the copy IS the shared module, byte for byte.
+      - name: Tire core is the shared core
+        run: cmp js/whollar-core.js tires/js/whollar-core.js
+
+      # The /join signup: form, the two-step code flow, and the scene loop.
+      - name: Waitlist join script parses
+        run: node --check js/waitlist-join.js
+
+      # The welcome screen after a verified join: the per-product copy, the
+      # reveal timeline, and the referral link.
+      - name: Join welcome script parses
+        run: node --check js/join-welcome.js
+
+      # The umbrella project at whollar.ca deploys from home/ as its own Vercel
+      # root, so it carries its own copies. Two things must hold: its scripts
+      # parse, and its whollar-core.js IS the shared module, byte for byte. A
+      # copy that drifts is a second implementation of the session and form
+      # layer that nobody remembers to fix.
+      - name: Umbrella scripts parse
+        run: for f in home/js/*.js; do node --check "$f"; done
+      - name: Umbrella core is the shared core
+        run: cmp js/whollar-core.js home/js/whollar-core.js
+
+      # The permanent redirect map: every legacy sitemap URL resolves through
+      # home/vercel.json to the same path on the internet host, and the
+      # umbrella's own paths are never swallowed by a rule.
+      - name: Redirect map resolves every legacy URL
+        run: node scripts/check-redirect-map.mjs
+
+      # The internet site names its own host and no other. Computed over the
+      # deployable set, so a canonical or a sitemap entry that still says
+      # www.whollar.ca cannot ship telling crawlers the page lives elsewhere.
+      - name: No deployable file names the old host
+        run: node scripts/check-site-host.mjs
 
       # Fails when js/whollar-benchmarks.js no longer matches what the
       # spreadsheet would produce, i.e. the pricing model was updated but the
@@ -163,6 +236,50 @@ jobs:
       - name: Cohort stage notice tests
         run: node scripts/test-notices.mjs
 
+      # The outbox: what may be sent, when, and never twice. O-1 is the
+      # deduplication the read-time sweep depends on, O-3 is quiet hours,
+      # O-8 is the CASL footer, and O-10 is the privacy scrubber, which has
+      # two halves that must both hold: another partner's name is blocked and
+      # the recipient's own name is not. An allow list built from the render
+      # context instead of from the recipient's own rows passes the first and
+      # fails the second, so both assertions are load bearing.
+      - name: Notification outbox tests
+        run: node scripts/test-notify.mjs
+
+      # Every template rendered against every fixture, through the real
+      # layout, and checked for what would actually arrive: no em or en dash,
+      # the banned vocabulary, a subject under 60, a preheader that is not the
+      # subject again, a complete plain text part, and the CASL footer.
+      # Rendering rather than grepping, because an email's subject is built
+      # from a region name and its footer is assembled at send time, so
+      # neither is a string literal any grep could see.
+      - name: Notification copy rules
+        run: node scripts/check-notify-copy.mjs --check
+
+      # Member provider exclusions: the brand family rules, the per-member
+      # price book, and the exclusion write plan.
+      #
+      # The canonical scenario of the brief's section 9.1 is the first test in
+      # here, and it is the one that would catch a regression that mattered: a
+      # cheaper bid under a brand the member excluded must be skipped whatever
+      # the price, and the next eligible bid at that tier awarded at its own
+      # price. Everything is a pure function over bid rows, so the property is
+      # checked without a datastore.
+      - name: Provider exclusion unit tests
+        run: node --test scripts/test-exclusions.mjs
+
+      # The exclusions copy deck, section 13, verbatim where it is rendered.
+      #
+      # This feature is the one place on the site where a sentence is
+      # load-bearing rather than persuasive: "excluded providers will never be
+      # able to send you an offer" is a guarantee the server enforces. The gate
+      # also checks for copy that must NOT be there, which is the half a review
+      # comment cannot enforce: nothing may tie an exclusion to price, nothing
+      # may hint a cheaper offer was skipped, and the old non-binding "avoid"
+      # promise must not come back beside the new one.
+      - name: Exclusion copy rules
+        run: node scripts/check-exclusion-copy.mjs --check
+
       # The route guards. These decide whether an unapproved organisation can
       # place a bid, and they were copy-pasted across four route files before
       # being extracted into lib/guards.js. This is what stops the fifth copy.
@@ -222,6 +339,13 @@ jobs:
       - name: Device router parses
         run: node --check js/device-router.js
 
+      # The blog return lane: every article and both resources indexes load it,
+      # and none of them load anything else of ours, so a syntax error there is
+      # a silent dead end for a member reading from the dashboard rather than a
+      # visible break.
+      - name: Blog return lane parses
+        run: node --check js/blog-return.js
+
       # The partner console is the one place in this repo with a build step.
       # This single check covers three failures at once, which is why it is
       # first: the module graph still resolves (an unimported or missing module
@@ -266,12 +390,58 @@ jobs:
       - name: A custom mix seals as cents through readBid
         run: node --test scripts/test-bid-mix.mjs
 
+      # The speed ladder, same trade again: a bid is validated against it, the
+      # price book is keyed on it, and a household's window snaps to it. One
+      # source in partner/core/tiers.js, generated into the Catalyst function,
+      # and the dashboard's hand-kept mirror held to it by test.
+      - name: The backend copy of the speed ladder is current
+        run: node scripts/build-tiers.mjs --check
+
+      - name: The speed ladder snaps the same way in every runtime
+        run: node --test scripts/test-tiers.mjs
+
+      # The vocabulary on the price book surfaces: no em dash, none of the
+      # banned nouns, and no "auction" on anything a household reads.
+      - name: The price book surfaces keep the vocabulary
+        run: node scripts/check-terms.mjs --check
+
       # The declarable vocabulary. Coverage is a controlled list now, and this
       # is the half of that the browser cannot enforce: a fixture, a seed or a
       # campaign naming a region the vocabulary does not have renders perfectly
       # and matches nothing, which is the free-text bug arriving by post.
       - name: The coverage vocabulary and everything that names a region
         run: node --test scripts/test-places.mjs
+
+      # The OTHER half of a cohort's geography. `region` above is the partner
+      # key; the FSA set is the member key, and the reference an operator's
+      # FSAs are validated against is generated from the browser's copy for the
+      # same reason the coverage vocabulary is.
+      - name: The backend copy of the FSA reference is current
+        run: node scripts/build-fsa-ref.mjs --check
+
+      # Eligibility can fail silently in BOTH directions: too tight closes a
+      # live cohort to the households it was built for, too loose puts the
+      # wrong end of the province on a partner's desk, and neither looks broken
+      # from any screen. Both ends are pinned, and so is the agreement between
+      # the browser's postal normalizer and the server's.
+      - name: Postal codes, FSA sets and who may join what
+        run: node --test scripts/test-geo.mjs
+
+      # Where a campaign's FSA set comes FROM. This one cannot re-derive: the
+      # boundary file is 300MB and this job is install-free. What it proves is
+      # that the committed candidate sets still match the committed mapping,
+      # that every region in them is one a partner can declare coverage in, and
+      # that every FSA in them is one in the reference. Re-derivation is a
+      # --derive run by a human with the sources on disk, and its diff is the
+      # review.
+      - name: Derived region coverage matches its mapping
+        run: node scripts/build-geo-regions.mjs --check
+
+      # The geometry the derivation rests on: a projection, a shoelace, a
+      # point-in-polygon and a sampled intersection, all written by hand
+      # because the alternative is a dependency in an install-free gate.
+      - name: Boundary geometry unit tests
+        run: node --test scripts/test-geometry.mjs
 
       # Em dashes and the banned terminology, scoped to the console files where
       # the count is currently zero. Scoped rather than repo-wide on purpose:
@@ -285,3 +455,46 @@ jobs:
       # where a syntax error blanks the whole page.
       - name: Inline page scripts parse
         run: node scripts/check-inline-scripts.mjs
+
+      # The auth function's CRM enqueue helper, and the three rules that make it
+      # safe to call from a signup path. Each one fails silently in production if
+      # it breaks: a throw from a marketing queue would refuse somebody's signup,
+      # a leaked install address is only ever found by whoever reads the CRM, and
+      # an unparked note ships to Zoho before anyone decided it should.
+      - name: CRM enqueue rules
+        run: node scripts/test-crm-outbox.mjs
+
+      # The allowlist, asserted by field list equality rather than spot check.
+      # D2 as amended makes these serialisers the control on what leaves
+      # Catalyst: asserting a price is absent catches the price, asserting the
+      # whole key set catches the field nobody thought to look for.
+      - name: CRM allowlist
+        run: node scripts/test-crm-serialisers.mjs
+
+      # One assertion per wired event: the right idempotency key and an
+      # allowlisted payload. The key is the only thing between a retried request
+      # and a duplicate record in somebody's CRM.
+      - name: CRM event keys
+        run: node scripts/test-crm-events.mjs
+
+      # D4: which CRM record a row belongs to. A wrong answer is not an error
+      # anywhere, both writes succeed and the founder finds two of the same
+      # household weeks later.
+      - name: CRM upsert and adoption
+        run: node scripts/test-crm-upsert.mjs
+
+      # The field map, and the three defects it exists to fix. Each was
+      # invisible in a different way: a postal code silently dropped, a cohort
+      # record that looked created and held nothing, and a Deal that failed on
+      # mandatory fields and was dead after two attempts.
+      - name: CRM field map
+        run: node scripts/test-crm-fieldmap.mjs
+
+      # What each CRM note says, for the twelve events the auth function
+      # enqueues. A note that renders wrongly is not an error anywhere: it is a
+      # line somebody reads in Zoho weeks later and believes. Two of the
+      # assertions are refusals, and they are the reason the file exists: a
+      # sealed bid's note must never carry a price, an activation's must never
+      # carry a fee amount.
+      - name: CRM note copy
+        run: node scripts/test-crmnotes.mjs

@@ -40,17 +40,25 @@ const claim = (cohort, status = 'active') => ({
   address_id: 'u1/1', vertical: 'internet', cohort_id: status === 'active' ? cohort : null,
   status, version: 3, claimed_at: NOW - DAY, released_at: null,
 });
-const seatBody = (affordance, cohortId = HELD.id, count = 61) => JSON.stringify({
+/* Which member stage each affordance implies, so the stubbed cohort shape
+   agrees with the affordance beside it. The page must never derive one from
+   the other, but a fixture that disagreed with itself would test nothing. */
+const STAGE_OF = { leave: 'forming', locked: 'locked', pass: 'offers', cancel: 'confirm', concierge: 'switching' };
+const seatBody = (affordance, cohortId = HELD.id, count = 61, order = null) => JSON.stringify({
   ok: true, serverTime: Date.now(),
   claim: affordance === 'none' ? claim(null, 'released') : claim(cohortId),
   cohort: affordance === 'none' ? null : {
-    id: cohortId, region: HELD.region, stage: 'forming', join_close_at: NOW + 9 * DAY,
+    id: cohortId, region: HELD.region, stage: STAGE_OF[affordance] || 'forming',
+    join_close_at: NOW + 9 * DAY,
     roster_count: count, target: 100, dates: HELD.dates, closing: false,
   },
   affordance, rejoin_until: NOW + 9 * DAY,
+  /* What a pass would give up, as GET /me/seat reports it. Null means nothing
+     was accepted, which the warning copy reads as the milder sentence. */
+  standing_order: order,
 });
 
-async function ctx(browser, { affordance = 'leave', onMutate = null } = {}) {
+async function ctx(browser, { affordance = 'leave', onMutate = null, order = null, camps = CAMPS } = {}) {
   const c = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
   const hits = [];
   await c.route('**/api/auth/**', r => r.fulfill({
@@ -59,10 +67,10 @@ async function ctx(browser, { affordance = 'leave', onMutate = null } = {}) {
   }));
   await c.route('**/api/auth/campaigns', r => r.fulfill({
     status: 200, contentType: 'application/json',
-    body: JSON.stringify({ ok: true, live: true, serverTime: Date.now(), campaigns: CAMPS }),
+    body: JSON.stringify({ ok: true, live: true, serverTime: Date.now(), campaigns: camps }),
   }));
   await c.route('**/api/auth/me/seat*', r => r.fulfill({
-    status: 200, contentType: 'application/json', body: seatBody(affordance),
+    status: 200, contentType: 'application/json', body: seatBody(affordance, HELD.id, 61, order),
   }));
   await c.route('**/api/auth/cohorts/**', r => {
     hits.push({ url: r.request().url(), body: r.request().postData(), idem: r.request().headers()['idempotency-key'] || null });
@@ -296,6 +304,300 @@ console.log('exit sheet');
   await closeCtx(c);
 }
 
+/* ------------------------------------------------------------------ *
+ * Leaving a cohort at the offers stage to join another one.
+ *
+ * The release itself is not new: POST /cohorts/:id/pass has always been the
+ * exit at this stage, and it releases the claim, the membership row and any
+ * accepted order in one call. What was missing was the ROUTE INTO IT from the
+ * intent that actually reaches for it, which is "I want that other cohort".
+ * The conflict sheet used to fold this stage into "locked" and answer with a
+ * bell, on a date that had already passed. These checks own that branch.
+ * ------------------------------------------------------------------ */
+
+const ORDER = { state: 'acc', tier: '500 Mbps', price: '70.00' };
+
+/* 8. The conflict sheet at the offers stage offers the exit, not a bell. */
+console.log('conflict sheet: the offers-stage branch');
+{
+  const c = await ctx(browser, { affordance: 'pass', order: ORDER });
+  const p = await boot(c);
+  await p.evaluate(() => document.querySelector('[data-choose="north-york-central"]').click());
+  await p.waitForTimeout(180);
+  const st = await p.evaluate(() => {
+    const s = document.querySelector('.sxs');
+    const q = sel => s.querySelector(sel);
+    return {
+      open: s.classList.contains('is-open'),
+      modal: !!q('[data-testid="leave-confirm-modal"]'),
+      cta: (q('[data-testid="leave-and-join-cta"]') || {}).textContent || '',
+      warn: (q('[data-testid="leave-offer-warning"]') || {}).textContent || '',
+      confirmHidden: (q('[data-stsstep]') || {}).hidden,
+      confirmBtn: !!q('[data-testid="leave-confirm-button"]'),
+      bell: !!q('[data-stshold]'),
+      lede: (q('.sxs__lede') || {}).textContent || '',
+    };
+  });
+  ok(st.open, 'sheet opens on the other cohort card');
+  ok(st.modal, 'data-testid="leave-confirm-modal" on the dialog');
+  ok(/Leave and join North York Central/.test(st.cta), 'the CTA names leaving and joining, not moving');
+  ok(!st.bell, 'no bell: the exit exists today, so nothing is offered for later');
+  ok(/frees your address the same day|frees up the same day/.test(st.lede), 'lede says the address frees the same day');
+  ok(st.confirmBtn, 'step two is in the markup');
+  ok(st.confirmHidden === true, 'step two is hidden until the first press');
+  ok(/500 Mbps/.test(st.warn) && /\$70/.test(st.warn), 'warning names the accepted tier and price from the server');
+  ok(/does not come back/.test(st.warn), 'warning says the offer does not return');
+  ok(!/\bcannot be undone\b.*\bdollar\b/i.test(st.warn), 'warning names no saving being given up');
+  ok(c._hits.length === 0, 'opening the sheet writes nothing');
+  ok(p._errors.length === 0, 'zero page errors');
+  await closeCtx(c);
+}
+
+/* 9. With nothing accepted the warning is the milder, truer sentence. */
+{
+  const c = await ctx(browser, { affordance: 'pass', order: null });
+  const p = await boot(c);
+  await p.evaluate(() => document.querySelector('[data-choose="north-york-central"]').click());
+  await p.waitForTimeout(180);
+  const warn = await p.evaluate(() =>
+    (document.querySelector('[data-testid="leave-offer-warning"]') || {}).textContent || '');
+  ok(/Nothing is charged and nothing is owed/.test(warn), 'no order: nothing-charged wording');
+  ok(!/You accepted/.test(warn), 'no order: never claims an acceptance');
+  await closeCtx(c);
+}
+
+/* 10. Two steps, and the first one writes nothing. Brief section 5.1. */
+{
+  const c = await ctx(browser, { affordance: 'pass', order: ORDER });
+  const p = await boot(c);
+  await p.evaluate(() => document.querySelector('[data-choose="north-york-central"]').click());
+  await p.waitForTimeout(150);
+  await p.click('[data-testid="leave-and-join-cta"]');
+  await p.waitForTimeout(150);
+  const armed = await p.evaluate(() => {
+    const s = document.querySelector('.sxs');
+    return {
+      stepShown: s.querySelector('[data-stsstep]').hidden === false,
+      firstHidden: s.querySelector('[data-stsactions]').hidden === true,
+      focusOnConfirm: document.activeElement === s.querySelector('[data-testid="leave-confirm-button"]'),
+      text: s.querySelector('[data-stsstep]').textContent,
+    };
+  });
+  ok(armed.stepShown, 'first press reveals step two');
+  ok(armed.firstHidden, 'first press hides the first pair, so there is one live decision');
+  ok(armed.focusOnConfirm, 'focus lands on the confirm button');
+  ok(/no undo/i.test(armed.text), 'step two says there is no undo');
+  ok(c._hits.length === 0, 'the arming press sent no request');
+  /* And the way back out of step two. */
+  await p.click('[data-stsdisarm]');
+  await p.waitForTimeout(120);
+  const back = await p.evaluate(() => {
+    const s = document.querySelector('.sxs');
+    return { step: s.querySelector('[data-stsstep]').hidden, first: s.querySelector('[data-stsactions]').hidden };
+  });
+  ok(back.step === true && back.first === false, '"Keep my offer" returns to step one');
+  ok(c._hits.length === 0, 'backing out of step two wrote nothing');
+  await closeCtx(c);
+}
+
+/* 11. The round trip: pass on A, land in the join flow of B, join B. */
+console.log('leave and join, end to end');
+{
+  const seen = [];
+  const c = await ctx(browser, {
+    affordance: 'pass', order: ORDER,
+    onMutate: (r, hits) => {
+      const url = r.request().url();
+      seen.push(url.replace(/^.*\/api\/auth/, ''));
+      if (/\/pass$/.test(url)) {
+        return r.fulfill({ status: 200, contentType: 'application/json',
+          body: JSON.stringify({ ok: true, claim: claim(null, 'released'), released: true,
+            cohort: null, open_alternatives: [] }) });
+      }
+      /* The join answers late on purpose: the landing surface exists between
+         the pass resolving and the join landing, and a test that could not
+         see it could not tell a round trip from a leave. */
+      return new Promise(res => setTimeout(() => res(r.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ ok: true, claim: claim(OTHER.id),
+          cohort: { id: OTHER.id, region: OTHER.region, stage: 'forming',
+            join_close_at: NOW + 9 * DAY, roster_count: 39, target: 100, dates: OTHER.dates, closing: false } }),
+      })), 500));
+    },
+  });
+  const p = await boot(c);
+  await p.evaluate(() => document.querySelector('[data-choose="north-york-central"]').click());
+  await p.waitForTimeout(150);
+  await p.click('[data-testid="leave-and-join-cta"]');
+  await p.waitForTimeout(120);
+  await p.click('[data-testid="leave-confirm-button"]');
+  await p.waitForTimeout(260);
+  const mid = await p.evaluate(() => ({
+    sheet: document.querySelector('.sxs').classList.contains('is-open'),
+    landing: !!document.querySelector('[data-testid="join-after-leave-flow"]'),
+    toast: document.getElementById('toast').textContent,
+    ledger: document.getElementById('seatledger').hidden,
+  }));
+  ok(!mid.sheet, 'the sheet closes on commit');
+  ok(mid.landing, 'the target card is the landing surface of the round trip');
+  ok(/offer is released/.test(mid.toast), 'the toast says the offer was released');
+  ok(/Joining North York Central/.test(mid.toast), 'the toast says where the member is being taken');
+  ok(mid.ledger, 'the seat ledger clears the moment the seat is released');
+  await p.waitForTimeout(700);
+  ok(seen.filter(u => /\/pass$/.test(u)).length === 1, 'exactly one pass');
+  ok(seen.filter(u => /\/join$/.test(u)).length === 1, 'exactly one join');
+  ok(seen.findIndex(u => /\/pass$/.test(u)) < seen.findIndex(u => /\/join$/.test(u)),
+    'the pass is sent BEFORE the join, so the claim is free when the join lands');
+  const after = await p.evaluate(() => ({
+    landing: !!document.querySelector('[data-testid="join-after-leave-flow"]'),
+    ledger: document.getElementById('seatledger').innerHTML,
+    toast: document.getElementById('toast').textContent,
+  }));
+  ok(!after.landing, 'the landing marker clears once the member has arrived');
+  ok(/North York Central/.test(after.ledger), 'the ledger now describes the new cohort');
+  ok(/Seat held/.test(after.toast), 'the join confirms with a held seat');
+  ok(p._errors.length === 0, 'zero page errors');
+  await closeCtx(c);
+}
+
+/* 12. Edge case 3: the pass applies even when the target refuses. */
+{
+  let left = false;
+  const c = await ctx(browser, {
+    affordance: 'pass', order: ORDER,
+    onMutate: (r) => {
+      const url = r.request().url();
+      if (/\/pass$/.test(url)) {
+        left = true;
+        return r.fulfill({ status: 200, contentType: 'application/json',
+          body: JSON.stringify({ ok: true, claim: claim(null, 'released'), released: true, cohort: null }) });
+      }
+      return r.fulfill({ status: 409, contentType: 'application/json',
+        body: JSON.stringify({ error: { code: 'ROSTER_FULL', message: 'North York Central is full for this round.' } }) });
+    },
+  });
+  /* The refusal path re-reads GET /me/seat, and it must read the truth: the
+     pass landed, so the claim is released. A fixture that kept answering
+     "seat held" would be testing a server that cannot exist. */
+  await c.route('**/api/auth/me/seat*', r => r.fulfill({
+    status: 200, contentType: 'application/json',
+    body: seatBody(left ? 'none' : 'pass', HELD.id, 61, left ? null : ORDER),
+  }));
+  const p = await boot(c);
+  await p.evaluate(() => document.querySelector('[data-choose="north-york-central"]').click());
+  await p.waitForTimeout(150);
+  await p.click('[data-testid="leave-and-join-cta"]');
+  await p.waitForTimeout(120);
+  await p.click('[data-testid="leave-confirm-button"]');
+  await p.waitForTimeout(600);
+  const st = await p.evaluate(() => ({
+    toast: document.getElementById('toast').textContent,
+    ledger: document.getElementById('seatledger').hidden,
+  }));
+  ok(/full for this round/.test(st.toast), 'the target refusal is reported honestly');
+  ok(st.ledger, 'the leave still stands: no seat, and the ledger says so');
+  ok(p._errors.length === 0, 'zero page errors');
+  await closeCtx(c);
+}
+
+/* 13. Edge case 7 / the rate limit: a refused pass changes nothing. */
+{
+  const c = await ctx(browser, {
+    affordance: 'pass', order: ORDER,
+    onMutate: (r) => r.fulfill({
+      status: 429, contentType: 'application/json',
+      body: JSON.stringify({ error: { code: 'RATE_LIMITED',
+        message: 'That is three cohort changes today. Your seat stays in Etobicoke Centre and you can leave again tomorrow.' } }),
+    }),
+  });
+  const p = await boot(c);
+  await p.evaluate(() => document.querySelector('[data-choose="north-york-central"]').click());
+  await p.waitForTimeout(150);
+  await p.click('[data-testid="leave-and-join-cta"]');
+  await p.waitForTimeout(120);
+  await p.click('[data-testid="leave-confirm-button"]');
+  await p.waitForTimeout(400);
+  const st = await p.evaluate(() => ({
+    toast: document.getElementById('toast').textContent,
+    ledger: document.getElementById('seatledger').innerHTML,
+    confirm: (document.querySelector('[data-testid="leave-confirm-button"]') || {}).disabled,
+  }));
+  ok(/three cohort changes today/.test(st.toast), 'the limit is explained, with when they can act again');
+  ok(/The offer is in for Etobicoke Centre/.test(st.ledger), 'the seat is untouched');
+  ok(st.confirm === false, 'the confirm button is live again for a retry');
+  ok(!c._hits.some(h => /\/join$/.test(h.url)), 'no join was attempted after the refused leave');
+  await closeCtx(c);
+}
+
+/* 14. Locked and bidding still refuse, and say so without promising an exit. */
+{
+  const c = await ctx(browser, { affordance: 'locked' });
+  const p = await boot(c);
+  await p.evaluate(() => document.querySelector('[data-choose="north-york-central"]').click());
+  await p.waitForTimeout(180);
+  const st = await p.evaluate(() => {
+    const s = document.querySelector('.sxs');
+    return {
+      open: s.classList.contains('is-open'),
+      cta: !!s.querySelector('[data-testid="leave-and-join-cta"]'),
+      bell: !!s.querySelector('[data-stshold]'),
+      warn: !!s.querySelector('[data-testid="leave-offer-warning"]'),
+    };
+  });
+  ok(st.open, 'the sheet still opens while the roster is sealed');
+  ok(!st.cta, 'no leave CTA: there is no exit at this stage and the sheet does not invent one');
+  ok(st.bell, 'the bell is still offered for the day the address frees');
+  ok(!st.warn, 'no offer warning where there is no offer');
+  await closeCtx(c);
+}
+
+/* 15. The tile badge promises what the sheet will offer. */
+console.log('tile badge follows the affordance');
+for (const [aff, label] of [['leave', 'Move here'], ['pass', 'Leave and join'], ['locked', 'Sealed until the offer']]) {
+  const c = await ctx(browser, { affordance: aff });
+  const p = await boot(c);
+  const txt = await p.evaluate(() => {
+    const card = document.querySelector('[data-choose="north-york-central"]');
+    const b = card && card.querySelector('.badge');
+    return b ? b.textContent : '';
+  });
+  ok(txt.includes(label), `${aff}: badge reads "${label}"`);
+  ok(txt.includes('You hold another seat'), `${aff}: badge still names the held seat`);
+  await closeCtx(c);
+}
+
+/* 16. The sheet at 390px: nothing clipped, both steps reachable. */
+{
+  const c = await ctx(browser, { affordance: 'pass', order: ORDER });
+  const p = await c.newPage();
+  await p.setViewportSize({ width: 390, height: 780 });
+  p._errors = [];
+  p.on('pageerror', e => p._errors.push(String(e)));
+  await p.goto(`${BASE}/dashboard?demo=1`, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(700);
+  await p.evaluate(() => document.querySelector('[data-choose="north-york-central"]').click());
+  await p.waitForTimeout(180);
+  await p.click('[data-testid="leave-and-join-cta"]');
+  await p.waitForTimeout(180);
+  const st = await p.evaluate(() => {
+    const box = document.querySelector('.sxs__box');
+    const btn = document.querySelector('[data-testid="leave-confirm-button"]');
+    const r = btn.getBoundingClientRect();
+    return {
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      inside: r.right <= box.getBoundingClientRect().right + 1,
+      tall: r.height >= 34,
+      warn: !!document.querySelector('[data-testid="leave-offer-warning"]'),
+    };
+  });
+  ok(st.overflow <= 0, '390px: no horizontal overflow with the sheet open');
+  ok(st.inside, '390px: the confirm button is inside the dialog');
+  ok(st.tall, '390px: the confirm button is a real tap target');
+  ok(st.warn, '390px: the warning is not dropped on the narrow layout');
+  ok(p._errors.length === 0, '390px: zero page errors');
+  await closeCtx(c);
+}
+
 /* 7. Overflow: 1280 / 940 / 768 / 390, ledger visible, no sideways scroll. AC 11. */
 console.log('widths');
 for (const w of [1280, 940, 768, 390]) {
@@ -323,5 +625,12 @@ console.log(`\nDeferred to hand checks against the Development backend:
     unique constraint; see create-tables.md 26d)
   - kill between the claim swap and the membership write -> compensating swap
   - move rate limit (3/day) -> 429 with the copy-deck message
-  - deep link into /cohorts/:id/join while holding a seat -> 409 SEAT_HELD`);
+  - leave rate limit (3/day, its own budget) -> 429; the fourth leave refuses
+    and the third still succeeds
+  - a pass is NOT rate limited: four passes across four cohorts all succeed
+  - accept in one tab, leave in another -> the claim_event unique key decides,
+    and the loser never lands an accepted order under a released claim
+  - deep link into /cohorts/:id/join while holding a seat -> 409 SEAT_HELD
+  - after a pass, provider_orders.release_reason reads household_passed and the
+    partner board shows the line as released`);
 process.exit(fail ? 1 : 0);

@@ -32,8 +32,9 @@ a manual `support@zohocatalyst.com` request with a 48-hour turnaround. Revisit i
 when the production environment exists; the change is then one constant in
 `js/whollar-core.js` plus deleting the rewrite.
 
-Because the browser and the function agree on `https://www.whollar.ca` as the
-public origin, `APP_BASE_URL` and `API_BASE_URL` are deliberately the same value.
+Because the browser and the function agree on `https://internet.whollar.ca` as the
+public origin (the product host since the September 2026 restructure; www is the
+umbrella and 301s every product path here), `APP_BASE_URL` and `API_BASE_URL` are deliberately the same value.
 Anything that needs the `/api/auth` prefix (OAuth redirect URIs) spells it out in
 full: see `GOOGLE_REDIRECT_URI` below.
 
@@ -44,16 +45,17 @@ full: see `GOOGLE_REDIRECT_URI` below.
 | Variable | Development value | Production value |
 |---|---|---|
 | `NODE_ENV` | `development` | `production` |
-| `APP_BASE_URL` | `https://www.whollar.ca` | `https://www.whollar.ca` |
-| `API_BASE_URL` | `https://www.whollar.ca` | `https://www.whollar.ca` |
+| `APP_BASE_URL` | `https://internet.whollar.ca` | `https://internet.whollar.ca` |
+| `API_BASE_URL` | `https://internet.whollar.ca` | `https://internet.whollar.ca` |
 | `COOKIE_DOMAIN` | `.whollar.ca` | `.whollar.ca` |
-| `ALLOWED_ORIGINS` | `https://www.whollar.ca https://whollar.ca http://localhost:3000` | `https://www.whollar.ca https://whollar.ca` |
+| `ALLOWED_ORIGINS` | `https://internet.whollar.ca https://www.whollar.ca https://whollar.ca http://localhost:3000` | `https://internet.whollar.ca https://www.whollar.ca https://whollar.ca` |
 | `CODE_PEPPER` | see below | **generate a different one** |
 | `IP_PEPPER` | see below | **generate a different one** |
 
-`www` is the canonical host, the apex `whollar.ca` 308s to it, so it leads both
-lists. The apex stays in `ALLOWED_ORIGINS` because a 308 preserves the method and
-body of a POST, so a request can legitimately arrive having started there.
+`internet.whollar.ca` is the product host and leads both lists. `www` and the apex
+stay in `ALLOWED_ORIGINS`: the umbrella at www hosts /join, which posts to the
+backend, and the apex 308s to www, which preserves the method and body of a POST,
+so a request can legitimately arrive having started there.
 
 **`ALLOWED_ORIGINS` IS THE ONE ROW THAT GROWS. Read the live value in the
 console, never this table.** It is Phase 0 setup, not an inventory, and origins
@@ -225,6 +227,162 @@ server recorded, including the reason behind a `google_failed`.
 The existing `crmSync` function has its own copies of these under different
 names (`ZOHO_CLIENT_ID`, `ZOHO_ACCOUNTS_URL`, …). They are separate functions
 with separate environments; the `auth` names are the ones this function reads.
+
+---
+
+## Phase 7: the notification layer, five ungrouped variables
+
+These are **not a group.** Every one of them is read individually, sits in the
+BOOT block rather than in `GROUPS`, and has a fallback, so the function boots
+with none of them set and nothing reports `degraded`. That is the opposite of
+the phases above and it is worth saying out loud, because it means **the failure
+mode here is silence, not a 503.** A missing pepper stops the world; a missing
+postal address stops one class of email and says so only in a log line.
+
+Set these before or with the deploy that carries `lib/notify`. Section 33 of
+`create-tables.md` has the four tables they go with.
+
+| Variable | Value | What is true if it is unset |
+|---|---|---|
+| `MAIL_LEGAL_NAME` | the registered entity name | the footer says `Whollar` |
+| `MAIL_POSTAL_ADDRESS` | one line, street to postal code | **every commercial send is refused** |
+| `MAIL_FROM_TRANSACTIONAL` | `no-reply@mail.whollar.com` | falls back to `ZEPTOMAIL_FROM` |
+| `MAIL_FROM_CEM` | `news@news.whollar.com` | falls back to `ZEPTOMAIL_FROM` |
+| `MAIL_WEBHOOK_SECRET` | 32+ random hex characters | **the delivery webhook answers 503 to everything** |
+
+### `MAIL_POSTAL_ADDRESS` has no fallback on purpose
+
+It is the one variable here with no default, and `lib/config.js` says so in a
+comment because the reasoning is not obvious. CASL requires a physical mailing
+address in every commercial electronic message. A plausible-looking default
+address in a compliance footer is worse than a missing one, because it looks
+correct in every review anybody will ever give it, including yours.
+
+So instead: unset, transactional mail sends with sender identification and no
+address, and `lib/notify/outbox.js` **refuses every commercial send** with
+`last_error: no_postal_address` and an error line naming the variable. Phase A
+ships no commercial template, so nothing is blocked today. The first one added
+is what makes this bite, and it will bite silently: the outbox row says `failed`
+and no email goes anywhere.
+
+Format is one line, no newlines. The console dialog rejects a value it dislikes
+with the same unhelpful message described under Phase 0, so if a comma or a
+number sign is refused, save `x` first to prove the Key is fine.
+
+### `MAIL_WEBHOOK_SECRET` is what makes the suppression list work
+
+`POST /hooks/zeptomail` compares this in constant time against the
+`X-Whollar-Hook` header and answers **503 to every request** when it is unset.
+An unauthenticated endpoint that writes suppressions is a way for anybody to
+stop anybody else's mail, so refusing is the only safe default.
+
+The consequence of leaving it unset is the quiet kind: bounces and complaints
+never reach `email_suppressions`, the list stays empty, and an empty suppression
+list looks exactly like healthy delivery. `/health/mail` reports
+`webhook_configured` for that reason.
+
+Generate one the same way as the peppers:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Then configure the webhook in the ZeptoMail console to POST to
+`https://www.whollar.ca/hooks/zeptomail` with the header
+`X-Whollar-Hook: <the value>`. The path is rewritten in `vercel.json` alongside
+`/r/:token` and `/u/:token`, so it must be the `whollar.ca` URL, not the
+Catalyst one.
+
+### The two senders, and why they are separate
+
+Reputation is per sending domain, and the two kinds of mail cannot share it. A
+spam complaint about a region-opening announcement must not cost a member the
+sign-in code they are waiting for. Two Mail Agents on two subdomains keeps the
+blast radius on the half that earned it.
+
+Both fall back to `ZEPTOMAIL_FROM`, so a half-configured environment behaves
+exactly as it did before the split existed. That is deliberate: the split is an
+improvement, not a prerequisite, and it should not be able to break mail by
+being incomplete.
+
+Neither subdomain sends anything until it is verified in the ZeptoMail console
+and its DKIM record is published. `docs/MAIL_AUTH_RUNBOOK.md` is that work, and
+it is the reason phase 5 of that runbook gates on evidence rather than a date.
+
+### Confirming the endpoint while you are here
+
+`ZEPTOMAIL_API_BASE` must be `https://api.zeptomail.ca`, the Canadian DC. The
+code default is now that host, so an unset variable is no longer a residency
+problem. An explicitly wrong one still is, and it would not look wrong in any
+log: mail would keep arriving.
+
+---
+
+## Phase 8: the timer
+
+The notification layer has a reminder lane, and a reminder is the one message
+that fires because nothing happened: your decision deadline is tomorrow and you
+have not decided, bidding closes in two hours and you have not bid. There is no
+event and no route. Something has to look at the clock.
+
+**Console path:** Catalyst -> Whollar -> Job Scheduling -> Cron.
+
+| Setting | Value |
+|---|---|
+| Target | `POST https://www.whollar.ca/api/auth/admin/notify/tick` |
+| Interval | hourly |
+| Header | `X-Cron-Secret: <NOTIFY_CRON_SECRET>` |
+
+Which means a sixth variable, alongside the five in Phase 7:
+
+| Variable | Value | If unset |
+|---|---|---|
+| `NOTIFY_CRON_SECRET` | 32+ random hex characters | the tick route is admin-only and the timer cannot call it |
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+The header is load bearing twice over. `lib/csrf.js` exempts the tick route
+from the Origin check **only when `x-cron-secret` is present**, because a timer
+sends no Origin and an unconditional check refuses every run. A missing header
+therefore fails with "That request could not be verified" rather than with
+anything about a secret, which is a confusing error worth recognising.
+
+Never send it as a query parameter. `crmSync` still accepts one for a job
+configured before header support existed, and its own code logs a warning when
+that path is used, because a secret in a URL lands in access logs and in the
+scheduler's own run history. There is no legacy job here, so this route takes
+the header alone.
+
+One target, not two. It sweeps for due reminders and then drains the outbox, in
+that order: sweeping first means a reminder that becomes due this minute goes
+out this minute, while draining first would add a full interval of latency to
+every reminder, which on a two-hour bid-close warning is a large slice of the
+warning.
+
+**Hourly, and not more often.** The sweep window is ninety minutes wide, so an
+hourly timer cannot step over an offset. Every offset in the lane is measured in
+hours. A one-minute timer would do no harm, because the idempotency key carries
+the offset label and a second sweep inside the same window writes nothing, but
+it would spend a Data Store read budget on answering "no" fifty-nine times an
+hour.
+
+**The route authenticates two ways**, because a timer has no session. An admin
+session works, so an operator can force a pass by hand from a browser. The
+`X-Cron-Secret` header works, which is what Job Scheduling can actually send.
+With `NOTIFY_CRON_SECRET` unset the route is admin-only, which is the right
+state before a timer exists, and the reminder lane then runs on the read-driven
+sweep alone: it fires on every member dashboard load, and it is strictly weaker
+for exactly the recipients reminders exist for, because a reminder is for
+somebody who is not looking.
+
+> **The trap this project has already fallen into once.** `crmSync` was written
+> to be cron-invoked, the Job Scheduling job was never created, and the pipeline
+> read as broken for weeks while the code was healthy the whole time. There is
+> nothing in a deploy that tells you a timer does not exist. `GET /api/auth/health/mail`
+> signed in as admin shows `outbox.counts.queued` climbing, which is what a
+> missing timer looks like from the outside: rows enqueued and never drained.
 
 ---
 

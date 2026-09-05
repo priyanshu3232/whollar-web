@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Residents of 1, 3 and 5 Greystone Walk Drive are pooling their internet bills into one cohort so providers bid for all three towers at once.">
+<link rel="preconnect" href="https://api.fontshare.com">
+<title>Greystone Walk Cohort</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@700,900&f[]=general-sans@600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ===== Whollar design system ===== */
+:root{
+  --teal:#0E2A20; --teal-deep:#0A2018; --teal-bright:#178A5A; --teal-soft:#7FE3B0;
+  --accent:#1E9E63; --accent-hover:#178A5A;
+  --cream:#FAF8F3; --paper:#ffffff; --mist:#F6F4EE;
+  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#8A968F; --line:#e7ebe6;
+  --warn:#C2643B; --warn-soft:#F7E7DD; --green-tint:#E4F4EC; --gold:#C29B3C; --gold-soft:#F7EEDA;
+  --disp:'Satoshi','Figtree',system-ui,sans-serif;
+  --label:'General Sans','Inter',system-ui,sans-serif;
+  --body:'Inter',system-ui,sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
+  --wrap:1240px; --measure:620px; --r:18px; --rf:26px;
+  --sh-1:0 1px 2px rgba(16,40,34,.04),0 8px 24px rgba(16,40,34,.05);
+  --sh-2:0 2px 6px rgba(16,40,34,.06),0 18px 44px rgba(16,40,34,.09);
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --panel:linear-gradient(155deg,var(--teal-deep),#123B2C 58%,#17553D);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--disp);color:var(--teal);letter-spacing:-.02em;margin:0;text-wrap:balance}
+h1{font-size:clamp(28px,3.8vw,46px);font-weight:900;line-height:1.06}
+h2{font-size:clamp(23px,2.8vw,32px);font-weight:900;line-height:1.12}
+h3{font-size:clamp(18px,2.2vw,22px);font-weight:900;line-height:1.25}
+h4{font-size:16px;font-weight:700;line-height:1.3}
+p{margin:0}
+button{font-family:var(--body);cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}
+.num{font-variant-numeric:tabular-nums}
+.hide{display:none!important}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* type utilities */
+.eyebrow{display:block;font-family:var(--label);font-weight:600;font-size:12.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+.mlabel{font-family:var(--label);font-weight:600;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.lead{font-size:clamp(15px,1.5vw,17.5px);line-height:1.6;color:var(--ink-2);max-width:var(--measure)}
+.small{font-size:13.5px;line-height:1.55;color:var(--ink-2)}
+.cap{font-size:12px;color:var(--ink-3)}
+.stat{font-family:var(--disp);font-weight:900;font-size:clamp(28px,3.4vw,38px);letter-spacing:-.03em;color:var(--teal);line-height:1.05;font-variant-numeric:tabular-nums}
+
+/* section + header */
+section{padding:clamp(48px,6vw,72px) 0}
+section.alt{background:var(--mist)}
+.sec{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(24px,5vw,64px);align-items:end;margin-bottom:32px}
+.sec__t{min-width:0}
+.sec__d{min-width:0;display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.sec__d .lead{max-width:none}
+.sec--solo{grid-template-columns:1fr}
+@media(max-width:860px){.sec{grid-template-columns:1fr;gap:14px;align-items:start}}
+.sec--split{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:end}
+@media(max-width:760px){.sec--split{grid-template-columns:1fr;align-items:start}}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;font-family:var(--body);font-weight:600;font-size:15px;color:#fff;background:var(--teal);border-radius:13px;padding:13px 22px;text-decoration:none;white-space:nowrap;transition:background .18s,transform .18s}
+.btn:hover{background:var(--teal-deep);transform:translateY(-1px)}
+.btn.acc{background:var(--accent)}.btn.acc:hover{background:var(--accent-hover)}
+.btn.ghost{background:transparent;color:var(--teal);border:1px solid var(--line)}
+.btn.ghost:hover{background:var(--paper);border-color:#c6d5cc}
+.btn.sm{font-size:13.5px;padding:10px 18px;border-radius:11px}
+
+/* nav */
+nav{position:sticky;top:0;z-index:60;background:rgba(250,248,243,.88);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.nav-in{max-width:var(--wrap);margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:14px}
+.mark{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--teal)}
+.mark svg{width:34px;height:34px;flex:none}
+.mark b{font-family:var(--disp);font-weight:900;font-size:20px}
+.mark span{font-size:13.5px;color:var(--ink-3);margin-left:2px}
+.nav-links{margin-left:auto;display:flex;gap:20px;font-size:14px}
+.nav-links a{color:var(--ink-2);text-decoration:none}
+.nav-links a:hover{color:var(--teal)}
+@media(max-width:900px){.nav-links{display:none}}
+@media(max-width:640px){.mark span{display:none}.nav-in{gap:10px}.mark{min-width:0}}
+
+/* demo strip */
+.demo{background:var(--gold-soft);color:#7A6220;font-size:12.5px;line-height:1.5;padding:9px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.demo b{font-weight:600}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;background:var(--paper);padding:3px;flex:none}
+.seg button{border:none;background:transparent;color:var(--ink-2);font-size:12.5px;font-weight:600;padding:6px 14px;border-radius:999px}
+.seg button.on{background:var(--teal);color:#fff}
+
+/* hero */
+.hero{background:var(--panel);color:#fff;padding:clamp(44px,5.5vw,68px) 0;position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0;background:radial-gradient(620px 300px at 88% -14%,rgba(127,227,176,.16),transparent 62%);pointer-events:none}
+.hero .wrap{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:clamp(28px,4vw,56px);align-items:start}
+@media(max-width:980px){.hero .wrap{grid-template-columns:1fr}}
+.hero .eyebrow{color:var(--teal-soft)}
+.hero h1{color:#fff}
+.hero h1 em{font-style:normal;color:var(--teal-soft)}
+.hero .lead{margin-top:16px;color:rgba(255,255,255,.78)}
+.hero .cta{display:flex;gap:12px;margin-top:24px;flex-wrap:wrap}
+.hero .btn{background:var(--accent)}
+.hero .btn:hover{background:var(--accent-hover)}
+.hero .btn.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.28)}
+.hero .btn.ghost:hover{background:rgba(255,255,255,.06)}
+.status{display:flex;gap:32px;margin-top:32px;flex-wrap:wrap}
+.status .mlabel{color:rgba(255,255,255,.55);display:block;margin-bottom:6px}
+.status b{display:flex;align-items:center;font-family:var(--disp);font-weight:900;font-size:26px;letter-spacing:-.02em;color:#fff}
+.pulse{width:9px;height:9px;border-radius:50%;background:var(--teal-soft);margin-right:9px;box-shadow:0 0 0 0 rgba(127,227,176,.6);animation:pulse 2.4s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(127,227,176,.55)}70%{box-shadow:0 0 0 9px rgba(127,227,176,0)}100%{box-shadow:0 0 0 0 rgba(127,227,176,0)}}
+
+/* towers panel */
+.towers{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.13);border-radius:var(--rf);padding:20px 22px}
+.towers__h{margin-bottom:8px}
+.towers__h h3{color:#fff;font-size:17px;font-weight:700}
+.towers__h .mlabel{display:block;color:rgba(255,255,255,.5);margin-top:6px}
+.tower{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px 0;border-top:1px solid rgba(255,255,255,.1);cursor:pointer;text-align:left;background:none;border-left:none;border-right:none;border-bottom:none;width:100%;color:inherit}
+.tower .n{font-family:var(--disp);font-weight:900;font-size:17px;color:var(--teal-soft)}
+.tower .t{display:block;font-family:var(--disp);font-weight:700;font-size:14.5px;color:#fff;line-height:1.3}
+.tower .s{display:block;font-size:12px;color:rgba(255,255,255,.5);margin-top:3px}
+.tower .badge{font-family:var(--label);font-weight:600;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal-soft);background:rgba(127,227,176,.13);border-radius:999px;padding:5px 11px;white-space:nowrap}
+.tower[aria-selected="true"]{background:rgba(127,227,176,.07);border-radius:14px;padding-left:10px;padding-right:10px;margin:0 -10px}
+.towers__f{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.1);font-size:12px;line-height:1.55;color:rgba(255,255,255,.5)}
+
+/* cards + grids */
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:940px){.g3,.g4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.g2,.g3,.g4{grid-template-columns:1fr}}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--rf);box-shadow:var(--sh-1);padding:clamp(20px,2.6vw,28px)}
+.card>*+*{margin-top:12px}
+.card .mlabel{display:block}
+.card .stat{margin-top:8px}
+.card p{color:var(--ink-2);font-size:13.5px;line-height:1.6}
+
+/* form */
+.checkout{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:16px;align-items:start}
+@media(max-width:1020px){.checkout{grid-template-columns:1fr}}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:640px){.fg{grid-template-columns:1fr}}
+.fld{border:1px solid var(--line);border-radius:var(--r);padding:13px 15px 15px;background:var(--paper)}
+.fld:focus-within{border-color:var(--accent)}
+.fld__h{display:flex;align-items:center;gap:9px;margin-bottom:9px;min-height:26px}
+.fld__n{flex:none;width:24px;height:20px;border-radius:6px;background:var(--mist);color:var(--ink-2);font-family:var(--mono);font-size:10.5px;font-weight:600;display:grid;place-items:center}
+.fld__l{font-family:var(--label);font-weight:600;font-size:14px;color:var(--teal)}
+.fld input,.fld select{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:11px;color:var(--ink);padding:11px 13px;font-size:14.5px;font-family:var(--body);appearance:none}
+.fld input:focus,.fld select:focus{outline:none;border-color:var(--accent)}
+.fld input:disabled{background:var(--mist);color:var(--ink-3)}
+.fld .hint{margin-top:7px;font-size:11.5px;color:var(--ink-3)}
+.idk{margin-left:auto;flex:none;background:var(--paper);border:1.5px solid var(--line);color:var(--ink-2);font-size:11.5px;font-weight:600;border-radius:999px;padding:5px 12px}
+.idk:hover{border-color:#c6d5cc}
+.pcok{font-size:13px;font-weight:600;color:var(--accent);white-space:nowrap}
+.barrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.barrow input{max-width:220px}
+.mp{display:flex;align-items:flex-start;gap:11px;background:var(--mist);border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;width:100%;text-align:left}
+.mp .bx{flex:none;width:19px;height:19px;border-radius:6px;border:1.5px solid var(--line);background:var(--paper);margin-top:2px}
+.mp b{display:block;font-family:var(--disp);font-weight:700;font-size:14px;color:var(--teal)}
+.mp span{font-size:12.5px;color:var(--ink-2);line-height:1.55}
+.emailbox{border:1px solid var(--line);border-radius:var(--r);padding:15px 17px}
+.emailbox label{display:block;font-family:var(--label);font-weight:600;font-size:14px;color:var(--teal);margin-bottom:9px}
+.emailbox input{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:11px;padding:11px 13px;font-size:14.5px;font-family:var(--body)}
+.emailbox .fine{margin-top:9px;font-size:11.5px;line-height:1.6;color:var(--ink-3)}
+
+/* verdict panel */
+.vcard{border-radius:var(--rf);background:var(--panel);color:#fff;padding:clamp(24px,3.2vw,34px);position:relative;overflow:hidden;border-top:4px solid var(--warn)}
+.vcard::before{content:"";position:absolute;inset:0;background:radial-gradient(460px 220px at 92% -20%,rgba(127,227,176,.14),transparent 62%);pointer-events:none}
+.vcard>*{position:relative}
+.vbadge{display:inline-block;font-family:var(--label);font-weight:600;font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;border-radius:999px;padding:7px 15px;border:1px solid #E8A07A;color:#E8A07A}
+.vcard h3{color:#fff;margin-top:16px;max-width:var(--measure)}
+.vfig{display:flex;gap:clamp(18px,3vw,34px);margin-top:22px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:var(--r);padding:18px 22px}
+@media(max-width:620px){.vfig{flex-direction:column}}
+.fig{min-width:0}
+.fig .mlabel{color:rgba(255,255,255,.55);display:block}
+.fig b{display:block;font-family:var(--disp);font-weight:900;letter-spacing:-.03em;color:#fff;font-size:clamp(24px,3vw,32px);margin-top:8px;line-height:1.05;font-variant-numeric:tabular-nums}
+.fig--hero b{font-size:clamp(34px,4.6vw,48px);color:#FFB894}
+.figsep{width:1px;background:rgba(255,255,255,.14);flex:none}
+@media(max-width:620px){.figsep{width:auto;height:1px}}
+.vbody{margin-top:20px;font-size:14.5px;line-height:1.7;color:rgba(255,255,255,.78);max-width:var(--measure)}
+.vcard .btn{margin-top:22px;background:var(--accent)}
+.vcard .btn:hover{background:var(--accent-hover)}
+
+/* score */
+.score{display:grid;grid-template-columns:190px minmax(0,1fr);gap:clamp(20px,3vw,36px);align-items:center}
+@media(max-width:720px){.score{grid-template-columns:1fr}}
+.ring{position:relative;width:180px;height:180px;margin:0 auto}
+.ring svg{transform:rotate(-90deg)}
+.ring .v{position:absolute;inset:0;display:grid;place-items:center;align-content:center;gap:0}
+.ring .v b{font-family:var(--disp);font-weight:900;font-size:46px;color:var(--teal);letter-spacing:-.03em;line-height:1}
+.srow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;padding:11px 0;border-bottom:1px solid var(--line);align-items:baseline}
+.srow:last-child{border-bottom:none}
+.srow b{font-family:var(--disp);font-weight:700;font-size:14px;color:var(--teal)}
+.srow p{font-size:12.5px;color:var(--ink-2);margin-top:2px}
+.srow .pts{font-family:var(--mono);font-size:13px;color:var(--accent);white-space:nowrap}
+
+/* survey */
+.survey{padding:0;overflow:hidden}
+.survey>*+*{margin-top:0}
+.survey__h{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px clamp(20px,2.6vw,28px);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.qgrid{display:grid;grid-template-columns:1fr 1fr}
+@media(max-width:760px){.qgrid{grid-template-columns:1fr}}
+.q{padding:22px clamp(20px,2.6vw,28px);border-bottom:1px solid var(--line)}
+.q:nth-child(odd){border-right:1px solid var(--line)}
+@media(max-width:760px){.q:nth-child(odd){border-right:none}}
+.q__l{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.q__n{flex:none;width:24px;height:20px;border-radius:6px;background:var(--mist);color:var(--ink-2);font-family:var(--mono);font-size:10.5px;font-weight:600;display:grid;place-items:center}
+.q__l b{font-family:var(--label);font-weight:600;font-size:14px;color:var(--teal)}
+.stars{display:flex;align-items:center;gap:4px}
+.stars button{width:40px;height:40px;border:none;background:none;font-size:28px;line-height:1;color:#DBE2DC;padding:0;transition:color .12s,transform .12s}
+.stars button.on{color:var(--gold)}
+.stars button:hover{transform:scale(1.12)}
+.stars .lbl{margin-left:10px;font-size:13px;color:var(--ink-2);min-width:76px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chips button{border:1.5px solid var(--line);background:var(--paper);border-radius:999px;padding:9px 16px;font-size:13.5px;font-weight:500;color:var(--ink-2);transition:all .12s}
+.chips button.on{background:var(--teal);color:#fff;border-color:var(--teal)}
+.chips button:hover:not(.on){border-color:#c6d5cc;color:var(--teal)}
+.survey__f{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px clamp(20px,2.6vw,28px);background:var(--mist);flex-wrap:wrap}
+.trust{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2)}
+.trust span{display:flex;align-items:center;gap:7px}
+.trust svg{flex:none;stroke:var(--ink-3)}
+
+/* steps + ladder */
+.steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+@media(max-width:900px){.steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.steps{grid-template-columns:1fr}}
+.step{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+.step.now{border-color:var(--accent);background:#F7FCF9}
+.step .mlabel{display:block;margin-bottom:8px}
+.step.now .mlabel{color:var(--accent)}
+.step b{display:block;font-family:var(--disp);font-weight:700;font-size:15px;color:var(--teal);margin-bottom:4px}
+.step p{font-size:12.5px;line-height:1.55;color:var(--ink-2)}
+.rungs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+@media(max-width:900px){.rungs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.rungs{grid-template-columns:1fr}}
+.rung{border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;background:var(--paper)}
+.rung.next{border-color:var(--gold);background:var(--gold-soft)}
+.rung .k{font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--ink-3);display:block;margin-bottom:8px}
+.rung.next .k{color:#8A6D1E}
+.rung p{font-size:13px;line-height:1.5;color:var(--ink-2)}
+.rung.next p{color:var(--teal)}
+
+/* managers */
+.mgr__top{display:flex;gap:14px;align-items:center}
+.ava{width:52px;height:52px;border-radius:50%;flex:none;display:grid;place-items:center;font-family:var(--disp);font-weight:900;font-size:17px;background:var(--green-tint);color:var(--teal-bright);border:2px solid var(--paper);box-shadow:0 0 0 1px #cfe9db}
+.ava.empty{background:var(--mist);color:var(--ink-3);box-shadow:0 0 0 1px var(--line);font-weight:700;font-size:22px}
+.mgr__id b{display:block;font-family:var(--disp);font-weight:700;font-size:15px;color:var(--teal)}
+.mgr__id .mlabel{display:block;margin-top:3px}
+.rating{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12.5px;color:var(--ink-2)}
+.rating i{font-style:normal;color:var(--gold)}
+.mgr q{display:block;font-size:13.5px;line-height:1.6;color:var(--ink-2);quotes:none}
+.mgr q::before,.mgr q::after{content:""}
+.mgr__cta{display:flex;gap:8px;flex-wrap:nowrap}
+
+/* referral glow */
+.glow{position:relative;border-radius:var(--rf);padding:clamp(24px,3vw,32px);background:linear-gradient(135deg,var(--green-tint),var(--gold-soft));border:1px solid #E4DFC9;overflow:hidden;margin-top:16px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(24px,4vw,56px);align-items:center}
+@media(max-width:860px){.glow{grid-template-columns:1fr;gap:20px}}
+.glow::before{content:"";position:absolute;inset:-40%;background:radial-gradient(circle at 28% 46%,rgba(194,155,60,.28),transparent 46%),radial-gradient(circle at 74% 42%,rgba(30,158,99,.2),transparent 46%);animation:drift 10s ease-in-out infinite alternate;pointer-events:none}
+@keyframes drift{from{transform:translate(-3%,-3%)}to{transform:translate(3%,3%)}}
+.glow>*{position:relative}
+.glow p{margin-top:10px;color:var(--ink-2);font-size:14.5px}
+.pts-row{display:grid;gap:10px;font-size:13.5px;color:var(--ink-2)}
+.pts-row span{display:grid;grid-template-columns:52px minmax(0,1fr);gap:12px;align-items:baseline}
+.pts-row b{font-family:var(--mono);font-weight:600;color:var(--accent);background:rgba(255,255,255,.6);border-radius:8px;padding:4px 0;text-align:center;font-size:13px}
+
+/* leaderboard */
+.lb{list-style:none;margin:12px 0 0;padding:0}
+.lb li{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);font-size:14px}
+.lb li:last-child{border-bottom:none}
+.lb .p{font-family:var(--disp);font-weight:900;color:var(--ink-3);font-size:14px}
+.lb .u{font-weight:600;color:var(--teal)}
+.lb .u small{font-weight:400;color:var(--ink-3);margin-left:7px;font-size:12px}
+.lb .c{font-family:var(--mono);font-size:13px;color:var(--accent);font-variant-numeric:tabular-nums}
+
+/* reward tiers */
+.tiers{margin-top:16px;position:relative}
+.tiers::before{content:"";position:absolute;left:21px;top:26px;bottom:26px;width:2px;background:var(--line)}
+.tier{display:grid;grid-template-columns:44px minmax(0,1fr);gap:14px;align-items:start;padding:12px 0;position:relative}
+.tier .ic{width:44px;height:44px;border-radius:50%;background:var(--green-tint);color:var(--teal-bright);display:grid;place-items:center;border:2px solid var(--paper);box-shadow:0 0 0 1px #cfe9db}
+.tier.top .ic{background:linear-gradient(140deg,#E0C070,var(--gold));color:#fff;box-shadow:0 0 0 1px var(--gold),0 4px 14px rgba(194,155,60,.35)}
+.tier b{display:block;font-family:var(--disp);font-weight:700;font-size:15px;color:var(--teal)}
+.tier em{font-style:normal;font-family:var(--label);font-weight:600;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal-bright);background:var(--green-tint);padding:3px 9px;border-radius:999px;margin-left:8px;vertical-align:2px}
+.tier.top em{background:var(--gold-soft);color:#8A6D1E}
+.tier p{font-size:13px;line-height:1.55;color:var(--ink-2);margin-top:3px}
+
+/* share + invite */
+.sharecard{border-radius:var(--r);background:var(--panel);color:#fff;padding:22px 24px;position:relative;overflow:hidden}
+.sharecard::before{content:"";position:absolute;inset:0;background:radial-gradient(300px 150px at 90% -20%,rgba(127,227,176,.18),transparent 62%)}
+.sharecard>*{position:relative}
+.sharecard .mlabel{color:var(--teal-soft);display:block}
+.sharecard .h{font-family:var(--disp);font-weight:900;font-size:21px;line-height:1.2;margin-top:10px;letter-spacing:-.02em}
+.sharecard .s{font-size:13px;color:rgba(255,255,255,.72);margin-top:6px}
+.sharecard .u{font-family:var(--mono);font-size:11.5px;color:var(--teal-soft);margin-top:16px}
+.copyfield{width:100%;background:var(--mist);border:1.5px solid var(--line);border-radius:11px;padding:11px 13px;font-family:var(--mono);font-size:12.5px;color:var(--ink-2)}
+
+/* products */
+.prod{display:flex;justify-content:space-between;align-items:center;gap:16px}
+.prod>*+*{margin-top:0}
+.tog{width:46px;height:26px;border-radius:13px;border:none;background:#D9E0DA;position:relative;flex:none;transition:background .15s}
+.tog::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.tog.on{background:var(--accent)}.tog.on::after{left:23px}
+
+/* locked block */
+.locked{display:flex;gap:16px;align-items:center}
+.locked>*+*{margin-top:0}
+.locked .n{width:52px;height:52px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--mist);color:var(--ink-3);font-family:var(--disp);font-weight:900;font-size:15px;border:2px dashed var(--line)}
+
+/* faq */
+details{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:15px 20px;margin-bottom:8px}
+details+details{margin-top:0}
+summary{font-family:var(--disp);font-weight:700;font-size:15px;color:var(--teal);cursor:pointer;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";float:right;color:var(--ink-3);font-weight:400}
+details[open] summary::after{content:"\2013"}
+details p{margin-top:10px;font-size:13.5px;line-height:1.6;color:var(--ink-2);max-width:66ch}
+
+footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:12.5px;color:var(--ink-3);line-height:1.7}
+
+/* modal */
+.modal{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;background:rgba(10,32,24,.55);backdrop-filter:blur(4px)}
+.modal__c{background:var(--paper);border-radius:var(--rf);max-width:480px;width:100%;max-height:88vh;overflow:auto;box-shadow:var(--sh-2);animation:rise .28s var(--ease)}
+.modal__h{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line)}
+.modal__h h3{font-size:19px}
+.modal__x{border:none;background:var(--mist);width:32px;height:32px;border-radius:50%;font-size:14px;color:var(--ink-2)}
+.mtabs{display:flex;border-bottom:1px solid var(--line)}
+.mtabs button{flex:1;border:none;background:none;padding:13px;font-family:var(--label);font-size:13.5px;font-weight:600;color:var(--ink-3);border-bottom:2px solid transparent}
+.mtabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
+.mbody{padding:22px}
+.mbody>*+*{margin-top:12px}
+.drop{display:flex;gap:14px;align-items:center;background:var(--green-tint);border:1.5px dashed #b9c8bf;border-radius:var(--r);padding:14px}
+.drop b{display:block;font-family:var(--disp);font-weight:700;font-size:14px;color:var(--teal)}
+.drop span{font-size:12.5px;color:var(--ink-2);line-height:1.5}
+.nom{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.nom:last-of-type{border-bottom:none}
+.nom__t{flex:1;min-width:0}
+.nom__t b{display:block;font-family:var(--disp);font-weight:700;font-size:14px;color:var(--teal)}
+.nom__t span{font-size:12.5px;color:var(--ink-2);line-height:1.5}
+.nom .v{font-family:var(--mono);font-size:12px;color:var(--ink-3);white-space:nowrap}
+.gate{text-align:center}
+.gate .ic{width:52px;height:52px;border-radius:50%;background:var(--green-tint);color:var(--teal-bright);display:grid;place-items:center;margin:0 auto 14px}
+.gate h4{margin-bottom:8px}
+.gate p{font-size:13.5px;color:var(--ink-2);max-width:38ch;margin:0 auto}
+.gate input{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:11px;padding:11px 13px;font-size:14.5px;font-family:var(--body);margin-top:14px}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<div class="demo">
+  <div><b>Prototype.</b> Building facts (units, storeys, year) are verified. Names, points and the sample verdict are demo data.</div>
+  <div class="seg" role="group" aria-label="View as"><button class="on" data-mode="guest" type="button">Viewing as visitor</button><button data-mode="member" type="button">Viewing as member</button></div>
+</div>
+
+<nav><div class="nav-in">
+  <a class="mark" href="#">
+    <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="wmk" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wmk)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
+    <b>Whollar</b><span>greystonewalk.whollar.ca</span>
+  </a>
+  <div class="nav-links"><a href="#check">Check my bill</a><a href="#stats">The building</a><a href="#how">How it works</a><a href="#managers">Lead your building</a><a href="#faq">FAQ</a></div>
+  <a class="btn sm" href="#check" id="navCta">Join the cohort</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <div>
+    <span class="eyebrow">Greystone Walk Drive, Scarborough Junction</span>
+    <h1>Greystone Walk is asking for a better internet price. <em>Together.</em></h1>
+    <p class="lead">Residents of 1, 3 and 5 are pooling their bills into one cohort. Once enough households join, providers bid for all three towers at once, and every household gets its own offer to take or ignore.</p>
+    <div class="cta"><a class="btn" href="#check">Check if I'm overpaying</a><a class="btn ghost" href="#how">How the cohort works</a></div>
+    <div class="status">
+      <div><span class="mlabel">Cohort status</span><b><span class="pulse"></span>Forming</b></div>
+      <div><span class="mlabel">Bidding opens at</span><b class="num">30% full</b></div>
+      <div><span class="mlabel">Founding window</span><b>Open now</b></div>
+    </div>
+  </div>
+  <div class="towers">
+    <div class="towers__h"><h3>Three towers, one cohort</h3><span class="mlabel">First to fill installs first</span></div>
+    <button class="tower" data-b="1" aria-selected="false" type="button"><span class="n">1</span><span><span class="t">1 Greystone Walk</span><span class="s">266 units, 20 storeys</span></span><span class="badge">Forming</span></button>
+    <button class="tower" data-b="3" aria-selected="true" type="button"><span class="n">3</span><span><span class="t">Greystone Walk II</span><span class="s">354 units, 23 storeys</span></span><span class="badge">Forming</span></button>
+    <button class="tower" data-b="5" aria-selected="false" type="button"><span class="n">5</span><span><span class="t">Greystone Walk I</span><span class="s">353 units, 22 storeys</span></span><span class="badge">Forming</span></button>
+    <p class="towers__f">Founding members, the first 5% of doors in each tower, get the first install windows when the building switches. The race between towers goes live once each tower passes 5%.</p>
+  </div>
+</div></header>
+
+<section id="check"><div class="wrap">
+  <header class="sec">
+    <div class="sec__t"><span class="eyebrow">The Whollar checkup</span><h2>What's your internet really costing you?</h2></div>
+    <div class="sec__d"><p class="lead">Not the sticker. The complete bill: your plan, the rented box, the credits, and the jump that lands when your promo quietly expires. About a minute, no account needed.</p></div>
+  </header>
+  <div class="checkout">
+    <form class="card" onsubmit="return false">
+      <div class="fld">
+        <div class="barrow"><span class="fld__n">01</span><span class="fld__l">Postal code</span><input value="M1K 5J4" aria-label="Postal code"><span class="pcok">&#10003; Ontario, the Greystone Walk cohort</span></div>
+      </div>
+      <div class="fg">
+        <div class="fld"><div class="fld__h"><span class="fld__n">02</span><span class="fld__l">Building</span></div><select id="fB"><option>1 Greystone Walk</option><option selected>3 Greystone Walk</option><option>5 Greystone Walk</option></select></div>
+        <div class="fld"><div class="fld__h"><span class="fld__n">03</span><span class="fld__l">Current provider</span></div><select><option>Rogers</option><option selected>Bell</option><option>TekSavvy</option><option>Another independent</option><option>Other</option></select></div>
+        <div class="fld"><div class="fld__h"><span class="fld__n">04</span><span class="fld__l">Download speed</span></div><select><option>150 Mbps</option><option selected>500 Mbps</option><option>1 Gig</option><option>1.5 Gig and faster</option></select></div>
+        <div class="fld"><div class="fld__h"><span class="fld__n">05</span><span class="fld__l">How it reaches your unit</span></div><select><option selected>Cable (TV coax jack)</option><option>Fibre to the unit</option><option>DSL (phone jack)</option><option>Fixed wireless</option><option>Not sure</option></select></div>
+        <div class="fld"><div class="fld__h"><span class="fld__n">06</span><span class="fld__l">Contract start date</span><button class="idk" type="button">I don't know</button></div><input type="date" value="2026-01-01"></div>
+        <div class="fld"><div class="fld__h"><span class="fld__n">07</span><span class="fld__l">Length of contract</span></div><select><option>No contract, month to month</option><option selected>24 months</option><option>12 months</option></select></div>
+      </div>
+      <div class="fld"><div class="fld__h"><span class="fld__n">08</span><span class="fld__l">Promo end date</span><button class="idk" type="button">I don't know</button></div><input type="date" value="2026-11-30"></div>
+      <button class="mp" type="button"><span class="bx"></span><span><b>I have more than one promo, and pay a different price in different months</b><span>A device credit that ends in June and a bundle discount that ends in December, for instance. Tick this and enter each amount instead.</span></span></button>
+      <div class="fg">
+        <div class="fld"><div class="fld__h"><span class="fld__n">09</span><span class="fld__l">Price paid during promo</span></div><input value="$ 74.99"><p class="hint">Between Jan 2026 and Nov 2026.</p></div>
+        <div class="fld"><div class="fld__h"><span class="fld__n">10</span><span class="fld__l">Price paid after promo ends</span></div><input value="$ 104.99"><p class="hint">After Nov 2026.</p></div>
+      </div>
+      <div class="emailbox">
+        <label for="em">Email address</label>
+        <input id="em" type="email" placeholder="you@example.com">
+        <p class="fine">Free for households. Providers pay us only when they win your building.</p>
+      </div>
+      <button class="btn acc" type="button" style="width:100%;margin-top:4px">Check my results</button>
+    </form>
+
+    <div class="vcard">
+      <span class="vbadge">Verdict, cliff ahead</span>
+      <h3>Your loyalty is about to cost you.</h3>
+      <div class="vfig">
+        <div class="fig"><span class="mlabel">You pay now</span><b>$75<span style="font-size:.5em;color:rgba(255,255,255,.5)">/mo</span></b></div>
+        <span class="figsep"></span>
+        <div class="fig fig--hero"><span class="mlabel">Extra over the next 12 months</span><b>$487</b></div>
+      </div>
+      <p class="vbody">Your promo ends in November and the rate goes to $105 a month. Nothing announces the day it changes: the number moves, autopay clears it, and most households find out two or three bills later.</p>
+      <p class="vbody guest-only">Pooled with your building, providers bid for all three towers at once, and a building does not get quietly reset.</p>
+      <p class="vbody member-only hide">You are a founding member of <span class="bn">Building 3</span>. We will time your switch so you never pay the regular price.</p>
+      <button class="btn guest-only" type="button" onclick="setMode('member')">Join the <span class="bn">Building 3</span> cohort</button>
+      <button class="btn member-only hide" type="button">Update my bill</button>
+    </div>
+  </div>
+</div></section>
+
+<section class="alt member-only hide" id="score"><div class="wrap">
+  <header class="sec">
+    <div class="sec__t"><span class="eyebrow">Smart purchaser score</span><h2>How well are you buying, right now?</h2></div>
+    <div class="sec__d"><p class="lead">One number for where you land on your purchase today, recomputed whenever your bill changes. It is the same score the building is measured on.</p><span class="mlabel">Members only</span></div>
+  </header>
+  <div class="card score">
+    <div class="ring">
+      <svg width="180" height="180" viewBox="0 0 180 180" aria-hidden="true"><circle cx="90" cy="90" r="78" fill="none" stroke="#E9EEE9" stroke-width="14"/><circle cx="90" cy="90" r="78" fill="none" stroke="#C2643B" stroke-width="14" stroke-linecap="round" stroke-dasharray="490" stroke-dashoffset="309"/></svg>
+      <span class="v"><b class="num">37</b><span class="mlabel" style="color:var(--warn)">Overpaying</span></span>
+    </div>
+    <div>
+      <div class="srow"><div><b>Price against the benchmark</b><p>$104.99 regular, against the cheapest published plan at your speed</p></div><span class="pts">14 / 40</span></div>
+      <div class="srow"><div><b>Promo awareness</b><p>You know the month your discount stops</p></div><span class="pts">20 / 20</span></div>
+      <div class="srow"><div><b>Contract position</b><p>Mid term on a 24 month contract</p></div><span class="pts">3 / 15</span></div>
+      <div class="srow"><div><b>Speed fit</b><p>Paying for 500 Mbps, household reports light use</p></div><span class="pts">0 / 15</span></div>
+      <div class="srow"><div><b>Provider fit</b><p>With an incumbent while an independent can serve the building</p></div><span class="pts">0 / 10</span></div>
+    </div>
+  </div>
+</div></section>
+
+<section id="rate"><div class="wrap">
+  <header class="sec">
+    <div class="sec__t"><span class="eyebrow">Rate your provider</span><h2>How is the internet treating this building?</h2></div>
+    <div class="sec__d"><p class="lead">Four taps. Providers bidding on a building want to know how unhappy residents are and how many would actually move. Your answer tells them both.</p></div>
+  </header>
+  <div class="card survey">
+    <div class="survey__h"><h4>Four taps, twenty seconds</h4><span class="mlabel">No account needed</span></div>
+    <div class="qgrid">
+      <div class="q"><div class="q__l"><span class="q__n">01</span><b>Overall, how satisfied are you?</b></div>
+        <div class="stars" data-stars><button type="button" class="on" aria-label="1 star">&#9733;</button><button type="button" class="on" aria-label="2 stars">&#9733;</button><button type="button" class="on" aria-label="3 stars">&#9733;</button><button type="button" aria-label="4 stars">&#9733;</button><button type="button" aria-label="5 stars">&#9733;</button><span class="lbl">It's okay</span></div></div>
+      <div class="q"><div class="q__l"><span class="q__n">02</span><b>How reliable is it in your unit?</b></div>
+        <div class="stars" data-stars><button type="button" class="on" aria-label="1 star">&#9733;</button><button type="button" class="on" aria-label="2 stars">&#9733;</button><button type="button" aria-label="3 stars">&#9733;</button><button type="button" aria-label="4 stars">&#9733;</button><button type="button" aria-label="5 stars">&#9733;</button><span class="lbl">Spotty</span></div></div>
+      <div class="q"><div class="q__l"><span class="q__n">03</span><b>Same speed, lower price. Would you switch?</b></div>
+        <div class="chips" data-chips><button type="button" class="on">Yes</button><button type="button">Maybe</button><button type="button">No</button></div></div>
+      <div class="q"><div class="q__l"><span class="q__n">04</span><b>Your floor</b></div>
+        <div class="chips" data-chips><button type="button">1 to 5</button><button type="button">6 to 10</button><button type="button" class="on">11 to 15</button><button type="button">16 to 20</button><button type="button">21 and up</button></div></div>
+    </div>
+    <div class="survey__f">
+      <div class="trust">
+        <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Anonymous, never your unit</span>
+        <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M4 18h4v-6H4zM10 18h4V6h-4zM16 18h4v-9h-4z"/></svg>Shown only as a building average</span>
+        <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Averages appear once 5% have rated</span>
+      </div>
+      <button class="btn acc" type="button">Submit rating</button>
+    </div>
+  </div>
+</div></section>
+
+<section class="alt" id="stats"><div class="wrap">
+  <header class="sec">
+    <div class="sec__t"><span class="eyebrow"><span class="bnfull">Building 3, Greystone Walk II</span></span><h2>What's already true about this building</h2></div>
+    <div class="sec__d"><p class="lead">Facts that hold before a single bill is pooled. Everything else on this page unlocks as neighbours join, and nothing is shown until enough people are behind it.</p></div>
+  </header>
+  <div class="grid g4">
+    <div class="card"><span class="mlabel">Units in the building</span><div class="stat">354</div><p>23 storeys, completed 1990.</p></div>
+    <div class="card"><span class="mlabel">Providers in reach</span><div class="stat">3</div><p>Two incumbents, and at least one independent last mile provider with coverage in the area.</p></div>
+    <div class="card"><span class="mlabel">Founding spots</span><div class="stat">5%</div><p>The first 5% of doors are founding members, with the first install windows when the building switches.</p></div>
+    <div class="card"><span class="mlabel">Next unlock</span><div class="stat">10 bills</div><p>Ten submitted bills registers <span class="bn">Building 3</span> as an active Whollar building.</p></div>
+  </div>
+</div></section>
+
+<section id="how"><div class="wrap">
+  <header class="sec">
+    <div class="sec__t"><span class="eyebrow">How the cohort works</span><h2>Join now, decide later, pay nothing either way</h2></div>
+    <div class="sec__d"><p class="lead">Joining is free and non binding. You only make a decision when you are holding an offer with your own name and price on it.</p></div>
+  </header>
+  <div class="steps">
+    <div class="step now"><span class="mlabel">Now</span><b>Forming</b><p>Residents join, submit a bill, rate their provider.</p></div>
+    <div class="step"><span class="mlabel">Next</span><b>Threshold</b><p>At 30% of doors the building is big enough to take to providers as one purchase.</p></div>
+    <div class="step"><span class="mlabel">Then</span><b>Auction</b><p>Sealed bids. Providers see aggregates only, never who you are.</p></div>
+    <div class="step"><span class="mlabel">Then</span><b>Your offer</b><p>Each household sees its own price and takes it or leaves it.</p></div>
+    <div class="step"><span class="mlabel">Finally</span><b>Switch</b><p>Whollar handles the cancellation, the install window and the promo timing.</p></div>
+  </div>
+  <header class="sec sec--solo" style="margin-top:40px;margin-bottom:16px"><h3>What unlocks as <span class="bn">Building 3</span> fills</h3></header>
+  <div class="rungs">
+    <div class="rung next"><span class="k">10 BILLS</span><p>Your building gets registered with Whollar</p></div>
+    <div class="rung"><span class="k">5% FULL</span><p>Founding window closes, ratings unlock, the tower race goes live</p></div>
+    <div class="rung"><span class="k">12% FULL</span><p>Building feed opens, Whollar starts conversations with providers</p></div>
+    <div class="rung"><span class="k">20% FULL</span><p>Auction opens and the offer reveal date is set</p></div>
+    <div class="rung"><span class="k">30% FULL</span><p>Bids close, install windows scheduled, first tower first</p></div>
+  </div>
+  <p class="cap" style="margin-top:14px">All three towers run the same ladder, so the race is fair whatever a tower's size. The reveal date and countdown appear on this page only once the auction opens.</p>
+</div></section>
+
+<section class="alt" id="managers"><div class="wrap">
+  <header class="sec">
+    <div class="sec__t"><span class="eyebrow">Campaign managers</span><h2>Every building needs someone to start it</h2></div>
+    <div class="sec__d"><p class="lead">One resident per tower puts the notice in the lobby, answers the questions in the building group, and posts the weekly update. Neighbours pick them, members rate them, and they earn 1.2x points on every referral.</p></div>
+  </header>
+  <div class="grid g3">
+    <div class="card mgr">
+      <div class="mgr__top"><span class="ava">RK</span><span class="mgr__id"><b>@rkumar_11</b><span class="mlabel">Campaign manager</span><span class="rating"><i>&#9733;</i>4.7 from 23 members</span></span></div>
+      <q>I got tired of calling retention every November. If 100 of us ask together, we don't have to call at all.</q>
+    </div>
+    <div class="card mgr">
+      <div class="mgr__top"><span class="ava">DM</span><span class="mgr__id"><b>@dee.m</b><span class="mlabel">Campaign manager</span><span class="rating"><i>&#9733;</i>4.4 from 17 members</span></span></div>
+      <q>Runs the building group chat. Posts the tower update every Monday.</q>
+    </div>
+    <div class="card mgr">
+      <div class="mgr__top"><span class="ava empty">+</span><span class="mgr__id"><b>Lead your building</b><span class="mlabel">Seat open</span></span></div>
+      <q>Add a photo and one line on why you're in. Neighbours from your tower endorse you, and the most endorsed takes the seat.</q>
+      <div class="mgr__cta"><button class="btn acc sm" type="button" onclick="openNom('nominate')">Nominate myself</button><button class="btn ghost sm" type="button" onclick="openNom('vote')">Vote</button></div>
+    </div>
+  </div>
+
+  <div class="glow">
+    <div>
+      <h3>Join the race. Every referral makes this building a little better.</h3>
+      <p>One more household is one more reason for a provider to bid harder, for everyone on your floor and not just you. Referral points count toward the Greystone Walk leaderboard and the Whollar wide one.</p>
+    </div>
+    <div class="pts-row"><span><b>+10</b>per referral that joins and submits a bill</span><span><b>x1.2</b>for campaign managers</span><span><b>+5</b>when your referral rates their provider</span></div>
+  </div>
+
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card">
+      <div class="sec--split" style="align-items:center"><h4>Referral leaderboard</h4><div class="seg" id="lbSeg"><button class="on" data-lb="b" type="button">Greystone Walk</button><button data-lb="w" type="button">All of Whollar</button></div></div>
+      <ol class="lb" id="lbB">
+        <li><span class="p">1</span><span class="u">@rkumar_11<small>manager x1.2</small></span><span class="c">108 pts</span></li>
+        <li><span class="p">2</span><span class="u">@dee.m<small>manager x1.2</small></span><span class="c">84 pts</span></li>
+        <li><span class="p">3</span><span class="u">@tower5_tom</span><span class="c">55 pts</span></li>
+        <li><span class="p">4</span><span class="u">@anjali.gw</span><span class="c">40 pts</span></li>
+        <li><span class="p">&middot;</span><span class="u guest-only">Join to appear</span><span class="u member-only hide">you</span><span class="c member-only hide">0 pts</span></li>
+      </ol>
+      <ol class="lb hide" id="lbW">
+        <li><span class="p">1</span><span class="u">@northyork_nat<small>North York Central</small></span><span class="c">230 pts</span></li>
+        <li><span class="p">2</span><span class="u">@rkumar_11<small>Greystone Walk</small></span><span class="c">108 pts</span></li>
+        <li><span class="p">3</span><span class="u">@dee.m<small>Greystone Walk</small></span><span class="c">84 pts</span></li>
+        <li><span class="p">4</span><span class="u">@annex_ali<small>The Annex</small></span><span class="c">65 pts</span></li>
+      </ol>
+      <p class="cap">A referral counts when the household joins and submits a bill. Usernames only, and you can opt out any time.</p>
+    </div>
+    <div class="card">
+      <h4>Referral rewards</h4>
+      <p class="cap">Each tier stacks on the last.</p>
+      <div class="tiers">
+        <div class="tier">
+          <span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 5.3 5.6.6-4.2 3.9 1.2 5.6L12 14.8 7 17.4l1.2-5.6L4 7.9l5.6-.6z"/></svg></span>
+          <div><b>Front of the line<em>1 referral</em></b><p>Priority slot in the switch schedule, with the first install windows when the building moves.</p></div>
+        </div>
+        <div class="tier">
+          <span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M12 8v12M3 13h18M8 8a3 3 0 1 1 4-3c0 2-4 3-4 3zM16 8a3 3 0 1 0-4-3c0 2 4 3 4 3z"/></svg></span>
+          <div><b>First taste of what's next<em>3 referrals</em></b><p>Early access to the next Whollar product cohort, starting with mobile plans.</p></div>
+        </div>
+        <div class="tier top">
+          <span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17h14M6 17L4 7l5 3 3-6 3 6 5-3-2 10"/></svg></span>
+          <div><b>Building champion<em>top referrer</em></b><p>Early access to every product in the pipeline, and a seat in the offer review call when bids come in.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<section class="member-only hide" id="invite"><div class="wrap">
+  <header class="sec">
+    <div class="sec__t"><span class="eyebrow">Bring your floor</span><h2>The building only tips if your elevator joins</h2></div>
+    <div class="sec__d"><p class="lead">Your link, your lobby QR, and a card carrying your own number. Neighbours act on a number from someone they recognise, not on an ad.</p></div>
+  </header>
+  <div class="grid g2">
+    <div class="card">
+      <div class="sharecard"><span class="mlabel">Greystone Walk, <span class="bn">Building 3</span></span><div class="h">I'm paying $487 a year more than I should. <span class="bn">Building 3</span> is forming a cohort to fix it.</div><div class="s">Check yours in a minute. No account needed.</div><div class="u">greystonewalk.whollar.ca/3?ref=rkumar_11</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" type="button">Share to WhatsApp</button><button class="btn ghost sm" type="button">Copy image</button></div>
+    </div>
+    <div class="card">
+      <h4>Your invite link</h4>
+      <input class="copyfield" value="greystonewalk.whollar.ca/3?ref=you" readonly aria-label="Your invite link">
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" type="button">Copy link</button><button class="btn ghost sm" type="button">Download lobby QR</button><button class="btn ghost sm" type="button">Message for the group chat</button></div>
+      <p class="small">Every household you bring earns 10 points, and a founding spot for them while the window is open.</p>
+    </div>
+  </div>
+</div></section>
+
+<section class="alt" id="products"><div class="wrap">
+  <header class="sec">
+    <div class="sec__t"><span class="eyebrow">Next from Whollar</span><h2>Same idea, your other bills</h2></div>
+    <div class="sec__d"><p class="lead">Tell us which of these you would want negotiated for the building. Interest here becomes the bargaining number for the next auction.</p></div>
+  </header>
+  <div class="grid g3">
+    <div class="card prod"><div><h4>Mobile plans</h4><p>Same cohort, your phone bill</p></div><button class="tog on" type="button" aria-label="Interested in mobile plans"></button></div>
+    <div class="card prod"><div><h4>Streaming bundles</h4><p>One negotiated bundle for the building</p></div><button class="tog" type="button" aria-label="Interested in streaming bundles"></button></div>
+    <div class="card prod"><div><h4>Winter tires</h4><p>Group price, delivered to the garage</p></div><button class="tog" type="button" aria-label="Interested in winter tires"></button></div>
+  </div>
+  <p class="cap" style="margin-top:14px">Your interest joins the main Whollar waitlist, tagged to Greystone Walk. The 3 referral tier moves you to the front.</p>
+</div></section>
+
+<section id="feed"><div class="wrap">
+  <header class="sec">
+    <div class="sec__t"><span class="eyebrow">Building feed</span><h2>Watch the building move</h2></div>
+    <div class="sec__d"><p class="lead">Joins, unlocks, rank changes and switches as they happen. Anonymous and aggregate, never a unit number.</p><span class="mlabel">Opens at 12% full</span></div>
+  </header>
+  <div class="card locked">
+    <span class="n">12%</span>
+    <div><h4>The feed opens once the campaign is 12% full</h4><p>Until then your campaign manager posts the weekly update in the building group.</p></div>
+  </div>
+</div></section>
+
+<section class="alt" id="faq"><div class="wrap">
+  <header class="sec sec--solo">
+    <div class="sec__t"><span class="eyebrow">Questions residents ask</span><h2>The things people check before they join</h2></div>
+  </header>
+  <details open><summary>Does the building have a bulk internet agreement?</summary><p>We confirm this with each condo corporation separately. Three buildings, three answers. If a bulk agreement is in force, the cohort runs as an add on for households who want a different provider.</p></details>
+  <details><summary>Will someone need to drill into my unit?</summary><p>It depends on the independent's technology in your tower. Where fibre already reaches the riser, the install is usually one visit to the existing telecom outlet. We post the details per building once the site survey is done.</p></details>
+  <details><summary>What happens to my TV or home phone bundle?</summary><p>Your offer shows the internet only price. Before you decide, we tell you what your current provider will charge for the rest of the bundle once internet leaves it.</p></details>
+  <details><summary>Who sees my bill?</summary><p>Only Whollar. Providers see building level aggregates, counts, medians and satisfaction, never names, units or individual bills.</p></details>
+  <details><summary>When is the lobby session?</summary><p>Thursday Sept 11, 7 pm, in the Building 3 party room. RSVP through your campaign manager.</p></details>
+  <details><summary>What does it cost me?</summary><p>Nothing. Providers pay Whollar only when they win a building. Since June 2026, activation, change and cancellation fees are banned, so switching costs you nothing either.</p></details>
+</div></section>
+
+<footer><div class="wrap"><b style="font-family:var(--disp);color:var(--teal)">Whollar</b> &middot; greystonewalk.whollar.ca is a building cohort page. Building facts from public condo records. All household figures in this prototype are demo data.</div></footer>
+
+<div class="modal hide" id="nomModal" role="dialog" aria-modal="true" aria-labelledby="nomTitle">
+  <div class="modal__c">
+    <div class="modal__h"><h3 id="nomTitle">Lead your building</h3><button class="modal__x" type="button" onclick="closeNom()" aria-label="Close">&#10005;</button></div>
+    <div class="mtabs"><button class="on" data-mt="nominate" type="button">Nominate myself</button><button data-mt="vote" type="button">Vote for a nominee</button></div>
+
+    <div class="mbody" id="mtNominate">
+      <div class="fld"><div class="fld__h"><span class="fld__n">01</span><span class="fld__l">Your building</span></div><select><option>1 Greystone Walk</option><option selected>3 Greystone Walk</option><option>5 Greystone Walk</option></select></div>
+      <div class="fld"><div class="fld__h"><span class="fld__n">02</span><span class="fld__l">Username</span></div><input placeholder="@yourname"></div>
+      <div class="drop"><span class="ava empty" style="width:44px;height:44px;font-size:18px">+</span><span><b>Add a photo</b><span>Neighbours endorse the people they recognise from the elevator.</span></span></div>
+      <div class="fld"><div class="fld__h"><span class="fld__n">03</span><span class="fld__l">One line on why you're in</span></div><input maxlength="120" placeholder="I run the floor 12 group chat and I'm done calling retention."></div>
+      <div class="fld"><div class="fld__h"><span class="fld__n">04</span><span class="fld__l">Email</span></div><input type="email" placeholder="you@example.com"><p class="hint">We send a verification link. Your nomination goes live once you click it, so one person cannot create ten nominees.</p></div>
+      <button class="btn acc" type="button" style="width:100%">Submit nomination</button>
+      <p class="cap">Campaign managers earn 1.2x points on referrals and are rated by members. You can withdraw at any time.</p>
+    </div>
+
+    <div class="mbody hide" id="mtVote">
+      <div class="gate" id="voteGate">
+        <span class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span>
+        <h4>Verify you live here to vote</h4>
+        <p>One vote per building, per email. We send a link, and your vote counts once you click it.</p>
+        <input type="email" placeholder="you@example.com" aria-label="Email">
+        <button class="btn acc" type="button" style="width:100%;margin-top:12px" onclick="document.getElementById('voteGate').classList.add('hide');document.getElementById('voteList').classList.remove('hide')">Send verification link</button>
+        <p class="cap" style="margin-top:10px">Prototype: sending goes straight to the ballot.</p>
+      </div>
+      <div id="voteList" class="hide">
+        <p class="small">Nominees for <b>3 Greystone Walk</b>. You have one vote, and you can move it until the seat is decided.</p>
+        <div class="nom"><span class="ava">RK</span><span class="nom__t"><b>@rkumar_11</b><span>I got tired of calling retention every November.</span></span><span class="v">12</span><button class="btn sm" type="button">Vote</button></div>
+        <div class="nom"><span class="ava">AJ</span><span class="nom__t"><b>@anjali.gw</b><span>Ten years here. I know every floor rep already.</span></span><span class="v">8</span><button class="btn sm" type="button">Vote</button></div>
+        <div class="nom"><span class="ava">PT</span><span class="nom__t"><b>@pt_condo</b><span>Numbers person. I will post the tracker weekly.</span></span><span class="v">5</span><button class="btn sm" type="button">Vote</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function setMode(m){
+  document.querySelectorAll('.demo .seg button').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
+  const member=m==='member';
+  document.querySelectorAll('.member-only').forEach(e=>e.classList.toggle('hide',!member));
+  document.querySelectorAll('.guest-only').forEach(e=>e.classList.toggle('hide',member));
+  document.getElementById('navCta').textContent=member?'My dashboard':'Join the cohort';
+}
+document.querySelectorAll('.demo .seg button').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+setMode('guest');
+
+const TOWERS={
+  1:{name:'Building 1',full:'Building 1, 1 Greystone Walk'},
+  3:{name:'Building 3',full:'Building 3, Greystone Walk II'},
+  5:{name:'Building 5',full:'Building 5, Greystone Walk I'}
+};
+function selectTower(id){
+  const t=TOWERS[id]; if(!t)return;
+  document.querySelectorAll('.bn').forEach(e=>e.textContent=t.name);
+  document.querySelectorAll('.bnfull').forEach(e=>e.textContent=t.full);
+  document.getElementById('fB').value=id+' Greystone Walk';
+}
+document.querySelectorAll('.tower').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tower').forEach(x=>x.setAttribute('aria-selected','false'));
+  t.setAttribute('aria-selected','true');
+  selectTower(t.dataset.b);
+}));
+
+document.querySelectorAll('[data-chips]').forEach(g=>g.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+  g.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');})));
+const STAR_WORDS=[['Awful','Poor',"It's okay",'Good','Excellent'],['Drops daily','Spotty','Mostly fine','Solid','Rock solid']];
+document.querySelectorAll('[data-stars]').forEach((g,gi)=>{
+  const bs=[...g.querySelectorAll('button')],lbl=g.querySelector('.lbl');
+  bs.forEach((b,i)=>b.addEventListener('click',()=>{
+    bs.forEach((x,j)=>x.classList.toggle('on',j<=i));
+    if(lbl)lbl.textContent=(STAR_WORDS[gi]||STAR_WORDS[0])[i];
+  }));
+});
+document.querySelectorAll('.tog').forEach(t=>t.addEventListener('click',()=>t.classList.toggle('on')));
+document.querySelectorAll('#lbSeg button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#lbSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  document.getElementById('lbB').classList.toggle('hide',b.dataset.lb!=='b');
+  document.getElementById('lbW').classList.toggle('hide',b.dataset.lb!=='w');
+}));
+
+function openNom(tab){document.getElementById('nomModal').classList.remove('hide');switchNomTab(tab||'nominate');}
+function closeNom(){document.getElementById('nomModal').classList.add('hide');}
+function switchNomTab(t){
+  document.querySelectorAll('.mtabs button').forEach(b=>b.classList.toggle('on',b.dataset.mt===t));
+  document.getElementById('mtNominate').classList.toggle('hide',t!=='nominate');
+  document.getElementById('mtVote').classList.toggle('hide',t!=='vote');
+}
+document.querySelectorAll('.mtabs button').forEach(b=>b.addEventListener('click',()=>switchNomTab(b.dataset.mt)));
+document.getElementById('nomModal').addEventListener('click',e=>{if(e.target.id==='nomModal')closeNom();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeNom();});
+</script>
+
+</body>
+</html>

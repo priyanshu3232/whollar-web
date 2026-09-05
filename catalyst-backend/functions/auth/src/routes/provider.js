@@ -34,7 +34,9 @@ const challenges = require('../lib/challenges');
 const consents = require('../lib/consents');
 const sessions = require('../lib/sessions');
 const mailer = require('../lib/mailer');
+const notify = require('../lib/notify');
 const audit = require('../lib/audit');
+const crm = require('../lib/crm/outbox');
 const ratelimit = require('../lib/ratelimit');
 const envelope = require('../lib/envelope');
 const { canRevealCode } = require('./otp');
@@ -53,26 +55,33 @@ const LOGIN_PURPOSE = 'provider_login';
  * `/provider/signup` must answer identically whether the provider is having a
  * bad day, or the timing becomes the oracle the response body refuses to be.
  */
-async function issueCode(req, cfg, email, purpose = PURPOSE, firstName = null) {
+async function issueCode(req, cfg, email, purpose = PURPOSE, firstName = null, user = null) {
   const { code, ttlMinutes } = await challenges.start(req.catalyst, req, { email, purpose });
   // Wording follows what the code is for. A partner signing in must not be told
   // to "finish creating your Whollar account".
-  const message = mailer.otpEmail({
-    code, purpose: purpose === PURPOSE ? 'signup' : 'login', ttlMinutes, firstName,
+  //
+  // Through the outbox, so the send is recorded and a suppressed address is
+  // refused. `security` priority drains inline: a partner at a login form is
+  // waiting, and a queued code is a locked console.
+  const sent = await notify.dispatch(req, {
+    templateKey: 'account.otp',
+    eventKey: `provider.code:${req.id}`,
+    to: email,
+    user,
+    context: {
+      code,
+      purpose: purpose === PURPOSE ? 'signup' : 'login',
+      ttl_minutes: ttlMinutes,
+      first_name: firstName,
+    },
   });
-
-  let delivered = false;
-  let sendError = null;
-  try {
-    const result = await mailer.send(cfg, { to: email, ...message });
-    delivered = Boolean(result.delivered);
-  } catch (err) {
-    sendError = String((err && err.message) || err).slice(0, 300);
-    console.error(JSON.stringify({
-      req_id: req.id, level: 'error', message: 'provider signup mail failed', detail: sendError,
-    }));
-  }
-  return { code, ttlMinutes, delivered, sendError };
+  return {
+    code,
+    ttlMinutes,
+    delivered: Boolean(sent.delivered),
+    sendError: sent.sendError || null,
+    transport: sent.transport || null,
+  };
 }
 
 /** One body for every /provider/signup outcome. See routes/password.js. */
@@ -132,37 +141,34 @@ function mount(router, cfg) {
        * This branch audited and returned, sending nothing at all, while the
        * comment above and the signup screen both said an email had gone out
        * ("Already had an account with this address? We've emailed you about
-       * that instead of sending a code"). The template for it has existed in
-       * mailer.js since the copy deck landed and had exactly one caller,
-       * password.js. So the one path a partner hits by signing up twice was
-       * the one path that stayed silent, and from outside it is indis-
-       * tinguishable from mail being broken. It is what sent us hunting
-       * through DNS.
+       * that instead of sending a code"). The template for it existed and had
+       * exactly one caller, password.js. So the one path a partner hits by
+       * signing up twice was the one path that stayed silent, and from outside
+       * it is indistinguishable from mail being broken. It is what sent us
+       * hunting through DNS.
        *
-       * Best-effort, and the try/catch is not defensive clutter: a throw here
-       * would change the response, and a timing difference between "taken" and
-       * "free" reinstates the account-enumeration oracle this whole opaque
-       * answer exists to close.
+       * Best-effort, and deliberately so: a throw here would change the
+       * response, and a timing difference between "taken" and "free"
+       * reinstates the account-enumeration oracle this whole opaque answer
+       * exists to close. notify.dispatch() never throws for a business reason,
+       * which is what makes the try/catch that used to wrap this unnecessary
+       * rather than merely absent.
        */
-      let delivered = false;
-      let sendError = null;
-      try {
-        const result = await mailer.send(cfg, {
-          to: email,
-          ...mailer.existingAccountEmail({
-            appBaseUrl: cfg.APP_BASE_URL,
-            firstName: existing.first_name,
-            signInPath: '/whollar-login-provider',
-          }),
-        });
-        delivered = Boolean(result && result.delivered !== false);
-      } catch (err) {
-        sendError = String((err && err.message) || err).slice(0, 300);
-        console.error(JSON.stringify({
-          req_id: req.id, level: 'error', message: 'existing-account notice failed',
-          detail: sendError,
-        }));
-      }
+      const notice = await notify.dispatch(req, {
+        templateKey: 'account.signup_collision',
+        eventKey: `provider.collision:${req.id}`,
+        to: email,
+        user: existing,
+        /* The partner sign-in page, not the member one. Sending a partner to
+           the member door is a dead end: their credentials do not work there,
+           so the mail that exists to say "you already have an account" would
+           prove the opposite. */
+        context: {
+          sign_in_url: `${String(cfg.APP_BASE_URL || '').replace(/\/+$/, '')}/whollar-login-provider`,
+        },
+      });
+      const delivered = Boolean(notice.delivered);
+      const sendError = notice.sendError || null;
 
       audit.recordAsync(req.catalyst, req, {
         type: 'provider.signup', outcome: 'failure', email, userId: existing.user_id,
@@ -172,7 +178,7 @@ function mount(router, cfg) {
            diagnostics could not see. */
         detail: {
           reason: 'already_active', delivered,
-          transport: mailer.transportName(cfg), send_error: sendError,
+          transport: notice.transport || mailer.transportName(cfg), send_error: sendError,
         },
       });
       return opaqueOk(cfg, res, { ttlMinutes: challenges.TTL_MINUTES });
@@ -206,8 +212,8 @@ function mount(router, cfg) {
     });
     await orgs.addMember(req.catalyst, { userId: user.user_id, orgId: org.org_id });
 
-    const { code, ttlMinutes, delivered, sendError } = await issueCode(
-      req, cfg, email, PURPOSE, user.first_name
+    const { code, ttlMinutes, delivered, sendError, transport } = await issueCode(
+      req, cfg, email, PURPOSE, user.first_name, user
     );
 
     audit.recordAsync(req.catalyst, req, {
@@ -217,7 +223,7 @@ function mount(router, cfg) {
          gets asked about most. */
       detail: {
         org_id: org.org_id, approval_status: org.approval_status,
-        delivered, transport: mailer.transportName(cfg), send_error: sendError,
+        delivered, transport: transport || mailer.transportName(cfg), send_error: sendError,
       },
     });
 
@@ -280,6 +286,19 @@ function mount(router, cfg) {
     audit.recordAsync(req.catalyst, req, {
       type: 'provider.signup.verify', outcome: 'success', email, userId: user.user_id,
       detail: { org_id: context && context.orgId, approval_status: context && context.approvalStatus },
+    });
+    crm.enqueueAsync(req.catalyst, req, {
+      eventType: 'partner_contact.created',
+      entityRowid: user.user_id,
+      email: user.email_display || email,
+      leadType: 'partner',
+      payload: {
+        first_name: user.first_name || null,
+        last_name: user.last_name || null,
+        org_id: (context && context.orgId) || null,
+        org_name: (context && context.orgName) || null,
+        approval_status: (context && context.approvalStatus) || null,
+      },
     });
 
     res.status(200).json({
@@ -348,13 +367,13 @@ function mount(router, cfg) {
     // Password proven; second factor sent. Nothing about the org, not its name,
     // not its approval state, is in this response, because none of it has been
     // earned yet.
-    const issued = await issueCode(req, cfg, email, LOGIN_PURPOSE, user.first_name);
+    const issued = await issueCode(req, cfg, email, LOGIN_PURPOSE, user.first_name, user);
 
     audit.recordAsync(req.catalyst, req, {
       type: 'provider.login.challenge', outcome: 'success', email, userId: user.user_id,
       detail: {
         delivered: issued.delivered,
-        transport: mailer.transportName(cfg),
+        transport: issued.transport || mailer.transportName(cfg),
         send_error: issued.sendError,
       },
     });

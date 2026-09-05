@@ -41,17 +41,41 @@
 
 const datastore = require('./datastore');
 const catalog = require('./catalog');
+const geo = require('./geo');
+const fsaref = require('./fsaref');
+const tiers = require('./tiers');
 
 const MEMBERS_TABLE = 'campaign_members';
 const CLAIM_TABLE = 'seat_claim';
+const BILLS_TABLE = 'member_bills';
 
 const MEMO_MS = 60 * 1000;
 const memo = new Map();
 
-/** Forget one campaign's count, or every campaign's when no id is given. */
+/* The speed demand profile is said only once this many households have a
+   readable speed on file. Under that a partner could read a single household's
+   speed off the brief; over it the line is a distribution. Not a site_config
+   row, because it is a privacy floor and not a business setting. */
+const DEMAND_MIN_N = 5;
+/* And per cell: a tier with fewer households than this is folded into
+   `other`, because a cell of one on a brief, or on the book the winning
+   partner reads, is one household's speed by name. */
+const DEMAND_MIN_CELL = 3;
+/* Bills are read one household at a time (ZCQL has no IN, and a scan of
+   member_bills spends the page budget on every household in the country to
+   count one cohort's). A cohort past this size is answered live:false rather
+   than read in the thousands. */
+const DEMAND_MAX_HOUSEHOLDS = 300;
+const DEMAND_BATCH = 5;
+
+/** Forget one campaign's count and demand, or every campaign's when no id is given. */
 function invalidate(campaignId) {
-  if (campaignId) memo.delete(String(campaignId));
-  else memo.clear();
+  if (campaignId) {
+    memo.delete(String(campaignId));
+    memo.delete(`demand:${campaignId}`);
+  } else {
+    memo.clear();
+  }
 }
 
 /**
@@ -76,7 +100,12 @@ async function seatCount(catalystApp, campaignOrId) {
   return count;
 }
 
-async function countRows(catalystApp, campaign) {
+/**
+ * The households standing in one cohort, as a set of user ids, plus the two
+ * side counts. The one read behind both the seat count and the speed demand,
+ * so the two can never count a different roster.
+ */
+async function rosterRows(catalystApp, campaign) {
   const joined = new Set();
   let waitlist = 0;
   let watching = 0;
@@ -101,7 +130,142 @@ async function countRows(catalystApp, campaign) {
   } catch {
     live = false;
   }
-  return { seats: joined.size, waitlist, watching, live };
+  return { joined, waitlist, watching, live };
+}
+
+/**
+ * The joined members of one cohort, as an array of user ids. Null when the
+ * roster could not be read at all.
+ *
+ * The one read that hands out identities, and it exists for two callers that
+ * both reduce them to a number before anything crosses to a partner: the
+ * reachable count (section 5.4) and the post-award unreachable count (section
+ * 5.6). Nothing may return this list, or any part of it, on a /provider
+ * response. `live` false means at least one of the two roster reads failed, in
+ * which case the count built from it would be an undercount presented as a
+ * fact, so the caller is told nothing rather than something wrong.
+ */
+async function memberIds(catalystApp, campaign) {
+  const r = await rosterRows(catalystApp, campaign);
+  if (!r.live) return null;
+  return Array.from(r.joined);
+}
+
+/**
+ * The cohorts one member belongs to, as an array of campaign ids.
+ *
+ * Used by the full-coverage warning, which has to know which cohorts a
+ * member's exclusions could actually cost them an offer on. Empty on an
+ * unreadable table: a warning that cannot be computed is not shown, which is
+ * the section 7.1 rule that it must never be speculative.
+ */
+async function campaignsForMember(catalystApp, memberId) {
+  const out = new Set();
+  try {
+    const claims = await datastore.queryAll(catalystApp, CLAIM_TABLE, ['cohort_id'],
+      `member_id = ${datastore.lit(memberId)} AND status = 'active'`);
+    for (const r of claims) if (r.cohort_id) out.add(String(r.cohort_id));
+  } catch {
+    /* no claims readable */
+  }
+  try {
+    const rows = await datastore.queryAll(catalystApp, MEMBERS_TABLE, ['campaign_id', 'status'],
+      `user_id = ${datastore.lit(memberId)}`);
+    for (const r of rows) if (r.campaign_id) out.add(String(r.campaign_id));
+  } catch {
+    /* no memberships readable */
+  }
+  return Array.from(out);
+}
+
+async function countRows(catalystApp, campaign) {
+  const r = await rosterRows(catalystApp, campaign);
+  return { seats: r.joined.size, waitlist: r.waitlist, watching: r.watching, live: r.live };
+}
+
+/* ------------------------------------------------------------------ *
+ * Speed demand
+ * ------------------------------------------------------------------ */
+
+/**
+ * How many households in one cohort sit at each speed tier, from the speed on
+ * each household's bill (member_bills.download_speed, the checkup's answer)
+ * snapped onto the ladder by lib/tiers.js. Feeds the partner brief's "Speed
+ * demand" line and the demand count the price book records per tier.
+ *
+ *   -> { households, known, unknown, tiers: [[label, n], ...] | null, live }
+ *
+ * `tiers` is in ladder order, zero cells omitted, and NULL until DEMAND_MIN_N
+ * households have a readable speed: below that the line is not said at all.
+ * A speed that is missing, "0" (the checkup's "Not sure") or under the lowest
+ * rung is `unknown`, never a tier: nothing here rounds an unknown up to a
+ * claim. Memoized with the seat count and invalidated with it.
+ */
+async function speedDemand(catalystApp, campaignOrId) {
+  const campaign = typeof campaignOrId === 'string'
+    ? (await catalog.load(catalystApp)).byId.get(campaignOrId) || { id: campaignOrId, kind: 'planned' }
+    : campaignOrId;
+  const key = `demand:${campaign.id}`;
+  const hit = memo.get(key);
+  const now = Date.now();
+  if (hit && now - hit.at < MEMO_MS) return hit.demand;
+  const demand = await demandRows(catalystApp, campaign);
+  memo.set(key, { at: now, demand });
+  return demand;
+}
+
+async function demandRows(catalystApp, campaign) {
+  const roster = await rosterRows(catalystApp, campaign);
+  const ids = Array.from(roster.joined);
+  const out = {
+    households: ids.length, known: 0, unknown: 0, other: 0, tiers: null, live: roster.live,
+  };
+  if (ids.length > DEMAND_MAX_HOUSEHOLDS) {
+    out.live = false;
+    return out;
+  }
+
+  const byTier = new Map();
+  const readOne = async (userId) => {
+    try {
+      return await datastore.findBy(catalystApp, BILLS_TABLE, 'user_id', userId,
+        ['user_id', 'download_speed']);
+    } catch {
+      out.live = false;
+      return null;
+    }
+  };
+  for (let i = 0; i < ids.length; i += DEMAND_BATCH) {
+    /* eslint-disable-next-line no-await-in-loop */
+    const rows = await Promise.all(ids.slice(i, i + DEMAND_BATCH).map(readOne));
+    for (const row of rows) {
+      const tier = tiers.tierForSpeed(row && row.download_speed);
+      if (!tier) {
+        out.unknown += 1;
+      } else {
+        out.known += 1;
+        byTier.set(tier, (byTier.get(tier) || 0) + 1);
+      }
+    }
+  }
+
+  if (out.known >= DEMAND_MIN_N) {
+    out.tiers = [];
+    tiers.TIER_NAMES.filter((t) => byTier.has(t)).forEach((t) => {
+      const n = byTier.get(t);
+      if (n >= DEMAND_MIN_CELL) out.tiers.push([t, n]);
+      else out.other += n;
+    });
+  }
+  return out;
+}
+
+/** The per-tier count map a demand profile carries, or null when it is not said. */
+function demandByTier(demand) {
+  if (!demand || !Array.isArray(demand.tiers)) return null;
+  const map = {};
+  demand.tiers.forEach(([t, n]) => { map[t] = n; });
+  return map;
 }
 
 /* ------------------------------------------------------------------ *
@@ -110,6 +274,26 @@ async function countRows(catalystApp, campaign) {
 
 /** Archived campaigns exist for the admin console only. */
 const visible = (list) => list.filter((c) => c.kind !== 'archived');
+
+/**
+ * Is this cohort taking new households at `now`?
+ *
+ * The two halves both matter and they fail differently. `JOIN_STATUS` says
+ * whether the KIND admits anyone at all (a forming cohort takes seats, a
+ * waitlist or planned region takes names, an auction takes nobody);
+ * `announce_at` is the moment the roster is fixed and the brief goes to
+ * partners, which is what "joining closes" means to a household. A cohort can
+ * be the right kind and past its date, and it is shut.
+ *
+ * The clock is the caller's, passed in, for the reason catalog.stageOf states:
+ * a stage read against a second clock reading is a stage that can disagree
+ * with the count beside it.
+ */
+function joinsOpen(campaign, now) {
+  if (!campaign || !catalog.JOIN_STATUS[campaign.kind]) return false;
+  const closeAt = campaign.dates && campaign.dates.announce_at;
+  return !closeAt || now < closeAt;
+}
 
 /**
  * One campaign's canonical state at `now`: the catalog row, the count, and
@@ -123,12 +307,22 @@ function state(campaign, count, now) {
   return {
     id: campaign.id,
     region: campaign.region,
+    /* The member key. Never sent to a partner: forPartner() below is the
+       whole list of what crosses the aisle, and a cohort's FSA set would
+       hand a bidder the map of where its households live. */
+    fsas: campaign.fsas || [],
     sub: campaign.sub || '',
     kind: campaign.kind,
     target: campaign.target,
     biddingOpen: Boolean(campaign.biddingOpen),
     sortOrder: campaign.sortOrder || 0,
-    joinable: Boolean(catalog.JOIN_STATUS[campaign.kind]),
+    /* KIND AND THE WINDOW, not kind alone. `joinable` used to answer from
+       JOIN_STATUS by itself, so a cohort whose announce_at had passed still
+       arrived at the dashboard with joinable:true and rendered a live join
+       button whose only possible answer was the 409 both join routes throw.
+       Narrowing it here can only ever close a door: every write path still
+       re-checks its own window, and this decides display and eligibility. */
+    joinable: joinsOpen(campaign, now),
     seats: c.seats,
     waitlist: c.waitlist,
     watching: c.watching,
@@ -177,11 +371,42 @@ async function list(catalystApp, { fresh = false, includeArchived = false } = {}
  * Projections
  * ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ *
+ * Eligibility
+ * ------------------------------------------------------------------ */
+
+/**
+ * What this cohort is to THIS household: eligible, already joined, closed to
+ * new joins, or somewhere else. One of geo.eligibilityOf's five answers.
+ *
+ * COMPUTED HERE, ON THE SERVER, EVERY READ, and re-computed on the write path
+ * by guards.requireEligible against this same function. The client is told the
+ * answer so it can render the right card; it is never asked for it, and a
+ * body claiming `eligibility: "eligible"` changes nothing about what the join
+ * routes do. Same contract as `stage`.
+ *
+ * `mine` counts as already_joined for every standing, a bell included: a
+ * household that asked to be told when a region opens has a relationship with
+ * that cohort, and offering it "this is not your area" would be a worse answer
+ * than the one its own alert row already gives.
+ */
+function eligibilityFor(s, memberFsa, mine) {
+  return geo.eligibilityOf(
+    { fsas: s.fsas }, memberFsa || null, s.joinable, Boolean(mine)
+  );
+}
+
 /**
  * What a member's dashboard renders. `mine` is this member's membership row
  * or undefined. `households` is the same number the partner is shown.
+ *
+ * `memberFsa` is this household's own forward sortation area, derived from
+ * their postal code by lib/users.js on write and never accepted from a
+ * request. Passing it is what turns the campaign list from "every cohort,
+ * joinable by anyone" into "yours, and everyone else's to read".
  */
-function forMember(s, mine) {
+function forMember(s, mine, memberFsa) {
+  const eligibility = eligibilityFor(s, memberFsa, mine);
   return {
     id: s.id,
     region: s.region,
@@ -193,6 +418,13 @@ function forMember(s, mine) {
     waitlist: s.waitlist,
     watching: s.watching,
     joinable: s.joinable,
+    /* Which cohort a household may actually take a seat in. `joinable` is a
+       fact about the cohort; this is a fact about the pair. The dashboard
+       needs both: a cohort can be open and not yours, and it still renders,
+       readable, because visibility never depends on eligibility. */
+    eligibility,
+    /* The rail's ORDER, not a permission. See geo.nearbyTier. */
+    nearbyTier: geo.nearbyTier({ fsas: s.fsas }, memberFsa || null, eligibility, fsaref),
     /* DERIVED, not the stored status. See catalog.standingOf. */
     you: mine ? catalog.standingOf(mine.status, s.campaign) : null,
     stage: s.memberStage,
@@ -241,7 +473,8 @@ function memberVisible(s) {
 }
 
 module.exports = {
-  MEMO_MS, MEMBERS_TABLE, CLAIM_TABLE,
-  seatCount, invalidate, list, state, visible,
-  forMember, forPartner, partnerBiddable, memberVisible,
+  MEMO_MS, MEMBERS_TABLE, CLAIM_TABLE, DEMAND_MIN_N, DEMAND_MIN_CELL,
+  seatCount, speedDemand, demandByTier, invalidate, list, state, visible, joinsOpen,
+  memberIds, campaignsForMember,
+  forMember, forPartner, partnerBiddable, memberVisible, eligibilityFor,
 };

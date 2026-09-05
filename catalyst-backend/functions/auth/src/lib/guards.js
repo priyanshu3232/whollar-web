@@ -34,7 +34,9 @@
  */
 
 const orgs = require('./orgs');
-const { unauthorized, forbidden } = require('./errors');
+const geo = require('./geo');
+const cohorts = require('./cohorts');
+const { unauthorized, forbidden, AppError } = require('./errors');
 
 /* ------------------------------------------------------------------ *
  * Any signed-in account
@@ -124,7 +126,77 @@ function requireRole(context, ...roles) {
   return context;
 }
 
+/* ------------------------------------------------------------------ *
+ * Cohort geography
+ * ------------------------------------------------------------------ */
+
+/**
+ * May this household take a place in this cohort?
+ *
+ * THE ONE ELIGIBILITY GATE, and it lives here because there are three doors
+ * into a cohort and they are not going to stay three:
+ *
+ *   POST /campaigns/join    the original door: a seat, or a place on a list
+ *   POST /cohorts/:id/join  the seat ledger's own door
+ *   POST /campaigns/notify  a bell, which is NOT a join and does not call this
+ *
+ * A check written twice is a check that will eventually be written once. The
+ * seat route arrived after the campaign route and inherited none of its rules
+ * by accident once already, which is how a household could hold a seat the
+ * other door would have refused; the fix then was seats.transition as the one
+ * write, and this is the same fix for the one read.
+ *
+ * THE CLIENT'S ANSWER IS NEVER TRUSTED. lib/cohorts.js computes the same
+ * eligibility on the read path so the dashboard can render the right card, and
+ * this recomputes it from the campaign row and the member row at the instant
+ * of the write. A request body claiming eligibility changes nothing: nothing
+ * in this function reads the body.
+ *
+ * The bell is deliberately outside the gate. "Text me the day it opens" on a
+ * cohort somewhere else is a wish, not a seat: it takes nothing from the
+ * cohort, tells the household nothing about it, and refusing it would be the
+ * site declining to be told what somebody wants.
+ *
+ * @param {object} campaign  a catalog row (carries `fsas`, `kind`, `dates`)
+ * @param {object} user      the member row (carries `fsa`)
+ * @param {number} now
+ * @param {object} [opts]    { mine } this member's existing standing, if any
+ */
+function requireEligible(campaign, user, now, opts = {}) {
+  const eligibility = geo.eligibilityOf(
+    campaign,
+    (user && user.fsa) || null,
+    cohorts.joinsOpen(campaign, now),
+    Boolean(opts.mine)
+  );
+  if (geo.canJoin(eligibility)) return eligibility;
+
+  if (eligibility === 'not_in_area' && !(user && user.fsa)) {
+    throw new AppError('POSTAL_MISSING',
+      'Add your postal code first so we can check your cohort.', {
+        logDetail: `join refused: ${campaign.id} member has no fsa`,
+        extra: { reason: 'postal_code_missing' },
+      });
+  }
+  if (eligibility === 'not_in_area') {
+    /* The refusal names no FSA and no other region. A member who could probe
+       this route would otherwise be able to read a cohort's coverage map back
+       out of it one postal code at a time. */
+    throw new AppError('NOT_IN_AREA',
+      'This cohort is for a different postal code. Yours will show at the top of your dashboard when it opens.', {
+        logDetail: `join refused: ${campaign.id} outside member fsa`,
+        extra: { reason: 'not_in_area' },
+      });
+  }
+  throw new AppError('JOIN_CLOSED',
+    'This cohort isn’t taking new households right now.', {
+      logDetail: `join refused: ${campaign.id} kind=${campaign.kind} not accepting joins`,
+      extra: { reason: 'joins_closed' },
+    });
+}
+
 module.exports = {
+  requireEligible,
   requireUser,
   requireMember,
   requireProvider,

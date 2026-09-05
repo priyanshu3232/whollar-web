@@ -13,7 +13,7 @@
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="/js/whollar-core.js?v=20260823a"></script>
+<script src="/js/whollar-core.js?v=20260906a"></script>
 <title>Sign in · Whollar</title>
 <!-- Both sign-in paths on this page are real now (Google, and the emailed
      code). The noindex stays until the flow has been run end-to-end against
@@ -141,6 +141,10 @@ button{font-family:var(--body)}
 .tc{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--ink-2);line-height:1.5;margin:4px 0 16px;cursor:pointer}
 .tc input{width:17px;height:17px;margin:1px 0 0;flex:0 0 auto;accent-color:var(--accent);cursor:pointer}
 .tc a{color:var(--ink-2);text-decoration:underline}
+/* The line under the optional consent box. Indented to the label column, not
+   the checkbox, so it reads as a footnote to the choice rather than a third
+   thing to tick. */
+.tc-note{margin:-10px 0 18px 27px;font-size:11.5px;line-height:1.5;color:var(--ink-3,var(--ink-2));opacity:.85}
 
 /* Dev-only affordance: the auth function returns the code in its response
    when no mail provider is configured, so the flow is testable before the
@@ -213,7 +217,7 @@ button{font-family:var(--body)}
 
   <!-- BRAND PANEL -->
   <aside class="brand">
-    <a class="mark rv" href="/" aria-label="Whollar, back to the homepage">
+    <a class="mark rv" href="https://www.whollar.ca/" data-umbrella aria-label="Whollar, back to the homepage">
       <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
       <b>Whollar</b>
     </a>
@@ -284,7 +288,7 @@ button{font-family:var(--body)}
              around it. This link was the signup view's only entry point, so
              that view and its code step are now unreachable, kept in the
              file but dead until someone re-links or removes them. -->
-        <p class="foot-switch">New to Whollar? <a class="linkbtn" href="/waitlist/">Create an account</a></p>
+        <p class="foot-switch">New to Whollar? <a class="linkbtn" href="/waitlist">Create an account</a></p>
       </section>
 
       <!-- CREATE ACCOUNT -->
@@ -318,13 +322,24 @@ button{font-family:var(--body)}
           <div class="err-inline" id="su-pass-err" role="alert" style="display:none"></div>
         </div>
 
-        <!-- One checkbox covering terms, privacy and marketing, worded so the
-             marketing half is separable in the copy even though it is granted
-             together. The server records each document as its own consent row,
-             which is what CASL and Law 25 want; a single bundled boolean could
-             not be withdrawn in part. -->
-        <label class="tc"><input type="checkbox" id="su-terms"><span>I accept the <a href="/terms" target="_blank" rel="noopener noreferrer">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>, and agree to receive email about my cohort and offers. I can unsubscribe at any time.</span></label>
+        <!-- TWO CHECKBOXES, AND THE SECOND ONE IS NOT PRE-TICKED.
+             This was one box covering terms, privacy and marketing together,
+             and the page then sent `marketing: true` unconditionally at all
+             three call sites below, so nobody could decline it. A consent
+             that could not have been refused is not consent, and CASL does
+             not allow marketing consent to be bundled with acceptance of the
+             terms. The server already records each document as its own
+             withdrawable row (lib/consents.js); this is the half of that the
+             form was not holding up.
+             The first box is required and covers the agreement. The second is
+             optional, starts empty, and governs only the messages an opt-out
+             actually applies to: everything about a cohort this person joins
+             is the service they asked for and arrives either way. -->
+        <label class="tc"><input type="checkbox" id="su-terms"><span>I accept the <a href="/terms" target="_blank" rel="noopener noreferrer">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</span></label>
         <div class="err-inline" id="su-terms-err" role="alert" style="display:none">Please accept the terms to continue.</div>
+
+        <label class="tc"><input type="checkbox" id="su-marketing"><span>Email me when a new region opens or Whollar adds something beyond internet. Optional, and you can unsubscribe from any of those in one click.</span></label>
+        <p class="tc-note">Email about a cohort you join, your offer and your install arrives either way: that is the service, not marketing.</p>
 
         <div class="err-inline" id="signup-err" role="alert" style="display:none"></div>
 
@@ -774,7 +789,10 @@ document.getElementById('signin-form').addEventListener('submit', function (e) {
     .then(function (r) {
       W.busy(btn, false);
       codeMode = 'login';
-      pending = { email: em.value.trim(), password: pw.value, marketing: true };
+      /* A sign-in form has no consent checkbox on it, so it cannot claim one
+         was given. /login/verify ignores this field; carrying `false` keeps
+         it that way if that ever changes. */
+      pending = { email: em.value.trim(), password: pw.value, marketing: false };
       openCodeStep(r);
     })
     .catch(function (err) {
@@ -786,7 +804,13 @@ document.getElementById('signin-form').addEventListener('submit', function (e) {
          filled in correctly would be a dead end. */
       if (err && err.code === 'EMAIL_UNVERIFIED') {
         codeMode = 'signup';
-        pending = { email: em.value.trim(), password: pw.value, marketing: true };
+        /* This lands on /signup/verify, which DOES write consent rows, and
+           this form carries no marketing checkbox. So: false. Somebody who
+           ticked the box on the signup form days ago and finishes here loses
+           that opt-in and has to give it again from their dashboard, which is
+           the right direction to fail in. Sending `true`, which this did,
+           recorded a marketing consent nobody gave on this screen. */
+        pending = { email: em.value.trim(), password: pw.value, marketing: false };
         openCodeStep({ ttlMinutes: 10 });
         setErr('otp-err', err.message);
         return;
@@ -805,6 +829,7 @@ document.getElementById('signup-form').addEventListener('submit', function (e) {
   var em = document.getElementById('su-email');
   var pw = document.getElementById('su-password');
   var tc = document.getElementById('su-terms');
+  var mk = document.getElementById('su-marketing');
 
   clearErr('signup-err'); clearErr('su-pass-err'); clearErr('su-terms-err');
 
@@ -829,7 +854,10 @@ document.getElementById('signup-form').addEventListener('submit', function (e) {
   if (W.busy(btn, true, 'Creating…') === false) return;
 
   codeMode = 'signup';
-  pending = { email: em.value.trim(), password: pw.value, marketing: true };
+  /* What the person actually ticked, not `true`. It travels to
+     /signup/verify rather than /signup because that is where the server
+     writes the consent rows (see whollar-core signupVerify). */
+  pending = { email: em.value.trim(), password: pw.value, marketing: !!(mk && mk.checked) };
 
   W.session.signup(pending)
     .then(function (r) { W.busy(btn, false); openCodeStep(r); })
@@ -1088,7 +1116,7 @@ document.getElementById('fp-editemail').addEventListener('click', function () {
         <a href="/#how">How it works</a>
         <a href="/#why">Why us</a>
         <a href="/#faq">FAQ</a>
-        <a href="/blog/">Resources</a>
+        <a href="/blog">Resources</a>
         <a href="/contact">Contact</a>
         </div>
         <div class="whl-footer__col">

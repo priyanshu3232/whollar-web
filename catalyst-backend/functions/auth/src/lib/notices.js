@@ -20,8 +20,12 @@
  *
  * CLAIM BEFORE SEND, always. The notice row is written FIRST and the unique
  * constraint on `notice_key` is the race guard: two overlapping sweeps collide
- * there and the loser sends nothing. That ordering is deliberate and it is not
- * symmetric. Crash after claiming and some households miss one letter; crash
+ * there and the loser sends nothing. Since the letters moved into
+ * lib/notify/outbox.js there is a second guard underneath it, the per
+ * household idempotency key, which catches the case the claim cannot see: a
+ * cohort that gained a household between two sweeps.
+ *
+ * That ordering is deliberate and it is not symmetric. Crash after claiming and some households miss one letter; crash
  * after sending and every household gets the letter twice on the next read.
  * For a message that goes to a whole cohort at once, missing beats duplicating.
  *
@@ -35,7 +39,7 @@
 const datastore = require('./datastore');
 const catalog = require('./catalog');
 const users = require('./users');
-const mailer = require('./mailer');
+const outbox = require('./notify/outbox');
 
 const TABLE = 'campaign_notices';
 const MEMBERS_TABLE = 'campaign_members';
@@ -107,18 +111,23 @@ async function recipients(catalystApp, campaign) {
 }
 
 /**
- * Send one stage's letter to one cohort. Returns how many were delivered.
- * A single address failing never stops the rest: one bad row in a hundred
+ * Queue one stage's letter to one cohort, then drain. Returns how many rows
+ * were written, not how many were delivered: quiet hours can hold a letter
+ * until morning, and the outbox is what knows the difference.
+ *
+ * A single household failing never stops the rest: one bad row in a hundred
  * must not cost the other ninety-nine their notice.
  */
 async function mailCohort(catalystApp, cfg, campaign, stage, now) {
   const ids = await recipients(catalystApp, campaign);
   const next = catalog.nextTransition(campaign, now);
-  let sent = 0;
+  const base = String(cfg.APP_BASE_URL || '').replace(/\/+$/, '');
+  let queued = 0;
 
   for (const id of ids) {
     let rec = null;
     try {
+      /* eslint-disable-next-line no-await-in-loop */
       rec = await users.findById(catalystApp, id);
     } catch {
       rec = null;
@@ -126,27 +135,52 @@ async function mailCohort(catalystApp, cfg, campaign, stage, now) {
     const to = rec && rec.email_normalized;
     if (!to) continue;
 
-    const message = mailer.cohortStageEmail({
-      stage,
-      region: campaign.region,
-      sub: campaign.sub,
-      firstName: rec.first_name,
-      appBaseUrl: cfg.APP_BASE_URL,
-      when: next ? next.at : null,
-    });
-    if (!message) continue;
-
+    /* The event key is the campaign and the stage, not the sweep, so a second
+       sweep that somehow got past the claim row still writes the same outbox
+       row and sends nothing twice. Two guards for one letter, deliberately:
+       the claim is per cohort and this is per household, and a cohort that
+       gains a member between two sweeps is exactly the case the claim alone
+       cannot see. */
     try {
-      const result = await mailer.send(cfg, { to, ...message });
-      if (result && result.delivered) sent += 1;
+      /* eslint-disable-next-line no-await-in-loop */
+      const result = await outbox.enqueue(catalystApp, cfg, {
+        templateKey: 'member.campaign.stage',
+        eventKey: `campaign.stage:${campaign.id}:${stage}`,
+        recipient: {
+          type: 'member',
+          id: String(id),
+          email: to,
+          locale: rec.locale || 'en',
+          timezone: rec.timezone || 'America/Toronto',
+          firstName: rec.first_name || null,
+        },
+        campaignId: campaign.id,
+        context: {
+          stage,
+          region_label: campaign.region,
+          cohort_label: campaign.sub || null,
+          dashboard_url: `${base}/dashboard`,
+          next_at: next ? next.at : null,
+          first_name: rec.first_name || null,
+        },
+        now,
+      });
+      if (result && (result.status === 'queued' || result.status === 'held')) queued += 1;
     } catch {
-      /* One address refused. The others still get theirs. */
+      /* One household's row failed. The others still get theirs. */
     }
   }
-  return sent;
+
+  /* Written, now send. The drain is what respects quiet hours, so a stage
+     that flips at midnight queues here and goes out at seven. */
+  await outbox.drain(catalystApp, cfg, { now }).catch(() => {});
+  return queued;
 }
 
-/** Record how many actually went, for the operator reading the ledger. */
+/** Record how many were written to the outbox, for the operator reading the
+    ledger. Not how many were delivered: quiet hours mean a letter queued at
+    midnight has not gone anywhere yet, and a count that said otherwise would
+    be the ledger's first lie. */
 async function stamp(catalystApp, campaignId, stage, sent) {
   try {
     const row = await datastore.findBy(catalystApp, TABLE, 'notice_key',

@@ -33,6 +33,7 @@ import { render as renderPerformance } from './views/performance.js';
 import { render as renderContracts, mount as mountContracts, load as loadContracts } from './views/contracts.js';
 import { render as renderDelivery, mount as mountDelivery, load as loadDelivery } from './views/delivery.js';
 import { render as renderBilling, mount as mountBilling, load as loadBilling, loadMethod } from './views/billing.js';
+import { render as renderRoster, mount as mountRoster, load as loadRoster } from './views/roster.js';
 import { render as renderPlaceholders } from './views/placeholders.js';
 
 /* ------------------------------------------------------------------ *
@@ -52,6 +53,7 @@ function renderAll() {
   renderBilling();
   renderPerformance();
   renderContracts();
+  renderRoster();
   renderPlaceholders();
 
   /* Under review the console is one centred card: no nav pane, no search.
@@ -215,6 +217,7 @@ function start(partner) {
   mountContracts();
   mountDelivery();
   mountBilling();
+  mountRoster();
 
   on('click', 'nav', function (el) { go(el.getAttribute('data-view')); });
 
@@ -245,6 +248,10 @@ function start(partner) {
     if (view === 'delivery' && get().delivery == null) loadDelivery();
     var B = get().billing;
     if (view === 'billing' && (!B || B === 'loading' || B.partial)) loadBilling();
+    /* The roster reads on first open of the account view, not at boot. Most
+       sessions never touch it, and it is one more metered read on every
+       console load for a list that changes a few times a year. */
+    if (view === 'account' && !get().rosterLoaded) loadRoster();
   });
 
   /* THE CONSOLE USED TO FETCH ONCE AT BOOT AND NEVER AGAIN, so a desk left

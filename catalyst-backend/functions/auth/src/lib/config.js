@@ -38,7 +38,54 @@ class ConfigError extends Error {
 
 const isLocal = (host) => host === 'localhost' || host === '127.0.0.1';
 
+/**
+ * The hosts this site is served from, unioned into ALLOWED_ORIGINS at load.
+ *
+ * WHY THIS IS IN CODE AND NOT ONLY IN THE CONSOLE. On 2026-09-03 the domain
+ * restructure moved the product to internet.whollar.ca, and the environment
+ * variable was not widened with it. lib/csrf.js then refused every
+ * state-changing request from the new host: no sign-in, no join, no bid, and
+ * a member told to reload the page and try again. Reads were unaffected,
+ * which is why the site looked healthy from the outside.
+ *
+ * A value that has to equal a list of hosts this repository already knows,
+ * held only in a console someone must remember to edit on the day a host
+ * moves, will drift again. formSubmit/index.js hardcodes the same list for
+ * the same reason, and its comment says these lists are only safe while they
+ * agree. This is that agreement, kept by the code rather than by memory.
+ *
+ * ALLOWED_ORIGINS stays required and stays read. It is where a staging alias
+ * or a local origin goes, and those genuinely do not belong in a constant.
+ * The union only ever adds: an origin in the variable is never dropped.
+ *
+ * The .com twins are deliberately absent. They are meant to be redirect
+ * domains, so no request originates from them; while they still serve, the
+ * variable carries them and the union keeps them.
+ */
+const CANONICAL_ORIGINS = Object.freeze([
+  'https://internet.whollar.ca',
+  'https://www.whollar.ca',
+  'https://tires.whollar.ca',
+]);
+
 const v = {
+  /**
+   * A value that is allowed to be absent.
+   *
+   * `nonEmpty` with `fallback: ''` looks like it should express this and does
+   * not: readOne() runs the check against the fallback, so an unset key fails
+   * its own default. These are the keys where "not configured yet" is a
+   * legitimate state the code handles, rather than a misconfiguration, and the
+   * handling is at the call site: no postal address refuses commercial mail,
+   * no webhook secret refuses the webhook.
+   */
+  optional: (max = 255) => (raw) => {
+    const s = String(raw == null ? '' : raw).trim();
+    if (!s) return { value: '' };
+    if (s.length > max) return { error: `must be ${max} characters or fewer` };
+    return { value: s };
+  },
+
   enum: (...allowed) => (raw) =>
     allowed.includes(raw)
       ? { value: raw }
@@ -172,6 +219,39 @@ const BOOT = {
   // rather than hard-bounce, whichever way the mail went out.
   MAIL_REPLY_TO:   { check: v.nonEmpty, fallback: 'info@whollar.com' },
 
+  /* The compliance footer. CASL exempts transactional mail from the opt-out
+   * requirement and from nothing else: every message, transactional included,
+   * has to identify the sender and carry a physical mailing address.
+   *
+   * MAIL_POSTAL_ADDRESS HAS NO FALLBACK, DELIBERATELY. A plausible-looking
+   * default address in a compliance footer is worse than a missing one,
+   * because it looks correct in every review. Unset, transactional mail sends
+   * with identification and no address, and lib/notify/outbox.js REFUSES every
+   * commercial send and says which key is missing. */
+  MAIL_LEGAL_NAME:      { check: v.optional(120), fallback: 'Whollar' },
+  MAIL_POSTAL_ADDRESS:  { check: v.optional(200), fallback: '' },
+
+  /* Two senders, because reputation is per domain and the two kinds of mail
+   * cannot be allowed to share it. A spam complaint about a region-opening
+   * announcement must not cost a member the sign-in code they are waiting for.
+   * Both fall back to the single configured ZeptoMail sender, so a
+   * half-configured environment behaves exactly as it did before the split. */
+  MAIL_FROM_TRANSACTIONAL: { check: v.optional(255), fallback: '' },
+  MAIL_FROM_CEM:           { check: v.optional(255), fallback: '' },
+
+  /* The webhook's shared secret. Unset, POST /hooks/zeptomail refuses every
+   * request: an unauthenticated endpoint that writes suppressions is a way for
+   * anyone to stop anyone else's mail. */
+  MAIL_WEBHOOK_SECRET:  { check: v.optional(255), fallback: '', secret: true },
+
+  /* The timer's key. POST /admin/notify/tick is what Job Scheduling calls to
+   * sweep for due reminders and drain the outbox, and a cron job has no
+   * session to authenticate with. Unset, that route is admin-only, which is
+   * the correct state before a timer exists and means the reminder lane runs
+   * on the read-driven sweep alone. Never a query parameter: a secret in a URL
+   * lands in access logs and in the scheduler's own run history. */
+  NOTIFY_CRON_SECRET:   { check: v.optional(255), fallback: '', secret: true },
+
   SESSION_TTL_MEMBER_DAYS:   { check: v.int(1, 365), fallback: '30' },
   SESSION_TTL_PARTNER_HOURS: { check: v.int(1, 168), fallback: '12' },
 };
@@ -189,7 +269,7 @@ const GROUPS = {
    * system.
    *
    * Use a domain whose reputation is not your business mail's. Sending login
-   * codes through the same mailbox host that carries your customer
+   * codes through the same mailbox host that carries your business
    * correspondence means one spam complaint can throttle both.
    */
   smtp: {
@@ -207,11 +287,16 @@ const GROUPS = {
   mail: {
     ZEPTOMAIL_TOKEN: { check: v.nonEmpty, secret: true },
     ZEPTOMAIL_FROM:  { check: v.nonEmpty },
-    // Regional. This project is on Zoho's Canadian DC (see the crm group), and
-    // hard-coding the US host would route Canadian addresses through a US
-    // endpoint. Defaulted rather than required so it does not, on its own,
-    // count as "the operator configured mail".
-    ZEPTOMAIL_API_BASE: { check: v.baseUrl, fallback: 'https://api.zeptomail.com' },
+    // Regional, and the default is the Canadian host because this project is
+    // on Zoho's Canadian DC (see the crm group) and every address in a message
+    // body is Canadian personal data. The fallback used to be the US host,
+    // which meant an unset variable silently routed that data out of the
+    // region: correct in production, where the variable is set, and a
+    // residency breach in any environment where somebody forgot. A default
+    // that is wrong only when unnoticed is the worst kind.
+    // Defaulted rather than required so it does not, on its own, count as
+    // "the operator configured mail".
+    ZEPTOMAIL_API_BASE: { check: v.baseUrl, fallback: 'https://api.zeptomail.ca' },
   },
   // Needed from Phase 3: signup writes versioned consent rows.
   consents: {
@@ -337,6 +422,10 @@ function load(env = process.env) {
     provider: out.SESSION_TTL_PARTNER_HOURS * 60 * 60 * 1000,
     admin: (features.admin ? out.SESSION_TTL_ADMIN_HOURS : 12) * 60 * 60 * 1000,
   });
+
+  /* The canonical hosts cannot go missing, whatever the variable says. See
+     CANONICAL_ORIGINS above for the outage that made this a constant. */
+  out.ALLOWED_ORIGINS = Object.freeze([...new Set([...CANONICAL_ORIGINS, ...out.ALLOWED_ORIGINS])]);
 
   return Object.freeze(out);
 }

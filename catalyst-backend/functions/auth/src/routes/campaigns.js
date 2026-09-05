@@ -32,20 +32,104 @@
 
 const datastore = require('../lib/datastore');
 const audit = require('../lib/audit');
+const crm = require('../lib/crm/outbox');
 const seats = require('../lib/seats');
 const users = require('../lib/users');
 const catalog = require('../lib/catalog');
 const cohorts = require('../lib/cohorts');
 const siteconfig = require('../lib/siteconfig');
 const guards = require('../lib/guards');
+const geo = require('../lib/geo');
 const bids = require('../lib/bids');
 const notices = require('../lib/notices');
+const reminders = require('../lib/notify/reminders');
+const events = require('../lib/notify/events');
 const awards = require('../lib/awards');
+const prefs = require('../lib/prefs');
 const orders = require('../lib/orders');
+const offers = require('../lib/offers');
+const exclusions = require('../lib/exclusions');
+const rosters = require('../lib/rosters');
+const brands = require('../lib/brands');
+const { ms } = require('../lib/envelope');
 const { wrap, badRequest, AppError } = require('../lib/errors');
 
 const TABLE = 'campaign_members';
 const { JOIN_STATUS } = catalog;
+
+/* ------------------------------------------------------------------ *
+ * The price book: which entry a household opens on
+ * ------------------------------------------------------------------ */
+
+/**
+ * The tier a household would open its offer on, from the one speed fact this
+ * server holds: the preference chip stored on `user_prefs.interests`.
+ *
+ * 'keep' is deliberately NOT answered here. It means "the speed I have now",
+ * and this route does not know that: the dashboard does, from the bill on the
+ * checkup, and it re-centres its own three-wide window without another round
+ * trip. Answering it with a guess would open somebody's offer on a speed they
+ * never chose, which is the exact failure the price book exists to end.
+ *
+ * A preferences read that fails is not an error. The household still gets the
+ * whole book; only which card it opens on is affected.
+ */
+async function preferredChip(catalystApp, userId) {
+  let stored = {};
+  try {
+    stored = await prefs.get(catalystApp, userId);
+  } catch {
+    stored = {};
+  }
+  const want = ((stored && stored.interests) || {}).speed || null;
+  return want === 'up' || want === 'cheap' || want === 'keep' ? want : null;
+}
+
+/**
+ * The speed on this household's bill, as the checkup recorded it
+ * (member_bills.download_speed: a bare Mbps figure, "0" for Not sure), or
+ * null. Read once per offer read so the window can centre on it server side;
+ * an unreadable table is null, which the window rule treats as unknown.
+ */
+async function billSpeed(catalystApp, userId) {
+  try {
+    const row = await datastore.findBy(catalystApp, 'member_bills', 'user_id', userId, ['download_speed']);
+    return row && row.download_speed != null && row.download_speed !== '' ? String(row.download_speed) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A partner's legal name, or null.
+ *
+ * Resolved at read time rather than frozen into the sealed book: a legal name
+ * can change, and a book that stored one would keep telling households the old
+ * one long after the partner stopped using it. Null on an unreadable row,
+ * because a nameless offer is still an offer and a 500 is not.
+ */
+async function partnerName(catalystApp, orgId) {
+  if (!orgId) return null;
+  try {
+    const org = await datastore.findBy(catalystApp, 'provider_orgs', 'org_id', orgId, ['legal_name']);
+    return (org && org.legal_name) || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The book entry a household opens on: its preferred tier when the book holds
+ * one, else the cheapest, which is what the single winner always was.
+ */
+function centreEntry(book, tier) {
+  if (!book || !book.length) return null;
+  if (tier) {
+    const hit = book.filter((e) => e.tier === tier)[0];
+    if (hit) return hit;
+  }
+  return book.slice().sort((a, b) => Number(a.price) - Number(b.price))[0] || null;
+}
 
 /* ------------------------------------------------------------------ *
  * Membership reads
@@ -71,12 +155,47 @@ async function mineRows(catalystApp, userId) {
   }
 }
 
+/**
+ * This member's standing on ONE campaign, or null. The scoped read behind the
+ * idempotent branch of a join: a household that is already in a cohort must
+ * not be refused by the eligibility gate when the cohort's coverage changed
+ * under it, or an operator editing an FSA set would lock existing households
+ * out of their own cohort's dashboard. See geo.eligibilityOf and INV grandfathering.
+ */
+async function mineOn(catalystApp, campaign, userId) {
+  try {
+    return await datastore.findBy(
+      catalystApp, TABLE, 'membership_key', `${campaign.id}:${userId}`, ['status']
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * present | missing | invalid, for this member's stored postal code.
+ *
+ * `invalid` is a real state and not a theoretical one: postal codes were
+ * stored before lib/geo.js existed, validated by a looser regex, so a row can
+ * carry six characters this stack will no longer derive an FSA from. Those
+ * households see the "add your postal code" card with the same prompt a new
+ * one gets, rather than an empty dashboard with no explanation. The count of
+ * them is answerable in ZCQL against users.fsa IS NULL AND postal_code IS NOT
+ * NULL, which is the migration report §10.7 asks for without a migration that
+ * rewrites anybody's row.
+ */
+function postalStateOf(user) {
+  if (user && user.fsa) return 'present';
+  if (user && user.postal_code) return 'invalid';
+  return 'missing';
+}
+
 /** One campaign, freshly counted, member-shaped. For the mutation replies. */
-async function memberReply(catalystApp, campaign, mine) {
+async function memberReply(catalystApp, campaign, mine, memberFsa) {
   cohorts.invalidate(campaign.id);
   const now = Date.now();
   const s = cohorts.state(campaign, await cohorts.seatCount(catalystApp, campaign), now);
-  return { now, campaign: cohorts.forMember(s, mine) };
+  return { now, campaign: cohorts.forMember(s, mine, memberFsa) };
 }
 
 /* ------------------------------------------------------------------ *
@@ -235,6 +354,12 @@ function mount(router, cfg) {
        forgotten: a household waiting on a hundred outbound emails before its
        own dashboard paints would be a poor trade. See lib/notices.js. */
     notices.sweepAsync(req.catalyst, cfg, states, now);
+    /* Reminders ride the same read, for the same reason notices do: there is
+       no cron here yet. It is a weaker trigger than a timer, because a
+       reminder is for somebody who is NOT looking, but it costs one sweep on a
+       page load that already computed every cohort's state and it means the
+       lane works before POST /admin/notify/tick has a job pointed at it. */
+    reminders.sweepAsync(req.catalyst, cfg, states, now);
     const mineBy = await mineRows(req.catalyst, user.user_id);
     /* THE MEMBER'S OWN DECISION, RESTORED. An accepted offer is an order row
        and the row is the record: without this field a household that accepted
@@ -247,12 +372,21 @@ function mount(router, cfg) {
     const list = [];
     for (const s of states) {
       const mine = mineBy ? mineBy[s.id] : undefined;
-      const pub = cohorts.forMember(s, mine);
+      const pub = cohorts.forMember(s, mine, user.fsa);
       if (mine && awards.isClosed(s.campaign, now)) {
         try {
           const key = `${s.id}:${user.user_id}`.slice(0, 200);
           const row = await orders.findAnyByKey(req.catalyst, key);
-          if (row) pub.yourOrder = { orderNo: row.order_no || null, state: row.state || 'acc' };
+          if (row) {
+            pub.yourOrder = {
+              orderNo: row.order_no || null,
+              state: row.state || 'acc',
+              /* The slot the household booked at acceptance, so the switching
+                 panel can say the day rather than "confirmed by text". A date
+                 the household chose is not identity. */
+              slotAt: ms(row.slot_at),
+            };
+          }
         } catch {
           /* Orders table unreadable: the decision cannot be restored, and
              everything else in the payload stands. Same contract as counts. */
@@ -268,6 +402,14 @@ function mount(router, cfg) {
          answer's silences as "you left everything". */
       live: live && mineBy !== null,
       source,
+      /* THE MEMBER'S OWN GEOGRAPHY, so the dashboard can say which of the
+         three "nothing to join" cards it is looking at without guessing: no
+         postal code on file at all, a stored code this stack can no longer
+         parse, or a perfectly good postal code with no cohort in it yet. They
+         read identically as an empty eligible list and they need three
+         different cards. Derived, never echoed from a request. */
+      memberFsa: user.fsa || null,
+      postalCodeState: postalStateOf(user),
       campaigns: list,
     });
   }));
@@ -296,6 +438,68 @@ function mount(router, cfg) {
    * Membership is required. A cohort's offer is not public: a household that
    * did not join has nothing to compare it against and no business seeing it.
    */
+/**
+   * ONE MEMBER'S price book, and the audit of how it was reached.
+   *
+   *   -> { book, audit, excluded, blocked }
+   *
+   * `blocked` true means the member's exclusion set could not be read while the
+   * table plainly exists, so nothing may be routed: see lib/exclusions.js
+   * `probe` for why an empty set is not a safe guess there. Every caller returns
+   * a "not available" state rather than an offer.
+   *
+   * A member with no exclusions gets the SEALED COHORT BOOK, the same object
+   * every other household reads, untouched. Only a member who actually excluded
+   * something has their book rebuilt, which keeps this feature off the path of
+   * the overwhelming majority of reads and means no failure of brand resolution
+   * can cost an offer to someone who never asked for anything.
+   *
+   * Demand counts are not carried into a rebuilt book. They are a partner-facing
+   * fact (how many households sat at a tier) and no member payload reads them,
+   * so re-reading the demand profile per member request would buy nothing.
+   */
+  async function bookForMember(req, campaign, bidRows, sealed, userId) {
+    const excluded = await exclusions.setFor(req.catalyst, userId);
+    if (excluded === null) {
+      return { book: [], audit: null, excluded: null, blocked: true };
+    }
+
+    const registry = await brands.all(req.catalyst);
+    /* No registry at all: nothing can be resolved and nothing can be excluded,
+       so the sealed record stands and no read is spent proving it. */
+    if (registry === null && !excluded.size) {
+      return { book: sealed, audit: null, excluded, blocked: false };
+    }
+    const statusById = new Map((registry || [])
+      .filter((r) => r && r.brand_id).map((r) => [r.brand_id, r.status]));
+    const brandMap = await rosters.brandOwners(req.catalyst);
+
+    const split = awards.eligibleRows(bidRows, {
+      excluded,
+      brandMap,
+      statusOf: (id) => statusById.get(id) || null,
+    });
+
+    /* NOTHING WAS REMOVED, SO THE SEALED BOOK IS THE ANSWER, and returning it
+       rather than an identical rebuild is the point. The book is a RECORD: it
+       was sealed once from the bid rows as they stood, and a rebuild here would
+       silently become the authority for this household. Two readers a second
+       apart would then be able to disagree the moment a late write lands, which
+       is the exact failure the seal exists to prevent. The rebuild happens only
+       when this member's book genuinely differs from the cohort's. */
+    if (split.eligible.length === (bidRows || []).length) {
+      return { book: sealed, audit: null, excluded, blocked: false };
+    }
+
+    const book = awards.buildBook(split.eligible, null);
+    return {
+      book,
+      audit: awards.auditWithOutcome(split.audit, book),
+      excluded,
+      blocked: false,
+    };
+  }
+
   router.get('/campaigns/:id/offer', wrap(async (req, res) => {
     const user = requireMember(req);
     const cat = await catalog.load(req.catalyst);
@@ -347,34 +551,168 @@ function mount(router, cfg) {
       });
     }
 
-    /* Lowest headline wins, and the winner is now a RECORD rather than a
-       derivation: lib/awards.js seals it on the first read after the close, so
-       the household and the winning partner are told the same thing by the
-       same row. The direct pick stays as the fallback for the window before
-       the awards table exists, and it is the same rule either way. */
-    const award = await awards.seal(req.catalyst, campaign, rows, now);
-    const win = award
-      ? (rows.find((r) => r.bid_key === award.bid_key) || null)
-      : awards.pickWinner(rows);
-    if (!win) {
+    /* THE COHORT'S RESULT IS A PRICE BOOK, not a winner. lib/awards.js seals
+       it on the first read after the close: for every tier at least one
+       partner quoted, the lowest effective price, under tie rules that give
+       every reader the same answer. Three tiers of one cohort can belong to
+       three partners, and every household picking the same speed still pays
+       the same price, which is the property that makes a cohort a cohort.
+
+       The household is shown its own tier and its two neighbours. The SLICE is
+       the dashboard's, because only it knows the household's own bill speed;
+       every PRICE in it is this route's, sealed, and never worked out on the
+       client. */
+    const sealed = await awards.sealBook(req.catalyst, campaign, rows, now);
+    if (!sealed || !sealed.length) {
       return res.status(200).json({
-        ok: true, serverTime: now, sealed: false, live: true, closesAt, bidCount: rows.length, offer: null,
+        ok: true, serverTime: now, sealed: false, live: true, closesAt,
+        bidCount: rows.length, book: [], offer: null,
       });
     }
 
-    /* The winner is named to the household. That is the reveal the design
-       intends, and it is one-directional: no partner learns who else bid. */
-    let partner = null;
-    try {
-      const org = await datastore.findBy(req.catalyst, 'provider_orgs', 'org_id', win.org_id, ['legal_name']);
-      partner = (org && org.legal_name) || null;
-    } catch {
-      partner = null;
+    /* THE MEMBER'S OWN BOOK. The cohort's book is sealed above and is what
+       every partner surface and the operator record read. What this household
+       is shown is cut from ITS book: bids from brands it excluded are removed
+       and the per-tier winners recomputed, so a household that excluded the
+       cheapest brand at its tier is shown the next eligible bid there, at that
+       bid's own price. Nothing is re-priced and nothing is negotiated.
+
+       A member with no exclusions reads `sealed` itself, unchanged. */
+    const cut = await bookForMember(req, campaign, rows, sealed, user.user_id);
+    if (cut.blocked) {
+      /* The exclusion set exists and could not be read. Routing an offer now
+         could deliver one from a provider this household refused, which is the
+         single thing it was promised cannot happen, so nothing is routed and
+         the state says so rather than pretending no offer landed. */
+      return res.status(200).json({
+        ok: true, serverTime: now, sealed: false, live: true, closesAt,
+        bidCount: rows.length, book: [], offer: null, offersHeld: true,
+      });
+    }
+    const book = cut.book;
+    if (!book.length) {
+      /* Every bid on this cohort came from a brand this household excluded.
+         The standard no-offers state, and it says nothing about the bids: the
+         member never learns they existed (section 9.1 step 2e). */
+      return res.status(200).json({
+        ok: true, serverTime: now, sealed: false, live: true, closesAt,
+        bidCount: rows.length, book: [], offer: null,
+      });
     }
 
-    const pub = bids.publicBid(win);
-    const cheapest = pub.tiers.slice().sort((a, b) =>
-      Number(a.effectivePrice) - Number(b.effectivePrice))[0] || null;
+    /* The winning partners are named to the household. That is the reveal the
+       design intends, and it is one-directional: no partner learns who else
+       bid, or that it shares a cohort at all. Resolved once per org rather
+       than once per tier, because one partner commonly wins several. */
+    const names = {};
+    /* THE PARTNER'S PACE, per org. A partner states installs per week at its
+       roster gate, and the household books against that pace: the number is
+       shown beside the picker and a week already at it is greyed out, so the
+       accept route's refusal of a full week is one a household rarely meets.
+       Counts only ever leave this loop as "full" or "not full" per week: no
+       other household's slot, address or number is on this wire. */
+    const pace = {};
+    for (const orgId of new Set(book.map((e) => e.orgId).filter(Boolean))) {
+      /* eslint-disable-next-line no-await-in-loop */
+      names[orgId] = await partnerName(req.catalyst, orgId);
+      try {
+        /* eslint-disable-next-line no-await-in-loop */
+        const award = await awards.findForOrg(req.catalyst, campaign.id, orgId);
+        const cap = award ? parseInt(award.install_capacity_weekly, 10) : null;
+        if (cap > 0) {
+          /* eslint-disable-next-line no-await-in-loop */
+          const held = await orders.rowsForCampaign(req.catalyst, orgId, campaign.id);
+          pace[orgId] = { capacityWeekly: cap, fullWeeks: orders.fullWeeks(held || [], cap, now) };
+        }
+      } catch {
+        /* No pace known: the picker offers every day and the accept decides. */
+      }
+    }
+
+    /* THE ORG ID DOES NOT CROSS. A household needs the partner's name to
+       decide and the tier name to accept. The org id is this server's
+       business, and the accept route resolves it from the sealed book rather
+       than trusting whatever comes back up the wire. */
+    const wire = book.map((e) => ({
+      tier: e.tier,
+      price: e.price,
+      partner: names[e.orgId] || null,
+      guaranteeMonths: e.guaranteeMonths,
+      afterPrice: e.afterPrice,
+      afterLine: e.afterLine,
+      equipment: e.equipment,
+      rentalMonthly: e.rentalMonthly,
+      technology: e.technology,
+      uploadMbps: e.uploadMbps,
+      /* The named parts of the reduction on this tier, in the cents the seal
+         recorded. Labels and money only: a household reads what a step is
+         called and what it is worth, never the share arithmetic behind it,
+         and never a figure this route worked out for itself. */
+      mix: e.mix,
+      reference: e.reference,
+      /* Installs per week this partner runs here, and the weeks inside the
+         booking window already at that pace, as Monday 00:00 UTC stamps.
+         Null and empty when the partner has not stated a pace yet. */
+      capacityWeekly: pace[e.orgId] ? pace[e.orgId].capacityWeekly : null,
+      fullWeeks: pace[e.orgId] ? pace[e.orgId].fullWeeks : [],
+    }));
+
+    /* THE HOUSEHOLD'S WINDOW, RECORDED. Which three entries of the book this
+       household is shown depends on the speed on its bill and its preference
+       chip, both read here, on the server, and the answer is written once to
+       `household_offers` (lib/offers.js) so a bill edited after the decision
+       cannot re-centre the cards under it. The cards carry the seal's price
+       strings; the facts beside them (guarantee, equipment, partner name) are
+       the book entry's, looked up by tier. */
+    const speed = await billSpeed(req.catalyst, user.user_id);
+    const pref = await preferredChip(req.catalyst, user.user_id);
+
+    /* SECTION 11, THE WITHDRAWAL PATH. A window recorded against a different
+       exclusion set than the one now in force is stale, and a stale window is
+       re-cut as a NEW VERSION rather than mutated: what this household was
+       shown when it decided keeps its own row. A card that has vanished
+       between versions is reported as `withdrawn_by_exclusion`, and where the
+       partner at a tier changed, the next eligible bid is already sitting
+       there, which is what promotion means against a book. */
+    const recorded = await offers.activeRow(req.catalyst, campaign.id, user.user_id);
+    const stale = Boolean(recorded) && offers.staleFor(recorded, cut.excluded);
+    const write = stale ? offers.supersede : offers.materialise;
+    const offered = await write(req.catalyst, campaign, user.user_id, book,
+      { speed, pref, excluded: cut.excluded, audit: cut.audit }, now);
+    const byTier = {};
+    wire.forEach((e) => { byTier[e.tier] = e; });
+    const cards = offered.cards.map((c) => {
+      if (c.position === 'none' || !c.tier) return { tier: null, position: 'none' };
+      const e = byTier[c.tier] || {};
+      return Object.assign({}, e, {
+        tier: c.tier,
+        price: c.price,
+        partner: names[c.orgId] || e.partner || null,
+        position: c.position,
+      });
+    });
+
+    /* `offer` is the card the window centres on, and it stays on the wire so
+       every panel that reads a single offer keeps working while the cards are
+       ported. */
+    const centre = cards.filter((c) => c.position === 'current')[0]
+      || centreEntry(wire, pref === 'up' ? '1 Gig' : null);
+
+    let yourOrder = null;
+    try {
+      const row = await orders.findAnyByKey(req.catalyst, `${campaign.id}:${user.user_id}`.slice(0, 200));
+      if (row) {
+        yourOrder = {
+          orderNo: row.order_no || null,
+          state: row.state || 'acc',
+          tier: row.tier || null,
+          price: row.price || null,
+          slotAt: ms(row.slot_at),
+        };
+      }
+    } catch {
+      yourOrder = null;
+    }
 
     res.status(200).json({
       ok: true,
@@ -383,31 +721,44 @@ function mount(router, cfg) {
       live: true,
       closesAt,
       bidCount: rows.length,
-      offer: {
-        partner,
-        price: win.price,
-        speed: cheapest ? cheapest.name : null,
-        technology: cheapest ? cheapest.technology : null,
-        guaranteeMonths: pub.guaranteeMonths,
-        afterLine: pub.afterLine,
-        equipment: pub.equipment,
-        rentalMonthly: pub.rentalMonthly,
-        committedHouseholds: pub.committedHouseholds,
-        reference: pub.reference,
-        tiers: pub.tiers,
-        /* The named parts of the reduction, per tier, in the cents the seal
-           recorded. Labels and money only: a household reads what a step is
-           called and what it is worth, never the share arithmetic behind it,
-           and never a figure this route worked out for itself. */
-        mix: pub.discountMix ? pub.discountMix.tiers.map((t) => ({
-          tier: t.tier,
-          reductionCents: t.gapCents,
-          mix: (t.mix || []).map((r) => ({
-            label: r.label, amountCents: r.amountCents,
-            periodStartMo: r.periodStartMo, periodEndMo: r.periodEndMo,
-          })),
-        })) : null,
+      decisionAt: (campaign.dates && campaign.dates.decision_at) || null,
+      book: wire,
+      offers: {
+        cards,
+        centre: offered.centre,
+        nearest: offered.nearest,
+        rule: offered.rule,
+        recorded: Boolean(offered.recorded),
+        offeredAt: offered.offeredAt || null,
+        /* Section 11: a card this household held and no longer holds, because
+           it excluded the partner behind it. The tier and its old price, with
+           the state, so the panel can say what happened rather than silently
+           dropping a card the member had already read. `resolution_audit` is
+           deliberately NOT here: section 9.2 makes it operator-only, and the
+           fields that cross are named one by one for exactly that reason. */
+        withdrawn: offered.withdrawn || [],
+        version: offered.version || 1,
       },
+      yourOrder,
+      offer: centre ? {
+        partner: centre.partner,
+        price: centre.price,
+        speed: centre.tier,
+        technology: centre.technology,
+        guaranteeMonths: centre.guaranteeMonths,
+        afterLine: centre.afterLine,
+        equipment: centre.equipment,
+        rentalMonthly: centre.rentalMonthly,
+        reference: centre.reference,
+        /* The shape the dashboard's applyOffer() already reads: a per-tier
+           list it looks up by tier name. One entry, because an offer is now
+           one tier of the book rather than a whole bid. */
+        mix: centre.mix ? [{
+          tier: centre.tier,
+          reductionCents: centre.mix.reductionCents,
+          mix: centre.mix.rows,
+        }] : null,
+      } : null,
     });
   }));
 
@@ -457,10 +808,53 @@ function mount(router, cfg) {
     }
 
     const bidRows = await bids.campaignBidRows(req.catalyst, campaign.id);
-    const award = await awards.seal(req.catalyst, campaign, bidRows, now);
-    if (!award) {
+    const sealed = await awards.sealBook(req.catalyst, campaign, bidRows, now);
+    if (!sealed || !sealed.length) {
       throw new AppError('CONFLICT', 'There is no offer on this cohort yet.', {
-        logDetail: `accept with no award campaign=${campaign.id}`,
+        logDetail: `accept with no book campaign=${campaign.id}`,
+      });
+    }
+
+    /* THE ACCEPT RESOLVES AGAINST THE MEMBER'S BOOK, NOT THE COHORT'S, and
+       this is the load-bearing half of the exclusion promise rather than a
+       detail. The tier decides who delivers the install, and the org is read
+       from the book here rather than trusted from the request. Resolving
+       against the cohort book would hand the install to whichever partner won
+       that tier outright, which for a household that excluded them is the
+       excluded partner receiving its address: the offer would have been
+       correctly hidden and the order incorrectly placed. */
+    const cut = await bookForMember(req, campaign, bidRows, sealed, user.user_id);
+    if (cut.blocked) {
+      throw new AppError('CONFLICT',
+        'We cannot confirm your excluded providers right now, so this cannot be accepted yet. Please try again shortly.', {
+          logDetail: `accept blocked on unreadable exclusions campaign=${campaign.id}`,
+        });
+    }
+    const book = cut.book;
+    if (!book.length) {
+      throw new AppError('CONFLICT', 'There is no offer on this cohort yet.', {
+        logDetail: `accept with empty member book campaign=${campaign.id}`,
+      });
+    }
+
+    /* WHICH TIER, AND THEREFORE WHICH PARTNER. The household accepted one
+       entry of the book, and a cohort's tiers can belong to different
+       partners, so the tier is what decides who delivers this install. Read
+       from the SEALED BOOK and never from the request: the body names a
+       speed, and the server answers who won it and at what price. A body that
+       named an org, or a price, would be a household setting both.
+
+       The tier is required. Defaulting to the cheapest is what the single
+       award used to do implicitly, and it would send a household that chose 1
+       Gig to whoever happened to win 100 Mbps. */
+    const wanted = String((req.body || {}).tier || '').trim();
+    if (!wanted) {
+      throw badRequest('Choose which speed you are accepting.');
+    }
+    const entry = awards.entryFor(book, wanted);
+    if (!entry) {
+      throw badRequest('That speed is not one of the offers on this cohort.', {
+        logDetail: `accept unknown tier=${wanted.slice(0, 40)} campaign=${campaign.id}`,
       });
     }
 
@@ -470,20 +864,198 @@ function mount(router, cfg) {
     const address = orders.readAddress((req.body || {}).address);
     const fsa = orders.readFsa((req.body || {}).fsa || mine.fsa);
 
-    const row = await orders.create(req.catalyst, {
-      campaignId: campaign.id,
-      orgId: award.org_id,
-      memberUserId: user.user_id,
-      fsa,
-      address,
-      at: now,
-    });
+    /* THE APPOINTMENT IS PART OF THE ACCEPT. The household picks an install
+       day inside the next fifteen days and an arrival window, and gives the
+       mobile number the crew calls on the day. All three are required: an
+       accept that books nothing is a household waiting on a phone call that
+       the old flow admitted "most of them" needed. The order lands on the
+       partner's board already booked. */
+    /* CONFIRMATIONS LOCK AT decision_at. After it a household neither takes
+       a card nor changes one: the partners are planning installs against the
+       list as it stood. Checked BEFORE the body is read, so a client that
+       predates the booking step is told the true reason and not that a
+       phone number is missing. */
+    const decisionAt = (campaign.dates && campaign.dates.decision_at) || null;
+    if (decisionAt && now >= decisionAt) {
+      throw new AppError('DECISIONS_LOCKED', 'Confirmations have locked on this cohort. Your installer books from here.', {
+        logDetail: `accept after decision_at campaign=${campaign.id}`,
+        extra: { serverTime: now, decisionAt },
+      });
+    }
+
+    const phone = orders.readPhone((req.body || {}).phone);
+    const slotWindow = orders.readSlotWindow((req.body || {}).slotWindow);
+    const slotAt = orders.readBookingSlot((req.body || {}).slotAt, now);
+
+    /* THE CARD MUST BE ONE THE HOUSEHOLD WAS SHOWN. The recorded window is
+       the record of the offer; a tier outside it was never this household's
+       offer, whatever the book holds. Materialised here as well as on the
+       read, so an accept that arrives before any read (a second device, a
+       retry after the table was created) is held to the same three cards
+       the read would have recorded. An unreadable table computes the same
+       window and holds the accept to it, unrecorded. */
+    const shown = await offers.materialise(req.catalyst, campaign, user.user_id, book, {
+      speed: await billSpeed(req.catalyst, user.user_id),
+      pref: await preferredChip(req.catalyst, user.user_id),
+      excluded: cut.excluded,
+      audit: cut.audit,
+    }, now);
+    if (!(shown.cards || []).some((c) => c.tier === entry.tier)) {
+      throw badRequest('That speed is not one of the cards you were shown.', {
+        logDetail: `accept off-window tier=${entry.tier} campaign=${campaign.id}`,
+      });
+    }
+
+    const existing = await orders.findAnyByKey(req.catalyst, key);
+
+    /* A RELEASED ORDER IS NOT RE-ACCEPTED HERE. 'rel' is terminal: a partner
+       that could not serve the address, or the household's own pass, ended
+       this order, and a second one on the same key would be a household the
+       board had already been told was gone. Said plainly rather than
+       answered as a booking that no partner will ever see. */
+    if (existing && existing.state === 'rel') {
+      throw new AppError('CONFLICT', existing.release_reason === 'household_passed'
+        ? 'You passed on this cohort, and that stands. Your concierge can help if that was a mistake.'
+        : 'This order was released by the partner and cannot be re-taken here. Your concierge can help.', {
+        logDetail: `accept on released order key=${key} reason=${existing.release_reason || ''}`,
+      });
+    }
+    const repick = Boolean(existing && (existing.tier || null) !== entry.tier);
+
+    /* THE PARTNER'S STATED PACE IS A REAL LIMIT. Checked for a first accept
+       and for any change of pick, against the day the household is booking
+       NOW and without the household's own row: a retried accept of the same
+       card already holds its slot, and refusing the retry because its own
+       booking filled the week would be the idempotency promise broken from
+       the other side. */
+    if (!existing || repick) {
+      const award = await awards.findForOrg(req.catalyst, campaign.id, entry.orgId);
+      const cap = award ? parseInt(award.install_capacity_weekly, 10) : null;
+      if (cap > 0) {
+        const held = (await orders.rowsForCampaign(req.catalyst, entry.orgId, campaign.id) || [])
+          .filter((r) => r.order_key !== key);
+        if (orders.bookedInWeek(held, slotAt) >= cap) {
+          throw new AppError('CONFLICT',
+            'That week is full with this partner. Pick a day in another week.', {
+              logDetail: `accept slot in full week campaign=${campaign.id} org=${entry.orgId}`,
+            });
+        }
+      }
+    }
+
+    /* THE LAST GATE, AND IT IS THE SEAT LEDGER, NOT THE SNAPSHOT ROW.
+     *
+     * The membership read at the top of this route is many Data Store calls
+     * old by now: the sealed book, the recorded window and the capacity check
+     * all happen between. A household that passed in another tab in that
+     * interval would land an accepted order under a released claim, and the
+     * partner's board would carry a line for a household the ledger says is
+     * gone. That is exactly the state the pass route's ordering exists to
+     * prevent, and it prevents it in one direction only.
+     *
+     * So the claim is re-read HERE, immediately before the write, and the
+     * accept refuses when the seat is no longer on this cohort. The pass
+     * releases the claim FIRST (seats.transition), then drops the membership,
+     * then releases any order, so this check sees a pass that has begun even
+     * before the row this route opened on has gone.
+     *
+     * It is a narrowing, not a lock: Catalyst has no compare and swap, so a
+     * pass that lands between this read and the create below still wins the
+     * ledger and loses the order. The pass's own order release covers that
+     * ordering, and what is left is the millisecond between these two calls
+     * rather than the seconds this route spends above. An unreadable ledger
+     * does not refuse an accept: seats.getClaim throws, and a household must
+     * not lose an offer to a table outage.
+     */
+    try {
+      const held = seats.publicClaim(
+        await seats.getClaim(req.catalyst, seats.addressIdFor(user), seats.VERTICAL_DEFAULT));
+      if (held && held.status !== 'active') {
+        throw new AppError('CONFLICT',
+          'You left this cohort while this page was open, so the offer is closed. Nothing is owed.', {
+            logDetail: `accept refused: claim released campaign=${campaign.id}`,
+          });
+      }
+      if (held && held.cohort_id && held.cohort_id !== campaign.id) {
+        throw new AppError('CONFLICT',
+          'Your seat has moved to another cohort, so this offer is closed. Nothing is owed.', {
+            logDetail: `accept refused: claim holds ${held.cohort_id}, accept on ${campaign.id}`,
+          });
+      }
+    } catch (err) {
+      if (err instanceof AppError && err.code === 'CONFLICT') throw err;
+      /* Ledger unreadable, or no claim row at all (a household that joined
+         before the ledger existed). Neither is a reason to refuse an offer. */
+    }
+
+    let row;
+    let changed = null;
+    if (repick) {
+      /* A CHANGE OF PICK IS AN UPDATE, NEVER A SECOND ROW. The one order on
+         this household moves to the new tier, price and partner by ROWID and
+         is read back before anything is answered. The earlier version of this
+         route answered the new tier while keeping the old row, so a household
+         that moved from 500 Mbps to 1 Gig was told 1 Gig and served 500. */
+      const moved = await orders.changePick(req.catalyst, existing, {
+        orgId: entry.orgId, tier: entry.tier, price: entry.price,
+        phone, slotAt, slotWindow, at: now,
+      });
+      row = moved.row;
+      changed = moved.before;
+    } else {
+      row = await orders.create(req.catalyst, {
+        campaignId: campaign.id,
+        orgId: entry.orgId,
+        memberUserId: user.user_id,
+        fsa,
+        address,
+        phone,
+        slotAt,
+        slotWindow,
+        tier: entry.tier,
+        /* The book price at acceptance, frozen on the order. What the household
+           was shown is what the statement has to bill against, and re-deriving
+           it later from a book that an admin may since have corrected is how
+           the two drift apart. */
+        price: entry.price,
+        at: now,
+      });
+      orders.invalidateConfirmed(campaign.id, entry.orgId);
+    }
 
     audit.recordAsync(req.catalyst, req, {
-      type: 'offer.accept',
+      type: changed ? 'offer.repick' : 'offer.accept',
       outcome: 'success',
       userId: user.user_id,
-      detail: `cohort=${campaign.id} org=${award.org_id}`,
+      detail: changed
+        ? `cohort=${campaign.id} from_org=${changed.orgId} from_tier=${changed.tier} org=${entry.orgId} tier=${entry.tier}`
+        : `cohort=${campaign.id} org=${entry.orgId} tier=${entry.tier} slot=${slotAt} window=${slotWindow}`,
+    });
+    /* The household's decision, and the first moment a partner is attached to
+       one. The install address and mobile this route also handles are not
+       passed: the switch_order allowlist drops them, and not sending them says so
+       at the call site as well as at the boundary. */
+    crm.enqueueAsync(req.catalyst, req, {
+      eventType: 'switch_order.created',
+      entityRowid: `${campaign.id}:${user.user_id}`,
+      version: changed ? 'repicked' : 'accepted',
+      email: user.email_display || user.email_normalized,
+      payload: {
+        event: changed ? 'repicked' : 'accepted',
+        cohort: campaign.id, region: campaign.region || null,
+        tier: entry.tier || null, price: entry.price || null,
+        from_tier: changed ? changed.tier || null : null,
+      },
+    });
+
+    /* The confirmation, and it doubles as the booking receipt: the day, the
+       window, the address and the reference in one place a household can find
+       again. Emitted after the write, and a change of pick sends a fresh
+       letter rather than being suppressed as a duplicate, because the
+       household changed something and needs the new day in writing. */
+    await events.offerAccepted(req, {
+      campaign, user, entry, row,
+      changedFrom: changed ? changed.tier : null,
     });
 
     res.status(200).json({
@@ -491,9 +1063,19 @@ function mount(router, cfg) {
       serverTime: now,
       accepted: true,
       orderNo: (row && row.order_no) || null,
+      /* The row's own state and slot, which on a retried accept are the ones
+         the first accept booked, not the ones this body asked for. */
+      state: (row && row.state) || 'acc',
+      slotAt: row ? ms(row.slot_at) : null,
+      /* Echoed so the confirmation screen names the speed and the partner the
+         server actually recorded, rather than the ones the client believed it
+         had chosen. */
+      tier: entry.tier,
+      price: entry.price,
+      partner: (await partnerName(req.catalyst, entry.orgId)),
       /* Said plainly, because it is the thing households ask: accepting is not
-         a charge, and the install is booked next. */
-      note: 'Accepted. Nothing is charged for switching, and your installer books the visit from here.',
+         a charge, and the install is booked. */
+      note: 'Accepted and booked. Nothing is charged for switching, and your installer has your day, your address and your number.',
     });
   }));
 
@@ -512,6 +1094,20 @@ function mount(router, cfg) {
         logDetail: `join on kind=${campaign.kind}`,
       });
     }
+
+    /* WHERE THIS HOUSEHOLD LIVES DECIDES WHICH COHORT IT MAY JOIN, and the
+       decision is made here, from the member row and the campaign row, at the
+       instant of the write. The dashboard is told the same answer on the read
+       so it can render the right card; nothing in the body is consulted, so a
+       request claiming eligibility gets exactly the refusal an honest one
+       would. One guard, both doors: routes/seat.js calls the same function.
+
+       `mine` first, because a household already standing in this cohort keeps
+       its place when an operator edits the FSA set out from under it. The
+       seat's own fsa_at_join snapshot (campaign_members.fsa) is the record of
+       what was true when it joined. */
+    const standing = await mineOn(req.catalyst, campaign, user.user_id);
+    guards.requireEligible(campaign, user, Date.now(), { mine: standing });
 
     /* INV-1: one seat per address per vertical. This door predates the seat
        ledger and used to bypass it, so one household could join N forming
@@ -578,8 +1174,16 @@ function mount(router, cfg) {
       email: user.email_normalized,
       detail: { campaign: campaign.id, status, was },
     });
+    crm.enqueueAsync(req.catalyst, req, {
+      eventType: 'cohort_membership.joined',
+      entityRowid: `${campaign.id}:${user.user_id}`,
+      version: status,
+      email: user.email_display || user.email_normalized,
+      payload: { event: status, cohort: campaign.id, region: campaign.region || null,
+        fsa: user.fsa || null },
+    });
 
-    const reply = await memberReply(req.catalyst, campaign, { status });
+    const reply = await memberReply(req.catalyst, campaign, { status }, user.fsa);
     res.status(200).json({ ok: true, serverTime: reply.now, campaign: reply.campaign });
   }));
 
@@ -643,8 +1247,15 @@ function mount(router, cfg) {
       email: user.email_normalized,
       detail: { campaign: campaign.id },
     });
+    crm.enqueueAsync(req.catalyst, req, {
+      eventType: 'cohort_membership.exited',
+      entityRowid: `${campaign.id}:${user.user_id}`,
+      version: 'left',
+      email: user.email_display || user.email_normalized,
+      payload: { event: 'left', cohort: campaign.id, region: campaign.region || null },
+    });
 
-    const reply = await memberReply(req.catalyst, campaign, undefined);
+    const reply = await memberReply(req.catalyst, campaign, undefined, user.fsa);
     res.status(200).json({ ok: true, serverTime: reply.now, campaign: reply.campaign });
   }));
 
@@ -681,7 +1292,7 @@ function mount(router, cfg) {
       detail: { campaign: campaign.id },
     });
 
-    const reply = await memberReply(req.catalyst, campaign, { status });
+    const reply = await memberReply(req.catalyst, campaign, { status }, user.fsa);
     res.status(200).json({ ok: true, serverTime: reply.now, campaign: reply.campaign });
   }));
 
@@ -710,6 +1321,12 @@ function mount(router, cfg) {
        to partners: this is simply the other surface that already knows every
        cohort's stage, and a cohort whose members are asleep still moves. */
     notices.sweepAsync(req.catalyst, cfg, states, now);
+    /* Reminders ride the same read, for the same reason notices do: there is
+       no cron here yet. It is a weaker trigger than a timer, because a
+       reminder is for somebody who is NOT looking, but it costs one sweep on a
+       page load that already computed every cohort's state and it means the
+       lane works before POST /admin/notify/tick has a job pointed at it. */
+    reminders.sweepAsync(req.catalyst, cfg, states, now);
     res.status(200).json({
       ok: true,
       serverTime: now,

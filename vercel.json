@@ -1,6 +1,9 @@
 {
-  "regions": ["yul1"],
+  "regions": [
+    "yul1"
+  ],
   "cleanUrls": true,
+  "trailingSlash": false,
   "headers": [
     {
       "source": "/(.*)",
@@ -91,24 +94,69 @@
       "destination": "https://whollar-110003037934.development.catalystserverless.ca/server/auth/r/:token"
     },
     {
+      "source": "/u/:token",
+      "destination": "https://whollar-110003037934.development.catalystserverless.ca/server/auth/u/:token"
+    },
+    {
+      "source": "/hooks/zeptomail",
+      "destination": "https://whollar-110003037934.development.catalystserverless.ca/server/auth/hooks/zeptomail"
+    },
+    {
       "source": "/api/auth/:path*",
       "destination": "https://whollar-110003037934.development.catalystserverless.ca/server/auth/:path*"
     }
   ],
   "redirects": [
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "internet.whollar.com"
+        }
+      ],
+      "destination": "https://internet.whollar.ca/",
+      "statusCode": 308
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "internet.whollar.com"
+        }
+      ],
+      "destination": "https://internet.whollar.ca/:path*",
+      "statusCode": 308
+    },
+    {
+      "source": "/join",
+      "destination": "https://www.whollar.ca/join",
+      "statusCode": 301
+    },
+    {
+      "source": "/join-welcome",
+      "destination": "https://www.whollar.ca/join-welcome",
+      "statusCode": 301
+    },
+    {
+      "source": "/join-welcome-tires",
+      "destination": "https://www.whollar.ca/join-welcome-tires",
+      "statusCode": 301
+    },
+    {
+      "source": "/landing",
+      "destination": "https://www.whollar.ca/",
+      "statusCode": 301
+    },
+    {
       "source": "/disclosures",
       "destination": "/terms",
       "permanent": false
     },
     {
-      "source": "/join",
-      "destination": "/waitlist/",
-      "permanent": false
-    },
-    {
       "source": "/resources",
-      "destination": "/blog/",
+      "destination": "/blog",
       "statusCode": 301
     },
     {

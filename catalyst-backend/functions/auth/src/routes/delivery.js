@@ -40,8 +40,10 @@
 const catalog = require('../lib/catalog');
 const awards = require('../lib/awards');
 const orders = require('../lib/orders');
+const events = require('../lib/notify/events');
 const billing = require('../lib/billing');
 const audit = require('../lib/audit');
+const crm = require('../lib/crm/outbox');
 const datastore = require('../lib/datastore');
 const { ok } = require('../lib/envelope');
 const { requirePartner: guardPartner, requireApproved } = require('../lib/guards');
@@ -88,9 +90,12 @@ async function requireWon(req, context) {
   if (!campaign) throw notFound('That cohort is not on your board.');
 
   /* Sealed-bid privacy: the all-orgs read stays inside lib/awards.js, so no
-     competitor's row ever enters this partner-scoped request. */
-  const award = await awards.sealFromCampaign(req.catalyst, campaign);
-  if (!award || award.org_id !== context.orgId) {
+     competitor's row ever enters this partner-scoped request. The org is
+     passed in rather than filtered out afterwards, because a cohort can now be
+     won by several partners at once: asking for "the award" and comparing it
+     to this org would hand back somebody else's row to compare against. */
+  const award = await awards.sealFromCampaign(req.catalyst, campaign, context.orgId);
+  if (!award) {
     throw notFound('That cohort is not on your board.');
   }
   return { campaign, award };
@@ -175,7 +180,7 @@ function mount(router) {
     });
 
     const rows = await orders.rowsForCampaign(req.catalyst, context.orgId, campaign.id);
-    const fresh = await awards.findByCampaign(req.catalyst, campaign.id);
+    const fresh = await awards.findForOrg(req.catalyst, campaign.id, context.orgId);
     return ok(res, {
       award: awards.publicAward(fresh || award, bill),
       counts: orders.counts(rows || []),
@@ -267,9 +272,9 @@ function mount(router) {
     const row = await orders.findByKey(req.catalyst, context.orgId, String(req.params.key || ''));
     if (!row) throw notFound('That order is not on your board.');
 
-    const award = await awards.findByCampaign(req.catalyst, row.campaign_id);
+    const award = await awards.findForOrg(req.catalyst, row.campaign_id, context.orgId);
     const bill = await billing.methodFor(req.catalyst, context.orgId);
-    if (!award || award.org_id !== context.orgId || !awards.gatePassed(award, bill)) {
+    if (!award || !awards.gatePassed(award, bill)) {
       /* The gate is not merely a view filter: without it there is no authority
          to act on the household either. */
       throw notFound('That order is not on your board.');
@@ -294,6 +299,11 @@ function mount(router) {
     const slot = orders.readSlot((req.body || {}).slotAt, at);
     orders.requireTransition(row.state, 'bkd');
 
+    /* Captured BEFORE the write: it is what tells a rebooking from a first
+       booking, and the row is about to stop carrying it. */
+    const wasBooked = row.state === 'bkd';
+    const previousSlotAt = wasBooked ? row.slot_at : null;
+
     await orders.move(req.catalyst, row, 'bkd', {
       slot_at: datastore.toDb(new Date(slot)),
       note: row.state === 'acc' ? 'Booked' : 'Rebooked, household confirmed',
@@ -305,7 +315,30 @@ function mount(router) {
       userId: user.user_id,
       detail: `org=${context.orgId} order=${row.order_no || row.order_key}`,
     });
-    return ok(res, { order: orders.publicOrder(await orders.findAnyByKey(req.catalyst, row.order_key)) });
+    /* PARTNER SIDE ONLY, on purpose. The household's half of this story is
+       already on their own record from the offer acceptance, and resolving
+       `member_user_id` to an email here would pull the household's identity
+       into a partner-facing route that is built never to carry it. */
+    crm.enqueueAsync(req.catalyst, req, {
+      eventType: 'switch_order.state_changed',
+      entityRowid: row.order_key,
+      version: wasBooked ? 'rebooked' : 'booked',
+      email: user.email_display || user.email_normalized,
+      leadType: 'partner',
+      payload: { event: wasBooked ? 'rebooked' : 'booked', org_id: context.orgId,
+        cohort: row.campaign_id, order_no: row.order_no || null,
+        tier: row.tier || null, fsa: row.fsa || null },
+    });
+
+    const fresh = await orders.findAnyByKey(req.catalyst, row.order_key);
+    /* AFTER the write, never before. An email saying "your install is booked"
+       that arrives because the booking then failed is worse than no email. */
+    await events.installScheduled(req, {
+      row: fresh || row,
+      previousSlotAt: previousSlotAt ? datastore.fromDb(previousSlotAt).getTime() : null,
+      rebooked: wasBooked,
+    });
+    return ok(res, { order: orders.publicOrder(fresh) });
   }));
 
   /**
@@ -343,7 +376,33 @@ function mount(router) {
       userId: user.user_id,
       detail: `org=${context.orgId} cohort=${row.campaign_id} order=${row.order_no || row.order_key}`,
     });
-    return ok(res, { order: orders.publicOrder(await orders.findAnyByKey(req.catalyst, row.order_key)) });
+    /* PARTNER SIDE ONLY, on purpose. The household's half of this story is
+       already on their own record from the offer acceptance, and resolving
+       `member_user_id` to an email here would pull the household's identity
+       into a partner-facing route that is built never to carry it. */
+    /* NO FEE FIGURE. Only an activation with a clean line test earns one, which
+       is what just happened, but the amount is configuration on the agreement
+       (site_config.success_fee, read by lib/billing.js) and not a number this
+       route holds. A stale figure copied into a CRM note would be read as the
+       invoice. The note records the event; billing owns the money. */
+    crm.enqueueAsync(req.catalyst, req, {
+      eventType: 'switch_order.activated',
+      entityRowid: row.order_key,
+      version: 'activated',
+      email: user.email_display || user.email_normalized,
+      leadType: 'partner',
+      payload: { event: 'activated', org_id: context.orgId,
+        cohort: row.campaign_id, order_no: row.order_no || null,
+        tier: row.tier || null, fsa: row.fsa || null, billable: true },
+    });
+
+    const activated = await orders.findAnyByKey(req.catalyst, row.order_key);
+    /* The finish line, and the only email in this file a household is glad to
+       get. No saving figure is passed: it would have to be derived from a bill
+       typed in months ago, and an unlabelled projection on the one letter that
+       says "done" is the worst place to put a guess. */
+    await events.switchComplete(req, { row: activated || row });
+    return ok(res, { order: orders.publicOrder(activated) });
   }));
 
   /**
@@ -378,7 +437,23 @@ function mount(router) {
       userId: user.user_id,
       detail: `org=${context.orgId} order=${row.order_no || row.order_key} kind=${kind}`,
     });
-    return ok(res, { order: orders.publicOrder(await orders.findAnyByKey(req.catalyst, row.order_key)) });
+    /* PARTNER SIDE ONLY, on purpose. The household's half of this story is
+       already on their own record from the offer acceptance, and resolving
+       `member_user_id` to an email here would pull the household's identity
+       into a partner-facing route that is built never to carry it. */
+    crm.enqueueAsync(req.catalyst, req, {
+      eventType: 'switch_order.state_changed',
+      entityRowid: row.order_key,
+      version: kind,
+      email: user.email_display || user.email_normalized,
+      leadType: 'partner',
+      payload: { event: kind, org_id: context.orgId, cohort: row.campaign_id,
+        order_no: row.order_no || null, fsa: row.fsa || null },
+    });
+
+    const after = await orders.findAnyByKey(req.catalyst, row.order_key);
+    await events.installException(req, { row: after || row, kind });
+    return ok(res, { order: orders.publicOrder(after) });
   }));
 
   /**
@@ -396,7 +471,7 @@ function mount(router) {
     const { row } = await requireOrder(req, context);
 
     const reason = String((req.body || {}).reason || '').trim();
-    if (orders.RELEASE_REASONS.indexOf(reason) < 0) {
+    if (orders.PARTNER_RELEASE_REASONS.indexOf(reason) < 0) {
       throw badRequest('Pick a release reason. It feeds your serviceability figure, so it cannot be free text.');
     }
     orders.requireTransition(row.state, 'rel');
@@ -412,7 +487,22 @@ function mount(router) {
       userId: user.user_id,
       detail: `org=${context.orgId} order=${row.order_no || row.order_key} reason=${reason}`,
     });
-    return ok(res, { order: orders.publicOrder(await orders.findAnyByKey(req.catalyst, row.order_key)) });
+    crm.enqueueAsync(req.catalyst, req, {
+      eventType: 'switch_order.released',
+      entityRowid: row.order_key,
+      version: 'released',
+      email: user.email_display || user.email_normalized,
+      leadType: 'partner',
+      payload: {
+        order_key: row.order_key, order_no: row.order_no || null,
+        org_id: context.orgId, campaign_id: row.campaign_id,
+        state: 'rel', release_reason: reason, fsa: row.fsa || null,
+      },
+    });
+
+    const released = await orders.findAnyByKey(req.catalyst, row.order_key);
+    await events.orderReleased(req, { row: released || row, reason });
+    return ok(res, { order: orders.publicOrder(released) });
   }));
 }
 

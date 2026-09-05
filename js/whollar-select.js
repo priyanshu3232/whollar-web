@@ -78,15 +78,28 @@
     'transition:transform .12s ease}',
     '.wseltrig[aria-expanded="true"] .wselcar{transform:rotate(180deg)}',
 
-    /* Absolutely positioned, unlike the console's in-flow default: these
-       panels sit in form grids that would reflow under them otherwise. */
-    '.wselpanel{position:absolute;z-index:60;top:calc(100% + 6px);left:0;right:0;',
+    /* FIXED, and placed by place() below rather than by `top:100%`. Out of the
+       flow entirely, like the console's `.mselmenu`, and for the same reason it
+       is: an absolutely positioned panel is clipped by any scrolling ancestor,
+       and it is stretched to the trigger's own width by `left:0;right:0`. In a
+       form grid neither shows. In a dense table cell both do, and together they
+       are a dropdown you cannot read: the dashboard's survey tables scroll
+       horizontally, so a carrier list opened in a 76px cell was drawn 76px wide
+       and then cut off at the cell's edge. Viewport coordinates escape every
+       overflow on the way up, and a min-width rather than a stretch lets an
+       11-name list hang off a narrow cell at its own width.
+
+       It stays a child of .wsel and does NOT move to <body>. Fixed already
+       defeats overflow; what it must not defeat is the host's stacking context,
+       because a dialog draws its own dropdown above itself only while the panel
+       is inside it. A body-level panel would have to outrank every overlay on
+       the site by z-index to do the same, and then it would outrank them all
+       when it should not. */
+    '.wselpanel{position:fixed;z-index:60;',
     'background:#fff;border:1.5px solid var(--wsel-line,var(--line,#E1DBCB));',
     'border-radius:10px;box-shadow:0 6px 18px rgba(31,45,38,.08);',
-    'overflow:hidden auto;max-height:min(320px,58vh)}',
+    'overflow:hidden auto}',
     '.wselpanel[hidden]{display:none}',
-    /* Flipped when the trigger sits too near the bottom of the viewport. */
-    '.wsel.wsel-up .wselpanel{top:auto;bottom:calc(100% + 6px)}',
 
     '.wselhead{display:flex;align-items:baseline;justify-content:space-between;',
     'gap:10px;padding:7px 11px;background:#F8F5EC;',
@@ -305,6 +318,16 @@
       }
     });
     ctl.ui.count = n;
+    ctl.sig = signature(sel);
+    /* The PLACEHOLDER is re-read too, not just the rows. It is what the trigger
+       shows while nothing is picked, and a page that replaces a list usually
+       replaces that line with it: the survey's model cell starts life as "Pick
+       make first" and becomes "Model" the moment a make answers the question it
+       was asking. Captured once at build time it stayed on the older, now
+       nonsensical, instruction. An explicit data-wsel-empty still wins, because
+       that one is the page's word and not the option list's. */
+    ctl.ui.empty = sel.getAttribute('data-wsel-empty')
+      || (ph ? ph.text : (ctl.multi ? 'Choose' : 'Choose\u2026'));
     ctl.list.innerHTML = html.join('');
 
     /* Text is set as text, never as markup: an option label is content, and
@@ -371,21 +394,183 @@
    * 4. BEHAVIOUR
    * ================================================================== */
 
+  /* The gap between trigger and panel, and the margin the panel keeps off
+     every edge of the window. */
+  var GAP = 6, EDGE = 8;
+  /* THE PANEL'S ZERO POINT, which is not always the window's.
+     `position:fixed` means "measured from the viewport" only while no ancestor
+     has taken the containing block over, and a dozen ordinary properties do
+     exactly that: a transform, an individual translate/rotate/scale, a
+     perspective, a filter, a backdrop-filter, a will-change naming any of
+     those, contain:paint or layout, or a container-type. Then left and top are
+     measured from that ancestor's PADDING edge, and viewport coordinates put
+     the panel wherever the ancestor happens to sit instead of under the
+     trigger.
+
+     The dashboard is the page that found this. Every card in an open view
+     carries `animation:rise .5s ease both`, and a filled animation that
+     interpolated a transform leaves the IDENTITY MATRIX behind for the life of
+     the page rather than the keyword `none`. An identity transform is still a
+     transform, so the card is a containing block for ever, and the switch
+     threshold dropdown opened 305px to the right and 281px below its control,
+     over the rail beside it. Nothing about that is the host page's mistake to
+     fix: this widget promises viewport coordinates, and a promise that holds
+     only until somebody animates a card is not one worth making.
+
+     Resolved once per open, because the chain cannot change while the panel is
+     open, only its position can. place() re-reads the rect on every scroll. */
+  var NONE = /^(none|normal)$/;
+  var CB_WILL_CHANGE = /transform|perspective|filter|translate|rotate|scale/;
+  var CB_CONTAIN = /paint|layout|strict|content/;
+  function stealsContainingBlock(s) {
+    return !NONE.test(s.transform || 'none')
+      || !NONE.test(s.translate || 'none')
+      || !NONE.test(s.rotate || 'none')
+      || !NONE.test(s.scale || 'none')
+      || !NONE.test(s.perspective || 'none')
+      || !NONE.test(s.filter || 'none')
+      || !NONE.test(s.backdropFilter || s.webkitBackdropFilter || 'none')
+      || CB_WILL_CHANGE.test(s.willChange || '')
+      || CB_CONTAIN.test(s.contain || '')
+      || !NONE.test(s.containerType || 'normal');
+  }
+  /* The nearest ancestor that has, with the border widths that separate its
+     border box, which is what getBoundingClientRect reports, from its padding
+     box, which is what a fixed child is placed against. */
+  function containingBlock(el) {
+    for (var p = el.parentElement; p && p !== doc.documentElement; p = p.parentElement) {
+      var s = root.getComputedStyle(p);
+      if (!stealsContainingBlock(s)) continue;
+      return { el: p, bx: parseFloat(s.borderLeftWidth) || 0, by: parseFloat(s.borderTopWidth) || 0 };
+    }
+    return null;
+  }
+  /* What to subtract from a viewport coordinate to get one the panel can be
+     placed at. Zero in the ordinary case, which is every page but the ones
+     above, so the arithmetic below is unchanged where nothing is wrong. */
+  var ZERO = { x: 0, y: 0 };
+  function zeroPoint(ctl) {
+    if (!ctl.cb) return ZERO;
+    if (!doc.contains(ctl.cb.el)) { ctl.cb = null; return ZERO; }
+    var r = ctl.cb.el.getBoundingClientRect();
+    return { x: r.left + ctl.cb.bx, y: r.top + ctl.cb.by };
+  }
+
+  /* The least room below a trigger that is still worth opening into: about four
+     rows. Below this a downward panel is a slot too thin to pick from and the
+     panel goes above instead. Above it, DOWN WINS, even when the list would
+     rather have more space, because these panels scroll and a reader looking
+     for a dropdown looks under the control. The alternative, flipping whenever
+     the full list does not fit, is what put a 320px carrier list over the
+     dialog's own heading on a 13px shortfall: technically the roomier side,
+     visibly the wrong one. */
+  var MIN_ROOM = 168;
+  /* The panel's own ceiling, unchanged from the `max-height:min(320px,58vh)`
+     this replaced. It is applied in place() now because the height decides
+     which side the panel opens on, and a rule in the stylesheet cannot be read
+     back before it has been laid out. */
+  function cap() { return Math.min(320, root.innerHeight * 0.58); }
+
+  /**
+   * Put the panel where it fits, in viewport coordinates.
+   *
+   * Below the trigger unless the list does not fit there AND there is more room
+   * above, which is the whole of the flip rule: a panel flipped onto a side
+   * with even less space is two bugs rather than one. Whichever side wins, the
+   * height is then capped to what that side actually has, so the panel scrolls
+   * internally instead of running off the screen, and the top is clamped so a
+   * trigger squeezed against an edge still gets a panel that is fully on it.
+   */
+  function place(ctl) {
+    var panel = ctl.panel, t = ctl.trig.getBoundingClientRect();
+    var vw = root.innerWidth, vh = root.innerHeight;
+    /* Every number from here on is a viewport coordinate, decided against the
+       window, and turned into one the panel can be placed at only on the way
+       into a style. */
+    var z = zeroPoint(ctl);
+    /* Anchored before it is measured. A fixed box with `left:auto` falls back
+       to its static position, and measuring it there means measuring a panel
+       that may be wrapping against the window's right edge rather than the one
+       we are about to place. Nothing paints between here and the final values
+       below, so this costs a reflow and not a flicker. */
+    panel.style.left = (Math.max(EDGE, Math.round(t.left)) - z.x) + 'px';
+    panel.style.top = (Math.round(t.bottom + GAP) - z.y) + 'px';
+    /* Measured with the cap lifted, so "does it fit below" is asked of the
+       list's real height and not of the height it was last squeezed into. */
+    panel.style.maxHeight = '';
+    panel.style.minWidth = Math.round(t.width) + 'px';
+    panel.style.maxWidth = Math.max(160, vw - 2 * EDGE) + 'px';
+    /* The height the panel will actually be drawn at, capped, which is the only
+       height worth measuring anything against: a 17-row sidewall list wants
+       680px and is never going to get it. */
+    var want = Math.min(panel.offsetHeight, cap());
+    var below = vh - t.bottom - GAP - EDGE, above = t.top - GAP - EDGE;
+    var up = below < Math.min(want, MIN_ROOM) && above > below;
+    var h = Math.min(want, Math.max(96, up ? above : below));
+    panel.style.maxHeight = h + 'px';
+    var top = up ? t.top - GAP - h : t.bottom + GAP;
+    panel.style.top = (Math.max(EDGE, Math.min(top, vh - EDGE - h)) - z.y) + 'px';
+    panel.style.left = (Math.max(EDGE, Math.min(t.left, vw - EDGE - panel.offsetWidth)) - z.x) + 'px';
+    /* Kept as a class as well, so a host page can still tell the two
+       directions apart, even though placement no longer depends on it. */
+    ctl.wrap.classList.toggle('wsel-up', up);
+  }
+
+  /* A fixed panel does not travel with the thing it is anchored to, so anything
+     that moves the trigger has to move the panel too: the page scrolls, dialogs
+     scroll, and the survey's tables scroll inside the dialog. Capture phase,
+     because a scroll on an ancestor does not bubble. */
+  function track(ctl) {
+    if (ctl.onmove) return;
+    ctl.onmove = function () {
+      if (ctl.panel.hidden) return;
+      /* The anchor has left the window entirely. A panel pointing at nothing is
+         worse than no panel, the same call `.mselmenu` makes. */
+      var t = ctl.trig.getBoundingClientRect();
+      if (!doc.contains(ctl.trig) || t.bottom < 0 || t.top > root.innerHeight) { close(ctl, false); return; }
+      place(ctl);
+    };
+    root.addEventListener('scroll', ctl.onmove, true);
+    root.addEventListener('resize', ctl.onmove);
+  }
+  function untrack(ctl) {
+    if (!ctl.onmove) return;
+    root.removeEventListener('scroll', ctl.onmove, true);
+    root.removeEventListener('resize', ctl.onmove);
+    ctl.onmove = null;
+  }
+
+  /**
+   * A signature of the option list, so open() can tell whether the page has
+   * REPLACED the options since this panel was built.
+   *
+   * The observer at the foot of this file enhances a select when one is ADDED,
+   * which is the wrong event for a list rewritten in place: the dashboard's
+   * survey fills its model column once a make is picked, and that panel went on
+   * offering "Pick make first" for the rest of the session. Re-reading on open
+   * makes it every caller's default rather than something each one has to
+   * remember, and refresh() stays for the trigger text, which is on screen
+   * before anybody opens anything.
+   */
+  function signature(sel) {
+    var out = sel.options.length + '|';
+    for (var i = 0; i < sel.options.length; i++) out += sel.options[i].text + '';
+    return out;
+  }
+
   /* `toRow` is true only when the panel was opened from the keyboard. A mouse
      open leaves focus on the trigger, because moving it into the list would
      mark the first row and a marked row reads as a pick already made. */
   function open(ctl, toRow) {
     closeAll(ctl);
     if (ctl.sel.disabled) return;
-    sync(ctl);
+    if (signature(ctl.sel) !== ctl.sig) render(ctl); else sync(ctl);
     ctl.trig.setAttribute('aria-expanded', 'true');
     ctl.panel.hidden = false;
-    /* Flip above the trigger when the panel would otherwise run off the
-       bottom of the viewport and drag the page down with it. */
-    var box = ctl.trig.getBoundingClientRect();
-    var need = Math.min(ctl.panel.scrollHeight + 12, root.innerHeight * 0.58);
-    ctl.wrap.classList.toggle('wsel-up',
-      box.bottom + need > root.innerHeight && box.top > need);
+    /* Before the first place(), and once for the whole time the panel is up. */
+    ctl.cb = containingBlock(ctl.panel);
+    place(ctl);
+    track(ctl);
     if (!toRow) return;
     var first = ctl.list.querySelector('.wselopt.on') || ctl.list.querySelector('.wselopt:not([disabled])');
     if (first) first.focus();
@@ -393,9 +578,17 @@
 
   function close(ctl, refocus) {
     if (ctl.panel.hidden) return;
+    untrack(ctl);
     ctl.trig.setAttribute('aria-expanded', 'false');
     ctl.panel.hidden = true;
     ctl.wrap.classList.remove('wsel-up');
+    /* Cleared rather than left behind: the next open measures the list before
+       it places it, and last time's height would be the thing it measured. */
+    ctl.panel.style.cssText = '';
+    /* Resolved again on the next open. A panel that moves between opens, which
+       the dashboard's editors do because a row builds its editor each time it
+       is clicked, would otherwise be placed against the card it used to sit in. */
+    ctl.cb = null;
     if (refocus) ctl.trig.focus();
   }
 
@@ -413,7 +606,14 @@
 
     ctl.trig.addEventListener('keydown', function (e) {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); open(ctl, true); }
-      else if (e.key === 'Escape') close(ctl, true);
+      /* Escape dismisses the PANEL and stops there. The innermost thing open is
+         the thing Escape closes, and the host page above this one is usually a
+         dialog with an Escape handler of its own: the survey's is on `document`,
+         so without this a member who opened a carrier list and thought better of
+         it lost the whole form and everything typed into it. Only swallowed when
+         a panel was actually open, so Escape on a closed dropdown still reaches
+         the dialog that should handle it. */
+      else if (e.key === 'Escape' && !ctl.panel.hidden) { e.stopPropagation(); close(ctl, true); }
     });
 
     ctl.list.addEventListener('click', function (e) {
@@ -425,7 +625,11 @@
     ctl.list.addEventListener('keydown', function (e) {
       var rows = Array.prototype.slice.call(ctl.list.querySelectorAll('.wselopt:not([disabled])'));
       var i = rows.indexOf(doc.activeElement);
-      if (e.key === 'Escape') { e.preventDefault(); close(ctl, true); }
+      /* Same rule as the trigger's Escape above: the panel is the innermost
+         overlay, so it consumes the key rather than letting a dialog behind it
+         close too. Reached only while the panel is open, since that is the only
+         time a row can hold focus. */
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(ctl, true); }
       else if (e.key === 'ArrowDown') { e.preventDefault(); step(rows, i, 1); }
       else if (e.key === 'ArrowUp') { e.preventDefault(); step(rows, i, -1); }
       else if (e.key === 'Home') { e.preventDefault(); if (rows[0]) rows[0].focus(); }

@@ -79,7 +79,7 @@ const LEAF = '<svg width="15" height="15" viewBox="0 0 24 24" fill="#1E9E63" ari
    /contact, /privacy and /terms have none and are shared. */
 const DESKTOP = {
   home: '/', how: '/#how', why: '/#why', faq: '/#faq',
-  resources: '/blog/', contact: '/contact',
+  resources: '/blog', contact: '/contact',
   privacy: '/privacy', terms: '/terms', providers: '/partners'
 };
 const MOBILE = {
@@ -140,7 +140,11 @@ const BLOG_SLUGS = [
   'internet-bill-breakdown-canada', 'negotiate-internet-bill-canada',
   'internet-retention-offer-win-back', 'independent-internet-providers-canada',
   'collective-switching-energy-proof', 'big-three-telecom-canada',
-  'crtc-internet-prices-canada'
+  'crtc-internet-prices-canada', 'cheap-internet-chatham-ontario',
+  'best-internet-toronto',
+  'internet-speed-how-much-need',
+  'rural-internet-ontario',
+  'internet-providers-mississauga'
 ];
 
 /* current: which nav link is marked aria-current on this page. */
@@ -154,6 +158,15 @@ const PAGES = [
   { file: 'bill-checkup.html', current: null },
   { file: 'waitlist/index.html', current: null },
   { file: 'thank-you.html', current: null },
+  /* The region pages. A cohort page is a marketing page for one address, so
+     it carries the footer like every other public page: nobody is signed in
+     here, and the route back out to /bill-checkup, /privacy and /contact is
+     the point rather than a leak. `current: null` because there is no nav
+     item for a region. */
+  { file: 'greystonewalk.html', current: null },
+  /* The ported landing design, staged for review at /landing. At cutover it
+     replaces index.html and this line inherits index's entry. */
+  { file: 'landing.html', current: null },
   /* NO FOOTER ON A SIGNED-IN SURFACE. dashboard.html, partner/index.html,
      welcome-member.html and welcome-partner.html are app chrome, not marketing
      pages: a member or a partner who has signed in is inside the product, and
@@ -163,6 +176,10 @@ const PAGES = [
      pages keep theirs, because nobody is signed in yet. Deliberately absent
      from this list, and the footer markers are stripped from those files, so
      `--check` has nothing to call stale. */
+  /* join.html is deliberately absent for the same reason as the welcome
+     screens above: it is a single-purpose signup, its whole job is the one
+     form, and it already carries Terms and Privacy in the consent line. It
+     also has no footer markers, so --check has nothing to call stale. */
   { file: 'whollar-login-consumer.html', current: null },
   { file: 'whollar-login-provider.html', current: null },
   { file: 'blog/index.html', current: 'resources' },

@@ -36,7 +36,7 @@
    * sending it, which is the exact class of bug that makes a console look stale
    * rather than broken.
    */
-  
+
   var state = {
     /* who */
     partner: null,        /* the local record from whollar-login-provider */
@@ -44,7 +44,7 @@
     org: null,
     approved: false,
     role: null,
-  
+
     /* application */
     application: null,    /* GET /provider/application, null until it answers */
     /* Whether that read has SETTLED, which is not the same question. Null means
@@ -54,7 +54,7 @@
        as long as the round trip took. */
     applicationLoaded: false,
     documents: null,
-  
+
     /* what they can bid on */
     coverage: [],
     coverageLive: true,
@@ -64,14 +64,27 @@
     bids: {},             /* keyed by campaign id */
     briefs: {},           /* GET .../brief payloads keyed by campaign id;
                              'loading' while in flight, { failed: true } on error */
-  
+    reach: {},            /* GET .../reach keyed by campaign id: how much of the
+                             cohort this org's brands can still reach once member
+                             exclusions are applied. One aggregate per cohort and
+                             never a member identity. { available: false } covers
+                             both a failure and a 403 for no attested roster,
+                             because the bid form renders no line for either. */
+
+    /* the brands this org operates */
+    roster: null,         /* GET /provider/roster, null until it answers */
+    rosterLoaded: false,  /* answered at all, which is not the same as non-null:
+                             "we could not read your roster" and "you have
+                             declared nothing" are different sentences and only
+                             one of them asks the partner to act. */
+
     /* what binds them */
     contracts: null,      /* GET /provider/contracts, null until it answers */
     contractsError: null, /* why it did not answer: { status, code, message }.
                              Kept because "refused" and "still loading" are the
                              same blank card otherwise, and only one of them is
                              something a partner can act on. */
-  
+
     /* what they have won, and what it is worth */
     delivery: null,       /* GET /provider/orders; 'loading' while in flight.
                              Fetched on view-open and explicit refresh only: a
@@ -80,11 +93,11 @@
                              write an audit row a minute, forever. */
     deliveryCohort: null, /* which won cohort the board is showing */
     billing: null,        /* GET /provider/statements; 'loading' while in flight */
-  
+
     /* health */
     biddingPaused: false,
     biddingNotice: null,
-  
+
     /* view-local, deliberately in the store so a re-render cannot lose it */
     covEdit: null,        /* region slug being edited inline */
     covDraft: null,       /* chip state while editing */
@@ -98,16 +111,16 @@
                              core/bidseed.js so it survives a reload. A starting
                              point for a form and nothing else: it is never sent,
                              and the two consent boxes are never carried */
-  
+
     prefs: null,
     fixture: null         /* { name, label, view } under fixture mode */
   };
-  
+
   var subs = [];
-  
+
   /** Read the whole state. Treat it as read-only; write through set(). */
   function get() { return state; }
-  
+
   /**
    * Replace one or more slices and notify subscribers once.
    * set('coverage', rows) or set({ coverage: rows, coverageLive: true }).
@@ -125,7 +138,7 @@
     if (changed.length) notify(changed);
     return state;
   }
-  
+
   /**
    * Subscribe to any change. The callback receives the changed slice names, so a
    * view can skip work it does not care about without needing per-key channels.
@@ -137,7 +150,7 @@
       if (i >= 0) subs.splice(i, 1);
     };
   }
-  
+
   /* A subscriber that throws must not stop the others rendering. A half-painted
      console is recoverable; a console where view three broke views four through
      eleven is not diagnosable from a screenshot. */
@@ -148,22 +161,22 @@
       }
     });
   }
-  
+
   /** Force a full repaint, for the boot path and after a wholesale reload. */
   function refresh() { notify(Object.keys(state)); }
-  
+
   /* ------------------------------------------------------------------ *
    * derived reads
    *
    * Kept here rather than in views so that two views cannot answer the same
    * question differently. Every one of these is a pure function of state.
    * ------------------------------------------------------------------ */
-  
+
   /** Regions that verified. Only these produce a biddable cohort. */
   function activeCoverage() {
     return state.coverage.filter(function (c) { return c.status === 'active'; });
   }
-  
+
   /** Cohorts whose region has verified. A cohort in a 'verifying' region is
       visible but locked, which is the state a new partner meets most. */
   function biddableCampaigns() {
@@ -171,11 +184,11 @@
     activeCoverage().forEach(function (c) { active[slug(c.region)] = true; });
     return state.campaigns.filter(function (a) { return active[slug(a.coverageRegion || a.region)]; });
   }
-  
+
   function slug(s) {
     return String(s || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   }
-  
+
   /**
    * Where the org stands on the standard cohort terms, in three states rather
    * than two.
@@ -192,7 +205,7 @@
     if (!t) return 'unknown';
     return t.current ? 'accepted' : 'pending';
   }
-  
+
   /** How many of the five application tasks have cleared or been submitted. */
   function applicationProgress() {
     var tasks = (state.application && state.application.tasks) || {};
@@ -200,7 +213,7 @@
     var done = keys.filter(function (k) { return tasks[k] !== 'empty'; });
     return { done: done.length, total: keys.length || 5, tasks: tasks };
   }
-  
+
   /** True when every task has left 'empty'. The 48 hour clock starts here. */
   function applicationComplete() {
     var p = applicationProgress();
@@ -219,6 +232,106 @@
   };
 
   /* ==================================================================
+     core/tiers.js
+     ================================================================== */
+  __defs["core/tiers.js"] = function (__exports, __require, root) {
+  /* The standard speed ladder, and the one place a speed becomes a tier.
+   *
+   * ONE SOURCE, THREE RUNTIMES. A sealed bid names its tiers from this ladder,
+   * the price book is keyed on it, a household's window centres on it, and the
+   * cohort's speed demand is counted against it. Until this file existed the
+   * ladder lived in lib/bids.js, partner/core/contract.js and dashboard.html as
+   * three hand-kept mirrors, and the coverage view carried a fourth that did not
+   * agree. scripts/build-tiers.mjs emits the CommonJS copy the Catalyst
+   * function requires, and its --check gate keeps the two identical; the copy in
+   * dashboard.html is still kept by hand, and scripts/test-tiers.mjs fails when
+   * it drifts. No imports here, on purpose: the generator is a text transform
+   * and the module has to stand alone.
+   *
+   * THE TIER ID IS THE LABEL. "1 Gig" is what a bid stores, what a book entry
+   * carries and what an order records, validated against TIER_NAMES on every
+   * write. The Mbps figure is derived from it here and never stored beside it,
+   * so the two cannot disagree on a row.
+   */
+
+  var TIER_LADDER = Object.freeze([
+    [50, '50 Mbps'],
+    [100, '100 Mbps'],
+    [300, '300 Mbps'],
+    [500, '500 Mbps'],
+    [1000, '1 Gig'],
+    [1500, '1.5 Gig'],
+    [2500, '2.5 Gig']
+  ]);
+
+  var TIER_NAMES = Object.freeze(TIER_LADDER.map(function (t) { return t[1]; }));
+
+  /** The Mbps behind a ladder label, or null for anything not on the ladder. */
+  function tierMbps(label) {
+    var s = String(label == null ? '' : label).trim();
+    for (var i = 0; i < TIER_LADDER.length; i++) {
+      if (TIER_LADDER[i][1] === s) return TIER_LADDER[i][0];
+    }
+    return null;
+  }
+
+  /** The ladder label for an exact rung, or null between rungs. */
+  function tierLabel(mbps) {
+    var n = Number(mbps);
+    for (var i = 0; i < TIER_LADDER.length; i++) {
+      if (TIER_LADDER[i][0] === n) return TIER_LADDER[i][1];
+    }
+    return null;
+  }
+
+  /** Position on the ladder, or -1. */
+  function tierIndex(label) {
+    return TIER_NAMES.indexOf(String(label == null ? '' : label).trim());
+  }
+
+  /**
+   * Mbps behind a speed as written anywhere in this system: a bare number
+   * ("500", the checkup's value), "500 Mbps", "1 Gbps", "1 Gig", "1.5 Gig".
+   * Null for nothing, "Not sure" (the checkup sends "0"), or a figure that is
+   * not positive: an unknown speed is null, never a small number.
+   */
+  function speedMbps(value) {
+    if (value == null || value === '') return null;
+    var s = String(value).trim();
+    var m = s.match(/^\$?([\d.]+)\s*(g|m)?/i);
+    if (!m) return null;
+    var n = parseFloat(m[1]);
+    if (!isFinite(n) || n <= 0) return null;
+    return m[2] && /^g/i.test(m[2]) ? n * 1000 : n;
+  }
+
+  /**
+   * The ladder tier a speed sits at: the highest rung at or below it. NULL
+   * below the lowest rung, and null for an unknown speed. The earlier version
+   * answered the lowest rung for both, which turned "Not sure" into a confident
+   * claim to want 50 Mbps; a household whose speed is not known gets no tier
+   * here and the window rule decides what to show instead.
+   */
+  function tierForSpeed(value) {
+    var n = speedMbps(value);
+    if (n === null) return null;
+    var best = null;
+    for (var i = 0; i < TIER_LADDER.length; i++) {
+      if (TIER_LADDER[i][0] <= n) best = TIER_LADDER[i][1];
+    }
+    return best;
+  }
+
+  __exports.TIER_LADDER = TIER_LADDER;
+  __exports.TIER_NAMES = TIER_NAMES;
+  __exports.tierMbps = tierMbps;
+  __exports.tierLabel = tierLabel;
+  __exports.tierIndex = tierIndex;
+  __exports.speedMbps = speedMbps;
+  __exports.tierForSpeed = tierForSpeed;
+  };
+
+  /* ==================================================================
      core/contract.js
      ================================================================== */
   __defs["core/contract.js"] = function (__exports, __require, root) {
@@ -234,16 +347,19 @@
    * not in Production. So the contract is checked at RUNTIME, against the real
    * response, which is the only place those show up.
    */
-  
+
+  var __ns0 = __require("core/tiers.js");
+  var LADDER_TIER_NAMES = __ns0.TIER_NAMES;
+
   /* ------------------------------------------------------------------
      ENUMS
-  
+
      Every list below becomes a database column value. Because Catalyst has no
      DDL API these columns are typed by hand, so the value that ships and the
      value the table accepts can drift silently. Each list names the server-side
      declaration it mirrors. If you change one, change both.
      ------------------------------------------------------------------ */
-  
+
   /* Partner lifecycle. Mirrors provider_orgs.approval_status
      (catalyst-backend/functions/auth/src/lib/orgs.js APPROVAL) plus the two
      states the console adds: an org can be approved and still be unable to bid,
@@ -251,7 +367,7 @@
   var PARTNER_STATE = Object.freeze([
     'applicant', 'approved', 'active', 'bidding_paused', 'suspended', 'rejected'
   ]);
-  
+
   /* The five application tracks. Each runs its OWN verification, starting the
      moment that piece lands: the copy on the application screen says "each piece
      starts its own check the moment it lands", so batching verification at
@@ -261,7 +377,7 @@
   var APP_STATE = Object.freeze([
     'draft', 'submitted', 'under_review', 'info_needed', 'approved', 'rejected'
   ]);
-  
+
   /* What each task is called, and what it asks for. One declaration, read by the
      checklist, the modals, and the review frame, so the three cannot drift. */
   var APP_TASK_COPY = Object.freeze({
@@ -271,7 +387,7 @@
     agreement: ['Sign the application agreement', 'Accuracy of declarations, consent to verification, confidentiality of briefs.'],
     reference: ['One operating reference', 'Someone who has seen you deliver: a wholesale manager, a landlord, a peer.']
   });
-  
+
   /* Cohort auction stage. DISPLAY ONLY. The server derives this from the
      campaign's timestamps and sends it; the client never computes it, because a
      client clock a few minutes fast would let a partner bid after close.
@@ -284,18 +400,18 @@
     planned: 'Planned', announced: 'Announced', open: 'Open',
     closing: 'Closing', offers_out: 'Offers out', decided: 'Decided'
   });
-  
+
   /* Coverage. A declared region lands in 'verifying' and is checked against
      facilities data. 'active' became reachable when the admin verify route
      shipped; before that every declared region sat in 'verifying' forever and no
      cohort ever reached a desk. */
   var COVERAGE_STATE = Object.freeze(['verifying', 'active', 'soon', 'rejected']);
-  
+
   /* Bids are append-only. There is no 'withdrawn': a sealed bid is binding until
      its deadline, improvable and never removable, so no value here and no
      endpoint anywhere may retire one. */
   var BID_STATE = Object.freeze(['sealed', 'improved', 'locked', 'won', 'not_selected']);
-  
+
   /* How the gap between sticker and effective price is described to a household.
      'custom' reveals a free-text field, which is why it is validated rather than
      merely stored: the standard terms forbid deadline language, manufactured
@@ -312,17 +428,17 @@
   var EQUIPMENT = Object.freeze(['inc', 'rent', 'byod']);
   var AFTER_MODE = Object.freeze(['none', 'new']);
   var GUARANTEE_MONTHS = Object.freeze([12, 24, 36]);
-  
+
   /* The standard tier ladder and the technologies a bid names. Mirrors
      lib/bids.js TIER_NAMES / TECHS: tiers come from one server-owned list so two
      partners' offers on a cohort are comparable line by line. Wire values are
      the canonical lowercase codes; TECH_LABEL is how the console displays them. */
-  var TIER_NAMES = Object.freeze(['100 Mbps', '300 Mbps', '500 Mbps', '1 Gig', '1.5 Gig', '2.5 Gig']);
+  var TIER_NAMES = LADDER_TIER_NAMES;
   var TECH = Object.freeze(['cable', 'fibre', 'dsl', 'fwa']);
   var TECH_LABEL = Object.freeze({
     cable: 'Cable', fibre: 'Fibre', dsl: 'DSL', fwa: 'Fixed wireless'
   });
-  
+
   /* Switch order state. THIS list is canonical. The prototype also carries a
      dead earlier vocabulary (ins, sch, to) from a superseded seedRoster; it is
      not ported and must not reappear.
@@ -333,58 +449,62 @@
     noshow: 'No-show', access: 'Access denied', linefail: 'Line test failed'
   });
   var ORDER_EXCEPTION = Object.freeze(['noshow', 'access', 'linefail']);
-  
+
   /* Exception-first ordering. Deliberate: the board opens on what needs a
      decision, not on what is going well. Lower sorts first. */
   var ORDER_RANK = Object.freeze({
     noshow: 0, access: 0, linefail: 0, acc: 1, bkd: 2, act: 3, rel: 4
   });
-  
+
   /* Release reasons are an enum, not free text, because they feed the
      serviceability accuracy figure on the performance page, which feeds future
      briefs. Free text would make that number unbuildable. */
   var RELEASE_REASON = Object.freeze([
-    'no_plant', 'building_access', 'speed_tier_unavailable', 'household_cancelled'
+    'no_plant', 'building_access', 'speed_tier_unavailable', 'household_cancelled',
+    'household_passed'
   ]);
   var RELEASE_LABEL = Object.freeze({
     no_plant: 'No plant at address',
     building_access: 'Building access not in place',
     speed_tier_unavailable: 'Speed tier not available here',
-    household_cancelled: 'Household cancelled the install'
+    household_cancelled: 'Household cancelled the install',
+    /* Written by the household's own pass before confirmations locked, never
+       by a partner: the order was accepted and then withdrawn on the dashboard. */
+    household_passed: 'Household passed before confirmations locked'
   });
-  
+
   /* Why a declared region failed serviceability. Same reasoning as the release
      reasons: this feeds a figure, so it cannot be prose. */
   var COVERAGE_REJECT_REASON = Object.freeze([
     'no_facilities', 'outside_footprint', 'tech_unsupported', 'needs_evidence'
   ]);
-  
+
   var STATEMENT_STATE = Object.freeze(['accruing', 'issued', 'paid', 'disputed']);
   var LINE_STATE = Object.freeze(['accrued', 'held', 'disputed', 'upheld', 'credited']);
-  
+
   /* Seat roles. Mirrors lib/orgs.js ROLES. Flagged, not fixed: nothing in the
      backend ever WRITES 'bidder' (addMember gives the first seat 'admin' and
      everyone after 'viewer'), and desk.js refuses only 'viewer', so a second
      person at a partner cannot place a bid today. */
   var ROLE = Object.freeze(['admin', 'bidder', 'viewer']);
-  
+
   /* Every figure shown to a partner is one of these, and none ship unlabelled.
      Directional means an estimate and must render as one. */
   var CLAIM = Object.freeze(['direct', 'derived', 'directional']);
-  
+
   /* ------------------------------------------------------------------
      THE VALIDATOR
-  
+
      Specs are deliberately small. This is not a schema language; it is a
      tripwire on the handful of fields whose type actually changes behaviour.
-  
+
      Spec value syntax:
        'str' 'num' 'int' 'bool' 'arr' 'obj'   type
        'str?'                                  same, but null/undefined allowed
        ['enum', LIST]                          membership
        ['absent']                              the key must NOT be present
      ------------------------------------------------------------------ */
-  
+
   var SPECS = {
     /* serverTime is epoch MILLISECONDS, not the datastore's date string. The
        datastore returns UTC with no zone marker, and lib/datastore.js documents
@@ -392,12 +512,12 @@
        that string to a browser reproduces, in every client, the bug the server
        already fixed. An integer cannot be misread. */
     envelope: { ok: 'bool', serverTime: 'int' },
-  
+
     providerMe: { ok: 'bool', user: 'obj', org: 'obj?', approved: 'bool' },
-  
+
     /* The org inside providerMe, checked separately because the validator above
        is flat and `org: 'obj?'` proves only that something arrived.
-  
+
        It proved nothing useful, and the gap shipped. orgs.contextFor() builds
        this object and spells the company ORGNAME; the console read `org.name` in
        six places, so every partner's Account screen said "Company: Not on file"
@@ -415,9 +535,9 @@
       approved: 'bool',
       name: ['absent']
     },
-  
+
     campaignList: { ok: 'bool', campaigns: 'arr', serverTime: 'int' },
-  
+
     /* One campaign, checked per row. This spec exists because it was missing
        once and cost a silent bug: the fixtures carried a flat `closesAt` while
        routes/campaigns.js sends a nested `dates` object keyed by column name, so
@@ -429,7 +549,7 @@
       stageLabel: 'str',
       dates: 'obj'
     },
-  
+
     /* The application. `tasks` is an object keyed by APP_TASK, each value an
        APP_TASK_STATE, because per-task status is what makes "each piece starts
        its own check" true rather than decorative. */
@@ -437,11 +557,11 @@
       ok: 'bool', state: ['enum', ['draft', 'submitted', 'under_review', 'info_needed', 'approved', 'rejected']],
       tasks: 'obj'
     },
-  
+
     /* The brief: aggregates only. `bid` is the org's OWN bid or null; no other
        partner's anything is in this shape, which is the assertion. */
     brief: { ok: 'bool', serverTime: 'int', campaign: 'obj', brief: 'obj', coverage: 'obj', bid: 'obj?' },
-  
+
     /* One sealed bid, the org's own. The shape the fixtures' SEALED_BID and the
        server's publicBid() both build; this spec is what keeps them agreeing. */
     bid: {
@@ -453,17 +573,17 @@
          cents per tier, and the ticket hydrates from that. */
       discountMix: 'obj?'
     },
-  
+
     /* What a place or improve returns: the new head and the sealed receipt. */
     bidReceipt: { ok: 'bool', serverTime: 'int', bid: 'obj', receipt: 'obj' },
-  
+
     /* The contracts registry. `terms` is asserted because the whole surface
        turns on it: `current` false is what draws the accept button and what the
        server is independently enforcing on every bid write. The other four
        sections are nullable by design (null means "could not read that one"),
        so they are not asserted here; the view checks each. */
     contracts: { ok: 'bool', serverTime: 'int', terms: 'obj', live: 'bool' },
-  
+
     /* The intimation boundary, asserted from the client side as well.
        Before the roster gate the response carries counts and the orders key is
        ABSENT, not an empty array: absent is unambiguous, whereas [] cannot be
@@ -472,7 +592,7 @@
     rosterGated: { ok: 'bool', counts: 'obj', orders: ['absent'] },
     rosterReleased: { ok: 'bool', counts: 'obj', orders: 'arr' }
   };
-  
+
   var TYPE = {
     str: function (v) { return typeof v === 'string'; },
     num: function (v) { return typeof v === 'number' && isFinite(v); },
@@ -481,13 +601,13 @@
     arr: function (v) { return Object.prototype.toString.call(v) === '[object Array]'; },
     obj: function (v) { return v !== null && typeof v === 'object' && !TYPE.arr(v); }
   };
-  
+
   /* Report each distinct drift once per session. A console polling every 45
      seconds against a backend whose column type is wrong would otherwise
      generate a request per poll, which is how you turn a display bug into a
      billing event on someone's serverless account. */
   var reported = {};
-  
+
   /* Strict throws; loose warns once and lets the view degrade. Set by the boot
      path on localhost and by the fixture layer. A module-level `let` cannot be
      exported through this build (imported bindings are copies), so the flag
@@ -495,14 +615,14 @@
   var strict = false;
   function setStrict(on) { strict = !!on; }
   function isStrict() { return strict; }
-  
+
   function describe(v) {
     if (v === null) return 'null';
     if (v === undefined) return 'undefined';
     if (TYPE.arr(v)) return 'array(' + v.length + ')';
     return typeof v;
   }
-  
+
   /**
    * Validate a payload against a named spec.
    * Returns the payload either way, so it can wrap a call inline.
@@ -510,7 +630,7 @@
   function check(name, value) {
     var spec = SPECS[name];
     if (!spec) return value;
-  
+
     var problems = [];
     if (!TYPE.obj(value)) {
       problems.push('payload is ' + describe(value) + ', expected an object');
@@ -520,7 +640,7 @@
         var rule = spec[key];
         var got = value[key];
         var present = Object.prototype.hasOwnProperty.call(value, key);
-  
+
         if (TYPE.arr(rule) && rule[0] === 'absent') {
           if (present) problems.push(key + ' must be absent, got ' + describe(got));
           continue;
@@ -538,14 +658,14 @@
       }
     }
     if (!problems.length) return value;
-  
+
     var msg = 'contract drift on ' + name + ': ' + problems.join('; ');
-  
+
     /* Locally, and under fixtures, this is a bug in code being written right now
        and should stop the developer. In production the partner is not helped by
        a blank screen, so record it and let the view degrade. */
     if (strict) throw new Error(msg);
-  
+
     if (!reported[name]) {
       reported[name] = true;
       try {
@@ -608,31 +728,31 @@
    * Handing that string to a browser reproduces, in every client, the bug the
    * server already fixed. An integer cannot be misread.
    */
-  
+
   var skew = 0;
   var synced = false;
-  
+
   /** Record the gap between the server's clock and this browser's. */
   function sync(serverTime) {
     if (typeof serverTime !== 'number' || !isFinite(serverTime)) return;
     skew = serverTime - Date.now();
     synced = true;
   }
-  
+
   /** Now, as the server would report it. */
   function now() { return Date.now() + skew; }
-  
+
   function isSynced() { return synced; }
   function skewMs() { return skew; }
-  
+
   /** Milliseconds until a server timestamp, never negative. */
   function until(ts) { return Math.max(0, ts - now()); }
-  
+
   var DAY = 86400000;
   var HOUR = 3600000;
-  
+
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  
+
   /** "Oct 14". Rendered in the reader's zone, which for the GTA pilot is the
       cohort's zone. When cohorts open outside America/Toronto this needs the
       campaign's zone passed in, and that is a real change, not a formatting
@@ -641,7 +761,7 @@
     var d = new Date(ts);
     return MONTHS[d.getMonth()] + ' ' + d.getDate();
   }
-  
+
   /**
    * "Aug 14" from a datastore stamp, "YYYY-MM-DD HH:MM:SS".
    *
@@ -656,7 +776,7 @@
     if (!m) return '';
     return MONTHS[+m[2] - 1] + ' ' + +m[3];
   }
-  
+
   /** "5 PM", "5:30 PM". */
   function fmtTime(ts) {
     var d = new Date(ts);
@@ -665,7 +785,7 @@
     h = h % 12 || 12;
     return h + (m ? ':' + (m < 10 ? '0' : '') + m : '') + ' ' + ap;
   }
-  
+
   /** "02:14:09". Countdown inside the last 24 hours. */
   function fmtCountdown(ms) {
     if (ms < 0) ms = 0;
@@ -674,7 +794,7 @@
     var p = function (n) { return (n < 10 ? '0' : '') + n; };
     return p(h) + ':' + p(m) + ':' + p(s);
   }
-  
+
   /** "in 3 days", "today", "2 days ago". For soft dates only, never a deadline. */
   function relativeDays(ts) {
     var d = Math.round((ts - now()) / DAY);
@@ -683,12 +803,12 @@
     if (d === -1) return 'yesterday';
     return d > 0 ? 'in ' + d + ' days' : Math.abs(d) + ' days ago';
   }
-  
+
   function sameDay(a, b) {
     var x = new Date(a), y = new Date(b);
     return x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate();
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the ticker
    *
@@ -697,9 +817,9 @@
    * re-rendered the whole console whenever a stage signature changed; that is
    * why its clock buttons worked and also why it burned a render per second.
    * ------------------------------------------------------------------ */
-  
+
   var timer = null;
-  
+
   function startTicker() {
     if (timer) return;
     if (typeof document === 'undefined') return;
@@ -714,7 +834,7 @@
       });
     }, 1000);
   }
-  
+
   function stopTicker() {
     if (timer) { clearInterval(timer); timer = null; }
   }
@@ -757,17 +877,17 @@
    * and error path is therefore exercised from the first commit, and turning a
    * stub into a call changes one line here and nothing in the view.
    */
-  
+
   var __ns0 = __require("core/contract.js");
   var check = __ns0.check;
   var __ns1 = __require("core/time.js");
   var sync = __ns1.sync;
-  
+
   function core() {
     return (typeof window !== 'undefined' ? window : globalThis).WHOLLAR || {};
   }
   function session() { return core().session || {}; }
-  
+
   /* ------------------------------------------------------------------ *
    * transport
    *
@@ -781,7 +901,7 @@
    * preflight itself without CORS headers. Point this at the Catalyst host
    * directly and it breaks.
    * ------------------------------------------------------------------ */
-  
+
   function request(method, path, body) {
     var W = core();
     var opts = {
@@ -822,7 +942,7 @@
       throw e;
     });
   }
-  
+
   /* The other half of the serverTime seam. Calls that go through
      whollar-core.js's session methods bypass request() above, so their payloads
      would anchor nothing: the skew would sit at whatever the last local call
@@ -836,7 +956,7 @@
       return r;
     });
   }
-  
+
   /* A stub rejects exactly as the server will once it exists, including the code,
      so callers never need a second error path later. Tagged rather than sniffed
      from Function.prototype.toString: a view needs to ask "is this built yet"
@@ -854,36 +974,36 @@
     f.__path = path;
     return f;
   }
-  
+
   var api = {};
-  
+
   /* ---- 7.1 session and bootstrap (1-4) ---- */
-  
+
   /* 1. POST /auth/session. Owned by whollar-login-provider.html, which runs the
         password plus emailed-code flow. Present so the register is complete; the
         console never calls it. */
   api.signIn = function (creds) { return session().providerLogin(creds); };
-  
+
   /* 2. DELETE /auth/session -> POST /logout.
         Must end the SERVER session. Clearing localStorage alone leaves the
         cookie alive and the boot guard adopts it straight back. */
   api.signOut = function () { return session().end('partner'); };
-  
+
   /* 3. GET /partners/me -> GET /provider/me. LIVE. */
   api.me = function () { return synced(session().providerMe()).then(function (r) { return check('providerMe', r); }); };
-  
+
   /* 4. GET /time. Stubbed: serverTime rides on every payload instead, which
         removes a round trip and a way for the two to disagree. */
   api.time = todo('GET /time');
-  
+
   /* ---- 7.2 application (5-16) ---- */
-  
+
   /* 5. Public intake. Today the marketing form posts to a DIFFERENT Catalyst
         function (formSubmit -> PartnerApplications, PascalCase columns, no
         session), and admin joins it to the org by email-domain suffix match in
         JavaScript. Unifying them is deliberate later work, not a rename. */
   api.applicationCreate = todo('POST /partner-applications');
-  
+
   /* 6. LIVE. The five tasks, their individual check states, and the clock. */
   api.application = function () {
     return request('GET', '/provider/application').then(function (r) { return check('application', r); });
@@ -899,7 +1019,7 @@
         sixty-six calls run under. If Catalyst Stratus is adopted later this
         becomes real and 9 becomes the confirm it is named for. */
   api.documentPresign = todo('POST /provider/application/documents/presign');
-  
+
   /* 9. LIVE. The file itself, as its own bytes, with kind and filename in the
         query string: multipart would need a parser dependency in a function
         whose whole body-parsing surface today is express.json.
@@ -968,9 +1088,9 @@
   api.applicationTimeline = function () { return request('GET', '/provider/application/timeline'); };
   /* 16. Admin, not console. In the register because the contract numbers it. */
   api.applicationDecision = todo('POST /admin/partner-applications/:id/decision');
-  
+
   /* ---- 7.3 coverage (17-21) ---- */
-  
+
   /* 17. LIVE. */
   api.coverage = function () { return synced(session().providerCoverage()); };
   /* 18. LIVE. New regions land 'verifying'. */
@@ -985,9 +1105,9 @@
   api.serviceability = function (region) {
     return request('GET', '/provider/coverage/' + encodeURIComponent(region) + '/serviceability');
   };
-  
+
   /* ---- 7.4 bid desk (22-31) ---- */
-  
+
   /* 22. LIVE. Counts only, plus bidding_open and the server-derived stage. */
   api.campaigns = function () { return synced(session().providerCampaigns()); };
   /* 23 */ api.campaign = todo('GET /provider/campaigns/:id');
@@ -1010,9 +1130,9 @@
   /* 31. Scoped to declared coverage: search must not become a way to enumerate
          cohorts a partner cannot see. */
   /* 31 */ api.search = todo('GET /provider/search');
-  
+
   /* ---- 7.5 bids (32-37) ---- */
-  
+
   /* 32. LIVE. */
   api.bids = function () { return synced(session().providerBids()); };
   /* 33. LIVE. Place only: an existing bid answers 409 and the improve route is
@@ -1044,9 +1164,9 @@
   /* 37. The record the client already holds, as a file. Ships client-side from
          views/bids.js for now; the server route stays honestly unbuilt. */
   /* 37 */ api.bidsExport = todo('GET /provider/bids/export');
-  
+
   /* ---- 7.6 terms and contracts (38-39) ---- */
-  
+
   /* 38. LIVE. A read over records other routes own: the approval decision, the
          registration on the application, the declared coverage, the sealed bid
          heads, and the terms acceptance. Each section degrades on its own, so a
@@ -1062,7 +1182,7 @@
   api.termsAccept = function (body) {
     return request('POST', '/provider/contracts/terms/accept', body);
   };
-  
+
   /* ---- 7.7 roster and delivery (40-52) ----
      THE INTIMATION BOUNDARY. routes/campaigns.js states in code that no member
      identity crosses the campaigns route. It crosses here, and only here, and
@@ -1073,7 +1193,7 @@
      nobody signed up", and a client cannot render rows never transmitted.
      Every read of endpoint 43 is audited, which is why rows are fetched on
      view-open and explicit refresh only, and never polled. */
-  
+
   /* 40. LIVE. Counts always; the `orders` key only once the roster gate has
          passed, and ABSENT rather than empty before it. */
   api.roster = function (id) {
@@ -1128,9 +1248,9 @@
   };
   /* 51 */ api.logistics = todo('GET /provider/campaigns/:id/logistics');
   /* 52 */ api.rma = todo('GET /provider/campaigns/:id/rma');
-  
+
   /* ---- 7.8 billing (53-62) ---- */
-  
+
   /* 53. LIVE. What is accruing right now, across every cohort. */
   api.billingCycle = function () { return request('GET', '/provider/billing/cycle'); };
   /* 54. LIVE. One statement per won cohort. Per cohort, never per month: a
@@ -1169,42 +1289,88 @@
          rows read into every statement, so the GTA pilot's Ontario HST is not
          hardcoded anywhere; a per-province profile is the next step, not this one. */
   /* 62 */ api.taxProfile = todo('GET /provider/billing/tax');
-  
+
   /* ---- 7.9 performance (63-64) ---- */
-  
+
   /* 63. Every figure labelled direct, derived or directional. Nothing
          unlabelled, and nothing that is not a real query. */
   /* 63 */ api.performance = todo('GET /provider/performance');
   /* 64. Publishes only past 25 responses, so one voice cannot be picked out.
          That threshold is enforced in the query, not in the view. */
   /* 64 */ api.ratings = todo('GET /provider/performance/ratings');
-  
+
   /* ---- 7.10 account (65-67) ---- */
-  
+
+  /* ---- 7.11 brands and the roster (68-72) ----
+   *
+   * The attested list of brands this partner operates, and the two aggregate
+   * numbers a member's exclusions can move. Nothing here carries a member
+   * identity: `reach` and `cohortResults` are counts computed server side, and
+   * the raw member-to-exclusion mapping never crosses to a partner scope.
+   */
+
+  /* 68. LIVE. This org's attested brands plus the active registry to pick from.
+         NOT `api.roster`: that name is taken by the DELIVERY roster, the
+         households of one won cohort (endpoint 44 above). "Roster" means two
+         different things on this surface and the collision is not theoretical:
+         the first version of this block was called `api.roster` and silently
+         replaced the delivery call, because a later assignment to the same key
+         wins and nothing complains. Hence `brandRoster`, and the duplicate-key
+         check in the self-check below. */
+  api.brandRoster = function () { return request('GET', '/provider/roster'); };
+  /* 69. LIVE. Replaces the list and re-stamps the attestation. 422 without it. */
+  api.brandRosterDeclare = function (body) { return request('POST', '/provider/roster', body); };
+  /* 70. LIVE. Files a pending_review listing plus an operator task. Nothing may
+         be bid under it until an operator promotes it to active. */
+  api.brandRequest = function (body) { return request('POST', '/provider/brand-request', body); };
+  /* 71. LIVE. Reachable households in one cohort for this org's brands, as one
+         aggregate. 403 until the roster is attested, because the number is
+         meaningless without one. */
+  api.reach = function (id) { return request('GET', '/provider/cohorts/' + encodeURIComponent(id) + '/reach'); };
+  /* 72. LIVE. Won, outranked and unreachable-by-exclusion, aggregate only, on a
+         closed cohort. Its own route rather than the bid board's payload: it
+         walks every member of the cohort, and the board is metered per fetch. */
+  api.cohortResults = function (id) { return request('GET', '/provider/cohorts/' + encodeURIComponent(id) + '/results'); };
+
   /* 65. LIVE. Session-gated, already provider-usable. */
   api.prefs = function () { return session().prefsGet(); };
   /* 66. LIVE. Merges top-level keys only. */
   api.prefsSave = function (patch) { return session().prefsSave(patch); };
   /* 67. LIVE. Capped at 50 seats server side. */
   api.team = function () { return session().providerTeam(); };
-  
+
   /* ------------------------------------------------------------------ *
    * self-check
    *
    * The register's completeness is the whole guarantee, so it is counted here
-   * rather than claimed in a comment. scripts/qa-console.mjs asserts 67.
+   * rather than claimed in a comment. scripts/qa-console.mjs asserts 72.
    * ------------------------------------------------------------------ */
-  
+
+  /* A key assigned twice is a route silently replaced, which is how the brand
+     roster ate the delivery roster once. Object.keys cannot see it after the
+     fact, so the source is counted instead and the mismatch is reported on the
+     register itself for scripts/qa-console.mjs to assert. */
   var names = Object.keys(api).filter(function (k) { return typeof api[k] === 'function'; });
   api.__count = names.length;
   api.__implemented = names.filter(function (k) { return !api[k].__todo; }).length;
   api.__pending = names.filter(function (k) { return api[k].__todo; }).map(function (k) { return api[k].__path; });
-  
+
+  /* Every method this file MEANS to expose, as a plain list.
+   *
+   * It exists so a key assigned twice is visible. `Object.keys(api).length` is
+   * blind to it by construction: a second `api.roster = ...` replaces the first
+   * and the count does not move, which is exactly how the brand roster silently
+   * ate the delivery roster. `__declared` minus `__count` is the number of
+   * collisions, asserted by scripts/qa-console.mjs, so the next one fails a gate
+   * instead of a delivery board. Keep this in step when adding a method. */
+  api.__declared = 72;
+  api.__collisions = api.__declared - api.__count;
+
   /* Exposed so the fixture layer can replace transport wholesale. */
   api.__request = request;
-  
 
-  
+
+
   /** True when this call is a tagged stub rather than a real route. */
   function isStub(fn) { return !!(fn && fn.__todo); }
 
@@ -1244,25 +1410,25 @@
    * that route refuses a non-partner with 403, and someone who is not a partner
    * has no console to be left sitting in.
    */
-  
+
   var __ns0 = __require("core/api.js");
   var api = __ns0.api;
   var __ns1 = __require("core/contract.js");
   var check = __ns1.check;
   var __ns2 = __require("core/state.js");
   var set = __ns2.set;
-  
+
   function isAuthError(err) {
     return !!err && (err.status === 401 || err.code === 'UNAUTHENTICATED');
   }
-  
+
   /** Send them to sign in, carrying where they were so they come back here. */
   function bounce() {
     var W = window.WHOLLAR;
     if (W && W.partner) W.partner.clear();
     location.replace('/whollar-login-provider?next=' + encodeURIComponent(location.pathname + location.hash));
   }
-  
+
   /**
    * Bounce only on a definite auth failure. Anything else, a 403 from an
    * approval gate included, is left to the caller to render.
@@ -1271,7 +1437,7 @@
     if (isAuthError(err)) bounce();
     return isAuthError(err);
   }
-  
+
   /**
    * Re-read who this is from the server and update the store.
    *
@@ -1317,7 +1483,7 @@
       return null;
     });
   }
-  
+
   function mount() {
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'visible') revalidate();
@@ -1352,11 +1518,11 @@
    *
    * The handler receives (element, event) and reads its own data attributes.
    */
-  
+
   var handlers = { click: {}, change: {}, input: {}, submit: {}, keydown: {} };
   var outside = [];
   var mounted = false;
-  
+
   /**
    * Register a handler. Re-registering the same name is a programming error, not
    * an override: two modules claiming one action is the bug the prototype had.
@@ -1366,7 +1532,7 @@
     if (handlers[type][name]) throw new Error('actions: "' + name + '" is already registered for ' + type);
     handlers[type][name] = fn;
   }
-  
+
   /**
    * Called on every click anywhere, before the data-action lookup, with the
    * event. For controls that have to close when attention moves elsewhere: the
@@ -1377,14 +1543,14 @@
    * above describes.
    */
   function onAnyClick(fn) { outside.push(fn); }
-  
+
   /** Every registered action, for the QA harness and for a quick audit. */
   function registered() {
     var out = {};
     Object.keys(handlers).forEach(function (t) { out[t] = Object.keys(handlers[t]).sort(); });
     return out;
   }
-  
+
   function dispatch(type, e) {
     var el = e.target.closest ? e.target.closest('[data-action]') : null;
     if (!el) return;
@@ -1399,7 +1565,7 @@
       if (typeof console !== 'undefined' && console.error) console.error('[whollar] action "' + name + '" failed:', err);
     }
   }
-  
+
   function mount() {
     if (mounted) return;
     mounted = true;
@@ -1412,7 +1578,7 @@
     document.addEventListener('change', function (e) { dispatch('change', e); });
     document.addEventListener('input', function (e) { dispatch('input', e); });
     document.addEventListener('submit', function (e) { dispatch('submit', e); });
-  
+
     /* Two jobs, one listener.
        First, a control that wants the keys itself: the district combobox needs
        up, down, Enter and Escape, and a listbox driven from a keydown handler
@@ -1452,12 +1618,12 @@
    * which it did not. A dialog a keyboard user can tab out of, behind an overlay
    * they cannot see past, is a trap in the other direction.
    */
-  
+
   var lastFocus = null;
   var mounted = false;
-  
+
   var FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-  
+
   function open(html) {
     var m = document.getElementById('modal');
     var body = document.getElementById('mbody');
@@ -1469,7 +1635,7 @@
     var first = m.querySelector(FOCUSABLE);
     if (first) first.focus();
   }
-  
+
   function close() {
     var m = document.getElementById('modal');
     if (!m || m.hidden) return;
@@ -1480,27 +1646,27 @@
     if (lastFocus && lastFocus.focus) lastFocus.focus();
     lastFocus = null;
   }
-  
+
   function isOpen() {
     var m = document.getElementById('modal');
     return !!m && !m.hidden;
   }
-  
+
   function mount() {
     if (mounted) return;
     mounted = true;
-  
+
     document.addEventListener('click', function (e) {
       var m = document.getElementById('modal');
       if (!m || m.hidden) return;
       if (e.target === m || (e.target.closest && e.target.closest('[data-mclose]'))) close();
     });
-  
+
     document.addEventListener('keydown', function (e) {
       if (!isOpen()) return;
       if (e.key === 'Escape') { close(); return; }
       if (e.key !== 'Tab') return;
-  
+
       /* The trap. Without it, tabbing past the last control lands on the page
          behind the overlay, which is unreachable by mouse and invisible. */
       var m = document.getElementById('modal');
@@ -1530,19 +1696,19 @@
    * hard refresh the moment someone added a twelfth. A hash is deep-linkable,
    * survives reload, and costs nothing.
    */
-  
+
   var VIEWS = ['overview', 'desk', 'plan', 'bids', 'billing', 'coverage',
     'delivery', 'perf', 'contracts', 'pending', 'account'];
-  
+
   var listeners = [];
-  
+
   function mobile() { return window.innerWidth <= 940; }
-  
+
   function current() {
     var h = String(location.hash || '').replace(/^#/, '');
     return VIEWS.indexOf(h) >= 0 ? h : 'overview';
   }
-  
+
   function go(v) {
     if (VIEWS.indexOf(v) < 0) return;
     paint(v);
@@ -1551,7 +1717,7 @@
     try { history.replaceState({ v: v }, '', '#' + v); } catch (e) { /* file:// */ }
     listeners.forEach(function (fn) { fn(v); });
   }
-  
+
   function paint(v) {
     Array.prototype.forEach.call(document.querySelectorAll('.view'), function (x) {
       x.classList.toggle('on', x.getAttribute('data-v') === v);
@@ -1565,14 +1731,14 @@
     if (app && mobile()) app.classList.remove('paneopen');
     window.scrollTo(0, 0);
   }
-  
+
   /** Called when the view changes, so a view can load its own detail on open. */
   function onChange(fn) { listeners.push(fn); }
-  
+
   function mount() {
     window.addEventListener('hashchange', function () { go(current()); });
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the gated frame
    *
@@ -1581,7 +1747,7 @@
    * console for them yet, and pretending otherwise is what makes an empty desk
    * read as a broken one.
    * ------------------------------------------------------------------ */
-  
+
   function setGated(on) {
     document.body.classList.toggle('gated', !!on);
   }
@@ -1618,11 +1784,11 @@
    * catalyst-backend/functions/auth/src/lib/money.js, which owns the rounding
    * rule for all of it.
    */
-  
+
   function core() {
     return (typeof window !== 'undefined' ? window : globalThis).WHOLLAR || {};
   }
-  
+
   /** Escape for HTML text and attribute contexts. */
   function esc(s) {
     var W = core();
@@ -1632,7 +1798,7 @@
         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
       });
   }
-  
+
   /** "$3,610.00" from the canonical string "3610.00". */
   function money(value) {
     var W = core();
@@ -1641,25 +1807,25 @@
     if (!isFinite(n)) return '';
     return '$' + n.toLocaleString('en-CA', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
   }
-  
+
   /** Initials for an avatar. */
   function monogram(s) {
     var W = core();
     if (W.monogram) return W.monogram(s);
     return String(s || '?').trim().split(/\s+/).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join('');
   }
-  
+
   function titleCase(s) {
     var W = core();
     if (W.titleCase) return W.titleCase(s);
     return String(s || '').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
   }
-  
+
   /** "1 cohort" / "3 cohorts", without the bare number reading as a label. */
   function plural(n, one, many) {
     return n + ' ' + (n === 1 ? one : (many || one + 's'));
   }
-  
+
   /** A region name to its slug. Mirrors the backend's coverage_key derivation,
       which is `${org_id}:${region-slug}`; getting this wrong is a silent miss
       rather than an error, because the row simply never matches. */
@@ -1692,12 +1858,12 @@
    * recover from that, which is why it appeared to work; it belongs inside body,
    * and §4.4.1 says so.
    */
-  
+
   var __ns0 = __require("core/state.js");
   var get = __ns0.get;
   var __ns1 = __require("core/format.js");
   var esc = __ns1.esc;
-  
+
   /* The bar is sticky, so the nav pane and the view header both start below it
      and the pane is exactly one viewport minus the bar. Nothing else can know
      that height: the copy wraps to a second line on a narrow window, and a
@@ -1707,13 +1873,13 @@
     var h = host.firstElementChild ? Math.ceil(host.getBoundingClientRect().height) : 0;
     document.documentElement.style.setProperty('--bannerh', h + 'px');
   }
-  
+
   function render() {
     var host = document.getElementById('mainbanner');
     if (!host) return;
     var S = get();
     var html = '';
-  
+
     var billing = S.billing;
     if (billing && billing.state === 'failed') {
       html = '<div class="alertbar">'
@@ -1728,11 +1894,11 @@
         + '<button class="tlink bannerlink" type="button" data-action="nav" data-view="pending">See where it stands</button>'
         + '</div>';
     }
-  
+
     host.innerHTML = html;
     measure(host);
   }
-  
+
   /* A render is not the only thing that changes the bar's height: a resize
      rewraps the copy, and a late webfont reflows it. Watch the element rather
      than the window, which covers both. */
@@ -1760,9 +1926,9 @@
    * pages including the marketing site, and the bar for adding weight there is a
    * second calling page. This has one.
    */
-  
+
   var timer = null;
-  
+
   function toast(msg) {
     var el = document.getElementById('toast');
     if (!el) return;
@@ -1771,7 +1937,7 @@
     clearTimeout(timer);
     timer = setTimeout(function () { el.classList.remove('show'); }, 2400);
   }
-  
+
   /**
    * Show a server error verbatim.
    *
@@ -1799,10 +1965,10 @@
    * express "coverage cleared but registration is flagged", which is a real and
    * common shape.
    */
-  
+
   var __ns0 = __require("core/format.js");
   var esc = __ns0.esc;
-  
+
   /**
    * @param {'dn'|'now'|''} state
    * @param {string|number} num   shown when the row is not done
@@ -1837,12 +2003,12 @@
    * application_tasks.state it is literally true, and a partner can see that
    * their coverage cleared while their registration is still with the register.
    */
-  
+
   var __ns0 = __require("core/format.js");
   var esc = __ns0.esc;
   var __ns1 = __require("core/contract.js");
   var APP_TASK = __ns1.APP_TASK, APP_TASK_COPY = __ns1.APP_TASK_COPY;
-  
+
   /* How each check state reads, and whether the row still offers an action.
      'flagged' is not a failure of the application, it is one piece needing
      another look, so it keeps its action. */
@@ -1853,7 +2019,7 @@
     cleared: { mark: '✓', cls: 'dn', note: 'Cleared', actionable: false },
     flagged: { mark: '!', cls: 'flag', note: 'Needs another look', actionable: true }
   };
-  
+
   /* Where each task's action goes. Coverage is a view; the other four are
      modals, because they are four fields each and a view per field would make a
      ten minute application feel like an afternoon. */
@@ -1864,7 +2030,7 @@
     agreement: ['app:modal', 'agreement', 'Review'],
     reference: ['app:modal', 'reference', 'Add']
   };
-  
+
   /** The application checklist. `tasks` is { key: APP_TASK_STATE }. */
   function applicationTasks(tasks) {
     var done = 0;
@@ -1883,7 +2049,7 @@
           : '<span class="taskstate">' + esc(st.note) + '</span>')
         + '</div>';
     }).join('');
-  
+
     return {
       html: rows,
       done: done,
@@ -1893,7 +2059,7 @@
         : done + ' of ' + APP_TASK.length
     };
   }
-  
+
   /* The activation checklist, for an approved partner. Five steps to a first
      sealed bid. Each is derived from real state, never from a stored flag: a
      checklist that can disagree with the console is worse than no checklist. */
@@ -1904,7 +2070,7 @@
     ['brief', 'Review your first auction brief', 'Open the closest deadline on the bid desk', 'desk', 'Open'],
     ['bid', 'Place your first sealed bid', 'Sealed, binding, improvable until close', 'desk', 'Bid']
   ];
-  
+
   /** @param {Object} done { coverage:bool, terms:bool, pay:bool, brief:bool, bid:bool } */
   function activationTasks(done) {
     var n = 0;
@@ -1917,7 +2083,7 @@
         + (d ? '' : '<button class="tlink" type="button" data-action="nav" data-view="' + t[3] + '">' + esc(t[4]) + ' →</button>')
         + '</div>';
     }).join('');
-  
+
     return {
       html: rows,
       done: n,
@@ -1927,7 +2093,7 @@
         : n + ' of ' + ACTIVATION.length
     };
   }
-  
+
   /** The progress bar the checklist sits above. */
   function progress(done, total) {
     return '<div class="pbar"><i style="width:' + Math.round(done / total * 100) + '%"></i></div>';
@@ -1965,7 +2131,7 @@
    * application completes, not when we get around to it" a true sentence rather
    * than a promise.
    */
-  
+
   var __ns0 = __require("core/state.js");
   var get = __ns0.get, set = __ns0.set, applicationComplete = __ns0.applicationComplete;
   var __ns1 = __require("core/api.js");
@@ -1990,16 +2156,16 @@
   var gateRow = __ns10.gateRow;
   var __ns11 = __require("components/tasks.js");
   var applicationTasks = __ns11.applicationTasks, progress = __ns11.progress;
-  
+
   /* ------------------------------------------------------------------ *
    * the frame
    * ------------------------------------------------------------------ */
-  
+
   function render() {
     var host = document.getElementById('pend-body');
     if (!host) return;
     var app = get().application;
-  
+
     /* Not reached on a normal boot: load() seeds the record before the read
        starts, so the frame paints the review card straight away. Kept for the
        one path that empties it, a boot read that failed, which app.js hands to
@@ -2010,12 +2176,12 @@
         + '<p>One moment. If this does not clear, reload the page, and email partners@whollar.ca if it still will not.</p></div></section>';
       return;
     }
-  
+
     if (app.state === 'rejected') { host.innerHTML = declined(app); return; }
     if (app.state === 'info_needed') { host.innerHTML = infoNeeded(app); return; }
     host.innerHTML = underReview(app);
   }
-  
+
   /* Under review. Four rows, each state read from application_tasks rather than
      from a counter, so "coverage cleared, registration still with the register"
      renders as itself instead of as "2 of 5". */
@@ -2024,25 +2190,25 @@
     var complete = applicationComplete();
     var org = (get().org && get().org.orgName) || (app.operatingName) || 'Your company';
     var regions = get().coverage.filter(function (c) { return c.status !== 'soon'; }).length;
-  
+
     function anyOf(keys, states) {
       return keys.some(function (k) { return states.indexOf(t[k]) > -1; });
     }
     function allOf(keys, states) {
       return keys.every(function (k) { return states.indexOf(t[k]) > -1; });
     }
-  
+
     var covState = t.coverage === 'cleared' ? 'dn' : (t.coverage && t.coverage !== 'empty' ? 'now' : '');
     var paperKeys = ['registration', 'documents', 'agreement', 'reference'];
     var paperState = allOf(paperKeys, ['cleared']) ? 'dn'
       : (anyOf(paperKeys, ['submitted', 'verifying', 'flagged']) ? 'now' : '');
     var decisionState = complete ? 'now' : '';
     var done = countDone(t);
-  
+
     return '<section class="card" style="max-width:640px;margin:0 auto">'
       + '<span class="eyebrow">Founding partner application</span>'
       + '<h3>' + (complete ? 'Received. The clock is running.' : 'Received. The rest is yours to start.') + '</h3>'
-  
+
       /* "signed up", and the date is the ACCOUNT's, not the application's. The
          application row is created on the first task write, so its own stamp
          would date a partner's signup to whenever they first touched the form,
@@ -2051,7 +2217,7 @@
          the one that matches the sentence. */
       + gateRow('dn', '', 'Application received',
         esc(org) + (signedUp() ? ' · signed up ' + esc(signedUp()) : ''))
-  
+
       /* One button in all three states. Complete is not the same as done with
          us: the partner still wants to see what they sent while the clock runs,
          and a card with no way back into the file reads as a dead end. Nothing
@@ -2067,26 +2233,26 @@
         : 'Five short pieces: coverage, registration, documents, one agreement, one reference. '
           + 'About ten minutes, in any order, and each piece starts its own check the moment it lands.')
       + '</small></div>'
-  
+
       + gateRow(covState, 2, 'Serviceability check',
         t.coverage && t.coverage !== 'empty'
           ? 'Running on your ' + regions + ' declared region' + (regions === 1 ? '' : 's') + ' against real plant data.'
           : 'Starts the moment your coverage lands, against real plant data.')
-  
+
       + gateRow(paperState, 3, 'Registration and agreements',
         anyOf(paperKeys, ['submitted', 'verifying', 'cleared'])
           ? 'Registration with the reviewer, agreement on file, reference contacted once.'
           : 'CRTC registration, two documents read by a person, one agreement, one reference contacted once.')
-  
+
       + gateRow(decisionState, 4, 'Decision · within 48 hours of completion',
         complete && app.decisionDueAt
           ? 'Everything is in. Your decision lands by ' + esc(fmtDate(app.decisionDueAt)) + '.'
           : 'The clock starts when your application completes, not when we get around to it.')
-  
+
       + '<p class="fnote">Nothing is owed at any point in this process. Questions: partners@whollar.ca</p>'
       + '</section>';
   }
-  
+
   /* info_needed. The prototype has no such state, and without it a flagged check
      is a silent stall: the partner sees "under review" forever and never learns
      that one number did not match. The flagged task is reopened, and only that
@@ -2104,7 +2270,7 @@
       + '<small>Only the flagged piece is reopened. Everything else stays cleared, and the 48 hour clock restarts when you resubmit.</small></div>'
       + '<p class="fnote">Questions: partners@whollar.ca</p></section>';
   }
-  
+
   /* declined. A terminal state with a reason and one route forward. A dead end
      with no explanation is the worst screen in any console, and it is the one
      most likely to be built last and least. */
@@ -2120,25 +2286,25 @@
       + '<a class="btn" href="mailto:partners@whollar.ca?subject=Founding%20partner%20application">Email partners@whollar.ca</a>'
       + '<p class="fnote">Nothing is owed, and nothing you sent us is kept beyond our retention window.</p></section>';
   }
-  
+
   function oneName(key) {
     return { coverage: 'your coverage', registration: 'your registration', documents: 'your documents', agreement: 'the agreement', reference: 'your reference' }[key] || 'one piece';
   }
   function countDone(t) {
     return Object.keys(t).filter(function (k) { return t[k] && t[k] !== 'empty'; }).length;
   }
-  
+
   /** When this account was created, as "Aug 14", or '' if the server has not
       answered yet. It arrives on GET /provider/me, one round trip after boot. */
   function signedUp() {
     var u = get().user || {};
     return u.memberSince ? fmtStamp(u.memberSince) : '';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the checklist, on the overview
    * ------------------------------------------------------------------ */
-  
+
   function checklistHTML() {
     var app = get().application;
     var t = (app && app.tasks) || {};
@@ -2151,7 +2317,7 @@
       + '<div class="pline"><span>Setup progress</span><b>' + esc(built.label) + '</b></div>'
       + '</section>';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the four modals
    *
@@ -2159,7 +2325,7 @@
    * reason is plain: losing a half-filled application to a closed tab is the
    * kind of thing a partner does not come back from.
    * ------------------------------------------------------------------ */
-  
+
   /**
    * One field.
    *
@@ -2209,7 +2375,7 @@
       + '<small class="fhint" hidden></small>'
       + '</div>';
   }
-  
+
   /** Open one hint, or close it if it is the one open. Only one is ever open:
       two popovers on a two-column form overlap each other. */
   function toggleHint(btn) {
@@ -2222,14 +2388,14 @@
       btn.setAttribute('aria-expanded', 'true');
     }
   }
-  
+
   function closeHints() {
     var open = document.querySelectorAll('.ipop:not([hidden])');
     for (var i = 0; i < open.length; i++) open[i].hidden = true;
     var btns = document.querySelectorAll('.ihint[aria-expanded="true"]');
     for (var j = 0; j < btns.length; j++) btns[j].setAttribute('aria-expanded', 'false');
   }
-  
+
   function registrationModal() {
     var app = get().application || {};
     return '<div class="mhead"><h3>Registration details</h3>'
@@ -2258,9 +2424,9 @@
       + '<button class="btn" type="button" data-action="app:reg-save">Save details</button>'
       + '</div>';
   }
-  
+
   /* ---- documents ---- */
-  
+
   /** The two required documents, in the order a reviewer reads them. */
   var DOC_KINDS = [
     ['crtc_registration', 'CRTC registration confirmation',
@@ -2268,40 +2434,40 @@
     ['business_registration', 'Proof of business registration',
       'Articles of incorporation, a master business licence, or the provincial equivalent.']
   ];
-  
+
   var DOC_MAX_BYTES = 10 * 1024 * 1024;
   var DOC_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/heic', 'image/heif', 'image/webp'];
   var DOC_ACCEPT = DOC_TYPES.join(',');
-  
+
   /** Transient per-row state: uploading fraction, or an error message. Not in
       the store, because it is neither the server's answer nor worth surviving a
       re-render of anything but this modal. */
   var docWork = {};
-  
+
   var ICO_DOC = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>';
   var ICO_TICK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>';
   var ICO_WARN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>';
-  
+
   function bytes(n) {
     if (!n && n !== 0) return '';
     if (n < 1024) return n + ' B';
     if (n < 1024 * 1024) return Math.round(n / 1024) + ' KB';
     return (n / (1024 * 1024)).toFixed(1) + ' MB';
   }
-  
+
   var REVIEW_WORD = {
     pending: 'With a reviewer',
     accepted: 'Accepted',
     rejected: 'Not accepted, please replace'
   };
-  
+
   /** One document row, in whichever of its four states it is in. */
   function docRow(kind, title, hint) {
     var docs = get().documents || {};
     var d = docs[kind];
     var work = docWork[kind] || {};
     var cls = 'docup', ico = ICO_DOC, body, actions;
-  
+
     if (work.uploading) {
       body = '<small>Uploading ' + Math.round((work.progress || 0) * 100) + '%</small>'
         + '<div class="dbar"><i style="width:' + Math.round((work.progress || 0) * 100) + '%"></i></div>';
@@ -2323,7 +2489,7 @@
       body = '<small>' + esc(hint) + '</small>';
       actions = '<button class="tlink" type="button" data-action="app:doc-pick" data-kind="' + kind + '">Choose file</button>';
     }
-  
+
     /* The row is the drop target. A separate dropzone above a list of two named
        documents makes the partner decide which document a drop belongs to after
        they have already dropped it. */
@@ -2333,11 +2499,11 @@
       + (actions ? '<span class="dact">' + actions + '</span>' : '')
       + '</div>';
   }
-  
+
   function docListHTML() {
     return DOC_KINDS.map(function (k) { return docRow(k[0], k[1], k[2]); }).join('');
   }
-  
+
   function documentsModal() {
     return '<div class="mhead"><h3>Documents</h3>'
       + '<button class="mx" type="button" data-mclose aria-label="Close">×</button></div>'
@@ -2350,14 +2516,14 @@
       + '<p class="docnote">PDF or image, up to 10 MB each. Drag a file onto a row, or choose one. '
       + 'Nothing is sent to a household or to another partner, ever.</p>';
   }
-  
+
   /** Repaint the list in place. Re-opening the modal would work and would also
       throw focus back to the close button on every progress tick. */
   function paintDocs() {
     var host = document.getElementById('ap-docls');
     if (host) host.innerHTML = docListHTML();
   }
-  
+
   function agreementModal() {
     var org = (get().org && get().org.orgName) || 'Your company';
     return '<div class="mhead"><h3>Application agreement</h3>'
@@ -2373,7 +2539,7 @@
       + '<span>' + esc(org) + ' agrees to the application terms above.</span></label>'
       + '<button class="btn" type="button" id="ap-agrgo" data-action="app:agr-save" disabled style="width:100%;justify-content:center;margin-top:12px">Sign</button>';
   }
-  
+
   /* Same form system as registration, so the two modals a reviewer opens back
      to back read as one surface. The saved reference is never on the wire (the
      server keeps it off the application record on purpose), so the fields open
@@ -2401,7 +2567,7 @@
       + '<button class="btn" type="button" data-action="app:ref-save">Save reference</button>'
       + '</div>';
   }
-  
+
   /* Documents is deliberately absent: it needs its drop listeners wired and its
      state fetched on open, so it goes through openDocuments() below rather than
      through this map. */
@@ -2410,14 +2576,14 @@
     agreement: agreementModal,
     reference: referenceModal
   };
-  
+
   /* ------------------------------------------------------------------ *
    * actions
    * ------------------------------------------------------------------ */
-  
+
   /** Re-read the application after any write, so task state comes from the
       server rather than from an optimistic guess made here.
-  
+
       `boot` marks the first read. A failure there clears the hinted record as
       well, because a guess the server has just declined to confirm is not
       something to leave on screen; a failure after a write leaves the last
@@ -2436,13 +2602,13 @@
       return null;
     });
   }
-  
+
   /* THE FIRST PAINT. The read is one round trip, and on a cold Catalyst function
      that is seconds, during which the frame showed a card that said "reading
      your application" and then swapped it for the real one in front of the
      partner. A new account meets this on its very first visit, one click after
      the welcome screen.
-  
+
      Same treatment as approvedHint in core/session.js: the server's last answer
      is remembered on the local record, the frame paints from it at boot, and the
      read corrects it one round trip later. A brand new account has no answer to
@@ -2450,18 +2616,18 @@
      server is about to say, so the blank draft record paints and the correction
      changes nothing visible. A hint, not a permission: every write still goes
      through a session-gated route, and the server derives state either way.
-  
+
      Only what the card reads is kept. The registration fields stay off the local
      record; the modal that needs them opens well after the read has answered. */
   var HINT_KEYS = ['state', 'tasks', 'operatingName', 'submittedAt', 'decisionDueAt',
     'reapplyAfter', 'decisionNote', 'reviewNote'];
-  
+
   function blankApplication() {
     var tasks = {};
     APP_TASK.forEach(function (k) { tasks[k] = 'empty'; });
     return { state: 'draft', tasks: tasks };
   }
-  
+
   function rememberHint(r) {
     var W = window.WHOLLAR;
     if (!W || !W.partner || !r || !r.tasks) return;
@@ -2469,14 +2635,14 @@
     HINT_KEYS.forEach(function (k) { if (r[k] != null) hint[k] = r[k]; });
     W.partner.patch({ applicationHint: hint });
   }
-  
+
   function hintedApplication() {
     var W = window.WHOLLAR;
     var rec = W && W.partner ? W.partner.read() : null;
     var h = rec && rec.applicationHint;
     return h && h.tasks && typeof h.tasks === 'object' ? h : blankApplication();
   }
-  
+
   /* The single most important transition in the pending experience: the moment
      the fifth task lands. Idempotent on both sides. The server stamps
      submittedAt only if unset; this guard stops a second call being made at all,
@@ -2495,14 +2661,14 @@
       submitting = false;   /* let a retry happen on the next task write */
     });
   }
-  
+
   /* ---- documents: load, upload, remove ---- *
    *
    * The bar is driven by XMLHttpRequest upload progress (core/api.js endpoint 9
    * says why), and progress repaints ONE bar rather than re-rendering the list:
    * innerHTML on every tick of a 10 MB upload is a lot of DOM for a number.
    */
-  
+
   function loadDocuments() {
     return api.documents().then(function (r) {
       set('documents', (r && r.documents) || {});
@@ -2513,14 +2679,14 @@
       authFailed(err);
     });
   }
-  
+
   function openDocuments() {
     docWork = {};
     openModal(documentsModal());
     wireDrop();
     loadDocuments();
   }
-  
+
   /** Scoped to the list, which is rebuilt on every open, so nothing accumulates.
       Drag events fire on every mouse move; delegating them from the document,
       the way every other action here is delegated, would put that traffic
@@ -2529,7 +2695,7 @@
     var host = document.getElementById('ap-docls');
     if (!host) return;
     function rowOf(e) { return e.target.closest ? e.target.closest('[data-doc]') : null; }
-  
+
     host.addEventListener('dragover', function (e) {
       var row = rowOf(e);
       if (!row) return;
@@ -2550,7 +2716,7 @@
       if (files && files.length) uploadDoc(row.getAttribute('data-doc'), files[0]);
     });
   }
-  
+
   /** Refused here as well as on the server, because a 10 MB round trip that ends
       in "too big" is ten megabytes of someone's tether. */
   function refuse(file) {
@@ -2567,7 +2733,7 @@
     }
     return null;
   }
-  
+
   function paintProgress(kind, p) {
     var row = document.querySelector('[data-doc="' + kind + '"]');
     if (!row) return;
@@ -2577,14 +2743,14 @@
     if (bar) bar.style.width = pct + '%';
     if (label) label.textContent = 'Uploading ' + pct + '%';
   }
-  
+
   function uploadDoc(kind, file) {
     var bad = refuse(file);
     if (bad) { docWork[kind] = { error: bad }; paintDocs(); return; }
-  
+
     docWork[kind] = { uploading: true, progress: 0 };
     paintDocs();
-  
+
     api.documentUpload(kind, file, function (p) {
       var w = docWork[kind];
       if (w && w.uploading) { w.progress = p; paintProgress(kind, p); }
@@ -2602,7 +2768,7 @@
       authFailed(err);
     });
   }
-  
+
   function mount() {
     on('click', 'app:modal', function (el) {
       var kind = el.getAttribute('data-kind');
@@ -2610,7 +2776,7 @@
       var build = MODALS[kind];
       if (build) openModal(build());
     });
-  
+
     /* Out of the gated frame and into the console. setGated() is derived in
        renderAll() from current(), and go() runs its listeners synchronously, so
        the frame drops and the nav pane comes back in the same paint rather than
@@ -2619,13 +2785,13 @@
       go('overview');
       if (!applicationComplete()) toast('Pick any order. Each piece starts its own check as it lands.');
     });
-  
+
     /* Save on blur. The indicator is deliberately quiet and deliberately
        present: silent autosave is indistinguishable from lost work. */
     on('change', 'app:blur', function () {
       saveRegistration(null, true);
     });
-  
+
     on('click', 'app:hint', function (el) { toggleHint(el); });
     /* A hint closes when attention moves anywhere but its own control or its
        own text, the same rule the coverage combobox follows. */
@@ -2633,14 +2799,14 @@
       if (!e.target.closest) return;
       if (!e.target.closest('.ihint') && !e.target.closest('.ipop')) closeHints();
     });
-  
+
     on('click', 'app:reg-save', function (el) { saveRegistration(el, false); });
-  
+
     on('change', 'app:agr-toggle', function (el) {
       var btn = document.getElementById('ap-agrgo');
       if (btn) btn.disabled = !el.checked;
     });
-  
+
     on('click', 'app:agr-save', function (el) {
       var W = window.WHOLLAR;
       if (!W.busy(el, true, 'Signing')) return;
@@ -2652,7 +2818,7 @@
           reload();
         }, function (err) { W.busy(el, false); failed(err); authFailed(err); });
     });
-  
+
     on('click', 'app:ref-save', function (el) {
       var name = valueOf('ap-refn'), email = valueOf('ap-refe');
       var bad = [];
@@ -2675,7 +2841,7 @@
           reload();
         }, function (err) { W.busy(el, false); failed(err); authFailed(err); });
     });
-  
+
     /* One input, reused. The kind rides on the input rather than on a closure,
        so a cancelled pick followed by a second pick on the other row cannot send
        a file to the row it was not dropped on. */
@@ -2686,13 +2852,13 @@
       input.value = '';        /* or picking the same file twice fires no change */
       input.click();
     });
-  
+
     on('change', 'app:doc-file', function (el) {
       var kind = el.getAttribute('data-kind');
       var file = el.files && el.files[0];
       if (kind && file) uploadDoc(kind, file);
     });
-  
+
     on('click', 'app:doc-remove', function (el) {
       var kind = el.getAttribute('data-kind');
       docWork[kind] = { uploading: true, progress: 1 };
@@ -2710,17 +2876,17 @@
       });
     });
   }
-  
+
   function valueOf(id) {
     var el = document.getElementById(id);
     return el ? el.value.trim() : '';
   }
-  
+
   /* Loose on purpose: one @, something either side, a dot after it. The server
      validates for real; this only stops a partner saving a name in the email box
      and finding out later. */
   var EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  
+
   /** Set .bad on the fields in `bad`, clear it on the rest of `ids`, and put
       focus on the first bad one so the correction is one keystroke away. */
   function markBad(ids, bad) {
@@ -2732,7 +2898,7 @@
     var first = bad.length && document.getElementById(bad[0]);
     if (first) first.focus();
   }
-  
+
   /** Mark or clear one field. The message goes under the input it belongs to,
       which a toast cannot do: a toast that says "one field is missing" makes the
       partner hunt for which. */
@@ -2747,7 +2913,7 @@
     hint.textContent = message || '';
     hint.hidden = !message;
   }
-  
+
   function saveRegistration(btn, quiet) {
     var legal = valueOf('ap-legal'), crtc = valueOf('ap-crtc');
     if (!quiet) {
@@ -2760,7 +2926,7 @@
     }
     var W = window.WHOLLAR;
     if (btn && !W.busy(btn, true, 'Saving')) return;
-  
+
     api.applicationRegistration({
       legalName: legal,
       operatingName: valueOf('ap-oper'),
@@ -2782,7 +2948,7 @@
       authFailed(err);
     });
   }
-  
+
   /** Called by the boot path once. Paints from the hinted record first, so the
       frame never opens on a loading card, then reads. */
   function load() {
@@ -2819,17 +2985,17 @@
    * Nothing here is authoritative. It is a starting point for a form; the bid is
    * whatever the DOM says at seal time, and the server validates that.
    */
-  
+
   var KEY = 'whollar.partner.bidseed';
-  
+
   /* A seed older than this is not offered. A rate card from three months ago is
      not a convenience, it is a wrong number wearing a familiar face. */
   var MAX_AGE_MS = 45 * 24 * 60 * 60 * 1000;
-  
+
   function store() {
     try { return window.localStorage; } catch (e) { return null; }
   }
-  
+
   /**
    * The stored seed for this org, or null.
    * `orgId` is the org asking; a mismatch reads as no seed, never as someone
@@ -2847,7 +3013,7 @@
     if (!(rec.savedAt > 0) || (Date.now() - rec.savedAt) > MAX_AGE_MS) return null;
     return { draft: rec.draft, from: rec.from || null, savedAt: rec.savedAt };
   }
-  
+
   /** Remember these terms for the next cohort. Failure is silent on purpose:
       a full disk or a private window must not break sealing a bid. */
   function writeSeed(orgId, draft, from) {
@@ -2857,7 +3023,7 @@
       ls.setItem(KEY, JSON.stringify({ orgId: orgId, draft: draft, from: from || null, savedAt: Date.now() }));
     } catch (e) { /* not worth a toast */ }
   }
-  
+
   function clearSeed() {
     var ls = store();
     if (!ls) return;
@@ -2885,7 +3051,7 @@
    * is worse than one that is honestly not editable yet, and the edit path is
    * endpoint 66, which is live for prefs and not for the org record.
    */
-  
+
   var __ns0 = __require("core/state.js");
   var get = __ns0.get, set = __ns0.set;
   var __ns1 = __require("core/api.js");
@@ -2900,21 +3066,21 @@
   var authFailed = __ns5.authFailed;
   var __ns6 = __require("core/bidseed.js");
   var clearSeed = __ns6.clearSeed;
-  
+
   var NOTIFY = [
     ['forming', 'New cohort forming in my coverage'],
     ['opens', 'Bidding opens'],
     ['closing', 'Closing in 24 hours and I have not bid'],
     ['results', 'Results, win or lose']
   ];
-  
+
   function roleLabel(r) {
     if (r === 'admin') return 'Account admin';
     if (r === 'bidder') return 'Bid authority';
     if (r === 'viewer') return 'Viewer';
     return r ? titleCase(r) : null;
   }
-  
+
   /* The alerts card, rendered into the overview aside. Only one copy may exist
      at a time: the change handler reads every box back by data-key, so a second
      copy would save the first one's state over the one just clicked. */
@@ -2929,21 +3095,21 @@
       + '<p class="fnote">Saved to your account, not to this browser.</p>'
       + '</section>';
   }
-  
+
   function render() {
     var S = get();
     var org = S.org || {};
     var user = S.user || {};
-  
+
     var sub = document.getElementById('acct-sub');
     if (sub) {
       sub.textContent = [org.orgName, S.approved ? 'Founding partner' : 'Application under review']
         .filter(Boolean).join(' · ');
     }
-  
+
     var host = document.getElementById('acct-body');
     if (!host) return;
-  
+
     host.innerHTML = '<div class="grid2">'
       + '<section class="card" aria-label="Organization">'
       + '<span class="eyebrow">Organization</span><h3>Who we have on file</h3>'
@@ -2964,12 +3130,12 @@
       + '<a class="tlink" href="mailto:partners@whollar.ca">Email partners@whollar.ca →</a>'
       + '</section></aside></div>';
   }
-  
+
   function row(label, value) {
     return '<li><span>' + esc(label) + '</span><b>'
       + (value ? esc(value) : '<span style="color:var(--sub)">Not on file</span>') + '</b></li>';
   }
-  
+
   /** The pane and header chrome, from the real partner record. */
   function paintChrome() {
     var S = get();
@@ -2977,10 +3143,10 @@
     var last = String((S.user && S.user.lastName) || '').trim();
     var org = String((S.org && S.org.orgName) || (S.partner && S.partner.org) || '').trim();
     var role = (S.org && S.org.role) || (S.partner && S.partner.role) || '';
-  
+
     var h = new Date().getHours();
     var greet = h < 12 ? 'Good morning' : (h < 17 ? 'Good afternoon' : 'Good evening');
-  
+
     text('greetline', greet + (first ? ', ' + first : ''));
     /* No org yet is a real state: the local record is written from the session,
        which does not carry org context. Say nothing rather than guess a name
@@ -2991,12 +3157,12 @@
     text('paneava', monogram(org || first || '?'));
     text('topava', monogram([first, last].filter(Boolean).join(' ') || org || '?'));
   }
-  
+
   function text(id, value) {
     var el = document.getElementById(id);
     if (el) el.textContent = value;
   }
-  
+
   function mount() {
     on('change', 'account:notify', function (el) {
       var next = {};
@@ -3015,7 +3181,7 @@
         authFailed(err);
       });
     });
-  
+
     on('click', 'account:signout', function () {
       /* End the SERVER session, not just the local record. Clearing localStorage
          alone leaves the cookie alive, and the boot guard would adopt() it on the
@@ -3047,10 +3213,10 @@
    * what has to happen first, which is also why none of them is reusable as a
    * generic "nothing here" card: the sentence is the point.
    */
-  
+
   var __ns0 = __require("core/format.js");
   var esc = __ns0.esc;
-  
+
   /**
    * @param {string} title
    * @param {string} body   trusted HTML, written in this codebase, never a
@@ -3067,7 +3233,7 @@
       + (cta || '')
       + '</div></section>';
   }
-  
+
   /* The one illustrated empty state. A waiting clock, not a "no results" glyph:
      the bid record is not missing anything, it has not started yet. Inline
      because the global CSP allows no external assets on this surface and a
@@ -3075,7 +3241,7 @@
   var CLOCK = '<svg viewBox="0 0 80 80" fill="none" aria-hidden="true">'
     + '<circle cx="40" cy="40" r="33" stroke="#CBDCCE" stroke-width="3"/>'
     + '<path d="M40 24v16l11 7" stroke="#C29B3C" stroke-width="3.5" stroke-linecap="round"/></svg>';
-  
+
   /**
    * The forward-looking variant. §8.7: when a surface would render only zeros or
    * only dashes, render what is coming and when instead. A stat grid of four
@@ -3089,7 +3255,7 @@
       + (extra || '')
       + '</section>';
   }
-  
+
   /** A button that navigates to another view. */
   function goTo(view, label, cls) {
     return '<button class="' + (cls || 'btn') + '" type="button" data-action="nav" data-view="' + esc(view) + '">'
@@ -3130,7 +3296,7 @@
    * When a surface would show only zeros or only dashes, show what is coming and
    * when instead.
    */
-  
+
   var __ns0 = __require("core/state.js");
   var get = __ns0.get, biddableCampaigns = __ns0.biddableCampaigns, termsState = __ns0.termsState;
   var __ns1 = __require("core/format.js");
@@ -3145,12 +3311,12 @@
   var activationTasks = __ns5.activationTasks, progress = __ns5.progress;
   var __ns6 = __require("components/emptystate.js");
   var empty = __ns6.empty, goTo = __ns6.goTo;
-  
+
   function render() {
     var host = document.getElementById('ov-body');
     if (!host) return;
     var S = get();
-  
+
     /* Pending: the application checklist is the console. Precedence over the
        no-coverage branch, which is exactly the ordering the prototype had and
        could not express. */
@@ -3166,9 +3332,9 @@
         + '<aside class="aside">' + howItWorks() + reviewCard(S) + alertsHTML() + '</aside></div>';
       return;
     }
-  
+
     var act = activation(S);
-  
+
     /* The checklist is the left column until a first sealed bid exists, which is
        the prototype's renderOvLive swap with a condition the console can
        actually answer. The stats card joins it only when it has something to
@@ -3176,34 +3342,34 @@
     var left = act.bid ? '' : tasks(act);
     if (deskWorthShowing(S)) left += left ? '<div style="margin-top:16px">' + desk(S) + '</div>' : desk(S);
     left += calendar(S);
-  
+
     host.innerHTML = head(act.bid ? 'Your cohorts, at a glance' : 'Let’s get you to your first cohort.', subline(S, act))
       + '<div class="grid2"><div>' + left + '</div>'
       + '<aside class="aside">' + howItWorks() + nextStep(S) + alertsHTML() + '</aside></div>';
   }
-  
+
   function head(title, sub) {
     return '<div class="vhead"><h2>' + esc(title) + '</h2><p>' + esc(sub) + '</p></div>';
   }
-  
+
   /* The one line under the heading: the prototype's #ov-sub with its precedence
      flattened. No coverage wins over the open count, because a partner with
      nothing declared has nothing open for a reason, and the reason is the line. */
   function subline(S, act) {
     if (!act.coverage) return 'Declare your coverage first: auctions only reach your desk from inside it.';
-  
+
     var open = openCampaigns(S);
     if (!open.length) {
       return agendaEvents(S).length
         ? 'Nothing is open for bids right now. The calendar below shows what is coming.'
         : 'Nothing is open for bids right now, and nothing is scheduled yet in the regions you have declared.';
     }
-  
+
     var closesToday = sameDay(closeAt(open[0]), now());
     return open.length + (open.length === 1 ? ' auction is' : ' auctions are')
       + ' open in your coverage right now' + (closesToday ? ', one closes today.' : '.');
   }
-  
+
   /* ------------------------------------------------------------------ *
    * activation
    *
@@ -3216,7 +3382,7 @@
    * the standard terms or add a card from this console today, and each row links
    * to the view that says so.
    * ------------------------------------------------------------------ */
-  
+
   function activation(S) {
     var sealed = Object.keys(S.bids).length > 0;
     return {
@@ -3232,7 +3398,7 @@
       bid: sealed
     };
   }
-  
+
   function tasks(act) {
     var built = activationTasks(act);
     return '<section class="card" aria-label="Activation">'
@@ -3243,7 +3409,7 @@
       + '<div class="pline"><span>Setup progress</span><b>' + esc(built.label) + '</b></div>'
       + '</section>';
   }
-  
+
   /* The review card next to the checklist, with the one link into the frame.
    *
    * The line names each track by what is happening to it rather than counting
@@ -3257,14 +3423,14 @@
     var t = (app && app.tasks) || {};
     var waiting = Object.keys(t).filter(function (k) { return !t[k] || t[k] === 'empty'; });
     var done = function (k) { return t[k] && t[k] !== 'empty'; };
-  
+
     var line = app && app.submittedAt && !waiting.length
       ? 'Everything is in. Serviceability is running on your declared regions, the register check is underway, and your reference gets one short email. Approved partners land on the bid desk the same day.'
       : 'Application received. '
         + 'Serviceability ' + (done('coverage') ? 'is checking your declared regions' : 'starts when coverage lands') + '. '
         + 'Registration ' + (done('registration') && done('documents') ? 'and documents are in review' : 'details and documents still to come') + '. '
         + (done('agreement') ? 'Agreement signed.' : 'Agreement not yet signed.');
-  
+
     return '<section class="card" aria-label="Your application">'
       + '<span class="eyebrow gld">Your application</span>'
       + '<h3>' + (app && app.decisionDueAt
@@ -3278,14 +3444,14 @@
       + '<div style="margin-top:12px">' + goTo('desk', 'Open the bid desk') + '</div>'
       + '</section>';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the desk at a glance
    * ------------------------------------------------------------------ */
-  
+
   function closeAt(c) { return ((c.dates || {}).bidding_closes_at) || Infinity; }
   function openAt(c) { return ((c.dates || {}).bidding_opens_at) || Infinity; }
-  
+
   /* Every figure under these two says "in your coverage", so they count the
      coverage-matched subset, not the whole platform payload: the campaigns list
      arrives unfiltered by design (the desk shows locked rows), and counting it
@@ -3297,12 +3463,12 @@
     return biddableCampaigns().filter(function (c) { return c.stage === 'open' || c.stage === 'closing'; })
       .sort(function (a, b) { return closeAt(a) - closeAt(b); });
   }
-  
+
   function approachingCampaigns(S) {
     return biddableCampaigns().filter(function (c) { return c.stage === 'planned' || c.stage === 'announced'; })
       .sort(function (a, b) { return openAt(a) - openAt(b); });
   }
-  
+
   /* Whether the stats card has anything to say. Without this a partner on their
      first day gets the activation checklist and, directly under it, a card
      explaining that nothing is forming yet, which is the sentence the aside is
@@ -3313,16 +3479,16 @@
       || approachingCampaigns(S).length > 0
       || Object.keys(S.bids).length > 0;
   }
-  
+
   function desk(S) {
     var open = openCampaigns(S);
     var sealed = Object.keys(S.bids).length;
     var pending = S.campaigns.filter(function (c) { return c.stage === 'offers_out' && S.bids[c.id]; }).length;
-  
+
     if (!open.length && !sealed && !pending) return demandApproaching(approachingCampaigns(S));
-  
+
     var next = open[0];
-  
+
     return '<section class="card" aria-label="Right now">'
       + '<span class="eyebrow gld">Right now</span><h3>Your desk at a glance</h3>'
       + '<div class="ovstats">'
@@ -3335,7 +3501,7 @@
       + goTo('desk', 'Open the bid desk', 'btn forest')
       + '</section>';
   }
-  
+
   /* §8.7's reference implementation. Every figure here is a real campaign in the
      partner's coverage; if there are none, it says there are none. */
   function demandApproaching(approaching) {
@@ -3344,12 +3510,12 @@
         'Cohorts form when enough households in one area reach their promo cliff together. When one forms inside a region you have declared, it appears here and on your bid desk, and you get an email.',
         goTo('coverage', 'Add another region', 'btn ghost'));
     }
-  
+
     var households = approaching.reduce(function (t, c) { return t + (c.households || 0); }, 0);
     var first = approaching[0];
     var opensAt = openAt(first);
     var days = isFinite(opensAt) ? Math.max(1, Math.round(until(opensAt) / DAY)) : null;
-  
+
     return '<section class="card" aria-label="Demand approaching">'
       + '<span class="eyebrow gld">Demand approaching</span>'
       + '<h3>Stop chasing demand. It is on its way to you.</h3>'
@@ -3365,11 +3531,11 @@
       + goTo('desk', 'Open the bid desk', 'btn forest')
       + '</section>';
   }
-  
+
   function stat(value, label) {
     return '<div class="ovstat"><b>' + esc(String(value)) + '</b><span>' + esc(label) + '</span></div>';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the calendar
    *
@@ -3377,7 +3543,7 @@
    * source means the calendar, the aside and the desk cannot disagree, which is
    * also why the prototype's #agenda1 and #agenda2 are one function here.
    * ------------------------------------------------------------------ */
-  
+
   function agendaEvents(S) {
     var events = [];
     S.campaigns.forEach(function (c) {
@@ -3394,11 +3560,11 @@
       .sort(function (a, b) { return a.at - b.at; })
       .slice(0, 5);
   }
-  
+
   function householdLine(c) {
     return c.households ? c.households + ' households' : 'A cohort in your coverage';
   }
-  
+
   function calendar(S) {
     var events = agendaEvents(S);
     return '<section class="card" style="margin-top:16px" aria-label="This week">'
@@ -3408,9 +3574,9 @@
         : '<p class="cardnote">Nothing scheduled in the next while.</p>')
       + '</section>';
   }
-  
+
   var MONTH = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-  
+
   function agendaRow(e) {
     var d = new Date(e.at);
     return '<div class="ag" role="button" tabindex="0" data-action="nav" data-view="desk">'
@@ -3419,7 +3585,7 @@
       + '<span class="t"><b>' + esc(e.title) + '</b><small>' + esc(e.note) + '</small></span>'
       + chip(e.at) + '</div>';
   }
-  
+
   /* The chip the one ticker in time.js drives, inside the last day only. A
      countdown on something eight days out is noise, and the date is already
      rendered beside it. */
@@ -3427,11 +3593,11 @@
     if (until(ts) > DAY || until(ts) <= 0) return '';
     return '<span class="cdchip" data-until="' + ts + '">' + fmtCountdown(until(ts)) + '</span>';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the aside
    * ------------------------------------------------------------------ */
-  
+
   function howItWorks() {
     return '<section class="card" aria-label="How auctions work">'
       + '<span class="eyebrow">How auctions work</span><h3>Three rules, no surprises</h3><div class="how">'
@@ -3440,14 +3606,14 @@
       + '<div class="h"><i>3</i><span><b>Pay on completion.</b> Confirmed households set your volume tiers; the invoice is live connections only.</span></div>'
       + '</div></section>';
   }
-  
+
   /* The prototype's closing-soon card, carrying layer 2's first-step copy when
      nothing is declared. Its button went to the bid desk in every branch, which
      for a partner with no coverage is a click into an empty table; the
      first-step branch sends them where the step actually is. */
   function nextStep(S) {
     var eyebrow, title, line, cta;
-  
+
     if (!S.coverage.length) {
       eyebrow = 'First step';
       title = 'No coverage declared yet';
@@ -3472,7 +3638,7 @@
       }
       cta = goTo('desk', 'Open the bid desk');
     }
-  
+
     return '<section class="card" aria-label="Next step">'
       + '<span class="eyebrow gld">' + esc(eyebrow) + '</span>'
       + '<h3>' + esc(title) + '</h3>'
@@ -3499,18 +3665,18 @@
    * closed auction as open, and the partner would write a bid the server then
    * refuses.
    */
-  
+
   var __ns0 = __require("core/format.js");
   var esc = __ns0.esc;
   var __ns1 = __require("core/contract.js");
   var STAGE_LABEL = __ns1.STAGE_LABEL;
-  
+
   var RAIL = ['announced', 'open', 'closing', 'offers_out', 'decided'];
-  
+
   function stageRail(stage) {
     var idx = RAIL.indexOf(stage);
     if (idx < 0) return '<div class="stlbl">' + esc(STAGE_LABEL[stage] || 'Planned') + '</div>';
-  
+
     var out = '<div class="minirail">';
     for (var i = 0; i < 5; i++) {
       out += '<span class="mr' + (i < idx ? ' past' : (i === idx ? ' now' : '')) + '"></span>';
@@ -3543,10 +3709,10 @@
    *   2. Mixes the server has not recorded render as "Cohort profile to come"
    *      rather than as bars over made-up percentages.
    */
-  
+
   var __ns0 = __require("core/format.js");
   var esc = __ns0.esc;
-  
+
   /** Percentage bars plus their label, from [['1 Gig', 42], ...]. */
   function mix(arr) {
     var tot = arr.reduce(function (t, x) { return t + x[1]; }, 0) || 1;
@@ -3556,9 +3722,22 @@
     var lab = arr.map(function (x) { return esc(x[0]) + ' ' + x[1] + '%'; }).join(' · ');
     return '<span class="mixin">' + bars + '<em>' + lab + '</em></span>';
   }
-  
+
+  /**
+   * The measured speed demand: households at each tier, from the speed on their
+   * bills, as "100 Mbps · 20 · 300 Mbps · 45". Counts, not percentages, because
+   * a partner sizing a commitment wants to know how many households want 1 Gig
+   * and not what share of a number it then has to look up.
+   */
+  function demand(arr, known, other) {
+    var line = arr.map(function (x) { return esc(x[0]) + ' · ' + x[1]; }).join(' · ');
+    if (other) line += (line ? ' · ' : '') + 'other speeds · ' + other;
+    return '<b>' + line + '</b>'
+      + (known ? ' <small class="capnote">of ' + known + ' with a bill on file</small>' : '');
+  }
+
   var TO_COME = '<b style="color:var(--sub);font-weight:600">Cohort profile to come</b>';
-  
+
   /**
    * The brief panel.
    * @param a       the campaign row (desk shape)
@@ -3575,10 +3754,10 @@
       return '<div class="brief"><div class="dh">The auction brief</div>'
         + '<p class="fnote">We could not read the brief just now. This is on our side; reload in a moment.</p></div>';
     }
-  
+
     var b = data.brief || {};
     var cov = data.coverage || { declared: false };
-  
+
     var covline = cov.declared
       ? '<b>' + esc((cov.techs || []).map(cap).join(' · ')
           + (cov.speed ? ' · up to ' + cov.speed : '')) + '</b>'
@@ -3587,29 +3766,30 @@
           : '')
       : '<b style="color:#8C3B1B">Not declared</b> '
         + '<button class="tlink" type="button" data-action="nav" data-view="coverage">Declare →</button>';
-  
+
     var scn = showScn
       ? '<div class="scnwrap"><h4>What this bid could return</h4>'
         + '<div class="scnchip">at your commitment of <b class="scommit">'
         + esc(String(a.households != null ? a.households : '·')) + '</b> households</div>'
-        + (b.speedMix
+        + (b.speedDemand || b.speedMix
           ? '<table class="scn"><thead><tr><th>Confirmed</th><th>Serve</th><th>Monthly</th><th>Fees</th></tr></thead><tbody class="scnbody"></tbody></table>'
             + '<p class="fnote" style="margin-top:8px">Blends your tier prices by the cohort’s speed demand, capped at your commitment. Updates as you type.</p>'
           : '<p class="fnote">Scenario math arrives with the cohort profile.</p>')
         + '</div>'
       : '';
-  
+
     return '<div class="brief"><div class="dh">The auction brief</div><div class="dl">'
       + '<div class="r"><span>Households</span><b>' + esc(String(b.households != null ? b.households : (a.households != null ? a.households : '·'))) + '</b></div>'
       + '<div class="r"><span>Renewal window</span>' + (b.renewalWindow ? '<b>' + esc(b.renewalWindow) + '</b>' : TO_COME) + '</div>'
-      + '<div class="r"><span>Speed demand</span>' + (b.speedMix ? mix(b.speedMix) : TO_COME) + '</div>'
+      + '<div class="r"><span>Speed demand</span>'
+      + (b.speedDemand ? demand(b.speedDemand, b.speedDemandKnown, b.speedDemandOther) : (b.speedMix ? mix(b.speedMix) : TO_COME)) + '</div>'
       + '<div class="r"><span>Plant mix</span>' + (b.plantMix ? mix(b.plantMix) : TO_COME) + '</div>'
       + '<div class="r"><span>Your coverage here</span>' + covline + '</div>'
       + '</div>'
       + scn
       + '<p class="fnote">Aggregates only.</p></div>';
   }
-  
+
   /** 'fibre' -> 'Fibre', for coverage tech codes on the facts list. */
   function cap(s) {
     s = String(s || '');
@@ -3647,21 +3827,21 @@
    * ALL MONEY IS INTEGER CENTS. Shares are integer tenths of a percent (33.3%
    * is 333). Nothing in here touches a float where a cent is decided.
    */
-  
+
   var MIX_MAX_ROWS = 5;
-  
+
   /* The reduction reads offered on the ticket minus 'none', which is the absence
      of a breakdown and cannot be a line in one, plus a row the partner words
      themselves. */
   var MIX_TYPES = ['member', 'promo', 'cash', 'own'];
-  
+
   var MIX_TYPE_LABEL = {
     member: 'Whollar member discount',
     promo: 'Promotional credit',
     cash: 'Monthly cashback',
     own: 'Other, your wording'
   };
-  
+
   /* The name households see on the line item. 'own' takes the partner's label. */
   var MIX_TYPE_SHORT = {
     member: 'Member discount',
@@ -3669,14 +3849,14 @@
     cash: 'Monthly cashback',
     own: ''
   };
-  
+
   /* A line-item label is free text echoed to households, so it is validated
      rather than merely stored: display charset only, and none of the pressure
      or condition language the standard cohort terms forbid. The server applies
      the same two rules to the derived mechanism label. */
   var LABEL_RE = /^[A-Za-z0-9][A-Za-z0-9 ,.'&-]{2,39}$/;
   var LABEL_BANNED = /today only|limited time|expires|last chance|hurry|act now|bundle|autopay|auto[- ]pay/i;
-  
+
   /** A canonical money string ("56.00", "86") or number, as integer cents. Null when it is not money. */
   function toCents(v) {
     if (v === null || v === undefined || v === '') return null;
@@ -3684,7 +3864,7 @@
     if (!isFinite(n)) return null;
     return Math.round(n * 100);
   }
-  
+
   /** Integer cents as a two-decimal string, "25.00". */
   function centsStr(c) {
     var n = Math.round(Number(c) || 0);
@@ -3694,7 +3874,7 @@
     var frac = n % 100;
     return (neg ? '-' : '') + String(whole) + '.' + (frac < 10 ? '0' : '') + String(frac);
   }
-  
+
   /**
    * A typed share as integer tenths of a percent, or null when it is not one.
    *
@@ -3711,7 +3891,7 @@
     if (t < 0 || t > 1000) return null;
     return t;
   }
-  
+
   /** Tenths as the figure a partner reads: 333 -> "33.3", 500 -> "50". */
   function fmtShare(t) {
     var n = Math.round(Number(t) || 0);
@@ -3719,14 +3899,14 @@
     var tenth = Math.abs(n) % 10;
     return (n < 0 ? '-' : '') + String(whole) + (tenth ? '.' + String(tenth) : '');
   }
-  
+
   /** The line-item name a row carries: the partner's wording on 'own', the type's short name otherwise. */
   function rowLabel(r) {
     if (!r) return '';
     if (r.type === 'own') return String(r.label || '').trim();
     return MIX_TYPE_SHORT[r.type] || '';
   }
-  
+
   /**
    * Split `gapCents` across rows by their shares, in whole cents, exactly.
    *
@@ -3763,7 +3943,7 @@
     for (i = 0; i < left; i++) floors[order[i % n]] += 1;
     return floors;
   }
-  
+
   /**
    * Whether these rows are a mix that can seal, and what to say if not.
    *
@@ -3834,7 +4014,7 @@
     if (dup) out.warnings.push('Two rows share the same name; households will see them as separate line items.');
     return out;
   }
-  
+
   /**
    * The sealed snapshot for one tier: the prices in cents, the gap, and each
    * row's cents. This is the record households read, so the money is stored
@@ -3925,7 +4105,7 @@
    *      and says so, but the server's 409, with its own clock in the body, is
    *      the authority and its message renders verbatim.
    */
-  
+
   var __ns0 = __require("core/state.js");
   var get = __ns0.get, set = __ns0.set, termsState = __ns0.termsState;
   var __ns1 = __require("core/api.js");
@@ -3946,14 +4126,14 @@
   var openModal = __ns8.open, closeModal = __ns8.close;
   var __ns9 = __require("core/mixmath.js");
   var MIX_TYPES = __ns9.MIX_TYPES, MIX_TYPE_LABEL = __ns9.MIX_TYPE_LABEL, MIX_MAX_ROWS = __ns9.MIX_MAX_ROWS, checkMix = __ns9.checkMix, tierSnapshot = __ns9.tierSnapshot, rowLabel = __ns9.rowLabel, fmtShare = __ns9.fmtShare, centsStr = __ns9.centsStr;
-  
+
   /* Suggested prices per tier, from the prototype (SUGG / SUGGUP / SUGGSTICKER,
      lines 2142-2143 and 2563). Suggestions only: everything is editable and the
      server validates whatever arrives. */
-  var SUGG = { '100 Mbps': 44, '300 Mbps': 49, '500 Mbps': 56, '1 Gig': 64, '1.5 Gig': 74, '2.5 Gig': 84 };
-  var SUGGUP = { '100 Mbps': '20', '300 Mbps': '30', '500 Mbps': '50', '1 Gig': '100', '1.5 Gig': '150', '2.5 Gig': '250' };
-  var SUGGSTICKER = { '100 Mbps': 65, '300 Mbps': 75, '500 Mbps': 86, '1 Gig': 99, '1.5 Gig': 115, '2.5 Gig': 135 };
-  
+  var SUGG = { '50 Mbps': 39, '100 Mbps': 44, '300 Mbps': 49, '500 Mbps': 56, '1 Gig': 64, '1.5 Gig': 74, '2.5 Gig': 84 };
+  var SUGGUP = { '50 Mbps': '10', '100 Mbps': '20', '300 Mbps': '30', '500 Mbps': '50', '1 Gig': '100', '1.5 Gig': '150', '2.5 Gig': '250' };
+  var SUGGSTICKER = { '50 Mbps': 55, '100 Mbps': 65, '300 Mbps': 75, '500 Mbps': 86, '1 Gig': 99, '1.5 Gig': 115, '2.5 Gig': 135 };
+
   /* ------------------------------------------------------------------ *
    * the custom mix
    * ------------------------------------------------------------------ *
@@ -3992,11 +4172,11 @@
    * and in the revision payload. The improve form and the next cohort's form
    * hydrate from that snapshot, per-tier or shared exactly as it was set.
    */
-  
+
   function newRid() {
     return 'r' + Math.random().toString(36).slice(2, 8);
   }
-  
+
   function defaultRow() { return { type: 'member', label: '', sharePct: '100' }; }
   function copyRow(r) {
     var x = r || {};
@@ -4004,7 +4184,7 @@
   }
   function copyRows(rows) { return (rows || []).map(copyRow); }
   function defaultMix() { return { applyToAll: true, shared: [defaultRow()], perTier: {} }; }
-  
+
   /** Every tier row carries a rid; rows read back from a seed or a seal get one here. */
   function withRids(tiers) {
     return (tiers || []).map(function (t) {
@@ -4015,7 +4195,7 @@
       return c;
     });
   }
-  
+
   /** The rows in force for one tier row (rid null reads the shared mix). */
   function rowsFor(mix, rid) {
     var m = mix || defaultMix();
@@ -4023,9 +4203,9 @@
     var own = m.perTier && m.perTier[rid];
     return own && own.length ? own : [defaultRow()];
   }
-  
+
   function isAll(t) { return !(t.mix && t.mix.applyToAll === false); }
-  
+
   /**
    * Every tier's snapshot and check, and whether the whole mix can seal.
    * -> { ok, problem, tiers: [{ tier, rid, snap, check }] }
@@ -4058,12 +4238,12 @@
     }
     return out;
   }
-  
+
   /** Whether the seal may proceed as far as the mix is concerned. */
   function mixOk(t) {
     return t.reductionPresentation !== 'custom' || mixStatus(t).ok;
   }
-  
+
   /** "$1,470.00", always two decimals: these are line items households read. */
   function dollars(c) {
     var s = centsStr(c);
@@ -4071,7 +4251,7 @@
     var parts = (neg ? s.slice(1) : s).split('.');
     return (neg ? '-$' : '$') + parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + parts[1];
   }
-  
+
   /** What each row of an editor comes to, per tier it applies to: "50% · $25.00 /mo". */
   function amountTexts(scope, rows, st) {
     var check = checkMix(rows);
@@ -4087,11 +4267,11 @@
       return fmtShare(t) + '%' + (per.length ? ' · ' + per.join(' · ') + ' /mo' : '');
     });
   }
-  
+
   /* ------------------------------------------------------------------ *
    * small builders
    * ------------------------------------------------------------------ */
-  
+
   /** "$56 · 500 Mbps · $64 · 1 Gig" from a bid's tiers. */
   function bidLine(m) {
     if (m && m.tiers && m.tiers.length) {
@@ -4099,24 +4279,24 @@
     }
     return '';
   }
-  
+
   function stickerLine(m) {
     if (!m || !m.tiers || !m.tiers.length) return '';
     return m.tiers.map(function (t) { return money(t.stickerPrice) + ' / ' + t.name; }).join(' · ');
   }
-  
+
   function equipLine(m) {
     var base = m.equipment === 'inc' ? 'included'
       : (m.equipment === 'byod' ? 'BYOD, no charge'
         : ('rental ' + money(m.rentalMonthly || '0') + '/mo, stated'));
     return base + (m.extraPodMonthly ? ' · extra pod ' + money(m.extraPodMonthly) + '/mo' : ' · pods included');
   }
-  
+
   function mechLabel(m) {
     if (m.reductionPresentation === 'custom') return m.mechanismLabel || 'a custom reduction';
     return REDUCTION_LABEL[m.reductionPresentation] || REDUCTION_LABEL.member;
   }
-  
+
   function tierRowHTML(t, i) {
     var opts = TIER_NAMES.map(function (n) {
       return '<option' + (n === t.name ? ' selected' : '') + '>' + n + '</option>';
@@ -4133,7 +4313,7 @@
       + '<td class="tac"><input type="number" class="tafter" data-action="ticket:field" value="' + esc(t.afterPrice || '') + '" min="1" step="0.5"></td>'
       + '<td>' + (i > 0 ? '<button type="button" class="trm" data-action="ticket:rm" data-i="' + i + '" aria-label="Remove tier">×</button>' : '') + '</td></tr>';
   }
-  
+
   /**
    * One row of the mix: type (with the partner's own wording when chosen), the
    * share, and what that share comes to. Same table furniture as the tiers.
@@ -4155,7 +4335,7 @@
       + (single ? '<small class="hint">One row carries the whole reduction.</small>' : '') + '</td>'
       + '<td>' + (single ? '' : '<button type="button" class="trm" data-action="ticket:mixrm" data-scope="' + esc(scope) + '" data-i="' + i + '" aria-label="Remove discount">×</button>') + '</td></tr>';
   }
-  
+
   /** One editor: the rows of one mix, shared or for one tier. */
   function mixEditorHTML(scope, rows, head, st) {
     var check = checkMix(rows);
@@ -4171,9 +4351,37 @@
         : '<small class="hint">A mix carries at most ' + MIX_MAX_ROWS + ' discounts.</small>')
       + '</div>';
   }
-  
+
   function noteHTML(cls, text) { return '<p class="' + cls + '">' + esc(text) + '</p>'; }
-  
+
+  /**
+   * The reachable-household line, section 5.4, or nothing.
+   *
+   * ONE AGGREGATE AND NOTHING ELSE. Not which households, not how many excluded
+   * which brand, not whether a rival is reachable where this partner is not. The
+   * number exists because bidding against volume that cannot be won damages
+   * partner trust and the fee model both: a partner who prices for 300
+   * households and can reach 240 has been quoted the wrong market.
+   *
+   * Rendered only when the server has answered. An absent or unavailable reach
+   * read says nothing at all rather than guessing the cohort's full size, which
+   * would be the one wrong number worse than no number.
+   */
+  function reachHTML(a) {
+    var S = get();
+    var r = (S.reach || {})[a.id];
+    if (!r || r.available === false) return '';
+    if (r.reachable_households == null || r.total_households == null) return '';
+    var line = 'Reachable households in this cohort for your brands: '
+      + r.reachable_households + ' of ' + r.total_households;
+    return '<p class="cardnote" data-testid="prov-reach-line">' + esc(line)
+      + (r.reachable_households < r.total_households
+        ? ' <small class="hint">Some households have excluded a brand you operate. Your bid is never shown to them.</small>'
+        : '')
+      + '</p>';
+  }
+
+
   /**
    * The arithmetic on the right: per tier, the prices, the reduction, each named
    * line item in the cents the seal will record, and the total across the
@@ -4219,8 +4427,8 @@
     });
     return html;
   }
-  
-  
+
+
   /* ------------------------------------------------------------------ *
    * carrying terms forward
    *
@@ -4245,7 +4453,7 @@
    * before the mix became shares of the gap is not carried at all, because its
    * numbers meant something else. See core/bidseed.js.
    * ------------------------------------------------------------------ */
-  
+
   /** The campaign-agnostic half of a draft: what carries to the next cohort. */
   function seedFromDraft(d) {
     return {
@@ -4267,7 +4475,7 @@
       committedHouseholds: d.committedHouseholds || 0
     };
   }
-  
+
   /** The most recent sealed bid this org holds, as a seed. Null if none. */
   function seedFromBids(S) {
     var best = null;
@@ -4290,7 +4498,7 @@
       savedAt: best.at || 0
     };
   }
-  
+
   /**
    * The mix as a seed carries it: per-tier lists keyed by TIER NAME, because a
    * rid is a session id and the next form's rows will have new ones.
@@ -4303,7 +4511,7 @@
     });
     return { applyToAll: m.applyToAll !== false, shared: copyRows(m.shared && m.shared.length ? m.shared : [defaultRow()]), perTierByName: byName };
   }
-  
+
   /**
    * A seed's mix back onto a draft's tier rows. A seed written while a row was
    * a percentage off sticker (it carried `discountMix` rows with `percentOff`)
@@ -4324,7 +4532,7 @@
     });
     return out;
   }
-  
+
   /**
    * The seed on offer right now, or null. Pure: it reads state and storage and
    * writes neither, because it is called from a render and a render that mutates
@@ -4337,14 +4545,14 @@
     if (stored) return stored;
     return seedFromBids(S);
   }
-  
+
   /** What the seeded banner says, or null when nothing is on offer. */
   function seedBanner() {
     var seed = currentSeed();
     if (!seed || !seed.draft || !(seed.draft.tiers || []).length) return null;
     return { from: seed.from || null, savedAt: seed.savedAt || 0 };
   }
-  
+
   /** The draft a form opens on: the seed where there is one, defaults otherwise. */
   function openingDraft(a) {
     var seed = currentSeed();
@@ -4368,7 +4576,7 @@
     d.seeded = { from: seed.from || null, savedAt: seed.savedAt || 0 };
     return d;
   }
-  
+
   /** The default draft for a cohort: one 500 Mbps row at the suggested prices. */
   function defaultDraft(a) {
     return {
@@ -4389,7 +4597,7 @@
       committedHouseholds: a.households || 1
     };
   }
-  
+
   /**
    * The mix a sealed head carries, onto a draft's tier rows.
    *
@@ -4421,7 +4629,7 @@
     if (first) out.shared = copyRows(first);
     return out;
   }
-  
+
   /** A draft prefilled from the sealed head, for the improve form. */
   function draftFromBid(a, m) {
     var tiers = withRids((m.tiers || []).map(function (t) {
@@ -4448,11 +4656,11 @@
       committedHouseholds: m.committedHouseholds || a.households || 1
     };
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the panel
    * ------------------------------------------------------------------ */
-  
+
   /**
    * Whether this cohort's roster has already released to the org.
    *
@@ -4469,7 +4677,7 @@
     D.cohorts.forEach(function (c) { if (c.campaignId === campaignId) found = c; });
     return found ? !!found.orders : null;
   }
-  
+
   /**
    * The ticket panel for one cohort. Six states, the prototype's four plus the
    * two it did not have:
@@ -4495,11 +4703,52 @@
    * setup, a roster already released says go and schedule it. One copy for both
    * told a partner who had finished the gate to go and finish the gate.
    */
+  /**
+   * The per-tier result for the tiers THIS bid won: the tier, this partner's
+   * own price, how many households sat at that speed, and how many have
+   * confirmed at it. Lost tiers are not listed beyond their absence, and
+   * nothing here is another partner's: not how many bid a tier, not that a
+   * price was matched.
+   *
+   * The fee line is N confirmed times the configured fee, capped at the
+   * commitment ("your cap"), the same arithmetic the scenario table shows
+   * before sealing. Over the commitment the overflow is said, not hidden: the
+   * commitment is a soft signal and the partner serves every household that
+   * confirmed.
+   */
+  function wonTiersHTML(mine, fee) {
+    var rows = mine.won || [];
+    if (!rows.length) return '';
+    var conf = Number(mine.confirmed || 0);
+    var commit = mine.committedHouseholds != null ? Number(mine.committedHouseholds) : null;
+    var served = commit != null ? Math.min(conf, commit) : conf;
+    var f = Number(fee || 0);
+    var body = rows.map(function (t) {
+      return '<tr><td>' + esc(t.tier) + '</td>'
+        + '<td class="num">' + (t.price != null ? money(String(t.price)) : '·') + '</td>'
+        + '<td class="num">' + (t.demandCount != null ? t.demandCount : '·') + '</td>'
+        + '<td class="num">' + (t.confirmed != null ? t.confirmed : '·') + '</td></tr>';
+    }).join('');
+    var feeLine = f
+      ? '<p class="fnote" style="margin-top:8px">Success fees at your fee: <b>' + money(String(served * f)) + '</b>'
+        + ' (' + served + ' × ' + money(String(f)) + (commit != null && served < conf ? ', your cap of ' + commit : '') + ')'
+        + ', billed per completed switch only.'
+        + (commit != null && conf > commit ? ' <b>' + conf + ' confirmed, ' + (conf - commit) + ' over your commitment.</b>' : '')
+        + '</p>'
+      : (commit != null && conf > commit
+        ? '<p class="fnote" style="margin-top:8px"><b>' + conf + ' confirmed, ' + (conf - commit) + ' over your commitment of ' + commit + '.</b></p>'
+        : '');
+    return '<div class="twrap" style="margin-top:12px"><table class="tbl"><thead><tr>'
+      + '<th>Speed you won</th><th class="num">Your price</th><th class="num">Households at this speed</th>'
+      + '<th class="num">Confirmed</th></tr></thead><tbody>'
+      + body + '</tbody></table></div>' + feeLine;
+  }
+
   function ticketHTML(a, data, mine) {
     var S = get();
     var d = a.dates || {};
     var draft = S.ticketDraft && S.ticketDraft.campaignId === a.id ? S.ticketDraft : null;
-  
+
     /* Result states. */
     if (a.stage === 'decided' && mine) {
       if (mine.state === 'not_selected') {
@@ -4509,13 +4758,18 @@
           + '<button class="btn ghost" type="button" data-action="nav" data-view="desk" style="margin-top:12px">See what’s coming</button></div>';
       }
       var fee = data && data.brief && data.brief.successFee;
-      var conf = a.confirmed;
+      /* The count is this org's own orders on this cohort, served on the bid by
+         GET /provider/bids and memoized a minute server side. Zero is a real
+         answer ("Won · 0 confirmed"), distinct from unknown. */
+      var conf = mine.confirmed != null ? Number(mine.confirmed) : null;
       var wonLine = conf
         ? conf + ' households confirmed you. That’s ' + conf + ' installs to plan'
           + (fee ? ' and, at your fee, up to ' + money(String(conf * Number(fee))) + ' in success fees, billed per completed switch only' : '')
           + '.'
-        : 'Household confirmations route to your delivery board.';
-  
+        : (conf === 0
+          ? 'No household has confirmed you yet. Confirmations route to your delivery board.'
+          : 'Household confirmations route to your delivery board.');
+
       /* The next step, from what is actually known. A released roster is past
          the gate; a card on file means only capacity is left, and that half is
          known on every boot because loadMethod() runs there. Unknown release
@@ -4528,12 +4782,13 @@
         : (onFile
           ? ' Confirm your install capacity and the roster releases to you.'
           : ' Complete billing setup and confirm capacity, and the roster releases to you.');
-  
+
       return '<div class="tkt"><div class="dh">Result</div><div class="receipt">'
-        + '<b>Won.</b> ' + wonLine + next + '</div>'
+        + '<b>Won' + (conf != null ? ' · ' + conf + ' confirmed' : '') + '.</b> ' + wonLine + next + '</div>'
+        + wonTiersHTML(mine, fee)
         + '<button class="btn" type="button" data-action="nav" data-view="delivery" style="margin-top:12px">Open the delivery board</button></div>';
     }
-  
+
     /* Bids closed, offers with households.
      *
      * The confirmed clause used to read "Confirmed so far: N of M", and no
@@ -4544,16 +4799,26 @@
      * a fraction, and it stays gated on `mine`: a confirmation count on a cohort
      * another partner won is that partner's count. */
     if (a.stage === 'offers_out') {
+      var won = mine && (mine.tiersWon || []).length > 0;
+      var decidedLine = '';
+      if (mine && (mine.state === 'won' || mine.state === 'not_selected')) {
+        decidedLine = won
+          ? 'The lowest sealed bid won each speed, and yours took <b>' + esc(mine.tiersWon.join(', ')) + '</b>. '
+          : 'The lowest sealed bid won each speed, and none of yours was the lowest at its speed. ';
+      }
       return '<div class="tkt"><div class="dh">Bids closed</div><div class="receipt">'
         + (mine
           ? '<b>Your bid is in:</b> ' + bidLine(mine) + (mine.reference ? ' · Receipt ' + esc(mine.reference) : '') + '. '
           : '<b>You did not bid on this cohort.</b> ')
+        + decidedLine
         + 'Offers are out to every household, individually. '
-        + (mine && a.confirmed != null ? 'Confirmed so far: <b>' + a.confirmed + '</b>. ' : '')
+        + (won && mine.confirmed != null ? 'Confirmed so far: <b>' + Number(mine.confirmed) + '</b>. ' : '')
         + (d.decision_at ? 'Decisions lock ' + fmtDate(d.decision_at) + '; there' : 'There')
-        + ' is nothing for you to do, and no way to see other bids.</div></div>';
+        + ' is nothing for you to do, and no way to see other bids.</div>'
+        + (won ? wonTiersHTML(mine, data && data.brief && data.brief.successFee) : '')
+        + '</div>';
     }
-  
+
     /* Decided, and none of it was ours. The state the prototype dropped into a
        bid form. Says the one true thing and offers the one useful thing, which
        is the alert that stops it happening again. */
@@ -4565,7 +4830,7 @@
         + 'Cohorts keep forming in the regions you have declared, and you can be emailed the day one opens.</div>'
         + '<button class="btn ghost" type="button" data-action="nav" data-view="account" style="margin-top:12px">Check your alerts</button></div>';
     }
-  
+
     /* The sealed receipt, unless the improve form is open. */
     if (mine && !(draft && draft.improve)) {
       return '<div class="tkt"><div class="dh">Your sealed bid</div>'
@@ -4580,11 +4845,11 @@
         + '</div>'
         + '<button class="btn ghost" type="button" data-action="ticket:improve" data-id="' + esc(a.id) + '" style="margin-top:12px">Improve bid</button></div>';
     }
-  
+
     /* The form: place, or improve when a draft says so. */
     return formHTML(a, data, draft || openingDraft(a), Boolean(mine));
   }
-  
+
   /**
    * The mix block: the editors on the left, the arithmetic on the right.
    *
@@ -4624,7 +4889,7 @@
       + '<div class="mixgrid"><div>' + editors + '</div>'
       + '<div class="mixcalc"><div class="mixsum" aria-live="polite">' + mixSummaryHTML(t, st) + '</div></div></div></div>';
   }
-  
+
   /** The dialog behind ticking apply-to-all: it replaces what was set per tier. */
   function applyAllModalHTML(names) {
     var list = names.length > 1
@@ -4636,14 +4901,14 @@
       + '<button class="btn" type="button" data-action="ticket:mixall-yes">Replace with one mix</button>'
       + '<button class="btn ghost" type="button" data-mclose>Keep per-tier mixes</button></div>';
   }
-  
+
   function formHTML(a, data, t, improving) {
     var S = get();
     var d = a.dates || {};
     var closed = d.bidding_closes_at ? until(d.bidding_closes_at) === 0 : false;
-  
+
     var rows = t.tiers.map(tierRowHTML).join('');
-  
+
     var mechOpts = [
       ['member', 'A Whollar member discount'],
       ['promo', 'A promotional credit, expiry stated'],
@@ -4653,7 +4918,7 @@
     ].map(function (o) {
       return '<option value="' + o[0] + '"' + (t.reductionPresentation === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
     }).join('');
-  
+
     var button;
     if (!S.approved) {
       button = '<button class="btn" type="button" disabled>Bidding unlocks at approval</button>';
@@ -4675,7 +4940,7 @@
         + (ready ? '' : ' disabled') + '>'
         + (improving ? 'Seal the improvement' : 'Place sealed bid') + '</button>';
     }
-  
+
     return '<div class="tkt"><div class="steps"><span class="on">1 · Set terms</span><i></i><span>2 · Seal</span></div>'
       + '<div class="bidform' + (t.afterMode === 'new' ? ' aftnew' : '') + '" data-bid="' + esc(a.id) + '">'
       + (improving
@@ -4689,6 +4954,7 @@
             + 'Nothing is sent until you seal, every field is editable, and your commitment has been set to this cohort\u2019s size. '
             + '<button class="tlink" type="button" data-action="ticket:fresh" data-id="' + esc(a.id) + '">Start from blank terms</button></div>'
           : ''))
+      + reachHTML(a)
       + '<label class="blk">Price by service <small class="lsub">sticker is your rate card; effective is what the cohort pays</small></label>'
       + '<table class="tiert t7"><thead><tr><th>Tier</th><th>Upload, Mbps</th><th>Technology</th><th>Sticker /mo</th><th>Effective /mo</th><th class="tac">After</th><th></th></tr></thead><tbody class="tierbody">'
       + rows
@@ -4718,14 +4984,14 @@
       + button
       + '</div></div>';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * reading the form
    * ------------------------------------------------------------------ */
-  
+
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
-  
+
   /** One editor's rows, as typed. Order is display order. */
   function readRows(editor) {
     return $$('.mrow', editor).map(function (tr) {
@@ -4736,7 +5002,7 @@
       };
     });
   }
-  
+
   /**
    * The mix state from the DOM, with the branch that is not on screen carried
    * from the previous draft: only the editors in force are rendered, and the
@@ -4767,7 +5033,7 @@
     });
     return st;
   }
-  
+
   /** The rows a bid's single derived label is read from: the shared mix, or the first tier with one. */
   function labelRows(tiers, mix) {
     if (!mix || mix.applyToAll !== false) return rowsFor(mix, null);
@@ -4777,7 +5043,7 @@
     }
     return rowsFor(mix, null);
   }
-  
+
   /**
    * The single label a custom bid carries beside its mix: the distinct line-item
    * names joined, stripped to the accepted charset, and cut back to the first
@@ -4794,7 +5060,7 @@
     if (joined.length > 40) joined = parts[0] || '';
     return joined.slice(0, 40).trim();
   }
-  
+
   /** The mix as the body sends it: shares per tier, the server does the money. */
   function wireMix(d) {
     return {
@@ -4804,7 +5070,7 @@
       })
     };
   }
-  
+
   /**
    * DOM to draft. The DOM is the source of truth at submit time; the store's
    * copy exists so repaints between edits restore what was typed, and `prev`
@@ -4829,7 +5095,7 @@
       };
     }).filter(function (t) { return Number(t.effectivePrice) > 0; });
     if (!tiers.length) bad = bad || 'Add at least one tier to the bid.';
-  
+
     var mech = $('.bmech', form) ? $('.bmech', form).value : 'member';
     var guar = parseInt($('.bguar', form).value, 10);
     var mix = readMixState(form, prev);
@@ -4839,11 +5105,11 @@
       if (!st.ok) bad = bad || st.problem;
       mechanismLabel = mixLabel(labelRows(tiers, mix));
     }
-  
+
     var commitMax = a && a.households ? a.households : Infinity;
     var commit = parseInt($('.bcommit', form).value, 10) || 0;
     if (commit > commitMax) commit = commitMax;
-  
+
     return {
       campaignId: a ? a.id : null,
       tiers: tiers,
@@ -4860,11 +5126,11 @@
       bad: bad
     };
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the scenario table (in the brief, fed by the form)
    * ------------------------------------------------------------------ */
-  
+
   /**
    * Recompute "What this bid could return" from the open form. Ported from
    * scnCalc (2258-2269) and readTicket's blend (2640-2652): tier prices blended
@@ -4880,42 +5146,56 @@
     var data = S.briefs[id];
     if (!a || !data || data === 'loading' || data.failed) return;
     var b = data.brief || {};
-    if (!b.speedMix) return;
-  
+    if (!b.speedMix && !b.speedDemand) return;
+
     var grid = form.closest('.dgrid');
     if (!grid) return;
     var sb = $('.brief .scnbody', grid);
     var chip = $('.brief .scommit', grid);
-  
+
     var d = readTicket(form, a);
     if (chip) chip.textContent = d.committedHouseholds || (a.households || 0);
     if (!sb) return;
-  
+
     function effOf(name) {
       for (var i = 0; i < d.tiers.length; i++) if (d.tiers[i].name === name) return Number(d.tiers[i].effectivePrice);
       return null;
     }
     function subGig() {
       var c = null;
-      ['100 Mbps', '300 Mbps'].forEach(function (n) {
+      ['50 Mbps', '100 Mbps', '300 Mbps'].forEach(function (n) {
         var p = effOf(n);
         if (p != null && (c == null || p < c)) c = p;
       });
       return c;
     }
     var blend = 0, tot = 0;
-    b.speedMix.forEach(function (sx) {
-      var share = sx[1];
-      tot += share;
-      var p;
-      if (sx[0] === '1 Gig') p = effOf('1 Gig');
-      else if (sx[0] === 'Under 500') p = subGig();
-      else p = effOf('500 Mbps');
-      if (p == null) p = d.tiers.length ? Number(d.tiers[0].effectivePrice) : 0;
-      blend += share * p;
-    });
+    if (b.speedDemand) {
+      /* Measured demand is per ladder tier, so the blend is this bid's price at
+         each tier the cohort wants, weighted by how many want it. A tier this
+         bid does not quote weighs nothing: the households there are not this
+         partner's to serve at any price. */
+      b.speedDemand.forEach(function (sx) {
+        var p = effOf(sx[0]);
+        if (p == null) return;
+        tot += sx[1];
+        blend += sx[1] * p;
+      });
+      if (!tot && d.tiers.length) { blend = Number(d.tiers[0].effectivePrice); tot = 1; }
+    } else {
+      b.speedMix.forEach(function (sx) {
+        var share = sx[1];
+        tot += share;
+        var p;
+        if (sx[0] === '1 Gig') p = effOf('1 Gig');
+        else if (sx[0] === 'Under 500') p = subGig();
+        else p = effOf('500 Mbps');
+        if (p == null) p = d.tiers.length ? Number(d.tiers[0].effectivePrice) : 0;
+        blend += share * p;
+      });
+    }
     blend = tot ? blend / tot : 0;
-  
+
     var fee = Number(b.successFee || 0);
     var hh = a.households || 0;
     var commit = d.committedHouseholds || hh;
@@ -4929,7 +5209,7 @@
         + '<td>' + (fee ? money(String(served * fee)) : '·') + '</td></tr>';
     }).join('');
   }
-  
+
   /**
    * Recompute the mix arithmetic from the open form, in place.
    *
@@ -4965,17 +5245,17 @@
     var btn = $('[data-action="ticket:place"]', form);
     if (btn) btn.disabled = !(d.consent && mixOk(d));
   }
-  
+
   /* ------------------------------------------------------------------ *
    * actions
    * ------------------------------------------------------------------ */
-  
+
   function campaignById(id) {
     var found = null;
     get().campaigns.forEach(function (c) { if (c.id === id) found = c; });
     return found;
   }
-  
+
   /** The current draft for the open form, reading the DOM so edits survive. */
   function draftFromForm(el) {
     var form = el.closest('.bidform') || $('.bidform');
@@ -4995,7 +5275,7 @@
     delete d.bad;
     return d;
   }
-  
+
   function mount() {
     /* Any form control changed: capture the whole form into the draft, which
        repaints the ticket from it. Selects re-render their reveals (after
@@ -5006,11 +5286,11 @@
       refreshScn();
       refreshMix();
     });
-  
+
     /* Keystrokes update only the derived panels. Writing the store here would
        repaint the form under the cursor mid-word. */
     on('input', 'ticket:field', function () { refreshScn(); refreshMix(); });
-  
+
     on('click', 'ticket:add', function (el) {
       var d = draftFromForm(el);
       if (!d) return;
@@ -5033,7 +5313,7 @@
       refreshScn();
       refreshMix();
     });
-  
+
     on('click', 'ticket:rm', function (el) {
       var d = draftFromForm(el);
       if (!d) return;
@@ -5051,7 +5331,7 @@
       refreshScn();
       refreshMix();
     });
-  
+
     /** The list an editor's scope names, created on the draft if it has to be. */
     function scopeRows(d, scope) {
       if (scope === 'shared') {
@@ -5061,7 +5341,7 @@
       if (!d.mix.perTier[scope] || !d.mix.perTier[scope].length) d.mix.perTier[scope] = [defaultRow()];
       return d.mix.perTier[scope];
     }
-  
+
     on('click', 'ticket:mixadd', function (el) {
       var d = draftFromForm(el);
       if (!d) return;
@@ -5073,7 +5353,7 @@
       set('ticketDraft', d);
       refreshMix();
     });
-  
+
     on('click', 'ticket:mixrm', function (el) {
       var d = draftFromForm(el);
       if (!d) return;
@@ -5087,7 +5367,7 @@
       set('ticketDraft', d);
       refreshMix();
     });
-  
+
     /* The apply-to-all box. Ticking it replaces every per-tier mix with the
        shared one, so it asks first, every time: the box is reverted until the
        dialog answers, and the draft does not move. Unticking needs no dialog,
@@ -5110,7 +5390,7 @@
       set('ticketDraft', d2);
       refreshMix();
     });
-  
+
     on('click', 'ticket:mixall-yes', function () {
       var form = $('.bidform');
       closeModal();
@@ -5122,7 +5402,7 @@
       set('ticketDraft', d);
       refreshMix();
     });
-  
+
     on('click', 'ticket:improve', function (el) {
       var id = el.getAttribute('data-id');
       var a = campaignById(id);
@@ -5130,23 +5410,23 @@
       if (!a || !mine) return;
       set('ticketDraft', draftFromBid(a, mine));
     });
-  
+
     on('click', 'ticket:cancel', function () { set('ticketDraft', null); });
-  
+
     /* Blank terms on request. The seed itself is left alone: this partner wants
        a different bid on THIS cohort, which says nothing about the next one. */
     on('click', 'ticket:fresh', function (el) {
       var a = campaignById(el.getAttribute('data-id'));
       if (a) set('ticketDraft', defaultDraft(a));
     });
-  
+
     on('click', 'ticket:place', function (el) {
       var S = get();
       var form = el.closest('.bidform');
       var id = form && form.getAttribute('data-bid');
       var a = id && campaignById(id);
       if (!form || !a) return;
-  
+
       var prev = S.ticketDraft && S.ticketDraft.campaignId === id ? S.ticketDraft : null;
       var d = readTicket(form, a, prev);
       var improve = Boolean(prev && prev.improve);
@@ -5160,7 +5440,7 @@
         return;
       }
       if (!d.consent) return;
-  
+
       var body = {
         campaign: id,
         tiers: d.tiers,
@@ -5176,7 +5456,7 @@
         extraPodMonthly: d.extraPodMonthly,
         committedHouseholds: d.committedHouseholds
       };
-  
+
       el.disabled = true;
       (improve ? api.bidImprove(id, body) : api.bidPlace(body)).then(function (r) {
         var bids = {};
@@ -5228,7 +5508,7 @@
    * Countdowns offset from the serverTime captured at fetch, through
    * time.until(), never from a bare Date.now().
    */
-  
+
   var __ns0 = __require("core/state.js");
   var get = __ns0.get, set = __ns0.set;
   var __ns1 = __require("core/api.js");
@@ -5247,7 +5527,7 @@
   var briefHTML = __ns7.briefHTML;
   var __ns8 = __require("views/ticket.js");
   var ticketHTML = __ns8.ticketHTML, refreshScn = __ns8.refreshScn;
-  
+
   /* The desk is TWO tables, as the prototype's markup is: what is live now, and
      what is coming. A cohort that has not opened yet cannot be bid on and has no
      clock to run, so putting it in the live table gives it five columns of
@@ -5262,23 +5542,23 @@
     var host = document.getElementById('desk-body');
     if (!host) return;
     var S = get();
-  
+
     if (!S.campaignsLive) {
       host.innerHTML = empty('We could not read the cohort list just now',
         'This is on our side. Nothing you have declared or bid is affected. Reload in a moment, and email partners@whollar.ca if it persists.');
       return;
     }
-  
+
     var active = {};
     S.coverage.forEach(function (c) { if (c.status === 'active') active[regionSlug(c.region)] = true; });
-  
+
     var coming = S.campaigns.filter(isComing).sort(sortByOpen);
     var live = S.campaigns.filter(function (a) { return !isComing(a); }).sort(sortByClock);
-  
+
     var rows = live.map(function (a) {
       return row(a, active[regionSlug(a.coverageRegion || a.region)]);
     }).join('');
-  
+
     host.innerHTML = '<section class="card" style="padding-top:14px">'
       + '<div class="twrap"><table class="tbl" aria-label="Open auctions">'
       + '<thead><tr><th>Cohort</th><th class="num">Households</th><th>Stage</th><th>Window</th><th>Your bid</th><th></th></tr></thead>'
@@ -5295,20 +5575,20 @@
       + '<p class="fnote">Every cohort we are running is listed here. You can bid on the ones inside your declared coverage; the rest stay locked. You never see another partner\u2019s bid, their count, or whether they bid at all.</p>'
       + '</section>'
       + planned(coming);
-  
+
     /* The scenario table lives in the brief but reads the open form, so it can
        only be computed once both are in the DOM. */
     refreshScn();
-  
+
     startTicker();
   }
-  
+
   /* AREAS: the empty half of a table.
      Owner's call 2026-08-27, kept: a desk with nothing on it holds its spaces
      open and labels them rather than collapsing to a header row. Areas 1 to 4
      are the open-auction slots and 5 to 8 the coming ones, so every space on the
      desk has one number and no two share it.
-  
+
      A COHORT TAKES A SLOT. `filled` is how many real rows were already written
      above, and only the remainder is drawn grey, so four cohorts leave no boxes
      and one cohort leaves three. An area row carries no campaign id, no region,
@@ -5323,11 +5603,11 @@
     }
     return out;
   }
-  
+
   function isComing(a) { return a.stage === 'planned' || a.stage === 'announced'; }
   function openAt(a) { return (a.dates && a.dates.bidding_opens_at) || Infinity; }
   function sortByOpen(a, b) { return openAt(a) - openAt(b); }
-  
+
   /* Why the live table is empty, in the partner's terms. These four sentences
      are NOT interchangeable and collapsing them was a regression the QA suite
      caught once already: it told a partner under review that no cohorts were
@@ -5346,11 +5626,11 @@
     return note('No cohort in your coverage is open for bids right now. When one opens it appears here, and you get an email if that alert is on.',
       goTo('account', 'Check your alerts', 'tlink'));
   }
-  
+
   function note(text, link) {
     return '<p class="fnote" style="margin:6px 0 2px">' + esc(text) + ' ' + link + '</p>';
   }
-  
+
   /* Coming cohorts. Planned and announced only: a cohort here has no bidding
      window yet, which is exactly what its one column says. */
   function planned(coming) {
@@ -5369,7 +5649,7 @@
             : 'Gathering' + (a.waitlist ? ' · ' + a.waitlist + ' on the list' : '')))
         + '</td></tr>';
     }).join('');
-  
+
     return '<section class="card" style="margin-top:16px" aria-label="Planned cohorts">'
       + '<span class="eyebrow">Forming now</span><h3>Coming cohorts</h3>'
       + '<div class="twrap"><table class="tbl">'
@@ -5378,15 +5658,39 @@
       + '<p class="fnote">Expected dates are estimates; they firm up the day a cohort locks and is announced.</p>'
       + '</section>';
   }
-  
+
   function closeAt(a) { return (a.dates && a.dates.bidding_closes_at) || a.nextAt || Infinity; }
   function sortByClock(a, b) { return closeAt(a) - closeAt(b); }
-  
+
+  /**
+   * The result pill, and what it says beside it. A cohort is won TIER BY TIER,
+   * so during Offers the pill reads "Sealed" with the tiers this bid took (or
+   * "not selected") and the households confirmed so far; after the decision
+   * deadline it reads "Won · N confirmed" or "Not selected". Every figure is
+   * this partner's own: `tiersWon` and `confirmed` come from its own bid row
+   * and never name another partner, price or household.
+   */
+  function resultPill(a, mine) {
+    var decided = mine.state === 'won' || mine.state === 'not_selected';
+    if (!decided) return '<span class="pill sealed">Sealed</span>';
+    var won = (mine.tiersWon || []).length > 0;
+    var conf = mine.confirmed != null ? Number(mine.confirmed) : null;
+    var confLine = conf != null ? conf + ' confirmed' : '';
+    if (a.stage === 'decided') {
+      return won
+        ? '<span class="pill won">Won' + (confLine ? ' · ' + esc(confLine) : '') + '</span>'
+        : '<span class="pill lost">Not selected</span>';
+    }
+    var tiers = won ? 'won ' + esc((mine.tiersWon || []).join(', ')) : 'not selected';
+    return '<span class="pill ' + (won ? 'won' : 'lost') + '">Sealed · ' + tiers + '</span>'
+      + (won && confLine ? ' <small class="capnote">' + esc(confLine) + '</small>' : '');
+  }
+
   function row(a, unlocked) {
     var d = a.dates || {};
     var mine = get().bids[a.id];
     var hot = a.stage === 'closing';
-  
+
     var window_ = a.stage === 'planned' || a.stage === 'announced'
       ? (d.bidding_opens_at ? 'Opens ' + fmtDate(d.bidding_opens_at) : 'Date to come')
       : (a.stage === 'open' || a.stage === 'closing'
@@ -5394,22 +5698,20 @@
         : (a.stage === 'offers_out'
           ? 'Decides ' + fmtDate(d.decision_at)
           : 'Closed ' + fmtDate(d.decision_at)));
-  
+
     var yours = mine
-      ? '<span class="pill ' + (mine.state === 'won' ? 'won' : (mine.state === 'not_selected' ? 'lost' : 'sealed')) + '">'
-        + esc({ won: 'Won', not_selected: 'Not selected', locked: 'Sealed', sealed: 'Sealed', improved: 'Sealed' }[mine.state] || 'Sealed')
-        + '</span>'
+      ? resultPill(a, mine)
       : '<span class="mono" style="color:#949E95">·</span>';
-  
+
     /* A cohort in a region that has not verified is visible but locked, and the
        row says which region is holding it. This is the state a new partner meets
        most: see the cohort, cannot bid on it, need to be told why. */
     var action = !unlocked
       ? '<span class="lockedtag">Verifies with ' + esc(a.coverageRegion || a.region) + ' coverage</span>'
       : bidAction(a, mine);
-  
+
     var open = get().openCampaign === a.id;
-  
+
     return '<tr data-row="' + esc(a.id) + '"' + rowClass(unlocked, open) + '>'
       + '<td><span class="rg">' + esc(a.region) + '<small>' + esc(a.sub || '') + '</small></span></td>'
       + '<td class="num">' + esc(String(a.households != null ? a.households : '·')) + '</td>'
@@ -5422,12 +5724,12 @@
          server would refuse anyway. */
       + (open && unlocked ? expandedRow(a, mine) : '');
   }
-  
+
   function rowClass(unlocked, open) {
     var cls = (unlocked ? '' : 'locked') + (open ? (unlocked ? ' ' : '') + 'exp' : '');
     return cls ? ' class="' + cls + '"' : '';
   }
-  
+
   /* The expanded row: the brief and the ticket, side by side, exactly the
      prototype's dgrid composition (line 1152). Rendered only for the open
      cohort; the CSS shows a .dwr only after a row carrying .exp. */
@@ -5439,12 +5741,12 @@
       + ticketHTML(a, data, mine)
       + '</div></td></tr>';
   }
-  
+
   function countdown(ts) {
     if (!ts || until(ts) > DAY) return '';
     return ' · <span data-until="' + ts + '">' + fmtCountdown(until(ts)) + '</span>';
   }
-  
+
   /* The row's control. Open cohorts get the real ticket; the label states what
      the click does. Bidding paused still opens the row: the brief is readable,
      and the ticket itself says why the button is disabled. */
@@ -5459,11 +5761,11 @@
       + 'data-action="desk:open" data-id="' + esc(a.id) + '">'
       + (open ? 'Close' : label) + '</button>';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * actions
    * ------------------------------------------------------------------ */
-  
+
   function mount() {
     on('click', 'desk:open', function (el) {
       var id = el.getAttribute('data-id');
@@ -5476,9 +5778,29 @@
          must never prefill another's. */
       set({ openCampaign: id, ticketDraft: null });
       loadBrief(id);
+      loadReach(id);
     });
   }
-  
+
+  /**
+   * How much of this cohort this partner's brands can still reach, section 5.4.
+   *
+   * Read on cohort open and cached per cohort, because it walks every member's
+   * exclusion set server side and the answer barely moves inside a bidding
+   * window. A 403 (no attested roster yet) and a failure are recorded the same
+   * way, as unavailable: the bid form then shows no line at all, which is the
+   * right answer for both. Never a guess at the cohort's full size.
+   */
+  function loadReach(id) {
+    var S = get();
+    if ((S.reach || {})[id]) return;
+    api.reach(id).then(function (r) {
+      set('reach', assign(get().reach || {}, id, r));
+    }, function () {
+      set('reach', assign(get().reach || {}, id, { available: false }));
+    });
+  }
+
   /** Fetch the brief on first open, and re-anchor the clock while at it. */
   function loadBrief(id) {
     var S = get();
@@ -5491,7 +5813,7 @@
       set('briefs', assign(get().briefs, id, { failed: true }));
     });
   }
-  
+
   function assign(map, key, value) {
     var out = {};
     for (var k in map) { if (Object.prototype.hasOwnProperty.call(map, k)) out[k] = map[k]; }
@@ -5500,6 +5822,7 @@
   }
 
   __exports.render = render;
+  __exports.resultPill = resultPill;
   __exports.mount = mount;
   };
 
@@ -5521,7 +5844,7 @@
    * CSV export is client-side from the same rows; the server route (register 37)
    * stays an honest stub until an export needs more than the client holds.
    */
-  
+
   var __ns0 = __require("core/state.js");
   var get = __ns0.get, biddableCampaigns = __ns0.biddableCampaigns;
   var __ns1 = __require("core/format.js");
@@ -5536,27 +5859,29 @@
   var empty = __ns5.empty, goTo = __ns5.goTo, CLOCK = __ns5.CLOCK;
   var __ns6 = __require("views/ticket.js");
   var bidLine = __ns6.bidLine;
-  
+
   function render() {
     var host = document.getElementById('bids-body');
     if (!host) return;
     var S = get();
-  
+
     var list = Object.keys(S.bids).map(function (k) { return S.bids[k]; });
-  
+
     if (!list.length) {
       host.innerHTML = nudge(S) + empty('Your first bid lands here',
         'Every bid you place sits on this record with everything it turns into: result, confirmed households, completed switches, fees.',
         goTo('desk', 'Open the bid desk'), CLOCK);
       return;
     }
-  
+
     var byId = {};
     S.campaigns.forEach(function (c) { byId[c.id] = c; });
-  
+
     var rows = list.map(function (b) {
       var c = byId[b.campaignId || b.campaign] || {};
-      var confirmed = b.state === 'won' && c.confirmed != null ? String(c.confirmed) : '·';
+      /* The count rides on the bid, not the campaign: it is this org's own
+         orders on this cohort, served by GET /provider/bids. */
+      var confirmed = b.state === 'won' && b.confirmed != null ? String(b.confirmed) : '·';
       return '<tr>'
         + '<td>' + esc(c.region || b.campaignId || b.campaign) + '</td>'
         + '<td class="num">' + (b.placedAt ? esc(fmtDate(b.placedAt)) : '·') + '</td>'
@@ -5566,7 +5891,7 @@
         + '<td class="num">·</td>'
         + '<td class="num">·</td></tr>';
     }).join('');
-  
+
     host.innerHTML = nudge(S)
       + '<section class="card">'
       + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:6px"><span class="eyebrow">Record</span>'
@@ -5577,13 +5902,13 @@
       + '<p class="fnote">Confirmed is households who accepted your offer. Completed is live connections, the only column that ever bills.</p>'
       + '</section>';
   }
-  
+
   function pill(state) {
     if (state === 'won') return '<span class="pill won">Won</span>';
     if (state === 'not_selected') return '<span class="pill lost">Not selected</span>';
     return '<span class="pill sealed">Sealed</span>';
   }
-  
+
   /** Nothing sealed while a cohort in verified coverage is open: say so. */
   function nudge(S) {
     if (Object.keys(S.bids).length) return '';
@@ -5598,7 +5923,7 @@
       + '<p class="cardnote">One number, sealed both ways: your bid stands on its own merits, nobody sees it, and only completed switches ever bill.</p>'
       + '<button class="btn forest" type="button" data-action="nav" data-view="desk">Open the ticket</button></section>';
   }
-  
+
   function mount() {
     on('click', 'bids:csv', function () {
       var S = get();
@@ -5614,7 +5939,7 @@
           csv((b.tiers || []).map(function (t) { return '$' + t.effectivePrice + ' ' + t.name; }).join(' | ')),
           b.version || 1,
           b.state,
-          b.state === 'won' && c.confirmed != null ? c.confirmed : ''
+          b.state === 'won' && b.confirmed != null ? b.confirmed : ''
         ].join(',');
       }).join('\n');
       var blob = new Blob([head + lines], { type: 'text/csv' });
@@ -5627,7 +5952,7 @@
       toast('Bid record exported.');
     });
   }
-  
+
   /** Quote a CSV field that may carry commas. */
   function csv(s) {
     s = String(s == null ? '' : s);
@@ -5682,7 +6007,7 @@
    * be validated against a Canada Post boundary file, and a fabricated list here
    * would be indistinguishable from a validated one.
    */
-  
+
   var PLACES = [
     { city: "Brampton", province: "Ontario", launch: true,
       regions: ["Brampton Central", "Brampton East", "Brampton West"] },
@@ -5999,24 +6324,24 @@
     { city: "Williams Lake", province: "British Columbia", launch: false,
       regions: ["Williams Lake"] }
   ];
-  
+
   function norm(s) { return String(s == null ? '' : s).trim().toLowerCase(); }
-  
+
   /** The key a city option carries, since a city name alone is not unique. */
   function cityKey(city, province) { return city + '|' + province; }
-  
+
   function findCity(city, province) {
     for (var i = 0; i < PLACES.length; i++) {
       if (PLACES[i].city === city && PLACES[i].province === province) return PLACES[i];
     }
     return null;
   }
-  
+
   /** A city with no sub-regions declares as itself, and the picker says so. */
   function isWholeCity(p) {
     return !!(p && p.regions.length === 1 && p.regions[0] === p.city);
   }
-  
+
   /**
    * The city a region belongs to, preferring a launch city on the one collision.
    * Used to read city and province back for a stored row, which carries neither.
@@ -6033,19 +6358,19 @@
     }
     return hit;
   }
-  
+
   /** "Scarborough Centre, Toronto, Ontario", or just the region if unplaced. */
   function readsAs(region) {
     var p = placeOf(region);
     return p ? region + ', ' + p.city + ', ' + p.province : region;
   }
-  
+
   /** Is this region name one we run cohorts in? Declare refuses anything else. */
   function isLaunchRegion(region) {
     var p = placeOf(region);
     return !!(p && p.launch);
   }
-  
+
   /** Cities matching a query, in list order, grouped by province downstream. */
   function searchCities(q) {
     var k = norm(q);
@@ -6094,7 +6419,7 @@
    * unreachable: every declared region sat in 'verifying' forever and no cohort
    * ever reached any desk. That was the single blocker under the whole console.
    */
-  
+
   var __ns0 = __require("core/state.js");
   var get = __ns0.get, set = __ns0.set;
   var __ns1 = __require("core/api.js");
@@ -6109,21 +6434,21 @@
   var authFailed = __ns5.authFailed;
   var __ns6 = __require("core/places.js");
   var cityKey = __ns6.cityKey, findCity = __ns6.findCity, isWholeCity = __ns6.isWholeCity, placeOf = __ns6.placeOf, readsAs = __ns6.readsAs, isLaunchRegion = __ns6.isLaunchRegion, searchCities = __ns6.searchCities;
-  
+
   /* The technologies desk.js accepts, in its own spelling. The console shows the
      label; the wire carries the value. Getting this wrong is a 400. */
   var TECHS = [['fibre', 'Fibre'], ['cable', 'Cable'], ['dsl', 'DSL'], ['fwa', 'Fixed wireless']];
-  
+
   /* The speed ladder, ascending, as [Mbps, label]. Mbps is what goes on the wire
      and Mbps is what the desk compares, so the label can be reworded without
      invalidating a single declared row.
-  
+
      THIS IS A SET, NOT A CEILING. It used to be "Top speed offered", one value
      from three, and a top speed cannot say that a partner sells 500 Mbps and 1
      Gig on the same street but nothing under it. Cohorts are matched on the tier
      a household actually wants, so declaring the ceiling made every partner look
      serviceable at every tier beneath it.
-  
+
      ON THE WIRE it is a CSV of Mbps in ascending order, the same shape `techs`
      already uses: "500,1000". That needs provider_coverage.speed at 64
      characters, not the original 16; see create-tables.md. All six selected is
@@ -6134,7 +6459,7 @@
     [500, '500 Mbps'], [1000, '1 Gig'], [2500, '2.5 Gig']
   ];
   var LEAD_TIMES = ['5 business days', '7 business days', '10 business days'];
-  
+
   /* Read whatever is on the record into an array of Mbps numbers.
      Tolerates all three shapes that can arrive: the new CSV ("500,1000"), an
      array, and the single legacy label ("1 Gig") written before this was a set.
@@ -6172,19 +6497,19 @@
     if (list.length === SPEEDS.length) return 'every tier';
     return list.map(speedLabel).join(', ');
   }
-  
+
   var STATE_UI = {
     active: ['', 'Active'],
     verifying: ['pend', 'Verifying'],
     soon: ['soon', 'Coming soon'],
     rejected: ['rej', 'Not serviceable']
   };
-  
+
   function techLabel(v) {
     for (var i = 0; i < TECHS.length; i++) if (TECHS[i][0] === v) return TECHS[i][1];
     return v;
   }
-  
+
   function services(c) {
     var t = (c.techs || []).map(techLabel).join(' · ');
     /* "up to X" was true of a ceiling and is false of a set: a partner offering
@@ -6192,17 +6517,17 @@
     var s = speedText(c.speed);
     return t + (s ? (t ? ' · ' : '') + s : '');
   }
-  
+
   function find(slug) {
     var rows = get().coverage;
     for (var i = 0; i < rows.length; i++) if (regionSlug(rows[i].region) === slug) return rows[i];
     return null;
   }
-  
+
   /* ------------------------------------------------------------------ *
    * render
    * ------------------------------------------------------------------ */
-  
+
   /**
    * Paint, and hand the caret back.
    *
@@ -6224,12 +6549,12 @@
     input.focus();
     try { input.setSelectionRange(text.length, text.length); } catch (e) { /* not all inputs allow it */ }
   }
-  
+
   function render() {
     var host = document.getElementById('cov-body');
     if (!host) return;
     var S = get();
-  
+
     if (!S.coverageLive) {
       host.innerHTML = '<section class="card"><div class="empty">'
         + '<h3>We could not read your coverage just now</h3>'
@@ -6237,10 +6562,10 @@
         + '</div></section>';
       return;
     }
-  
+
     paint(host, pickerCard() + declaredCard(S));
   }
-  
+
   /* The picker, as one card. Its own heading rather than the view's, because the
      view header has to keep saying what Coverage is for to a partner who already
      has ten regions on file and is not declaring anything today. */
@@ -6253,7 +6578,7 @@
       + picker()
       + '</section>';
   }
-  
+
   function declaredCard(S) {
     var n = S.coverage.length;
     var body = n
@@ -6261,7 +6586,7 @@
         + '<thead><tr><th>Region</th><th>Status</th><th>Services declared</th><th class="num">Open</th><th></th></tr></thead>'
         + '<tbody>' + S.coverage.map(function (c) { return regionRow(c, S); }).join('') + '</tbody></table></div>'
       : '<div class="cvnone">Pick a city, then a region, then Declare. Auctions only reach your desk from inside your declared coverage.</div>';
-  
+
     return '<section class="card" style="margin-top:16px" aria-label="Declared coverage">'
       + '<span class="eyebrow">Declared coverage</span>'
       + '<h3>' + (n ? n + ' region' + (n === 1 ? '' : 's') + ' on file' : 'Nothing declared yet') + '</h3>'
@@ -6269,14 +6594,14 @@
       + 'Region, City, Province. A new one verifies against serviceability before auctions appear.</p>'
       + body + '</section>';
   }
-  
+
   function regionRow(c, S) {
     var slug = regionSlug(c.region);
     var ui = STATE_UI[c.status] || STATE_UI.verifying;
     var openN = S.campaigns.filter(function (a) {
       return regionSlug(a.coverageRegion || a.region) === slug && (a.stage === 'open' || a.stage === 'closing');
     }).length;
-  
+
     /* The row reads back exactly what the picker promised: Region, City,
        Province. The city half is derived from core/places.js, because the record
        does not carry it; a region we do not recognise shows its name alone
@@ -6292,7 +6617,7 @@
         ? '<span class="mono" style="font-size:11px;color:var(--sub)">Queued for launch</span>'
         : '<button class="tlink" type="button" data-action="coverage:edit" data-region="' + esc(slug) + '">Edit services</button>')
       + '</td></tr>';
-  
+
     /* A rejected region has to say why and leave a route forward, or a partner
        has nothing to act on. The reason is an enum server side (it feeds the
        serviceability figure); the sentence is written here. */
@@ -6301,18 +6626,18 @@
         + '<p class="fnote covwhy"><b>Why:</b> ' + esc(c.rejectionReason || 'We could not confirm facilities for this footprint.')
         + ' If that is wrong, email partners@whollar.ca with the detail and we will re-check it.</p></td></tr>';
     }
-  
+
     /* Verifying says how long, because silence on a check with no ETA reads as a
        check that is not running. */
     if (c.status === 'verifying') {
       main += '<tr><td colspan="5" style="padding-top:0">'
         + '<p class="fnote covwhy">Checking this footprint against facilities data. Most clear within two business days, and you can declare more regions while it runs.</p></td></tr>';
     }
-  
+
     if (get().covEdit === slug) main += editRow(c, slug);
     return main;
   }
-  
+
   function editRow(c, slug) {
     var chosen = get().covDraft || (c.techs || []).slice();
     return '<tr class="covedit"><td colspan="5"><div class="dh">Services in ' + esc(c.region) + '</div>'
@@ -6326,7 +6651,7 @@
       + '<div><button class="btn forest" type="button" data-action="coverage:save" data-region="' + esc(slug) + '">Save</button></div>'
       + '</div></td></tr>';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the city and region picker
    *
@@ -6346,27 +6671,27 @@
    * page on each keystroke and take the caret with it. These live here, render()
    * paints from them, and typing repaints one list.
    * ------------------------------------------------------------------ */
-  
+
   var cvCity = null;      /* chosen city name */
   var cvProv = null;      /* chosen province */
   var cvRegion = null;    /* chosen region, the bid unit */
   var cvOpen = null;      /* 'city' | 'region' | null: which panel is showing */
-  
+
   function cvPlace() { return findCity(cvCity, cvProv); }
-  
+
   /** Regions already declared cannot be declared twice. */
   function declaredSlugs() {
     var out = {};
     get().coverage.forEach(function (c) { out[regionSlug(c.region)] = true; });
     return out;
   }
-  
+
   function cvDuplicate() {
     return !!(cvRegion && declaredSlugs()[regionSlug(cvRegion)]);
   }
-  
+
   /* ---- the city list ---- */
-  
+
   function cityListHtml(q) {
     var rows = searchCities(q);
     if (!rows.length) return '<div class="cvempty">No city by that name yet.</div>';
@@ -6386,14 +6711,14 @@
         + esc(p.city) + ' <span class="cvsub">· ' + esc(p.province) + '</span>' + tail + '</button>';
     }).join('');
   }
-  
+
   /* ---- the region list ----
    *
    * A region inside a city we have not opened renders and does not pick, which
    * is what the lede promises. The row says which city is holding it rather than
    * going grey with no reason: "queued" beside a name a partner just searched
    * for is a dead end they cannot act on. */
-  
+
   function regionListHtml(q) {
     var p = cvPlace();
     if (!p) return '<div class="cvempty">Choose a city first.</div>';
@@ -6404,7 +6729,7 @@
       return !k || r.toLowerCase().indexOf(k) > -1;
     });
     if (!rows.length) return '<div class="cvempty">No region by that name in ' + esc(p.city) + '.</div>';
-  
+
     return rows.map(function (r) {
       var why = !p.launch ? 'Soon' : (taken[regionSlug(r)] ? 'Declared' : '');
       if (why) {
@@ -6417,17 +6742,17 @@
         + (cvRegion === r ? '<span class="cvchk" aria-hidden="true">✓</span>' : '') + '</button>';
     }).join('');
   }
-  
+
   /* ---- the two combos ---- */
-  
+
   function cityLabel() { return cvCity ? cvCity + ', ' + cvProv : 'Search a city'; }
-  
+
   function regionLabel() {
     if (!cvCity) return 'Choose a city first';
     if (isWholeCity(cvPlace())) return 'Whole city (' + cvCity + ')';
     return cvRegion || 'Choose a region';
   }
-  
+
   /**
    * @param {string} id        'city' or 'region'
    * @param {string} label     what the trigger reads
@@ -6450,14 +6775,14 @@
       + '<div class="cvlist" id="cv-' + id + '-list" role="listbox">' + list + '</div>'
       + '</div></div>';
   }
-  
+
   /** Repaint one list alone, so the search field keeps focus and caret. */
   function paintList(id, q) {
     var el = document.getElementById('cv-' + id + '-list');
     if (!el) return;
     el.innerHTML = id === 'city' ? cityListHtml(q) : regionListHtml(q);
   }
-  
+
   function closeCombos() {
     if (!cvOpen) return;
     cvOpen = null;
@@ -6468,7 +6793,7 @@
       if (p) p.setAttribute('hidden', '');
     });
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the two multi-selects
    *
@@ -6489,14 +6814,14 @@
    * `data-sp` still marks the speed group so the one chip handler can tell the
    * two apart.
    * ------------------------------------------------------------------ */
-  
+
   /** What the trigger says for a set of labels: none, some, or the lot. */
   function summary(labels, total, empty, all) {
     if (!labels.length) return empty;
     if (labels.length === total) return all;
     return labels.join(', ');
   }
-  
+
   /**
    * One dropdown. `head` is optional panel chrome (the speed group's select-all).
    * The trigger carries its own empty/all wording in data attributes so the sync
@@ -6512,7 +6837,7 @@
       + '<div class="mselpanel" id="' + id + '-p" role="listbox" aria-multiselectable="true" hidden>'
       + (head || '') + group + '</div></div>';
   }
-  
+
   function techSelect(id, chosen, ce) {
     var labels = TECHS.filter(function (t) { return chosen.indexOf(t[0]) > -1; })
       .map(function (t) { return t[1]; });
@@ -6525,7 +6850,7 @@
     return dropdown(id, group, summary(labels, TECHS.length, 'Services offered', 'All services'),
       'Services offered', 'All services', null);
   }
-  
+
   function speedSelect(id, value) {
     var on = speedList(value);
     var all = on.length === SPEEDS.length;
@@ -6544,7 +6869,7 @@
     return dropdown(id, group, speedText(value) || 'Speed tiers',
       'Speed tiers', 'Every tier', head);
   }
-  
+
   /** Close every open dropdown. */
   function closeMsel(except) {
     Array.prototype.slice.call(document.querySelectorAll('.mseltrig[aria-expanded="true"]'))
@@ -6555,7 +6880,7 @@
         if (p) p.setAttribute('hidden', '');
       });
   }
-  
+
   /**
    * Read the group back into its trigger.
    *
@@ -6576,7 +6901,7 @@
     span.textContent = txt;
     span.classList.toggle('ph', !labels.length);
   }
-  
+
   /** The Mbps currently toggled on inside one chip group. */
   function chosenSpeeds(id) {
     var wrap = document.getElementById(id);
@@ -6586,7 +6911,7 @@
       .filter(function (n) { return isFinite(n); })
       .sort(function (a, b) { return a - b; });
   }
-  
+
   /* The picker body: two combos, the resolved line, then what is rendered there.
      Technology stays as visible chips rather than a dropdown: there are four,
      they fit, and the commonest edit is toggling one. Speeds keep the dropdown,
@@ -6601,17 +6926,17 @@
        the partner and a pointless write is a toast. */
     var open = !!(cvRegion && isLaunchRegion(cvRegion));
     var ready = !!(cvCity && cvRegion && open && !dup);
-  
+
     return '<div class="cvgrid">'
       + '<div class="cvfield"><label class="celab">City and province</label>'
       + combo('city', cityLabel(), !!cvCity, true, 'Type a city or province', cityListHtml('')) + '</div>'
       + '<div class="cvfield"><label class="celab">Region <em>the bid unit</em></label>'
       + combo('region', regionLabel(), !!cvRegion, !!p, 'Type a region', regionListHtml('')) + '</div>'
       + '</div>'
-  
+
       + '<div class="cvresolved"><span>Your selection will read as</span> <b>'
       + esc(ready ? readsAs(cvRegion) : 'Region, City, Province') + '</b></div>'
-  
+
       + '<div class="cvrow2">'
       + '<div class="cvfield"><label class="celab">Technology you render there</label>'
       + '<div class="cechips cvchips" id="addtech">'
@@ -6626,22 +6951,22 @@
       + (ready ? '' : ' disabled') + '>'
       + (dup ? 'Already declared' : (cvRegion && !open ? 'Not open yet' : 'Declare region')) + '</button>'
       + '</div>'
-  
+
       + '<small class="cvsmall">Regions inside a launch city start their serviceability check the moment '
       + 'you declare them, against facilities data. You do not have to wait for one to clear before '
       + 'declaring the next.</small>';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * actions
    * ------------------------------------------------------------------ */
-  
+
   function mount() {
     on('click', 'coverage:edit', function (el) {
       var slug = el.getAttribute('data-region');
       set({ covEdit: get().covEdit === slug ? null : slug, covDraft: null });
     });
-  
+
     /* Chip toggles are local until Save, and the draft lives in the store rather
        than in the DOM so a background refresh cannot silently discard a
        half-made edit. */
@@ -6657,7 +6982,7 @@
       el.textContent = turnOn ? 'Clear all' : 'Select all';
       syncTrig(wrap);
     });
-  
+
     /* Open one dropdown, and only one: two panels overlapping in the same table
        row is how a partner ends up toggling a speed they cannot see. */
     on('click', 'coverage:mopen', function (el) {
@@ -6668,7 +6993,7 @@
       el.setAttribute('aria-expanded', open ? 'false' : 'true');
       if (open) panel.setAttribute('hidden', ''); else panel.removeAttribute('hidden');
     });
-  
+
     /* Escape closes from wherever focus is inside the control. Both actions get
        it, because focus sits on the trigger before the first pick and on an
        option after it. */
@@ -6679,7 +7004,7 @@
       closeMsel(null);
       if (trig) trig.focus();
     });
-  
+
     on('click', 'coverage:chip', function (el) {
       el.classList.toggle('on');
       var wrap = el.closest('.cechips');
@@ -6703,7 +7028,7 @@
           .map(function (b) { return b.getAttribute('data-t'); }));
       }
     });
-  
+
     /* Attention moved elsewhere: close, rather than leaving a listbox floating
        over the chips a partner is now clicking. This runs before the data-action
        lookup, so a click on a trigger or an option is excluded by containment
@@ -6713,21 +7038,21 @@
       if (!e.target.closest('.msel')) closeMsel(null);
       if (cvOpen && !e.target.closest('.cvcombo')) closeCombos();
     });
-  
+
     on('click', 'coverage:save', function (el) {
       var slug = el.getAttribute('data-region');
       var c = find(slug);
       if (!c) return;
       var techs = get().covDraft || (c.techs || []);
       if (!techs.length) { toast('Pick at least one technology you serve there.'); return; }
-  
+
       var speeds = chosenSpeeds('ce-speed');
       if (!speeds.length) { toast('Pick at least one speed tier you can render there.'); return; }
-  
+
       var W = window.WHOLLAR;
       if (!W.busy(el, true, 'Saving')) return;
       var leadEl = document.getElementById('ce-lead');
-  
+
       api.coverageUpdate({
         region: c.region,
         techs: techs,
@@ -6743,9 +7068,9 @@
         authFailed(err);
       });
     });
-  
+
     /* ---- the city and region picker ---- */
-  
+
     /* Open one panel, and only one. Two listboxes overlapping is how a partner
        picks a region belonging to a city they cannot see. */
     on('click', 'coverage:combo', function (el) {
@@ -6764,13 +7089,13 @@
       var q = document.getElementById('cv-' + which + '-q');
       if (q) { q.value = ''; paintList(which, ''); q.focus(); }
     });
-  
+
     /* Typing repaints one list, never the view: a set() here would rebuild the
        card and take the caret with it. */
     on('input', 'coverage:filter', function (el) {
       paintList(el.getAttribute('data-combo'), el.value);
     });
-  
+
     on('keydown', 'coverage:filter', function (el, e) {
       if (e.key !== 'Escape') return;
       var which = el.getAttribute('data-combo');
@@ -6778,7 +7103,7 @@
       var trig = document.querySelector('.cvbtn[data-combo="' + which + '"]');
       if (trig) trig.focus();
     });
-  
+
     /* Choosing a city clears the region under it. Keeping the old one would let
        a partner declare "Kitsilano, Toronto, Ontario", which is not a place. A
        whole-city entry resolves to itself, so one pick is the whole answer. */
@@ -6792,13 +7117,13 @@
       closeCombos();
       render();
     });
-  
+
     on('click', 'coverage:region', function (el) {
       cvRegion = el.getAttribute('data-region');
       closeCombos();
       render();
     });
-  
+
     on('click', 'coverage:add', function (el) {
       /* The vocabulary is the whole point. Both halves have to resolve back to
          a real place, and a region in a city we have not opened is refused here
@@ -6811,17 +7136,17 @@
         return;
       }
       if (declaredSlugs()[regionSlug(region)]) { toast('You have already declared ' + region + '.'); return; }
-  
+
       var techs = Array.prototype.slice.call(document.querySelectorAll('#addtech button.on'))
         .map(function (b) { return b.getAttribute('data-t'); });
       if (!techs.length) { toast('Pick at least one technology you serve there.'); return; }
-  
+
       var speeds = chosenSpeeds('addspeed');
       if (!speeds.length) { toast('Pick at least one speed tier you can render there.'); return; }
-  
+
       var W = window.WHOLLAR;
       if (!W.busy(el, true, 'Declaring')) return;
-  
+
       /* Region alone on the wire. core/places.js says why: the server matches a
          bid on the region slug, so a composite would refuse every bid. */
       api.coverageDeclare({ region: region, techs: techs, speed: speedWire(speeds) })
@@ -6877,7 +7202,7 @@
    * it grows a row per region bid in and never carries a figure the store does
    * not hold.
    */
-  
+
   var __ns0 = __require("core/state.js");
   var get = __ns0.get, termsState = __ns0.termsState;
   var __ns1 = __require("core/format.js");
@@ -6886,15 +7211,15 @@
   var fmtDate = __ns2.fmtDate;
   var __ns3 = __require("components/emptystate.js");
   var goTo = __ns3.goTo;
-  
+
   function render() {
     var host = document.getElementById('perf-body');
     if (!host) return;
     var S = get();
     var r = record(S);
-  
+
     host.innerHTML = tiles(r) + band(S, r);
-  
+
     /* Acquisition is the second half of the page and answers a different
        question: not "what will briefs quote about you" but "what have the
        auctions delivered". Ported from the prototype's renderAcq day-1 branch.
@@ -6904,7 +7229,7 @@
     var acq = document.getElementById('acq-body');
     if (acq) acq.innerHTML = acquisition(S, r);
   }
-  
+
   /* Completions are written by the delivery board, and no route writes one yet,
      so the month-by-month half of this section has nothing to draw. It says so
      and shows the shape it will take, labelled as a sample, rather than drawing
@@ -6919,7 +7244,7 @@
       + '</section>'
       + (r.rows.length ? regions(S, r) : '');
   }
-  
+
   /* A fixed shape, never a figure. The series is hard-coded and unlabelled on
      purpose: it exists to show that the chart is months across and households up,
      and it sits behind the "Sample" pill at 22% opacity. Nothing reads it. */
@@ -6934,46 +7259,47 @@
     }).join('');
     return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="presentation" aria-hidden="true">' + bars + '</svg>';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the record, derived once
    * ------------------------------------------------------------------ */
-  
+
   /* One pass over the bid store, so the tiles, the band and the table cannot
      disagree about how many bids there are. A bid is decided when it came back
      won or not_selected; sealed, improved and locked are all still in flight. */
   function record(S) {
     var byCampaign = {};
     S.campaigns.forEach(function (c) { byCampaign[c.id] = c; });
-  
+
     var r = { bids: 0, sealed: 0, won: 0, decided: 0, confirmed: 0, rows: [], byRegion: {} };
-  
+
     Object.keys(S.bids).forEach(function (k) {
       var b = S.bids[k];
       var c = byCampaign[b.campaignId || k] || {};
       var region = c.region || b.campaignId || k;
       var won = b.state === 'won';
       var decided = won || b.state === 'not_selected';
-  
+
       r.bids += 1;
       if (!decided) r.sealed += 1;
       if (decided) r.decided += 1;
       if (won) r.won += 1;
-  
+
       var row = r.byRegion[region];
       if (!row) { row = r.byRegion[region] = { region: region, bids: 0, won: 0, confirmed: null }; r.rows.push(row); }
       row.bids += 1;
       if (won) {
         row.won += 1;
-        if (c.confirmed != null) {
-          row.confirmed = (row.confirmed || 0) + c.confirmed;
-          r.confirmed += c.confirmed;
+        /* The count rides on the bid (GET /provider/bids), never the campaign. */
+        if (b.confirmed != null) {
+          row.confirmed = (row.confirmed || 0) + Number(b.confirmed);
+          r.confirmed += Number(b.confirmed);
         }
       }
     });
-  
+
     r.rows.sort(function (a, b) { return b.won - a.won || b.bids - a.bids; });
-  
+
     /* Districts, not households: this is the verification pass rate on declared
        coverage, which is a different figure from the serviceability accuracy the
        tile will eventually carry. It is reported as districts, in words, for
@@ -6986,22 +7312,22 @@
       else if (c.status === 'rejected') r.covRejected += 1;
       else r.covVerifying += 1;
     });
-  
+
     return r;
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the four tiles
    * ------------------------------------------------------------------ */
-  
+
   function tile(label, n, sub, cls) {
     return '<div class="card mt"><span class="l">' + esc(label) + '</span>'
       + '<span class="n' + (cls ? ' ' + cls : '') + '">' + n + '</span>'
       + '<span class="s">' + sub + '</span></div>';
   }
-  
+
   var DOT = '·';
-  
+
   function tiles(r) {
     return '<div class="tiles">'
       + tile('Win rate',
@@ -7015,11 +7341,11 @@
       + tile('Delivered as bid', DOT, 'day-30 bill checks against your sealed offer')
       + '</div>';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the band: one card, saying what the next number depends on
    * ------------------------------------------------------------------ */
-  
+
   function card(eyebrow, title, note, cta, foot) {
     return '<section class="card" style="margin-top:16px">'
       + '<span class="eyebrow' + (eyebrow.gold ? ' gld' : '') + '">' + esc(eyebrow.text) + '</span>'
@@ -7029,7 +7355,7 @@
       + (foot ? '<p class="fnote">' + foot + '</p>' : '')
       + '</section>';
   }
-  
+
   function band(S, r) {
     /* Still under review. Nothing on this page can start until an application
        clears, so the page says that rather than showing four dots and no path.
@@ -7045,7 +7371,7 @@
         + (submitted ? ' Approved partners reach the bid desk the same day.' : ''),
         goTo('pending', submitted ? 'See where the review stands' : 'Finish your application', 'btn forest'));
     }
-  
+
     /* Won something. This is the state the screenshot is about: the win is on
        the board, and the three numbers still on a dot are the ones the delivery
        board writes. Point at it, and do not pretend it is running yet. */
@@ -7058,7 +7384,7 @@
         goTo('delivery', 'Open the delivery board', 'btn forest'),
         'Ratings unlock at 25 responses. Nothing bills before an activation with a clean line test.');
     }
-  
+
     /* Bids in flight, nothing decided. */
     if (r.sealed) {
       return card({ text: 'Results pending', gold: true },
@@ -7066,7 +7392,7 @@
         'Each result writes the win rate above, win or lose. A loss on the same standard terms costs you nothing here: standing is untouched, and the next cohorts in your coverage are already forming.',
         goTo('bids', 'See your bid record', 'btn forest'));
     }
-  
+
     /* Decided, none won. Said plainly, because the alternative reads as a
        scoreboard and this page is a record. */
     if (r.decided) {
@@ -7075,7 +7401,7 @@
         'The record starts here, not ends here. Nothing about a result changes your standing, your terms, or which cohorts reach your desk.',
         goTo('desk', 'See what is open now', 'btn forest'));
     }
-  
+
     /* Nothing on record yet. Where the record starts depends on what is in the
        way: with the standard terms unaccepted there is no sealed number to be
        had, so the CTA is the acceptance and not the desk. Only on 'pending',
@@ -7088,14 +7414,14 @@
       : (next
         ? goTo('desk', next.region + ' · closes ' + fmtDate(next.close), 'btn forest')
         : goTo('desk', 'Open the bid desk', 'btn forest'));
-  
+
     return card({ text: 'Why these four' },
       'The numbers that will win you auctions',
       'Nothing here is bought and nothing is written by marketing: all four are recorded from what you deliver, and future auction briefs carry them beside your bid. The record starts at your first sealed number.',
       cta,
       coverageNote(r));
   }
-  
+
   /* The verification pass rate on declared districts. Deliberately a sentence
      and not the serviceability tile: that tile is written by install outcomes,
      and putting this number in it would ship a figure into future briefs that
@@ -7108,7 +7434,7 @@
     if (r.covRejected) parts.push(r.covRejected + ' not serviceable');
     return 'Declared coverage: ' + esc(parts.join(', ')) + '. Serviceability above is a different number, written at install.';
   }
-  
+
   function nextOpen(S) {
     var best = null;
     S.campaigns.forEach(function (c) {
@@ -7119,11 +7445,11 @@
     });
     return best;
   }
-  
+
   /* ------------------------------------------------------------------ *
    * region by region, from the bid record
    * ------------------------------------------------------------------ */
-  
+
   function regions(S, r) {
     var rows = r.rows.map(function (row) {
       return '<tr><td>' + esc(row.region) + '</td>'
@@ -7132,7 +7458,7 @@
         + '<td class="num">' + (row.confirmed == null ? DOT : row.confirmed) + '</td>'
         + '<td class="num">' + DOT + '</td></tr>';
     }).join('');
-  
+
     return '<section class="card" style="margin-top:16px"><span class="eyebrow">Region by region</span>'
       + '<h3>What the auctions have delivered</h3>'
       + '<div class="twrap"><table class="tbl"><thead><tr><th>Region</th>'
@@ -7176,7 +7502,7 @@
    *   "6 on record" in the receipts row was a literal +6. It is the org's own
    *   sealed revision count, or a dash.
    */
-  
+
   var __ns0 = __require("core/state.js");
   var get = __ns0.get, set = __ns0.set;
   var __ns1 = __require("core/api.js");
@@ -7193,7 +7519,7 @@
   var toast = __ns6.toast, failed = __ns6.failed;
   var __ns7 = __require("core/session.js");
   var authFailed = __ns7.authFailed;
-  
+
   /* The terms, as one declaration.
    *
    * The modal renders these and the acceptance hash is taken over them, so the
@@ -7209,13 +7535,13 @@
     'Bids are sealed and binding until the deadline, improvable, never withdrawable',
     'You are invoiced per completed switch only, confirmed households are never billed'
   ]);
-  
+
   function render() {
     var host = document.getElementById('con-body');
     if (!host) return;
     var S = get();
     var c = S.contracts;
-  
+
     /* Not loaded, or the whole route refused. The registry is a read over five
        other records, so "we could not reach it" is a different sentence from
        "you have nothing on file", and the second one would be a lie here.
@@ -7233,7 +7559,7 @@
         + '</section>';
       return;
     }
-  
+
     var rows = [
       msaRow(c),
       termsRow(c),
@@ -7244,7 +7570,7 @@
         'Generated per campaign from activations only, net-15, line-level disputes.',
         link('billing', 'Open billing')]
     ];
-  
+
     host.innerHTML = '<section class="card"><span class="eyebrow">On file</span>'
       + '<h3>Agreements and records</h3>'
       + '<div class="conls">'
@@ -7259,7 +7585,7 @@
       + (c.live ? '' : ' One or more records could not be read just now, so this list may be short.')
       + '</p></section>';
   }
-  
+
   /**
    * Why the registry is not on screen, in the server's terms rather than ours.
    *
@@ -7292,7 +7618,7 @@
     return 'Your agreements could not be read just now. They are not gone, nothing about them has '
       + 'changed, and bidding is held rather than opened while the standard terms cannot be confirmed.';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the rows
    *
@@ -7300,7 +7626,7 @@
    * rather than reporting a zero. A registry that renders 0 for an unreadable
    * table is worse than one that renders nothing: a partner acts on it.
    * ------------------------------------------------------------------ */
-  
+
   function msaRow(c) {
     var m = c.msa;
     if (!m) return ['Master services agreement', unread(), ''];
@@ -7314,12 +7640,12 @@
       'The relationship itself: sealed auctions, delivery obligations, settlement, exit. It signs at approval, and nothing is owed before then.',
       '<span class="pill pending">Signs at approval</span>'];
   }
-  
+
   function termsRow(c) {
     var t = c.terms || {};
     var title = 'Standard cohort terms · ' + esc(t.version || 'v1');
     var body = 'Unlimited data, equipment stated on the face of the bid, the after-rate stated, no teaser structures.';
-  
+
     /* The title itself opens the terms, accepted or not: the six lines are what
        every bid runs on, and a partner rereading them should not have to press a
        button labelled "accept" to do it. Unreadable is the one case with nothing
@@ -7332,7 +7658,7 @@
          that name would quietly make it false. */
       title = '<button class="rowopen" type="button" data-action="terms:read">' + title + '</button>';
     }
-  
+
     if (t.current) {
       return [title,
         body + (t.acceptedAt ? ' Accepted ' + esc(fmtDate(t.acceptedAt)) : '')
@@ -7347,7 +7673,7 @@
     }
     return [title, body, button('Review and accept')];
   }
-  
+
   function scheduleRow(c) {
     var s = c.schedule;
     if (!s) return ['Regional schedule', unread(), link('coverage', 'Open coverage')];
@@ -7361,7 +7687,7 @@
         : 'Your regions and declared services become an appendix to the agreement the moment you declare them.',
       link('coverage', s.declared ? 'Open coverage' : 'Declare coverage')];
   }
-  
+
   function registrationRow(c) {
     var r = c.registration;
     if (!r) return ['CRTC registration', unread(), ''];
@@ -7377,7 +7703,7 @@
         : '<span class="pill pending">With the reviewer</span>');
     return ['CRTC registration', 'Registration ' + esc(r.crtc) + ' on file.', pill];
   }
-  
+
   function receiptsRow(c) {
     var r = c.receipts;
     if (!r) return ['Sealed bid receipts', unread(), link('bids', 'Open record')];
@@ -7391,24 +7717,24 @@
       + r.cohorts + ' cohort' + (r.cohorts === 1 ? '' : 's') + '. An improvement is a new sealed record, never an edit.',
       link('bids', 'Open record')];
   }
-  
+
   function unread() {
     return 'This record could not be read just now. It is not gone, and nothing has changed about it.';
   }
-  
+
   function link(view, label) {
     return '<button class="tlink" type="button" data-action="nav" data-view="' + esc(view) + '">'
       + esc(label) + ' →</button>';
   }
-  
+
   function button(label) {
     return '<button class="btn ghost" type="button" data-action="terms:open">' + esc(label) + '</button>';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the modal
    * ------------------------------------------------------------------ */
-  
+
   function termsModal() {
     var S = get();
     var t = (S.contracts && S.contracts.terms) || {};
@@ -7432,14 +7758,14 @@
           + '. Every auction on your desk runs on these terms.</div>'
         : consent(t, org));
   }
-  
+
   function consent(t, org) {
     return '<label class="consent"><input type="checkbox" id="terms-ok" data-action="terms:toggle">'
       + '<span>' + esc(org) + ' accepts the standard cohort terms, ' + esc(t.version || 'v1') + '.</span></label>'
       + '<button class="btn" type="button" id="terms-go" data-action="terms:accept" disabled '
       + 'style="width:100%;justify-content:center;margin-top:12px">Accept</button>';
   }
-  
+
   /**
    * A stable hash of the text that was on screen, sent with the acceptance.
    *
@@ -7460,11 +7786,11 @@
     }
     return ('00000000' + h1.toString(16)).slice(-8) + ('00000000' + h2.toString(16)).slice(-8);
   }
-  
+
   /* ------------------------------------------------------------------ *
    * load and actions
    * ------------------------------------------------------------------ */
-  
+
   /** Boot-path read: a failure degrades the view rather than blanking it, and
       never signs anyone out on its own. */
   function load() {
@@ -7485,16 +7811,16 @@
       });
     });
   }
-  
+
   function mount() {
     on('click', 'terms:open', function () { openModal(termsModal()); });
     on('click', 'terms:read', function () { openModal(termsModal()); });
-  
+
     on('change', 'terms:toggle', function (el) {
       var go = document.getElementById('terms-go');
       if (go) go.disabled = !el.checked;
     });
-  
+
     on('click', 'terms:accept', function (el) {
       var S = get();
       var t = (S.contracts && S.contracts.terms) || {};
@@ -7559,7 +7885,7 @@
    * someone past, the route would still refuse, and the partner would be looking
    * at a board the server had already decided they could not have.
    */
-  
+
   var __ns0 = __require("core/state.js");
   var get = __ns0.get, set = __ns0.set;
   var __ns1 = __require("core/api.js");
@@ -7582,26 +7908,26 @@
   var gateRow = __ns9.gateRow;
   var __ns10 = __require("core/contract.js");
   var ORDER_LABEL = __ns10.ORDER_LABEL, RELEASE_REASON = __ns10.RELEASE_REASON, RELEASE_LABEL = __ns10.RELEASE_LABEL, ORDER_EXCEPTION = __ns10.ORDER_EXCEPTION;
-  
+
   /* Which pill each state wears. The three exceptions share one, because they
      share a meaning to the person reading the board: this one needs you. */
   var PILL = {
     acc: 'pending', bkd: 'sealed', act: 'won', rel: 'lost',
     noshow: 'lost', access: 'lost', linefail: 'lost'
   };
-  
+
   function render() {
     var host = document.getElementById('del-body');
     if (!host) return;
     var S = get();
-  
+
     if (!S.approved) {
       host.innerHTML = empty('Delivery opens at approval',
         'Win a cohort and every household that accepted your offer lands here with an install slot and a state. Nothing reaches this board before your application clears.',
         goTo('pending', 'See where the review stands', 'btn ghost'));
       return;
     }
-  
+
     var D = S.delivery;
     if (D === 'loading') { host.innerHTML = card('Reading your delivery board.'); return; }
     if (!D) { host.innerHTML = waiting(S); return; }
@@ -7610,17 +7936,17 @@
       return;
     }
     if (!D.cohorts.length) { host.innerHTML = waiting(S); return; }
-  
+
     var chosen = D.cohorts.filter(function (c) { return c.campaignId === S.deliveryCohort; })[0] || D.cohorts[0];
     host.innerHTML = picker(S, D, chosen)
       + (chosen.orders ? board(S, chosen) : gated(S, chosen));
   }
-  
+
   function card(note) {
     return '<section class="card"><span class="eyebrow">Delivery</span>'
       + '<h3>Won cohorts become rosters</h3><p class="cardnote">' + esc(note) + '</p></section>';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * before there is anything to deliver
    *
@@ -7628,7 +7954,7 @@
    * of this is the best thing in it: a partner mid-auction opens Delivery and
    * learns what day one looks like, rather than reading "no data".
    * ------------------------------------------------------------------ */
-  
+
   function waiting(S) {
     var mine = S.campaigns.filter(function (c) { return S.bids[c.id]; });
     var offers = mine.filter(function (c) { return c.stage === 'offers_out'; })[0];
@@ -7638,12 +7964,12 @@
         + '<p class="cardnote">Bids are closed and your offer is with the cohort. Every household that accepts lands here with an address and an install slot, the moment the result is in.</p>'
         + '<p class="fnote">Confirmations cost nothing. Your first statement line is your first clean activation.</p></section>';
     }
-  
+
     var sealed = mine.filter(function (c) { return c.stage === 'open' || c.stage === 'closing'; })[0];
     if (sealed) {
       return '<section class="card"><span class="eyebrow">If ' + esc(sealed.region) + ' confirms you</span>'
         + '<h3>Day one looks like this</h3>'
-        + '<p class="cardnote">Every household that accepted, with an order number, the install slot they picked, and a state that becomes a statement line only when the line tests clean.</p>'
+        + '<p class="cardnote">Every household that accepted, with an order number, the install day and window they picked, the number to call on the day, and a state that becomes a statement line only when the line tests clean.</p>'
         + '<div class="ghostwrap"><div class="twrap ghost"><table class="tbl rtbl">'
         + '<thead><tr><th>Order</th><th>Install</th><th>State</th><th>Next</th></tr></thead><tbody>'
         + '<tr><td class="mono">WHL-••••-C</td><td>Household picks</td><td>To book</td><td>Awaiting slot</td></tr>'
@@ -7652,7 +7978,7 @@
         + '</tbody></table></div><div class="ghostlbl"><span>Sample · not your data</span></div></div>'
         + '</section>';
     }
-  
+
     var open = S.campaigns.filter(function (c) {
       return (c.stage === 'open' || c.stage === 'closing') && !S.bids[c.id];
     })[0];
@@ -7661,16 +7987,16 @@
         esc(open.region) + ' is open in your coverage. Sealed both ways: your bid stands on its own merits, and only completed switches ever bill.',
         goTo('desk', 'Review the brief and bid', 'btn'));
     }
-  
+
     return empty('Your first delivery board builds itself',
       'Win a cohort and every confirmed household lands here bill-verified and address-validated, with an install slot and a state that becomes an invoice line only when the line tests clean.',
       goTo('desk', 'Open the bid desk', 'btn'));
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the cohort picker, and the capacity control beside it
    * ------------------------------------------------------------------ */
-  
+
   function picker(S, D, chosen) {
     var opts = D.cohorts.map(function (c) {
       var name = regionOf(S, c.campaignId);
@@ -7678,7 +8004,7 @@
       return '<option value="' + esc(c.campaignId) + '"' + (c === chosen ? ' selected' : '') + '>'
         + esc(name + ' · ' + tail) + '</option>';
     }).join('');
-  
+
     var cap = chosen.award && chosen.award.capacityWeekly;
     return '<div class="omhead">'
       + '<div><label class="omlab">Cohort</label>'
@@ -7691,16 +8017,16 @@
         : '')
       + '</div>';
   }
-  
+
   function regionOf(S, id) {
     var c = S.campaigns.filter(function (x) { return x.id === id; })[0];
     return c ? (c.region + (c.sub ? ' · ' + c.sub : '')) : id;
   }
-  
+
   /* ------------------------------------------------------------------ *
    * gated: counts, and the one step that releases the rest
    * ------------------------------------------------------------------ */
-  
+
   function gated(S, c) {
     var g = (c.award && c.award.gate) || {};
     var n = c.counts.total;
@@ -7722,30 +8048,30 @@
       + '<p class="fnote">Counts are visible before the gate; addresses are not, and were never sent to this page.</p>'
       + '</section>';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the board
    * ------------------------------------------------------------------ */
-  
+
   function tile(label, n, sub, cls) {
     return '<div class="card mt"><span class="l">' + esc(label) + '</span>'
       + '<span class="n' + (cls ? ' ' + cls : '') + '">' + n + '</span>'
       + '<span class="s">' + esc(sub) + '</span></div>';
   }
-  
+
   function board(S, c) {
     var k = c.counts;
     var tiles = '<div class="tiles om4">'
       + tile('Accepted', k.total, 'addresses released to you at acceptance')
-      + tile('Booked', k.booked, k.acc ? k.acc + ' awaiting a slot' : 'every household has a date')
+      + tile('Booked', k.booked, k.acc ? k.acc + ' awaiting a slot' : 'every household picked a day')
       + tile('Activated', k.act, 'line test clean, the fee accrues here', k.act ? 'hotn' : '')
       + tile('Exceptions', k.exceptions,
         k.noshow + ' no-show, ' + k.access + ' access denied, ' + k.linefail + ' line test failed',
         k.exceptions ? 'excn' : '')
       + '</div>';
-  
+
     var rows = c.orders.map(function (o) { return row(o); }).join('');
-  
+
     return tiles
       + '<section class="card" style="margin-top:16px">'
       + '<span class="eyebrow">' + esc(regionOf(S, c.campaignId)) + '</span><h3>Order management</h3>'
@@ -7760,7 +8086,7 @@
       + 'A failed line test holds the fee, it never bills it. Every read of this board is logged.</p>'
       + '</section>';
   }
-  
+
   function row(o) {
     var id = esc(o.key);
     var actions = [];
@@ -7776,11 +8102,14 @@
     if (o.state !== 'act' && o.state !== 'rel') {
       actions.push(btn('del:release', id, 'Cannot serve'));
     }
-  
+
     return '<tr>'
       + '<td class="mono" style="font-size:12px">' + esc(o.orderNo || '·')
       + '<small style="display:block;font-family:var(--body);font-size:11px;color:var(--sub)">'
-      + esc([o.fsa, o.address].filter(Boolean).join(' · ')) + '</small></td>'
+      + esc([o.fsa, o.address].filter(Boolean).join(' · '))
+      /* The mobile number the household gave for the visit, beside the address
+         it gave it for. Same consent, same reader, same row. */
+      + (o.phone ? '<br>' + esc(o.phone) : '') + '</small></td>'
       + '<td style="font-size:12.5px;white-space:nowrap">'
       + (o.slotAt ? esc(fmtDate(o.slotAt) + ', ' + fmtTime(o.slotAt)) : '·') + '</td>'
       + '<td><span class="pill ' + PILL[o.state] + '">' + esc(ORDER_LABEL[o.state] || o.state) + '</span>'
@@ -7790,11 +8119,11 @@
       + '<td style="text-align:right;white-space:nowrap">' + actions.join(' ') + '</td>'
       + '</tr>';
   }
-  
+
   function btn(action, id, label) {
     return '<button class="tlink" type="button" data-action="' + action + '" data-id="' + id + '">' + esc(label) + '</button>';
   }
-  
+
   /* What this order is waiting on, in the partner's terms. Never a countdown:
      there is no SLA record in this build, and a clock with nothing behind it is
      the kind of number that ends up in a contract argument. */
@@ -7808,12 +8137,12 @@
     if (o.state === 'linefail') return 'Retest, fee held';
     return '·';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * load and actions
    * ------------------------------------------------------------------ */
-  
-  
+
+
   /** Fetched on view-open and explicit refresh, never polled: every read of a
       released roster writes an audit row naming the count. */
   function load() {
@@ -7828,12 +8157,12 @@
       set('delivery', { cohorts: [], live: false });
     });
   }
-  
+
   function refresh() { return load(); }
-  
+
   function mount() {
     on('change', 'del:cohort', function (el) { set('deliveryCohort', el.value); });
-  
+
     on('change', 'del:capacity', function (el) {
       var n = parseInt(el.value, 10);
       if (!n || n < 1) { toast('State how many installs you can run per week here.'); return; }
@@ -7842,7 +8171,7 @@
         refresh();
       }, function (err) { failed(err); authFailed(err); });
     });
-  
+
     /* The gate. Three checks, and the button sends the two this page collects;
        the third, billing, is read from the server's own answer. */
     on('click', 'del:gate', function (el) {
@@ -7852,10 +8181,10 @@
       if (!c) return;
       openModal(gateModal(S, c));
     });
-  
+
     on('change', 'del:gate:ok', function () { syncGate(); });
     on('input', 'del:gate:cap', function () { syncGate(); });
-  
+
     on('click', 'del:gate:go', function (el) {
       var id = el.getAttribute('data-id');
       var cap = parseInt((document.getElementById('gate-cap') || {}).value, 10);
@@ -7876,7 +8205,7 @@
         refresh();
       });
     });
-  
+
     on('click', 'del:slot', function (el) { openModal(slotModal(el.getAttribute('data-id'))); });
     on('click', 'del:slot:go', function (el) {
       var date = (document.getElementById('slot-date') || {}).value;
@@ -7885,7 +8214,7 @@
       var at = new Date(date + 'T' + time).getTime();
       act(el, api.orderSlot(el.getAttribute('data-id'), at), 'Booked. The household has the date.');
     });
-  
+
     on('click', 'del:activate', function (el) { openModal(activateModal(el.getAttribute('data-id'))); });
     on('change', 'del:act:ok', function () {
       var go = document.getElementById('act-go');
@@ -7898,14 +8227,14 @@
         lineTestClean: true, incumbentCancelled: true
       }), 'Activated. One statement line, at your contracted fee.');
     });
-  
+
     on('click', 'del:exception', function (el) { openModal(exceptionModal(el.getAttribute('data-id'))); });
     on('click', 'del:exc:go', function (el) {
       var kind = (document.querySelector('input[name=exc]:checked') || {}).value;
       if (!kind) { toast('Say which exception this was.'); return; }
       act(el, api.orderException(el.getAttribute('data-id'), kind), 'Logged. Nothing bills while it is open.');
     });
-  
+
     on('click', 'del:release', function (el) { openModal(releaseModal(el.getAttribute('data-id'))); });
     on('click', 'del:rel:go', function (el) {
       var reason = (document.getElementById('rel-reason') || {}).value;
@@ -7913,7 +8242,7 @@
         'Released. Nothing bills, on either side.');
     });
   }
-  
+
   /** Every board write ends the same way: close, re-read, say what happened. */
   function act(el, promise, msg) {
     var W = window.WHOLLAR;
@@ -7928,23 +8257,23 @@
       authFailed(err);
     });
   }
-  
+
   function syncGate() {
     var go = document.getElementById('gate-go');
     var ok = document.getElementById('gate-ok');
     var cap = parseInt((document.getElementById('gate-cap') || {}).value, 10);
     if (go) go.disabled = !(ok && ok.checked && cap > 0);
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the modals
    * ------------------------------------------------------------------ */
-  
+
   function head(title) {
     return '<div class="mhead"><h3>' + esc(title) + '</h3>'
       + '<button class="mx" type="button" data-mclose aria-label="Close">×</button></div>';
   }
-  
+
   function gateModal(S, c) {
     var g = (c.award && c.award.gate) || {};
     var n = c.counts.total;
@@ -7968,7 +8297,7 @@
       + ' style="width:100%;justify-content:center;margin-top:12px">Release my roster</button>'
       + (g.billing ? '' : '<p class="fnote">The billing method is checked again by the server when you press this.</p>');
   }
-  
+
   function slotModal(key) {
     return head('Book the install')
       + '<p class="msub">The date the household agreed to. They see it on their side the moment you save it.</p>'
@@ -7979,7 +8308,7 @@
       + '<button class="btn" type="button" data-action="del:slot:go" data-id="' + esc(key) + '" '
       + 'style="width:100%;justify-content:center;margin-top:14px">Save the slot</button>';
   }
-  
+
   function activateModal(key) {
     return head('Activate this switch')
       + '<p class="msub">This is the only event that creates a statement line, so both of these are recorded with it.</p>'
@@ -7991,7 +8320,7 @@
       + 'style="width:100%;justify-content:center;margin-top:12px">Activate</button>'
       + '<p class="fnote">If the line came up short, log a line-test exception instead. The fee holds rather than billing, and a clean retest releases it.</p>';
   }
-  
+
   function exceptionModal(key) {
     var opts = [
       ['noshow', ORDER_LABEL.noshow, 'Nobody home. A missed-visit credit goes to the household and comes off your statement.'],
@@ -8001,16 +8330,18 @@
       return '<label class="consent"><input type="radio" name="exc" value="' + o[0] + '">'
         + '<span><b>' + esc(o[1]) + '</b><br>' + esc(o[2]) + '</span></label>';
     }).join('');
-  
+
     return head('Log an exception')
       + '<p class="msub">You were there and we were not, so this is your call rather than a guess from the data.</p>'
       + opts
       + '<button class="btn" type="button" data-action="del:exc:go" data-id="' + esc(key) + '" '
       + 'style="width:100%;justify-content:center;margin-top:12px">Log it</button>';
   }
-  
+
   function releaseModal(key) {
-    var opts = RELEASE_REASON.map(function (r) {
+    /* The household's own reason is not a partner's to pick: it is written by
+       the household's pass alone, and the server refuses it here. */
+    var opts = RELEASE_REASON.filter(function (r) { return r !== 'household_passed'; }).map(function (r) {
       return '<option value="' + r + '">' + esc(RELEASE_LABEL[r]) + '</option>';
     }).join('');
     return head('Release this household')
@@ -8058,7 +8389,7 @@
    * that board cannot disagree, and a partner can check any line against the
    * orders it names.
    */
-  
+
   var __ns0 = __require("core/state.js");
   var get = __ns0.get, set = __ns0.set;
   var __ns1 = __require("core/api.js");
@@ -8077,11 +8408,11 @@
   var authFailed = __ns7.authFailed;
   var __ns8 = __require("components/emptystate.js");
   var goTo = __ns8.goTo;
-  
+
   function render() {
     var host = document.getElementById('billing-body');
     if (!host) return;
-  
+
     /* The prototype's billing screen is three hosts inside a two-column grid
        (#b-cycle, #invcard, #paycard). The console's markup gives every view one
        host, so the grid is built here instead of in index.html: the layout is
@@ -8095,7 +8426,7 @@
       + reconciliation()
       + '</aside></div>';
   }
-  
+
   function model() {
     return '<section class="card" aria-label="How billing works">'
       + '<span class="eyebrow">The model</span>'
@@ -8112,7 +8443,7 @@
       + '<div class="receipt" style="margin-top:12px">' + cycle() + '</div>'
       + '</section>';
   }
-  
+
   function reconciliation() {
     return '<section class="card" aria-label="Reconciliation">'
       + '<span class="eyebrow">Reconciliation</span>'
@@ -8122,17 +8453,17 @@
       + 'until resolved.</p>'
       + '</section>';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the cycle line
    * ------------------------------------------------------------------ */
-  
+
   function cycle() {
     var S = get();
     var B = S.billing;
-  
+
     if (!B || B === 'loading') return '<b>Current cycle:</b> reading your statements.';
-  
+
     var c = B.cycle || {};
     if (!c.activated) {
       /* The fee is configuration on the agreement record and arrives with the
@@ -8149,15 +8480,15 @@
       + esc(c.activated + ' activated · ' + money(c.feeEach) + ' each · ' + money(c.accruing) + ' accruing across '
         + plural(c.cohorts, 'cohort') + ' · net-' + c.netDays) + '</span>';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the statements, one per cohort
    * ------------------------------------------------------------------ */
-  
+
   function statements() {
     var S = get();
     var B = S.billing;
-  
+
     if (B === 'loading' || (B && B.partial)) return '';
     if (!B) {
       return none(S.approved ? '' : ' Nothing is owed at any point before approval either.', '');
@@ -8173,7 +8504,7 @@
     }
     return B.statements.map(statement).join('');
   }
-  
+
   /* Nothing to settle, said as a property of the model rather than as an absence.
      The eyebrow is what makes the card legible before the sentence is read: this
      is the statements slot, and it is empty on purpose. */
@@ -8185,30 +8516,30 @@
       + 'is the first activation with a clean line test, and statements settle per campaign, not per month.'
       + extra + '</p>' + cta + '</div></section>';
   }
-  
+
   var STATE_PILL = { accruing: 'pending', issued: 'due', paid: 'paid', disputed: 'lost' };
   var STATE_WORD = { accruing: 'Accruing', issued: 'Issued', paid: 'Paid', disputed: 'In dispute' };
-  
+
   function statement(s) {
     var head = '<div class="sthead"><span class="eyebrow">Statement · '
       + esc(s.region + (s.sub ? ' · ' + s.sub : '')) + '</span>'
       + '<span class="pill ' + (STATE_PILL[s.state] || 'pending') + '" style="margin-left:auto">'
       + esc(STATE_WORD[s.state] || s.state) + '</span></div>';
-  
+
     var when = s.state === 'paid'
       ? 'Paid ' + (s.paidAt ? fmtDate(s.paidAt) : '')
       : (s.state === 'issued'
         ? 'Issued ' + (s.issuedAt ? fmtDate(s.issuedAt) : '') + ', due ' + (s.dueAt ? fmtDate(s.dueAt) : 'net-15')
         : (s.cycleEndsAt ? 'Cycle ends ' + fmtDate(s.cycleEndsAt) + ', fees accrue on activation and never before'
           : 'Fees accrue on activation, and never before'));
-  
+
     var lines = s.lines.map(function (l) {
       return line(l.title, l.detail, l.count, amount(l), l.state === 'credited' ? 'neg' : (l.state === 'held' ? 'held' : ''));
     }).join('');
-  
+
     var tax = line('Sales tax, ' + s.taxPct + '%',
       s.taxRegistration ? 'Registration ' + s.taxRegistration : '', null, money(s.tax), '');
-  
+
     return '<section class="card" aria-label="Statement">'
       + head
       + '<p class="cardnote" style="margin-top:2px">' + esc(when) + '</p>'
@@ -8228,7 +8559,7 @@
       + (s.disputedLines ? ' · ' + esc(plural(s.disputedLines, 'line')) + ' in dispute, frozen out of the total' : '')
       + '</p></section>';
   }
-  
+
   /* A credit is shown as a negative and a held amount in brackets, which is what
      an accountant expects to see and what the prototype did. */
   function amount(l) {
@@ -8237,22 +8568,22 @@
     if (l.state === 'held') return '(' + money(v) + ')';
     return money(v);
   }
-  
+
   function line(title, detail, count, amt, cls) {
     return '<div class="strow' + (cls ? ' ' + cls : '') + '">'
       + '<span><b>' + esc(title) + '</b>' + (detail ? '<small>' + esc(detail) + '</small>' : '') + '</span>'
       + '<span class="stn">' + (count == null ? '' : esc(String(count))) + '</span>'
       + '<span class="stamt">' + esc(amt) + '</span></div>';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * the method on file
    * ------------------------------------------------------------------ */
-  
+
   function method() {
     var B = get().billing;
     var m = (B && B !== 'loading' && B.method) || null;
-  
+
     if (m && m.onFile) {
       return '<span class="eyebrow">Payment method</span><h3>Statements go out by invoice</h3>'
         + '<p class="cardnote mono">' + esc(m.email) + '</p>'
@@ -8265,12 +8596,12 @@
       + 'until then, and a method on file is one of the two checks that release a won roster.</p>'
       + '<button class="btn forest" type="button" data-action="bill:method" style="margin-top:12px">Add payment method</button>';
   }
-  
+
   /* ------------------------------------------------------------------ *
    * load and actions
    * ------------------------------------------------------------------ */
-  
-  
+
+
   /**
    * The method on file, and nothing else.
    *
@@ -8292,7 +8623,7 @@
       authFailed(err);
     });
   }
-  
+
   function load() {
     set('billing', 'loading');
     return api.statements().then(function (r) {
@@ -8309,10 +8640,10 @@
       set('billing', err && err.status === 403 ? null : { statements: [], cycle: {}, method: null, live: false });
     });
   }
-  
+
   function mount() {
     on('click', 'bill:method', function () { openModal(methodModal()); });
-  
+
     on('input', 'bill:method:field', function () {
       var go = document.getElementById('pm-go');
       var email = (document.getElementById('pm-email') || {}).value || '';
@@ -8327,7 +8658,7 @@
       var ok = document.getElementById('pm-ok');
       if (go) go.disabled = !(email.indexOf('@') > 0 && contact.trim().length > 1 && ok && ok.checked);
     });
-  
+
     on('click', 'bill:method:go', function (el) {
       var W = window.WHOLLAR;
       if (!W.busy(el, true, 'Saving')) return;
@@ -8345,7 +8676,7 @@
         authFailed(err);
       });
     });
-  
+
     on('click', 'bill:method:remove', function (el) {
       var W = window.WHOLLAR;
       if (!W.busy(el, true, 'Removing')) return;
@@ -8361,13 +8692,13 @@
         authFailed(err);
       });
     });
-  
+
     on('click', 'bill:lines', function (el) {
       var id = el.getAttribute('data-id');
       api.statement(id).then(function (r) { openModal(linesModal(r)); },
         function (err) { failed(err); authFailed(err); });
     });
-  
+
     on('click', 'bill:dispute', function (el) { openModal(disputeModal(el.getAttribute('data-id'))); });
     on('input', 'bill:dispute:field', function (el) {
       var go = document.getElementById('dis-go');
@@ -8390,16 +8721,16 @@
       });
     });
   }
-  
+
   /* ------------------------------------------------------------------ *
    * modals
    * ------------------------------------------------------------------ */
-  
+
   function head(title) {
     return '<div class="mhead"><h3>' + esc(title) + '</h3>'
       + '<button class="mx" type="button" data-mclose aria-label="Close">×</button></div>';
   }
-  
+
   function methodModal() {
     var m = ((get().billing || {}).method) || {};
     return head('Billing method')
@@ -8419,7 +8750,7 @@
         ? '<button class="tlink" type="button" data-action="bill:method:remove" style="margin-top:10px">Take it off file</button>'
         : '');
   }
-  
+
   function linesModal(r) {
     var s = (r && r.statement) || {};
     var lines = (r && r.lines) || [];
@@ -8435,7 +8766,7 @@
           : '<button class="tlink" type="button" data-action="bill:dispute" data-id="' + esc(l.key) + '">Dispute</button>')
         + '</td></tr>';
     }).join('');
-  
+
     return head('Lines on this statement')
       + '<p class="msub">Every line is one order on your delivery board. No address appears here: '
       + 'reconciling a fee does not need one.</p>'
@@ -8445,7 +8776,7 @@
         : '<p class="cardnote">No billable line yet on ' + esc(s.region || 'this cohort') + '. '
           + 'The first one is the first activation with a clean line test.</p>');
   }
-  
+
   function disputeModal(key) {
     return head('Dispute one line')
       + '<p class="msub">This freezes the line and nothing else. The rest of the statement stands, '
@@ -8460,6 +8791,271 @@
   __exports.render = render;
   __exports.loadMethod = loadMethod;
   __exports.load = load;
+  __exports.mount = mount;
+  };
+
+  /* ==================================================================
+     views/roster.js
+     ================================================================== */
+  __defs["views/roster.js"] = function (__exports, __require, root) {
+  /* The brands you operate, and the attestation that they are all of them.
+   *
+   * WHY A PARTNER IS ASKED THIS AT ALL. A household can name providers it will
+   * not hear from, and that promise is only as good as this system's answer to
+   * "who is Virgin Plus". If a partner can bid under a brand it never declared,
+   * an exclusion is bypassed by omission rather than by intent, and nobody has
+   * to have done anything dishonest for the household to receive the offer it
+   * refused. So the roster is a claim someone signs, and any change re-opens it:
+   * a list that was complete in August is a different claim in November.
+   *
+   * WHAT THIS SCREEN NEVER SHOWS. Not how many households excluded a brand, not
+   * which ones, not whether an exclusion cost this partner a specific cohort.
+   * The reach line on the desk is one aggregate number and this panel carries
+   * none at all: the numbers are on the surfaces where a partner is deciding
+   * what to bid, and a settings screen is not one of them.
+   *
+   * The pending state is real rather than optimistic. A requested brand sits at
+   * "Awaiting verification" and cannot be bid under until an operator promotes
+   * it, because the whole point of the review is that the request is not the
+   * answer.
+   */
+
+  var __ns0 = __require("core/state.js");
+  var get = __ns0.get, set = __ns0.set;
+  var __ns1 = __require("core/api.js");
+  var api = __ns1.api;
+  var __ns2 = __require("core/format.js");
+  var esc = __ns2.esc;
+  var __ns3 = __require("core/time.js");
+  var fmtDate = __ns3.fmtDate;
+  var __ns4 = __require("core/actions.js");
+  var on = __ns4.on;
+  var __ns5 = __require("core/modal.js");
+  var openModal = __ns5.open, closeModal = __ns5.close;
+  var __ns6 = __require("core/toast.js");
+  var toast = __ns6.toast, failed = __ns6.failed;
+  var __ns7 = __require("core/session.js");
+  var authFailed = __ns7.authFailed;
+
+  /* Section 13, verbatim. Changing a word here changes what a partner attested
+     to, so scripts/check-exclusion-copy.mjs holds these to the brief. */
+  var ATTEST = 'We confirm this is the complete list of consumer brands '
+    + 'our organization owns or operates. Bids and offers we submit are made on '
+    + 'behalf of these brands only.';
+
+  var HEADING = 'Brands you operate';
+  var PENDING_LABEL = 'Awaiting verification';
+
+  /** The draft selection while the picker is open, brand ids. Null when closed. */
+  var draft = null;
+
+  function load() {
+    return api.brandRoster().then(function (r) {
+      set({ roster: r, rosterLoaded: true });
+    }).catch(function (e) {
+      if (authFailed(e)) return;
+      set({ roster: null, rosterLoaded: true });
+    });
+  }
+
+  function chip(b, extra) {
+    return '<span class="chip' + (extra ? ' ' + extra : '') + '">' + esc(b.display_name || b.brand_id) + '</span>';
+  }
+
+  function render() {
+    var host = document.getElementById('roster-body');
+    if (!host) return;
+    var S = get();
+    var r = S.roster;
+
+    /* Not loaded, or the route refused. "We could not read your roster" is a
+       different sentence from "you have declared nothing", and the second would
+       be a lie that invites a partner to re-declare a list already on file. */
+    if (!S.rosterLoaded) {
+      host.innerHTML = '<section class="card"><span class="eyebrow">Brands</span>'
+        + '<h3>' + esc(HEADING) + '</h3><p class="cardnote">Reading your roster…</p></section>';
+      return;
+    }
+    if (!r) {
+      host.innerHTML = '<section class="card"><span class="eyebrow">Brands</span>'
+        + '<h3>' + esc(HEADING) + '</h3>'
+        + '<p class="cardnote">We could not read your roster just now. Reload, and tell us if it keeps happening.</p>'
+        + '</section>';
+      return;
+    }
+    if (r.available === false) {
+      host.innerHTML = '<section class="card"><span class="eyebrow">Brands</span>'
+        + '<h3>' + esc(HEADING) + '</h3>'
+        + '<p class="cardnote">Brand declarations open shortly. Nothing is needed from you yet.</p>'
+        + '</section>';
+      return;
+    }
+
+    var mine = r.brands || [];
+    var pending = (r.registry || []).filter(function (b) { return b.status === 'pending_review'; });
+
+    host.innerHTML = '<div class="grid2">'
+      + '<section class="card" aria-label="' + esc(HEADING) + '">'
+      + '<span class="eyebrow">Brands</span><h3>' + esc(HEADING) + '</h3>'
+      + (mine.length
+        ? '<p class="cardnote">Every bid you place names one of these. A household that has excluded one of them will not be sent your offer under it.</p>'
+          + '<div class="chips" data-testid="prov-roster-list">'
+          + mine.map(function (b) { return chip(b); }).join('') + '</div>'
+        : '<p class="cardnote">You have not declared the brands you operate. Until you do, a bid cannot name a brand, and you cannot be matched against a household\'s exclusions.</p>')
+      + (r.attested
+        ? '<p class="fnote">Attested ' + esc(fmtDate(r.attestedAt) || 'on file')
+          + '. Any change to this list asks you to confirm it again.</p>'
+        : '<p class="fnote">Not yet attested.</p>')
+      + '<button class="tlink" type="button" data-action="roster:edit" data-testid="prov-roster-edit" style="margin-top:12px">'
+      + (mine.length ? 'Update your brands' : 'Declare your brands') + ' →</button>'
+      + '</section>'
+      + '<aside class="aside">'
+      + '<section class="card" aria-label="A brand we do not list">'
+      + '<span class="eyebrow">Missing a brand</span><h3>Ask us to list it</h3>'
+      + '<p class="cardnote">If you operate a brand that is not in our list, tell us and we will verify it. You cannot bid under it until we have.</p>'
+      + (pending.length
+        ? '<div class="chips">' + pending.map(function (b) {
+          return chip(b, 'chip-wait') + '<span class="fnote">' + esc(PENDING_LABEL) + '</span>';
+        }).join('') + '</div>'
+        : '')
+      + '<button class="tlink" type="button" data-action="roster:request" style="margin-top:12px">Request a brand listing →</button>'
+      + '</section></aside></div>';
+  }
+
+  /* ------------------------------------------------------------------ *
+   * The picker
+   * ------------------------------------------------------------------ */
+
+  function pickerBody() {
+    var S = get();
+    var r = S.roster || {};
+    var registry = (r.registry || []).filter(function (b) { return b.status !== 'pending_review'; });
+    var chosen = draft || (r.brands || []).map(function (b) { return b.brand_id; });
+
+    /* Parents first, each with its flankers indented under it, so a partner
+       declaring Bell can see what else it is being asked about. The registry
+       is one level deep by construction (lib/brands.js), so this needs no
+       recursion and must not grow any. */
+    var parents = registry.filter(function (b) { return !b.parent_brand_id; });
+    var kids = {};
+    registry.forEach(function (b) {
+      if (!b.parent_brand_id) return;
+      (kids[b.parent_brand_id] = kids[b.parent_brand_id] || []).push(b);
+    });
+
+    function line(b, indent) {
+      var on = chosen.indexOf(b.brand_id) >= 0;
+      return '<label class="optrow' + (indent ? ' optrow-sub' : '') + '">'
+        + '<input type="checkbox" data-brand="' + esc(b.brand_id) + '"'
+        + ' data-testid="prov-roster-check-' + esc(b.brand_id) + '"'
+        + (on ? ' checked' : '') + '>'
+        + '<span>' + esc(b.display_name || b.brand_id) + '</span></label>';
+    }
+
+    return '<h3>' + esc(HEADING) + '</h3>'
+      + '<p class="cardnote">Tick every consumer brand your organization owns or operates.</p>'
+      + '<div class="optlist" data-testid="prov-roster-section">'
+      + parents.map(function (p) {
+        return line(p, false)
+          + (kids[p.brand_id] || []).map(function (k) { return line(k, true); }).join('');
+      }).join('')
+      + '</div>'
+      + '<label class="optrow" style="margin-top:14px">'
+      + '<input type="checkbox" id="roster-attest" data-testid="prov-roster-attest">'
+      + '<span>' + esc(ATTEST) + '</span></label>'
+      + '<div class="mrow" style="margin-top:16px">'
+      + '<button class="btn" type="button" data-action="roster:save" data-testid="prov-roster-save">Save and attest</button>'
+      + '<button class="tlink" type="button" data-action="modal:close">Cancel</button>'
+      + '</div>'
+      + '<p class="fnote" id="roster-err" hidden></p>';
+  }
+
+  function showError(message) {
+    var el = document.getElementById('roster-err');
+    if (!el) return;
+    el.textContent = message;
+    el.hidden = false;
+  }
+
+  function mount() {
+    on('click', 'roster:edit', function () {
+      var S = get();
+      draft = ((S.roster || {}).brands || []).map(function (b) { return b.brand_id; });
+      openModal(pickerBody());
+    });
+
+    on('click', 'roster:save', function () {
+      var box = document.getElementById('roster-attest');
+      var picked = Array.prototype.slice.call(
+        document.querySelectorAll('.optlist input[data-brand]:checked')
+      ).map(function (i) { return i.getAttribute('data-brand'); });
+
+      /* Both refusals are the server's rules, stated here before the round trip
+         so the partner is not told "422" for something the screen could see.
+         The server enforces them regardless: this is a courtesy, not the gate. */
+      if (!picked.length) {
+        showError('Tick at least one brand you operate.');
+        return;
+      }
+      if (!box || !box.checked) {
+        showError('Confirm the list is complete before you save it.');
+        return;
+      }
+
+      api.brandRosterDeclare({ brand_ids: picked, attestation: true }).then(function () {
+        draft = null;
+        closeModal();
+        toast('Brands saved and attested.');
+        return load();
+      }).catch(function (e) {
+        if (authFailed(e)) return;
+        showError((e && e.message) || 'That could not be saved. Try again shortly.');
+      });
+    });
+
+    on('click', 'roster:request', function () {
+      openModal('<h3>Request a brand listing</h3>'
+        + '<p class="cardnote">We verify the brand is yours before it can be bid under.</p>'
+        + '<label class="flab">Brand name, as a household sees it'
+        + '<input class="fin" id="br-name" maxlength="120" autocomplete="off"></label>'
+        + '<label class="flab">A link that shows it is yours'
+        + '<input class="fin" id="br-url" maxlength="500" placeholder="https://" autocomplete="off"></label>'
+        + '<label class="flab">Anything we should know (optional)'
+        + '<textarea class="fin" id="br-note" maxlength="1000" rows="3"></textarea></label>'
+        + '<div class="mrow" style="margin-top:16px">'
+        + '<button class="btn" type="button" data-action="roster:request:send">Send request</button>'
+        + '<button class="tlink" type="button" data-action="modal:close">Cancel</button>'
+        + '</div><p class="fnote" id="roster-err" hidden></p>');
+    });
+
+    on('click', 'roster:request:send', function () {
+      var name = (document.getElementById('br-name') || {}).value || '';
+      var url = (document.getElementById('br-url') || {}).value || '';
+      var note = (document.getElementById('br-note') || {}).value || '';
+      if (String(name).trim().length < 2) {
+        showError('Give the brand name as it appears to a household.');
+        return;
+      }
+      if (!/^https?:\/\//i.test(String(url).trim())) {
+        showError('Give a link that shows the brand is yours.');
+        return;
+      }
+      api.brandRequest({ name: name, evidence_url: url, note: note }).then(function () {
+        closeModal();
+        toast('Request sent. We will verify it and let you know.');
+        return load();
+      }).catch(function (e) {
+        if (authFailed(e)) return;
+        showError((e && e.message) || 'That could not be sent. Try again shortly.');
+      });
+    });
+  }
+
+  __exports.ATTEST = ATTEST;
+  __exports.HEADING = HEADING;
+  __exports.PENDING_LABEL = PENDING_LABEL;
+  __exports.load = load;
+  __exports.render = render;
   __exports.mount = mount;
   };
 
@@ -8479,16 +9075,16 @@
    * did before them. The campaign plan is what is left: it is a per-cohort
    * timeline view, endpoint 26, and there is no route behind it yet.
    */
-  
+
   var __ns0 = __require("components/emptystate.js");
   var empty = __ns0.empty, goTo = __ns0.goTo;
-  
+
   function render() {
     put('plan-body', empty('Pick a cohort to see its plan',
       'Every cohort has one timeline: announced, open, closed, offers out, decision, switching window, reconciliation. Open one from the bid desk.',
       goTo('desk', 'Open the bid desk', 'btn ghost')));
   }
-  
+
   function put(id, html) {
     var el = document.getElementById(id);
     if (el) el.innerHTML = html;
@@ -8514,7 +9110,7 @@
    * is no second path. A view that is not repainted is a view that is not in
    * this list, which is a one-line bug rather than an archaeology problem.
    */
-  
+
   var __ns0 = __require("core/state.js");
   var get = __ns0.get, set = __ns0.set, subscribe = __ns0.subscribe, refresh = __ns0.refresh;
   var __ns1 = __require("core/api.js");
@@ -8531,7 +9127,7 @@
   var VIEWS = __ns6.VIEWS, go = __ns6.go, current = __ns6.current, onChange = __ns6.onChange, mountRouter = __ns6.mount, setGated = __ns6.setGated;
   var __ns7 = __require("core/time.js");
   var startTicker = __ns7.startTicker;
-  
+
   var __ns8 = __require("components/banner.js");
   var renderBanner = __ns8.render, mountBanner = __ns8.mount;
   var __ns9 = __require("views/overview.js");
@@ -8556,13 +9152,15 @@
   var renderDelivery = __ns18.render, mountDelivery = __ns18.mount, loadDelivery = __ns18.load;
   var __ns19 = __require("views/billing.js");
   var renderBilling = __ns19.render, mountBilling = __ns19.mount, loadBilling = __ns19.load, loadMethod = __ns19.loadMethod;
-  var __ns20 = __require("views/placeholders.js");
-  var renderPlaceholders = __ns20.render;
-  
+  var __ns20 = __require("views/roster.js");
+  var renderRoster = __ns20.render, mountRoster = __ns20.mount, loadRoster = __ns20.load;
+  var __ns21 = __require("views/placeholders.js");
+  var renderPlaceholders = __ns21.render;
+
   /* ------------------------------------------------------------------ *
    * render
    * ------------------------------------------------------------------ */
-  
+
   function renderAll() {
     paintChrome();
     renderBanner();
@@ -8576,17 +9174,18 @@
     renderBilling();
     renderPerformance();
     renderContracts();
+    renderRoster();
     renderPlaceholders();
-  
+
     /* Under review the console is one centred card: no nav pane, no search.
        Driven from the server's application state, so it cannot disagree with
        what the frame itself is saying.
-  
+
        Not gated on submittedAt. The frame is the whole account until a human
        approves the org, and that includes the days before the fifth task lands:
        an application in progress and an application under review are the same
        screen with a different row lit, which is what the card already renders.
-  
+
        An application that ANSWERED with nothing is the one exception, because
        "reading your application" is not a screen to lock anyone into: the route
        can 501 while it is being deployed, and boot hands those partners the
@@ -8599,11 +9198,11 @@
     var S = get();
     setGated(!S.approved && current() === 'pending' && (!!S.application || !S.applicationLoaded));
   }
-  
+
   /* ------------------------------------------------------------------ *
    * loading
    * ------------------------------------------------------------------ */
-  
+
   function applyCampaignsPayload(r) {
     check('campaignList', r);
     (r.campaigns || []).forEach(function (c) { check('campaign', c); });
@@ -8618,13 +9217,13 @@
       biddingNotice: (r.bidding && r.bidding.notice) || null
     });
   }
-  
+
   function bidsById(r) {
     var byId = {};
     ((r && r.bids) || []).forEach(function (b) { byId[b.campaignId || b.campaign] = b; });
     return byId;
   }
-  
+
   /* Each job settles on its own. A partner with coverage but an unreadable
      cohort list still gets the parts that answered, because Promise.all over
      already-caught promises cannot reject. The `live` flag these routes carry
@@ -8636,11 +9235,11 @@
          in rather than started here so the gated frame does not wait on
          GET /provider/me first. */
       appRead || loadApplication(),
-  
+
       api.coverage().then(function (r) {
         set({ coverage: (r && r.coverage) || [], coverageLive: !!r && r.live !== false });
       }, function (err) { authFailed(err); set('coverageLive', false); }),
-  
+
       /* NOTE the null check. whollar-core.js splits its methods deliberately:
          button paths reject with the server's message, boot-path reads resolve
          null so a failure degrades instead of blanking a page. providerCampaigns
@@ -8651,39 +9250,39 @@
         if (!r) { set({ campaignsLive: false, campaigns: [] }); return; }
         applyCampaignsPayload(r);
       }, function (err) { authFailed(err); set('campaignsLive', false); }),
-  
+
       /* An unapproved org may read its own bids, so this is not gated on
          approval. It can 501 while the register is still stubbed. */
       api.bids().then(function (r) {
         set('bids', bidsById(r));
       }, function () { set('bids', {}); }),
-  
+
       api.prefs().then(function (p) { set('prefs', p || {}); }, function () { set('prefs', {}); }),
-  
+
       /* The contracts registry. It also carries the terms acceptance, which is
          what the bid ticket reads to know whether to send a partner to Contracts
          before bidding, so it loads on boot rather than on first view of the
          Contracts page. */
       loadContracts(),
-  
+
       /* The billing METHOD on boot, and not the statements. Two other surfaces
          need the method: the overview checklist ticks its billing step from it,
          and the roster gate is refused without one, so a partner who never opens
          Billing still needs it read. That is one row. The statements behind it
          are four more reads and they wait for the view, because the Data Store
          is metered and a tick on a checklist is not worth four reads a boot.
-  
+
          The delivery board waits too, for a different reason: a released roster
          carries addresses and every read writes an audit row. See onChange. */
       loadMethod()
     ];
     return Promise.all(jobs).then(function () { startTicker(); });
   }
-  
+
   /* ------------------------------------------------------------------ *
    * boot
    * ------------------------------------------------------------------ */
-  
+
   /* Fixture mode, and the three things gating it. partner/demo/ is listed in
      .vercelignore, so it does not exist in any deployed environment and this
      request 404s there. These checks are a second belt, and they are cheap. */
@@ -8706,7 +9305,7 @@
       document.head.appendChild(s);
     });
   }
-  
+
   function start(partner) {
     set({
       partner: partner || {},
@@ -8720,11 +9319,11 @@
          default flashes a full console at a partner who is still under review. */
       approved: false
     });
-  
+
     /* Strict contract checking is a local development tool. In production a
        shape mismatch is reported once and the view degrades. */
     setStrict(location.hostname === 'localhost' || location.hostname === '127.0.0.1');
-  
+
     mountActions();
     mountBanner();
     mountModal();
@@ -8739,15 +9338,16 @@
     mountContracts();
     mountDelivery();
     mountBilling();
-  
+    mountRoster();
+
     on('click', 'nav', function (el) { go(el.getAttribute('data-view')); });
-  
+
     document.getElementById('pnav').addEventListener('click', function (e) {
       var b = e.target.closest('button');
       if (!b || b.classList.contains('soon')) return;
       go(b.getAttribute('data-view'));
     });
-  
+
     var app = document.getElementById('app');
     document.getElementById('burger').addEventListener('click', function () {
       if (window.innerWidth <= 940) app.classList.toggle('paneopen');
@@ -8757,10 +9357,10 @@
     document.getElementById('overlay').addEventListener('click', function () {
       app.classList.remove('paneopen');
     });
-  
+
     subscribe(renderAll);
     onChange(renderAll);
-  
+
     /* The delivery board reads on view-open, once. Re-entering the view does not
        re-read: the board's own writes refresh it, and a partner flipping between
        tabs must not each time append a row to the audit trail that says they
@@ -8769,8 +9369,12 @@
       if (view === 'delivery' && get().delivery == null) loadDelivery();
       var B = get().billing;
       if (view === 'billing' && (!B || B === 'loading' || B.partial)) loadBilling();
+      /* The roster reads on first open of the account view, not at boot. Most
+         sessions never touch it, and it is one more metered read on every
+         console load for a list that changes a few times a year. */
+      if (view === 'account' && !get().rosterLoaded) loadRoster();
     });
-  
+
     /* THE CONSOLE USED TO FETCH ONCE AT BOOT AND NEVER AGAIN, so a desk left
        open kept a live-looking bid button on a cohort that closed hours ago and
        the partner learned it from a 409. Campaigns and bids re-read when the
@@ -8795,21 +9399,21 @@
     onChange(function (view) {
       if (view === 'desk' || view === 'overview' || view === 'bids') syncDesk();
     });
-  
+
     /* Paint from the local record first so the chrome is never empty, then
        correct it from the server. */
     refresh();
-  
+
     /* WHERE A NEW PARTNER LANDS. An account created a minute ago has no
        coverage, no cohorts and no bids, so the full console is eleven views of
        nothing. The review card is the entire state of that account, so it is the
        landing view until the org is approved, both while the application is
        being filled in and while it sits under review.
-  
+
        A hash always wins. Someone following a link to #coverage gets #coverage,
        and approval is not known yet anyway: it arrives with GET /provider/me
        one round trip later, and is corrected below.
-  
+
        approvedHint is the local record's memory of the last answer, written by
        revalidate(). It picks the landing view and nothing else: state.approved
        still starts false, so a forged hint buys a forged nav pane over eleven
@@ -8818,13 +9422,13 @@
     var hint = !!((partner || {}).approvedHint);
     go(fixtureView() || (chose ? current() : (hint ? 'overview' : 'pending')));
     onChange(function () { chose = true; });
-  
+
     /* The application read starts HERE, beside GET /provider/me rather than
        behind it. It decides what the landing screen is, so running it second
        made a new partner wait two round trips to see their own state, and the
        session cookie it needs is already established by the boot guard. */
     var appRead = loadApplication();
-  
+
     revalidate().then(function (r) {
       /* The server's answer, both ways, unless they navigated during the round
          trip, in which case leave them where they went. Both directions matter
@@ -8843,7 +9447,7 @@
       if (!chose && current() === 'pending' && !get().application) go('overview');
     });
   }
-  
+
   /* A fixture states which view it is about, so a run lands on the screen the
      state is for rather than on the overview every time. */
   function fixtureView() {
@@ -8851,7 +9455,7 @@
     var f = W && W.console && W.console.fixture;
     return f && VIEWS.indexOf(f.view) >= 0 && !location.hash ? f.view : null;
   }
-  
+
   /* Fixtures install before anything renders. Rendering first and swapping after
      would show one frame of real data inside a fixture run, which is the kind of
      thing that makes a demo look flaky and a bug look intermittent. */

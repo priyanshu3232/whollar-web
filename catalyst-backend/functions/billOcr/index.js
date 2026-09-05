@@ -21,6 +21,9 @@ const ALLOWED_ORIGINS = [
   'https://www.whollar.com',
   'https://whollar.ca',
   'https://www.whollar.ca',
+  // The product host since the September 2026 restructure. Express answers CORS
+  // for it until the console rule is widened; see GATEWAY_CORS_ORIGINS.
+  'https://internet.whollar.ca',
   'https://whollar-staging-1w.vercel.app'
 ];
 
@@ -29,6 +32,10 @@ const ALLOWED_ORIGINS = [
 // the browser reject it, which surfaces as "we couldn't reach our servers" on a
 // request that actually succeeded. See the longer note on formSubmit's copy of
 // this list, including how to verify it, and keep the two equal.
+// NOT YET https://internet.whollar.ca. Adding it here before the console rule
+// names it would silence Express for an origin the gateway does not answer,
+// and every form on the product host would fail CORS. The runbook's owner step
+// widens the console rule first; this list follows in the same change.
 const GATEWAY_CORS_ORIGINS = ['https://www.whollar.ca'];
 
 // Local development: the marketing pages are plain HTML files, opened either

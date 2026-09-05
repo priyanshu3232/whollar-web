@@ -10,8 +10,9 @@
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-const DOMAIN = 'https://www.whollar.ca';
-const ROUTER_TAG = '<script src="/js/device-router.js?v=20260806a"></script>';
+const DOMAIN = 'https://internet.whollar.ca';
+const ROUTER_TAG = '<script src="/js/device-router.js?v=20260905a"></script>';
+const RETURN_TAG = '<script src="/js/blog-return.js?v=20260901a" defer></script>';
 
 const slugs = readdirSync('blog').filter(
   (d) => statSync(join('blog', d)).isDirectory() && existsSync(join('blog', d, 'index.html'))
@@ -49,12 +50,10 @@ for (const slug of slugs) {
   //    speculationrules JSON and the prefetch hint; a plain string swap covers
   //    all of them. "/bill-checkup" appears as an href and as a speculationrules
   //    href_matches pattern; same deal.
-  html = html.split('"/waitlist/"').join('"/MobileVersion/join-the-first-cohort-mobile"');
+  html = html.split('"/waitlist"').join('"/MobileVersion/join-the-first-cohort-mobile"');
   html = html.split('"/bill-checkup"').join('"/MobileVersion/bill-checkup-mobile"');
   html = html.split('"/blog/*"').join('"/MobileVersion/blog/*"');
-  // The Resources index link. Step 2 only rewrites article slugs, so the bare
-  // "/blog/" href reached the gate below untouched and failed the build.
-  html = html.split('href="/blog/"').join('href="/MobileVersion/resources-mobile"');
+  html = html.split('href="/blog"').join('href="/MobileVersion/resources-mobile"');
   html = html.split('href="/"').join('href="/MobileVersion/consumer-mobile"');
 
   // 4. Device-router include (inherited from the desktop article when
@@ -65,9 +64,19 @@ for (const slug of slugs) {
     html = html.replace(viewport[0], `${viewport[0]}\n${ROUTER_TAG}`);
   }
 
+  // 4b. blog-return include, same inherit-or-insert rule. It has to be here as
+  //     well as on the desktop article: a phone reader arriving from the
+  //     dashboard lands on this copy, whose back link is
+  //     /MobileVersion/resources-mobile, and that page is no more a way back
+  //     into the dashboard than /blog/ is.
+  if (!html.includes(RETURN_TAG)) {
+    html = html.replace(ROUTER_TAG, `${ROUTER_TAG}\n${RETURN_TAG}`);
+  }
+
   // Gates: nothing desktop-namespace may survive outside the canonical/JSON-LD.
   if (html.split(ROUTER_TAG).length - 1 !== 1) fail(slug, 'router include count != 1');
-  if (html.includes('"/waitlist/"')) fail(slug, '/waitlist/ survived');
+  if (html.split(RETURN_TAG).length - 1 !== 1) fail(slug, 'blog-return include count != 1');
+  if (html.includes('"/waitlist"')) fail(slug, '/waitlist survived');
   if (html.includes('href="/"')) fail(slug, 'root href survived');
   if (/href="\/blog\//.test(html)) fail(slug, 'desktop article href survived');
   if (!html.includes(`<link rel="canonical" href="${DOMAIN}/blog/${slug}">`)) fail(slug, 'canonical lost');

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>You are on the list &middot; Whollar</title>
+<!-- THE WINTER TIRE WELCOME. A household that chose tires on /join lands here
+     and nowhere else; internet and both land on /join-welcome. This file is
+     the same stage with the tire copy from js/join-welcome.js, standing in so
+     the route resolves today. Its content is owned by a separate build of the
+     tire journey: replace the body freely, keep the path, keep data-pool on
+     <body>, and keep the two lines below it.
+     A signed-in surface: no canonical, no sitemap entry. -->
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script src="/js/whollar-core.js?v=20260906a"></script>
+<style>
+/* Lifted verbatim from welcomewhollar.html, the design source for the welcome
+   stage, minus its .preview rules, which drive a Member/Partner toggle that
+   exists only in the prototype. This is the FIFTH near-copy of this block
+   (welcome-member, welcome-partner, and two identical prototypes are the
+   others), and the three shipped copies have genuinely diverged: 14389, 9587
+   and 12098 characters. Folding them into css/welcome-stage.css is worth
+   doing and is a reconciliation, not a lift, so it wants its own pass rather
+   than riding along with a new page. */
+
+:root{
+  --teal:#0E2A20; --teal-deep:#0A2018; --teal-bright:#178A5A; --teal-soft:#7FE3B0;
+  --accent:#1E9E63; --accent-hover:#178A5A;
+  --cream:#FAF8F3; --paper:#ffffff; --mist:#F6F4EE;
+  --ink:#2B3A33; --ink-2:#54625B; --ink-3:#8A968F; --line:#e7ebe6;
+  --warn:#C2643B; --amber:#C29B3C; --green-tint:#E4F4EC;
+  --label:'General Sans','Satoshi',system-ui,sans-serif;
+  --disp:'Satoshi',system-ui,sans-serif;
+  --body:'Inter',system-ui,sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
+  --wrap:1240px; --r:22px; --rf:26px;
+  --sh-3:0 4px 12px rgba(4,14,10,.25),0 32px 70px rgba(4,14,10,.4);
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--teal-deep);color:#fff;font-family:var(--body);-webkit-font-smoothing:antialiased;font-size:16px;line-height:1.5;min-height:100vh}
+h1,h2,h3,h4{font-family:var(--disp);letter-spacing:-.02em;margin:0}
+p{margin:0}
+button{font-family:var(--body)}
+:focus-visible{outline:2px solid var(--teal-soft);outline-offset:2px;border-radius:6px}
+
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes cardland{from{opacity:0;transform:translateY(26px) scale(.965)}to{opacity:1;transform:none}}
+@keyframes sealpop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.12);opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes sheen{from{transform:translateX(-130%) skewX(-18deg)}to{transform:translateX(420%) skewX(-18deg)}}
+@keyframes pulse{0%{transform:scale(1);opacity:.5}100%{transform:scale(2.2);opacity:0}}
+
+/* ---------- nav (dark variant) ---------- */
+.whl-nav{position:sticky;top:0;z-index:60;background:rgba(10,32,24,.7);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.08)}
+.whl-nav__in{max-width:var(--wrap);margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:14px}
+.whl-mark{display:flex;align-items:center;gap:10px;text-decoration:none}
+.whl-mark svg{width:34px;height:34px}
+.whl-mark b{font-family:var(--disp);font-weight:900;font-size:20px;color:#fff}
+.whl-nav__tag{font-family:var(--label);font-weight:600;font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:rgba(255,255,255,.5)}
+.whl-nav__back{margin-left:auto;font-size:14px;color:rgba(255,255,255,.65);text-decoration:none}
+.whl-nav__back:hover{color:#fff}
+
+/* ---------- stage ---------- */
+.stage{position:relative;overflow:hidden;min-height:calc(100vh - 59px);display:flex;flex-direction:column;align-items:center;padding:clamp(40px,6vh,72px) 24px clamp(56px,8vh,96px);background:linear-gradient(168deg,var(--teal-deep),#123B2C 55%,#17553D)}
+.stage::before{content:"";position:absolute;inset:0;background:radial-gradient(760px 380px at 78% -10%,rgba(127,227,176,.14),transparent 62%),radial-gradient(620px 360px at -6% 108%,rgba(30,158,99,.14),transparent 60%);pointer-events:none}
+.constellation{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:.5}
+.stage__in{position:relative;width:min(880px,100%);display:flex;flex-direction:column;align-items:center;text-align:center}
+
+/* verification chips */
+.vchips{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:26px}
+.vchip{display:inline-flex;align-items:center;gap:8px;font-family:var(--label);font-weight:600;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:7px 14px 7px 9px;transition:color .35s,border-color .35s,background .35s}
+.vchip .cdot{width:17px;height:17px;border-radius:50%;border:1.6px solid rgba(255,255,255,.3);display:inline-flex;align-items:center;justify-content:center;flex:none;transition:background .3s,border-color .3s}
+.vchip .cdot svg{width:9px;height:9px;stroke:#0A2018;stroke-width:3.2;fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:0;transform:scale(.4);transition:opacity .25s,transform .25s var(--ease)}
+.vchip.on{color:var(--teal-soft);border-color:rgba(127,227,176,.45);background:rgba(127,227,176,.07)}
+.vchip.on .cdot{background:var(--teal-soft);border-color:var(--teal-soft)}
+.vchip.on .cdot svg{opacity:1;transform:scale(1)}
+
+/* headline */
+.hd{opacity:0}
+.hd.play{animation:rise .55s var(--ease) forwards}
+.whl-eyebrow{display:inline-block;font-family:var(--label);font-weight:600;font-size:12.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--teal-soft);margin:0 0 14px}
+.hd h1{color:#fff;font-weight:900;font-size:clamp(32px,4.6vw,52px);line-height:1.05;text-wrap:balance}
+.hd .sub{margin:16px auto 0;font-size:clamp(15px,1.5vw,17.5px);line-height:1.65;color:rgba(255,255,255,.72);max-width:560px}
+.hd .sub b{color:#fff;font-weight:600}
+
+/* ---------- founding card ---------- */
+.cardwrap{margin-top:34px;perspective:1100px;opacity:0}
+.cardwrap.play{animation:cardland .7s .1s var(--ease) forwards}
+.fcard{position:relative;width:min(540px,calc(100vw - 48px));background:linear-gradient(176deg,#FFFDF8,var(--cream) 60%,#F3EFE6);color:var(--ink);border-radius:var(--rf);box-shadow:var(--sh-3);text-align:left;overflow:hidden;transition:transform .35s var(--ease)}
+.fcard::after{content:"";position:absolute;top:0;bottom:0;left:0;width:34%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent);transform:translateX(-130%) skewX(-18deg);pointer-events:none}
+.fcard.sheen::after{animation:sheen 1.1s .75s var(--ease) both}
+.cardwrap:hover .fcard{transform:rotateX(2.2deg) rotateY(-2.4deg) translateY(-3px)}
+.fcard__top{display:flex;align-items:center;gap:10px;padding:18px 22px 0}
+.fcard__top svg{width:30px;height:30px;flex:none}
+.fcard__role{font-family:var(--label);font-weight:600;font-size:11.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--teal-bright)}
+.fcard__status{margin-left:auto;display:inline-flex;align-items:center;gap:7px;font-family:var(--label);font-weight:600;font-size:11.5px;letter-spacing:.06em;border-radius:999px;padding:6px 12px}
+.fcard__status .sdot{position:relative;width:7px;height:7px;border-radius:50%;flex:none}
+.fcard__status .sdot::after{content:"";position:absolute;inset:0;border-radius:50%;animation:pulse 1.8s var(--ease) infinite}
+.fcard__status.s-green{background:var(--green-tint);color:var(--teal-bright)}
+.fcard__status.s-green .sdot{background:var(--accent)}
+.fcard__status.s-green .sdot::after{background:var(--accent)}
+.fcard__status.s-amber{background:#F7EEDB;color:#8A6A1E}
+.fcard__status.s-amber .sdot{background:var(--amber)}
+.fcard__status.s-amber .sdot::after{background:var(--amber)}
+.fcard__name{padding:16px 22px 0}
+.fcard__name h2{font-size:clamp(24px,3vw,30px);font-weight:900;color:var(--teal)}
+.fcard__name span{display:block;margin-top:3px;font-size:13.5px;color:var(--ink-2)}
+.fcard__grid{display:grid;gap:12px;padding:18px 22px 20px}
+.fcard__grid.cols-1{grid-template-columns:1fr}
+.fcard__grid.cols-2{grid-template-columns:repeat(2,1fr)}
+.fcard__grid.cols-3{grid-template-columns:repeat(3,1fr)}
+.fmeta{border-top:1px solid var(--line);padding-top:11px}
+.fmeta i{display:block;font-style:normal;font-family:var(--label);font-weight:600;font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+.fmeta b{display:block;margin-top:4px;font-family:var(--disp);font-weight:700;font-size:14.5px;color:var(--teal);line-height:1.35}
+.fcard__foot{display:flex;align-items:center;gap:9px;background:var(--teal);color:rgba(255,255,255,.85);font-size:12.5px;line-height:1.5;padding:12px 22px}
+.fcard__foot svg{width:14px;height:14px;flex:none;stroke:var(--teal-soft);stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- steps ---------- */
+.steps{margin-top:42px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;text-align:left}
+.step{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);border-radius:var(--r);padding:20px 20px 22px;opacity:0}
+.step.play{animation:rise .55s var(--ease) forwards}
+.step .k{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--teal-soft)}
+.step h3{margin-top:9px;font-size:16.5px;font-weight:700;color:#fff}
+.step p{margin-top:7px;font-size:13.5px;line-height:1.6;color:rgba(255,255,255,.66)}
+.step p b{color:rgba(255,255,255,.92);font-weight:600}
+.steplink{display:inline-flex;align-items:center;gap:6px;margin-top:12px;background:none;border:none;padding:0;cursor:pointer;font-family:var(--body);font-weight:600;font-size:13px;color:var(--teal-soft);text-decoration:underline;text-underline-offset:3px}
+.steplink:hover{color:#fff}
+.steplink svg{width:13px;height:13px;stroke:currentColor;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- ctas ---------- */
+.ctas{margin-top:30px;display:flex;flex-direction:column;align-items:center;gap:14px;opacity:0;width:100%}
+.ctas.play{animation:rise .55s var(--ease) forwards}
+.whl-btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;border:none;cursor:pointer;font-weight:600;font-size:16px;color:#fff;background:var(--accent);border-radius:14px;padding:16px 34px;text-decoration:none;transition:background .18s,transform .18s;white-space:nowrap}
+.whl-btn:hover{background:var(--accent-hover);transform:translateY(-1px)}
+.whl-btn svg{width:16px;height:16px;stroke:#fff;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.whl-btn--ghost{background:transparent;border:1.5px solid rgba(255,255,255,.3);font-size:14px;padding:12px 24px}
+.whl-btn--ghost:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.5)}
+.ctarow{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.smallnote{font-size:12.5px;line-height:1.6;color:rgba(255,255,255,.45);max-width:460px}
+
+/* share strip (member only) */
+.share{margin-top:40px;width:min(540px,100%);text-align:left;border-top:1px solid rgba(255,255,255,.12);padding-top:18px;opacity:0}
+.share.play{animation:rise .55s var(--ease) forwards}
+.share b{display:block;font-family:var(--disp);font-weight:700;font-size:14.5px;color:#fff}
+.share p{margin-top:4px;font-size:12.5px;line-height:1.55;color:rgba(255,255,255,.55)}
+.share .srow{display:flex;gap:8px;margin-top:12px}
+.share .lnk{flex:1;min-width:0;font-family:var(--mono);font-size:12px;color:var(--teal-soft);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:10px 13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
+.share .cp{flex:none;background:var(--cream);border:none;color:var(--teal);border-radius:11px;font-size:12.5px;font-weight:700;padding:0 16px;cursor:pointer;transition:background .15s}
+.share .cp:hover{background:#fff}
+
+/* ---------- preview toggle (review build only) ---------- */
+
+.preview span{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.4)}
+.preview button{background:none;border:none;cursor:pointer;font-family:var(--label);font-weight:600;font-size:12px;color:rgba(255,255,255,.55);border-radius:999px;padding:7px 13px;transition:background .15s,color .15s}
+.preview button.on{background:var(--teal-soft);color:var(--teal-deep)}
+
+@media (max-width:940px){
+  .steps{grid-template-columns:1fr 1fr}
+  .step:last-child{grid-column:1/-1}
+}
+@media (max-width:768px){
+  .steps{grid-template-columns:1fr;margin-top:34px}
+  .step:last-child{grid-column:auto}
+  .fcard__grid.cols-3{grid-template-columns:1fr 1fr}
+}
+@media (max-width:480px){
+  .whl-nav__tag{display:none}
+  .vchips{gap:7px}
+  .vchip{font-size:10.5px;padding:6px 11px 6px 7px}
+  .fcard__grid.cols-3{grid-template-columns:1fr}
+  .ctarow{width:100%;flex-direction:column}
+  .whl-btn{width:100%}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  .hd,.cardwrap,.step,.ctas{opacity:1;transform:none}
+  .fcard::after{display:none}
+}
+
+</style>
+</head>
+<body data-pool="tires">
+<nav class="whl-nav">
+  <div class="whl-nav__in">
+    <a class="whl-mark" href="https://www.whollar.ca/" data-umbrella>
+      <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
+      <b>Whollar</b>
+    </a>
+    <span class="whl-nav__tag" id="nav-tag">For members</span>
+    <a class="whl-nav__back" href="/">&larr; Back to home</a>
+  </div>
+</nav>
+<main class="stage">
+  <svg class="constellation" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <g stroke="rgba(127,227,176,.10)" stroke-width="1" fill="none">
+      <path d="M120 180 L340 90 L560 210 M340 90 L410 320 M980 120 L1180 240 L1320 150 M1180 240 L1120 430 M180 640 L360 740 L520 620 M1240 680 L1080 780 M1240 680 L1360 560"/>
+    </g>
+    <g fill="rgba(127,227,176,.35)">
+      <circle cx="120" cy="180" r="3"/><circle cx="340" cy="90" r="4"/><circle cx="560" cy="210" r="3"/><circle cx="410" cy="320" r="3"/>
+      <circle cx="980" cy="120" r="3"/><circle cx="1180" cy="240" r="4"/><circle cx="1320" cy="150" r="3"/><circle cx="1120" cy="430" r="3"/>
+      <circle cx="180" cy="640" r="3"/><circle cx="360" cy="740" r="4"/><circle cx="520" cy="620" r="3"/>
+      <circle cx="1240" cy="680" r="4"/><circle cx="1080" cy="780" r="3"/><circle cx="1360" cy="560" r="3"/>
+    </g>
+  </svg>
+  <div class="stage__in">
+    <div class="vchips" id="vchips" aria-live="polite">
+      <span class="vchip" id="chip2"><span class="cdot"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><span id="chip2-t">Details confirmed</span></span>
+      <span class="vchip" id="chip3"><span class="cdot"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><span id="chip3-t">Spot held</span></span>
+    </div>
+    <div class="hd" id="hd">
+      <span class="whl-eyebrow" id="hd-eyebrow">Founding members</span>
+      <h1 id="hd-h1">Welcome in.</h1>
+      <p class="sub" id="hd-sub"></p>
+    </div>
+    <div class="cardwrap" id="cardwrap">
+      <div class="fcard" id="fcard">
+        <div class="fcard__top">
+          <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="wm2" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm2)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
+          <span class="fcard__role" id="card-role">Founding member</span>
+          <span class="fcard__status s-green" id="card-status"><span class="sdot"></span><span id="card-status-t">Spot held</span></span>
+        </div>
+        <div class="fcard__name">
+          <h2 id="card-name">Founding member</h2>
+          <span id="card-namesub"></span>
+        </div>
+        <div class="fcard__grid cols-2" id="card-grid">
+          <div class="fmeta" id="mcell1"><i id="m1-l">Area</i><b id="m1-v"></b></div>
+          <div class="fmeta" id="mcell2"><i id="m2-l"></i><b id="m2-v"></b></div>
+          <div class="fmeta" id="mcell3" hidden><i id="m3-l"></i><b id="m3-v"></b></div>
+        </div>
+        <div class="fcard__foot">
+          <svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2.5"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+          <span id="card-foot">Bids are sealed. You see your own before and after, and nobody else does.</span>
+        </div>
+      </div>
+    </div>
+    <div class="ctas" id="ctas">
+      <div class="ctarow">
+        <a class="whl-btn" id="cta-primary" href="/dashboard">Go to my dashboard <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a class="whl-btn whl-btn--ghost" id="cta-secondary" href="/bill-checkup" hidden>Run the checkup</a>
+      </div>
+      <p class="smallnote" id="cta-note" hidden></p>
+    </div>
+    <div class="steps" id="steps">
+      <div class="step" id="step1">
+        <span class="k" id="s1-k">STEP 1</span>
+        <h3 id="s1-h"></h3>
+        <p id="s1-p"></p>
+        <a class="steplink" id="s1-link" href="/bill-checkup">Run the checkup <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </div>
+      <div class="step" id="step2">
+        <span class="k" id="s2-k">STEP 2</span>
+        <h3 id="s2-h"></h3>
+        <p id="s2-p"></p>
+      </div>
+      <div class="step" id="step3">
+        <span class="k" id="s3-k">STEP 3</span>
+        <h3 id="s3-h"></h3>
+        <p id="s3-p"></p>
+      </div>
+    </div>
+    <div class="share" id="share">
+        <b>Move your area up the line</b>
+        <p id="share-p">Every neighbour who joins through your link strengthens the bid you will all get.</p>
+        <div class="srow">
+          <span class="lnk" id="share-lnk">whollar.ca/join</span>
+          <button class="cp" id="share-cp" type="button">Copy</button>
+        </div>
+    </div>
+  </div>
+</main>
+<script src="/js/join-welcome.js?v=20260902a"></script>
+</body>
+</html>

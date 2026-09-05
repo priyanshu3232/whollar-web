@@ -108,9 +108,10 @@ function record(S) {
     row.bids += 1;
     if (won) {
       row.won += 1;
-      if (c.confirmed != null) {
-        row.confirmed = (row.confirmed || 0) + c.confirmed;
-        r.confirmed += c.confirmed;
+      /* The count rides on the bid (GET /provider/bids), never the campaign. */
+      if (b.confirmed != null) {
+        row.confirmed = (row.confirmed || 0) + Number(b.confirmed);
+        r.confirmed += Number(b.confirmed);
       }
     }
   });

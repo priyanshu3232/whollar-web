@@ -1,0 +1,82 @@
+{
+  "_note": [
+    "WHICH SOURCE BOUNDARIES MAKE UP EACH WHOLLAR REGION. The one operator input",
+    "in the FSA derivation, and the reason it is a committed file rather than a",
+    "form: it is small, it is reviewable in a diff, every entry carries a source",
+    "feature id that can be re-fetched, and it is the thing an auditor would ask",
+    "to see. scripts/build-geo-regions.mjs reads it and derives the candidate FSA",
+    "sets; nothing here is an FSA, and no FSA is ever typed by hand.",
+    "",
+    "A REGION IS SEVERAL FEATURES, not one. Whollar's regions are market areas",
+    "named in partner/core/places.js, and they sit at roughly the scale of three",
+    "to eight City of Toronto neighbourhoods. Not one of them resolves to a",
+    "single source feature by name: there is no 'North York Central' and no",
+    "'Downtown Core' in the city's 158 neighbourhoods, and 'Scarborough East' is",
+    "Whollar's grouping rather than the city's. So the mapping is one to many and",
+    "the operator picks the set.",
+    "",
+    "EVERY REGION NAME HERE MUST BE ONE IN lib/places.js. That is the same",
+    "vocabulary partner coverage and campaign creation are held to, and keying",
+    "this off it is what stops a third spelling of a place existing anywhere.",
+    "The build refuses a name that is not in it.",
+    "",
+    "AN EMPTY features ARRAY IS UNRESOLVED AND THE BUILD FAILS ON IT. Same rule",
+    "as the FSA placeholders it replaces: a region nobody has actually looked at",
+    "must not quietly produce a cohort somebody can join."
+  ],
+  "sources": {
+    "toronto-neighbourhoods-158": {
+      "title": "City of Toronto Open Data, Neighbourhoods (158)",
+      "dataset": "https://open.toronto.ca/dataset/neighbourhoods/",
+      "url": "https://ckan0.cf.opendata.inter.prod-toronto.ca/dataset/fc443770-ef0a-4025-9c2c-2cb558bfab00/resource/0719053b-28b7-48ea-b863-068823a93aaa/download/neighbourhoods-4326.geojson",
+      "licence": "Open Government Licence, City of Toronto",
+      "crs": "EPSG:4326",
+      "retrieved": "2026-08-28",
+      "idField": "AREA_SHORT_CODE",
+      "nameField": "AREA_NAME",
+      "province": "ON"
+    },
+    "statcan-fsa-2021": {
+      "title": "Statistics Canada, Forward Sortation Area Boundary File, Census 2021",
+      "dataset": "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm",
+      "url": "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lfsa000b21a_e.zip",
+      "licence": "Statistics Canada Open Licence",
+      "crs": "EPSG:3347",
+      "retrieved": "2026-08-28",
+      "sha256": "9fd2b6adf66e5716d06f91ebdcdb5d8a4e8b9eeb520f8b4285030d34319959db",
+      "idField": "CFSAUID"
+    }
+  },
+  "regions": {
+    "North York Central": {
+      "source": "toronto-neighbourhoods-158",
+      "status": "proposed",
+      "features": [],
+      "note": "UNRESOLVED. The derivation was run once against Willowdale West (037), East Willowdale (152), Lansing-Westgate (038), Newtonbrook West (036) and Bayview Village (052) to prove the pipeline, and it produced M2N at 84% and M2K at 73% included, with M2R at 49%, M2M at 34% and M3H for review. Those five features are a starting point and NOT an answer: which of them Whollar means by 'North York Central' is a market decision, not a lookup, and the run is recorded here rather than committed as fact."
+    },
+    "Downtown Core": {
+      "source": "toronto-neighbourhoods-158",
+      "status": "proposed",
+      "features": [],
+      "note": "UNRESOLVED. Candidates: Yonge-Bay Corridor, Church-Wellesley, Downtown Yonge East, Kensington-Chinatown, University, St Lawrence-East Bayfront-The Islands, Moss Park, Regent Park. Downtown Core is also the region most likely to overlap Downtown East and Downtown West, which are separate names in the same vocabulary; the three have to be decided together or households on the boundary will see two cohorts."
+    },
+    "Scarborough East": {
+      "source": "toronto-neighbourhoods-158",
+      "status": "proposed",
+      "features": [],
+      "note": "UNRESOLVED. Scarborough is four Whollar regions (Southwest, Centre, East, North) over roughly twenty city neighbourhoods, so this one is a four-way split rather than a lookup."
+    },
+    "Richmond Hill South": {
+      "source": null,
+      "status": "unsourced",
+      "features": [],
+      "note": "NO SOURCE YET. York Region, not the City of Toronto, so the neighbourhoods dataset does not contain it and neither does any Toronto boundary. CONFIRM-14: either a York Region or Town of Richmond Hill open-data boundary, or an operator-drawn polygon with source recorded as such. Nothing can be derived for this region until one is chosen."
+    },
+    "Markham Centre": {
+      "source": null,
+      "status": "unsourced",
+      "features": [],
+      "note": "NO SOURCE YET. York Region, as above. CONFIRM-14."
+    }
+  }
+}

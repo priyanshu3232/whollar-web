@@ -88,7 +88,18 @@ const DEFAULTS = Object.freeze({
     description: 'Success fee per activated household, dollars. An unconfirmed '
       + 'planning number until the agreement terms are settled; read into '
       + 'auction briefs server side and never a constant in client code. '
-      + 'Unpublished: partners see it on their own briefs, not on /public/config.',
+      + 'Unpublished: partners see it on their own briefs, not on /public/config. '
+      + 'This is the platform default; provider_orgs.lead_rate overrides it per '
+      + 'company from the provider review.',
+  },
+  acceptance_fee: {
+    value: 10, type: 'number', published: false,
+    description: 'What a household pays, dollars, only when it ACCEPTS a winning '
+      + 'offer. Joining a cohort is free: nothing is charged to browse, join or '
+      + 'wait, the fee exists at the one moment value is delivered. Unpublished: '
+      + 'it is released to a household at the acceptance step, never advertised '
+      + 'on the marketing site. Distinct from membership_price, a separate annual '
+      + 'membership line that may be legacy: confirm before charging both.',
   },
 });
 

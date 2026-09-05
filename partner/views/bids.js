@@ -40,7 +40,9 @@ export function render() {
 
   var rows = list.map(function (b) {
     var c = byId[b.campaignId || b.campaign] || {};
-    var confirmed = b.state === 'won' && c.confirmed != null ? String(c.confirmed) : '·';
+    /* The count rides on the bid, not the campaign: it is this org's own
+       orders on this cohort, served by GET /provider/bids. */
+    var confirmed = b.state === 'won' && b.confirmed != null ? String(b.confirmed) : '·';
     return '<tr>'
       + '<td>' + esc(c.region || b.campaignId || b.campaign) + '</td>'
       + '<td class="num">' + (b.placedAt ? esc(fmtDate(b.placedAt)) : '·') + '</td>'
@@ -98,7 +100,7 @@ export function mount() {
         csv((b.tiers || []).map(function (t) { return '$' + t.effectivePrice + ' ' + t.name; }).join(' | ')),
         b.version || 1,
         b.state,
-        b.state === 'won' && c.confirmed != null ? c.confirmed : ''
+        b.state === 'won' && b.confirmed != null ? b.confirmed : ''
       ].join(',');
     }).join('\n');
     var blob = new Blob([head + lines], { type: 'text/csv' });

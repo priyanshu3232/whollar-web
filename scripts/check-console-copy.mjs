@@ -36,6 +36,7 @@ const FILES = [
   'partner/core/toast.js',
   'partner/core/modal.js',
   'partner/core/mixmath.js',
+  'partner/core/tiers.js',
   'partner/components/banner.js',
   'partner/components/emptystate.js',
   'partner/components/gate.js',
@@ -59,13 +60,25 @@ const FILES = [
   'scripts/test-bid-mix.mjs',
   'scripts/build-console.mjs',
   'scripts/build-mixmath.mjs',
+  'scripts/build-tiers.mjs',
+  'scripts/test-tiers.mjs',
 
   /* Not console files, but written after this gate existed and clean on day
      one, which is the only condition for being in this list. They are also the
      first page a new member or partner reads, so the vocabulary in them sets
      the vocabulary everyone uses back at us. */
   'welcome-member.html',
-  'welcome-partner.html'
+  'welcome-partner.html',
+  /* The same argument, for the screen a household lands on the moment its
+     code is checked. Clean on day one. */
+  'join-welcome.html',
+  'join-welcome-tires.html',
+  'js/join-welcome.js',
+  'home/index.html', 'home/join.html', 'home/join-welcome.html',
+  'home/join-welcome-tires.html', 'home/js/join-welcome.js', 'home/llms.txt',
+  /* The winter tire vertical. Ported clean, so it starts and stays green. */
+  'tires/index.html', 'tires/join.html', 'tires/404.html',
+  'tires/js/tires.js', 'tires/js/tire-join.js', 'tires/js/tire-kit.js', 'tires/llms.txt'
 ];
 
 /* Banned words. Each is paired with what to say instead, because a gate that

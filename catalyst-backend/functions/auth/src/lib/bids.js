@@ -40,8 +40,9 @@ const REVISIONS = 'bid_revisions';
 
 /* The standard tier ladder. Server-owned: a bid names tiers from this list so
    two partners' offers on one cohort are comparable line by line, which is
-   what lets households read them side by side. */
-const TIER_NAMES = Object.freeze(['100 Mbps', '300 Mbps', '500 Mbps', '1 Gig', '1.5 Gig', '2.5 Gig']);
+   what lets households read them side by side. One source for every runtime:
+   lib/tiers.js is generated from partner/core/tiers.js. */
+const { TIER_NAMES } = require('./tiers');
 
 /* Mirrors partner/core/contract.js. If you change one, change both. */
 const TECHS = Object.freeze(['cable', 'fibre', 'dsl', 'fwa']);
@@ -68,9 +69,10 @@ const LABEL_BANNED = mixmath.LABEL_BANNED;
    `guarantee_months`), and naming a column here is what makes it mandatory to
    create, so they are not named. A table that still has them reads fine; a
    table created today does not need them. */
-/* org_id is load-bearing beyond display: awards.seal() writes the winning
-   row's org into campaign_awards.org_id, a mandatory column, so a projection
-   without it makes every seal insert fail and no award ever exists. */
+/* org_id is load-bearing beyond display: lib/awards.js buildBook() keys every
+   book entry on it and sealAwards() writes it into campaign_awards.org_id, a
+   mandatory column, so a projection without it makes every seal insert fail
+   and no award ever exists. */
 const BID_COLS = Object.freeze(['bid_key', 'campaign_id', 'org_id', 'price', 'status', 'updated_at']);
 const BID_COLS_V2 = Object.freeze(BID_COLS.concat(['tiers', 'guarantee_months',
   'after_mode', 'after_line', 'equipment', 'rental_monthly', 'extra_pod_monthly',
@@ -79,8 +81,15 @@ const BID_COLS_V2 = Object.freeze(BID_COLS.concat(['tiers', 'guarantee_months',
 /* The sealed custom mix (create-tables.md section 28). One JSON column, read
    ahead of the V2 list and fallen back from, same as V2 is from the base. */
 const BID_COLS_V3 = Object.freeze(BID_COLS_V2.concat(['discount_mix']));
+/* The brand this bid is made under, and the distributor that submitted it if
+   one did (create-tables.md section 34e). Load-bearing for member exclusions:
+   lib/awards.js resolves a bid to a brand from this column first, and only
+   falls back to the org's primary declared brand when it is absent, which is
+   every bid sealed before the column existed. */
+const BID_COLS_V4 = Object.freeze(BID_COLS_V3.concat(['brand_id',
+  'submitted_via_distributor_id']));
 /* Widest first. A read tries each until one the table can answer. */
-const BID_COL_LISTS = Object.freeze([BID_COLS_V3, BID_COLS_V2, BID_COLS]);
+const BID_COL_LISTS = Object.freeze([BID_COLS_V4, BID_COLS_V3, BID_COLS_V2, BID_COLS]);
 
 const toInt = (v) => {
   const n = parseInt(v, 10);
@@ -106,7 +115,7 @@ function readBid(body, householdCount) {
     throw badRequest('Add at least one tier to the bid.');
   }
   if (b.tiers.length > TIER_NAMES.length) {
-    throw badRequest('A bid carries at most six tiers, one per standard speed.');
+    throw badRequest(`A bid carries at most ${TIER_NAMES.length} tiers, one per standard speed.`);
   }
 
   const afterMode = String(b.afterMode || '').trim();
@@ -509,7 +518,7 @@ async function sealRevision(catalystApp, { bidKey, campaignId, orgId, userId, pa
 }
 
 module.exports = {
-  BIDS, REVISIONS, BID_COLS, BID_COLS_V2, BID_COLS_V3, parseMix,
+  BIDS, REVISIONS, BID_COLS, BID_COLS_V4, BID_COLS_V2, BID_COLS_V3, parseMix,
   TIER_NAMES, TECHS, REDUCTION, EQUIPMENT, AFTER_MODE, GUARANTEE_MONTHS,
   readBid, draftPayload, hashPayload, receiptNo,
   improvementProblems, publicBid, headDraft,

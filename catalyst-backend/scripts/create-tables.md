@@ -192,6 +192,7 @@ the evidence.
 | `approval_status` | Var Char | 16 | | ✅ | | `pending` \| `approved` \| `rejected` |
 | `approved_by` | Var Char | 255 | | | | internal operator identifier |
 | `approved_at` | DateTime | - | | | | |
+| `rejection_reason` | Var Char | 255 | | | | the operator's reason on a rejected application, shown back to the partner. Added with the admin console (docs/ADMIN_CONSOLE_RUNBOOK.md section 1c); `routes/admin.js` retries the write without it when it is missing |
 
 ## 9. `provider_users`
 
@@ -1738,3 +1739,1446 @@ SELECT bid_key, reduction_presentation, mechanism_label, discount_mix FROM provi
 
 Then `GET /api/auth/health/diagnostics` as an admin: `lib/schema.js verify()`
 names the column and must not list it as missing.
+
+## 29. Campaign eligibility by FSA: one column on `campaigns`, two on `users`
+
+A campaign is now scoped to the postal code areas it covers. Which partners
+may bid on a cohort is still decided by its **region name**, exactly as it
+was: `requireActiveCoverage()` matches `slug(coverage.region)` to
+`slug(campaign.region)` and `lib/places.js` is the vocabulary both sides are
+held to. Nothing in this section touches that. What is new is the other key:
+which **households** may join, decided by the FSA, the first three characters
+of a member's postal code.
+
+Two keys, two audiences, one row. Neither derives the other: an FSA does not
+know which of Toronto's twenty region names it sits inside, and a region name
+is a label an operator chose.
+
+**Why one column and not a `campaign_fsas` table.** A cohort covers between
+one and a couple of dozen FSAs and the set changes when an operator decides it
+does. A table would buy a per-FSA audit trail at the cost of a second read
+inside `lib/cohorts.js`, a uniqueness constraint the Data Store cannot express
+without the constraint-insert dance on every save, and a soft-delete column.
+The audit trail already exists in `auth_events`, which records the before and
+after of every campaign write. The one case a `removed_at` column would answer,
+a household grandfathered into a cohort whose coverage later changed, is
+answered by `campaign_members.fsa`, the snapshot taken at join time, which has
+existed since that table did.
+
+**Deploy order, and the one thing to watch.** Code deploys safely before the
+column exists: `lib/catalog.js` reads it through the same column list every
+other field uses and an absent column parses as an empty set.
+
+**An empty FSA set means UNSCOPED, which means open to everyone.** This is
+deliberate and it is the migration. Every campaign that exists today has no
+FSA set, and reading an empty set as "nobody is eligible" would, on the deploy
+that shipped it, close every live cohort to every household at once: the
+dashboards would render, the counts would hold, and joining would simply stop
+working with no error anywhere. So the permissive reading is kept, and closed
+off from the other end instead:
+
+- `POST /admin/campaigns` refuses to create a campaign in a joinable kind
+  (`forming`, `waitlist`, `planned`) with no FSAs.
+- `POST /admin/campaigns/:id/transition` refuses to move one into a joinable
+  kind with no FSAs.
+- `PUT /admin/campaigns/:id` refuses to clear the FSAs of one already taking
+  joins.
+- `GET /admin/campaigns/reconcile` lists every campaign still unscoped, under
+  `mismatches[].kind = 'unscoped_campaign'`.
+
+So the unscoped set only ever shrinks, and it is visible while it does. **Scope
+the live campaigns before announcing this feature**: until then every household
+in Canada is eligible for every open cohort, which is exactly what is true
+today.
+
+### 29a. One column to add to `campaigns`
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `fsas` | Text | 4000 | | | Comma-separated, uppercase, sorted, e.g. `M2M,M2N,M2R`. Written sorted and deduplicated by `routes/admin.js` so two saves of the same coverage produce the same string and an audit diff of an unchanged set is empty. Every entry is validated against `lib/fsaref.js` on the write path; a malformed or unknown FSA is a 400 while an operator is looking at it. Empty means unscoped, above |
+
+### 29b. Two columns to add to `users`
+
+Both optional, both an audit nicety rather than a dependency: `routes/me.js`
+writes them and, if the write fails because they do not exist, drops them and
+retries so the postal code change itself still lands. Same trade as
+`campaign_members.referral_code`.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `postal_code_updated_at` | DateTime | | | | When the postal code last changed |
+| `postal_code_source` | Text | 24 | | | `signup` \| `checkup_claim` \| `profile_edit` \| `operator` |
+
+### 29c. Gate checks, in the ZCQL tab
+
+Scope one campaign from the admin console, then read it back. The column must
+hold the sorted list, and the campaign must still carry its region name:
+
+```sql
+SELECT campaign_id, region, kind, fsas FROM campaigns LIMIT 20;
+```
+
+Every campaign taking joins must have a non-empty `fsas`. This is the query
+behind the reconcile report's `unscoped_campaign` rows, and it should return
+nothing once the live campaigns are scoped:
+
+```sql
+SELECT campaign_id, region, kind FROM campaigns WHERE kind IN ('forming','waitlist','planned') AND fsas IS NULL LIMIT 50;
+```
+
+Households whose stored postal code this stack can no longer parse. They see
+the "add your postal code" card rather than an empty dashboard, and this is
+the count of them. It is a report, not a migration: nothing rewrites anybody's
+row:
+
+```sql
+SELECT COUNT(ROWID) FROM users WHERE user_type = 'member' AND fsa IS NULL AND postal_code IS NOT NULL;
+```
+
+Then a join, end to end. Sign in as a member whose FSA is **not** in a scoped
+campaign's list and `POST /api/auth/campaigns/join` naming it: the answer must
+be `403 NOT_IN_AREA`, and it must be the same answer when the request body
+carries `"eligibility": "eligible"`. Then `POST /api/auth/cohorts/<id>/join`
+for the same pair: the same refusal, because both doors call
+`guards.requireEligible` and there is no third.
+
+Finally `GET /api/auth/health/diagnostics` as an admin: `lib/schema.js
+verify()` names all three columns and must not list them as missing.
+
+## 30. The price book: one new table, three columns
+
+The cohort's result stops being a single winning bid and becomes a **price
+book**: for each speed tier, the lowest effective price among every sealed bid
+that quoted it. A household sees the winner at its own tier plus the tier above
+and the tier below, so a cohort's three offers can come from three partners and
+every household picking the same speed still pays the same price.
+
+That changes what an award **is**. It used to be one row per cohort, because a
+cohort had one winner. A cohort can now be won by several partners at once, and
+the roster gate has to stay one per partner per cohort, so the award row's grain
+moves from *the cohort's winner* to *this partner's award on this cohort*.
+
+**NOTHING HERE HAS TO HAPPEN BEFORE THE DEPLOY.** New code looks an award up by
+`campaign_id:org_id`, and every row created before the price book is keyed on
+`campaign_id` alone. Rather than make that a migration you have to land first,
+`awards.findForOrg` reads the old key second and rewrites the row in place on
+the way past, keeping its roster gate, its capacity and its consent. So the
+backfill in 30d is a tidy-up, not a prerequisite, which is the right shape for a
+migration nobody can run inside a transaction.
+
+The one case worth knowing about: the old rule awarded the lowest headline
+price, and under the per-tier rule that partner can win no tier at all. Their
+award is **kept, not revoked**, re-keyed with an empty `tiers_won`, and a line
+goes in the log saying so. Taking the cohort off their board would strand real
+orders for a rule that changed after they were placed.
+
+### 30a. `campaign_price_books` (new table)
+
+One row per cohort: the whole book, sealed once. Sealed on the first read after
+the cohort closes, by whichever surface reads it first, exactly as the award
+was: there is no cron in this stack, so nothing can be scheduled for the moment
+of a close, and the unique `book_key` is what makes two concurrent readers
+produce one book.
+
+The book is stored rather than derived on each read for the reason the award was
+recorded in the first place: two readers a second apart must agree, and a late
+write or a price correction must never silently re-award a tier a household has
+already been shown.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `book_key` | Var Char | 64 | ✅ | ✅ | the `campaign_id`. A cohort is booked once, and the unique constraint is what enforces that under a race. Same pattern as `award_key` |
+| `campaign_id` | Var Char | 64 | | ✅ | |
+| `book_json` | Text | 10000 | | ✅ | the sealed book, ascending by tier, one entry per tier that drew at least one bid. Shape below |
+| `bid_count` | Int | - | | | how many sealed bids the cohort drew. Already public to households as `bidCount`; no partner learns anything else about another |
+| `method` | Var Char | 24 | | ✅ | `lowest_per_tier` \| `admin`. `admin` exists so a corrected book is distinguishable from a computed one, in the record and not only in an audit line |
+| `sealed_at` | DateTime | - | | ✅ | |
+
+`book_json` holds one entry per tier, ascending in the order of the standard
+ladder in `lib/bids.js` (`50 Mbps, 100 Mbps, 300 Mbps, 500 Mbps, 1 Gig,
+1.5 Gig, 2.5 Gig`). A tier nobody bid is **absent**, not null, so a household's
+three-wide window skips to the next tier that has a winner:
+
+```json
+[{"tier":"100 Mbps","price":"50.00","orgId":"org_...","bidKey":"cmp_...:org_...",
+  "afterPrice":"65.00","afterLine":"$65 / 100 Mbps","guaranteeMonths":24,
+  "equipment":"inc","rentalMonthly":null,"technology":"fibre","uploadMbps":"30",
+  "commitment":120,"mix":null}]
+```
+
+The partner's **legal name is not stored here**. It is resolved from
+`provider_orgs` at read time, the way the single award already resolved it: a
+name can change, and a book that froze one would keep telling households an old
+one.
+
+### 30b. One column to add to `campaign_awards`
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `tiers_won` | Text | 1000 | | | JSON array of tier names this partner holds on this cohort, e.g. `["100 Mbps","1 Gig"]`. Six names is under 70 bytes; the width is slack, not need |
+
+Two existing columns keep their name and change their meaning. Neither is a
+console edit, both are worth knowing when you read a row:
+
+- `award_key` becomes `${campaign_id}:${org_id}`. **The unique flag stays on**,
+  and it is now what makes one partner's award on one cohort single.
+- `price` becomes the lowest tier price *this partner* won, not the cohort's
+  headline. Still Var Char: money is a string everywhere here.
+
+The three roster-gate columns (`gate_at`, `install_capacity_weekly`,
+`consent_ack`) do not move and do not change. One partner, one cohort, one gate,
+even when that partner won four tiers.
+
+### 30c. Two columns to add to `provider_orders`
+
+The household now chooses which tier it accepts, so the order has to carry it.
+Without these the partner books an install without knowing the speed, and the
+statement cannot say what was sold.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `tier` | Var Char | 24 | | | the tier name the household accepted, from the standard ladder. Absent on an order created before the price book, which reads as the cohort's single winner |
+| `price` | Var Char | 16 | | | the book price for that tier at acceptance, frozen. **Var Char, not a number column**: money is a string everywhere here, and the Int column has no cents |
+
+Both are optional rather than mandatory so the code deploys safely in either
+order against them: a read tries the wider column list first and falls back, the
+pattern `provider_bids` already uses for `discount_mix`. Only `award_key` has an
+order that matters, and that is the backfill below.
+
+### 30d. The backfill, optional, in the ZCQL tab
+
+Only worth doing to leave the table tidy, and only if it has rows at all. If
+this returns nothing, skip the rest of 30d entirely:
+
+```sql
+SELECT ROWID, award_key, campaign_id, org_id, price FROM campaign_awards LIMIT 200;
+```
+
+For each row, set `award_key` to `campaign_id:org_id` and `tiers_won` to the
+tier that award actually won. The old award was the lowest headline price, which
+is the lowest tier the winning bid quoted, so read it off that bid:
+
+```sql
+SELECT bid_key, org_id, price, tiers FROM provider_bids WHERE campaign_id = '<campaign_id>';
+```
+
+Then one UPDATE per row, by ROWID. ZCQL has no reliable string concatenation, so
+the composite key is typed out rather than computed:
+
+```sql
+UPDATE campaign_awards SET award_key = '<campaign_id>:<org_id>', tiers_won = '["100 Mbps"]' WHERE ROWID = <rowid>;
+```
+
+Verify no row is left on the old key. Every `award_key` must contain a colon:
+
+```sql
+SELECT ROWID, award_key, campaign_id, org_id, tiers_won FROM campaign_awards LIMIT 200;
+```
+
+Rows you leave alone are repaired by the first read that touches them, so a
+partially finished backfill is a fine place to stop.
+
+### 30e. Gate checks, in the ZCQL tab
+
+The new table answers at all:
+
+```sql
+SELECT ROWID FROM campaign_price_books LIMIT 1;
+```
+
+Then close a test cohort and read its offer as a joined member
+(`GET /api/auth/campaigns/<id>/offer`). The response must carry a `book` array,
+and the first read must have sealed the row:
+
+```sql
+SELECT book_key, campaign_id, bid_count, method, sealed_at FROM campaign_price_books LIMIT 5;
+```
+
+Read it twice and confirm `sealed_at` does not move: the second read must find
+the row, not write a new one. Then confirm the derived awards, one row per
+partner that won at least one tier, all on composite keys:
+
+```sql
+SELECT award_key, campaign_id, org_id, price, tiers_won, method FROM campaign_awards LIMIT 50;
+```
+
+The two-partner case is the one worth building on purpose: seal two bids on one
+cohort where each is cheapest at a different tier, close it, and confirm
+`campaign_awards` has **two** rows and neither partner's desk response names the
+other. A partner may see its own `tiersWon` and nothing else: not the book, not
+another partner's price, not a redacted row.
+
+Accept an offer at a tier that is **not** the cheapest, and confirm the order
+went to the partner that won *that* tier:
+
+```sql
+SELECT order_key, campaign_id, org_id, tier, price, state FROM provider_orders LIMIT 20;
+```
+
+Finally `GET /api/auth/health/diagnostics` as an admin: `lib/schema.js verify()`
+names the new table and the three new columns, and must not list them as
+missing.
+
+## 31. The booking at acceptance: one column to add to `provider_orders`
+
+A household now books its install as it accepts: a day inside the next fifteen
+days, one of three arrival windows, and the mobile number the crew calls on the
+day. The order lands on the partner's board already `bkd`, with `slot_at` set
+and a `note` naming the window. Only the number needs a column.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `phone` | Var Char | 24 | | | ✅ | `+1` and ten digits, as `lib/orders.js readPhone` normalises it. Given at acceptance for the install visit and nothing else. Read by the delivering partner only, on the same row, under the same consent, as the address |
+
+Optional rather than mandatory, so the code deploys safely in either order:
+reads try the wider column list first and fall back (`ORDER_COLS_V4` down to
+`ORDER_COLS`), the same ladder as section 30c. **Until this column exists the
+number is not lost**: the insert falls back and writes it into `note`, which the
+same partner reads on the same board row. Add the column so it stops riding in
+prose.
+
+No new state and no new transition: an accept with a slot inserts straight into
+`bkd`, which `TRANSITIONS` already allows out of. The partner's Rebook,
+Activate, exception and release moves are unchanged.
+
+### 31a. Gate checks, in the ZCQL tab
+
+Accept an offer from the dashboard with a day and window picked, then confirm
+the row arrived booked, with the slot and the number:
+
+```sql
+SELECT order_key, state, slot_at, phone, note FROM provider_orders LIMIT 20;
+```
+
+`state` must read `bkd` and `slot_at` must be the window's start on the day
+picked. Then open the partner's Delivery view: the household's row must show
+the day, the window's start time, the address and the number, and the Booked
+tile must count it.
+
+Set an install capacity of 1 on that cohort's roster gate and accept a second
+household in the same week: the accept must be refused with "That week is full
+with this partner", and a third household's confirm screen must show that
+week's days greyed out.
+
+Finally `GET /api/auth/health/diagnostics` as an admin: `lib/schema.js verify()`
+names `phone` and must not list it as missing.
+
+## 32. The household's window: `household_offers` (new table)
+
+A household is shown three cards of the sealed price book: its own speed and
+the two beside it. Which three depends on the household (the speed on its bill,
+its preference chip), and until this table nothing recorded the answer: the
+dashboard sliced the window on every render, so a bill edited after the
+decision silently re-centred the cards under a choice already made, and "what
+did you show me" had no record. Now `lib/offers.js` writes one row per
+household per cohort on the first offer read after the seal, and never
+rewrites it.
+
+**Nothing here has to happen before the deploy.** Without the table the offer
+route computes the same window and answers it with `recorded:false`; the
+household sees its cards and only the audit line is missing. Create it and the
+next read records.
+
+### 32a. `household_offers` (new table)
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `offer_key` | Var Char | 130 | ✅ | ✅ | | `${campaign_id}:${user_id}`. The unique flag is the race guard: two readers on the same household write one row |
+| `campaign_id` | Var Char | 64 | | ✅ | | |
+| `user_id` | Var Char | 64 | | ✅ | ✅ | never sent to a partner |
+| `speed_mbps` | Var Char | 16 | | | | the bill speed as it was read, `"0"` is the checkup's Not sure, empty when no bill |
+| `centre_tier` | Var Char | 24 | | | | the book tier the window centred on |
+| `window_rule` | Var Char | 40 | | ✅ | | which branch produced the cards, e.g. `bill:centred`, `bill:nearest:end_low`, `unknown:end_low`, `pref_up:end_high`, `none` |
+| `cards_json` | Text | 4000 | | ✅ | | `[{tier, orgId, bidKey, price, position}]`, position `below`, `current`, `above`, or one card with `none` |
+| `offered_at` | DateTime | - | | ✅ | | |
+
+Every `price` in `cards_json` is the seal's string, copied from `book_json`,
+never recomputed.
+
+### 32b. Gate checks, in the ZCQL tab
+
+```sql
+SELECT ROWID FROM household_offers LIMIT 1;
+```
+
+Then read a closed cohort's offer as a joined member
+(`GET /api/auth/campaigns/<id>/offer`): the response carries `offers.cards`
+with `offers.recorded: true`, and one row exists:
+
+```sql
+SELECT offer_key, centre_tier, window_rule, offered_at FROM household_offers LIMIT 5;
+```
+
+Read it twice and confirm `offered_at` does not move. Change the member's bill
+speed on the checkup and read again: the cards must NOT change, because the
+record is the record. Then run the insert twice by hand and the second must
+fail: if it does not, `offer_key` was created without Unique.
+
+Finally `GET /api/auth/health/diagnostics` as an admin: `lib/schema.js verify()`
+names `household_offers` and must not list it as missing.
+
+---
+
+## 33. The notification layer: four tables, two columns, five variables
+
+Phase A of the notification build. What this unblocks is not new email, it is
+the ability to stop sending it: four signup surfaces and `privacy.html` already
+tell people they can unsubscribe at any time, and until these tables exist
+there is no list to put them on.
+
+**Nothing here is required for the site to keep working.** Every read degrades:
+`lib/notify/outbox.js` returns quietly when `notification_outbox` is missing,
+exactly as `lib/notices.js` does, and `lib/notify/suppress.js` fails CLOSED for
+commercial mail and OPEN for a sign-in code. So a deploy before these tables
+exist sends nothing new and locks nobody out. It also records nothing, which is
+the state to leave as quickly as possible.
+
+**Order matters here, unlike most sections.** Create the tables BEFORE
+deploying the auth function. The code is written to survive their absence, but
+every message sent in the gap is a message with no delivery record and no
+suppression check, and there is no way to reconstruct either afterwards.
+
+### 33a. `notification_outbox` (new table)
+
+One row per (event, template, recipient). **The unique flag on `notify_key` is
+the whole deduplication.** `lib/notices.js` sweeps on every dashboard load, so
+without it a cohort's letters go out again on every page view.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `notify_key` | Var Char | 64 | ✅ | ✅ | sha256 over event, template and recipient. **The Unique flag is not optional.** |
+| `event_key` | Var Char | 190 | | ✅ | `campaign.stage:brampton-east:offers` for a system decision, `otp.start:<req id>` for a click |
+| `template_key` | Var Char | 80 | | ✅ | `member.campaign.stage` |
+| `recipient_type` | Var Char | 16 | | ✅ | `member` \| `partner` \| `admin` \| `address` |
+| `recipient_id` | Var Char | 190 | | ✅ | `users.user_id`, or the address itself for `address` |
+| `recipient_email` | Var Char | 255 | | ✅ | snapshot at enqueue |
+| `locale` | Var Char | 8 | | | `en`, fallback `en` |
+| `timezone` | Var Char | 64 | | | IANA, fallback `America/Toronto` |
+| `campaign_id` | Var Char | 64 | | | present on every campaign-scoped message |
+| `context` | Text | 10000 | | | render context, JSON |
+| `send_priority` | Var Char | 16 | | ✅ | `security` \| `action_required` \| `informational` \| `reminder`. **Not `priority`**: that is reserved in ZCQL and the console refuses it |
+| `casl_class` | Var Char | 16 | | ✅ | `transactional` \| `cem` |
+| `category` | Var Char | 32 | | ✅ | the preference category |
+| `collapse_group` | Var Char | 120 | | | `campaign_stage:brampton-east` |
+| `earliest_send_at` | DateTime | - | | ✅ | quiet hours land here |
+| `status` | Var Char | 16 | | ✅ | `queued` \| `held` \| `superseded` \| `sending` \| `sent` \| `failed` \| `suppressed` \| `cancelled` |
+| `attempts` | Int | - | | | |
+| `last_error` | Var Char | 190 | | | `missing:dashboard_url`, `scrubbed:other_partner_name` |
+| `subject` | Var Char | 190 | | | written on success, for the member's own history |
+| `body_sha` | Var Char | 64 | | | the body itself is NOT stored: no blob store is wired |
+| `created_at` | DateTime | - | | ✅ | |
+| `updated_at` | DateTime | - | | | |
+| `sent_at` | DateTime | - | | | |
+
+### 33b. `notification_deliveries` (new table, append only)
+
+One row per attempt, and one more per webhook event on that attempt. Append
+only on purpose: updating the previous row in place would destroy the sequence
+that answers "it was accepted, and then it bounced".
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `outbox_key` | Var Char | 64 | | ✅ | the outbox row's `notify_key` |
+| `client_reference` | Var Char | 64 | | | the value **we** chose, echoed back by ZeptoMail. Matched on first |
+| `provider_message_id` | Var Char | 200 | | | the value the provider chose. The fallback |
+| `transport` | Var Char | 16 | | | `zeptomail` \| `smtp` \| `log` |
+| `status` | Var Char | 24 | | ✅ | `accepted` \| `delivered` \| `bounced_hard` \| `bounced_soft` \| `complained` \| `clicked` \| `failed` \| `unknown`. **Never `opened`**: open tracking is off for member mail by decision |
+| `status_at` | DateTime | - | | ✅ | |
+| `detail` | Var Char | 500 | | | bounce reason, provider error |
+| `created_at` | DateTime | - | | ✅ | |
+
+### 33c. `email_suppressions` (new table)
+
+The addresses nothing may be written to. **`email` must be Unique**: the
+address is the identity here, whatever number of accounts have used it.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `email` | Var Char | 255 | ✅ | ✅ | lowercased by the write path |
+| `reason` | Var Char | 24 | | ✅ | `hard_bounce` \| `complaint` \| `unsubscribed_all` \| `manual` |
+| `source` | Var Char | 120 | | | `webhook:hardbounce`, `unsub:one_click` |
+| `first_seen_at` | DateTime | - | | ✅ | |
+| `last_seen_at` | DateTime | - | | ✅ | |
+
+`hard_bounce` and `complaint` block **transactional mail as well**, and that
+asymmetry is deliberate: a complaint means somebody pressed the spam button,
+and continuing to send them sign-in codes is how a sending domain gets filtered
+for every other member at once.
+
+### 33d. `unsubscribe_tokens` (new table)
+
+One row per (recipient, scope), **reused, not minted per message**. A token per
+email would put millions of rows in a lookup table and would break the link in
+an old email, which is exactly when people press one.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `token_key` | Var Char | 200 | ✅ | ✅ | **derived**: `` `${recipient_type}:${recipient_id}:${scope}` ``. The flattened composite (rule 4) |
+| `token` | Var Char | 16 | ✅ | ✅ | opaque, two checked halves, no identity encoded |
+| `recipient_type` | Var Char | 16 | | ✅ | `member` \| `partner` |
+| `recipient_id` | Var Char | 190 | | ✅ | |
+| `scope` | Var Char | 32 | | ✅ | `all_cem`, or one unlockable category |
+| `created_at` | DateTime | - | | ✅ | |
+| `used_at` | DateTime | - | | | first press. The row is NOT burned: a second press must be a no-op |
+
+### 33e. Two columns to add to `users`
+
+Both optional, both with a ladder in `lib/users.js`, so an environment without
+them reads one rung narrower and falls back to `en` and `America/Toronto`.
+Correct for the GTA footprint, wrong the day a British Columbia household joins.
+
+| Column | Type | Length | Unique | Mandatory | Notes |
+|---|---|---|:--:|:--:|---|
+| `locale` | Var Char | 8 | | | `en`. French is written before any Quebec region opens |
+| `timezone` | Var Char | 64 | | | IANA. Quiet hours are held against this |
+
+### 33f. Environment variables, in **both** environments
+
+| Name | Required | Notes |
+|---|:--:|---|
+| `MAIL_POSTAL_ADDRESS` | for commercial mail | **No fallback, deliberately.** An invented address in a compliance footer is worse than a missing one because it looks correct in every review. Unset, transactional mail sends with identification and no address, and every commercial send is REFUSED with `no_postal_address` |
+| `MAIL_LEGAL_NAME` | | defaults to `Whollar`. Set it to the registered entity name |
+| `MAIL_FROM_TRANSACTIONAL` | | e.g. `no-reply@mail.whollar.com`. Falls back to `ZEPTOMAIL_FROM`. **It must be an address a verified ZeptoMail Mail Agent may send as.** Set it to a subdomain with no Mail Agent behind it and ZeptoMail refuses every transactional send, sign-in codes included. Leave it unset until the Mail Agent exists: the fallback is the sender that already works |
+| `MAIL_FROM_CEM` | | e.g. `news@news.whollar.com`. Falls back to `ZEPTOMAIL_FROM`. Same rule, same failure |
+
+Neither of these reaches the SMTP relay. It authenticates as one mailbox and
+refuses any other From, so it always sends as `SMTP_FROM`. That is not a
+limitation to work around: it is what keeps the fallback able to carry a login
+code on a day ZeptoMail cannot. `GET /api/auth/health` reports all three
+addresses as `mail_senders`, and the transactional one is the field to read
+first when mail stops arriving.
+| `MAIL_WEBHOOK_SECRET` | for the webhook | Unset, `POST /hooks/zeptomail` answers 503 to everything. An unauthenticated endpoint that writes suppressions is a way for anyone to silence anyone |
+
+Also confirm `ZEPTOMAIL_API_BASE` is `https://api.zeptomail.ca` in **both**
+environments. The code default is now the Canadian host, so an unset variable
+is no longer a residency problem, but an explicitly wrong one still is.
+
+### 33g. Gate checks, in the ZCQL tab
+
+**The deduplication.** The second insert must be **refused**:
+
+```sql
+INSERT INTO notification_outbox (notify_key, event_key, template_key, recipient_type, recipient_id, recipient_email, send_priority, casl_class, category, earliest_send_at, status, created_at) VALUES ('gate-test-key', 'gate:test', 'account.otp', 'address', 'gate@test.invalid', 'gate@test.invalid', 'security', 'transactional', 'security', '2026-08-30 00:00:00', 'queued', '2026-08-30 00:00:00');
+```
+
+```sql
+INSERT INTO notification_outbox (notify_key, event_key, template_key, recipient_type, recipient_id, recipient_email, send_priority, casl_class, category, earliest_send_at, status, created_at) VALUES ('gate-test-key', 'gate:test', 'account.otp', 'address', 'gate@test.invalid', 'gate@test.invalid', 'security', 'transactional', 'security', '2026-08-30 00:00:01', 'queued', '2026-08-30 00:00:01');
+```
+
+If the second one succeeds, the Unique flag on `notify_key` is not set and
+every cohort will be mailed again on every dashboard load. Fix it before going
+near a live cohort. Then clean up:
+
+```sql
+DELETE FROM notification_outbox WHERE notify_key = 'gate-test-key';
+```
+
+**The suppression list.** Same test, and the same stakes in the other
+direction: without the Unique flag on `email`, one address accumulates a row
+per bounce and the reason that explains the block is whichever row is read
+first.
+
+```sql
+INSERT INTO email_suppressions (email, reason, source, first_seen_at, last_seen_at) VALUES ('gate@test.invalid', 'manual', 'gate-test', '2026-08-30 00:00:00', '2026-08-30 00:00:00');
+```
+
+```sql
+INSERT INTO email_suppressions (email, reason, source, first_seen_at, last_seen_at) VALUES ('gate@test.invalid', 'complaint', 'gate-test', '2026-08-30 00:00:01', '2026-08-30 00:00:01');
+```
+
+The second must be refused. Then:
+
+```sql
+DELETE FROM email_suppressions WHERE email = 'gate@test.invalid';
+```
+
+**The two token constraints.** `unsubscribe_tokens` needs Unique on **both**
+`token_key` and `token`. The first stops a second row for one recipient, the
+second stops two recipients sharing a link.
+
+```sql
+INSERT INTO unsubscribe_tokens (token_key, token, recipient_type, recipient_id, scope, created_at) VALUES ('member:gate:all_cem', 'GATE0TESTGATE0TE', 'member', 'gate', 'all_cem', '2026-08-30 00:00:00');
+```
+
+```sql
+INSERT INTO unsubscribe_tokens (token_key, token, recipient_type, recipient_id, scope, created_at) VALUES ('member:other:all_cem', 'GATE0TESTGATE0TE', 'member', 'other', 'all_cem', '2026-08-30 00:00:01');
+```
+
+The second must be refused on `token`. Then:
+
+```sql
+DELETE FROM unsubscribe_tokens WHERE recipient_id = 'gate';
+```
+
+**The two new `users` columns exist.** This must return rows rather than an
+error, and if it errors the ladder in `lib/users.js` is what is carrying the
+site:
+
+```sql
+SELECT user_id, locale, timezone FROM users LIMIT 1
+```
+
+**The deliveries table takes a row.**
+
+```sql
+INSERT INTO notification_deliveries (outbox_key, client_reference, transport, status, status_at, created_at) VALUES ('gate-test-key', 'gate-test-key', 'log', 'accepted', '2026-08-30 00:00:00', '2026-08-30 00:00:00');
+```
+
+```sql
+DELETE FROM notification_deliveries WHERE outbox_key = 'gate-test-key';
+```
+
+### 33h. After the tables exist
+
+`GET /api/auth/health/diagnostics` (admin session required) reports every
+declared table, so the four new ones appear there once created. A row count of
+zero on `notification_outbox` after a sign-in attempt means the table exists
+and nothing wrote to it, which is a different problem from the table being
+absent, and the two are worth telling apart before hunting through DNS again.
+
+---
+
+## 34. Provider exclusions: four new tables, one column pair, four columns
+
+A member names the providers they will not hear from, every founding partner
+declares the brands it operates, and the price book is then cut PER MEMBER out
+of that member's eligible bids. The promise made to the household is absolute
+("excluded providers will never be able to send you an offer"), so it is
+enforced in the award and in the accept, not by hiding a card.
+
+**Deploy order matters here, and it is not the usual one.** Every other section
+in this file can land in either order. This one has a rule:
+
+1. **34a `brand_registry` first, and seed it.** Nothing else is usable without
+   it: a roster picks from it, an exclusion picks from it, and a bid names a row
+   in it. An empty registry is a working screen with nothing in it.
+2. **34b `provider_brands` next.** Until it exists no bid may name a brand, and
+   `lib/rosters.js canBidAs` says so rather than passing the bid through.
+3. **34d `member_provider_exclusions` next.** This is the one with a safety
+   consequence: see the note under it.
+4. **34e and 34f, the columns, last and at any time.** Both have fallbacks.
+
+**What happens before any of it lands:** nothing changes. `brands.all()`,
+`rosters.rosterFor()` and `exclusions.setFor()` each return the "not created"
+answer, the exclusion step reports itself unavailable, the offer route reads
+the sealed cohort book exactly as it does today, and no member is filtered.
+
+### 34a. `brand_registry` (new table)
+
+The canonical list of consumer-facing brands, and the one place a flanker brand
+is tied to its parent. Members, partners and bids all resolve through it, so
+nothing free-types a brand name into matching logic.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `brand_id` | Var Char | 64 | ✅ | ✅ | | slug, `^[a-z0-9][a-z0-9-]{0,62}$`, e.g. `bell`, `virgin-plus`, `oxio`. Reaches a WHERE clause, so the charset is enforced in `lib/brands.js` |
+| `display_name` | Var Char | 120 | | ✅ | | exact consumer-facing name, accents included, e.g. `Vidéotron` |
+| `parent_brand_id` | Var Char | 64 | | | | null for a parent or independent brand. ONE level only: a flanker's parent must itself have null here |
+| `owner_org_name` | Var Char | 255 | | | | operator review only. **Never rendered to a member**: `publicBrand()` names the three fields that cross |
+| `status` | Var Char | 16 | | ✅ | | `active` \| `retired` \| `pending_review` |
+| `created_at` | DateTime | - | | ✅ | | |
+| `updated_at` | DateTime | - | | | | |
+
+**Seeding.** Take the provider column of the pricing dataset. Every parent gets
+`parent_brand_id` null; every flanker points at its parent. Only `active` rows
+are selectable anywhere, so seed conservatively and promote later: a brand
+missing from the registry cannot be excluded, which is a worse failure than a
+brand nobody picks.
+
+### 34b. `provider_brands` (new table)
+
+The brands one founding partner has attested to operating. Soft removal only:
+a bid sealed last month was made under the roster as it stood then.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `roster_key` | Var Char | 160 | ✅ | ✅ | | `${provider_id}:${brand_id}`. The Data Store has no partial unique index, so this is one row per (org, brand) EVER, revived rather than re-inserted |
+| `provider_id` | Var Char | 64 | | ✅ | | `provider_orgs.org_id` |
+| `brand_id` | Var Char | 64 | | ✅ | | `brand_registry.brand_id` |
+| `declared_at` | DateTime | - | | ✅ | | re-stamped on every attestation, including for unchanged rows: the date is the date the WHOLE list was last sworn to |
+| `attested_by` | Var Char | 64 | | ✅ | | the user id that attested |
+| `removed_at` | DateTime | - | | | | soft removal, history never deleted |
+
+### 34c. `distributor_providers` (new table)
+
+The providers one distributor has attested to serving.
+
+**There is no distributor console yet**, and this table is not on any live
+path today. It is created now because `lib/rosters.js canBidAs` already
+enforces it: the moment an authenticated distributor role exists, a
+distributor bid is checked against this map and cannot bypass a member's
+exclusion. The gate before the door, which for this particular gate is the
+right order.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `serving_key` | Var Char | 160 | ✅ | ✅ | | `${distributor_id}:${provider_id}` |
+| `distributor_id` | Var Char | 64 | | ✅ | | |
+| `provider_id` | Var Char | 64 | | ✅ | | `provider_orgs.org_id` |
+| `declared_at` | DateTime | - | | ✅ | | |
+| `attested_by` | Var Char | 64 | | ✅ | | |
+| `removed_at` | DateTime | - | | | | |
+
+### 34d. `member_provider_exclusions` (new table)
+
+One row per brand a member has excluded, materialised at write time. Never "the
+parent plus whatever the registry says its children are today": a registry edit
+must not silently widen or narrow a list the member already agreed to.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `excl_key` | Var Char | 160 | ✅ | ✅ | | `${member_id}:${brand_id}`. One row per pair EVER; a re-exclusion revives the row and bumps `cycles` |
+| `member_id` | Var Char | 64 | | ✅ | ✅ | never sent to a partner in any shape, including an error payload |
+| `brand_id` | Var Char | 64 | | ✅ | | |
+| `source` | Var Char | 16 | | ✅ | | `direct` \| `family_default`. Recorded, never enforced |
+| `created_at` | DateTime | - | | ✅ | | re-stamped on a revival |
+| `removed_at` | DateTime | - | | | | soft removal |
+| `cycles` | Int | - | | | | how many times this pair has been excluded. Absent is read as 1 |
+
+**Read the safety note before creating this one.** `lib/exclusions.js`
+distinguishes two failures that look identical to Catalyst and demand opposite
+behaviour. Table absent means nobody anywhere has an exclusion, so offers route
+exactly as they did before the feature: an empty set is correct. Table PRESENT
+and a member's read failing means an empty set is a guess, and the guess
+delivers an offer the household refused. So presence is probed separately and
+`setFor()` returns null in the second case, which every award path treats as
+"do not route" and never as "nothing excluded". A household then sees
+`offersHeld: true` instead of an offer. That is the intended behaviour: the
+promise is absolute, so the failure mode is a missing offer, never a wrong one.
+
+The full history for a dispute is in `auth_events`, not here: every create and
+remove writes `member.exclusions.replace` with the added and removed lists.
+
+### 34e. Two columns to add to `provider_bids`
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `brand_id` | Var Char | 64 | | | | the brand this bid is made under. Validated against the attested roster at submission |
+| `submitted_via_distributor_id` | Var Char | 64 | | | | null for a direct provider submission |
+
+**Both nullable, and a bid that names no brand is still accepted.** These
+columns and 34b are separate schema objects, so either can exist without the
+other; `routes/desk.js writeHead()` retries the head write without them. A
+brandless bid is attributed to its org's primary declared brand by
+`lib/awards.js brandOfBid()`, so an exclusion still bites on every bid sealed
+before this column existed. Making a brand mandatory is a later flip, worth
+making only once every active partner has attested a roster.
+
+### 34f. Five columns to add to `household_offers`
+
+Section 32 recorded one window per household and never rewrote it, which is
+exactly what a new exclusion during `offers_out` has to change. Both hold by
+versioning: a row is still never rewritten, and a new exclusion writes version
+n+1 and stamps version n superseded.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `version` | Int | - | | | | absent is read as 1, so every row already in the table is version 1 without being touched |
+| `superseded_at` | DateTime | - | | | | set when a later version replaces this one |
+| `audit_json` | Text | 20000 | | | | the per-bid resolution for this version: `[{bidKey, orgId, brandId, status}]`, status `awarded` \| `outranked` \| `skipped_excluded_brand` \| `invalidated_brand_inactive` \| `skipped_unresolved_brand`. **Operator-only. Never in a member or provider payload** |
+| `excluded_json` | Text | 4000 | | | | the exclusion set this version was cut against, which is what makes a stale window detectable |
+| `withdrawn_json` | Text | 4000 | | | | tiers this household held and no longer holds: `[{tier, price, state:'withdrawn_by_exclusion'}]` |
+
+`offer_key` stays `${campaign_id}:${user_id}` for version 1 and takes a `:v{n}`
+suffix from version 2, so the existing unique constraint keeps working and no
+row already written needs a new key.
+
+### 34g. `brand_requests` (new table, optional)
+
+A partner asking for a brand we do not list creates a `pending_review` row in
+34a plus an operator task here. The registry row is the record that matters and
+the task is best-effort, so this table is optional: without it the request
+still lands, and only the operator queue is lost.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `brand_id` | Var Char | 64 | | ✅ | | the derived slug, never partner-supplied |
+| `provider_id` | Var Char | 64 | | ✅ | | |
+| `display_name` | Var Char | 120 | | ✅ | | |
+| `evidence_url` | Var Char | 500 | | ✅ | | |
+| `note` | Text | 1000 | | | | |
+| `requested_by` | Var Char | 64 | | ✅ | | |
+| `requested_at` | DateTime | - | | ✅ | | |
+| `state` | Var Char | 16 | | ✅ | | `open` \| `promoted` \| `refused` |
+
+### 34h. Gate checks, in the ZCQL tab
+
+Each table answers at all:
+
+```sql
+SELECT ROWID FROM brand_registry LIMIT 1;
+SELECT ROWID FROM provider_brands LIMIT 1;
+SELECT ROWID FROM distributor_providers LIMIT 1;
+SELECT ROWID FROM member_provider_exclusions LIMIT 1;
+```
+
+The two unique flags are the race guards, and both must be tested by hand,
+because a missing Unique flag fails silently as a duplicate row rather than as
+an error. Insert the same `excl_key` twice: the second must fail. Same for
+`roster_key`.
+
+The one-level family rule, which no constraint can express:
+
+```sql
+SELECT brand_id, parent_brand_id FROM brand_registry WHERE parent_brand_id IS NOT NULL LIMIT 100;
+```
+
+Every `parent_brand_id` in that result must name a row whose own
+`parent_brand_id` is null. A two-hop chain is a data error; `familyOf()`
+reports it as `depthError` rather than resolving a grandparent the member was
+never shown.
+
+Then the columns:
+
+```sql
+SELECT brand_id, submitted_via_distributor_id FROM provider_bids LIMIT 1;
+SELECT version, superseded_at, excluded_json FROM household_offers LIMIT 1;
+```
+
+**The end-to-end check, which is the only one that proves the feature.** Two
+members on one closed cohort, two partners bidding under two different brands
+at different prices:
+
+1. As member M, `PUT /api/auth/me/exclusions` naming the CHEAPER brand.
+2. `GET /api/auth/campaigns/<id>/offer` as M, then as member N who excluded
+   nothing.
+3. N's `book` holds the cheaper brand at the contested tier. M's holds the
+   dearer one, at its own price, and **M's whole response must contain no
+   occurrence of the excluded brand's name or its price**. Check the raw JSON,
+   not the rendered card.
+4. `SELECT offer_key, version, excluded_json FROM household_offers` shows one
+   row per member, M's `excluded_json` carrying the brand.
+5. As the cheaper partner, `GET /api/auth/provider/cohorts/<id>/results`:
+   `households_unreachable_exclusions` is 1 and no member is named.
+
+Then add a second exclusion as M and read the offer again: a new row appears at
+`version` 2, version 1 carries `superseded_at`, and the response's
+`offers.withdrawn` names the tier that went.
+
+Finally `GET /api/auth/health/diagnostics` as an admin: `lib/schema.js verify()`
+names the four new tables and must not list them as missing.
+
+---
+
+## 35. The winter tire waitlist: three tables, two optional
+
+`tires.whollar.ca` has a sign-up with two paths: a quick one that asks for the
+essentials, and a guided one that walks four calculators and asks about thirty
+more things. `POST /tire-waitlist-join` on the **formSubmit** function writes
+what comes back. The pages are built and deployed; the route and these tables
+are what is left. See `docs/TIRE_VERTICAL_BUILD.md` for the build around them.
+
+**READ THIS BEFORE THE FIRST COLUMN.** Rule 2 at the top of this document says
+`lower_snake_case`. **That rule governs the auth tables, and these are not auth
+tables.** These belong to the formSubmit function, alongside `WaitlistSignups`,
+`BillCheckupSubmissions` and `PartnerApplications`, and every one of those uses
+**PascalCase table names and PascalCase columns**. `FirstName`, not
+`first_name`. Getting this wrong fails at runtime, not at deploy: the insert
+throws on an unknown column and the household is told the servers could not be
+reached.
+
+**Fail-closed, deliberately.** There is no silent-skip contract here. Until
+35a, 35b and 35c exist the route returns a clear error and the page keeps the
+form on screen with what was typed still in it. A waitlist that accepts a
+household and drops it is worse than one that says it is not open yet, and this
+is the only door the tire cohort has.
+
+**Order:** 35a first (everything else points at its `ReferenceCode`), then 35b
+and 35c in either order. 35d and 35e are optional and can come later or never.
+
+### 35a. `TireWaitlistSignups` (new table)
+
+One row per person. The row every other tire table points back at.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `ReferenceCode` | Var Char | 24 | ✅ | ✅ | | `WHL-TIRE-GTA-XXXX`, minted by the server, never by the browser. Unique is the race guard, and it is what a household quotes back to change anything |
+| `Email` | Var Char | 254 | | ✅ | ✅ | lowercased on write. Every table in this backend joins on the lowercased address, because ZCQL has no `LOWER()` and Zoho's equals is not reliably case-insensitive |
+| `FirstName` | Var Char | 120 | | ✅ | ✅ | |
+| `LastName` | Var Char | 120 | | ✅ | ✅ | |
+| `Phone` | Var Char | 20 | | | ✅ | digits only, the shape `WaitlistSignups.Phone` already stores. The canonical `+1` form goes to the CRM |
+| `FSA` | Var Char | 3 | | ✅ | | first three of the postal code, and what a cohort is grouped by |
+| `PostalFull` | Var Char | 7 | | | ✅ | tires are fitted at an address, so unlike the internet lead tables the full code earns a column here rather than living only in the CRM payload |
+| `City` | Var Char | 40 | | ✅ | | `gta`, `ottawa`, `calgary`, `edmonton`, `montreal`, `vancouver`, `other`. Only `gta` is open; the rest are a vote |
+| `Path` | Var Char | 12 | | ✅ | | `quick` or `guided`. The one number that says whether the four calculators earn their build |
+| `Source` | Var Char | 24 | | ✅ | | `tires-site` from this vertical, `umbrella-join` from `home/join.html`, which already asks internet / tires / both. Two doors reach one cohort and this is what keeps the count honest |
+| `Language` | Var Char | 5 | | | | `en` or `fr` |
+| `ReferralCode` | Var Char | 64 | | | | as typed: a code, or a neighbour's email |
+| `ConsentEmail` | Var Char | 5 | | ✅ | | `true` or `false`. Catalyst offers no boolean type |
+| `ConsentSms` | Var Char | 5 | | | | the guided path asks separately, because a text at 8pm is a different promise than an email |
+| `ConsentShare` | Var Char | 5 | | | | may their details go to matched installers |
+| `AlsoInternet` | Var Char | 5 | | | | the "add me to the internet cohort too" checkbox |
+| `ConsentText` | Text | 4000 | | ✅ | | the exact sentence agreed to. CASL needs what, when and where, and a checkbox state proves none of the three a year later |
+| `ConsentAt` | DateTime | - | | ✅ | | |
+| `SubmittedAt` | DateTime | - | | ✅ | | |
+
+### 35b. `TireWaitlistVehicles` (new table)
+
+One row per car, not per household. Two reasons: the confirm screen offers
+"Got another car? Add it to the waitlist for its own spot", and a tire cohort
+is sized by tire size, so the size is the unit a bid is built on.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `VehicleKey` | Var Char | 40 | ✅ | ✅ | | `${ReferenceCode}:${n}`. Unique is what makes a double submit one row and "add another car" idempotent. **Test this one twice by hand** |
+| `ReferenceCode` | Var Char | 24 | | ✅ | | the link back to 35a. The Data Store has no joins, so this is read as a filter |
+| `Email` | Var Char | 254 | | ✅ | ✅ | denormalised for the same reason |
+| `InputMode` | Var Char | 10 | | ✅ | | `vehicle`, `size`, `vin` or `unsure`. Someone who picked `unsure` is not a worse household, they are a household to call |
+| `VehicleYear` | Var Char | 4 | | | | |
+| `VehicleMake` | Var Char | 40 | | | | |
+| `VehicleModel` | Var Char | 60 | | | | |
+| `Vin` | Var Char | 17 | | | ✅ | identifies one specific car, so it is PII |
+| `TireSize` | Var Char | 20 | | | | exactly as typed, e.g. `225/45R17` |
+| `SizeNormalized` | Var Char | 20 | | | | parsed and canonical. Separate from what they typed, because this is the column a cohort is actually cut on and a typo must not silently become a size |
+| `Strategy` | Var Char | 12 | | | | `winter`, `allweather`, or empty when the tool was not run. The all-weather answer means no second set of rims and no storage, which changes what the bid asks for |
+| `RunsWinterNow` | Var Char | 10 | | | | `every`, `some`, `never` |
+| `OwnsRims` | Var Char | 10 | | | | `alloy`, `steel`, `no` |
+| `SubmittedAt` | DateTime | - | | ✅ | | |
+
+### 35c. `TireWaitlistDetails` (new table)
+
+One row per signup, written only by the guided path. Columns for what a bid is
+actually built from, one payload for the rest, so a new question on the form is
+not a schema change and a console visit.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `ReferenceCode` | Var Char | 24 | ✅ | ✅ | | one details row per signup |
+| `Email` | Var Char | 254 | | ✅ | ✅ | |
+| `Needs` | Var Char | 255 | | | | comma list of `tires,package,mount,install,swap,align,disposal,storage,oil` |
+| `Tier` | Var Char | 12 | | | | `recommend`, `premium`, `mid`, `value` |
+| `Brand` | Var Char | 12 | | | | `open`, `name`, `specific` |
+| `Budget` | Var Char | 12 | | | | `u800`, `800`, `1100`, `1500`, `open` |
+| `Financing` | Var Char | 8 | | | | `yes`, `maybe`, `no` |
+| `InstallerType` | Var Char | 16 | | | | `any`, `independent`, `bigbox`, `dealer`, `mobile` |
+| `Anchor` | Var Char | 8 | | | | `home`, `work`, `either` |
+| `SplitPreference` | Var Char | 12 | | | | `prefer`, `dontmind`, `one`: may fitting and storage be two places |
+| `InstallWindows` | Var Char | 255 | | | | the chosen date chips, or `any`. Fitting capacity before first snow is the real constraint on cohort size |
+| `NotBefore` | Var Char | 10 | | | | `YYYY-MM-DD`. Var Char and not DateTime: it is a date with no time, and nothing sorts on it |
+| `MustBeOnBy` | Var Char | 10 | | | | as above. Nov 1 is the usual insurance target |
+| `Memberships` | Var Char | 255 | | | | `costco,caa,triangle,club,employer,cc,none` |
+| `Priorities` | Var Char | 120 | | | | up to two of `price,early,brand,close,rep` |
+| `Readiness` | Var Char | 10 | | | | `ready`, `likely`, `watch` |
+| `Notes` | Text | 4000 | | | ✅ | free text. PII by default: people put addresses, plate numbers and phone numbers in these boxes |
+| `Payload` | Text | 10000 | | | | every answer with no column above, verbatim JSON |
+| `SubmittedAt` | DateTime | - | | ✅ | | |
+
+### 35d. `TireToolRuns` (new table, optional)
+
+The four calculators, what was answered and what was said back. Worth having:
+it is the only measure of what people are unsure about, which is what decides
+whether the guided path keeps earning its build. **Nothing breaks without it.**
+The route writes the same values into `TireWaitlistDetails.Payload` when this
+table is absent, and logs `TireToolRuns write skipped`, the same sidecar
+contract `cohort_counter` has in section 26.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `RunKey` | Var Char | 40 | ✅ | ✅ | | `${ReferenceCode}:${Tool}` |
+| `ReferenceCode` | Var Char | 24 | | ✅ | | |
+| `Tool` | Var Char | 12 | | ✅ | | `insurance`, `size`, `rims`, `strategy` |
+| `InputJson` | Text | 2000 | | ✅ | | what they answered |
+| `OutputJson` | Text | 2000 | | ✅ | | what we told them. Keep it: this is a statement we made, on a date, about their money |
+| `RanAt` | DateTime | - | | ✅ | | |
+
+### 35e. `TireCohortCounter` (new table, optional)
+
+**Only needed if a rank or a live count is ever shown.** It is not shown today,
+and that is deliberate: the prototype printed "you are #1,848", which was 1847
+plus a random number, and the port removed it.
+
+An honest count cannot come from counting rows. ZCQL refuses any `LIMIT` over
+300, a hard Catalyst ceiling, which is why `/pooling-count` answers `300+`
+rather than a number once a table passes that size. A counter row is the only
+way to show a rank that is true.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `CounterKey` | Var Char | 64 | ✅ | ✅ | | `tires:<city>`, e.g. `tires:gta` |
+| `Vertical` | Var Char | 16 | | ✅ | | `tires` |
+| `City` | Var Char | 40 | | ✅ | | |
+| `Joined` | Int | 10 | | ✅ | | incremented on each accepted signup. Default 0 |
+| `UpdatedAt` | DateTime | - | | ✅ | | |
+
+### 35f. Gate checks, in the ZCQL tab
+
+The three required tables answer at all:
+
+```sql
+SELECT ROWID FROM TireWaitlistSignups LIMIT 1;
+SELECT ROWID FROM TireWaitlistVehicles LIMIT 1;
+SELECT ROWID FROM TireWaitlistDetails LIMIT 1;
+```
+
+Then submit the guided path once against a preview of `tires.whollar.ca` and
+confirm one row in each, carrying the same `ReferenceCode`:
+
+```sql
+SELECT ReferenceCode, City, Path, Source, ConsentAt FROM TireWaitlistSignups LIMIT 5;
+SELECT VehicleKey, InputMode, SizeNormalized, Strategy FROM TireWaitlistVehicles LIMIT 5;
+SELECT ReferenceCode, Needs, InstallWindows, Readiness FROM TireWaitlistDetails LIMIT 5;
+```
+
+**Then prove the unique flags, because they are the whole race guard.** Insert
+the same `VehicleKey` twice by hand: the second must fail. Do the same for
+`TireWaitlistSignups.ReferenceCode`. If either succeeds, the column was created
+without Unique, and a double submit will duplicate a household or a car.
+
+Finally, submit the quick path: exactly one row in 35a and one in 35b, and
+**nothing in 35c**. A details row from the quick path means the route is
+writing empty preferences, which then read as answers nobody gave.
+
+---
+
+## 36. What the v5 port added: one new table, eighteen columns
+
+Section 35 was written against the first tire waitlist drop. The page that
+actually shipped is the v5 port (`tires/js/tire-kit.js`, generated by
+`scripts/port-tires.mjs`), and it asks a good deal more: four calculators whose
+answers are kept, a starting-point question, a trim, a VIN, ranked appointment
+windows, and a size acknowledgement that is a liability record rather than a
+preference.
+
+**This section is a delta.** If 35a, 35b and 35c already exist, nothing here
+asks you to recreate them. Add the columns, and one table.
+
+**None of it is fail-closed.** Every column below is optional on the write, and
+the route puts anything it cannot place into `TireWaitlistDetails.Payload`. So
+the three tables from section 35 are enough to open the door; this section is
+what stops the richest answers arriving as JSON nobody queries.
+
+### 36a. Columns to add to `TireWaitlistSignups`
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `Wave` | Int | 10 | | | | which wave of 250 this household lands in. Derived at write time from the count, and stored because the number they were told is the number they were told |
+
+`rank` is deliberately NOT a column. It cannot be computed honestly without
+36e's counter, and a rank that is really "everyone is number one" is worse than
+no rank. See the note under 35e.
+
+### 36b. Columns to add to `TireWaitlistVehicles`
+
+The car is where v5 asks the most, and where a bid is actually built.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `StartingPoint` | Var Char | 14 | | | | `none`, `tires`, `tireswheels`, `allweather`. What is in the driveway today, and it gates everything after it: a household that already owns winter tires on wheels needs fitting, not tires |
+| `TireLifeLeft` | Var Char | 10 | | | | `good`, `marginal`, `done`. Only asked when they already own winter tires, and it decides whether tires are on the order at all |
+| `VehicleTrim` | Var Char | 80 | | | | the fitment label they picked, e.g. "Sport and EX, 17 inch". Two trims of one model take different sizes, so this is what makes the size auditable |
+| `WinterSizeChosen` | Var Char | 20 | | | | the size they chose to BUY, which is not always the factory size: the tool offers a narrower or downsized winter option |
+| `SizeDownsized` | Var Char | 5 | | | | `true` when the chosen size is not the factory one. A flag rather than a derivation, because the installer needs to know at a glance |
+| `SizeAck` | Var Char | 5 | | | | **Keep this one.** `true` when they ticked that the suggested size is a suggestion, to be confirmed against their own car before anything is ordered. It is the record that the disclaimer was shown and accepted, and the only field here with a liability consequence |
+| `Staggered` | Var Char | 5 | | | | `true` when front and rear differ. Staggered cars are sized by hand, never from the table |
+| `TpmsPresent` | Var Char | 6 | | | | `yes`, `no`, `light`, `idk`. From the wheels tool. Decides whether four sensors are on the order |
+| `RimsRecommendation` | Var Char | 6 | | | | `one`, `two`, `close`. What the arithmetic told them, which is not the same as what they will buy |
+
+`SizeNormalized` from 35b keeps its meaning: the parsed factory size. It is now
+the pair to `WinterSizeChosen`, not a duplicate of it.
+
+### 36c. Columns to add to `TireWaitlistDetails`
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `BrandLine` | Var Char | 60 | | | | the specific model within the brand, e.g. `Blizzak WS90`. Filtered to what is sold in Canada this season and to winter or all-weather, so it is a real orderable line |
+| `TravelRadius` | Var Char | 6 | | | | `5`, `15`, `30`, `any` km. This is what decides which installers may bid at all |
+| `InstallerName` | Var Char | 120 | | | | only when they chose "a shop I already use". We invite that shop into the auction |
+| `InstallerAddress` | Var Char | 200 | | | ✅ | as above. PII because a named shop plus a household postal code narrows to a person |
+| `InstallerPostal` | Var Char | 7 | | | | |
+| `InsuranceHelp` | Var Char | 5 | | | | `true` when they asked for what they need to claim the discount. It is a follow-up to send, not a preference |
+| `InsurerProvince` | Var Char | 6 | | | | `ON`, `QC`, `BC`, `AB`, `OTHER`. From the insurance tool |
+| `PremiumAnnual` | Int | 10 | | | ✅ | their annual auto premium, as typed into the estimator. **PII, and the most sensitive number on the form**: it is a financial fact about a household and it was given for an estimate, not for a file. Store it only if it will be used, and turn the validator on |
+
+`Anchor` from 35c is now unused: v5 asks for a travel radius instead of home or
+work. Leave the column, it costs nothing, or drop it. `InstallWindows` is
+superseded by 36d and can hold the same value as a flat summary.
+
+### 36d. `TireInstallWindows` (new table)
+
+**The one new table.** v5 asks for up to five appointment windows, each a date
+and a time of day, and keeps them in the order they were picked, because the
+first is the one we chase hardest. That is one to many, and the ranking is the
+information: flattening it into a string throws away the only part an installer
+bids against.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `WindowKey` | Var Char | 40 | ✅ | ✅ | | `${ReferenceCode}:${Rank}`. The race guard, and what makes a resubmitted form replace rather than duplicate |
+| `ReferenceCode` | Var Char | 24 | | ✅ | | |
+| `Email` | Var Char | 254 | | ✅ | ✅ | denormalised: the Data Store has no joins |
+| `WindowDate` | Var Char | 10 | | ✅ | | `YYYY-MM-DD` |
+| `Slot` | Var Char | 10 | | ✅ | | `morning`, `midday`, `afternoon`, `evening`, `any` |
+| `Rank` | Int | 10 | | ✅ | | 1 to 5, the order they picked. 1 is the one to chase |
+| `SubmittedAt` | DateTime | - | | ✅ | | |
+
+### 36e. `TireToolRuns`, from 35d, is worth more now than it was
+
+Section 35 marked it optional and it still is. What changed is what it would
+hold: v5's calculators are not a widget, they produce a dated statement to a
+household about money. The insurance estimator in particular tells someone what
+their discount is worth against a premium they typed in.
+
+If that estimate is ever disputed, `OutputJson` is the only record of what was
+said. Create it when the route is written, not later.
+
+### 36f. Gate checks
+
+```sql
+SELECT Wave FROM TireWaitlistSignups LIMIT 1;
+SELECT StartingPoint, VehicleTrim, WinterSizeChosen, SizeAck, Staggered FROM TireWaitlistVehicles LIMIT 1;
+SELECT BrandLine, TravelRadius, InsurerProvince, PremiumAnnual FROM TireWaitlistDetails LIMIT 1;
+SELECT ROWID FROM TireInstallWindows LIMIT 1;
+```
+
+Then submit the guided path with three appointment windows picked in a
+deliberate order, and confirm three rows come back in that order:
+
+```sql
+SELECT WindowKey, WindowDate, Slot, Rank FROM TireInstallWindows LIMIT 10;
+```
+
+`Rank` 1, 2, 3 must match the order the dates were clicked, not the order of
+the dates themselves. Someone whose first choice is the latest date is telling
+you something, and a sort by date would lose it.
+
+Then run the size tool, pick the downsized option rather than the factory one,
+and finish the form: `WinterSizeChosen` differs from `SizeNormalized`,
+`SizeDownsized` is `true`, and `SizeAck` is `true`. If `SizeAck` is empty the
+form let someone past the acknowledgement, which is the one failure here with a
+consequence outside the database.
+
+## 37. Bring Whollar to my city: one table
+
+The umbrella home page ends its city row with a dashed card, "Your city, bring
+Whollar here", and a button under it. Both used to link to `/join`, which asks
+a household in a place a cohort can form for a name, a mobile and a postal
+code. Someone in a place we do not serve has nothing to do there. `POST
+/city-request` on the **formSubmit** function records the answer to the only
+question worth asking them: where should we open next.
+
+**PascalCase, like every other formSubmit table.** Same warning as section 35:
+rule 2 at the top of this document governs the auth tables, and this is not
+one. `City`, not `city`. An unknown column throws at runtime, not at deploy.
+
+**Silent-skip contract:** `FSA`, `PoolingFor` and `Marketing` are passed to
+`insertTolerant` as optional, so the row still lands on a store that has only
+the four mandatory columns. `City`, `Province`, `Email` and `SubmittedAt` are
+not optional and the insert fails without them.
+
+**Until this table exists the route returns an error and the modal keeps the
+form on screen with what was typed still in it.** It never reports a save that
+did not happen.
+
+### 37a. `CityRequests` (new table)
+
+One row per submission, and deliberately not one per person: someone who asks
+twice, six months apart, is a stronger signal than someone who asks once, and
+collapsing that on write throws the second ask away. Count distinct emails per
+city when you want households rather than asks.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `City` | Var Char | 60 | | ✅ | | as typed, whitespace collapsed. Free text on purpose: there is no list of Canadian city names worth shipping in a function, and a stale one drops exactly the small places this question exists to find. Shape-validated and capped, so it cannot carry markup or a URL |
+| `Province` | Var Char | 2 | | ✅ | | a closed list of thirteen, because this is the dimension the answers get counted on |
+| `Email` | Var Char | 254 | | ✅ | ✅ | lowercased on write, like every other table here |
+| `FSA` | Var Char | 3 | | | | first three of the postal code if one was given. The field is optional on the form: a city and a province already answer the question |
+| `PoolingFor` | Var Char | 10 | | | | `internet`, `tires` or `both`. Same closed list as `WaitlistSignups.PoolingFor` and for the same reason: it becomes a CRM picklist |
+| `Marketing` | Var Char | 5 | | | | `yes` or `no`, whether to write when the city opens. Catalyst offers no boolean type |
+| `SubmittedAt` | Date Time | | | ✅ | | |
+
+**Live drift, 2026-09-05.** The Development store has this table with
+`province` in lower case, and every other column as written above. The Data
+Store rejects an unknown column name at runtime, so that one letter answered
+500 to every submission until `insert()` in `functions/formSubmit/index.js`
+learned to read a table's live column names and write to the store's own
+spelling, logging the mismatch once per column. The form works; the column is
+still owed a rename to `Province` in the console, at which point the log line
+stops. The same mapping covers every formSubmit table, but only for case: a
+misspelt name (`Priorties`, `RunAt`) still has to be fixed in the console.
+
+### 37b. What to run once it exists
+
+```sql
+SELECT City, Province, COUNT(ROWID) FROM CityRequests
+  GROUP BY City, Province ORDER BY COUNT(ROWID) DESC
+```
+
+ZCQL has no `LOWER()`, so two spellings of one city are two rows in that
+result. Read the top of the list, not the tail.
+
+---
+
+## 38. The umbrella's show of hands: one table
+
+The home page ends with "Internet was first. Winter tires are next", eight
+buttons, and a vote. Until now the vote **saved nothing**: the button flipped
+two `hidden` attributes and printed "Thanks, your vote is in." Nothing was sent
+and nothing was recorded, so every vote cast since the page went up is gone.
+`POST /product-vote` on the **formSubmit** function records them.
+
+**Why not `product_interest` (section 23).** That table is a signed-in member
+answering a detailed survey, keyed on `` `${user_id}:${product}` ``.
+`whollar.ca` has no login, no session and no `/api/auth` rewrite, so there is
+no `user_id` to key on. Reusing it would mean inventing an identity for an
+anonymous click, and the two questions are not the same question: one is "how
+much do you pay for the mobile plan you have", the other is a show of hands.
+
+**PascalCase, like every other formSubmit table.** Same warning as sections 35
+and 37: rule 2 at the top of this document governs the auth tables, and this is
+not one. `Product`, not `product`.
+
+**Silent-skip contract:** `OtherText` and `SourcePage` are passed to
+`insertTolerant` as one optional group, so rows still land on a store that has
+only the four mandatory columns. `VoteKey`, `VoteId`, `Product` and
+`SubmittedAt` are not optional.
+
+**Until this table exists the route returns a 500 and the page says the vote
+did not save**, keeping the buttons as they were so it can be tried again. It
+never thanks anyone for a vote that was dropped, which is the whole reason this
+section exists.
+
+### 38a. `ProductVotes` (new table)
+
+**One row per pick, not one per submission.** The only question anyone will ask
+this table is how many hands went up for each product, the Data Store has no
+joins and caps a read at 300 rows, so the shape that answers it in one query is
+`GROUP BY Product`. `VoteId` groups the picks of one submission, so counting
+voters instead of picks stays one query as well.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `VoteKey` | Var Char | 64 | ✅ | ✅ | | `` `${VoteId}:${Product}` ``: a flattened composite, the same trick as `campaign_members.membership_key`, because the store has no composite unique. It is what stops a double click counting twice |
+| `VoteId` | Var Char | 16 | | ✅ | | server minted, 10 characters of the read-aloud alphabet. Groups the picks of one submission. Never comes from the client |
+| `Product` | Var Char | 32 | | ✅ | | one of `home-insurance`, `mobile-plans`, `car-maintenance`, `home-services`, `energy`, `travel`, `pet-care`, `other`. **Values, never labels**: the copy on those buttons will be edited, and storing "Car maintenance" opens a second bucket the day it becomes "Car servicing" |
+| `OtherText` | Var Char | 120 | | | | only meaningful when `Product` is `other`. The page has no text box for it yet, so it is null today and the column is here so that adding one is not a schema change |
+| `SourcePage` | Var Char | 120 | | | | the path that asked, e.g. `/`. Two pages carry this section |
+| `SubmittedAt` | Date Time | | | ✅ | | server clock, never the client's |
+
+No email column, and that is deliberate: the section asks for a hand, not an
+address, and a column nobody fills is a column someone later assumes is
+populated. When the page grows a "tell me when it opens" box, it gets an
+`Email` column and a `Marketing` flag in the same commit, the way
+`CityRequests` has them.
+
+### 38b. What to run once it exists
+
+```sql
+SELECT Product, COUNT(ROWID) FROM ProductVotes GROUP BY Product
+  ORDER BY COUNT(ROWID) DESC
+```
+
+That is picks. For people rather than picks:
+
+```sql
+SELECT COUNT(DISTINCT VoteId) FROM ProductVotes
+```
+
+And to sanity check that anything is arriving at all, which is the check that
+would have caught the silence this section fixes:
+
+```sql
+SELECT VoteId, Product, SubmittedAt FROM ProductVotes
+  ORDER BY SubmittedAt DESC LIMIT 10
+```
+
+## 39. The waitlist popup: one table
+
+All three hosts carry a corner card that asks for an email and nothing else
+(`js/referral-popup.js`, held byte identical in `1whollar`, `whollar-home` and
+`whollar-tires`). `POST /waitlist-email` on the **formSubmit** function records
+what it collects.
+
+**Why not `WaitlistSignups`.** That table's `FirstName`, `LastName`, `Phone`
+and `FSA` are mandatory, and `/waitlist-join` refuses a submission without all
+four, correctly: a household joining a cohort in a place we serve needs every
+one of them. The popup asks one question. Posting it at that route would 400 on
+four fields it never collected, and relaxing those columns to let it through
+would weaken the door that matters to widen the one that does not.
+
+**Why not a referral table.** Nothing here mints a referral code. A code in
+this backend belongs to a **member**: `lib/referral.js` issues it into
+`referral_token` (section 24) and only resolves rows whose `owner_type` is
+`member`, so a code handed to an unverified address would resolve to nobody and
+every referral made with it would count zero. `Referral` below is stored as it
+arrived, for reporting only. The lane that decides attribution is still signup
+writing `users.referral_code`, and the popup does not touch it.
+
+**PascalCase, like every other formSubmit table.** Same warning as sections 35,
+37 and 38: rule 2 at the top of this document governs the auth tables, and this
+is not one. `Email`, not `email`.
+
+**Silent-skip contract:** `Referral`, `SourcePage`, `Host` and `CtaStep` are one
+optional group passed to `insertTolerant`, so rows still land on a store that
+has only the mandatory columns. `EmailKey`, `Email`, `Product`, `ConsentText`,
+`ConsentAt` and `SubmittedAt` are **not** optional. An address kept without the
+sentence agreed to is an address we cannot lawfully mail, so it is better to
+lose the row than to keep it unmailable.
+
+**Until this table exists the route returns a 500 and the popup says the
+submission did not go through**, keeping the field on screen with what was
+typed still in it, and it does not write the `whl_cta=joined` cookie. Nothing
+thanks anybody for a submission that was dropped.
+
+### 39a. `WaitlistEmails` (new table)
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `EmailKey` | Var Char | 280 | ✅ | ✅ | ✅ | `` `${Email}:${Product}` ``: a flattened composite, the same trick as `ProductVotes.VoteKey` and `campaign_members.membership_key`, because the store has no composite unique. One row per address per product, so somebody who holds a spot on the tire page and again on the internet page is two rows and one person, and somebody who submits the same page twice is one row and one `ok` |
+| `Email` | Var Char | 254 | | ✅ | ✅ | lowercased on write. Every table in this backend joins on the lowercased address, because ZCQL has no `LOWER()` and Zoho's equals is not reliably case-insensitive |
+| `Product` | Var Char | 16 | | ✅ | | `home`, `tires` or `internet`. **The host that asked, not what they said they wanted**: the popup has no product question, so this records which page the ask was made on and nothing more. An unrecognised value is stored as `home` rather than refused |
+| `CtaStep` | Var Char | 1 | | | | `1` or `2`. Which of the popup's two asks converted, and the one number that says whether the second ask earns its place. `SELECT CtaStep, COUNT(ROWID) FROM WaitlistEmails GROUP BY CtaStep` |
+| `Referral` | Var Char | 64 | | | | the `?ref=` this page load carried, **as typed**, the same contract as `TireWaitlistSignups.ReferralCode`. Never normalised here: `whollar-core.js` and `lib/token.js` already hold two mirrored copies of the check-digit algorithm and a third would be a third thing to keep in step, for a column that is read by people and not by a count |
+| `SourcePage` | Var Char | 120 | | | | the path the ask was made on, e.g. `/` or `/bill-checkup` |
+| `Host` | Var Char | 64 | | | | from the request `Origin`, scheme stripped. `Product` is derived from the same fact by the browser, and this is the server's own reading of it: the two disagreeing is how a misconfigured copy of the widget gets noticed |
+| `ConsentText` | Text | 4000 | | ✅ | | the exact sentence agreed to. CASL needs what, when and where a year later, and a checkbox state proves none of the three |
+| `ConsentAt` | Date Time | | | ✅ | | server clock, never the browser's |
+| `SubmittedAt` | Date Time | | | ✅ | | server clock, never the browser's |
+
+No name and no phone column, and that is deliberate. The popup asks one
+question, a column nobody fills is a column someone later assumes is populated,
+and the place to collect the rest is `/join`, which the done state links to.
+
+### 39b. What to run once it exists
+
+Whether anything is arriving at all, which is the check that catches a widget
+deployed against a table that does not exist yet:
+
+```sql
+SELECT Email, Product, CtaStep, SubmittedAt FROM WaitlistEmails
+  ORDER BY SubmittedAt DESC LIMIT 10
+```
+
+Whether the second ask earns its build:
+
+```sql
+SELECT CtaStep, COUNT(ROWID) FROM WaitlistEmails GROUP BY CtaStep
+```
+
+And which host is doing the collecting:
+
+```sql
+SELECT Product, COUNT(ROWID) FROM WaitlistEmails GROUP BY Product
+  ORDER BY COUNT(ROWID) DESC
+```
+
+---
+
+## 40. The waitlist share code: two tables
+
+The popup's done state now hands the reader a link of their own, and the two
+tables here are what makes that link belong to somebody and what counts what it
+does.
+
+**Read section 39 first.** `WaitlistEmails` holds one row per address **per
+product**, on purpose: somebody who holds a spot on the tire page and again on
+the internet page is two rows there. They are still one person, and a person
+gets one code, which is the entire reason `WaitlistShareCodes` is a second
+table rather than a column on the first one. Key it on the address or the same
+household ends up handing out two different links.
+
+**This is not `referral_token`, and the difference is deliberate.** Section 24a
+mints codes that belong to a **member**, and `lib/referral.js` resolves only
+rows whose `owner_type` is `member`. A code here belongs to an email address
+with no account behind it, can never pay out a member referral, and is never
+resolved by that module at all. Putting the two kinds in one table would leave
+a single guard doing the work of telling them apart forever, so they are kept
+apart at the table level instead.
+
+The code is shaped so the two can never be confused by accident:
+
+```
+WS + 7 characters from ABCDEFGHJKLMNPQRSTUVWXYZ23456789 + 1 from GHJKLMNPQRSTVWXYZ
+```
+
+Ten characters, so `lib/token.js` (which normalises to exactly 8) rejects it on
+length. No `whl` substring, so `referral.normalize`'s legacy branch is never
+entered. And **a final character that cannot be read as hex**, which is the
+subtle one: `referral.js` reads a legacy code with a forgiving trailing hex
+scan, so a code ending in eight hex readable characters would be claimed by it
+and turned into a plausible `WHL-` code belonging to whichever member's
+`user_id` began with those digits.
+
+### 40a. `WaitlistShareCodes` (new table)
+
+One row per address, for all time, across every product and host.
+
+| Column | Type | Length | Unique | Mandatory | PII |
+|---|---|---|:--:|:--:|:--:|
+| `EmailKey` | Var Char | 254 | yes | yes | yes |
+| `ShareCode` | Var Char | 16 | yes | yes | |
+| `CreatedAt` | Date Time | | | yes | |
+
+**Both Unique flags are load bearing and they do different jobs.** `EmailKey`
+is what makes two simultaneous first submissions of one address produce one
+code: the loser of that race re-reads and returns the winner's code rather than
+retrying, and without the constraint both would insert. `ShareCode` is what
+turns a collision into a failed insert rather than two people quietly sharing a
+link, and `ensureShareCode` retries four times on it.
+
+If this table is missing, `POST /waitlist-email` still records the address and
+still answers `ok:true`. The response simply carries no `shareCode`, and the
+card falls back to a done state with no link. Nothing is lost except the link.
+
+### 40b. `ReferralClicks` (new table)
+
+| Column | Type | Length | Unique | Mandatory | PII |
+|---|---|---|:--:|:--:|:--:|
+| `ClickKey` | Var Char | 96 | yes | yes | |
+| `ShareCode` | Var Char | 16 | | yes | |
+| `Host` | Var Char | 64 | | | |
+| `SourcePage` | Var Char | 120 | | | |
+| `ClickedAt` | Date Time | | | yes | |
+
+`ClickKey` is `<code>:<YYYY-MM-DD>:<12 hex>`, the flattened composite this store
+needs because it has no composite unique, the same trick as
+`WaitlistEmails.EmailKey` and `ProductVotes.VoteKey`. The hex is
+`sha256(ip + user agent + CLICK_PEPPER)`, so **one row per code per reader per
+day**: somebody refreshing the landing page ten times is one click. The
+Unique firing is the ordinary case, not an error, and `/ref-click` answers
+`ok:true` either way.
+
+**No PII column, and there is nothing here to add one to.** The hash is the
+whole record of who: no address, no raw IP, no user agent. That is the same
+standard `invite_click` (section 25a) holds itself to, and it means this table
+can never later be joined to a person.
+
+If this table is missing, links still work and clicks are not counted.
+
+### 40c. What to run once they exist
+
+Who holds a code, newest first:
+
+```sql
+SELECT EmailKey, ShareCode, CreatedAt FROM WaitlistShareCodes
+  ORDER BY CreatedAt DESC LIMIT 20
+```
+
+**The test that matters most.** One address, submitted on two hosts, must be
+two rows in `WaitlistEmails` and exactly one here:
+
+```sql
+SELECT COUNT(ROWID) FROM WaitlistShareCodes WHERE EmailKey = 'test+1@example.com'
+```
+
+Which links are being clicked:
+
+```sql
+SELECT ShareCode, COUNT(ROWID) FROM ReferralClicks GROUP BY ShareCode
+  ORDER BY COUNT(ROWID) DESC
+```
+
+The report that reads all of this and counts signups against it is
+`GET /admin/referral/waitlist` on the auth function.
+
+### 40d. Environment, not tables
+
+The confirmation mail rides the notification outbox on the **auth** function,
+so `POST /waitlist-email` carries the ask across with one server to server
+call. Four values, and the mail is silent until all four exist:
+
+| Key | Function | Why |
+|---|---|---|
+| `AUTH_FUNCTION_URL` | formSubmit | where to send the ask |
+| `NOTIFY_CRON_SECRET` | formSubmit and auth | the same value on both, compared in constant time |
+| `MAIL_POSTAL_ADDRESS` | auth | **a hard gate.** `waitlist.welcome` is the registry's first `cem` template, and `outbox.js` writes a commercial send as `failed` with `no_postal_address` rather than sending one without it |
+| `CLICK_PEPPER` | formSubmit | optional. A missing one falls back to a build constant, which weakens click dedupe and breaks nothing |

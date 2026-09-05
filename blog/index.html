@@ -10,67 +10,120 @@
 </script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="/js/device-router.js?v=20260806a"></script>
+<script src="/js/device-router.js?v=20260905a"></script>
+<script src="/js/blog-return.js?v=20260901a" defer></script>
 <title>Resources: plain-language reads on internet pricing in Canada · Whollar</title>
-<meta name="description" content="Eleven plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
-<link rel="canonical" href="https://www.whollar.ca/blog/">
+<meta name="description" content="Sixteen plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
+<link rel="canonical" href="https://internet.whollar.ca/blog">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://www.whollar.ca/blog/">
+<meta property="og:url" content="https://internet.whollar.ca/blog">
 <meta property="og:title" content="Resources · Whollar">
-<meta property="og:description" content="Eleven plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
+<meta property="og:description" content="Sixteen plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
 <meta property="og:site_name" content="Whollar">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="https://internet.whollar.ca/og/og-resources.jpg">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Resources · Whollar">
-<meta name="twitter:description" content="Eleven plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
-<link rel="stylesheet" href="/css/whollar-type.css?v=20260905a">
+<meta name="twitter:description" content="Sixteen plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
+<meta name="twitter:image" content="https://internet.whollar.ca/og/og-resources.jpg">
+<link rel="preload" href="/fonts/blog/bricolage-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/blog/source-serif-latin.woff2" as="font" type="font/woff2" crossorigin>
+<style id="whl-blog-fonts">
+@font-face{font-family:'Bricolage Grotesque';font-style:normal;font-weight:500 800;font-stretch:100%;font-display:swap;src:url('/fonts/blog/bricolage-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Bricolage Grotesque';font-style:normal;font-weight:500 800;font-stretch:100%;font-display:swap;src:url('/fonts/blog/bricolage-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'Source Serif 4';font-style:normal;font-weight:400 700;font-display:swap;src:url('/fonts/blog/source-serif-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Source Serif 4';font-style:normal;font-weight:400 700;font-display:swap;src:url('/fonts/blog/source-serif-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'Space Mono';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/blog/space-mono-400-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Space Mono';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/blog/space-mono-400-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'Space Mono';font-style:normal;font-weight:700;font-display:swap;src:url('/fonts/blog/space-mono-700-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Space Mono';font-style:normal;font-weight:700;font-display:swap;src:url('/fonts/blog/space-mono-700-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+</style>
 <style>
   :root{
-    --paper:#FAFAF5; --card:#FFFEFB; --ink:#0E2A20; --ink-body:#27332C; --muted:#6E7B72;
+    --paper:#FAFAF5; --card:#FFFEFB; --ink:#0E2A20; --body:#27332C; --muted:#6E7B72;
     --accent:#12805A; --accent-2:#1E9E63; --wash:#EBF3ED; --line:#E5E4DA; --line-2:#D8D7CC;
     --r:22px;
     --sh-1:0 1px 2px rgba(16,40,34,.04),0 8px 24px rgba(16,40,34,.05);
     --sh-2:0 2px 6px rgba(16,40,34,.06),0 18px 44px rgba(16,40,34,.09);
+    --green:#1B4D3E;      /* wash colour over card imagery */
   }
   *{box-sizing:border-box}
   html{-webkit-text-size-adjust:100%}
-  body{margin:0;background:var(--paper);color:var(--ink-body);font-family:'DM Sans',system-ui,sans-serif;font-size:18px;line-height:1.6}
+  body{margin:0;background:var(--paper);color:var(--body);font-family:'Source Serif 4',Georgia,serif;font-size:18px;line-height:1.6}
   a{color:var(--accent);text-decoration:none}
 
   .mast{border-bottom:1px solid var(--line);background:var(--paper);position:sticky;top:0;z-index:20;backdrop-filter:saturate(120%) blur(6px)}
   .mast .in{max-width:1080px;margin:0 auto;padding:14px 26px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  /* Injected by js/blog-return.js for a reader who arrived from the dashboard
+     Knowledge centre, and by nothing else. The public index is the top of the
+     public reading lane and needs no back link; a member's lane starts one
+     level further up, in the dashboard, and the index must not be where it
+     ends. Same rules as the articles use, so the control does not change shape
+     between the two pages. */
+  .mast .left{display:inline-flex;align-items:center;gap:14px;min-width:0}
+  .mast .back{display:inline-flex;align-items:center;gap:7px;flex:none;font-family:'Space Mono';font-size:12px;font-weight:700;letter-spacing:.02em;
+    color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+  .mast .back:hover{color:var(--ink);border-color:var(--ink)}
+  .mast .back svg{width:13px;height:13px;flex:none}
+  /* Three things on one line at 390px: the wordmark drops and the back button
+     keeps only its arrow. The aria-label carries the words the eye loses. */
+  @media(max-width:600px){
+    .mast .in{gap:10px}
+    .mast .left{gap:10px}
+    .mast .back{padding:8px 10px}
+    .mast .back span{display:none}
+    .brand b{display:none}
+  }
   .brand{display:inline-flex;align-items:center;gap:9px}
   .brand svg{width:30px;height:30px;display:block}
-  .brand b{font-family:'Playfair Display',Georgia,serif;font-weight:800;font-size:19px;color:var(--ink);letter-spacing:-.01em}
-  .mast .cta{font-family:'DM Sans',system-ui,sans-serif;font-size:12px;font-weight:700;letter-spacing:.02em;color:#fff;background:var(--accent);padding:10px 16px;border-radius:10px;white-space:nowrap}
+  .brand b{font-family:'Bricolage Grotesque';font-weight:800;font-size:19px;color:var(--ink);letter-spacing:-.01em}
+  .mast .cta{font-family:'Space Mono';font-size:12px;font-weight:700;letter-spacing:.02em;color:#fff;background:var(--accent);padding:10px 16px;border-radius:10px;white-space:nowrap}
   .mast .cta:hover{background:var(--accent-2)}
 
   .hero{max-width:1080px;margin:0 auto;padding:64px 26px 12px}
-  .hero .eyebrow{font-family:'DM Sans',system-ui,sans-serif;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:14px}
-  .hero h1{font-family:'Playfair Display',Georgia,serif;font-weight:800;font-size:clamp(34px,5.4vw,58px);line-height:1.04;letter-spacing:-.02em;color:var(--ink);margin:0;max-width:16ch}
+  .hero .eyebrow{font-family:'Space Mono';font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:14px}
+  .hero h1{font-family:'Bricolage Grotesque';font-weight:800;font-size:clamp(34px,5.4vw,58px);line-height:1.04;letter-spacing:-.02em;color:var(--ink);margin:0;max-width:16ch}
   .hero .sub{font-size:clamp(18px,2.2vw,21px);color:var(--muted);font-style:italic;line-height:1.5;margin:18px 0 0;max-width:56ch}
   .hero .rule{height:1px;background:var(--line);margin:44px 0 0}
 
   .grid{max-width:1080px;margin:0 auto;padding:40px 26px 30px;display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:22px}
-  .tile{display:flex;flex-direction:column;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:26px 26px 22px;box-shadow:var(--sh-1);transition:transform .25s cubic-bezier(.22,.61,.36,1),box-shadow .25s,border-color .25s}
-  .tile:hover{transform:translateY(-4px);box-shadow:var(--sh-2);border-color:var(--accent-2)}
-  .tile:first-child{grid-column:1/-1;background:linear-gradient(135deg,var(--card) 55%,var(--wash))}
-  .tile:first-child h2{font-size:clamp(24px,3.4vw,34px);max-width:24ch}
+  .tile{display:flex;flex-direction:column;height:100%;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh-1);transition:box-shadow .25s,border-color .25s}
+  .tile:hover{box-shadow:var(--sh-2);border-color:var(--accent-2)}
+  .tile:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+  .tile-media{position:relative;overflow:hidden;isolation:isolate;background:var(--wash);aspect-ratio:3/2;flex:none}
+  .tile-media img{width:100%;height:100%;object-fit:cover;display:block}
+  .tile-body{display:flex;flex-direction:column;gap:12px;flex:1 1 auto;padding:24px 26px 20px}
+
+  .tile.featured{grid-column:1/-1;display:grid;grid-template-columns:1.1fr .9fr;align-items:stretch;background:linear-gradient(135deg,var(--card) 55%,var(--wash))}
+  .tile.featured h2{font-size:clamp(24px,3.4vw,34px);max-width:24ch}
+  .tile.featured .tile-body{padding:40px 44px;justify-content:center}
+  .tile.featured .tile-media{aspect-ratio:auto;height:100%;min-height:320px}
+  @media(max-width:768px){
+    .tile.featured{grid-template-columns:1fr}
+    .tile.featured .tile-media{order:-1;aspect-ratio:16/9;height:auto;min-height:0}
+    .tile.featured .tile-body{padding:28px 24px}
+  }
+
   .tile-top{display:flex;align-items:baseline;gap:12px}
-  .num{font-family:'DM Sans',system-ui,sans-serif;font-size:12px;font-weight:700;color:var(--line-2)}
+  .num{font-family:'Space Mono';font-size:12px;font-weight:700;color:var(--line-2)}
   .tile:hover .num{color:var(--accent-2)}
-  .tile .eyebrow{font-family:'DM Sans',system-ui,sans-serif;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
-  .tile h2{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:21px;line-height:1.18;letter-spacing:-.01em;color:var(--ink);margin:0}
+  .tile .eyebrow{font-family:'Space Mono';font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+  .tile h2{font-family:'Bricolage Grotesque';font-weight:700;font-size:21px;line-height:1.18;letter-spacing:-.01em;color:var(--ink);margin:0}
   .tile:hover h2{color:var(--accent)}
   .tile .deck{font-style:italic;color:var(--muted);font-size:16px;line-height:1.5;margin:0;flex:1}
-  .tile .meta{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:14px;font-family:'DM Sans',system-ui,sans-serif;font-size:12px;color:var(--muted)}
+  .tile .meta{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:14px;font-family:'Space Mono';font-size:12px;color:var(--muted)}
   .tile .go{color:var(--accent);font-weight:700}
-  .tile .arr{display:inline-block;transition:transform .25s cubic-bezier(.22,.61,.36,1)}
-  .tile:hover .arr{transform:translateX(4px)}
+  .tile .arr{display:inline-block}
 
 
   @media(max-width:640px){.grid{grid-template-columns:1fr;padding-top:30px}.hero{padding-top:44px}}
 </style>
+<script type="speculationrules">
+{"prefetch":[{"where":{"or":[{"href_matches":"/bill-checkup"},{"href_matches":"/blog/*"}]},"eagerness":"moderate"}],"prerender":[{"urls":["/waitlist/"],"eagerness":"moderate"}]}
+</script>
+<link rel="prefetch" href="/waitlist">
 <!-- WHOLLAR-FOOTER-CSS:START (generated by scripts/build-footer.mjs) -->
 <style id="whl-footer-css">
 .whl-footer{margin:0;background:#0A2018;color:#CFE8D6;border-top:1px solid rgba(255,255,255,.08);padding:40px 0 calc(30px + env(safe-area-inset-bottom));font-family:'DM Sans',system-ui,sans-serif;font-size:14.5px;line-height:1.5;text-align:left}
@@ -97,16 +150,141 @@
 @media(max-width:380px){.whl-footer__brand p{font-size:11.5px}}
 </style>
 <!-- WHOLLAR-FOOTER-CSS:END -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Blog",
+  "@id": "https://internet.whollar.ca/blog#blog",
+  "name": "Whollar Resources",
+  "description": "Plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.",
+  "url": "https://internet.whollar.ca/blog",
+  "inLanguage": "en-CA",
+  "publisher": {
+    "@type": "Organization",
+    "@id": "https://www.whollar.ca/#org",
+    "name": "Whollar",
+    "url": "https://www.whollar.ca/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://www.whollar.ca/logo.png"
+    }
+  },
+  "blogPost": [
+    {
+      "@type": "BlogPosting",
+      "@id": "https://internet.whollar.ca/blog/overpaying-internet-canada#article",
+      "url": "https://internet.whollar.ca/blog/overpaying-internet-canada"
+    },
+    {
+      "@type": "BlogPosting",
+      "@id": "https://internet.whollar.ca/blog/internet-price-increase-promo-cliff#article",
+      "url": "https://internet.whollar.ca/blog/internet-price-increase-promo-cliff"
+    },
+    {
+      "@type": "BlogPosting",
+      "@id": "https://internet.whollar.ca/blog/collective-switching-internet-canada#article",
+      "url": "https://internet.whollar.ca/blog/collective-switching-internet-canada"
+    },
+    {
+      "@type": "BlogPosting",
+      "@id": "https://internet.whollar.ca/blog/teksavvy-vs-rogers-same-cable#article",
+      "url": "https://internet.whollar.ca/blog/teksavvy-vs-rogers-same-cable"
+    },
+    {
+      "@type": "BlogPosting",
+      "@id": "https://internet.whollar.ca/blog/internet-bill-breakdown-canada#article",
+      "url": "https://internet.whollar.ca/blog/internet-bill-breakdown-canada"
+    },
+    {
+      "@type": "BlogPosting",
+      "@id": "https://internet.whollar.ca/blog/negotiate-internet-bill-canada#article",
+      "url": "https://internet.whollar.ca/blog/negotiate-internet-bill-canada"
+    },
+    {
+      "@type": "BlogPosting",
+      "@id": "https://internet.whollar.ca/blog/internet-retention-offer-win-back#article",
+      "url": "https://internet.whollar.ca/blog/internet-retention-offer-win-back"
+    },
+    {
+      "@type": "BlogPosting",
+      "@id": "https://internet.whollar.ca/blog/independent-internet-providers-canada#article",
+      "url": "https://internet.whollar.ca/blog/independent-internet-providers-canada"
+    },
+    {
+      "@type": "BlogPosting",
+      "@id": "https://internet.whollar.ca/blog/collective-switching-energy-proof#article",
+      "url": "https://internet.whollar.ca/blog/collective-switching-energy-proof"
+    },
+    {
+      "@type": "BlogPosting",
+      "@id": "https://internet.whollar.ca/blog/big-three-telecom-canada#article",
+      "url": "https://internet.whollar.ca/blog/big-three-telecom-canada"
+    },
+    {
+      "@type": "BlogPosting",
+      "@id": "https://internet.whollar.ca/blog/crtc-internet-prices-canada#article",
+      "url": "https://internet.whollar.ca/blog/crtc-internet-prices-canada"
+    },
+    {
+      "@type": "BlogPosting",
+      "@id": "https://internet.whollar.ca/blog/cheap-internet-chatham-ontario#article",
+      "url": "https://internet.whollar.ca/blog/cheap-internet-chatham-ontario"
+    },
+    {
+      "@type": "BlogPosting",
+      "@id": "https://internet.whollar.ca/blog/best-internet-toronto#article",
+      "url": "https://internet.whollar.ca/blog/best-internet-toronto"
+    },
+    {
+      "@type": "BlogPosting",
+      "@id": "https://internet.whollar.ca/blog/internet-speed-how-much-need#article",
+      "url": "https://internet.whollar.ca/blog/internet-speed-how-much-need"
+    },
+    {
+      "@type": "BlogPosting",
+      "@id": "https://internet.whollar.ca/blog/rural-internet-ontario#article",
+      "url": "https://internet.whollar.ca/blog/rural-internet-ontario"
+    },
+    {
+      "@type": "BlogPosting",
+      "@id": "https://internet.whollar.ca/blog/internet-providers-mississauga#article",
+      "url": "https://internet.whollar.ca/blog/internet-providers-mississauga"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://internet.whollar.ca/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Resources",
+      "item": "https://internet.whollar.ca/blog"
+    }
+  ]
+}
+</script>
 </head>
 <body>
 
 <div class="mast">
   <div class="in">
-    <a class="brand" href="/" aria-label="Whollar home">
-      <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
-      <b>Whollar</b>
-    </a>
-    <a class="cta" href="/join">Join the first cohort</a>
+    <div class="left">
+      <a class="brand" href="https://www.whollar.ca/" data-umbrella aria-label="Whollar home">
+        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
+        <b>Whollar</b>
+      </a>
+    </div>
+    <a class="cta" href="/waitlist">Join the first cohort</a>
   </div>
 </div>
 
@@ -114,109 +292,202 @@
   <section class="hero">
     <span class="eyebrow">Resources</span>
     <h1>Reading the fine print, so you do not have to.</h1>
-    <p class="sub">Eleven plain-language reads on internet pricing in Canada: how the bill is built, why the price climbs after the promo, and how collective switching works.</p>
+    <p class="sub">Sixteen plain-language reads on internet pricing in Canada: how the bill is built, why the price climbs after the promo, and how collective switching works.</p>
     <div class="rule"></div>
   </section>
 
   <section class="grid" aria-label="Articles">
-      <a class="tile" href="/blog/overpaying-internet-canada">
-        <div class="tile-top">
-          <span class="num">01</span>
-          <span class="eyebrow">Saving money</span>
+      <a class="tile featured" href="/blog/overpaying-internet-canada">
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">01</span>
+            <span class="eyebrow">Saving money</span>
+          </div>
+          <h2>The $487 problem: why most Canadians overpay for internet and never say a word</h2>
+          <p class="deck">The cheaper plan is already running on the same cables. Here is why almost nobody asks for it, and why that is not your fault.</p>
+          <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>The $487 problem: why most Canadians overpay for internet and never say a word</h2>
-        <p class="deck">The cheaper plan is already running on the same cables. Here is why almost nobody asks for it, and why that is not your fault.</p>
-        <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
+        <div class="tile-media"><img src="/images/resources/the-487-problem@2x.webp" alt="A man slumped over a desk scattered with banknotes and coins" fetchpriority="high" decoding="async" width="1600" height="1067"></div>
       </a>
       <a class="tile" href="/blog/internet-price-increase-promo-cliff">
-        <div class="tile-top">
-          <span class="num">02</span>
-          <span class="eyebrow">Saving money</span>
+        <div class="tile-media"><img src="/images/resources/promo-cliff.webp" srcset="/images/resources/promo-cliff.webp 800w, /images/resources/promo-cliff@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="Stacks of coins climbing in steps beneath a rising green arrow" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">02</span>
+            <span class="eyebrow">Saving money</span>
+          </div>
+          <h2>The promo cliff: why your internet bill quietly climbs after 12 to 24 months</h2>
+          <p class="deck">The number that won you as a customer was never the number you were going to keep paying.</p>
+          <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>The promo cliff: why your internet bill quietly climbs after 12 to 24 months</h2>
-        <p class="deck">The number that won you as a customer was never the number you were going to keep paying.</p>
-        <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
       </a>
       <a class="tile" href="/blog/collective-switching-internet-canada">
-        <div class="tile-top">
-          <span class="num">03</span>
-          <span class="eyebrow">How it works</span>
+        <div class="tile-media"><img src="/images/resources/whole-street-switch.webp" srcset="/images/resources/whole-street-switch.webp 800w, /images/resources/whole-street-switch@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="A quiet residential street of houses at sunset" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">03</span>
+            <span class="eyebrow">How it works</span>
+          </div>
+          <h2>What if your whole street switched internet at once?</h2>
+          <p class="deck">One household has no leverage. A thousand households have an auction.</p>
+          <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>What if your whole street switched internet at once?</h2>
-        <p class="deck">One household has no leverage. A thousand households have an auction.</p>
-        <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
       </a>
       <a class="tile" href="/blog/teksavvy-vs-rogers-same-cable">
-        <div class="tile-top">
-          <span class="num">04</span>
-          <span class="eyebrow">Saving money</span>
+        <div class="tile-media"><img src="/images/resources/same-cable.webp" srcset="/images/resources/same-cable.webp 800w, /images/resources/same-cable@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="An overhead view of a customer paying cash and receiving an itemized receipt" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">04</span>
+            <span class="eyebrow">Saving money</span>
+          </div>
+          <h2>Same cable, half the price: the internet markup hiding in plain sight</h2>
+          <p class="deck">A reseller sells you the incumbent's own line for a fraction of the price. Here is the math.</p>
+          <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>Same cable, half the price: the internet markup hiding in plain sight</h2>
-        <p class="deck">A reseller sells you the incumbent's own line for a fraction of the price. Here is the math.</p>
-        <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
       </a>
       <a class="tile" href="/blog/internet-bill-breakdown-canada">
-        <div class="tile-top">
-          <span class="num">05</span>
-          <span class="eyebrow">Explainers</span>
+        <div class="tile-media"><img src="/images/resources/where-the-money-goes.webp" srcset="/images/resources/where-the-money-goes.webp 800w, /images/resources/where-the-money-goes@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="Ascending stacks of gold coins beneath a rising arrow" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">05</span>
+            <span class="eyebrow">Explainers</span>
+          </div>
+          <h2>Where your $90 internet bill actually goes</h2>
+          <p class="deck">63 cents of every retail dollar never stays with the company you pay.</p>
+          <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>Where your $90 internet bill actually goes</h2>
-        <p class="deck">63 cents of every retail dollar never stays with the company you pay.</p>
-        <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
       </a>
       <a class="tile" href="/blog/negotiate-internet-bill-canada">
-        <div class="tile-top">
-          <span class="num">06</span>
-          <span class="eyebrow">Saving money</span>
+        <div class="tile-media"><img src="/images/resources/negotiate-your-bill.webp" srcset="/images/resources/negotiate-your-bill.webp 800w, /images/resources/negotiate-your-bill@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="A man mid-conversation on a corded desk phone, gesturing with one hand" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">06</span>
+            <span class="eyebrow">Saving money</span>
+          </div>
+          <h2>How to negotiate your internet bill in Canada, and where it quietly fails</h2>
+          <p class="deck">The retention script that works, the leverage that matters, and the ceiling nobody mentions.</p>
+          <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>How to negotiate your internet bill in Canada, and where it quietly fails</h2>
-        <p class="deck">The retention script that works, the leverage that matters, and the ceiling nobody mentions.</p>
-        <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
       </a>
       <a class="tile" href="/blog/internet-retention-offer-win-back">
-        <div class="tile-top">
-          <span class="num">07</span>
-          <span class="eyebrow">Explainers</span>
+        <div class="tile-media"><img src="/images/resources/win-back-offer.webp" srcset="/images/resources/win-back-offer.webp 800w, /images/resources/win-back-offer@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="A call-centre agent wearing a headset at a bank of monitors" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">07</span>
+            <span class="eyebrow">Explainers</span>
+          </div>
+          <h2>The win-back offer: what the retention desk is really telling you</h2>
+          <p class="deck">The discount only appears when you try to leave. That timing is the whole story.</p>
+          <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>The win-back offer: what the retention desk is really telling you</h2>
-        <p class="deck">The discount only appears when you try to leave. That timing is the whole story.</p>
-        <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
       </a>
       <a class="tile" href="/blog/independent-internet-providers-canada">
-        <div class="tile-top">
-          <span class="num">08</span>
-          <span class="eyebrow">Explainers</span>
+        <div class="tile-media"><img src="/images/resources/who-sells-you-internet.webp" srcset="/images/resources/who-sells-you-internet.webp 800w, /images/resources/who-sells-you-internet@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="A shopper deliberating in front of shelves of near-identical jars" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">08</span>
+            <span class="eyebrow">Explainers</span>
+          </div>
+          <h2>Independent, incumbent, or flanker: who actually sells you internet in Canada</h2>
+          <p class="deck">Half the different-looking brands on the shelf are owned by the companies you are trying to leave.</p>
+          <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>Independent, incumbent, or flanker: who actually sells you internet in Canada</h2>
-        <p class="deck">Half the different-looking brands on the shelf are owned by the companies you are trying to leave.</p>
-        <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
       </a>
       <a class="tile" href="/blog/collective-switching-energy-proof">
-        <div class="tile-top">
-          <span class="num">09</span>
-          <span class="eyebrow">How it works</span>
+        <div class="tile-media"><img src="/images/resources/collective-switching.webp" srcset="/images/resources/collective-switching.webp 800w, /images/resources/collective-switching@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="An electricity pylon with power lines fanning out overhead" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">09</span>
+            <span class="eyebrow">How it works</span>
+          </div>
+          <h2>1.5 million households already did this. It just was not for internet.</h2>
+          <p class="deck">Collective switching is not a theory. It moved energy markets for years. Now, internet.</p>
+          <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>1.5 million households already did this. It just was not for internet.</h2>
-        <p class="deck">Collective switching is not a theory. It moved energy markets for years. Now, internet.</p>
-        <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
       </a>
       <a class="tile" href="/blog/big-three-telecom-canada">
-        <div class="tile-top">
-          <span class="num">10</span>
-          <span class="eyebrow">The market</span>
+        <div class="tile-media"><img src="/images/resources/three-companies.webp" srcset="/images/resources/three-companies.webp 800w, /images/resources/three-companies@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="A telecommunications mast with dish antennas against a clear sky" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">10</span>
+            <span class="eyebrow">The market</span>
+          </div>
+          <h2>How three companies came to own most of Canadian internet</h2>
+          <p class="deck">The prices make more sense once you see who owns the pipes.</p>
+          <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>How three companies came to own most of Canadian internet</h2>
-        <p class="deck">The prices make more sense once you see who owns the pipes.</p>
-        <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
       </a>
       <a class="tile" href="/blog/crtc-internet-prices-canada">
-        <div class="tile-top">
-          <span class="num">11</span>
-          <span class="eyebrow">Explainers</span>
+        <div class="tile-media"><img src="/images/resources/crtc-internet-prices.webp" srcset="/images/resources/crtc-internet-prices.webp 800w, /images/resources/crtc-internet-prices@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="A payment terminal with a long paper receipt spilling out of it" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">11</span>
+            <span class="eyebrow">Explainers</span>
+          </div>
+          <h2>The CRTC does not set your internet price. That one sentence explains your bill.</h2>
+          <p class="deck">Wholesale is regulated. Retail is not. Once you see the split, Canadian internet pricing finally makes sense.</p>
+          <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
         </div>
-        <h2>The CRTC does not set your internet price. That one sentence explains your bill.</h2>
-        <p class="deck">Wholesale is regulated. Retail is not. Once you see the split, Canadian internet pricing finally makes sense.</p>
-        <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
+      </a>
+      <a class="tile" href="/blog/cheap-internet-chatham-ontario">
+        <div class="tile-media"><img src="/images/resources/cheap-internet-chatham.webp" srcset="/images/resources/cheap-internet-chatham.webp 800w, /images/resources/cheap-internet-chatham@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="Three children side by side on a sofa, each absorbed in a phone or tablet" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">12</span>
+            <span class="eyebrow">Local guides</span>
+          </div>
+          <h2>Cheap internet in Chatham, Ontario: the map nobody draws honestly</h2>
+          <p class="deck">The home town of Canada's biggest independent searches for cheap internet more than cities ten times its size. Here is the actual answer.</p>
+          <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
+        </div>
+      </a>
+      <a class="tile" href="/blog/best-internet-toronto">
+        <div class="tile-media"><img src="/images/resources/best-internet-toronto.webp" srcset="/images/resources/best-internet-toronto.webp 800w, /images/resources/best-internet-toronto@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="Two friends in Santa hats on a sofa, each looking at a phone" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">13</span>
+            <span class="eyebrow">Local guides</span>
+          </div>
+          <h2>Best internet in Toronto: how to actually decide</h2>
+          <p class="deck">The honest answer starts with your building, not a brand.</p>
+          <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
+        </div>
+      </a>
+      <a class="tile" href="/blog/internet-speed-how-much-need">
+        <div class="tile-media"><img src="/images/resources/internet-speed.webp" srcset="/images/resources/internet-speed.webp 800w, /images/resources/internet-speed@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="A laptop screen showing a speed test result of 531.48 Mbps download" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">14</span>
+            <span class="eyebrow">Explainers</span>
+          </div>
+          <h2>How much internet speed do you actually need?</h2>
+          <p class="deck">Almost certainly less than you are paying for. Here are the real numbers, activity by activity.</p>
+          <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
+        </div>
+      </a>
+      <a class="tile" href="/blog/rural-internet-ontario">
+        <div class="tile-media"><img src="/images/resources/rural-internet-ontario.webp" srcset="/images/resources/rural-internet-ontario.webp 800w, /images/resources/rural-internet-ontario@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="Utility poles and overhead lines running along a country road past a farmhouse and open fields" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">15</span>
+            <span class="eyebrow">Local guides</span>
+          </div>
+          <h2>Rural internet in Ontario: every real option, honestly compared</h2>
+          <p class="deck">From the last fibre pole to the open sky: what works, what it costs, what to pick.</p>
+          <div class="meta"><span>~6 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
+        </div>
+      </a>
+      <a class="tile" href="/blog/internet-providers-mississauga">
+        <div class="tile-media"><img src="/images/resources/internet-providers-mississauga.webp" srcset="/images/resources/internet-providers-mississauga.webp 800w, /images/resources/internet-providers-mississauga@2x.webp 1600w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" alt="Two technicians in high-visibility vests on a rooftop, one aligning a microwave dish on a mast while the other checks a laptop" loading="lazy" decoding="async" width="800" height="533"></div>
+        <div class="tile-body">
+          <div class="tile-top">
+            <span class="num">16</span>
+            <span class="eyebrow">Local guides</span>
+          </div>
+          <h2>Internet providers in Mississauga: the honest map</h2>
+          <p class="deck">Same wires as Toronto, softer competition, easier wins.</p>
+          <div class="meta"><span>~5 min read</span><span class="go">Read the article <span class="arr">&rarr;</span></span></div>
+        </div>
       </a>
   </section>
 </main>
@@ -234,7 +505,7 @@
         <a href="/#how">How it works</a>
         <a href="/#why">Why us</a>
         <a href="/#faq">FAQ</a>
-        <a href="/blog/" aria-current="page">Resources</a>
+        <a href="/blog" aria-current="page">Resources</a>
         <a href="/contact">Contact</a>
         </div>
         <div class="whl-footer__col">

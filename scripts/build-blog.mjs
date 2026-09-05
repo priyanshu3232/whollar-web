@@ -12,9 +12,10 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-// Canonical host is www: the apex 308-redirects to it, so sitemap/canonical/JSON-LD
-// URLs must all be www or Google chases redirects.
-const DOMAIN = 'https://www.whollar.ca';
+// Canonical host is internet.whollar.ca, the product host since the 2026-09 domain
+// restructure. www.whollar.ca 301s every page path here, so a sitemap, canonical or
+// JSON-LD URL left on www makes Google chase a redirect.
+const DOMAIN = 'https://internet.whollar.ca';
 const EM_DASH = '—';
 
 const PUBLISH_DATE = process.argv[2];
@@ -35,6 +36,11 @@ const SLUGS = [
   ['whollar-blog-09-energy-proof.html', 'collective-switching-energy-proof'],
   ['whollar-blog-10-big-three.html', 'big-three-telecom-canada'],
   ['whollar-blog-11-crtc-wholesale-retail.html', 'crtc-internet-prices-canada'],
+  ['whollar-blog-12-cheap-internet-chatham.html', 'cheap-internet-chatham-ontario'],
+  ['whollar-blog-13-best-internet-toronto.html', 'best-internet-toronto'],
+  ['whollar-blog-14-internet-speed.html', 'internet-speed-how-much-need'],
+  ['whollar-blog-15-rural-internet-ontario.html', 'rural-internet-ontario'],
+  ['whollar-blog-16-internet-providers-mississauga.html', 'internet-providers-mississauga'],
 ];
 const slugSet = new Set(SLUGS.map(([, s]) => s));
 
@@ -100,11 +106,21 @@ for (const [file, slug] of SLUGS) {
 
   // 4b. device-router include after the viewport meta: articles are mapped to
   // /MobileVersion/blog/<slug> counterparts, so phones must be routed off them.
-  const routerTag = '<script src="/js/device-router.js?v=20260806a"></script>';
+  const routerTag = '<script src="/js/device-router.js?v=20260905a"></script>';
   if (!html.includes(routerTag)) {
     const viewport = html.match(/<meta name="viewport"[^>]*>/);
     if (!viewport) fail(file, 'viewport meta not found');
     html = html.replace(viewport[0], `${viewport[0]}\n${routerTag}`);
+  }
+
+  // 4c. blog-return include. An article opened from the dashboard's Knowledge
+  // centre arrives stamped ?from=dashboard; this repoints "All articles" at
+  // /dashboard#knowledge so a member is not dropped out of the product onto
+  // the public index, which has no route back in. Deferred, unlike the router:
+  // it rewrites links rather than redirecting, so it must not block the parse.
+  const returnTag = '<script src="/js/blog-return.js?v=20260901a" defer></script>';
+  if (!html.includes(returnTag)) {
+    html = html.replace(routerTag, `${routerTag}\n${returnTag}`);
   }
 
   // Verification gates
@@ -166,19 +182,20 @@ const indexHtml = `<!DOCTYPE html>
 </script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="/js/device-router.js?v=20260806a"></script>
+<script src="/js/device-router.js?v=20260905a"></script>
+<script src="/js/blog-return.js?v=20260901a" defer></script>
 <title>Resources: plain-language reads on internet pricing in Canada · Whollar</title>
-<meta name="description" content="Eleven plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
+<meta name="description" content="Fifteen plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
 <link rel="canonical" href="${DOMAIN}/blog/">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
 <meta property="og:url" content="${DOMAIN}/blog/">
 <meta property="og:title" content="Resources · Whollar">
-<meta property="og:description" content="Eleven plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
+<meta property="og:description" content="Fifteen plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
 <meta property="og:site_name" content="Whollar">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Resources · Whollar">
-<meta name="twitter:description" content="Eleven plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
+<meta name="twitter:description" content="Fifteen plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
 <link rel="stylesheet" href="/css/whollar-type.css?v=20260905a">
 <style>
   :root{
@@ -195,6 +212,26 @@ const indexHtml = `<!DOCTYPE html>
 
   .mast{border-bottom:1px solid var(--line);background:var(--paper);position:sticky;top:0;z-index:20;backdrop-filter:saturate(120%) blur(6px)}
   .mast .in{max-width:1080px;margin:0 auto;padding:14px 26px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  /* Injected by js/blog-return.js for a reader who arrived from the dashboard
+     Knowledge centre, and by nothing else. The public index is the top of the
+     public reading lane and needs no back link; a member's lane starts one
+     level further up, in the dashboard, and the index must not be where it
+     ends. Same rules as the articles use, so the control does not change shape
+     between the two pages. */
+  .mast .left{display:inline-flex;align-items:center;gap:14px;min-width:0}
+  .mast .back{display:inline-flex;align-items:center;gap:7px;flex:none;font-family:'Space Mono';font-size:12px;font-weight:700;letter-spacing:.02em;
+    color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+  .mast .back:hover{color:var(--ink);border-color:var(--ink)}
+  .mast .back svg{width:13px;height:13px;flex:none}
+  /* Three things on one line at 390px: the wordmark drops and the back button
+     keeps only its arrow. The aria-label carries the words the eye loses. */
+  @media(max-width:600px){
+    .mast .in{gap:10px}
+    .mast .left{gap:10px}
+    .mast .back{padding:8px 10px}
+    .mast .back span{display:none}
+    .brand b{display:none}
+  }
   .brand{display:inline-flex;align-items:center;gap:9px}
   .brand svg{width:30px;height:30px;display:block}
   .brand b{font-family:'Playfair Display',Georgia,serif;font-weight:800;font-size:19px;color:var(--ink);letter-spacing:-.01em}
@@ -232,10 +269,12 @@ const indexHtml = `<!DOCTYPE html>
 
 <div class="mast">
   <div class="in">
-    <a class="brand" href="/" aria-label="Whollar home">
-      <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
-      <b>Whollar</b>
-    </a>
+    <div class="left">
+      <a class="brand" href="/" aria-label="Whollar home">
+        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="wm" x1="18" y1="14" x2="102" y2="106" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0E2A20"/><stop offset="1" stop-color="#1E9E63"/></linearGradient></defs><rect x="6" y="6" width="108" height="108" rx="32" fill="url(#wm)"/><path d="M34 42h52M34 42l26 38M86 42l-26 38" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><circle cx="34" cy="42" r="11" fill="#fff"/><circle cx="86" cy="42" r="11" fill="#fff"/><circle cx="60" cy="80" r="11" fill="#fff"/></svg>
+        <b>Whollar</b>
+      </a>
+    </div>
     <a class="cta" href="/join">Join the first cohort</a>
   </div>
 </div>
@@ -244,7 +283,7 @@ const indexHtml = `<!DOCTYPE html>
   <section class="hero">
     <span class="eyebrow">Resources</span>
     <h1>Reading the fine print, so you do not have to.</h1>
-    <p class="sub">Eleven plain-language reads on internet pricing in Canada: how the bill is built, why the price climbs after the promo, and how collective switching works.</p>
+    <p class="sub">Fifteen plain-language reads on internet pricing in Canada: how the bill is built, why the price climbs after the promo, and how collective switching works.</p>
     <div class="rule"></div>
   </section>
 
@@ -261,7 +300,7 @@ ${tiles}
         <p>Wholesale buying power that saves you dollars</p>
       </div>
       <div class="whl-footer__cols">
-        <div class="whl-footer__col"><a href="/#how">How it works</a><a href="/#why">Why us</a><a href="/#faq">FAQ</a><a href="/blog/" aria-current="page">Resources</a><a href="/contact">Contact</a></div>
+        <div class="whl-footer__col"><a href="/#how">How it works</a><a href="/#why">Why us</a><a href="/#faq">FAQ</a><a href="/blog" aria-current="page">Resources</a><a href="/contact">Contact</a></div>
         <div class="whl-footer__col"><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/partners">For providers</a></div>
       </div>
     </div>
@@ -284,10 +323,10 @@ console.log('ok  /blog/ (Resources page)');
 // The sitemap covers the whole site, not just the blog: regenerating it must
 // never drop the money/legal pages again. Static entries carry no lastmod (we
 // don't know when they last changed; an invented date is worse than none).
-const STATIC_PAGES = ['/', '/bill-checkup', '/become-a-partner', '/partners', '/waitlist/', '/contact', '/terms', '/privacy'];
+const STATIC_PAGES = ['/', '/bill-checkup', '/become-a-partner', '/partners', '/waitlist', '/contact', '/greystonewalk', '/terms', '/privacy'];
 const entries = [
   ...STATIC_PAGES.map(p => `  <url><loc>${DOMAIN}${p}</loc></url>`),
-  `  <url><loc>${DOMAIN}/blog/</loc><lastmod>${PUBLISH_DATE}</lastmod></url>`,
+  `  <url><loc>${DOMAIN}/blog</loc><lastmod>${PUBLISH_DATE}</lastmod></url>`,
   ...SLUGS.map(([, s]) => `  <url><loc>${DOMAIN}/blog/${s}</loc><lastmod>${PUBLISH_DATE}</lastmod></url>`),
 ];
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
