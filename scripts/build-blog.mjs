@@ -196,12 +196,10 @@ const indexHtml = `<!DOCTYPE html>
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Resources · Whollar">
 <meta name="twitter:description" content="Fifteen plain-language reads from Whollar on internet pricing in Canada: how bills are built, why prices climb after the promo, and how collective switching works.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/whollar-type.css?v=20260905a">
 <style>
   :root{
-    --paper:#FAFAF5; --card:#FFFEFB; --ink:#0E2A20; --body:#27332C; --muted:#6E7B72;
+    --paper:#FAFAF5; --card:#FFFEFB; --ink:#0E2A20; --ink-body:#27332C; --muted:#6E7B72;
     --accent:#12805A; --accent-2:#1E9E63; --wash:#EBF3ED; --line:#E5E4DA; --line-2:#D8D7CC;
     --r:22px;
     --sh-1:0 1px 2px rgba(16,40,34,.04),0 8px 24px rgba(16,40,34,.05);
@@ -209,7 +207,7 @@ const indexHtml = `<!DOCTYPE html>
   }
   *{box-sizing:border-box}
   html{-webkit-text-size-adjust:100%}
-  body{margin:0;background:var(--paper);color:var(--body);font-family:'Source Serif 4',Georgia,serif;font-size:18px;line-height:1.6}
+  body{margin:0;background:var(--paper);color:var(--ink-body);font-family:'DM Sans',system-ui,sans-serif;font-size:18px;line-height:1.6}
   a{color:var(--accent);text-decoration:none}
 
   .mast{border-bottom:1px solid var(--line);background:var(--paper);position:sticky;top:0;z-index:20;backdrop-filter:saturate(120%) blur(6px)}
@@ -236,13 +234,13 @@ const indexHtml = `<!DOCTYPE html>
   }
   .brand{display:inline-flex;align-items:center;gap:9px}
   .brand svg{width:30px;height:30px;display:block}
-  .brand b{font-family:'Bricolage Grotesque';font-weight:800;font-size:19px;color:var(--ink);letter-spacing:-.01em}
-  .mast .cta{font-family:'Space Mono';font-size:12px;font-weight:700;letter-spacing:.02em;color:#fff;background:var(--accent);padding:10px 16px;border-radius:10px;white-space:nowrap}
+  .brand b{font-family:'Playfair Display',Georgia,serif;font-weight:800;font-size:19px;color:var(--ink);letter-spacing:-.01em}
+  .mast .cta{font-family:'DM Sans',system-ui,sans-serif;font-size:12px;font-weight:700;letter-spacing:.02em;color:#fff;background:var(--accent);padding:10px 16px;border-radius:10px;white-space:nowrap}
   .mast .cta:hover{background:var(--accent-2)}
 
   .hero{max-width:1080px;margin:0 auto;padding:64px 26px 12px}
-  .hero .eyebrow{font-family:'Space Mono';font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:14px}
-  .hero h1{font-family:'Bricolage Grotesque';font-weight:800;font-size:clamp(34px,5.4vw,58px);line-height:1.04;letter-spacing:-.02em;color:var(--ink);margin:0;max-width:16ch}
+  .hero .eyebrow{font-family:'DM Sans',system-ui,sans-serif;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:14px}
+  .hero h1{font-family:'Playfair Display',Georgia,serif;font-weight:800;font-size:clamp(34px,5.4vw,58px);line-height:1.04;letter-spacing:-.02em;color:var(--ink);margin:0;max-width:16ch}
   .hero .sub{font-size:clamp(18px,2.2vw,21px);color:var(--muted);font-style:italic;line-height:1.5;margin:18px 0 0;max-width:56ch}
   .hero .rule{height:1px;background:var(--line);margin:44px 0 0}
 
@@ -252,13 +250,13 @@ const indexHtml = `<!DOCTYPE html>
   .tile:first-child{grid-column:1/-1;background:linear-gradient(135deg,var(--card) 55%,var(--wash))}
   .tile:first-child h2{font-size:clamp(24px,3.4vw,34px);max-width:24ch}
   .tile-top{display:flex;align-items:baseline;gap:12px}
-  .num{font-family:'Space Mono';font-size:12px;font-weight:700;color:var(--line-2)}
+  .num{font-family:'DM Sans',system-ui,sans-serif;font-size:12px;font-weight:700;color:var(--line-2)}
   .tile:hover .num{color:var(--accent-2)}
-  .tile .eyebrow{font-family:'Space Mono';font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
-  .tile h2{font-family:'Bricolage Grotesque';font-weight:700;font-size:21px;line-height:1.18;letter-spacing:-.01em;color:var(--ink);margin:0}
+  .tile .eyebrow{font-family:'DM Sans',system-ui,sans-serif;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+  .tile h2{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:21px;line-height:1.18;letter-spacing:-.01em;color:var(--ink);margin:0}
   .tile:hover h2{color:var(--accent)}
   .tile .deck{font-style:italic;color:var(--muted);font-size:16px;line-height:1.5;margin:0;flex:1}
-  .tile .meta{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:14px;font-family:'Space Mono';font-size:12px;color:var(--muted)}
+  .tile .meta{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:14px;font-family:'DM Sans',system-ui,sans-serif;font-size:12px;color:var(--muted)}
   .tile .go{color:var(--accent);font-weight:700}
   .tile .arr{display:inline-block;transition:transform .25s cubic-bezier(.22,.61,.36,1)}
   .tile:hover .arr{transform:translateX(4px)}

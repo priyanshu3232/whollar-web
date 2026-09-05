@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <script src="/js/device-router.js?v=20260905a"></script>
-<script src="/js/whollar-benchmarks.js?v=20260806"></script><script src="/js/whollar-base-pricing.js?v=20260807c"></script><script src="/js/whollar-estimate-bench.js?v=20260814a"></script><script src="/js/whollar-core.js?v=20260905a"></script><script type="text/javascript">(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window, document, "clarity", "script", "xrkpgls1yj");</script>
+<script src="/js/whollar-benchmarks.js?v=20260806"></script><script src="/js/whollar-base-pricing.js?v=20260807c"></script><script src="/js/whollar-estimate-bench.js?v=20260814a"></script><script src="/js/whollar-core.js?v=20260906a"></script><script type="text/javascript">(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window, document, "clarity", "script", "xrkpgls1yj");</script>
 <title>Whollar: wholesale prices on home internet</title>
 <link rel="canonical" href="https://internet.whollar.ca/">
 <meta name="description" content="Whollar pools Canadian households by neighbourhood and renewal date, then makes internet providers bid for the whole group. Check if you are overpaying.">
@@ -16,266 +16,37 @@
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Whollar: wholesale prices on home internet">
 <meta name="twitter:description" content="Whollar pools Canadian households by neighbourhood and renewal date, then makes internet providers bid for the whole group. Check if you are overpaying.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link rel="stylesheet" href="/css/whollar-type.css?v=20260905a">
 <style>/* cyrillic-ext */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/inter-var-cyrillic-ext.woff2") format('woff2');
-  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
-}
 /* cyrillic */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/inter-var-cyrillic.woff2") format('woff2');
-  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
-}
 /* greek-ext */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/inter-var-greek-ext.woff2") format('woff2');
-  unicode-range: U+1F00-1FFF;
-}
 /* greek */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/inter-var-greek.woff2") format('woff2');
-  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
-}
 /* vietnamese */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/inter-var-vietnamese.woff2") format('woff2');
-  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
-}
 /* latin-ext */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/inter-var-latin-ext.woff2") format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
 /* latin */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/inter-var-latin.woff2") format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
 /* cyrillic-ext */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url("/fonts/inter-var-cyrillic-ext.woff2") format('woff2');
-  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
-}
 /* cyrillic */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url("/fonts/inter-var-cyrillic.woff2") format('woff2');
-  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
-}
 /* greek-ext */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url("/fonts/inter-var-greek-ext.woff2") format('woff2');
-  unicode-range: U+1F00-1FFF;
-}
 /* greek */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url("/fonts/inter-var-greek.woff2") format('woff2');
-  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
-}
 /* vietnamese */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url("/fonts/inter-var-vietnamese.woff2") format('woff2');
-  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
-}
 /* latin-ext */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url("/fonts/inter-var-latin-ext.woff2") format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
 /* latin */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url("/fonts/inter-var-latin.woff2") format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
 /* cyrillic-ext */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/inter-var-cyrillic-ext.woff2") format('woff2');
-  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
-}
 /* cyrillic */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/inter-var-cyrillic.woff2") format('woff2');
-  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
-}
 /* greek-ext */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/inter-var-greek-ext.woff2") format('woff2');
-  unicode-range: U+1F00-1FFF;
-}
 /* greek */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/inter-var-greek.woff2") format('woff2');
-  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
-}
 /* vietnamese */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/inter-var-vietnamese.woff2") format('woff2');
-  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
-}
 /* latin-ext */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/inter-var-latin-ext.woff2") format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
 /* latin */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/inter-var-latin.woff2") format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
 /* cyrillic-ext */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("/fonts/inter-var-cyrillic-ext.woff2") format('woff2');
-  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
-}
 /* cyrillic */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("/fonts/inter-var-cyrillic.woff2") format('woff2');
-  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
-}
 /* greek-ext */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("/fonts/inter-var-greek-ext.woff2") format('woff2');
-  unicode-range: U+1F00-1FFF;
-}
 /* greek */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("/fonts/inter-var-greek.woff2") format('woff2');
-  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
-}
 /* vietnamese */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("/fonts/inter-var-vietnamese.woff2") format('woff2');
-  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
-}
 /* latin-ext */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("/fonts/inter-var-latin-ext.woff2") format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
 /* latin */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("/fonts/inter-var-latin.woff2") format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
 </style>
 <style>
-@font-face{font-family:'Satoshi';src:url("/fonts/satoshi-400.woff2") format('woff2');font-weight:400;font-display:swap;font-style:normal}
-@font-face{font-family:'Satoshi';src:url("/fonts/satoshi-500.woff2") format('woff2');font-weight:500;font-display:swap;font-style:normal}
-@font-face{font-family:'Satoshi';src:url("/fonts/satoshi-700.woff2") format('woff2');font-weight:700;font-display:swap;font-style:normal}
-@font-face{font-family:'Satoshi';src:url("/fonts/satoshi-900.woff2") format('woff2');font-weight:900;font-display:swap;font-style:normal}
 
 /* ============================================================
    TABLET LAYER (641–1024px): smooth intermediate step
@@ -292,9 +63,9 @@
   --cream:#FAF8F3; --paper:#ffffff; --mist:#F6F4EE;
   --ink:#2B3A33; --ink-2:#54625B; --ink-3:#8A968F; --line:#e7ebe6;
   --green:#1E9E63; --green-deep:#178A5A; --warn:#C2643B; --warn-soft:#B58C7A;
-  --label:'General Sans','Satoshi',system-ui,sans-serif;
-  --disp:'Satoshi',system-ui,sans-serif;
-  --body:'Inter',system-ui,sans-serif;
+  --label:'DM Sans',system-ui,sans-serif;
+  --disp:'Playfair Display',Georgia,serif;
+  --body:'DM Sans',system-ui,sans-serif;
   --wrap:1340px;
   --r:22px; --rf:26px;
   /* elevation system: resting / raised / floating */
@@ -318,8 +89,8 @@ img,svg{display:block}
 /* layout */
 .whl-wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}
 .whl-section{padding:clamp(60px,8.5vw,104px) 0}
-.whl-eyebrow{display:inline-block;font-family:var(--label);font-weight:600;font-size:12.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);margin:0 0 16px}
-.whl-h2{font-weight:900;font-size:clamp(28px,4.2vw,46px)}
+.whl-eyebrow{display:inline-block;font-family:var(--label);font-weight:700;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 16px}
+.whl-h2{font-weight:700;font-size:clamp(34px,3.8vw,54px);line-height:1.06;letter-spacing:-.015em}
 .whl-lead{font-size:clamp(16px,1.6vw,18.5px);line-height:1.55}
 .whl-head{max-width:680px;margin-bottom:46px}
 .whl-head--split{max-width:none;display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(24px,5vw,64px);align-items:start;margin-bottom:48px}
@@ -375,7 +146,7 @@ img,svg{display:block}
 /* hero cards */
 .whl-hero .whl-card{background:var(--paper);border:1px solid var(--line);box-shadow:var(--sh-2)}
 .whl-hero__grid{display:grid;grid-template-columns:1fr 500px;gap:44px;align-items:center}
-.whl-hero h1{font-weight:900;font-size:clamp(40px,5.4vw,68px);line-height:1.02;letter-spacing:-.03em;margin:0 0 22px;text-wrap:balance}
+.whl-hero h1{font-weight:700;font-size:clamp(46px,5.4vw,78px);line-height:.98;letter-spacing:-.018em;margin:0 0 22px;text-wrap:balance}
 .whl-hero__sub{font-size:clamp(16px,1.5vw,18.5px);line-height:1.5;color:var(--ink-2);max-width:520px;margin:0 0 24px}
 .whl-hero__cta-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:0 0 22px}
 .whl-hero__cta svg{transition:transform .18s var(--ease)}
@@ -596,7 +367,7 @@ img,svg{display:block}
 
 /* PANEL 2: Gmail inbox mockup with Whollar promo alert */
 .whl-hard__panel[data-panel="2"] .whl-hp__static{padding:12px;align-items:stretch}
-.whl-hp__gmail{font-family:'Google Sans','Roboto',Arial,sans-serif;width:100%;max-width:none;align-self:stretch}
+.whl-hp__gmail{font-family:'DM Sans',system-ui,sans-serif;width:100%;max-width:none;align-self:stretch}
 .whl-hp__gmail .gmail-outer{background:#fff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 18px 44px -16px rgba(16,40,34,.22)}
 .whl-hp__gmail .gmail-topbar{display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid #e8eaed;background:#fff}
 .whl-hp__gmail .g-logo{display:flex;align-items:center;font-size:21px;font-weight:400;letter-spacing:-.3px;line-height:1}
@@ -956,7 +727,7 @@ img,svg{display:block}
 
 /* provider logo strip */
 .whl-logos{background:#FAF8F3;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:30px 0;overflow:hidden;position:relative}
-.whl-logos__label{text-align:center;color:#7a8893;font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;margin:0 0 22px}
+.whl-logos__label{text-align:center;color:#7a8893;font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;margin:0 0 22px;position:relative;z-index:3}
 .whl-logos__track{display:flex;align-items:center;gap:72px;width:max-content;animation:whl-logo-scroll 90s linear infinite;will-change:transform}
 .whl-logos:hover .whl-logos__track{animation-play-state:paused}
 .whl-logos__track img{height:32px;width:auto;flex-shrink:0;opacity:.78;filter:grayscale(.2);transition:opacity .2s var(--ease),filter .2s var(--ease)}
@@ -1032,7 +803,7 @@ img,svg{display:block}
 .hs-tl--r{background:#FF5F57}
 .hs-tl--y{background:#FEBC2E}
 .hs-tl--g{background:#28C840}
-.how-mactitle{position:absolute;left:50%;transform:translateX(-50%);font-size:11.5px;font-weight:600;color:#3a4744;font-family:'Inter',system-ui,sans-serif;letter-spacing:.01em;transition:color .3s ease}
+.how-mactitle{position:absolute;left:50%;transform:translateX(-50%);font-size:11.5px;font-weight:600;color:#3a4744;font-family:'DM Sans',system-ui,sans-serif;letter-spacing:.01em;transition:color .3s ease}
 .how-macbar.is-dark .how-mactitle{color:rgba(255,255,255,.78)}
 
 /* Hinge (thin strip below lid) */
@@ -1044,7 +815,7 @@ img,svg{display:block}
 
 /* Scene stage: fills screen below the title bar */
 .how-stage{position:absolute;inset:0;overflow:hidden;z-index:2;background:#fff}
-.how-scene{position:absolute;inset:0;display:flex;flex-direction:column;padding:38px 28px 22px;transform:translateY(100%);transition:transform .42s cubic-bezier(.45,.05,.2,1);will-change:transform;font-family:'Inter',system-ui,sans-serif}
+.how-scene{position:absolute;inset:0;display:flex;flex-direction:column;padding:38px 28px 22px;transform:translateY(100%);transition:transform .42s cubic-bezier(.45,.05,.2,1);will-change:transform;font-family:'DM Sans',system-ui,sans-serif}
 .how-scene.is-active{transform:translateY(0)}
 .how-scene.is-out{transform:translateY(-100%)}
 .how-scene--light{background:#fff;color:#0f1a18}
@@ -1431,9 +1202,34 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .sf-wrap .sf-phone-col{display:none}
   .sf-wrap .sf-problem-grid{grid-template-columns:1fr;gap:22px}
   .sf-wrap .sf-mobile-sub{display:block;color:var(--ink-soft,#54625B);font-size:16px;line-height:1.5;margin:0 0 26px}
-  .sf-mobile-cards{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:2px 0 6px;align-items:stretch}
+  .sf-mobile-cards{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:2px 0 6px;align-items:center;perspective:900px}
   .sf-mobile-cards::-webkit-scrollbar{display:none}
-  .sf-mcard{flex:0 0 86%;scroll-snap-align:center;box-sizing:border-box;background:#1B4D3E;border-radius:22px;padding:22px 20px;display:flex;flex-direction:column}
+  /* --sf-d is written by the scroll handler: 0 for the card under the centre of
+     the track, rising to 1 for one a full slide away. Everything below reads it,
+     so the depth is one number and the CSS decides what it looks like. */
+  .sf-mcard{flex:0 0 100%;scroll-snap-align:center;box-sizing:border-box;background:#1B4D3E;
+    border-radius:22px;padding:22px 20px;display:flex;flex-direction:column;
+    --sf-d:1;--sf-s:0;
+    /* --sf-s carries the SIGN as well, so a card can lean towards the middle: the one
+       on the right turns its right edge away, the one on the left its left edge, and
+       the centred card comes out flat at 0. No transition on any of this - the values
+       are rewritten every scroll frame, so a transition would only lag the finger. */
+    /* the shrink pulls a neighbour's inner edge away from the screen edge, and the
+       tilt narrows it further - together they hid the peek completely. The translate
+       pulls it back towards the middle so roughly a thumb's width still shows. */
+    transform:translateX(calc(var(--sf-s) * -11%)) rotateY(calc(var(--sf-s) * 13deg)) scale(calc(1 - .16 * var(--sf-d)));
+    opacity:calc(1 - .48 * var(--sf-d));
+    box-shadow:0 calc(5px + 20px * (1 - var(--sf-d))) calc(14px + 34px * (1 - var(--sf-d))) rgba(9,32,24,calc(.14 + .26 * (1 - var(--sf-d))));
+    will-change:transform,opacity}
+  /* the depth is decoration: without it the track is still a plain snap carousel */
+  @media (prefers-reduced-motion:reduce){
+    .sf-mcard{transform:none;opacity:1;transition:none}
+  }
+  /* position, and a way to step the deck without swiping */
+  .sf-dots{display:flex;justify-content:center;align-items:center;gap:7px;margin-top:15px}
+  .sf-dot{width:7px;height:7px;border-radius:100px;background:rgba(27,77,62,.2);
+    transition:width .25s var(--ease),background .25s var(--ease);cursor:pointer}
+  .sf-dot.is-on{width:22px;background:#1B4D3E}
   .sf-mcard__head{display:flex;align-items:center;gap:11px;margin-bottom:16px}
   .sf-mcard__snoo{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;line-height:0}
   .sf-mcard__meta{display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -1573,6 +1369,13 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .whl-how + .whl-section{padding-top:40px}
   .whl-talk{padding:40px 0 44px}
   .whl-logos{padding:22px 0}
+  /* the strip edges fade the scrolling track, but the label sits in that same
+     90px band and was washing out at both ends on a 375px screen; it also wrapped
+     mid-phrase. Narrower tracking keeps it on one line inside the clear middle. */
+  /* sized off the viewport so it grows on a 430px phone without wrapping on a
+     360px one: the phrase is ~27.7x the font size at this tracking, and the
+     clamp keeps that under the width at both ends */
+  .whl-logos__label{font-size:clamp(11.5px,3.2vw,14px);letter-spacing:.04em;font-weight:700;color:var(--ink-2);padding:0 12px}
   /* a 46px heading margin plus the layout gap left a hole between every section
      heading and its content: worth ~74px before the FAQ list alone */
   .whl-head{margin-bottom:22px}
@@ -1604,16 +1407,28 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .whl-burger[aria-expanded="true"] span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
 
   .whl-mobnav{
-    position:fixed;inset:0;width:100%;height:100dvh;max-height:none;overflow:auto;
-    display:flex;flex-direction:column;gap:0;padding:86px 24px calc(40px + env(safe-area-inset-bottom));
-    background:var(--paper,#FAF8F3);border:none;box-shadow:none;border-radius:0;
+    /* a right-hand panel, not a full sheet: about a third of the page stays
+       visible and dimmed behind it, so the menu reads as a layer over the
+       page rather than a separate screen you have navigated to */
+    position:fixed;inset:0 0 0 auto;width:68%;min-width:248px;max-width:320px;
+    height:100dvh;max-height:none;overflow:auto;
+    display:flex;flex-direction:column;gap:0;padding:86px 20px calc(40px + env(safe-area-inset-bottom));
+    background:var(--paper,#FAF8F3);border:none;box-shadow:-16px 0 40px rgba(14,42,32,.18);border-radius:0;
     transform:translateX(100%);transition:transform .3s cubic-bezier(.16,1,.3,1);
     visibility:visible;opacity:1;z-index:120;
   }
   .whl-mobnav.is-open{transform:translateX(0)}
+  /* the dimmed third of the page. It is a sibling of the header, so the header's
+     z-index:130 keeps both the panel and the close button above it. */
+  .whl-mobnav__scrim{
+    position:fixed;inset:0;z-index:115;background:rgba(14,42,32,.42);
+    opacity:0;visibility:hidden;transition:opacity .3s ease,visibility .3s ease;
+    -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);border:none;padding:0;
+  }
+  .whl-mobnav__scrim.is-open{opacity:1;visibility:visible}
   .whl-mobnav a[data-mobnav-link]:not(.whl-btn){
-    font-family:var(--disp);font-size:26px;font-weight:600;letter-spacing:-.01em;color:var(--ink);
-    padding:18px 2px;border-bottom:1px solid var(--line);text-decoration:none;
+    font-family:var(--disp);font-size:20px;font-weight:600;letter-spacing:-.01em;color:var(--ink);
+    padding:14px 2px;border-bottom:1px solid var(--line);text-decoration:none;
     opacity:0;transform:translateY(10px);transition:opacity .3s ease,transform .3s cubic-bezier(.16,1,.3,1)}
   .whl-mobnav.is-open a[data-mobnav-link]:not(.whl-btn){opacity:1;transform:none}
   .whl-mobnav.is-open a:nth-child(1){transition-delay:.06s}
@@ -1706,7 +1521,9 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   .sf-wrap .pain-sec{padding:18px 0 26px}
   .sf-wrap .pain-wrap{padding:0 20px 8px}
   .sf-wrap .pain-wrap h2{margin-bottom:12px}
-  .sf-mobile-cards{margin:0 -20px;padding:2px 20px 6px}
+  /* 11% each side is the room the first and last card need to reach the centre of
+     the track; it is also the gap the neighbouring cards peek through */
+  .sf-mobile-cards{margin:0 -20px;padding:2px 11% 6px}
 
   /* compact pain tiles: all four visible at once */
   .sf-wrap .sf-tiles{gap:10px}
@@ -1804,9 +1621,9 @@ body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;o
   --wh-accent:#1E9E63; --wh-accent-hover:#22B06F; --wh-mint:#7FE3B0;
   --wh-cream:#FAF8F3; --wh-warn-soft:#E7B393;
   --wh-tx:#EAF4EE; --wh-tx-mut:#A6C4B6; --wh-tx-faint:#7A9488;
-  --wh-disp:'Satoshi',system-ui,-apple-system,sans-serif;
-  --wh-label:'General Sans','Satoshi',system-ui,sans-serif;
-  --wh-body:'Inter',system-ui,-apple-system,sans-serif;
+  --wh-disp:'Playfair Display',Georgia,serif;
+  --wh-label:'DM Sans',system-ui,sans-serif;
+  --wh-body:'DM Sans',system-ui,sans-serif;
   --wh-ease:cubic-bezier(.22,.61,.36,1);
   position:relative; min-height:0; overflow:hidden; display:none;
   font-family:var(--wh-body); color:var(--wh-tx); -webkit-font-smoothing:antialiased;
@@ -1927,13 +1744,13 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
 </style>
 <!-- WHOLLAR-FOOTER-CSS:START (generated by scripts/build-footer.mjs) -->
 <style id="whl-footer-css">
-.whl-footer{margin:0;background:#0A2018;color:#CFE8D6;border-top:1px solid rgba(255,255,255,.08);padding:40px 0 calc(30px + env(safe-area-inset-bottom));font-family:Inter,'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14.5px;line-height:1.5;text-align:left}
+.whl-footer{margin:0;background:#0A2018;color:#CFE8D6;border-top:1px solid rgba(255,255,255,.08);padding:40px 0 calc(30px + env(safe-area-inset-bottom));font-family:'DM Sans',system-ui,sans-serif;font-size:14.5px;line-height:1.5;text-align:left}
 .whl-footer__wrap{max-width:1340px;margin:0 auto;padding:0 24px}
 .whl-footer__top{display:grid;grid-template-columns:1fr auto 1fr;gap:28px;align-items:start;padding-bottom:30px;border-bottom:1px solid rgba(255,255,255,.12)}
 .whl-footer__brand{max-width:340px}
 .whl-footer__row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .whl-footer__mk{width:30px;height:30px;border-radius:9px;flex:none;display:block}
-.whl-footer__wm{font-family:'Satoshi','Hanken Grotesk','Bricolage Grotesque',Inter,system-ui,sans-serif;font-weight:800;font-size:20px;letter-spacing:-.01em;color:#fff}
+.whl-footer__wm{font-family:'Playfair Display',Georgia,serif;font-weight:800;font-size:20px;letter-spacing:-.01em;color:#fff}
 .whl-footer__brand p{margin:0;font-size:14px;line-height:1.5;color:#9FC1BF;font-style:normal;white-space:nowrap}
 .whl-footer__cols{display:flex;gap:96px;flex-wrap:wrap;margin:0 auto}
 .whl-footer__col{display:flex;flex-direction:column;gap:11px}
@@ -1999,6 +1816,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
     <a class="whl-btn whl-btn--outline whl-btn--block" href="/whollar-login-consumer" data-mobnav-link="">Log in</a><a class="whl-btn whl-btn--block" href="/MobileVersion/join-the-first-cohort-mobile" data-mobnav-link="">Join the First Cohort</a>
   </nav>
 </header>
+<button class="whl-mobnav__scrim" type="button" data-mobnav-scrim aria-label="Close menu" tabindex="-1"></button>
 
 <!-- HERO (mobile: animated dark) -->
 <section id="whero" aria-label="Stop paying the loyalty tax">
@@ -2180,25 +1998,25 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
       <div class="whl-reveal" style="position:relative;">
         <div style="position:relative;background:#fff;border:1px solid rgba(14,42,32,0.07);border-radius:28px;padding:30px 28px 26px;box-shadow:0 40px 80px -40px rgba(14,42,32,0.4),0 2px 6px -2px rgba(14,42,32,0.06);">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;">
-            <span style="font-family:'Satoshi',sans-serif;font-weight:600;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#8A968F;">Same street · Same plan</span>
+            <span style="font-family:'Playfair Display',Georgia,serif;font-weight:600;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#8A968F;">Same street · Same plan</span>
             <span style="font-size:12px;color:#8A968F;display:inline-flex;align-items:center;gap:5px;"><span style="width:7px;height:7px;border-radius:50%;background:var(--accent);"></span>1.5 Gbps fibre</span>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
             <div style="border:1px solid rgba(14,42,32,0.08);border-radius:18px;padding:18px 16px;text-align:center;background:rgba(40,176,112,.07);">
               <div class="whl-home-lottie" autoplay="" loop="" style="width:124px;height:124px;display:inline-block;margin-bottom:-10px"></div>
               <div style="font-size:12.5px;color:#7A867F;margin-bottom:2px;">142 Maple Cres · negotiated</div>
-              <div style="font-family:'Satoshi',sans-serif;font-weight:900;font-size:34px;letter-spacing:-0.02em;color:var(--ink);">$<span data-count-to="58">0</span><span style="font-size:14px;font-weight:500;color:#8A968F;">/mo</span></div>
+              <div style="font-family:'Playfair Display',Georgia,serif;font-weight:900;font-size:34px;letter-spacing:-0.02em;color:var(--ink);">$<span data-count-to="58">0</span><span style="font-size:14px;font-weight:500;color:#8A968F;">/mo</span></div>
               <div data-bar="62%" style="height:6px;width:0;background:var(--green-deep);border-radius:100px;margin-top:12px;transition:width 1.1s cubic-bezier(.16,.84,.44,1);"></div>
             </div>
             <div style="border:1px solid rgba(14,42,32,0.08);border-radius:18px;padding:18px 16px;text-align:center;background:rgba(194,100,59,.06);">
               <div class="whl-home-lottie" autoplay="" loop="" style="width:124px;height:124px;display:inline-block;margin-bottom:-10px"></div>
               <div style="font-size:12.5px;color:#7A867F;margin-bottom:2px;">144 Maple Cres · never asked</div>
-              <div style="font-family:'Satoshi',sans-serif;font-weight:900;font-size:34px;letter-spacing:-0.02em;color:var(--warn);">$<span data-count-to="94">0</span><span style="font-size:14px;font-weight:500;color:#caa192;">/mo</span></div>
+              <div style="font-family:'Playfair Display',Georgia,serif;font-weight:900;font-size:34px;letter-spacing:-0.02em;color:var(--warn);">$<span data-count-to="94">0</span><span style="font-size:14px;font-weight:500;color:#caa192;">/mo</span></div>
               <div data-bar="100%" style="height:6px;width:0;background:var(--warn);border-radius:100px;margin-top:12px;transition:width 1.1s cubic-bezier(.16,.84,.44,1);transition-delay:.15s;"></div>
             </div>
           </div>
           <div style="margin-top:18px;display:flex;align-items:center;justify-content:center;gap:9px;background:var(--ink);color:#fff;border-radius:14px;padding:13px;font-size:14.5px;">
-            <span style="opacity:.7;">Same connection, paying</span><span style="font-family:'Satoshi',sans-serif;font-weight:700;color:var(--warn-soft);">$432 more a year</span>
+            <span style="opacity:.7;">Same connection, paying</span><span style="font-family:'Playfair Display',Georgia,serif;font-weight:700;color:var(--warn-soft);">$432 more a year</span>
           </div>
         </div>
       </div>
@@ -2284,6 +2102,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
 
       <!-- Mobile: reddit cards as an auto-advancing L→R carousel (phone frame hidden ≤640px) -->
       <div class="sf-mobile-cards" id="sf-mobile-cards" aria-hidden="true"></div>
+      <div class="sf-dots" id="sf-dots" aria-hidden="true"></div>
 
       <!-- Right: tiles -->
       <div class="sf-tiles" id="sf-tiles"></div>
@@ -2344,7 +2163,45 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
     function stop(){ if(timer){clearInterval(timer);timer=null;} }
     function pauseNow(){ paused=true; clearTimeout(resumeT); resumeT=setTimeout(function(){paused=false;},6500); }
     ['touchstart','pointerdown','wheel'].forEach(function(ev){ wrap.addEventListener(ev,pauseNow,{passive:true}); });
+    /* Depth pass. Writes how far each card sits from the centre of the track as a
+       0..1 number and lets the CSS decide what that looks like, so the scale, fade
+       and shadow stay in the stylesheet. One rAF per scroll frame: the debounced
+       block below still owns `idx`, this only paints. */
+    var depthRAF=null;
+    /* Dots double as the position readout and as a way to step the deck without
+       swiping. The whole carousel is aria-hidden, so these are spans, not buttons:
+       a focusable control inside aria-hidden content is a trap for anyone on a
+       keyboard or a screen reader. */
+    var dotWrap=document.getElementById('sf-dots'), dots=[];
+    function buildDots(){
+      if(!dotWrap) return;
+      dotWrap.innerHTML=new Array(cards().length+1).join('<span class="sf-dot"></span>');
+      dots=[].slice.call(dotWrap.querySelectorAll('.sf-dot'));
+      dots.forEach(function(dot,i){ dot.addEventListener('click',function(){ pauseNow(); go(i); }); });
+    }
+    function paintDepth(){
+      depthRAF=null;
+      var c=cards(); if(!c.length) return;
+      var mid=wrap.scrollLeft+wrap.clientWidth/2;
+      /* one step of the track is a slide plus the gap, so a neighbour reads exactly 1 */
+      var span=c[0].offsetWidth+14;
+      var near=0, nd=1e9;
+      for(var i=0;i<c.length;i++){
+        var cc=c[i].offsetLeft+c[i].offsetWidth/2;
+        var raw=(cc-mid)/span, d=Math.abs(raw);
+        c[i].style.setProperty('--sf-d', Math.min(1,d).toFixed(3));
+        c[i].style.setProperty('--sf-s', Math.max(-1,Math.min(1,raw)).toFixed(3));
+        if(d<nd){ nd=d; near=i; }
+      }
+      for(var j=0;j<dots.length;j++) dots[j].classList.toggle('is-on', j===near);
+    }
+    function queueDepth(){ if(depthRAF==null) depthRAF=requestAnimationFrame(paintDepth); }
+    buildDots();
+    queueDepth();
+    window.addEventListener('resize',queueDepth,{passive:true});
+
     wrap.addEventListener('scroll',function(){
+      queueDepth();
       clearTimeout(scrollT);
       scrollT=setTimeout(function(){
         var c=cards(), mid=wrap.scrollLeft+wrap.clientWidth/2, best=0, bd=1e9;
@@ -2571,14 +2428,14 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
 <!-- SECTION 4: BIG IDEA -->
   <section style="position:relative;z-index:1;padding:clamp(80px,11vh,140px) 0;background:linear-gradient(180deg,transparent,rgba(16,185,129,0.05),transparent);">
     <div style="width:100%;max-width:1080px;margin:0 auto;padding:0 clamp(24px,5vw,40px);text-align:center;">
-      <h2 class="whl-reveal" style="font-family:'Satoshi',sans-serif;font-weight:900;font-size:clamp(30px,4.6vw,54px);line-height:1.06;letter-spacing:-0.03em;color:var(--ink);margin:0 auto 56px;max-width:820px;text-wrap:balance;">One household has no leverage. <span style="color:var(--green)">Hundreds do.</span></h2>
+      <h2 class="whl-reveal" style="font-family:'Playfair Display',Georgia,serif;font-weight:900;font-size:clamp(30px,4.6vw,54px);line-height:1.06;letter-spacing:-0.03em;color:var(--ink);margin:0 auto 56px;max-width:820px;text-wrap:balance;">One household has no leverage. <span style="color:var(--green)">Hundreds do.</span></h2>
       <div class="whl-reveal" style="display:grid;grid-template-columns:0.8fr auto 1.2fr;gap:clamp(20px,4vw,52px);align-items:center;background:#fff;border:1px solid rgba(14,42,32,0.07);border-radius:28px;padding:clamp(28px,5vw,52px);box-shadow:0 40px 90px -50px rgba(14,42,32,0.4);">
         <div style="text-align:center;">
           <div class="whl-home-lottie" autoplay="" loop="" style="width:160px;height:160px;display:inline-block;margin-bottom:-8px"></div>
-          <div style="font-family:'Satoshi',sans-serif;font-weight:700;font-size:17px;color:var(--ink);">One household</div>
+          <div style="font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:17px;color:var(--ink);">One household</div>
           <div style="font-size:13.5px;color:#8A968F;margin-top:3px;">Easy to ignore</div>
         </div>
-        <div style="font-family:'Satoshi',sans-serif;font-weight:500;font-size:26px;color:#C7CFC9;">→</div>
+        <div style="font-family:'Playfair Display',Georgia,serif;font-weight:500;font-size:26px;color:#C7CFC9;">→</div>
         <div style="text-align:center;">
           <div style="position:relative;height:120px;margin-bottom:8px;">
             <svg viewBox="0 0 320 120" width="100%" height="120" fill="none" preserveAspectRatio="xMidYMid meet">
@@ -2586,7 +2443,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
               <g fill="var(--accent)"><circle cx="40" cy="30" r="6" style="animation:wh-twinkle 3s ease-in-out infinite"></circle><circle cx="100" cy="70" r="6" style="animation:wh-twinkle 3s ease-in-out infinite .4s"></circle><circle cx="160" cy="30" r="7" style="animation:wh-twinkle 3s ease-in-out infinite .8s"></circle><circle cx="220" cy="70" r="6" style="animation:wh-twinkle 3s ease-in-out infinite 1.2s"></circle><circle cx="280" cy="30" r="6" style="animation:wh-twinkle 3s ease-in-out infinite 1.6s"></circle><circle cx="160" cy="90" r="6" style="animation:wh-twinkle 3s ease-in-out infinite 2s"></circle></g>
             </svg>
           </div>
-          <div style="font-family:'Satoshi',sans-serif;font-weight:700;font-size:17px;color:var(--ink);">A whole neighbourhood</div>
+          <div style="font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:17px;color:var(--ink);">A whole neighbourhood</div>
           <div style="font-size:13.5px;color:var(--accent);margin-top:3px;font-weight:500;">Impossible to ignore</div>
         </div>
       </div>
@@ -3698,7 +3555,7 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
       </g>
     </svg>
     <div style="position:relative;z-index:1;">
-      <h2 style="font-family:'Satoshi',sans-serif;font-weight:900;font-size:clamp(32px,4.8vw,58px);line-height:1.05;letter-spacing:-0.03em;color:#fff;margin:0 auto 22px;max-width:760px;text-wrap:balance;">Your internet shouldn't get more expensive just because you stayed loyal.</h2>
+      <h2 style="font-family:'Playfair Display',Georgia,serif;font-weight:900;font-size:clamp(32px,4.8vw,58px);line-height:1.05;letter-spacing:-0.03em;color:#fff;margin:0 auto 22px;max-width:760px;text-wrap:balance;">Your internet shouldn't get more expensive just because you stayed loyal.</h2>
       <p style="font-size:18.5px;line-height:1.6;color:rgba(255,255,255,0.72);max-width:520px;margin:0 auto 36px;">Join the households putting an end to the loyalty tax. Check your bill in two minutes. You'll never negotiate alone again.</p>
       <div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:center;">
         <a href="/MobileVersion/bill-checkup-mobile" class="whl-cta10-btn" style="display:inline-flex;align-items:center;gap:9px;background:#fff;color:var(--ink);font-size:16.5px;font-weight:600;padding:16px 30px;border-radius:13px;text-decoration:none;transition:transform .2s;">Check if I'm overpaying<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
@@ -3802,12 +3659,15 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
   /* mobile nav toggle */
   var burger = document.querySelector('[data-burger]');
   var mobnav = document.querySelector('[data-mobnav]');
+  var scrim = document.querySelector('[data-mobnav-scrim]');
   if(burger && mobnav){
     function setNav(open){
       mobnav.classList.toggle('is-open', open);
+      if(scrim){ scrim.classList.toggle('is-open', open); scrim.tabIndex = open ? 0 : -1; }
       burger.setAttribute('aria-expanded', open ? 'true':'false');
       burger.setAttribute('aria-label', open ? 'Close menu':'Open menu');
     }
+    if(scrim) scrim.addEventListener('click', function(){ setNav(false); });
     burger.addEventListener('click', function(){ setNav(!mobnav.classList.contains('is-open')); });
     mobnav.querySelectorAll('[data-mobnav-link]').forEach(function(a){ a.addEventListener('click', function(){ setNav(false); }); });
     window.addEventListener('resize', function(){ if(window.innerWidth > 880) setNav(false); });
@@ -4201,6 +4061,10 @@ body{max-width:430px;margin:0 auto;background:#FAF8F3;box-shadow:0 0 60px rgba(0
   function syncLock(){ document.body.classList.toggle('whl-noscroll', mobnav && mobnav.classList.contains('is-open')); }
   if(burger){ burger.addEventListener('click', function(){ setTimeout(syncLock, 0); }); }
   if(mobnav){ mobnav.querySelectorAll('[data-mobnav-link]').forEach(function(a){ a.addEventListener('click', function(){ setTimeout(syncLock,0); }); }); }
+  /* closing by tapping the dimmed page is a third way out of the menu, and it has
+     to release the lock too or the page below is left frozen */
+  var lockScrim = document.querySelector('[data-mobnav-scrim]');
+  if(lockScrim){ lockScrim.addEventListener('click', function(){ setTimeout(syncLock,0); }); }
   /* close on Escape */
   document.addEventListener('keydown', function(e){ if(e.key==='Escape' && mobnav && mobnav.classList.contains('is-open') && burger){ burger.click(); } });
 

@@ -102,7 +102,7 @@
   var TERRITORY_NAME = { NU: 'Nunavut', NT: 'Northwest Territories', YT: 'Yukon' };
 
   /* Returns null for anything that is not a real Canadian FSA, otherwise
-     { fsa, full, complete, province, provinceCode }. `full` is null until all
+     { fsa, full, complete, province, provinceCode, city }. `full` is null until
      six characters are present and valid. */
   W.parsePostal = function (raw) {
     var s = String(raw == null ? '' : raw).toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -112,13 +112,21 @@
     var code = fsa.charAt(0) === 'X' ? (X_FSA[fsa] || null) : (PROVINCE_CODE[fsa.charAt(0)] || null);
     var name = code && TERRITORY_NAME[code] ? TERRITORY_NAME[code] : PROVINCE_NAME[fsa.charAt(0)];
     var complete = s.length === 6 && RE_FULL.test(s);
+    /* The province is only ever as specific as the first letter, so every FSA
+       in Ontario resolves to the same word and a reader cannot tell whether
+       their code was understood. FSA_CITY is the GeoNames table built by
+       scripts/build-fsa-cities.mjs and carries the actual locality. It ships as
+       a separate script that not every page loads, hence the guard: a caller
+       without it gets null rather than a broken lookup. */
+    var loc = W.FSA_CITY ? W.FSA_CITY[fsa] : null;
 
     return {
       fsa: fsa,
       full: complete ? fsa + ' ' + s.slice(3, 6) : null,
       complete: complete,
       province: name || null,
-      provinceCode: code
+      provinceCode: code,
+      city: loc ? loc.city : null
     };
   };
 

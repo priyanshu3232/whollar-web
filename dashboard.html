@@ -13,24 +13,20 @@
      the visitor is, because a Google sign-in lands here with a cookie and an
      empty localStorage. Synchronous and in the head so the guard at the foot of
      the body can rely on it. -->
-<script src="/js/whollar-core.js?v=20260905a"></script>
+<script src="/js/whollar-core.js?v=20260906a"></script>
 <script src="/js/whollar-select.js?v=20260905a"></script>
 <!-- The same savings engine /bill-checkup runs, so the deal signal band states
      the checkup's verdict rather than a second opinion about the same bill.
      Nothing here recomputes what the engine already decides: the band feeds it
      the member's stored bill and prints what comes back, assumptions included. -->
 <script src="/js/checkup-savings.js?v=20260813"></script>
-<link rel="preconnect" href="https://api.fontshare.com">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/whollar-type.css?v=20260905a">
 <style>
 :root{
   --ink:#2B3A33; --ink2:#0A2018; --accent:#1E9E63; --accent-deep:#178A5A; --mint:#E4F4EC;
   --glow:#7FE3B0; --terra:#C2643B; --terra-soft:#F7E7DD; --paper:#FAF8F3; --card:#ffffff;
-  --line:#e7ebe6; --sub:#54625B; --disp:'Satoshi',system-ui,sans-serif;
-  --body:'Inter',system-ui,sans-serif; --mono:'Space Mono',ui-monospace,monospace;
+  --line:#e7ebe6; --sub:#54625B; --disp:'Playfair Display',Georgia,serif;
+  --body:'DM Sans',system-ui,sans-serif; --mono:'Space Mono',ui-monospace,monospace;
   --panew:264px; --panec:78px;
 }
 *{box-sizing:border-box;margin:0;padding:0}

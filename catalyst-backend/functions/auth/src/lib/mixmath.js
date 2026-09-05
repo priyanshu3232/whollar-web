@@ -10,6 +10,31 @@
  * downstream re-derives a cent.
  */
 
+/* The custom mix: shares of the reduction, turned into cents that add up.
+ *
+ * THE MIX ALLOCATES THE GAP, NOT THE STICKER. A tier has a sticker price (the
+ * rate card) and an effective price (what the cohort pays), and the reduction
+ * between them is a fixed number of cents. A custom mix names that reduction
+ * in parts: each row claims a share of it, the shares total 100%, and the
+ * effective price the partner typed is never recomputed from the mix. So a
+ * valid mix always reconciles to the effective price by construction, which
+ * is why there is no "the mix averages to a different figure" state here.
+ *
+ * An earlier version read each row as a percentage OFF STICKER, so two rows of
+ * 50% came to 100% off and a $0 tier. That is the defect this module replaces.
+ *
+ * ONE SOURCE, TWO RUNTIMES. The console composes the mix and shows the money
+ * live; the server validates the same rows and seals the same cents. Both must
+ * land on the same cent, so this file is the only place the arithmetic lives:
+ * scripts/build-mixmath.mjs emits the CommonJS copy the Catalyst function
+ * requires, and its --check gate keeps the two identical. No imports here, on
+ * purpose: the generator is a text transform and the module has to stand
+ * alone.
+ *
+ * ALL MONEY IS INTEGER CENTS. Shares are integer tenths of a percent (33.3%
+ * is 333). Nothing in here touches a float where a cent is decided.
+ */
+
 var MIX_MAX_ROWS = 5;
 
 /* The reduction reads offered on the ticket minus 'none', which is the absence

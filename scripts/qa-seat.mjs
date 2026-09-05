@@ -95,15 +95,22 @@ const boot = async (c) => {
   return p;
 };
 
-const browser = await chromium.launch();
+/* Playwright's own chromium is not installed on every machine that runs this
+   (it needs `npx playwright install`), while a system Chrome usually is. Try
+   the bundled build first so CI behaviour is unchanged, then fall back. */
+const browser = await chromium.launch().catch(() => chromium.launch({ channel: 'chrome' }));
 
 /* 1. The ledger renders the affordance it is told, and only that. AC 1, 2. */
 console.log('ledger follows the server affordance');
+/* The exit is deliberately present at EVERY affordance now. It used to be
+   painted only while the cohort was forming, which left the later stages with
+   no control carrying the word "leave" even though each one has a real way out.
+   What the button opens is still stage-specific - that is asserted in 1b. */
 for (const [aff, expectLeave, expectText] of [
   ['leave', true, 'Your seat is held in'],
-  ['locked', false, 'You are still not committed to switch'],
-  ['pass', false, 'Pass on this round'],
-  ['concierge', false, 'Message my concierge'],
+  ['locked', true, 'You are still not committed to switch'],
+  ['pass', true, 'Pass on this round'],
+  ['concierge', true, 'Message my concierge'],
 ]) {
   const c = await ctx(browser, { affordance: aff });
   const p = await boot(c);
@@ -116,6 +123,34 @@ for (const [aff, expectLeave, expectText] of [
   ok(state.html.includes(expectText), `${aff}: says "${expectText}"`);
   ok(!state.disabled, `${aff}: no disabled control rendered`);
   ok(p._errors.length === 0, `${aff}: zero page errors`);
+  await closeCtx(c);
+}
+
+/* 1b. The always-present exit must not be a dead button: at each stage it has
+   to open a sheet that names that stage's real way out. A button that opens
+   nothing, or that opens the forming-stage copy after the seal, would be worse
+   than the old behaviour of hiding it. */
+console.log('the exit opens the right room at each stage');
+for (const [aff, expectTitle, expectAction] of [
+  ['locked', 'Leave the', 'Tell me when I can leave'],
+  ['pass', 'Leave the', 'Pass on this round'],
+  ['cancel', 'Back out of the switch?', 'Take me to the controls'],
+  ['concierge', 'Leave while the switch is in motion?', 'Message my concierge'],
+]) {
+  const c = await ctx(browser, { affordance: aff });
+  const p = await boot(c);
+  await p.click('[data-seatleave-link]');
+  await p.waitForTimeout(400);
+  const sheet = await p.evaluate(() => {
+    const t = document.querySelector('#sxs-title');
+    const a = document.querySelector('[data-seatstageact]');
+    return { title: t ? t.textContent.trim() : null, act: a ? a.textContent.trim() : null,
+             kind: a ? a.getAttribute('data-seatstageact') : null };
+  });
+  ok(sheet.title !== null, `${aff}: exit sheet opens`);
+  ok(sheet.title && sheet.title.includes(expectTitle), `${aff}: titled for the stage`);
+  ok(sheet.act === expectAction, `${aff}: offers "${expectAction}"`);
+  ok(p._errors.length === 0, `${aff}: zero page errors opening the exit`);
   await closeCtx(c);
 }
 
@@ -251,7 +286,7 @@ console.log('exit sheet');
   ok(!st.open, 'sheet closes on the race');
   ok(/sealed while this page was open/.test(st.toast), 'the honest message, not a generic error');
   ok(/not committed to switch/.test(st.ledger), 'ledger swapped to the locked state in place');
-  ok(!/Leave this cohort/.test(st.ledger), 'exit link gone after the swap');
+  ok(/Leave this cohort/.test(st.ledger), 'exit link still offered after the swap');
   ok(p._errors.length === 0, 'zero page errors');
   await closeCtx(c);
 }
