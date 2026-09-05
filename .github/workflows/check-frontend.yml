@@ -66,6 +66,26 @@ jobs:
       - name: Shared core parses
         run: node --check js/whollar-core.js
 
+      # The waitlist popup, held byte identical in whollar-home and
+      # whollar-tires as well. This gate only proves it parses here; the
+      # checksum in js/referral-popup.sha256 is what records the version the
+      # three repos are meant to agree on, because `cmp` cannot reach across
+      # repos since the September 2026 split. Changing it is three commits.
+      - name: Waitlist popup parses
+        run: node --check js/referral-popup.js
+
+      # Fails when the popup on disk is not the one the checksum names, which
+      # is the only signal a hand-edit in one repo leaves behind.
+      - name: Waitlist popup matches its checksum
+        run: shasum -a 256 -c js/referral-popup.sha256
+
+      # The popup run for real against a DOM stub: it opens on a trigger and
+      # not before, stays silent where the full form already is, refuses an
+      # incomplete address without touching the network, and turns over to
+      # "You are in" only after the post came back. No install, on purpose.
+      - name: Waitlist popup behaves
+        run: node scripts/smoke-referral-popup.mjs
+
       # The site-wide dropdown. It rewrites every <select> on the pages that
       # load it, so a parse error takes out four forms at once rather than one.
       - name: Shared select parses
