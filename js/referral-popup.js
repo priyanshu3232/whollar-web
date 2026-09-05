@@ -262,11 +262,20 @@
    * second state machine.
    */
   var CSS = [
-    '.whl-cta{position:fixed;right:20px;bottom:20px;z-index:9000;width:360px;',
-    'max-width:calc(100vw - 40px);font:400 15px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;',
+    /* THE MIDDLE OF THE SCREEN, NOT A CORNER OF IT. The card used to sit
+       where the launcher sits, which read as a notification rather than as an
+       answer to the button somebody had just pressed. The root is now the
+       whole viewport with a scrim on it, and the card is centred in that with
+       `margin:auto` rather than `align-items:center`, because a flex item
+       centred the other way is clipped at its top edge once it grows taller
+       than the scroller it is in, and the done state does grow. */
+    '.whl-cta{position:fixed;top:0;right:0;bottom:0;left:0;z-index:9000;display:flex;overflow-y:auto;',
+    'padding:20px;background:rgba(14,42,32,.45);',
+    'font:400 15px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;',
     'color:#0E2A20}',
     '.whl-cta[hidden]{display:none}',
-    '.whl-cta .whl-card{position:relative;background:#FFFEFB;border:1px solid rgba(14,42,32,.1);border-radius:22px;',
+    '.whl-cta .whl-card{position:relative;margin:auto;width:360px;max-width:100%;',
+    'background:#FFFEFB;border:1px solid rgba(14,42,32,.1);border-radius:22px;',
     'padding:24px 22px 20px;box-shadow:0 18px 40px -22px rgba(14,42,32,.35);animation:whl-cta-in .28s ease-out both}',
     '.whl-cta h2{font-family:inherit;font-weight:700;font-size:22px;line-height:1.15;',
     'letter-spacing:-.01em;margin:0 0 8px;padding-right:34px;color:inherit}',
@@ -336,16 +345,14 @@
     '.whl-cta .whl-live{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}',
     '@keyframes whl-cta-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}',
     '@media (prefers-reduced-motion:reduce){.whl-cta .whl-card{animation:none}}',
-    /* Under 600px it stops being a corner card and becomes a sheet on the
-       bottom edge, with a grab bar, because 360px in a corner on a phone is
-       a card with no corner to sit in. */
+    /* Under 600px the card was a sheet on the bottom edge with a grab bar,
+       which was the right shape while the wide card lived in a corner. Both
+       are centred now, so the phone keeps one card in one place and only
+       gives up the fixed 360px and some of the padding. */
     '@media (max-width:600px){',
-    '.whl-cta{right:0;left:0;bottom:0;width:auto;max-width:none}',
-    '.whl-cta .whl-card{border-radius:22px 22px 0 0;padding-top:20px}',
-    '.whl-cta .whl-card::before{content:"";display:block;width:40px;height:4px;border-radius:2px;',
-    'background:currentColor;opacity:.25;margin:0 auto 14px}',
-    /* The card takes the whole bottom edge here, so the launcher sits clear of
-       the home indicator rather than under it. */
+    '.whl-cta{padding:16px}',
+    '.whl-cta .whl-card{width:100%}',
+    /* The launcher sits clear of the home indicator rather than under it. */
     '.whl-cta-launch{right:16px;bottom:calc(16px + env(safe-area-inset-bottom));',
     'height:44px;padding:0 18px;font-size:14px}',
     '}'
@@ -465,6 +472,13 @@
     });
     root.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' || e.key === 'Esc') { e.stopPropagation(); dismiss(); }
+    });
+    /* The scrim is the root's own padding, so a click that lands on the root
+       itself is a click beside the card and means what the close button means.
+       Guarded on the target, because a click inside the card bubbles here too
+       and closing on that would take the card away mid sentence. */
+    root.addEventListener('click', function (e) {
+      if (e.target === root) dismiss();
     });
 
     document.body.appendChild(root);
@@ -588,6 +602,7 @@
    * of somebody using a keyboard.
    */
   var launcher = null;
+  var launcherWanted = false;
 
   function mountLauncher() {
     if (launcher) return;
@@ -598,12 +613,44 @@
     document.body.appendChild(launcher);
   }
 
+  /* THE MIDDLE OF THE PAGE, AND ONLY THE MIDDLE.
+     The first screen carries the hero's own join button and the last carries
+     the join section and the footer, and a button floating over either one is
+     a second copy of an ask already on the screen. What it is for is
+     everything between those two: a reader who has read something and has
+     scrolled past the place where they could have said yes.
+     MEASURED IN SCREENS, not in percentages of the document, so a long page
+     and a short one both hide it over the same amount of hero and the same
+     amount of foot. A page without three screens in it has no middle, and on
+     one of those the button stays out for the whole visit rather than never
+     appearing at all.
+     ARITHMETIC, NOT AN OBSERVER, for the reason section 9 gives: the DOM
+     scripts/smoke-referral-popup.mjs runs this against has scrollHeight and
+     pageYOffset and no getBoundingClientRect to fall back on. */
+  function inBand() {
+    var doc = document.documentElement;
+    var vh = window.innerHeight || doc.clientHeight || 0;
+    var scrollable = (doc.scrollHeight || 0) - vh;
+    if (vh <= 0 || scrollable <= vh * 2) return true;
+    var y = window.pageYOffset || doc.scrollTop || 0;
+    return y >= vh * 0.9 && y <= scrollable - vh * 0.9;
+  }
+
+  /* `on` is the widget's own say in it: false while the card is open, true
+     whenever the card leaves. Where the reader is on the page is the other
+     half, and it changes without anybody calling this, so the answer is
+     recomputed by paintLauncher on every scroll rather than decided here. */
   function showLauncher(on) {
+    launcherWanted = !!on;
+    paintLauncher();
+  }
+
+  function paintLauncher() {
     if (!launcher) return;
     /* Somebody who has joined is done being asked, and the button is an ask.
        Read at the moment of showing rather than remembered from boot, because
        the cookie is written by a submission that happened after boot. */
-    launcher.hidden = !on || readCookie() === 'joined';
+    launcher.hidden = !launcherWanted || readCookie() === 'joined' || !inBand();
   }
 
   /* ------------------------------------------------------------------ *
@@ -833,6 +880,11 @@
        away without anybody having to remember to. */
     mountLauncher();
     showLauncher(true);
+    /* Its own listener, not the automatic ask's: that one is disarmed the
+       moment the second ask is spent or refused, and the button outlives
+       both. */
+    window.addEventListener('scroll', paintLauncher, { passive: true });
+    window.addEventListener('resize', paintLauncher);
 
     /* Only the automatic second ask is gated by the cookie. */
     if (seen === 'joined' || seen === 'off') return;

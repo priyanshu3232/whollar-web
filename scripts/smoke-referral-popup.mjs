@@ -26,6 +26,9 @@
  *      somebody for a submission the store dropped.
  *   8. Closing step 1 writes step2 and the next open is the second ask.
  *   9. Closing step 2 writes off.
+ *  10. The launcher keeps to the middle of the page: away on the first screen
+ *      where the hero's own join button is, away on the last where the join
+ *      section and the footer are, there for everything in between.
  */
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -193,9 +196,15 @@ const textOf = () => { const c = card(); return c ? c.textContent : ''; };
 const flush = () => new Promise(r => setImmediate(r));
 
 /* The two doors, as a reader uses them. */
-const press = () => launchBtn().dispatch('click', {});
 /* 3200 is scrollHeight 4000 less innerHeight 800, so this is the bottom. */
 const scrollToFoot = () => { win.pageYOffset = 3200; win.dispatch('scroll', {}); };
+/* 1600 is halfway, which is the band the launcher lives in: a screen clear of
+   the top and a screen clear of the 3200 bottom. */
+const scrollToMiddle = () => { win.pageYOffset = 1600; win.dispatch('scroll', {}); };
+/* A reader presses the button where the button is, so every press in this file
+   goes through the middle of the page and the checks that only care what the
+   card does next do not each have to say so. */
+const press = () => { scrollToMiddle(); launchBtn().dispatch('click', {}); };
 
 /* ------------------------------------------------------------------ *
  * The checks
@@ -206,8 +215,13 @@ console.log('waitlist popup');
 reset();
 ok(card() === null, 'nothing is on the page on load');
 ok(launchBtn() !== null, 'the launcher is');
-ok(launchBtn().hidden === false, 'and it is visible');
+ok(launchBtn().hidden === true, 'and it keeps off the first screen, where the hero already asks');
 ok(launchBtn().textContent === 'Hold my spot', 'labelled Hold my spot');
+scrollToMiddle();
+ok(launchBtn().hidden === false, 'it arrives once the hero has scrolled away');
+/* The other end of the band is checked further down, on the reader whose
+   cookie says `off`. Reaching the foot here would fire the second ask, and
+   what is being checked next is that nothing opens on its own. */
 tick(600000);
 ok(card() === null, 'ten minutes pass and no card opens by itself');
 press();
@@ -232,6 +246,8 @@ ok(launchBtn().hidden === true, 'and the launcher is put away for them');
 reset({ cookie: 'whl_cta=off' });
 scrollToFoot();
 ok(card() === null, 'the second ask stays shut for the seven days after a close');
+ok(launchBtn().hidden === true, 'and the foot is no more the button\'s place for them than for anybody');
+scrollToMiddle();
 ok(launchBtn().hidden === false, 'but the button is still there for anybody who wants it');
 press();
 ok(card() !== null, 'and it still works: `off` silenced the ask, not the door');
