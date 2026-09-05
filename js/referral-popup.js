@@ -228,9 +228,19 @@
    * 6. STYLE
    * ------------------------------------------------------------------
    * Injected rather than shipped in a stylesheet so that adding the widget to
-   * a repo is one script tag and nothing else. Every selector is prefixed
-   * `whl-cta`, and the only global thing touched is a keyframes name that
-   * carries the same prefix.
+   * a repo is one script tag and nothing else.
+   *
+   * EVERY SELECTOR IS SCOPED UNDER `.whl-cta`, the root element, and the only
+   * global thing touched is a keyframes name carrying the same prefix. The
+   * prefix alone was not enough and the claim that it was cost the internet
+   * host a visible bug: internet.whollar.ca has its own design system on the
+   * same `whl-` prefix, `.whl-btn` and `.whl-card` among it, and this style
+   * block is appended to <head> after the page's own, so on the tie it won.
+   * Eight seconds into a visit, or at forty percent scrolled, every button on
+   * that landing page went from 50px tall and forest green to 46px and this
+   * widget's green, and every card lost 8px of padding. Scoping also raises
+   * these rules to two classes, so the card keeps its own look regardless of
+   * which stylesheet a host loads last.
    *
    * Two designs, chosen with data-whl-design on any element: `note` (the
    * default, a cream card) and `ticket` (dark, with a torn stub). They differ
@@ -242,31 +252,35 @@
     'max-width:calc(100vw - 40px);font:400 15px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;',
     'color:#0E2A20}',
     '.whl-cta[hidden]{display:none}',
-    '.whl-card{position:relative;background:#FFFEFB;border:1px solid rgba(14,42,32,.1);border-radius:22px;',
+    '.whl-cta .whl-card{position:relative;background:#FFFEFB;border:1px solid rgba(14,42,32,.1);border-radius:22px;',
     'padding:24px 22px 20px;box-shadow:0 18px 40px -22px rgba(14,42,32,.35);animation:whl-cta-in .28s ease-out both}',
-    '.whl-cta h2{font:700 22px/1.15 inherit;letter-spacing:-.01em;margin:0 0 8px;padding-right:34px;color:inherit}',
+    '.whl-cta h2{font-family:inherit;font-weight:700;font-size:22px;line-height:1.15;',
+    'letter-spacing:-.01em;margin:0 0 8px;padding-right:34px;color:inherit}',
     '.whl-cta p{margin:0 0 14px;font-size:14px}',
-    '.whl-close{position:absolute;top:10px;right:10px;width:32px;height:32px;border:0;border-radius:50%;',
-    'background:transparent;color:inherit;opacity:.6;cursor:pointer;font:400 20px/1 inherit;padding:0}',
-    '.whl-close:hover,.whl-close:focus-visible{opacity:1}',
-    '.whl-ref{display:flex;gap:8px;align-items:center;font-size:13px;margin:0 0 12px}',
-    '.whl-ref::before{content:"";width:8px;height:8px;border-radius:50%;background:#1E9E63;flex:none}',
-    '.whl-lab{display:block;font-size:13px;font-weight:600;margin:0 0 6px}',
-    '.whl-row{display:flex;gap:8px}',
+    '.whl-cta .whl-close{position:absolute;top:10px;right:10px;width:32px;height:32px;border:0;border-radius:50%;',
+    'background:transparent;color:inherit;opacity:.6;cursor:pointer;padding:0;',
+    'font-family:inherit;font-weight:400;font-size:20px;line-height:1}',
+    '.whl-cta .whl-close:hover,.whl-cta .whl-close:focus-visible{opacity:1}',
+    '.whl-cta .whl-ref{display:flex;gap:8px;align-items:center;font-size:13px;margin:0 0 12px}',
+    '.whl-cta .whl-ref::before{content:"";width:8px;height:8px;border-radius:50%;background:#1E9E63;flex:none}',
+    '.whl-cta .whl-lab{display:block;font-size:13px;font-weight:600;margin:0 0 6px}',
+    '.whl-cta .whl-row{display:flex;gap:8px}',
     '.whl-cta input[type=email]{flex:1;min-width:0;height:46px;border-radius:12px;padding:0 14px;',
     'border:1.5px solid rgba(14,42,32,.18);background:#FFFEFB;color:#0E2A20;font:inherit;outline:0}',
     '.whl-cta input[type=email]:focus-visible{border-color:#1E9E63;box-shadow:0 0 0 3px rgba(30,158,99,.2)}',
-    '.whl-btn{height:46px;padding:0 16px;border:0;border-radius:12px;background:#1E9E63;color:#fff;',
-    'font:600 15px/46px inherit;white-space:nowrap;cursor:pointer;text-align:center;text-decoration:none;display:inline-block}',
-    '.whl-btn:hover{background:#1A8A56}',
-    '.whl-btn:focus-visible{outline:3px solid #7FE3B0;outline-offset:2px}',
-    '.whl-btn[disabled]{opacity:.6;cursor:default}',
-    '.whl-err{color:#C2643B;font-size:13px;margin:8px 0 0}',
-    '.whl-err:empty{display:none}',
-    '.whl-fine{font-size:12px;opacity:.7;margin:12px 0 0}',
+    '.whl-cta .whl-btn{height:46px;padding:0 16px;border:0;border-radius:12px;background:#1E9E63;color:#fff;',
+    'font-family:inherit;font-weight:600;font-size:15px;line-height:1;white-space:nowrap;cursor:pointer;',
+    'text-align:center;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;',
+    'vertical-align:top}',
+    '.whl-cta .whl-btn:hover{background:#1A8A56}',
+    '.whl-cta .whl-btn:focus-visible{outline:3px solid #7FE3B0;outline-offset:2px}',
+    '.whl-cta .whl-btn[disabled]{opacity:.6;cursor:default}',
+    '.whl-cta .whl-err{color:#C2643B;font-size:13px;margin:8px 0 0}',
+    '.whl-cta .whl-err:empty{display:none}',
+    '.whl-cta .whl-fine{font-size:12px;opacity:.7;margin:12px 0 0}',
     '.whl-cta .whl-done,.whl-cta[data-state="done"] .whl-ask{display:none}',
     '.whl-cta[data-state="done"] .whl-done{display:block}',
-    '.whl-cta[data-state="done"] .whl-btn{width:100%}',
+    '.whl-cta[data-state="done"] .whl-btn{width:100%;display:flex}',
     /* ticket */
     '.whl-cta[data-design="ticket"] .whl-card{background:#0E2A20;color:#FAF8F3;border-color:transparent}',
     '.whl-cta[data-design="ticket"] h2{color:#7FE3B0}',
@@ -278,16 +292,16 @@
     '.whl-cta[data-design="ticket"] .whl-btn:hover{background:#94EBBE}',
     '.whl-cta[data-design="ticket"] .whl-err{color:#F0A98A}',
     /* the announcement, offscreen but read */
-    '.whl-live{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}',
+    '.whl-cta .whl-live{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}',
     '@keyframes whl-cta-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}',
-    '@media (prefers-reduced-motion:reduce){.whl-card{animation:none}}',
+    '@media (prefers-reduced-motion:reduce){.whl-cta .whl-card{animation:none}}',
     /* Under 600px it stops being a corner card and becomes a sheet on the
        bottom edge, with a grab bar, because 360px in a corner on a phone is
        a card with no corner to sit in. */
     '@media (max-width:600px){',
     '.whl-cta{right:0;left:0;bottom:0;width:auto;max-width:none}',
-    '.whl-card{border-radius:22px 22px 0 0;padding-top:20px}',
-    '.whl-card::before{content:"";display:block;width:40px;height:4px;border-radius:2px;',
+    '.whl-cta .whl-card{border-radius:22px 22px 0 0;padding-top:20px}',
+    '.whl-cta .whl-card::before{content:"";display:block;width:40px;height:4px;border-radius:2px;',
     'background:currentColor;opacity:.25;margin:0 auto 14px}',
     '}'
   ].join('');
