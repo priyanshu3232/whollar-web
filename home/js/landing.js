@@ -121,17 +121,62 @@
 
   /* ----- the crowd video ----- */
 
+  /* THE CROWD LOOP HAS TO START ON ITS OWN, on a phone as well as a laptop.
+   *
+   * It used to call play() once, at script time, and swallow the failure. On a
+   * phone that call is made before the file has any data, and on a slow
+   * connection it is refused: 1.5 MB is not buffered in the first tick. The
+   * rejection went into an empty catch, nothing tried again, and the video sat
+   * on its first frame looking like something you were meant to tap.
+   *
+   * So it tries again at each point where the answer could change: when data
+   * arrives, when it scrolls into view, and, as a last resort, on the first
+   * touch anywhere on the page, which counts as the user gesture every autoplay
+   * policy will accept. It also pauses when scrolled away, which is what makes
+   * a looping decoration acceptable on a battery. */
   all('[data-lp-crowd]').forEach(function (el) {
     el.loop = true; el.muted = true; el.defaultMuted = true; el.playsInline = true;
-    var go = function () { el.play().catch(function () {}); };
+    /* The property is not enough on iOS: the attribute is what the parser
+       reads, and the policy is decided before this script runs. */
+    el.setAttribute('muted', '');
+    el.setAttribute('playsinline', '');
+
+    var go = function () {
+      var p;
+      try { p = el.play(); } catch (e) { return; }
+      if (p && p.catch) p.catch(function () {});
+    };
     go();
+    ['loadeddata', 'canplay', 'canplaythrough'].forEach(function (ev) {
+      el.addEventListener(ev, go);
+    });
     el.addEventListener('ended', function () { el.currentTime = 0; go(); });
+
+    if (window.IntersectionObserver) {
+      new window.IntersectionObserver(function (rows) {
+        rows.forEach(function (row) {
+          if (row.isIntersecting) go();
+          else if (!el.paused) el.pause();
+        });
+      }, { threshold: 0.12 }).observe(el);
+    }
+
+    var once = function () {
+      go();
+      document.removeEventListener('touchstart', once);
+      document.removeEventListener('click', once);
+    };
+    document.addEventListener('touchstart', once, { passive: true });
+    document.addEventListener('click', once);
   });
 
   /* ----- the scroll reveal -----
-   * The section is 260vh tall; its first child is a 100vh panel that pins
-   * while the section scrolls through, and each word sharpens on its own
-   * slice of that travel. Thresholds are the canvas's: 6% lead-in, words
+   * The section is 260vh tall (250vh on a phone); its first child is a
+   * screen-tall panel that pins while the section scrolls through, and each
+   * word sharpens on its own slice of that travel. The travel is measured
+   * against the panel, not the window: on a phone the panel is 100dvh and
+   * the window's innerHeight moves with the browser chrome.
+   * Thresholds are the canvas's: 6% lead-in, words
    * spread over the next 80%, each fading across 7.5% of the travel. */
 
   var root = document.querySelector('[data-lp-reveal]');
@@ -141,10 +186,10 @@
 
     var paint = function () {
       if (!words.length) return;
-      var travel = root.offsetHeight - window.innerHeight;
+      var panel = root.firstElementChild;
+      var travel = root.offsetHeight - panel.offsetHeight;
       if (travel <= 0) return;
       var rectTop = root.getBoundingClientRect().top;
-      var panel = root.firstElementChild;
       if (rectTop > 0) {
         panel.style.position = 'absolute'; panel.style.top = '0px';
       } else if (rectTop < -travel) {
