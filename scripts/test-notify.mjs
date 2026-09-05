@@ -466,13 +466,53 @@ async function run() {
     ok(m.from === 'no-reply@mail.whollar.com', 'and goes out as the transactional sender');
 
     /* No postal address configured: a commercial send is refused outright.
-       The only cem template today is hypothetical, so this checks the guard
-       through the outbox rather than through a template that does not exist
-       yet: the registry has no cem entry, and adding one is what makes this
-       assertion bite. */
-    const cemTemplates = backend('lib/notify/registry.js').all().filter((e) => e.casl === 'cem');
-    ok(cemTemplates.length === 0,
-      'phase A ships no commercial template, so nothing can send without consent yet');
+       This used to assert that the registry held NO cem template, with a note
+       that adding one is what would make the assertion bite. It bit on
+       2026-09-05 when waitlist.welcome arrived, so the guard is exercised
+       through that template now rather than through its absence: the first
+       commercial letter, refused for want of an address, then sent with the
+       unsubscribe the transactional letter above correctly does without. */
+    const cem = backend('lib/notify/registry.js').all().filter((e) => e.casl === 'cem');
+    ok(cem.length >= 1 && cem.some((e) => e.key === 'waitlist.welcome'),
+      'a commercial template exists now, and it is the waitlist welcome');
+
+    const address = { type: 'address', id: 'two@example.ca', email: 'two@example.ca',
+      locale: 'en', timezone: 'America/Toronto' };
+
+    reset();
+    const noAddress = { ...CFG, MAIL_POSTAL_ADDRESS: '' };
+    const refused = await outbox.enqueue(app, noAddress, {
+      templateKey: 'waitlist.welcome',
+      eventKey: 'waitlist.welcome:two@example.ca',
+      recipient: address,
+      context: { product_label: 'winter tires', join_url: 'https://www.whollar.ca/join' },
+      now: NOON_ET,
+    });
+    ok(refused.status === 'failed',
+      'with no postal address, a commercial send is refused rather than sent without one');
+    const refusedRow = tableOf(outbox.TABLE).find((r) => r.template_key === 'waitlist.welcome');
+    ok(Boolean(refusedRow) && refusedRow.last_error === 'no_postal_address', 'and the row names the missing key');
+    await outbox.drain(app, noAddress, { now: NOON_ET });
+    ok(SENT.length === 0, 'and nothing leaves');
+
+    reset();
+    const welcomed = await outbox.enqueue(app, CFG, {
+      templateKey: 'waitlist.welcome',
+      eventKey: 'waitlist.welcome:two@example.ca',
+      recipient: address,
+      context: { product_label: 'winter tires', join_url: 'https://www.whollar.ca/join',
+        share_url: 'https://www.whollar.ca/join?ref=WS7KMQT4WB', share_code: 'WS7KMQT4WB' },
+      now: NOON_ET,
+    });
+    ok(welcomed.status === 'queued', 'with an address configured, the welcome queues');
+    await outbox.drain(app, CFG, { now: NOON_ET });
+    const w = SENT[0];
+    ok(Boolean(w), 'and the drain sends it');
+    ok(Boolean(w) && /\/u\//.test(w.text), 'a commercial letter carries the unsubscribe link');
+    ok(Boolean(w) && Boolean(w.headers['List-Unsubscribe']), 'and the List-Unsubscribe header');
+    ok(Boolean(w) && w.from === 'news@news.whollar.com', 'and goes out as the commercial sender, not the transactional one');
+    ok(Boolean(w) && w.text.includes('Whollar, 1 Example Street'), 'with the sender identified and addressed');
+    ok(Boolean(w) && w.text.includes('WS7KMQT4WB'), 'and the share code in the body');
   }
 
   console.log('\nO-9  an unsubscribe token resolves, applies once, and applies again cleanly');
