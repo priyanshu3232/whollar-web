@@ -2886,6 +2886,16 @@ city when you want households rather than asks.
 | `Marketing` | Var Char | 5 | | | | `yes` or `no`, whether to write when the city opens. Catalyst offers no boolean type |
 | `SubmittedAt` | Date Time | | | ✅ | | |
 
+**Live drift, 2026-09-05.** The Development store has this table with
+`province` in lower case, and every other column as written above. The Data
+Store rejects an unknown column name at runtime, so that one letter answered
+500 to every submission until `insert()` in `functions/formSubmit/index.js`
+learned to read a table's live column names and write to the store's own
+spelling, logging the mismatch once per column. The form works; the column is
+still owed a rename to `Province` in the console, at which point the log line
+stops. The same mapping covers every formSubmit table, but only for case: a
+misspelt name (`Priorties`, `RunAt`) still has to be fixed in the console.
+
 ### 37b. What to run once it exists
 
 ```sql

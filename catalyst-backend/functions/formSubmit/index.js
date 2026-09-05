@@ -428,9 +428,60 @@ async function storeFiles(catalystApp, files) {
   return stored.filter(Boolean);
 }
 
+// The store's own spelling of every column, per table, so a row is written to
+// the columns that exist rather than the columns the doc says should. The
+// tables are created by hand and have drifted from create-tables.md in case
+// alone more than once: CityRequests carries `province` where the code and
+// section 37a say `Province`, and the Data Store rejects an unknown column at
+// runtime, which serverError then hides, so one lower-case letter answered 500
+// to every "Bring Whollar to your city" submission. A key that matches a live
+// column exactly is used as it is; a key that matches one ignoring case is
+// written to the live name, and the drift is logged once so it stays visible
+// until the column is renamed; a key that matches nothing is passed through
+// unchanged, so the store's own error still reaches insertTolerant and its
+// optional groups. Names are cached per table for ten minutes and refreshed
+// once when an insert fails, so a column added or renamed in the console is
+// picked up without a redeploy.
+const LIVE_COLUMNS_MS = 10 * 60 * 1000;
+const liveColumns = new Map();
+async function columnNames(catalystApp, tableName, refresh) {
+  const hit = liveColumns.get(tableName);
+  if (!refresh && hit && Date.now() - hit.at < LIVE_COLUMNS_MS) return hit.names;
+  const cols = await catalystApp.datastore().table(tableName).getAllColumns();
+  const names = (cols || []).map(c => c && c.column_name).filter(Boolean);
+  liveColumns.set(tableName, { names, at: Date.now() });
+  return names;
+}
+const driftLogged = new Set();
+function toLiveColumns(tableName, row, names) {
+  const byLower = new Map(names.map(n => [n.toLowerCase(), n]));
+  const out = {};
+  for (const key of Object.keys(row)) {
+    const live = names.includes(key) ? key : (byLower.get(key.toLowerCase()) || key);
+    if (live !== key && !driftLogged.has(`${tableName}.${key}`)) {
+      driftLogged.add(`${tableName}.${key}`);
+      console.error(`[formSubmit] ${tableName}: the store spells ${key} as ${live}; writing to the live name. ` +
+        'Rename the column in the Catalyst console to match create-tables.md.');
+    }
+    out[live] = row[key];
+  }
+  return out;
+}
 async function insert(catalystApp, tableName, row) {
   const table = catalystApp.datastore().table(tableName);
-  return table.insertRow(row);
+  let names = null;
+  try { names = await columnNames(catalystApp, tableName); } catch (err) {
+    console.error(`[formSubmit] ${tableName}: could not read live columns, writing the row as declared:`, err);
+  }
+  if (!names) return table.insertRow(row);
+  try {
+    return await table.insertRow(toLiveColumns(tableName, row, names));
+  } catch (err) {
+    let fresh = null;
+    try { fresh = await columnNames(catalystApp, tableName, true); } catch (e2) { /* the first error is the one to surface */ }
+    if (!fresh || fresh.join('\n') === names.join('\n')) throw err;
+    return table.insertRow(toLiveColumns(tableName, row, fresh));
+  }
 }
 
 // Same as insert(), but tolerant of named sets of columns not existing yet
