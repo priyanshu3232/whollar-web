@@ -449,6 +449,11 @@ async function columnNames(catalystApp, tableName, refresh) {
   if (!refresh && hit && Date.now() - hit.at < LIVE_COLUMNS_MS) return hit.names;
   const cols = await catalystApp.datastore().table(tableName).getAllColumns();
   const names = (cols || []).map(c => c && c.column_name).filter(Boolean);
+  // An empty list is not an answer, it is a read that told us nothing, and
+  // caching it hands every insert on this table ten minutes of writing the
+  // declared spelling. On a store that spells a column differently that is ten
+  // minutes of 500s with no row saved, so leave the cache alone and re-read.
+  if (!names.length) return names;
   liveColumns.set(tableName, { names, at: Date.now() });
   return names;
 }
@@ -473,13 +478,25 @@ async function insert(catalystApp, tableName, row) {
   try { names = await columnNames(catalystApp, tableName); } catch (err) {
     console.error(`[formSubmit] ${tableName}: could not read live columns, writing the row as declared:`, err);
   }
-  if (!names) return table.insertRow(row);
+  // A read that returned nothing is as good as no read at all: fall through to
+  // the retry below rather than trusting an empty list to map anything.
+  if (names && !names.length) names = null;
   try {
-    return await table.insertRow(toLiveColumns(tableName, row, names));
+    return await table.insertRow(names ? toLiveColumns(tableName, row, names) : row);
   } catch (err) {
+    // The first attempt used a cached list, a stale one, or none at all, so ask
+    // the store again before giving up. This retry used to be skipped entirely
+    // when the first read had FAILED, which was the hole: a transient
+    // getAllColumns() error sent the DECLARED spelling, and where the store
+    // spells a column differently insertTolerant cannot recover, because
+    // dropping optional columns never fixes the name of a mandatory one. That
+    // cost /city-request a 500 with no row saved on 2026-09-05. The store's own
+    // spelling is the fix for that, in the console; this retry is what keeps a
+    // momentary read failure from losing a submission in the meantime.
     let fresh = null;
     try { fresh = await columnNames(catalystApp, tableName, true); } catch (e2) { /* the first error is the one to surface */ }
-    if (!fresh || fresh.join('\n') === names.join('\n')) throw err;
+    const worthRetrying = fresh && fresh.length && !(names && fresh.join('\n') === names.join('\n'));
+    if (!worthRetrying) throw err;
     return table.insertRow(toLiveColumns(tableName, row, fresh));
   }
 }
