@@ -499,9 +499,20 @@
       consentSource: 'referral-popup'
     };
 
+    /* NO Content-Type HEADER, AND THAT IS LOAD BEARING. Setting
+       application/json makes this a preflighted request, and the Catalyst
+       gateway answers OPTIONS itself, with no CORS headers on anything but the
+       one origin named in the console rule. Verified on 2026-09-05: the
+       preflight from tires.whollar.ca and internet.whollar.ca comes back 200
+       with no Access-Control-Allow-Origin at all, so the browser never sends
+       the POST and the popup reports a failure the server never saw. curl
+       cannot catch this, because curl does not preflight.
+
+       A string body with no content type is sent as text/plain, which is
+       CORS-safelisted, and the route's express.json is configured to parse
+       text/plain for exactly this reason. Same shape as W.submitForm. */
     fetch(API + '/waitlist-email', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     }).then(function (r) {
       return r.json().catch(function () { return null; }).then(function (b) {

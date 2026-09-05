@@ -249,6 +249,10 @@ await flush();
 ok(fetchCalls.length === 1, 'a good address posts once');
 const [url, opts] = fetchCalls[0];
 ok(url.endsWith('/waitlist-email'), 'to /waitlist-email');
+/* The Catalyst gateway answers OPTIONS itself and puts CORS headers on only
+   one origin, so a preflighted request is a request the browser never sends.
+   A Content-Type header here is what makes it preflighted. */
+ok(!opts.headers, 'with no Content-Type header, so the request is never preflighted');
 const sent = JSON.parse(opts.body);
 ok(sent.email === 'someone@example.com', 'lowercased and trimmed on the way out');
 ok(sent.product === 'home' && sent.ctaStep === 1, 'carrying the product and which ask converted');
