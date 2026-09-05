@@ -10,27 +10,41 @@
  * catch. `cmp` cannot reach across repos since the September 2026 split, so
  * the checksum file is the record; see CLAUDE.md.
  *
+ * TWO DOORS, AND NEITHER OF THEM IS A CLOCK. The card used to arrive on its
+ * own: eight seconds in, or forty percent scrolled, or on a mouse heading for
+ * the tab bar. It now opens when the reader presses the corner button, and
+ * once more at the foot of the page for somebody who read the whole thing and
+ * asked for nothing. Both are in section 9, with what was removed and why.
+ *
  * WHAT IT DOES NOT DO, and why each one is deliberate.
  *
- * It does not mint a referral code. A code in this system belongs to a
- * MEMBER: lib/referral.js resolves `referral_token` rows whose owner_type is
- * 'member' and returns null for everything else, so a code handed to an
- * unverified email address would resolve to nobody and every referral made
- * with it would count zero. An email in a popup is not an account. The done
- * state therefore confirms and points at /join, which is where signup mints
- * a real token that actually resolves.
+ * It does not mint the share code, and it does not assemble the link. Both
+ * come back from POST /waitlist-email, which mints against the ADDRESS and
+ * returns the same code every time that address is submitted again, from any
+ * host. A card that built a link out of an email it had just typed would be
+ * guessing, and the first thing a reader does with the link is send it to
+ * somebody. No code in the response is not a failure: the done state falls
+ * back to a plain confirmation and the address is on the list either way.
  *
- * It does not normalise the referral code it carries. whollar-core.js and the
- * backend's lib/token.js already hold two mirrored copies of the check-digit
- * algorithm, and a third copy here would be a third thing to keep in step for
- * no gain: this lane stores the code for reporting, and the lane that decides
- * attribution is signup writing users.referral_code, which normalises server
- * side. The column is "as typed", the same contract as
+ * That code is NOT a member referral code, and the two are kept apart on
+ * purpose. lib/referral.js resolves `referral_token` rows whose owner_type is
+ * 'member' and returns null for everything else, so a member code and a
+ * marketing code in one table would leave a single guard telling them apart
+ * forever. The waitlist code lives in WaitlistShareCodes, is ten characters
+ * where a member token is eight, and ends in a character that cannot be read
+ * as hex so the legacy WHL- reader cannot claim it either. See
+ * create-tables.md section 40.
+ *
+ * It does not normalise the referral code it CARRIES, which is the other
+ * direction: the `?ref=` on the URL that says who sent this reader here.
+ * whollar-core.js and the backend's lib/token.js already hold two mirrored
+ * copies of the check-digit algorithm, and a third here would be a third thing
+ * to keep in step for no gain. The column is "as typed", the same contract as
  * TireWaitlistSignups.ReferralCode.
  *
- * It does not log a visit. GET /r/:token already writes invite_click for
- * every click on a share link, which is the link the dashboard hands out. A
- * hand-edited ?ref= URL is not worth a second public write endpoint.
+ * It does not log a visit. The arrival is reported by the page the link lands
+ * on, which is www.whollar.ca/join, and not from here: this file runs on the
+ * page somebody SHARES from, not the one they arrive on.
  *
  * It does not trap focus. This is a corner card with aria-modal="false", not
  * a dialog over the page: trapping Tab inside something the reader can see
@@ -77,9 +91,9 @@
    * ------------------------------------------------------------------
    * Step 1 is the same on all three hosts: the ask is to join Whollar, not to
    * buy the thing this page is about. Step 2 is where they differ, because
-   * step 2 only ever runs after somebody has closed step 1, and the only
-   * honest thing to say then is "then this page is not for you today, here is
-   * what else there is".
+   * step 2 only ever runs after somebody has read to the bottom and asked for
+   * nothing, and the only honest thing to say then is "then this page is not
+   * for you today, here is what else there is".
    *
    * No counts. Not members, not cities, not positions. The one promise made
    * anywhere in this file is procedural: the place is held from now, and the
@@ -93,7 +107,7 @@
       },
       step2: {
         title: 'Nothing you need right now?',
-        body: 'New products are on the way, and members hear about them first. Leave your email and we will tell you what opens next.'
+        body: 'Do not worry. We still have you covered with better offers on the products that matter, as each one opens. Share your email and stay informed about what is coming next.'
       }
     },
     tires: {
@@ -102,8 +116,8 @@
         body: 'The Whollar community grows every day. Join us and stay connected with what is coming next.'
       },
       step2: {
-        title: 'Not buying winter tires right now?',
-        body: 'We still have you covered on the other things a household pays too much for. Leave your email and we will tell you what opens next.'
+        title: 'Do not need winter tires right now?',
+        body: 'Do not worry. We still have you covered with better offers on the other products that matter. Share your email and stay informed about what is coming next.'
       }
     },
     internet: {
@@ -112,8 +126,8 @@
         body: 'The Whollar community grows every day. Join us and stay connected with what is coming next.'
       },
       step2: {
-        title: 'Not switching internet right now?',
-        body: 'We still have you covered on the other things a household pays too much for. Leave your email and we will tell you what opens next.'
+        title: 'Do not need to switch internet right now?',
+        body: 'Do not worry. We still have you covered with better offers on the other products that matter. Share your email and stay informed about what is coming next.'
       }
     }
   };
@@ -280,7 +294,34 @@
     '.whl-cta .whl-fine{font-size:12px;opacity:.7;margin:12px 0 0}',
     '.whl-cta .whl-done,.whl-cta[data-state="done"] .whl-ask{display:none}',
     '.whl-cta[data-state="done"] .whl-done{display:block}',
-    '.whl-cta[data-state="done"] .whl-btn{width:100%;display:flex}',
+    '.whl-cta[data-state="done"] .whl-ask .whl-btn{width:100%;display:flex}',
+    /* The share sheet. The link is shown in full rather than hidden behind
+       "your link", because a link somebody is about to send to a friend is one
+       they should be able to read first. It wraps: a code is ten characters
+       and the URL is not short. */
+    '.whl-cta .whl-link{display:block;font-size:13px;line-height:1.4;word-break:break-all;',
+    'background:rgba(14,42,32,.05);border-radius:10px;padding:10px 12px;margin:0 0 12px;',
+    'color:inherit;text-decoration:none}',
+    '.whl-cta .whl-link:hover{text-decoration:underline}',
+    '.whl-cta .whl-share{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 4px}',
+    '.whl-cta .whl-chip{height:38px;padding:0 14px;border:1.5px solid rgba(14,42,32,.18);',
+    'border-radius:999px;background:transparent;color:inherit;font-family:inherit;font-weight:600;',
+    'font-size:13px;line-height:1;cursor:pointer;text-decoration:none;',
+    'display:inline-flex;align-items:center;justify-content:center}',
+    '.whl-cta .whl-chip:hover{border-color:#1E9E63;color:#1E9E63}',
+    '.whl-cta .whl-chip:focus-visible{outline:3px solid #7FE3B0;outline-offset:2px}',
+    /* The launcher.
+       ONE BELOW THE CARD at 8999, so the card covers it rather than the two
+       fighting over the same corner. It is hidden outright while the card is
+       open, and the z-index is the belt to that brace. */
+    '.whl-cta-launch{position:fixed;right:20px;bottom:20px;z-index:8999;',
+    'height:46px;padding:0 20px;border:0;border-radius:999px;background:#1E9E63;color:#fff;',
+    'font:600 15px/1 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;',
+    'cursor:pointer;box-shadow:0 10px 26px -10px rgba(14,42,32,.5);',
+    'display:inline-flex;align-items:center;justify-content:center}',
+    '.whl-cta-launch[hidden]{display:none}',
+    '.whl-cta-launch:hover{background:#1A8A56}',
+    '.whl-cta-launch:focus-visible{outline:3px solid #7FE3B0;outline-offset:2px}',
     /* ticket */
     '.whl-cta[data-design="ticket"] .whl-card{background:#0E2A20;color:#FAF8F3;border-color:transparent}',
     '.whl-cta[data-design="ticket"] h2{color:#7FE3B0}',
@@ -303,6 +344,10 @@
     '.whl-cta .whl-card{border-radius:22px 22px 0 0;padding-top:20px}',
     '.whl-cta .whl-card::before{content:"";display:block;width:40px;height:4px;border-radius:2px;',
     'background:currentColor;opacity:.25;margin:0 auto 14px}',
+    /* The card takes the whole bottom edge here, so the launcher sits clear of
+       the home indicator rather than under it. */
+    '.whl-cta-launch{right:16px;bottom:calc(16px + env(safe-area-inset-bottom));',
+    'height:44px;padding:0 18px;font-size:14px}',
     '}'
   ].join('');
 
@@ -326,9 +371,8 @@
   var ref = null;
   var step = 1;
   var root = null;
-  var fired = false;      /* one trigger per page view, ever */
+  var autoFired = false;  /* the foot of the page asks once per page view */
   var lastFocus = null;
-  var timers = [];
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -399,17 +443,14 @@
     ask.appendChild(fine);
     card.appendChild(ask);
 
-    /* --- done --- */
+    /* --- done ---
+     *
+     * BUILT EMPTY, FILLED ON SUCCESS. The share link is minted by the server
+     * and arrives in the response, so there is nothing to render here until
+     * that answer comes back. Rendering a placeholder link and swapping it
+     * later is how a reader ends up copying a link that is not theirs.
+     */
     var done = el('div', 'whl-done');
-    done.appendChild(el('h2', null, 'You are in.'));
-    done.appendChild(el('p', null,
-      'Your place is held from now, and a confirmation is on its way to your email.'));
-    var join = el('a', 'whl-btn', 'Finish joining');
-    join.href = '/join';
-    done.appendChild(join);
-    done.appendChild(el('p', 'whl-fine',
-      'Finishing your account is what gets you a share link of your own. ' +
-      'Friends who join through it count for you.'));
     card.appendChild(done);
 
     var live = el('span', 'whl-live');
@@ -420,7 +461,7 @@
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      send(input, err, submit, live);
+      send(input, err, submit, live, done);
     });
     root.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' || e.key === 'Esc') { e.stopPropagation(); dismiss(); }
@@ -431,14 +472,157 @@
   }
 
   /* ------------------------------------------------------------------ *
+   * 7b. THE DONE STATE, WHICH IS A SHARE SHEET
+   * ------------------------------------------------------------------
+   * Built here rather than in build() because the link does not exist until
+   * the server answers. The code belongs to the address that was just given,
+   * is minted server side, and is never guessed at or assembled in the page:
+   * a link a reader is about to send to a friend has to be the real one.
+   *
+   * TWO SHAPES. With a link, this is a share sheet. Without one, it is the
+   * plain confirmation, and that is not an error state: a store missing the
+   * share code table still takes the address, and the reader is still on the
+   * list. What it no longer says is the old line about finishing an account
+   * being what earns a link, which is not true any more.
+   *
+   * WHAT NEEDS GUARDING AND WHY. The three sharing chips are ordinary links,
+   * so they work everywhere and need nothing from the browser. Copy needs
+   * navigator.clipboard and native share needs navigator.share, and neither
+   * navigator nor either of those exists in scripts/smoke-referral-popup.mjs,
+   * which runs this file against a hand written DOM. Reaching for an absent
+   * navigator there is a thrown error, not a missing button, so both are
+   * behind an existence check rather than a try.
+   */
+  /* Relative on purpose. www and tires both serve a join form at this path,
+     and internet 301s it to the www one, so the same href is right on all
+     three without this file having to know which host it is on. The share
+     LINK is different and is absolute, because it is minted by the server and
+     has to survive being pasted anywhere. */
+  var JOIN_URL = '/join';
+
+  var SHARE_TEXT = 'I am on the Whollar list. Whollar gets households a better price by asking together instead of one at a time. Join with my link:';
+
+  function paintDone(done, url) {
+    while (done.children && done.children.length) done.removeChild(done.children[0]);
+
+    done.appendChild(el('h2', null, 'Welcome to Whollar.'));
+
+    if (!url) {
+      done.appendChild(el('p', null,
+        'Your place is held from now, and a confirmation is on its way to your email.'));
+      var join = el('a', 'whl-btn', 'Finish joining');
+      join.href = JOIN_URL;
+      done.appendChild(join);
+      return;
+    }
+
+    done.appendChild(el('p', null,
+      'Your place is held, and a confirmation is on its way to your email. This link is yours:'));
+
+    var link = el('a', 'whl-link', url);
+    link.href = url;
+    link.setAttribute('rel', 'noopener');
+    done.appendChild(link);
+
+    var row = el('div', 'whl-share');
+
+    /* Copy first, because it is the one that fits every way a person actually
+       shares something. Added only where it can work. */
+    var nav = window.navigator;
+    if (nav && nav.clipboard && nav.clipboard.writeText) {
+      var copy = el('button', 'whl-chip', 'Copy link');
+      copy.type = 'button';
+      copy.addEventListener('click', function () {
+        nav.clipboard.writeText(url).then(function () {
+          copy.textContent = 'Copied';
+        }, function () {
+          /* Clipboard permission can be refused outright. Say so rather than
+             leaving a button that looks like it worked. */
+          copy.textContent = 'Press and hold to copy';
+        });
+      });
+      row.appendChild(copy);
+    }
+
+    var msg = SHARE_TEXT + ' ' + url;
+    row.appendChild(chip('WhatsApp', 'https://wa.me/?text=' + encodeURIComponent(msg)));
+    row.appendChild(chip('Email',
+      'mailto:?subject=' + encodeURIComponent('Join me on Whollar') + '&body=' + encodeURIComponent(msg)));
+    row.appendChild(chip('Text', 'sms:?&body=' + encodeURIComponent(msg)));
+
+    if (nav && nav.share) {
+      var more = el('button', 'whl-chip', 'More');
+      more.type = 'button';
+      more.addEventListener('click', function () {
+        /* A rejected share is somebody changing their mind in the system
+           sheet, which is not a failure worth reporting back to them. */
+        try { nav.share({ title: 'Whollar', text: SHARE_TEXT, url: url }).catch(function () {}); }
+        catch (e) { /* nothing to do */ }
+      });
+      row.appendChild(more);
+    }
+
+    done.appendChild(row);
+    done.appendChild(el('p', 'whl-fine',
+      'Anyone who joins through your link is counted as having come from you. ' +
+      'The more households ask together in one place, the better the price a partner has to beat.'));
+  }
+
+  function chip(label, href) {
+    var a = el('a', 'whl-chip', label);
+    a.href = href;
+    a.setAttribute('rel', 'noopener');
+    a.setAttribute('target', '_blank');
+    return a;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 7c. THE LAUNCHER
+   * ------------------------------------------------------------------
+   * The card no longer arrives on its own, so this is how anybody who wants it
+   * gets it. It sits in the corner the card sits in, one z-index below, and it
+   * is taken off screen while the card is open rather than left underneath it.
+   *
+   * IT IS NOT REBUILT. One button for the life of the page, hidden and shown,
+   * because a button that is removed and recreated loses focus in the middle
+   * of somebody using a keyboard.
+   */
+  var launcher = null;
+
+  function mountLauncher() {
+    if (launcher) return;
+    launcher = el('button', 'whl-cta-launch', 'Hold my spot');
+    launcher.type = 'button';
+    launcher.id = 'whl-cta-launch';
+    launcher.addEventListener('click', function () { open(1); });
+    document.body.appendChild(launcher);
+  }
+
+  function showLauncher(on) {
+    if (!launcher) return;
+    /* Somebody who has joined is done being asked, and the button is an ask.
+       Read at the moment of showing rather than remembered from boot, because
+       the cookie is written by a submission that happened after boot. */
+    launcher.hidden = !on || readCookie() === 'joined';
+  }
+
+  /* ------------------------------------------------------------------ *
    * 8. OPEN, CLOSE, SEND
    * ------------------------------------------------------------------ */
 
-  function open() {
-    if (fired || root) return;
-    fired = true;
-    clearTimers();
+  /* `which` is 1 or 2, and it is always passed explicitly.
+   *
+   * It used to be read off the module's `step`, which worked while the only
+   * way in was a timer that knew which ask was due. There are two doors now
+   * and they want different asks: the launcher always asks the joining
+   * question, and the foot of the page always asks the other one. Deriving it
+   * would mean somebody who closed step 1 and then pressed a button labelled
+   * "Hold my spot" being shown a card about other products instead. */
+  function open(which) {
+    if (root) return;
+    step = which === 2 ? 2 : 1;
     injectStyle();
+    showLauncher(false);
     var input = build();
     root.hidden = false;
     lastFocus = document.activeElement;
@@ -452,19 +636,29 @@
     if (!root) return;
     if (root.parentNode) root.parentNode.removeChild(root);
     root = null;
+    /* The button is the way back in, so it returns whenever the card leaves.
+       The one exception is somebody who has just joined: showLauncher reads
+       the cookie and refuses in that case. */
+    showLauncher(true);
     if (lastFocus && lastFocus.focus) { try { lastFocus.focus({ preventScroll: true }); } catch (e) { /* gone */ } }
     lastFocus = null;
   }
 
   /* Closing step 1 without an email is not a refusal, it is a "not this".
-     Step 2 asks the other question, once, thirty seconds later. Closing that
-     one IS a refusal and is honoured for a week.
-  
-     Closing the card AFTER joining is neither. It used to fall through to the
-     step 1 branch, which re-armed the second ask and wrote `step2` over the
-     `joined` cookie, so somebody who joined and then tidied the card away was
-     asked again thirty seconds later, on every page, for a week. The done
-     state is a finished conversation: take the card away and change nothing.
+     The second ask is still owed, and the foot of the page is where it is now
+     made. Closing THAT one IS a refusal and is honoured for a week.
+
+     THE THIRTY SECOND TIMER IS GONE. Step 2 used to be re-armed on a clock the
+     moment step 1 was closed, so declining an ask bought thirty seconds of
+     quiet and then another card. It is armed by reaching the bottom of the
+     page instead: the reader has to have read the whole thing to be asked a
+     second time, and if they leave before that they are asked once.
+
+     Closing the card AFTER joining is neither of those. It used to fall
+     through to the step 1 branch, which wrote `step2` over the `joined`
+     cookie, so somebody who joined and then tidied the card away was asked
+     again on every page for a week. The done state is a finished
+     conversation: take the card away and change nothing.
   */
   function dismiss() {
     var wasStep = step;
@@ -473,15 +667,12 @@
     if (wasDone) return;
     if (wasStep === 1) {
       writeCookie('step2');
-      step = 2;
-      fired = false;
-      timers.push(window.setTimeout(open, 30000));
     } else {
       writeCookie('off');
     }
   }
 
-  function send(input, err, submit, live) {
+  function send(input, err, submit, live, done) {
     /* The card this submission belongs to. `root` is reassigned by open and
        nulled by teardown, so comparing the two on the way back is how a
        response knows whether the card it was typed into is still on screen. */
@@ -538,17 +729,25 @@
         }
         return b || {};
       });
-    }).then(function () {
+    }).then(function (data) {
       /* The cookie is written whatever happened to the card: the submission
          landed, so the ask is answered even if the reader closed the card
          while it was in flight. Everything below it touches the card, and the
          card may be gone, which is what `card` being detached means. */
       writeCookie('joined');
       if (!card || card !== root) return;
+      /* The response used to be thrown away here. It carries the share link
+         now, minted server side and tied to the address just given, so it is
+         read rather than discarded. A response without one is not a failure:
+         paintDone falls back to a card with no link. */
+      var url = (data && data.shareUrl) || null;
+      paintDone(done, url);
       root.setAttribute('data-state', 'done');
-      live.textContent = 'You are in. Your place is held.';
-      var join = root.querySelector('.whl-done .whl-btn');
-      if (join) { try { join.focus({ preventScroll: true }); } catch (e) { join.focus(); } }
+      live.textContent = url
+        ? 'Welcome to Whollar. Your place is held and your share link is ready.'
+        : 'Welcome to Whollar. Your place is held.';
+      var first = done.querySelector('.whl-btn') || done.querySelector('.whl-chip');
+      if (first) { try { first.focus({ preventScroll: true }); } catch (e) { first.focus(); } }
     }, function (e) {
       if (!card || card !== root) return;
       submit.disabled = false;
@@ -563,43 +762,56 @@
   /* ------------------------------------------------------------------ *
    * 9. TRIGGERS
    * ------------------------------------------------------------------
-   * Eight seconds, or forty percent scrolled, or the pointer leaving through
-   * the top edge on a device that has a pointer. Whichever happens first, and
-   * only one of them ever happens, because `open` sets `fired` and clears the
-   * rest.
+   * TWO DOORS, AND NEITHER OF THEM IS A CLOCK.
+   *
+   *   the launcher   opens step 1, whenever the reader asks for it
+   *   the foot       opens step 2, once, for a reader who asked for nothing
+   *
+   * WHAT WAS REMOVED AND WHY. An eight second timer, a forty percent scroll
+   * trigger, an exit intent listener, and a thirty second re-arm of the second
+   * ask. Between them they meant a card could arrive over something somebody
+   * was reading, twice, having been asked for by nobody. The button is the
+   * replacement for all four: it is always there, it costs a corner of the
+   * screen, and it is pressed on purpose.
+   *
+   * NINETY PERCENT, NOT AN OBSERVER. IntersectionObserver would be the natural
+   * way to watch a footer, and it cannot be used here:
+   * scripts/smoke-referral-popup.mjs runs this file against a hand written DOM
+   * that has no observer, no getBoundingClientRect and no navigator, and
+   * anything absent there throws rather than degrades. The same fraction of
+   * scroll height the forty percent trigger used is arithmetic the stub
+   * already supports, so the second ask is testable and the first one was.
    */
-  function clearTimers() {
-    for (var i = 0; i < timers.length; i++) window.clearTimeout(timers[i]);
-    timers = [];
+  function disarm() {
     window.removeEventListener('scroll', onScroll);
-    document.removeEventListener('mouseout', onExit);
   }
 
   function onScroll() {
+    /* Already asked on this page view, or asking right now. */
+    if (autoFired || root) return;
+
+    /* THE COOKIE IS READ HERE, NOT ONLY AT BOOT, and that is not belt and
+       braces. The cookie that matters most is written DURING the page view:
+       somebody presses the launcher, joins, and closes the card, and without
+       this they would be asked whether they need anything else the moment
+       they scrolled to the bottom of the page they just joined from.
+       Opening the card used to remove this listener, which hid the problem
+       whenever the launcher had been pressed and left it whenever it had not. */
+    var seen = readCookie();
+    if (seen === 'joined' || seen === 'off') { disarm(); return; }
+
     var doc = document.documentElement;
     var scrollable = (doc.scrollHeight || 0) - (window.innerHeight || 0);
+    /* A page with nothing to scroll has no bottom to reach. Asking on arrival
+       would make every short page behave like the timer that was removed. */
     if (scrollable <= 0) return;
-    if ((window.pageYOffset || doc.scrollTop || 0) / scrollable >= 0.4) open();
-  }
-
-  function onExit(e) {
-    /* relatedTarget null and clientY at or above the top edge is the mouse
-       leaving through the top of the viewport rather than crossing between
-       two elements inside it. */
-    if (e.relatedTarget || e.toElement) return;
-    if ((e.clientY || 0) > 4) return;
-    open();
+    if ((window.pageYOffset || doc.scrollTop || 0) / scrollable < 0.9) return;
+    autoFired = true;
+    open(2);
   }
 
   function arm() {
-    timers.push(window.setTimeout(open, 8000));
     window.addEventListener('scroll', onScroll, { passive: true });
-    if (window.matchMedia && window.matchMedia('(pointer:fine)').matches) {
-      document.addEventListener('mouseout', onExit);
-    }
-    /* Already past the mark when the page settles, on a short page or a
-       restored scroll position. */
-    onScroll();
   }
 
   /* ------------------------------------------------------------------ *
@@ -608,11 +820,22 @@
   function boot() {
     if (isQuietPath() || isOptedOut()) return;
 
-    var seen = readCookie();
-    if (seen === 'joined' || seen === 'off') return;
-    if (seen === 'step2') step = 2;
-
     ref = refCode();
+    injectStyle();
+
+    var seen = readCookie();
+
+    /* The button comes up for everybody the widget is allowed to speak to,
+       including somebody who closed the second ask a day ago. `off` silences
+       the ask that arrives uninvited; it was never a request to be unable to
+       join. `joined` is the one that takes the button away, and showLauncher
+       reads the cookie itself so a submission later in this page view puts it
+       away without anybody having to remember to. */
+    mountLauncher();
+    showLauncher(true);
+
+    /* Only the automatic second ask is gated by the cookie. */
+    if (seen === 'joined' || seen === 'off') return;
     arm();
   }
 
@@ -625,10 +848,17 @@
   /* The harness reaches in here, and so does anybody debugging a live page.
      Nothing on a page calls it. */
   window.WHOLLAR_CTA = {
-    open: function () { fired = false; open(); },
+    /* WHOLLAR_CTA.open() with no argument is the joining ask, which is what
+       somebody debugging a live page means by "show me the popup".
+       WHOLLAR_CTA.open(2) is the one the foot of the page makes. */
+    open: function (which) { open(which === 2 ? 2 : 1); },
     dismiss: dismiss,
     product: function () { return product; },
     step: function () { return step; },
-    cookie: readCookie
+    cookie: readCookie,
+    /* The two the smoke test drives, and the two anybody checking a live page
+       actually wants: is the button there, and can I press it. */
+    launcher: function () { return launcher; },
+    launch: function () { open(1); }
   };
 })(window, document);

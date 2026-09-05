@@ -108,18 +108,23 @@ class El {
   }
 }
 
-let doc, win, cookieJar, fetchCalls, fetchImpl, timers, now;
+let doc, win, html, cookieJar, fetchCalls, fetchImpl, timers, now;
+
+/* What the server answers with when it has a code for this address. The card
+   must never assemble a link itself, so the test hands it one and then asserts
+   that exact string came out the other side. */
+const SHARE_URL = 'https://www.whollar.ca/join?ref=WS7KMQT4WB';
 
 function reset({ path = '/', search = '', cookie = '', host = 'www.whollar.ca' } = {}) {
   cookieJar = cookie;
   fetchCalls = [];
   timers = [];
   now = 0;
-  fetchImpl = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, id: '1' }) });
+  fetchImpl = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, id: '1', shareCode: 'WS7KMQT4WB', shareUrl: SHARE_URL }) });
 
   const head = new El('head');
   const body = new El('body');
-  const html = new El('html');
+  html = new El('html');
 
   doc = {
     readyState: 'complete',
@@ -183,57 +188,94 @@ const tick = (ms) => {
   }
 };
 const card = () => doc.body.find(n => n.id === 'whl-cta');
+const launchBtn = () => doc.body.find(n => n.id === 'whl-cta-launch');
 const textOf = () => { const c = card(); return c ? c.textContent : ''; };
 const flush = () => new Promise(r => setImmediate(r));
+
+/* The two doors, as a reader uses them. */
+const press = () => launchBtn().dispatch('click', {});
+/* 3200 is scrollHeight 4000 less innerHeight 800, so this is the bottom. */
+const scrollToFoot = () => { win.pageYOffset = 3200; win.dispatch('scroll', {}); };
 
 /* ------------------------------------------------------------------ *
  * The checks
  * ------------------------------------------------------------------ */
 console.log('waitlist popup');
 
-/* 1 */
+/* 1: the card no longer arrives on its own, and the button is how it does */
 reset();
-ok(card() === null, 'nothing is on the page before a trigger fires');
-tick(8000);
-ok(card() !== null, 'the eight second timer opens it');
-ok(textOf().includes('Join the waitlist'), 'step 1 is the community ask');
+ok(card() === null, 'nothing is on the page on load');
+ok(launchBtn() !== null, 'the launcher is');
+ok(launchBtn().hidden === false, 'and it is visible');
+ok(launchBtn().textContent === 'Hold my spot', 'labelled Hold my spot');
+tick(600000);
+ok(card() === null, 'ten minutes pass and no card opens by itself');
+press();
+ok(card() !== null, 'pressing the launcher opens the card');
+ok(textOf().includes('Join the waitlist'), 'on step 1, the community ask');
+ok(launchBtn().hidden === true, 'and the launcher gets out of its way');
 ok(!textOf().includes('A friend sent you this link.'), 'no referral strip without ?ref=');
 
 /* 2 */
 reset({ path: '/join' });
 tick(60000);
-ok(card() === null, 'silent on /join, where the full form already is');
+ok(card() === null && launchBtn() === null, 'silent on /join, where the full form already is');
 reset({ path: '/join-welcome' });
 tick(60000);
-ok(card() === null, 'silent on /join-welcome too, matched as a prefix');
+ok(card() === null && launchBtn() === null, 'silent on /join-welcome too, matched as a prefix');
 
-/* 3 */
+/* 3: the cookie governs the automatic ask, and only `joined` takes the button */
 reset({ cookie: 'whl_cta=joined' });
-tick(60000);
+scrollToFoot();
 ok(card() === null, 'silent once somebody has joined');
+ok(launchBtn().hidden === true, 'and the launcher is put away for them');
 reset({ cookie: 'whl_cta=off' });
-tick(60000);
-ok(card() === null, 'silent for the seven days after a second close');
+scrollToFoot();
+ok(card() === null, 'the second ask stays shut for the seven days after a close');
+ok(launchBtn().hidden === false, 'but the button is still there for anybody who wants it');
+press();
+ok(card() !== null, 'and it still works: `off` silenced the ask, not the door');
 
 /* 4 */
 reset({ search: '?ref=K7MQT4WB' });
-tick(8000);
+press();
 ok(textOf().includes('A friend sent you this link.'), 'the referral strip appears with ?ref=');
 reset({ search: '?ref=x' });
-tick(8000);
+press();
 ok(!textOf().includes('A friend sent you this link.'), 'junk in ?ref= shows no strip');
 
-/* the second ask carries the host's own copy */
-reset({ host: 'tires.whollar.ca', cookie: 'whl_cta=step2' });
-tick(8000);
-ok(textOf().includes('Not buying winter tires right now?'), 'step 2 on the tire host is the tire question');
-reset({ host: 'internet.whollar.ca', cookie: 'whl_cta=step2' });
-tick(8000);
-ok(textOf().includes('Not switching internet right now?'), 'step 2 on the internet host is the internet question');
-
-/* 5 */
+/* 5: the foot of the page is the second ask, and it carries the host's copy */
+reset({ host: 'tires.whollar.ca' });
+win.pageYOffset = 1000; /* 1000 / 3200 is under 90 percent */
+win.dispatch('scroll', {});
+ok(card() === null, 'a third of the way down asks nothing');
+scrollToFoot();
+ok(card() !== null, 'reaching the foot of the page opens the second ask');
+ok(textOf().includes('Do not need winter tires right now?'), 'and on tires it is the tire question');
+reset({ host: 'internet.whollar.ca' });
+scrollToFoot();
+ok(textOf().includes('Do not need to switch internet right now?'), 'on internet it is the internet one');
 reset();
-tick(8000);
+scrollToFoot();
+ok(textOf().includes('Nothing you need right now?'), 'and on the umbrella it names no product');
+
+/* the launcher always asks the joining question, whatever the foot did */
+reset();
+scrollToFoot();
+card().find(n => n.className === 'whl-close').dispatch('click', {});
+press();
+ok(textOf().includes('Join the waitlist'), 'the launcher asks step 1 even after step 2 was shown');
+
+/* a page with nothing to scroll has no foot to reach */
+reset();
+html.scrollHeight = 700; /* shorter than innerHeight */
+win.pageYOffset = 0;
+win.dispatch('scroll', {});
+ok(card() === null, 'a page that does not scroll never opens the second ask');
+
+/* 6 */
+reset();
+press();
 let input = card().find(n => n.tagName === 'INPUT');
 let form = card().find(n => n.tagName === 'FORM');
 input.value = 'a@b';
@@ -242,7 +284,7 @@ await flush();
 ok(fetchCalls.length === 0, 'an incomplete address never reaches the network');
 ok(card().find(n => n.className === 'whl-err').textContent.length > 0, 'and it says what to change');
 
-/* 6 */
+/* 7 */
 input.value = '  Someone@Example.COM  ';
 form.dispatch('submit', { preventDefault() {} });
 await flush();
@@ -258,13 +300,45 @@ ok(sent.email === 'someone@example.com', 'lowercased and trimmed on the way out'
 ok(sent.product === 'home' && sent.ctaStep === 1, 'carrying the product and which ask converted');
 ok(typeof sent.consentText === 'string' && sent.consentText.length > 20, 'and the sentence agreed to');
 ok(card().getAttribute('data-state') === 'done', 'the card turns over only after the post came back');
-ok(textOf().includes('You are in.'), 'and says so');
+ok(textOf().includes('Welcome to Whollar.'), 'and welcomes them');
 ok(/whl_cta=joined/.test(doc.cookie), 'the joined cookie is written on success');
 
-/* 7 */
+/* 8: the share sheet, built from the server's answer and nothing else */
+ok(textOf().includes(SHARE_URL), 'the link the server minted is on the card, in full');
+const linkEl = card().find(n => n.className === 'whl-link');
+ok(linkEl && linkEl.href === SHARE_URL, 'and it is a real link, not just text');
+const chips = [];
+(function walk(n) { for (const c of n.children) { if (c.className === 'whl-chip') chips.push(c); walk(c); } })(card());
+const labels = chips.map(c => c.textContent);
+ok(labels.includes('WhatsApp') && labels.includes('Email') && labels.includes('Text'),
+  'WhatsApp, Email and Text are offered');
+ok(chips.every(c => c.tagName === 'A' && c.href), 'all three are plain links, so they need no browser API');
+ok(chips.find(c => c.textContent === 'WhatsApp').href.includes(encodeURIComponent(SHARE_URL)),
+  'and each one carries the link');
+/* There is no navigator in this stub, exactly as there is none in a mail
+   client preview or an old browser. Copy and native share must simply not be
+   offered rather than throwing on the way past. */
+ok(!labels.includes('Copy link'), 'no copy button where there is no clipboard to copy to');
+
+/* 9: a server that could not mint one still confirms */
 reset();
-tick(8000);
+fetchImpl = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, id: '1' }) });
+press();
+input = card().find(n => n.tagName === 'INPUT');
+form = card().find(n => n.tagName === 'FORM');
+input.value = 'someone@example.com';
+form.dispatch('submit', { preventDefault() {} });
+await flush();
+ok(card().getAttribute('data-state') === 'done', 'a response with no share code still turns the card over');
+ok(textOf().includes('Welcome to Whollar.'), 'and still welcomes them');
+ok(!card().find(n => n.className === 'whl-link'), 'with no link on it');
+ok(!textOf().includes('share link of your own'),
+  'and no promise that finishing an account earns one, which is no longer how it works');
+
+/* 10 */
+reset();
 fetchImpl = () => Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({ ok: false }) });
+press();
 input = card().find(n => n.tagName === 'INPUT');
 form = card().find(n => n.tagName === 'FORM');
 input.value = 'someone@example.com';
@@ -275,9 +349,9 @@ ok(!/whl_cta=joined/.test(doc.cookie), 'and writes no joined cookie');
 const btn = card().find(n => n.tagName === 'BUTTON' && n.className === 'whl-btn');
 ok(btn.disabled === false && btn.textContent === 'Hold my spot', 'the button is usable again');
 
-/* closing the card after joining is a finished conversation, not a refusal */
+/* 11: closing the card after joining is a finished conversation */
 reset();
-tick(8000);
+press();
 input = card().find(n => n.tagName === 'INPUT');
 form = card().find(n => n.tagName === 'FORM');
 input.value = 'someone@example.com';
@@ -287,12 +361,13 @@ ok(/whl_cta=joined/.test(doc.cookie), 'joined, before the card is closed');
 card().find(n => n.className === 'whl-close').dispatch('click', {});
 ok(/whl_cta=joined/.test(doc.cookie), 'closing the done card leaves the joined cookie alone');
 ok(!/whl_cta=step2/.test(doc.cookie), 'and does not re-arm the second ask');
-tick(60000);
-ok(card() === null, 'so nobody who joined is asked again thirty seconds later');
+ok(launchBtn().hidden === true, 'and the launcher stays away from somebody who has joined');
+scrollToFoot();
+ok(card() === null, 'so reaching the foot does not ask them again');
 
-/* a response that arrives after the card is gone must not reach for it */
+/* 12: a response that arrives after the card is gone must not reach for it */
 reset();
-tick(8000);
+press();
 let release;
 fetchImpl = () => new Promise(r => { release = () => r({ ok: true, json: () => Promise.resolve({ ok: true }) }); });
 input = card().find(n => n.tagName === 'INPUT');
@@ -305,27 +380,32 @@ release();
 await flush(); await flush();
 ok(/whl_cta=joined/.test(doc.cookie), 'the submission still counts as answered');
 
-/* 8 and 9 */
+/* 13: the two closes mean different things */
 reset();
-tick(8000);
+press();
 card().find(n => n.className === 'whl-close').dispatch('click', {});
 ok(card() === null, 'closing step 1 takes the card off the page');
 ok(/whl_cta=step2/.test(doc.cookie), 'and remembers that step 2 is next');
-tick(30000);
-ok(card() !== null, 'step 2 opens thirty seconds later');
+ok(launchBtn().hidden === false, 'the launcher comes back');
+tick(600000);
+ok(card() === null, 'and no clock reopens anything, which is what the thirty second timer used to do');
+scrollToFoot();
+ok(card() !== null, 'the foot of the page is what opens the second ask now');
 ok(textOf().includes('Nothing you need right now?'), 'and it is the second ask');
 card().find(n => n.className === 'whl-close').dispatch('click', {});
 ok(/whl_cta=off/.test(doc.cookie), 'closing step 2 ends the sequence for a week');
-tick(120000);
-ok(card() === null, 'and nothing opens again');
+win.pageYOffset = 0; win.dispatch('scroll', {});
+scrollToFoot();
+ok(card() === null, 'and the foot asks nothing more');
 
-/* the scroll trigger, on its own */
+/* 14: the foot asks once, however much somebody scrolls */
 reset();
-win.pageYOffset = 2000; /* 2000 / (4000 - 800) is over 40 percent */
-win.dispatch('scroll', {});
-ok(card() !== null, 'forty percent scrolled opens it without waiting eight seconds');
-tick(60000);
-ok(doc.body.children.filter(n => n.id === 'whl-cta').length === 1, 'and the timer does not open a second one');
+scrollToFoot();
+card().find(n => n.className === 'whl-close').dispatch('click', {});
+win.pageYOffset = 0; win.dispatch('scroll', {});
+scrollToFoot();
+ok(card() === null, 'reaching the foot twice in one page view asks once');
+ok(doc.body.children.filter(n => n.id === 'whl-cta').length === 0, 'and leaves nothing behind');
 
-console.log(failures ? `\n${failures} failed` : '\nall checks passed');
+console.log(failures ? `\n${failures} failed` : `\nall checks passed`);
 process.exit(failures ? 1 : 0);
