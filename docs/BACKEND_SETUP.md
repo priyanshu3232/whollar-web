@@ -123,6 +123,10 @@ Two rules that cost real outages when broken:
 - **Column names are case sensitive and must match the code exactly.** A wrong
   case fails at runtime, not at deploy, so it surfaces as a 500 on somebody's
   form rather than a failed build.
+- **Set Mandatory when you create a column, never afterwards.** Adding it to a
+  column that already holds data rebuilds that column and discards its contents,
+  with no warning and without bumping the rows' `MODIFIEDTIME`, so nothing about
+  it looks like a write. Unique is safe to add later; Mandatory is not.
 - **Only columns marked required get the Mandatory validator.** `ReferralCode`
   was once set mandatory by accident, which made every referral-free signup fail.
 
@@ -357,9 +361,10 @@ outside.
 
 ### The CRM drain
 
-`crmSync` reads `CrmSyncQueue` and pushes into Zoho CRM. **No cron job exists at
-all**, which was diagnosed as a config problem more than once before anyone
-checked whether the job had ever been created. The pipeline itself is healthy.
+`crmSync` reads `CrmSyncQueue` and pushes into Zoho CRM. **This one has a job and
+it is running**, hourly at about :20 past, confirmed 2026-09-06 from `SyncedAt`
+timestamps in the queue. Older notes in this repo say no cron exists; they are
+stale. Check the queue before believing either.
 
 Before creating it, add the six `CrmSyncQueue` columns from block 2 of
 `STORE_BACKLOG_2026-09.md`. Every row written today carries no idempotency key

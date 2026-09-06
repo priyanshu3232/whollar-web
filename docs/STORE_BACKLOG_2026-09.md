@@ -4,6 +4,26 @@ The console work the audit turned up, in the order worth doing it. Everything
 here is a click in the Zoho Catalyst console on the **Development** environment;
 none of it can be done from code, because Catalyst has no DDL API.
 
+**Read this before touching any flag.** Learned the hard way on 2026-09-06, on
+`application_tasks.task_key`, twice:
+
+| Change | On a column that already holds data | Evidence |
+|---|---|---|
+| Add **Unique** | safe, keeps its data | `task_key_org` took it and kept every value |
+| Add **Mandatory** | **rebuilds the column and empties it** | `task_key`, wiped twice, both times silently |
+| Set either **at creation time** | safe, there is nothing to lose | every new column below |
+
+So a Mandatory flag on a populated column is not a metadata edit in this console.
+It is a drop and recreate, it does not warn, and it does not bump the rows'
+`MODIFIEDTIME`, so nothing about it looks like a write. **Add Mandatory at
+creation or not at all.** Where a column is already live and optional, leave it
+optional and let `/health/diagnostics` report the mismatch: a true report costs
+less than an emptied column.
+
+The recovery, if it happens anyway, is whatever other column carries the same
+value. `task_key` was recoverable only because `task_key_org` is
+`${org_id}:${task_key}` and survived. Not every column has that.
+
 Every block ends with a check you can paste into the console's ZCQL tab. Do one
 block, run its check, then move on. `node scripts/check-store-tables.mjs` answers
 the whole existence question in one command once you are logged in with the CLI.
@@ -17,6 +37,12 @@ The audit behind it: `ACTION_TABLE_AUDIT.md`. The naming rule: `TABLE_NAMING_GUI
 ---
 
 ## 1. Three Unique flags that are off, and one duplicate row to delete
+
+**DONE 2026-09-06.** Both duplicate rows deleted, all three Unique flags set and
+proven by two-insert test. `task_key` was emptied twice in the process by an
+attempted Mandatory flag and was backfilled from `task_key_org`; it is now
+populated on all 34 rows and is deliberately left optional. See the flag warning
+at the top of this file.
 
 **Do this first.** It is the only item here that is already corrupting data
 rather than merely failing to record it.
@@ -75,6 +101,8 @@ evidence behind it, and it is clean.
 
 ## 2. Six columns on `CrmSyncQueue`
 
+**DONE 2026-09-06.** All six present, `IdempotencyKey` Unique proven.
+
 Every CRM event written today falls back to the legacy ten columns and logs
 "this row has NO idempotency key and cannot dedupe". The comment above that
 fallback in `lib/crm/outbox.js` says the six columns were created on 2026-09-02.
@@ -101,13 +129,22 @@ SELECT EntityType, EntityRowId, EventType, EventVersion, IdempotencyKey, NextAtt
 An empty result is fine. An error naming a column is not. After it passes, the
 next enqueue should stop logging the fallback line.
 
-Worth knowing: **nothing reaches Zoho CRM today regardless**, because no cron
-job exists to run the drainer. That is a separate piece of work and this column
-set is what makes it safe to run twice.
+**Correction, 2026-09-06: the drainer IS running, hourly at about :20 past.**
+Read off `SyncedAt` in the queue: 03:20:36, 04:20:40, 05:20:46. Of 313 rows, 292
+are `SYNCED`, 20 are `PARKED` and 1 is `DEAD`. Earlier notes in this repo saying
+no cron exists are stale; one was created between then and now.
+
+That makes this column set more urgent, not less. Every one of those 292 rows
+was delivered with no idempotency key, so nothing recorded that they had been
+sent other than their own `Status`. From the next enqueue onward the key is
+written and a repeat delivery is refused at the source.
 
 ---
 
 ## 3. Section 40: `WaitlistShareCodes` and `ReferralClicks`
+
+**DONE 2026-09-06.** Both tables created with the right columns. Codes mint from
+the next popup submission; nothing before that is recoverable.
 
 The waitlist share code is live on all three hosts and records nothing. A
 household leaves an address in the corner popup, the address saves, the code
@@ -122,6 +159,10 @@ Build both from section 40a and 40b. Gate checks are 40c.
 
 ## 4. Section 27: `campaign_notices`
 
+**DONE 2026-09-06.** Created, Unique on `notice_key` proven by two-insert test.
+The four live campaigns seed their current stage silently on the next dashboard
+read; no mail goes out for a stage that already happened.
+
 Nothing tells a household its cohort moved stage. `lib/notices.js` catches the
 missing table and returns quietly, so `POST /admin/campaigns/notices/sweep`
 reports success while doing nothing at all, which is the worst shape a gap can
@@ -132,6 +173,10 @@ Build from section 27. Its gate checks are in the same section.
 ---
 
 ## 5. Section 34: provider exclusions, five tables
+
+**DEFERRED 2026-09-06 by the owner.** Not cancelled, not built. Nothing degrades
+further by waiting: the six endpoints already answer empty and will carry on
+doing so.
 
 **Decide before building.** This is a whole feature that was built, deployed and
 never given a store: the member's "do not offer me these providers" picker, the
@@ -157,6 +202,10 @@ one option with no upside: six endpoints that look implemented and answer empty.
 ---
 
 ## 6. Columns owed on tables that already exist
+
+**DONE 2026-09-06.** All six created, all optional. `postal_code_source` was
+created as Var Char 24, not Text as the runbook said; see the note in section
+29b of `create-tables.md`.
 
 Each of these has a fallback ladder in the code, which is why none has ever
 raised an error and none has ever worked.

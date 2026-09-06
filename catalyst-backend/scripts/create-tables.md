@@ -1807,7 +1807,7 @@ retries so the postal code change itself still lands. Same trade as
 | Column | Type | Length | Unique | Mandatory | Notes |
 |---|---|---|:--:|:--:|---|
 | `postal_code_updated_at` | DateTime | | | | When the postal code last changed |
-| `postal_code_source` | Text | 24 | | | `signup` \| `checkup_claim` \| `profile_edit` \| `operator` |
+| `postal_code_source` | Var Char | 24 | | | `signup` \| `checkup_claim` \| `profile_edit` \| `operator`. **Var Char, not Text**: rule 3 puts a short enum in Var Char, `schema.js` declares `varchar(24)`, and it was created that way on 2026-09-06. This line said Text and that was a typo |
 
 ### 29c. Gate checks, in the ZCQL tab
 
