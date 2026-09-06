@@ -272,7 +272,8 @@ Answered 2026-09-06:
 - **`schema.js` is completed before the registry**, so the registry reads one
   list and `/health/diagnostics` covers the partner application.
 
-Still open, and each needs a console session rather than a code change:
+Still open, and each needs a console session rather than a code change.
+`STORE_BACKLOG_2026-09.md` is the ordered runbook for all of it:
 
 1. Section 34, five tables: build them, or was provider exclusions shelved?
 2. Section 27, `campaign_notices`: build it? Nothing tells a household its cohort

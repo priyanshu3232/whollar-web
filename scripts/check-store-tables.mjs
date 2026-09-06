@@ -27,7 +27,7 @@
  * default; pass --production when that changes.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -41,6 +41,22 @@ const args = process.argv.slice(2);
 const family = (args.find((a) => a.startsWith('--family=')) || '').split('=')[1] || 'both';
 const withColumns = args.includes('--columns');
 const production = args.includes('--production');
+
+/* The CLI resolves the project from .catalystrc in the working directory, and
+   reading a table's columns means running the export from a scratch directory
+   so the report lands somewhere disposable. Naming the project explicitly is
+   what lets those two coexist: without it, a run from anywhere but
+   catalyst-backend/ answers 401 rather than saying it lost the project. */
+const PROJECT = (() => {
+  const rc = join(BACKEND, '.catalystrc');
+  if (!existsSync(rc)) return null;
+  try {
+    const cfg = JSON.parse(readFileSync(rc, 'utf8'));
+    const active = cfg.actives && cfg.actives.project;
+    const p = (cfg.projects || []).find((x) => x.idx === active) || (cfg.projects || [])[0];
+    return p ? p.name : null;
+  } catch { return null; }
+})();
 
 const authReg = require(join(BACKEND, 'functions/auth/src/lib/tables.js'));
 const formReg = require(join(BACKEND, 'functions/formSubmit/tables.js'));
@@ -64,6 +80,7 @@ function probe(table) {
   const dir = mkdtempSync(join(tmpdir(), 'whollar-probe-'));
   try {
     const cliArgs = ['ds:export', '--table', table, '--page', '1'];
+    if (PROJECT) cliArgs.push('--project', PROJECT);
     if (production) cliArgs.push('--production');
     let out = '';
     try {

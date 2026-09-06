@@ -14,9 +14,14 @@ table is there, `404, No such Table with the given name exists` means it is not.
 - **no**, at least one is absent, and what that costs is named in Gaps
 - **derived**, the action reads no table of its own
 
-`Owner check` is for ticking off as tables land. Working notes are in
-`_phase0_findings.md`; the naming rule and the owed table specs are in
-`TABLE_NAMING_GUIDE.md`.
+`Owner check` is for ticking off as tables land. The console work these rows
+imply, in the order worth doing it, is `STORE_BACKLOG_2026-09.md`. Working notes
+are in `_phase0_findings.md`; the naming rule and the owed table specs are in
+`TABLE_NAMING_GUIDE.md`; every table's live column list is in `_live_columns.md`.
+
+Existence can be re-read at any time with `node scripts/check-store-tables.mjs`,
+and once the tables land, `GET /api/auth/health/diagnostics` answers the column
+and flag half for all 49 auth tables in one request.
 
 **Eight shipped tables do not exist.** Six of them are the whole of section 34
 (provider exclusions) plus section 27 (stage notices) on the `auth` side, and two
