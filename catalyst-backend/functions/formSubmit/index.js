@@ -111,12 +111,25 @@ const GATEWAY_CORS_ORIGINS = ['https://www.whollar.ca'];
 const isDevOrigin = (origin) =>
   origin === 'null' || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 
-// Vercel: only this project's own production + preview deploys, not the whole
+// Vercel: only our own production + preview deploys, not the whole
 // *.vercel.app suffix (which would let any attacker-hosted Vercel page drive
 // browser requests at this backend). Preview URLs look like
-// whollar-web-<hash>-<team>.vercel.app / whollar-web-git-<branch>-…
+// whollar-web-<hash>-<team>.vercel.app / whollar-web-git-<branch>-<team>…
+//
+// THE SECOND RULE IS FOR THE OTHER TWO REPOS. This started as one project and
+// the pattern still says so: whollar-web matched, and the split left tires and
+// home with preview URLs that matched nothing. A branch preview on either of
+// them posts a form, the browser sends it, this function writes the row and
+// answers without an allow-origin header, so the browser bins the reply and
+// the reader is told their signup failed. It saved and it said it did not,
+// which is the worst of the three outcomes available.
+//
+// Scoped to the team slug rather than widened to a prefix: whollar-tires-*
+// would also match a project somebody else registers under that name, and the
+// -whollar1 suffix is ours in a way a project name is not.
 const isVercelOrigin = (origin) =>
-  /^https:\/\/whollar-web[a-z0-9-]*\.vercel\.app$/.test(origin);
+  /^https:\/\/whollar-web[a-z0-9-]*\.vercel\.app$/.test(origin) ||
+  /^https:\/\/whollar-(web|tires|home)-[a-z0-9-]+-whollar1\.vercel\.app$/.test(origin);
 
 // Dev origins (localhost / Origin:null) are allowed only when this function is
 // NOT running on its production Catalyst domain, so the live prod backend never
