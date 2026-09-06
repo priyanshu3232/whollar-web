@@ -20,8 +20,9 @@ const crypto = require('node:crypto');
 const datastore = require('./datastore');
 const { token, pkceChallenge } = require('./crypto');
 const { badRequest, forbidden } = require('./errors');
+const { T } = require('./tables');
 
-const STATE_TABLE = 'oauth_state';
+const STATE_TABLE = T.oauthState.name;
 const STATE_TTL_MS = 10 * 60 * 1000;
 
 /* ------------------------------------------------------------------ *

@@ -34,8 +34,9 @@
 const datastore = require('../lib/datastore');
 const audit = require('../lib/audit');
 const { wrap, badRequest, unauthorized, forbidden } = require('../lib/errors');
+const { T, F } = require('../lib/tables');
 
-const TABLE = 'member_bills';
+const TABLE = T.memberBills.name;
 
 /**
  * The public lead tables, owned by the formSubmit function and created in the
@@ -58,8 +59,8 @@ const TABLE = 'member_bills';
  * second query on every dashboard load to occasionally prefer the thinner
  * answer is a bad trade.
  */
-const LEADS_TABLE = 'BillCheckupSubmissions';
-const WAITLIST_TABLE = 'WaitlistDetails';
+const LEADS_TABLE = F.billCheckupSubmissions.name;
+const WAITLIST_TABLE = F.waitlistDetails.name;
 
 /* ------------------------------------------------------------------ *
  * Field hygiene

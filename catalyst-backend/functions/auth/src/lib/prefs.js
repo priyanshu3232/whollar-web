@@ -13,8 +13,9 @@
 
 const datastore = require('./datastore');
 const { AppError } = require('./errors');
+const { T } = require('./tables');
 
-const TABLE = 'user_prefs';
+const TABLE = T.userPrefs.name;
 const MAX_JSON = 4000;
 
 /** The stored preferences for a user, or {}: missing row and missing table alike. */

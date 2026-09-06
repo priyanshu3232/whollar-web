@@ -30,8 +30,9 @@
  */
 
 const datastore = require('../datastore');
+const { T } = require('../tables');
 
-const TABLE = 'email_suppressions';
+const TABLE = T.emailSuppressions.name;
 const COLUMNS = Object.freeze(['email', 'reason', 'source', 'first_seen_at', 'last_seen_at']);
 
 const REASONS = Object.freeze(['hard_bounce', 'complaint', 'unsubscribed_all', 'manual']);

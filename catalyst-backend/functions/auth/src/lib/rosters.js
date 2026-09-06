@@ -44,9 +44,10 @@
 const datastore = require('./datastore');
 const brands = require('./brands');
 const { AppError, badRequest } = require('./errors');
+const { T } = require('./tables');
 
-const ROSTER = 'provider_brands';
-const SERVING = 'distributor_providers';
+const ROSTER = T.providerBrands.name;
+const SERVING = T.distributorProviders.name;
 
 /* create-tables.md sections 34b and 34c. */
 const ROSTER_COLS = Object.freeze(['roster_key', 'provider_id', 'brand_id',

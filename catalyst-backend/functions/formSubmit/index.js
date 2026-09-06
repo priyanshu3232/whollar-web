@@ -5,6 +5,7 @@ const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
 const crypto = require('node:crypto');
+const { T } = require('./tables');
 
 const app = express();
 
@@ -551,9 +552,16 @@ async function insertTolerant(catalystApp, tableName, row, optional) {
 // CrmSyncQueue and pushes rows into Zoho CRM). Best-effort by design: it must
 // NEVER throw into the request path: the submission is already saved, so a
 // queue miss only delays that one lead's sync, it doesn't fail the user's form.
+/* `source` is a ROUTING KEY, NOT A TABLE NAME, and the call sites below pass it
+   as a literal on purpose. The values happen to equal table names today, but
+   crmSync keys its own descriptor map on these exact strings, it is a separately
+   packaged function that cannot see tables.js, and every row already in
+   CrmSyncQueue carries the old value. Wiring these to the registry would mean a
+   rename there silently stopped matching a descriptor here, across a deploy
+   boundary, with no error anywhere. */
 async function enqueueCrm(catalystApp, { source, rowId, email, leadType, data }) {
   try {
-    await catalystApp.datastore().table('CrmSyncQueue').insertRow({
+    await catalystApp.datastore().table(T.crmSyncQueue.name).insertRow({
       Source: source,
       SourceRowId: rowId != null ? String(rowId) : null,
       Email: email,
@@ -614,7 +622,7 @@ app.post('/waitlist-join', limit({ key: 'waitlist-join', max: 20, windowSec: 360
 
     // PoolingFor is the one column that may not exist yet (create-tables.md
     // and README.md name it); insertTolerant drops it and keeps the row.
-    const row = await insertTolerant(catalystApp, 'WaitlistSignups', {
+    const row = await insertTolerant(catalystApp, T.waitlistSignups.name, {
       FirstName: firstName,
       LastName: lastName,
       Email: email,
@@ -666,7 +674,7 @@ app.post('/waitlist-details', limit({ key: 'waitlist-details', max: 20, windowSe
     // the fallback the auth function reads when that member write is lost:
     // copying identity columns into it would duplicate PII to no end, and
     // crmSync reads the payload below rather than these columns anyway.
-    const row = await insert(catalystApp, 'WaitlistDetails', {
+    const row = await insert(catalystApp, T.waitlistDetails.name, {
       // Lowercased for the same reason as BillCheckupSubmissions.Email: the
       // auth function's fallback finds this row by exact match against the
       // member's email_normalized, and ZCQL has no LOWER(). The CRM payload
@@ -747,7 +755,7 @@ async function insertSignupWithRef(catalystApp, city, row) {
   for (let attempt = 0; attempt < 4; attempt++) {
     const ReferenceCode = tireRef(city);
     try {
-      const saved = await insertTolerant(catalystApp, 'TireWaitlistSignups',
+      const saved = await insertTolerant(catalystApp, T.tireWaitlistSignups.name,
         { ...row, ReferenceCode }, [['Wave']]);
       return { row: saved, ReferenceCode };
     } catch (err) {
@@ -771,7 +779,7 @@ async function bumpTireCounter(catalystApp, city) {
       `SELECT ROWID, Joined FROM TireCohortCounter WHERE CounterKey = '${key}' LIMIT 1`);
     const found = rows && rows[0] && rows[0].TireCohortCounter;
     const joined = found ? Number(found.Joined || 0) + 1 : 1;
-    const table = catalystApp.datastore().table('TireCohortCounter');
+    const table = catalystApp.datastore().table(T.tireCohortCounter.name);
     if (found) await table.updateRow({ ROWID: found.ROWID, Joined: joined, UpdatedAt: catalystNow() });
     else await table.insertRow({ CounterKey: key, Vertical: 'tires', City: city, Joined: joined, UpdatedAt: catalystNow() });
     return joined;
@@ -843,7 +851,7 @@ app.post('/tire-waitlist-join', limit({ key: 'tire-waitlist-join', max: 20, wind
     // losing a car to a bad column is not a reason to tell them they are not.
     const later = [];
     vehicles.forEach((v, i) => {
-      later.push(insertTolerant(catalystApp, 'TireWaitlistVehicles', {
+      later.push(insertTolerant(catalystApp, T.tireWaitlistVehicles.name, {
         VehicleKey: `${ReferenceCode}:${i + 1}`,
         ReferenceCode,
         Email: emailKey(email),
@@ -875,7 +883,7 @@ app.post('/tire-waitlist-join', limit({ key: 'tire-waitlist-join', max: 20, wind
     });
 
     if (details) {
-      later.push(insertTolerant(catalystApp, 'TireWaitlistDetails', {
+      later.push(insertTolerant(catalystApp, T.tireWaitlistDetails.name, {
         ReferenceCode,
         Email: emailKey(email),
         Needs: orNull(str(details.needs)),
@@ -910,7 +918,7 @@ app.post('/tire-waitlist-join', limit({ key: 'tire-waitlist-join', max: 20, wind
 
     windows.forEach((w, i) => {
       const rank = Number(w.rank) || i + 1;
-      later.push(insertTolerant(catalystApp, 'TireInstallWindows', {
+      later.push(insertTolerant(catalystApp, T.tireInstallWindows.name, {
         WindowKey: `${ReferenceCode}:${rank}`,
         ReferenceCode,
         Email: emailKey(email),
@@ -925,7 +933,7 @@ app.post('/tire-waitlist-join', limit({ key: 'tire-waitlist-join', max: 20, wind
     });
 
     toolRuns.forEach((t) => {
-      later.push(insertTolerant(catalystApp, 'TireToolRuns', {
+      later.push(insertTolerant(catalystApp, T.tireToolRuns.name, {
         RunKey: `${ReferenceCode}:${str(t.tool)}`,
         ReferenceCode,
         Tool: str(t.tool),
@@ -1036,7 +1044,7 @@ app.post('/product-vote', limit({ key: 'product-vote', max: 30, windowSec: 3600 
 
     const results = await Promise.allSettled(picks.map(product => insertTolerant(
       catalystApp,
-      'ProductVotes',
+      T.productVotes.name,
       {
         VoteKey: `${id}:${product}`,
         VoteId: id,
@@ -1072,7 +1080,7 @@ app.post('/bill-checkup-join', limit({ key: 'bill-checkup-join', max: 30, window
     const catalystApp = catalyst.initialize(req);
     const file = await storeFile(catalystApp, req.file);
     const postal = normalizePostal(b.pc || b.postalFull);
-    const row = await insertTolerant(catalystApp, 'BillCheckupSubmissions', {
+    const row = await insertTolerant(catalystApp, T.billCheckupSubmissions.name, {
       // Lowercased so GET /me/bill's exact-match adoption (ZCQL has no LOWER)
       // finds this row via the member's email_normalized. CRM keeps the raw
       // casing in its own payload below.
@@ -1191,7 +1199,7 @@ async function countRows(catalystApp, table, whereSql) {
 app.get('/pooling-count', limit({ key: 'pooling-count', max: 120, windowSec: 3600 }), async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req);
-    const total = await countRows(catalystApp, 'BillCheckupSubmissions');
+    const total = await countRows(catalystApp, T.billCheckupSubmissions.name);
 
     let fsa = null;
     const fsaParam = str(req.query.fsa).toUpperCase();
@@ -1199,7 +1207,7 @@ app.get('/pooling-count', limit({ key: 'pooling-count', max: 120, windowSec: 360
     // this interpolation carries only 3 already-validated alphanumeric chars,
     // never raw user input.
     if (FSA_RE.test(fsaParam)) {
-      const r = await countRows(catalystApp, 'BillCheckupSubmissions', `PostalFSA = '${fsaParam}'`);
+      const r = await countRows(catalystApp, T.billCheckupSubmissions.name, `PostalFSA = '${fsaParam}'`);
       fsa = { code: fsaParam, ...r };
     }
 
@@ -1233,7 +1241,7 @@ app.post('/deep-read', limit({ key: 'deep-read', max: 10, windowSec: 3600 }), gu
       effectiveCost: toNumber(b.effectiveCost),
       verdict: orNull(str(b.verdict))
     };
-    const row = await insert(catalystApp, 'DeepReadRequests', {
+    const row = await insert(catalystApp, T.deepReadRequests.name, {
       Email: email,
       Note: orNull(str(b.note)),
       FileIds: json(files.map(f => f.id)),
@@ -1281,7 +1289,7 @@ app.post('/partner-application', limit({ key: 'partner-application', max: 10, wi
 
   try {
     const catalystApp = catalyst.initialize(req);
-    const row = await insert(catalystApp, 'PartnerApplications', {
+    const row = await insert(catalystApp, T.partnerApplications.name, {
       Role: role,
       FirstName: firstName,
       LastName: lastName,
@@ -1349,7 +1357,7 @@ app.post('/calculator-estimate', limit({ key: 'calculator-estimate', max: 40, wi
 
   try {
     const catalystApp = catalyst.initialize(req);
-    const row = await insert(catalystApp, 'CalculatorEstimates', {
+    const row = await insert(catalystApp, T.calculatorEstimates.name, {
       // "A1A 1A1" when the full code is present, otherwise null, never a
       // half-normalised mix of spaced and unspaced values.
       PostalCode: postal.full,
@@ -1428,7 +1436,7 @@ app.post('/contact', limit({ key: 'contact', max: 10, windowSec: 3600 }), async 
 
   try {
     const catalystApp = catalyst.initialize(req);
-    const row = await insert(catalystApp, 'ContactSubmissions', {
+    const row = await insert(catalystApp, T.contactSubmissions.name, {
       FirstName: firstName,
       LastName: lastName,
       Email: email,
@@ -1512,7 +1520,7 @@ app.post('/city-request', limit({ key: 'city-request', max: 20, windowSec: 3600 
     // FSA and PoolingFor are the columns most likely to be missing on a store
     // that has not caught up with section 37 yet, and a city with no postal code
     // is still worth counting. insertTolerant drops them and keeps the row.
-    const row = await insertTolerant(catalystApp, 'CityRequests', {
+    const row = await insertTolerant(catalystApp, T.cityRequests.name, {
       City: city,
       Province: province,
       Email: email,
@@ -1656,7 +1664,7 @@ async function ensureShareCode(catalystApp, key) {
   for (let attempt = 0; attempt < 4; attempt++) {
     const ShareCode = mintShareCode();
     try {
-      await insert(catalystApp, 'WaitlistShareCodes', {
+      await insert(catalystApp, T.waitlistShareCodes.name, {
         EmailKey: key, ShareCode, CreatedAt: catalystNow()
       });
       return ShareCode;
@@ -1799,7 +1807,7 @@ app.post('/waitlist-email', limit({ key: 'waitlist-email', max: 20, windowSec: 3
     // the thing that must not be lost. ConsentText and ConsentAt are NOT
     // optional, because an address kept without the sentence agreed to is an
     // address we cannot lawfully mail.
-    const row = await insertTolerant(catalystApp, 'WaitlistEmails', {
+    const row = await insertTolerant(catalystApp, T.waitlistEmails.name, {
       EmailKey: `${key}:${product}`,
       Email: key,
       Product: product,
@@ -1915,7 +1923,7 @@ app.post('/ref-click', limit({ key: 'ref-click', max: 120, windowSec: 3600 }), a
 
   try {
     const catalystApp = catalyst.initialize(req);
-    await insert(catalystApp, 'ReferralClicks', {
+    await insert(catalystApp, T.referralClicks.name, {
       ClickKey: clickKey(code, req),
       ShareCode: code,
       Host: str(req.headers.origin).replace(/^https?:\/\//, '').slice(0, 64) || null,

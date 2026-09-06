@@ -24,8 +24,9 @@ const datastore = require('./datastore');
 const { numericCode, hashCode, hashIp, safeEqual } = require('./crypto');
 const { clientIp } = require('./request');
 const { badRequest } = require('./errors');
+const { T } = require('./tables');
 
-const TABLE = 'auth_challenges';
+const TABLE = T.authChallenges.name;
 
 const TTL_MINUTES = 10;
 const TTL_MS = TTL_MINUTES * 60 * 1000;

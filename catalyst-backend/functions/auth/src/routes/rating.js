@@ -16,8 +16,9 @@
 const datastore = require('../lib/datastore');
 const audit = require('../lib/audit');
 const { wrap, badRequest, unauthorized, forbidden, AppError } = require('../lib/errors');
+const { T } = require('../lib/tables');
 
-const TABLE = 'provider_ratings';
+const TABLE = T.providerRatings.name;
 const ASPECTS = ['price', 'reliability', 'support', 'speed'];
 
 function requireMember(req) {

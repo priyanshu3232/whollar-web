@@ -33,8 +33,9 @@ const { ok, ms } = require('../lib/envelope');
 const { requirePartner: guardPartner } = require('../lib/guards');
 const { wrap, badRequest, forbidden } = require('../lib/errors');
 const application = require('./application');
+const { T } = require('../lib/tables');
 
-const COVERAGE = 'provider_coverage';
+const COVERAGE = T.providerCoverage.name;
 
 const requirePartner = (req) => guardPartner(req, 'a /provider/contracts route');
 

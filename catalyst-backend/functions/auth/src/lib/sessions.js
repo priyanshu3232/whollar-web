@@ -15,9 +15,10 @@ const datastore = require('./datastore');
 const cookies = require('./cookies');
 const { token, hashSessionToken, hashIp } = require('./crypto');
 const { clientIp, userAgent } = require('./request');
+const { T } = require('./tables');
 
-const SESSIONS = 'sessions';
-const USERS = 'users';
+const SESSIONS = T.sessions.name;
+const USERS = T.users.name;
 
 const SESSION_COLUMNS = ['ROWID', 'session_id', 'token_hash', 'user_id', 'expires_at', 'revoked_at'];
 // The whole profile, not just identity: campaign joins snapshot `fsa` from

@@ -25,8 +25,9 @@
 
 const datastore = require('./datastore');
 const geo = require('./geo');
+const { T } = require('./tables');
 
-const TABLE = 'campaigns';
+const TABLE = T.campaigns.name;
 const COLUMNS = ['campaign_id', 'region', 'sub', 'kind', 'target',
   'seed_members', 'seed_households', 'bidding_open', 'sort_order',
   'updated_by', 'updated_at',

@@ -40,8 +40,9 @@
 const datastore = require('../lib/datastore');
 const audit = require('../lib/audit');
 const { wrap, badRequest, unauthorized, forbidden } = require('../lib/errors');
+const { T } = require('../lib/tables');
 
-const TABLE = 'product_interest';
+const TABLE = T.productInterest.name;
 
 /**
  * The products this endpoint will record, and for each one the questions it

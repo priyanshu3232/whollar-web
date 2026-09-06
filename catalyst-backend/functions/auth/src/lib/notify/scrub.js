@@ -32,6 +32,7 @@
  */
 
 const datastore = require('../datastore');
+const { T } = require('../tables');
 
 /* Shapes that must never reach any recipient, whatever the audience. */
 const UNIVERSAL = Object.freeze([
@@ -204,11 +205,11 @@ async function ownOrgSafe(catalystApp, recipient) {
   const id = recipient && recipient.id;
   if (!id) return null;
   try {
-    const rows = await datastore.queryAll(catalystApp, 'provider_users',
+    const rows = await datastore.queryAll(catalystApp, T.providerUsers.name,
       ['user_id', 'org_id'], `user_id = ${datastore.lit(String(id))}`);
     const orgId = rows && rows[0] && rows[0].org_id;
     if (!orgId) return null;
-    const org = await datastore.findBy(catalystApp, 'provider_orgs', 'org_id',
+    const org = await datastore.findBy(catalystApp, T.providerOrgs.name, 'org_id',
       orgId, ['legal_name', 'trade_name']);
     return { orgId, name: org ? (org.trade_name || org.legal_name) : null };
   } catch {
@@ -218,7 +219,7 @@ async function ownOrgSafe(catalystApp, recipient) {
 
 async function bidRowsSafe(catalystApp, campaignId) {
   try {
-    const rows = await datastore.queryAll(catalystApp, 'provider_bids',
+    const rows = await datastore.queryAll(catalystApp, T.providerBids.name,
       ['bid_key', 'campaign_id', 'org_id'],
       `campaign_id = ${datastore.lit(campaignId)}`);
     const out = [];
@@ -246,7 +247,7 @@ async function orgNameSafe(catalystApp, orgId) {
   for (const cols of [['legal_name', 'trade_name'], ['legal_name']]) {
     try {
       /* eslint-disable-next-line no-await-in-loop */
-      const org = await datastore.findBy(catalystApp, 'provider_orgs', 'org_id', orgId, cols);
+      const org = await datastore.findBy(catalystApp, T.providerOrgs.name, 'org_id', orgId, cols);
       if (!org) return null;
       return org.trade_name || org.legal_name || null;
     } catch {
@@ -258,7 +259,7 @@ async function orgNameSafe(catalystApp, orgId) {
 
 async function unconfirmedAddressesSafe(catalystApp, campaignId) {
   try {
-    const rows = await datastore.queryAll(catalystApp, 'provider_orders',
+    const rows = await datastore.queryAll(catalystApp, T.providerOrders.name,
       ['campaign_id', 'state', 'address_line'],
       `campaign_id = ${datastore.lit(campaignId)}`);
     return (rows || []).filter((r) => r.state === 'acc' && r.address_line);
@@ -270,7 +271,7 @@ async function unconfirmedAddressesSafe(catalystApp, campaignId) {
 async function memberContactsSafe(catalystApp, campaignId) {
   if (!campaignId) return [];
   try {
-    const rows = await datastore.queryAll(catalystApp, 'provider_orders',
+    const rows = await datastore.queryAll(catalystApp, T.providerOrders.name,
       ['campaign_id', 'address_line'],
       `campaign_id = ${datastore.lit(campaignId)}`);
     return (rows || []).map((r) => ({ address_line: r.address_line, email: null }));

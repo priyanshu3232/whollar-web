@@ -3182,3 +3182,77 @@ call. Four values, and the mail is silent until all four exist:
 | `NOTIFY_CRON_SECRET` | formSubmit and auth | the same value on both, compared in constant time |
 | `MAIL_POSTAL_ADDRESS` | auth | **a hard gate.** `waitlist.welcome` is the registry's first `cem` template, and `outbox.js` writes a commercial send as `failed` with `no_postal_address` rather than sending one without it |
 | `CLICK_PEPPER` | formSubmit | optional. A missing one falls back to a build constant, which weakens click dedupe and breaks nothing |
+
+---
+
+## 41. Three tables that were already live and never written down
+
+**These three exist in the Development store and always have.** They are not
+work to do. They are the console instructions nobody wrote at the time, and this
+section exists so that rebuilding an environment from this file produces a store
+the code can actually use, and so `scripts/check-table-registry.mjs` can assert
+that every registered table has a section behind it.
+
+Columns below were read from the live store on 2026-09-06 and match what
+`functions/formSubmit/index.js` writes. If you are creating these fresh in a new
+environment, create them exactly as listed.
+
+**PascalCase, like every other formSubmit table.** Same warning as sections 35,
+37, 38 and 39.
+
+### 41a. `DeepReadRequests`
+
+The "have a person read my bill" ask from the checkup page. `POST /deep-read`,
+with up to five uploaded files. The runbook has called this "the deep read
+table" in prose since section 14 without ever naming it.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `Email` | Var Char | 255 | | ✅ | ✅ | |
+| `Note` | Text | 10000 | | | ✅ | what the household typed, free form, never filtered on |
+| `FileIds` | Text | 4000 | | | | JSON array of File Store ids |
+| `FileNames` | Text | 4000 | | | ✅ | JSON array of names as uploaded, display only |
+| `ContextSnapshot` | Text | 10000 | | | | JSON of what the checkup had worked out when they asked, so a reader does not start from nothing |
+| `SubmittedAt` | DateTime | - | | ✅ | | |
+
+### 41b. `CalculatorEstimates`
+
+One row per savings estimate on the home page. No email and no name: this is a
+sizing signal, not a household, and `GET /admin/intake/geo` counts it by FSA
+alongside the other three intake tables.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `PostalCode` | Var Char | 10 | | | ✅ | `"A1A 1A1"` when the full code is present, otherwise empty. Never a half-normalised mix of spaced and unspaced values |
+| `FSA` | Var Char | 3 | | | | first three characters, which is what the geo report reads |
+| `MonthlyBill` | Var Char | 16 | | | | money is a string, rule 5 of the naming guide |
+| `EstimatedAnnualSavings` | Var Char | 16 | | | | |
+| `SubmittedAt` | DateTime | - | | ✅ | | |
+
+### 41c. `ContactSubmissions`
+
+`POST /contact`, from the contact page and from the corner popup on all three
+hosts.
+
+| Column | Type | Length | Unique | Mandatory | PII | Notes |
+|---|---|---|:--:|:--:|:--:|---|
+| `FirstName` | Var Char | 100 | | ✅ | ✅ | |
+| `LastName` | Var Char | 100 | | ✅ | ✅ | |
+| `Email` | Var Char | 255 | | ✅ | ✅ | |
+| `Phone` | Var Char | 32 | | | ✅ | digits only, empty when not given |
+| `Company` | Var Char | 150 | | | | capped at 150 on the write |
+| `Topic` | Var Char | 64 | | ✅ | | |
+| `Message` | Text | 10000 | | ✅ | ✅ | never filtered on |
+| `SubmittedAt` | DateTime | - | | ✅ | | |
+
+### 41d. Gate check, in the ZCQL tab
+
+All three already answer. This is here for a rebuilt environment:
+
+```sql
+SELECT ROWID FROM DeepReadRequests LIMIT 1;
+SELECT ROWID FROM CalculatorEstimates LIMIT 1;
+SELECT ROWID FROM ContactSubmissions LIMIT 1;
+```
+
+An empty result is fine. `No such Table` is not.

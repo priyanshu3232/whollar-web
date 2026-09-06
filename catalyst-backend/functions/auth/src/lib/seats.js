@@ -55,10 +55,11 @@
 const datastore = require('./datastore');
 const cohorts = require('./cohorts');
 const { AppError } = require('./errors');
+const { T } = require('./tables');
 
-const CLAIM_TABLE = 'seat_claim';
-const EVENT_TABLE = 'claim_event';
-const COUNTER_TABLE = 'cohort_counter';
+const CLAIM_TABLE = T.seatClaim.name;
+const EVENT_TABLE = T.claimEvent.name;
+const COUNTER_TABLE = T.cohortCounter.name;
 
 const VERTICAL_DEFAULT = 'internet';
 

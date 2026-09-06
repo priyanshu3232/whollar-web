@@ -40,10 +40,11 @@ const datastore = require('./datastore');
 const catalog = require('./catalog');
 const users = require('./users');
 const outbox = require('./notify/outbox');
+const { T } = require('./tables');
 
-const TABLE = 'campaign_notices';
-const MEMBERS_TABLE = 'campaign_members';
-const CLAIM_TABLE = 'seat_claim';
+const TABLE = T.campaignNotices.name;
+const MEMBERS_TABLE = T.campaignMembers.name;
+const CLAIM_TABLE = T.seatClaim.name;
 
 /** Households mailed in one pass. A cohort larger than this finishes on the next. */
 const BATCH = 120;

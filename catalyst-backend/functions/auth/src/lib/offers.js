@@ -55,8 +55,9 @@
 const datastore = require('./datastore');
 const tiers = require('./tiers');
 const { ms } = require('./envelope');
+const { T } = require('./tables');
 
-const OFFERS = 'household_offers';
+const OFFERS = T.householdOffers.name;
 
 const OFFER_COLS = Object.freeze(['offer_key', 'campaign_id', 'user_id', 'speed_mbps',
   'centre_tier', 'window_rule', 'cards_json', 'offered_at']);

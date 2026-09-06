@@ -53,8 +53,9 @@ const rosters = require('../lib/rosters');
 const brands = require('../lib/brands');
 const { ms } = require('../lib/envelope');
 const { wrap, badRequest, AppError } = require('../lib/errors');
+const { T } = require('../lib/tables');
 
-const TABLE = 'campaign_members';
+const TABLE = T.campaignMembers.name;
 const { JOIN_STATUS } = catalog;
 
 /* ------------------------------------------------------------------ *
@@ -93,7 +94,7 @@ async function preferredChip(catalystApp, userId) {
  */
 async function billSpeed(catalystApp, userId) {
   try {
-    const row = await datastore.findBy(catalystApp, 'member_bills', 'user_id', userId, ['download_speed']);
+    const row = await datastore.findBy(catalystApp, T.memberBills.name, 'user_id', userId, ['download_speed']);
     return row && row.download_speed != null && row.download_speed !== '' ? String(row.download_speed) : null;
   } catch {
     return null;
@@ -111,7 +112,7 @@ async function billSpeed(catalystApp, userId) {
 async function partnerName(catalystApp, orgId) {
   if (!orgId) return null;
   try {
-    const org = await datastore.findBy(catalystApp, 'provider_orgs', 'org_id', orgId, ['legal_name']);
+    const org = await datastore.findBy(catalystApp, T.providerOrgs.name, 'org_id', orgId, ['legal_name']);
     return (org && org.legal_name) || null;
   } catch {
     return null;
