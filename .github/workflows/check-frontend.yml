@@ -138,6 +138,22 @@ jobs:
       - name: Redirect map resolves every legacy URL
         run: node scripts/check-redirect-map.mjs
 
+      # The two table registries, checked against each other, against
+      # schema.js, against crmSync's own copy of the queue name and against
+      # create-tables.md. Catalyst packages each function separately, so there
+      # is no module the four can share and "one registry" has to mean two
+      # registries plus something that refuses to let them disagree. This is
+      # that something. It does NOT check the live store: eight registered
+      # tables genuinely do not exist yet.
+      - name: Table registries agree with each other and the runbook
+        run: node scripts/check-table-registry.mjs
+
+      # The generated Data Store inventory. Stale means schema.js gained or
+      # lost a table and TABLES.md was not regenerated, so the document
+      # everyone reads describes a schema the code no longer believes in.
+      - name: TABLES.md matches schema.js
+        run: node scripts/build-tables-doc.mjs --check
+
       # The internet site names its own host and no other. Computed over the
       # deployable set, so a canonical or a sitemap entry that still says
       # www.whollar.ca cannot ship telling crawlers the page lives elsewhere.

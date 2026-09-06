@@ -36,9 +36,10 @@ const catalog = require('../catalog');
 const users = require('../users');
 const orgs = require('../orgs');
 const outbox = require('./outbox');
+const { T } = require('../tables');
 
-const ORDERS = 'provider_orders';
-const COVERAGE = 'provider_coverage';
+const ORDERS = T.providerOrders.name;
+const COVERAGE = T.providerCoverage.name;
 
 const HOUR = 3600 * 1000;
 
@@ -114,12 +115,12 @@ async function orgsCovering(catalystApp, region) {
 async function householdsOn(catalystApp, campaign) {
   const ids = new Set();
   try {
-    const claims = await datastore.queryAll(catalystApp, 'seat_claim', ['member_id'],
+    const claims = await datastore.queryAll(catalystApp, T.seatClaim.name, ['member_id'],
       `cohort_id = ${datastore.lit(campaign.id)} AND status = 'active'`) || [];
     for (const r of claims) if (r.member_id) ids.add(String(r.member_id));
   } catch { /* the membership snapshot below still answers */ }
   try {
-    const rows = await datastore.queryAll(catalystApp, 'campaign_members', ['user_id', 'status'],
+    const rows = await datastore.queryAll(catalystApp, T.campaignMembers.name, ['user_id', 'status'],
       `campaign_id = ${datastore.lit(campaign.id)}`) || [];
     for (const r of rows) {
       if (catalog.standingOf(r.status, campaign) === 'joined') ids.add(String(r.user_id));
@@ -261,7 +262,7 @@ async function sweepBidClose(catalystApp, cfg, campaign, now, out) {
      the wording only. */
   let bidders = new Set();
   try {
-    const rows = await datastore.queryAll(catalystApp, 'provider_bids', ['org_id', 'campaign_id'],
+    const rows = await datastore.queryAll(catalystApp, T.providerBids.name, ['org_id', 'campaign_id'],
       `campaign_id = ${datastore.lit(campaign.id)}`) || [];
     bidders = new Set(rows.map((r) => String(r.org_id)));
   } catch { /* wording falls back to "you have not bid", which is the safer half */ }

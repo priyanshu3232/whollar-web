@@ -22,8 +22,9 @@
 const datastore = require('./datastore');
 const { hashPassword, verifyPassword, needsRehash } = require('./crypto');
 const { badRequest } = require('./errors');
+const { T } = require('./tables');
 
-const TABLE = 'credentials';
+const TABLE = T.credentials.name;
 
 const COLUMNS = ['ROWID', 'user_id', 'hash', 'algo', 'updated_at',
   'failed_count', 'locked_until'];

@@ -68,9 +68,10 @@ const datastore = require('./datastore');
 const bids = require('./bids');
 const cohorts = require('./cohorts');
 const { ms } = require('./envelope');
+const { T } = require('./tables');
 
-const AWARDS = 'campaign_awards';
-const BOOKS = 'campaign_price_books';
+const AWARDS = T.campaignAwards.name;
+const BOOKS = T.campaignPriceBooks.name;
 
 /* Two lists, the pattern lib/bids.js established: tables are created by hand,
    so code and schema deploy separately and in either order. The base list is

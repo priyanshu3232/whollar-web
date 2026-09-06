@@ -16,9 +16,10 @@
 
 const crypto = require('node:crypto');
 const datastore = require('./datastore');
+const { T } = require('./tables');
 
-const ORGS = 'provider_orgs';
-const MEMBERSHIPS = 'provider_users';
+const ORGS = T.providerOrgs.name;
+const MEMBERSHIPS = T.providerUsers.name;
 
 const ORG_COLUMNS = ['ROWID', 'org_id', 'legal_name', 'email_domain',
   'approval_status', 'approved_by', 'approved_at'];

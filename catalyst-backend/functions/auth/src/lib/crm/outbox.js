@@ -40,8 +40,9 @@
 
 const datastore = require('../datastore');
 const { serialise, ENTITY_TYPES } = require('./serialisers');
+const { F } = require('../tables');
 
-const TABLE = 'CrmSyncQueue';
+const TABLE = F.crmSyncQueue.name;
 
 /* ------------------------------------------------------------------ *
  * The event catalogue

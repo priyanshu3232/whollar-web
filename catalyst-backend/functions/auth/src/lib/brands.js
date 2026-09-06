@@ -40,8 +40,9 @@
  */
 
 const datastore = require('./datastore');
+const { T } = require('./tables');
 
-const TABLE = 'brand_registry';
+const TABLE = T.brandRegistry.name;
 
 /* create-tables.md section 34a. One list today; a wider list joins in front
    of it when a column is added, the ladder every table here carries because

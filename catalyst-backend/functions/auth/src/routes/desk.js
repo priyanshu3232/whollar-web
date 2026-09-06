@@ -52,9 +52,10 @@ const rosters = require('../lib/rosters');
 const { requirePartner: guardPartner, requireApproved } = require('../lib/guards');
 const { wrap, badRequest, forbidden, AppError } = require('../lib/errors');
 const application = require('./application');
+const { T } = require('../lib/tables');
 
 const BIDS = bids.BIDS;
-const COVERAGE = 'provider_coverage';
+const COVERAGE = T.providerCoverage.name;
 
 const TECHS = new Set(['cable', 'fibre', 'fwa', 'dsl']);
 

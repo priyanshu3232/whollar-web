@@ -34,9 +34,10 @@ const { money } = require('./money');
 const mixmath = require('./mixmath');
 const { ms } = require('./envelope');
 const { badRequest } = require('./errors');
+const { T } = require('./tables');
 
-const BIDS = 'provider_bids';
-const REVISIONS = 'bid_revisions';
+const BIDS = T.providerBids.name;
+const REVISIONS = T.bidRevisions.name;
 
 /* The standard tier ladder. Server-owned: a bid names tiers from this list so
    two partners' offers on one cohort are comparable line by line, which is

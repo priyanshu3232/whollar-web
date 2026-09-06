@@ -221,3 +221,15 @@ docs/DOMAIN_CUTOVER_RUNBOOK.md
 docs/VERTICAL_PLAYBOOK.md
 docs/DEPLOY_READINESS_2026-09.md
 docs/REPO_SPLIT_2026-09.md
+
+# The Data Store audit. docs/ IS deployed, and a .md publishes verbatim at its
+# own path: these name every table in the store, every live column in it,
+# and the eight tables that are missing, which together are a map of where the
+# system does not record what it says it records. In the repo and in history,
+# never on the site.
+docs/ACTION_TABLE_AUDIT.md
+docs/STORE_BACKLOG_2026-09.md
+docs/TABLE_NAMING_GUIDE.md
+docs/_phase0_findings.md
+docs/_live_columns.md
+docs/_table_status_2026-09-06.json

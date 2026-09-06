@@ -53,9 +53,10 @@ const layout = require('./layout');
 const suppress = require('./suppress');
 const unsub = require('./unsub');
 const scrub = require('./scrub');
+const { T } = require('../tables');
 
-const TABLE = 'notification_outbox';
-const DELIVERIES = 'notification_deliveries';
+const TABLE = T.notificationOutbox.name;
+const DELIVERIES = T.notificationDeliveries.name;
 
 const COLUMNS = Object.freeze(['notify_key', 'event_key', 'template_key',
   'recipient_type', 'recipient_id', 'recipient_email', 'locale', 'timezone',

@@ -60,6 +60,7 @@ const campaigns = require('./campaigns');
 const desk = require('./desk');
 const { wrap, badRequest, unauthorized, forbidden, AppError } = require('../lib/errors');
 const { canRevealCode } = require('./otp');
+const { T, F } = require('../lib/tables');
 
 const PURPOSE = 'admin_login';
 
@@ -163,27 +164,32 @@ async function recentRows(catalystApp, table, columns, { before, limit, where } 
  * without resolving through an allowlist first (the formSubmit pattern).
  * ------------------------------------------------------------------ */
 
+/* Keys are COMPUTED from the registry, not typed. Each key is both the table
+   name reaching ZCQL and the value a browser puts in /admin/leads/:table, so
+   the two cannot be allowed to drift apart: a typed key that no longer matches
+   its table is a staff view that 500s, and a typed key that matches a table the
+   registry renamed is worse. */
 const LEAD_TABLES = Object.freeze({
-  WaitlistSignups: ['FirstName', 'LastName', 'Email', 'Phone', 'FSA', 'ReferralCode', 'SubmittedAt'],
-  WaitlistDetails: ['Email', 'FSA', 'Provider', 'MonthlyCost', 'DownloadSpeed', 'PromoEndDate',
+  [F.waitlistSignups.name]: ['FirstName', 'LastName', 'Email', 'Phone', 'FSA', 'ReferralCode', 'SubmittedAt'],
+  [F.waitlistDetails.name]: ['Email', 'FSA', 'Provider', 'MonthlyCost', 'DownloadSpeed', 'PromoEndDate',
     'SwitchThreshold', 'Services', 'BillFileName', 'SubmittedAt'],
-  BillCheckupSubmissions: ['Email', 'Via', 'PostalFSA', 'Provider', 'MonthlyCost', 'DownloadSpeed',
+  [F.billCheckupSubmissions.name]: ['Email', 'Via', 'PostalFSA', 'Provider', 'MonthlyCost', 'DownloadSpeed',
     'AccessTech', 'PromoEndDate', 'MonthsToRenewal', 'PromoExpired', 'ContractStartDate',
     'ContractLength', 'SwitchThreshold', 'BillFileName', 'SubmittedAt'],
-  DeepReadRequests: ['Email', 'Note', 'FileNames', 'SubmittedAt'],
-  PartnerApplications: ['Role', 'FirstName', 'LastName', 'Company', 'Email', 'Phone', 'Provinces',
+  [F.deepReadRequests.name]: ['Email', 'Note', 'FileNames', 'SubmittedAt'],
+  [F.partnerApplications.name]: ['Role', 'FirstName', 'LastName', 'Company', 'Email', 'Phone', 'Provinces',
     'AccessTech', 'LegalName', 'ProviderType', 'BusinessNumber', 'Brands', 'Signatory',
     'RepresentsBrands', 'LOA', 'OtherType', 'Note', 'SubmittedAt'],
-  CalculatorEstimates: ['PostalCode', 'FSA', 'MonthlyBill', 'EstimatedAnnualSavings', 'SubmittedAt'],
-  ContactSubmissions: ['FirstName', 'LastName', 'Email', 'Phone', 'Company', 'Topic', 'Message', 'SubmittedAt'],
-  CrmSyncQueue: ['Source', 'SourceRowId', 'Email', 'LeadType', 'Status', 'Attempts', 'LastError', 'SyncedAt'],
+  [F.calculatorEstimates.name]: ['PostalCode', 'FSA', 'MonthlyBill', 'EstimatedAnnualSavings', 'SubmittedAt'],
+  [F.contactSubmissions.name]: ['FirstName', 'LastName', 'Email', 'Phone', 'Company', 'Topic', 'Message', 'SubmittedAt'],
+  [F.crmSyncQueue.name]: ['Source', 'SourceRowId', 'Email', 'LeadType', 'Status', 'Attempts', 'LastError', 'SyncedAt'],
   /* The waitlist popup's addresses. Absent from this map until 2026-09-05,
      which meant every address the popup had ever captured was invisible to
      anyone who did not open the Catalyst console and write ZCQL by hand. */
-  WaitlistEmails: ['Email', 'Product', 'CtaStep', 'Referral', 'SourcePage', 'Host', 'SubmittedAt'],
+  [F.waitlistEmails.name]: ['Email', 'Product', 'CtaStep', 'Referral', 'SourcePage', 'Host', 'SubmittedAt'],
   /* Who holds a share code. ShareCode is not secret: it is printed on a card
      and shared on purpose. */
-  WaitlistShareCodes: ['EmailKey', 'ShareCode', 'CreatedAt'],
+  [F.waitlistShareCodes.name]: ['EmailKey', 'ShareCode', 'CreatedAt'],
 });
 
 /* ------------------------------------------------------------------ *
@@ -347,13 +353,13 @@ function mount(router, cfg) {
 
     const leadCounts = {};
     for (const table of Object.keys(LEAD_TABLES)) {
-      if (table === 'CrmSyncQueue') continue;
+      if (table === F.crmSyncQueue.name) continue;
       leadCounts[table] = await countRows(c, table);
     }
 
     const crm = {};
     for (const status of ['PENDING', 'SYNCED', 'FAILED']) {
-      crm[status.toLowerCase()] = await countRows(c, 'CrmSyncQueue', `Status = ${datastore.lit(status)}`);
+      crm[status.toLowerCase()] = await countRows(c, F.crmSyncQueue.name, `Status = ${datastore.lit(status)}`);
     }
 
     const orgRows = await (async () => {
@@ -1357,7 +1363,7 @@ function mount(router, cfg) {
     const key = String(org.email_domain || '').toLowerCase();
     let applications = [];
     try {
-      const rows = await datastore.queryAll(req.catalyst, 'PartnerApplications',
+      const rows = await datastore.queryAll(req.catalyst, F.partnerApplications.name,
         LEAD_TABLES.PartnerApplications, 'ROWID > 0');
       /* An org created from a personal address stores the whole address here,
          not a domain, so the suffix match would look for '@sam@gmail.com' and
@@ -1388,7 +1394,7 @@ function mount(router, cfg) {
     /* Terms acceptance, so "have they signed" is on the page. */
     let terms = [];
     try {
-      terms = await datastore.queryAll(req.catalyst, 'provider_terms',
+      terms = await datastore.queryAll(req.catalyst, T.providerTerms.name,
         ['doc_type', 'doc_version', 'accepted_at', 'accepted_email'],
         `org_id = ${datastore.lit(orgId)}`);
     } catch { /* terms table unreadable: the section is omitted */ }
@@ -1592,7 +1598,7 @@ function mount(router, cfg) {
    */
   async function recordVerification(req, admin, org, row, result, reason) {
     try {
-      await datastore.insertRow(req.catalyst, 'coverage_verifications', {
+      await datastore.insertRow(req.catalyst, T.coverageVerifications.name, {
         coverage_key: row.coverage_key,
         org_id: org.org_id,
         region: row.region,
@@ -1960,14 +1966,14 @@ function mount(router, cfg) {
       }
     };
 
-    const codes = await soft('WaitlistShareCodes', ['EmailKey', 'ShareCode', 'CreatedAt']);
+    const codes = await soft(F.waitlistShareCodes.name, ['EmailKey', 'ShareCode', 'CreatedAt']);
     if (!codes) {
       throw new AppError('SERVER_ERROR', 'The share code table could not be read.', {
         logDetail: 'WaitlistShareCodes unreadable: has it been created in the console?',
       });
     }
-    const clicks = (await soft('ReferralClicks', ['ShareCode', 'ClickedAt'])) || [];
-    const signups = (await soft('WaitlistSignups', ['ReferralCode'])) || [];
+    const clicks = (await soft(F.referralClicks.name, ['ShareCode', 'ClickedAt'])) || [];
+    const signups = (await soft(F.waitlistSignups.name, ['ReferralCode'])) || [];
 
     const clicksBy = new Map();
     for (const r of clicks) {
@@ -2012,10 +2018,10 @@ function mount(router, cfg) {
    * on its own: one missing source narrows the picture, it does not blank it.
    */
   const GEO_SOURCES = [
-    ['WaitlistSignups', 'FSA'],
-    ['WaitlistDetails', 'FSA'],
-    ['BillCheckupSubmissions', 'PostalFSA'],
-    ['CalculatorEstimates', 'FSA'],
+    [F.waitlistSignups.name, 'FSA'],
+    [F.waitlistDetails.name, 'FSA'],
+    [F.billCheckupSubmissions.name, 'PostalFSA'],
+    [F.calculatorEstimates.name, 'FSA'],
   ];
 
   router.get('/admin/intake/geo', wrap(async (req, res) => {

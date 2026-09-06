@@ -44,10 +44,11 @@ const catalog = require('./catalog');
 const geo = require('./geo');
 const fsaref = require('./fsaref');
 const tiers = require('./tiers');
+const { T } = require('./tables');
 
-const MEMBERS_TABLE = 'campaign_members';
-const CLAIM_TABLE = 'seat_claim';
-const BILLS_TABLE = 'member_bills';
+const MEMBERS_TABLE = T.campaignMembers.name;
+const CLAIM_TABLE = T.seatClaim.name;
+const BILLS_TABLE = T.memberBills.name;
 
 const MEMO_MS = 60 * 1000;
 const memo = new Map();

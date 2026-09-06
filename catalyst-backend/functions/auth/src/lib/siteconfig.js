@@ -18,8 +18,9 @@
  */
 
 const datastore = require('./datastore');
+const { T } = require('./tables');
 
-const TABLE = 'site_config';
+const TABLE = T.siteConfig.name;
 const COLUMNS = ['config_key', 'value', 'value_type', 'published', 'description',
   'updated_by', 'updated_at'];
 

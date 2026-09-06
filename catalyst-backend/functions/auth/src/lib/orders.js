@@ -34,8 +34,9 @@ const crypto = require('crypto');
 const datastore = require('./datastore');
 const { ms } = require('./envelope');
 const { badRequest, AppError } = require('./errors');
+const { T } = require('./tables');
 
-const ORDERS = 'provider_orders';
+const ORDERS = T.providerOrders.name;
 
 /* Mirrors partner/core/contract.js ORDER_STATE. */
 const STATES = Object.freeze(['acc', 'bkd', 'act', 'rel', 'noshow', 'access', 'linefail']);

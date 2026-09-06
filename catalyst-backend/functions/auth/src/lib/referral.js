@@ -40,9 +40,10 @@
 
 const datastore = require('./datastore');
 const token = require('./token');
+const { T } = require('./tables');
 
-const USERS = 'users';
-const TOKENS = 'referral_token';
+const USERS = T.users.name;
+const TOKENS = T.referralToken.name;
 const PREFIX = 'WHL-';
 const CORE_LENGTH = 8;
 

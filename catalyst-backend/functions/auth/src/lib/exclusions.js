@@ -45,8 +45,9 @@
 
 const datastore = require('./datastore');
 const { AppError } = require('./errors');
+const { T } = require('./tables');
 
-const TABLE = 'member_provider_exclusions';
+const TABLE = T.memberProviderExclusions.name;
 
 /* create-tables.md section 34d. */
 const EXCL_COLS = Object.freeze(['excl_key', 'member_id', 'brand_id', 'source',

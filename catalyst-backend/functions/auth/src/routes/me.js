@@ -34,8 +34,9 @@ const seats = require('../lib/seats');
 const catalog = require('../lib/catalog');
 const cohorts = require('../lib/cohorts');
 const { wrap, badRequest, forbidden, AppError } = require('../lib/errors');
+const { T } = require('../lib/tables');
 
-const EVENTS = 'user_events';
+const EVENTS = T.userEvents.name;
 /* A CLOSED SET, and the only place it is declared. 'feedback' is the open box
    the dashboards call "Share your experience": unprompted, not attached to a
    provider or a cohort, and kept apart from 'rating' so a note about the site
@@ -537,7 +538,7 @@ function mount(router) {
 
     const bill = await (async () => {
       try {
-        const row = await datastore.findBy(app, 'member_bills', 'user_id', uid,
+        const row = await datastore.findBy(app, T.memberBills.name, 'user_id', uid,
           ['provider', 'monthly_cost', 'download_speed', 'access_tech', 'promo_end_date',
             'promo_expired', 'contract_start_date', 'contract_length',
             'switch_threshold', 'source', 'updated_at']);
@@ -551,8 +552,8 @@ function mount(router) {
       exportedAt: new Date().toISOString(),
       account: sessions.publicUser(user),
       bill,
-      campaigns: strip(await rows('campaign_members', ['campaign_id', 'status', 'fsa', 'joined_at'])),
-      consents: strip(await rows('consents', ['doc_type', 'doc_version', 'accepted_at'])),
+      campaigns: strip(await rows(T.campaignMembers.name, ['campaign_id', 'status', 'fsa', 'joined_at'])),
+      consents: strip(await rows(T.consents.name, ['doc_type', 'doc_version', 'accepted_at'])),
       preferences: await prefs.get(app, uid),
       feedback: strip(await rows(EVENTS, ['kind', 'payload', 'created_at'])),
     };
@@ -601,10 +602,10 @@ function mount(router) {
         }
       } catch { /* table missing: nothing to delete */ }
     };
-    await dropWhere('credentials');
-    await dropWhere('auth_identities');
-    await dropWhere('member_bills');
-    await dropWhere('campaign_members');
+    await dropWhere(T.credentials.name);
+    await dropWhere(T.authIdentities.name);
+    await dropWhere(T.memberBills.name);
+    await dropWhere(T.campaignMembers.name);
     await dropWhere(EVENTS);
     try {
       const p = await datastore.findBy(app, prefs.TABLE, 'pref_key', user.user_id, ['ROWID']);

@@ -23,8 +23,9 @@
 const datastore = require('./datastore');
 const { hashIp } = require('./crypto');
 const { clientIp, userAgent } = require('./request');
+const { T } = require('./tables');
 
-const TABLE = 'auth_events';
+const TABLE = T.authEvents.name;
 
 /** Key names whose values never belong in a log, at any nesting depth. */
 const FORBIDDEN_KEYS = /^(code|otp|token|password|pass|pwd|secret|hash|authorization|cookie|id_token|access_token|refresh_token|client_secret|pkce_verifier|verifier|state|nonce|ip)$/i;

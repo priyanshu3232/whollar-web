@@ -43,11 +43,12 @@ const awards = require('../lib/awards');
 const catalog = require('../lib/catalog');
 const cohorts = require('../lib/cohorts');
 const { requirePartner: guardPartner, requireApproved } = require('../lib/guards');
+const { T } = require('../lib/tables');
 const {
   wrap, badRequest, unauthorized, forbidden, AppError,
 } = require('../lib/errors');
 
-const REQUESTS = 'brand_requests';
+const REQUESTS = T.brandRequests.name;
 
 /* The postal-code-change tier, section 12. An exclusion edit is the same kind
    of act: a real change a household makes rarely, and a cheap one to replay. */

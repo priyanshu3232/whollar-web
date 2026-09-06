@@ -47,6 +47,7 @@ const seatRoutes = require('./routes/seat');
 const notifyRoutes = require('./routes/notify');
 const exclusionRoutes = require('./routes/exclusions');
 const outbox = require('./lib/notify/outbox');
+const { T } = require('./lib/tables');
 
 /**
  * Strip anything address-shaped out of a provider error before it is returned.
@@ -250,7 +251,7 @@ function buildApp(cfg) {
       }
     };
     const outboxAvailable = await readable(outbox.TABLE);
-    const suppressionsAvailable = await readable('email_suppressions');
+    const suppressionsAvailable = await readable(T.emailSuppressions.name);
 
     let outboxSummary = { available: outboxAvailable };
     let suppressions = { available: suppressionsAvailable };
@@ -279,7 +280,7 @@ function buildApp(cfg) {
 
     if (isAdmin && suppressionsAvailable) {
       try {
-        const rows2 = await datastore.queryAll(req.catalyst, 'email_suppressions', ['reason'], 'ROWID > 0');
+        const rows2 = await datastore.queryAll(req.catalyst, T.emailSuppressions.name, ['reason'], 'ROWID > 0');
         const byReason = {};
         for (const r of rows2 || []) byReason[r.reason] = (byReason[r.reason] || 0) + 1;
         suppressions = { available: true, total: (rows2 || []).length, by_reason: byReason };

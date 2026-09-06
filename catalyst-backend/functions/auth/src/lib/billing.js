@@ -34,9 +34,10 @@ const siteconfig = require('./siteconfig');
 const orders = require('./orders');
 const { sum, times } = require('./money');
 const { ms } = require('./envelope');
+const { T } = require('./tables');
 
-const BILLING = 'provider_billing';
-const STATEMENTS = 'provider_statements';
+const BILLING = T.providerBilling.name;
+const STATEMENTS = T.providerStatements.name;
 
 const BILLING_COLS = Object.freeze(['org_id', 'method', 'billing_email', 'billing_contact',
   'state', 'added_by', 'added_at', 'updated_at']);

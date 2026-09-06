@@ -70,6 +70,12 @@ const META = {
   provider_coverage:[D.PARTNER, '16', 'The regions an org serves and with what, declared then verified'],
   provider_terms:   [D.PARTNER, '20', 'Terms acceptance, one row per org per version, never updated'],
 
+  provider_applications:  [D.PARTNER, '17', 'One application per org. `state` is a hint; routes/application.js derives the real one from the task rows'],
+  application_tasks:      [D.PARTNER, '17', 'One row per (org, task) across the five tasks. A partner reaches `submitted`, only a reviewer reaches `cleared`'],
+  provider_documents:     [D.PARTNER, '17, 22a', 'PII. The File Store reference only; `file_store_ref` never goes on the wire'],
+  provider_references:    [D.PARTNER, '17', 'One contact, contacted once, never added to any list. That is why there is no consent column'],
+  coverage_verifications: [D.PARTNER, '17', 'Append only. Every serviceability decision and who made it, written before the coverage row moves'],
+
   campaigns:        [D.COHORT, '16, 29', 'The cohort catalog and the auction calendar. `region` is the partner key, `fsas` the member key, and neither derives the other'],
   campaign_members: [D.COHORT, '12', 'One row per (cohort, member): joined, waitlist, or alert'],
   campaign_notices: [D.COHORT, '27', 'One row per (cohort, stage) announced to its households'],

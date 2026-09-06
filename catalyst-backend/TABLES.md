@@ -7,7 +7,7 @@ An index and a schema, not a build guide. `scripts/create-tables.md` says how
 to create each table, `functions/auth/src/lib/schema.js` declares what the code
 expects, and this file says what exists, with every column, and why.
 
-**57 tables**: 44 declared in `schema.js`, 5 the partner application uses but
+**62 tables**: 49 declared in `schema.js`, 5 the partner application uses but
 `schema.js` never declared, and 8 belonging to the legacy marketing forms.
 
 ## The authority chain
@@ -48,7 +48,7 @@ predate `schema.js`, they belong to `formSubmit` rather than to auth, and
 
 | Table | Key | Cols | Section | What it is |
 | --- | --- | --- | --- | --- |
-| [`users`](#users) | `user_id`, `email_normalized` | 18 | 1 | One row per account, member or partner or staff. `email_normalized` is unique as the race guard against concurrent signup |
+| [`users`](#users) | `user_id`, `email_normalized` | 20 | 1 | One row per account, member or partner or staff. `email_normalized` is unique as the race guard against concurrent signup |
 | [`auth_identities`](#auth_identities) | `provider_key` | 6 | 2 | Links an account to an external identity provider |
 | [`credentials`](#credentials) | `user_id` | 6 | 3 | Password hashes, one row per account that has one |
 | [`sessions`](#sessions) | `session_id`, `token_hash` | 7 | 4 | Live sessions. The one table whose column types are asserted strictly |
@@ -62,8 +62,13 @@ predate `schema.js`, they belong to `formSubmit` rather than to auth, and
 | [`provider_ratings`](#provider_ratings) | `user_id` | 7 | 13 | The dashboard's "One minute, once" card |
 | [`product_interest`](#product_interest) | `interest_key` | 9 | 23 | The product interest survey. Writes fail silently, so verify in ZCQL and not in the browser |
 | [`provider_orgs`](#provider_orgs) | `org_id` | 7 | 8 | The partner company, and its approval state |
+| [`provider_applications`](#provider_applications) | `application_id`, `org_id` | 16 | 17 | One application per org. `state` is a hint; routes/application.js derives the real one from the task rows |
+| [`application_tasks`](#application_tasks) | `task_key_org` | 8 | 17 | One row per (org, task) across the five tasks. A partner reaches `submitted`, only a reviewer reaches `cleared` |
+| [`provider_documents`](#provider_documents) | `document_key`, `document_id` | 13 | 17, 22a | PII. The File Store reference only; `file_store_ref` never goes on the wire |
+| [`provider_references`](#provider_references) | `reference_key` | 7 | 17 | One contact, contacted once, never added to any list. That is why there is no consent column |
+| [`coverage_verifications`](#coverage_verifications) | none | 7 | 17 | Append only. Every serviceability decision and who made it, written before the coverage row moves |
 | [`provider_users`](#provider_users) | none | 3 | 9 | Who acts for which org. Deliberately not unique: one person may act for two |
-| [`provider_coverage`](#provider_coverage) | `coverage_key` | 8 | 16 | The regions an org serves and with what, declared then verified |
+| [`provider_coverage`](#provider_coverage) | `coverage_key` | 10 | 16 | The regions an org serves and with what, declared then verified |
 | [`provider_terms`](#provider_terms) | `acceptance_key` | 9 | 20 | Terms acceptance, one row per org per version, never updated |
 | [`campaign_notices`](#campaign_notices) | `notice_key` | 5 | 27 | One row per (cohort, stage) announced to its households |
 | [`campaign_members`](#campaign_members) | `membership_key` | 7 | 12 | One row per (cohort, member): joined, waitlist, or alert |
@@ -137,12 +142,15 @@ Runbook section 1. One row per account, member or partner or staff. `email_norma
 | `postal_code_source` | `varchar(24)` |  |  |
 | `phone` | `varchar(32)` |  |  |
 | `referral_code` | `varchar(64)` |  |  |
+| `referral_carrier` | `varchar(24)` |  |  |
+| `referral_same_region` | `varchar(8)` |  |  |
 | `last_login_at` | `datetime` |  |  |
 | `crm_contact_id` | `varchar(64)` |  |  |
 
 - `postal_code`: Cohort placement. `fsa` is the first three characters of the postal code and is what a cohort is actually keyed on, so it is stored separately rather than re-derived on every query: Catalyst has no computed columns and no way to index an expression.
 - `locale`: Which language to write to this person in, and which clock to hold a message against overnight. Both OPTIONAL, and lib/users.js carries a ladder for them: an environment where the console has not added these yet reads without them and falls back to `en` and America/Toronto, which is correct for the launch footprint and wrong the day a British Columbia household joins.
 - `postal_code_updated_at`: When the postal code last moved, and which surface moved it: signup | checkup_claim | profile_edit | operator. Both OPTIONAL: they are an audit nicety on a change the site takes either way, and routes/me.js drops them and retries when the columns are absent, so the feature works the day it deploys and gains its trail the day an operator adds them. See POSTAL_META_COLUMNS there.
+- `referral_carrier`: How the code arrived and whether the referrer was local. Both are live in the store and were undeclared here until 2026-09-06, which meant verify() could not report on them and TABLES.md, generated from this file, did not document them. Section 24b owns them.
 
 #### `auth_identities`
 
@@ -350,6 +358,114 @@ Runbook section 8. The partner company, and its approval state.
 
 - `rejection_reason`: Written by the admin console's reject action; read back on the review screen. The reject route tolerates this column being absent (the reason then survives only in the audit row), so adding it is non-breaking.
 
+#### `provider_applications`
+
+Runbook section 17. One application per org. `state` is a hint; routes/application.js derives the real one from the task rows.
+
+One per org. `state` is a HINT, not the authority: routes/application.js derives the real state from the task rows plus submitted_at and decided_at, for the same reason the campaign stage is derived.
+
+| Column | Type | Unique | Required |
+| --- | --- | --- | --- |
+| `application_id` | `varchar(64)` | yes | yes |
+| `org_id` | `varchar(64)` | yes | yes |
+| `state` | `varchar(16)` |  | yes |
+| `legal_name` | `varchar(160)` |  |  |
+| `operating_name` | `varchar(160)` |  |  |
+| `crtc_registration` | `varchar(64)` |  |  |
+| `business_number` | `varchar(32)` |  |  |
+| `submitted_at` | `datetime` |  |  |
+| `decision_due_at` | `datetime` |  |  |
+| `decided_at` | `datetime` |  |  |
+| `decision_note` | `text` |  |  |
+| `review_note` | `text` |  |  |
+| `reapply_after` | `datetime` |  |  |
+| `source` | `varchar(16)` |  |  |
+| `role_route` | `varchar(24)` |  |  |
+| `updated_at` | `datetime` |  |  |
+
+- `submitted_at`: Written once and only if unset. The console calls submit the moment the fifth task lands and a double click calls it again; writing this unconditionally would move decision_due_at, and that deadline is the one number on the screen a partner is entitled to trust.
+- `decision_note`: Text, not varchar(255): shown verbatim, never filtered on.
+
+#### `application_tasks`
+
+Runbook section 17. One row per (org, task) across the five tasks. A partner reaches `submitted`, only a reviewer reaches `cleared`.
+
+One row per (org, task). The composite is flattened into task_key_org because Catalyst's unique constraint is per column.
+
+| Column | Type | Unique | Required |
+| --- | --- | --- | --- |
+| `task_key_org` | `varchar(200)` | yes | yes |
+| `org_id` | `varchar(64)` |  | yes |
+| `task_key` | `varchar(16)` |  | yes |
+| `state` | `varchar(16)` |  | yes |
+| `completed_at` | `datetime` |  |  |
+| `checked_at` | `datetime` |  |  |
+| `note` | `text` |  |  |
+| `updated_at` | `datetime` |  |  |
+
+- `state`: A partner's own write reaches 'submitted', never 'cleared'. Only a reviewer clears a check; a partner able to clear their own would make the vetting story decorative. `agreement` is the exception, because signing it IS the whole of that task.
+
+#### `provider_documents`
+
+Runbook section 17, 22a. PII. The File Store reference only; `file_store_ref` never goes on the wire.
+
+PII. Only the file store reference lives here; the bytes are in a PRIVATE Catalyst File Store folder under a name the partner never chose.
+
+| Column | Type | Unique | Required |
+| --- | --- | --- | --- |
+| `document_key` | `varchar(200)` | yes | yes |
+| `document_id` | `varchar(64)` | yes | yes |
+| `org_id` | `varchar(64)` |  | yes |
+| `kind` | `varchar(32)` |  | yes |
+| `file_store_ref` | `varchar(255)` |  | yes |
+| `filename` | `varchar(255)` |  |  |
+| `bytes` | `int` |  |  |
+| `mime` | `varchar(64)` |  |  |
+| `uploaded_by` | `varchar(64)` |  |  |
+| `uploaded_at` | `datetime` |  |  |
+| `review_state` | `varchar(16)` |  | yes |
+| `retention_delete_after` | `datetime` |  |  |
+| `updated_at` | `datetime` |  |  |
+
+- `file_store_ref`: The one field that would let a partner ask the store for an object that is not theirs. Never on the wire.
+- `mime`: Read from the request's own Content-Type, so it is a check on what was sent rather than on what a form field claimed.
+- `review_state`: A partner's upload is always 'pending'. They can no more accept their own document than clear their own CRTC check.
+
+#### `provider_references`
+
+Runbook section 17. One contact, contacted once, never added to any list. That is why there is no consent column.
+
+One contact, contacted once, told exactly why, never added to any list. That last part is a promise made on the application screen, which is why there is no marketing consent column here and must not be one.
+
+| Column | Type | Unique | Required |
+| --- | --- | --- | --- |
+| `reference_key` | `varchar(200)` | yes | yes |
+| `org_id` | `varchar(64)` |  | yes |
+| `name_role` | `varchar(160)` |  | yes |
+| `email` | `varchar(255)` |  | yes |
+| `contacted_at` | `datetime` |  |  |
+| `response_state` | `varchar(16)` |  | yes |
+| `updated_at` | `datetime` |  |  |
+
+#### `coverage_verifications`
+
+Runbook section 17. Append only. Every serviceability decision and who made it, written before the coverage row moves.
+
+Append only. Every serviceability decision, with who made it. Written BEFORE the provider_coverage row moves: if the row update then fails the region stays 'verifying' and can be verified again, which is harmless. The reverse order would leave a region live with no record of who made it live, on the one decision that determines whether a partner can bid.
+
+| Column | Type | Unique | Required |
+| --- | --- | --- | --- |
+| `coverage_key` | `varchar(200)` |  | yes |
+| `org_id` | `varchar(64)` |  | yes |
+| `region` | `varchar(100)` |  | yes |
+| `outcome` | `varchar(16)` |  | yes |
+| `reason` | `varchar(32)` |  |  |
+| `checked_by` | `varchar(64)` |  | yes |
+| `checked_at` | `datetime` |  | yes |
+
+- `outcome`: Was `result`, which ZCQL reserves: the console refuses a column by that name. `outcome` is what auth_events already calls the same idea.
+- `reason`: An enum, not prose, because it feeds the serviceability accuracy figure that future briefs carry beside a partner's bid. Free text would make that number unbuildable.
+
 #### `provider_users`
 
 Runbook section 9. Who acts for which org. Deliberately not unique: one person may act for two.
@@ -378,6 +494,10 @@ The regions an org serves and with what. Rows the org declares itself start as '
 | `lead` | `varchar(32)` |  |  |
 | `status` | `varchar(16)` |  | yes |
 | `updated_at` | `datetime` |  | yes |
+| `rejection_reason` | `varchar(255)` |  |  |
+| `verified_at` | `datetime` |  |  |
+
+- `rejection_reason`: The operator's decision on a region, written beside the status change by routes/admin.js. Live in the store and undeclared here until 2026-09-06.
 
 #### `provider_terms`
 

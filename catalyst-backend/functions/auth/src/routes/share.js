@@ -46,6 +46,7 @@ const { wrap } = require('../lib/errors');
 const { clientIp, userAgent } = require('../lib/request');
 const { hashIp, sha256 } = require('../lib/crypto');
 const { isSecureRequest } = require('../lib/cookies');
+const { T } = require('../lib/tables');
 
 const REF_COOKIE = 'whollar_ref';
 const REF_COOKIE_DAYS = 30;
@@ -133,7 +134,7 @@ function mount(router) {
      * Best-effort: the table may not exist yet (create-tables.md section 25). */
     try {
       const cfg = req.app.get('cfg');
-      await datastore.insertRow(req.catalyst, 'invite_click', {
+      await datastore.insertRow(req.catalyst, T.inviteClick.name, {
         token: token || null,
         token_valid: token ? 'yes' : 'no',
         landed_at: datastore.nowDb(),
@@ -171,7 +172,7 @@ function mount(router) {
     if (allowed && event) {
       try {
         const cfg = req.app.get('cfg');
-        await datastore.insertRow(req.catalyst, 'share_event', {
+        await datastore.insertRow(req.catalyst, T.shareEvent.name, {
           event,
           member_id: (req.auth && req.auth.user && req.auth.user.user_id) || null,
           cohort_id: cap(body.cohortId, 64),

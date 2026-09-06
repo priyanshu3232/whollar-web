@@ -36,8 +36,9 @@ const { hashIp } = require('./crypto');
 const { clientIp } = require('./request');
 const { ms } = require('./envelope');
 const { AppError } = require('./errors');
+const { T } = require('./tables');
 
-const TABLE = 'provider_terms';
+const TABLE = T.providerTerms.name;
 
 /** The only document this module governs. Named rather than assumed, because
     the partner agreement and the application agreement are different records

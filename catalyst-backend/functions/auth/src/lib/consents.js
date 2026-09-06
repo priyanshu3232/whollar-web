@@ -16,8 +16,9 @@
 const datastore = require('./datastore');
 const { hashIp } = require('./crypto');
 const { clientIp } = require('./request');
+const { T } = require('./tables');
 
-const TABLE = 'consents';
+const TABLE = T.consents.name;
 
 const DOC_TYPES = Object.freeze(['terms', 'privacy', 'partner_terms', 'marketing']);
 

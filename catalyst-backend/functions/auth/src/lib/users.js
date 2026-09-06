@@ -11,9 +11,10 @@
 
 const crypto = require('node:crypto');
 const datastore = require('./datastore');
+const { T } = require('./tables');
 
-const USERS = 'users';
-const IDENTITIES = 'auth_identities';
+const USERS = T.users.name;
+const IDENTITIES = T.authIdentities.name;
 
 /**
  * TWO LISTS, and this is the one place in the codebase where that pattern is

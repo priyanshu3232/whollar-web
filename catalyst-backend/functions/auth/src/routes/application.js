@@ -41,11 +41,12 @@ const crm = require('../lib/crm/outbox');
    The two guards look interchangeable and are not; lib/guards.js explains. */
 const { requirePartner: guardPartner } = require('../lib/guards');
 const { wrap, badRequest, AppError } = require('../lib/errors');
+const { T } = require('../lib/tables');
 
-const APPLICATIONS = 'provider_applications';
-const TASKS = 'application_tasks';
-const DOCUMENTS = 'provider_documents';
-const REFERENCES = 'provider_references';
+const APPLICATIONS = T.providerApplications.name;
+const TASKS = T.applicationTasks.name;
+const DOCUMENTS = T.providerDocuments.name;
+const REFERENCES = T.providerReferences.name;
 
 /** The five tracks. Order is the order they appear on the checklist. */
 const TASK_KEYS = ['coverage', 'registration', 'documents', 'agreement', 'reference'];

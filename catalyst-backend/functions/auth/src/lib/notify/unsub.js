@@ -38,8 +38,9 @@ const prefs = require('../prefs');
 const users = require('../users');
 const suppress = require('./suppress');
 const registry = require('./registry');
+const { T } = require('../tables');
 
-const TABLE = 'unsubscribe_tokens';
+const TABLE = T.unsubscribeTokens.name;
 const COLUMNS = Object.freeze(['token', 'recipient_type', 'recipient_id', 'scope',
   'created_at', 'used_at']);
 
