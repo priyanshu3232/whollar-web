@@ -158,6 +158,13 @@ Declaring them in `schema.js` is the fix, and it is what makes
 `/health/diagnostics` cover the full registry. The loop already iterates every
 name `schema.js` gives it.
 
+It is not academic. Three Unique flags on these tables are provably off:
+`provider_applications.application_id`, `provider_applications.org_id` and
+`application_tasks.task_key_org` each hold the same value twice, written
+milliseconds apart. One founding partner already has two application rows, and
+`findApplication` reads `LIMIT 1`. All three are declared Unique in section 17
+and none has ever been checked, because `verify()` has never heard of the table.
+
 ### 3.5 New, owed by the admin console v2 brief
 
 No code reads any of these yet, so nothing breaks while they are absent. Every

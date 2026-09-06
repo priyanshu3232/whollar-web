@@ -130,6 +130,44 @@ Live: `Source`, `SourceRowId`, `Email`, `LeadType`, `Payload`, `Status`,
 time. The comment above that fallback says the six columns "exist in the console
 as of 2026-09-02". They do not.
 
+### 5.2c Three Unique flags are provably off
+
+The brief says the Unique flags cannot be read without a console session or a
+two-insert test. For three columns the data already answers it.
+`provider_applications` holds two rows with the same `application_id` **and** the
+same `org_id`, written four milliseconds apart, and `application_tasks` holds two
+rows with the same `task_key_org`:
+
+```
+2026-09-04 22:12:07:076  app-6621cddb-8146-490a-80d8-b7256acfae0e
+2026-09-04 22:12:07:080  app-6621cddb-8146-490a-80d8-b7256acfae0e
+```
+
+A unique column cannot hold the same value twice, so:
+
+- `provider_applications.application_id` Unique is **off**
+- `provider_applications.org_id` Unique is **off**
+- `application_tasks.task_key_org` Unique is **off**
+
+All three are declared Unique in section 17, and all three sit on tables
+`schema.js` does not declare, so `verify()` has never checked them either. That
+is one root cause, not two.
+
+The consequence is live: `findApplication` is a `LIMIT 1` read on `org_id`, so
+that org has a second application row nothing will ever show, and a
+double-submitted registration can land on either.
+
+**No duplicates were found anywhere else**, and that is weak evidence, not a
+clean bill. A unique constraint only shows itself when it is contended, and the
+tables where contention matters most are nearly empty: `provider_bids` 0 rows,
+`household_offers` 0, `campaign_members` 1, `campaign_awards` 1,
+`provider_orders` 1, `campaign_price_books` 1. The scan means something only for
+`users` (143 rows), `sessions` (329), `credentials` (131), `auth_identities` (58)
+and `claim_event` (45), and those five are clean.
+
+`claim_event.event_key` at 45 rows is the one race guard with real evidence
+behind it.
+
 ### 5.3 In the store, not in `schema.js`
 
 | Table | Column | Section |

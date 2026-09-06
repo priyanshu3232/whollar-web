@@ -63,6 +63,12 @@ const TABLES = Object.freeze({
     postal_code_source:     'varchar(24)',
     phone:            'varchar(32)',
     referral_code:    'varchar(64)',
+    // How the code arrived and whether the referrer was local. Both are live
+    // in the store and were undeclared here until 2026-09-06, which meant
+    // verify() could not report on them and TABLES.md, generated from this
+    // file, did not document them. Section 24b owns them.
+    referral_carrier:     'varchar(24)',
+    referral_same_region: 'varchar(8)',
     last_login_at:    'datetime',
     crm_contact_id:   'varchar(64)',
   },
@@ -133,6 +139,116 @@ const TABLES = Object.freeze({
     // screen. The reject route tolerates this column being absent (the reason
     // then survives only in the audit row), so adding it is non-breaking.
     rejection_reason: 'varchar(255)',
+  },
+  /* ------------------------------------------------------------------ *
+   * The founding partner application, section 17
+   *
+   * These five were live in the store and absent from this file until
+   * 2026-09-06, which is the gap that matters most in it: verify() checks only
+   * what is declared here, so /health/diagnostics reported neither a row count
+   * nor a missing column nor a wrong flag on any of them, and the whole
+   * founding partner journey sat outside the one mechanism built to catch
+   * console drift. It cost something real. `application_id`, `org_id` and
+   * `task_key_org` are all declared unique in section 17 and the flags are OFF
+   * in the live store, which is visible in the data: one org holds two
+   * application rows written four milliseconds apart, and findApplication()
+   * reads LIMIT 1. Declared here, verify() says so.
+   * ------------------------------------------------------------------ */
+  provider_applications: {
+    // One per org. `state` is a HINT, not the authority: routes/application.js
+    // derives the real state from the task rows plus submitted_at and
+    // decided_at, for the same reason the campaign stage is derived.
+    application_id:    'varchar(64) unique required',  // `app-${org_id}`
+    org_id:            'varchar(64) unique required',  // one application per org
+    state:             'varchar(16) required',         // draft|submitted|under_review|info_needed|approved|rejected
+    legal_name:        'varchar(160)',
+    operating_name:    'varchar(160)',
+    crtc_registration: 'varchar(64)',                  // checked against the public register by a person
+    business_number:   'varchar(32)',
+    // Written once and only if unset. The console calls submit the moment the
+    // fifth task lands and a double click calls it again; writing this
+    // unconditionally would move decision_due_at, and that deadline is the one
+    // number on the screen a partner is entitled to trust.
+    submitted_at:      'datetime',
+    decision_due_at:   'datetime',                     // submitted_at + 48h
+    decided_at:        'datetime',
+    // Text, not varchar(255): shown verbatim, never filtered on.
+    decision_note:     'text',
+    review_note:       'text',
+    reapply_after:     'datetime',
+    source:            'varchar(16)',                  // self_serve|outreach|distributor
+    role_route:        'varchar(24)',                  // carried from the public onboarding page
+    updated_at:        'datetime',
+  },
+  application_tasks: {
+    // One row per (org, task). The composite is flattened into task_key_org
+    // because Catalyst's unique constraint is per column.
+    task_key_org: 'varchar(200) unique required',      // `${org_id}:${task_key}`
+    org_id:       'varchar(64) required',
+    task_key:     'varchar(16) required',              // coverage|registration|documents|agreement|reference
+    // A partner's own write reaches 'submitted', never 'cleared'. Only a
+    // reviewer clears a check; a partner able to clear their own would make
+    // the vetting story decorative. `agreement` is the exception, because
+    // signing it IS the whole of that task.
+    state:        'varchar(16) required',              // empty|submitted|verifying|cleared|flagged
+    completed_at: 'datetime',                          // when the partner finished their half
+    checked_at:   'datetime',                          // when a reviewer finished theirs
+    note:         'text',                              // reviewer's note, or the consent hash for `agreement`
+    updated_at:   'datetime',
+  },
+  provider_documents: {
+    // PII. Only the file store reference lives here; the bytes are in a
+    // PRIVATE Catalyst File Store folder under a name the partner never chose.
+    document_key:           'varchar(200) unique required', // `${org_id}:${kind}`
+    document_id:            'varchar(64) unique required',  // `doc-${uuid}`, opaque, never on the wire
+    org_id:                 'varchar(64) required',
+    kind:                   'varchar(32) required',         // crtc_registration|business_registration|insurance|other
+    // The one field that would let a partner ask the store for an object that
+    // is not theirs. Never on the wire.
+    file_store_ref:         'varchar(255) required',
+    filename:               'varchar(255)',                 // as uploaded, display only
+    bytes:                  'int',
+    // Read from the request's own Content-Type, so it is a check on what was
+    // sent rather than on what a form field claimed.
+    mime:                   'varchar(64)',
+    uploaded_by:            'varchar(64)',
+    uploaded_at:            'datetime',
+    // A partner's upload is always 'pending'. They can no more accept their
+    // own document than clear their own CRTC check.
+    review_state:           'varchar(16) required',         // pending|accepted|rejected
+    retention_delete_after: 'datetime',                     // stamped from DOC_RETENTION_DAYS
+    updated_at:             'datetime',
+  },
+  provider_references: {
+    // One contact, contacted once, told exactly why, never added to any list.
+    // That last part is a promise made on the application screen, which is why
+    // there is no marketing consent column here and must not be one.
+    reference_key:  'varchar(200) unique required',    // `${org_id}:ref`
+    org_id:         'varchar(64) required',
+    name_role:      'varchar(160) required',
+    email:          'varchar(255) required',
+    contacted_at:   'datetime',
+    response_state: 'varchar(16) required',            // pending|responded|no_response
+    updated_at:     'datetime',
+  },
+  coverage_verifications: {
+    // Append only. Every serviceability decision, with who made it. Written
+    // BEFORE the provider_coverage row moves: if the row update then fails the
+    // region stays 'verifying' and can be verified again, which is harmless.
+    // The reverse order would leave a region live with no record of who made
+    // it live, on the one decision that determines whether a partner can bid.
+    coverage_key: 'varchar(200) required',             // matches provider_coverage.coverage_key
+    org_id:       'varchar(64) required',
+    region:       'varchar(100) required',
+    // Was `result`, which ZCQL reserves: the console refuses a column by that
+    // name. `outcome` is what auth_events already calls the same idea.
+    outcome:      'varchar(16) required',              // active|rejected
+    // An enum, not prose, because it feeds the serviceability accuracy figure
+    // that future briefs carry beside a partner's bid. Free text would make
+    // that number unbuildable.
+    reason:       'varchar(32)',                       // no_facilities|outside_footprint|tech_unsupported|needs_evidence
+    checked_by:   'varchar(64) required',              // admin user_id
+    checked_at:   'datetime required',
   },
   provider_users: {
     // Deliberately NOT unique: one person may act for two provider orgs (a
@@ -362,6 +478,10 @@ const TABLES = Object.freeze({
     lead:         'varchar(32)',
     status:       'varchar(16) required',         // 'active' | 'verifying'
     updated_at:   'datetime required',
+    // The operator's decision on a region, written beside the status change by
+    // routes/admin.js. Live in the store and undeclared here until 2026-09-06.
+    rejection_reason: 'varchar(255)',
+    verified_at:      'datetime',
   },
   provider_terms: {
     // Acceptance of the standard cohort terms, one row per org per version and
