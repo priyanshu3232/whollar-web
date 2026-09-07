@@ -8,6 +8,7 @@
  *
  *   GET  /me/bill   what the server knows about this member's bill
  *   POST /me/bill   replace it (the checkup and the dashboard both call this)
+ *   GET  /me/tires  the tire cohort spots held under this member's address
  *
  * Everything is keyed on `users.user_id`, never on the email string. The email
  * appears in exactly one place: the ADOPTION of a public checkup lead. The
@@ -434,6 +435,85 @@ function mount(router) {
     });
 
     res.status(200).json({ ok: true, bill: publicBill(row) });
+  }));
+
+  /**
+   * The tire cohort spots held under this member's address. -> { ok, spots }
+   *
+   * The same link as the bill above, for the same reason. `TireWaitlistSignups`
+   * is written by the public formSubmit function, which has no session and so
+   * cannot know a user_id, and people hold a spot before they have an account.
+   * The join is the lowercased address on both sides: `emailKey` there and
+   * `email_normalized` here are both trim().toLowerCase(), and every table in
+   * that family stores the address that way.
+   *
+   * The link is made durable when the store allows it. A `UserId` column on the
+   * tire table (create-tables.md, 35a) is filled in the first time the member
+   * reads their spots, so the next reader can key on it and a household that
+   * changes address later keeps its history. Until the column exists the read
+   * still works, with `linked: false` on every spot. A missing table or column
+   * is a normal answer of "no spots we can see", never an error: this sits on
+   * the dashboard's load path.
+   */
+  router.get('/me/tires', wrap(async (req, res) => {
+    const user = requireMember(req);
+    const email = user.email_normalized;
+    const table = F.tireWaitlistSignups.name;
+    const BASE = ['ReferenceCode', 'City', 'FSA', 'Path', 'Wave', 'Source', 'SubmittedAt'];
+
+    let rows = [];
+    let hasUserId = false;
+    for (const cols of [[...BASE, 'UserId'], BASE]) {
+      try {
+        rows = await datastore.query(
+          req.catalyst, table,
+          `SELECT ROWID, ${cols.join(', ')} FROM ${table} ` +
+          `WHERE Email = ${datastore.lit(email)} ORDER BY ROWID DESC LIMIT 20`
+        );
+        hasUserId = cols.includes('UserId');
+        break;
+      } catch (err) {
+        // The wider column list fails while UserId is not yet in the console;
+        // the base list fails only when the table itself is unreachable.
+        console.warn(JSON.stringify({
+          evt: 'member.tires.lookup_failed',
+          columns: cols.length,
+          message: err && err.message,
+        }));
+      }
+    }
+
+    const spots = [];
+    for (const row of rows) {
+      let linked = hasUserId && String(row.UserId || '') === String(user.user_id);
+      if (hasUserId && !row.UserId) {
+        try {
+          await datastore.updateRow(req.catalyst, table, { ROWID: row.ROWID, UserId: user.user_id });
+          linked = true;
+          audit.recordAsync(req.catalyst, req, {
+            type: 'member.tires.link',
+            outcome: 'success',
+            userId: user.user_id,
+            email,
+            detail: { reference: row.ReferenceCode },
+          });
+        } catch {
+          // Best effort: the spot is still theirs by address.
+        }
+      }
+      spots.push({
+        reference: row.ReferenceCode,
+        city: row.City,
+        fsa: row.FSA,
+        path: row.Path,
+        wave: row.Wave == null ? null : Number(row.Wave),
+        source: row.Source,
+        submitted_at: row.SubmittedAt,
+        linked,
+      });
+    }
+
+    res.status(200).json({ ok: true, spots });
   }));
 }
 

@@ -412,6 +412,23 @@ function consentFrom(b, req) {
   };
 }
 
+/* One shipped build of the tire join page nested the consent record under
+ * `consent` ({granted, kind, text, at, source}) while this route reads it flat,
+ * and every sign-up from that build stored ConsentEmail=false with no text
+ * (row WHL-TIRE-GTA-W25C, 2026-09-06). The page is fixed, but /js is cached
+ * for a day, and a household on the old build is still a household who ticked
+ * the box. Read the nested shape when the flat keys are absent, and never
+ * override a flat key that was sent. */
+function flattenConsent(b) {
+  const c = b && b.consent;
+  if (!c || typeof c !== 'object') return;
+  const map = { granted: 'consentGranted', kind: 'consentKind', text: 'consentText', at: 'consentAt', source: 'consentSource' };
+  for (const [from, to] of Object.entries(map)) {
+    if (b[to] === undefined && c[from] !== undefined) b[to] = c[from];
+  }
+  if (b.consentEmail === undefined && c.granted !== undefined) b.consentEmail = c.granted;
+}
+
 function badRequest(res, message) {
   return res.status(400).json({ ok: false, error: message });
 }
@@ -803,24 +820,80 @@ async function bumpTireCounter(catalystApp, city) {
   }
 }
 
-// The side tables, written the same way whichever save carries them: the hold
-// on the quick path, which arrives with everything at once, and the profile
-// save on the guided path, which arrives later against a reference that already
-// exists. Nothing in here may fail the request. The household is on the list
-// either way, and losing a car to a bad column is not a reason to tell them
-// they are not.
+// The side tables, written by both saves: the hold, which on the quick path
+// arrives with everything at once, and the profile save, which arrives later
+// against a reference that already exists. Nothing in here may fail the
+// request. The household is on the list either way, and losing a car to a bad
+// column is not a reason to tell them they are not.
 //
-// Windows are capped because every one is its own concurrent insert; the page
+// TWO MODES, BECAUSE EVERY KEY HERE IS DERIVED FROM THE REFERENCE. VehicleKey
+// is `${reference}:1`, WindowKey is `${reference}:${rank}`, RunKey is
+// `${reference}:${tool}`, and the details row is keyed on the reference itself.
+// All four are Unique in the console, which is right: it is what makes a double
+// submit one row. It also meant that a profile saved AFTER a hold collided on
+// every one of those keys, insertTolerant swallowed each refusal, and the save
+// answered ok:true having written nothing. Verified on 2026-09-06 (row
+// WHL-TIRE-GTA-2ZSA: new model, size, notes and dates all sent, none landed).
+// So the profile writes in 'upsert' mode: look the key up, update the row it
+// finds, insert only when there is none. The hold keeps 'insert', where a
+// collision is still the correct refusal.
+//
+// Windows are capped because every one is its own concurrent write; the page
 // keeps the full list of days in details.payload.days so nothing is lost.
 const TIRE_WINDOW_CAP = 31;
-async function writeTireProfile(catalystApp, ReferenceCode, email, b, now) {
+const zlit = v => String(v == null ? '' : v).replace(/'/g, "''");
+
+// insertTolerant's sibling for a row that already exists: the same live-column
+// mapping, and the same newest-group-first dropping of optional columns.
+async function updateTolerant(catalystApp, tableName, rowId, patch, optional) {
+  const table = catalystApp.datastore().table(tableName);
+  let names = null;
+  try { names = await columnNames(catalystApp, tableName); } catch (err) {
+    console.error(`[formSubmit] ${tableName}: could not read live columns, updating the row as declared:`, err);
+  }
+  if (names && !names.length) names = null;
+  const write = p => table.updateRow({ ROWID: rowId, ...(names ? toLiveColumns(tableName, p, names) : p) });
+  try {
+    return await write(patch);
+  } catch (err) {
+    const groups = (optional && optional.length && Array.isArray(optional[0])) ? optional
+      : (optional && optional.length ? [optional] : []);
+    if (!groups.length) throw err;
+    const stripped = { ...patch };
+    for (const group of groups) {
+      for (const k of group) delete stripped[k];
+      try { return await write(stripped); } catch (err2) { /* drop the next group as well and retry */ }
+    }
+    throw err;
+  }
+}
+
+// The row under `keyCol` is updated when it exists and inserted when it does
+// not. The key itself never changes on an update: it is the row's identity.
+async function upsertByKey(catalystApp, tableName, keyCol, row, optional) {
+  const rows = await catalystApp.zcql().executeZCQLQuery(
+    `SELECT ROWID FROM ${tableName} WHERE ${keyCol} = '${zlit(row[keyCol])}' LIMIT 1`);
+  const found = rows && rows[0] && rows[0][tableName];
+  if (!found) return insertTolerant(catalystApp, tableName, row, optional);
+  const patch = { ...row };
+  delete patch[keyCol];
+  return updateTolerant(catalystApp, tableName, found.ROWID, patch, optional);
+}
+
+async function writeTireProfile(catalystApp, ReferenceCode, email, b, now, mode = 'insert') {
+  const put = mode === 'upsert'
+    ? (table, keyCol, row, optional) => upsertByKey(catalystApp, table, keyCol, row, optional)
+    : (table, keyCol, row, optional) => insertTolerant(catalystApp, table, row, optional);
   const vehicles = Array.isArray(b.vehicles) ? b.vehicles.slice(0, 6) : [];
   const windows = Array.isArray(b.windows) ? b.windows.slice(0, TIRE_WINDOW_CAP) : [];
-  const toolRuns = Array.isArray(b.toolRuns) ? b.toolRuns.slice(0, 4) : [];
+  // `tools` is the name one shipped build of /join used for this same array.
+  // Read both, so that build's calculator runs are kept rather than dropped.
+  const runs = Array.isArray(b.toolRuns) ? b.toolRuns : (Array.isArray(b.tools) ? b.tools : []);
+  const toolRuns = runs.slice(0, 4);
   const details = b.details && typeof b.details === 'object' ? b.details : null;
   const later = [];
   vehicles.forEach((v, i) => {
-    later.push(insertTolerant(catalystApp, T.tireWaitlistVehicles.name, {
+    later.push(put(T.tireWaitlistVehicles.name, 'VehicleKey', {
       VehicleKey: `${ReferenceCode}:${i + 1}`,
       ReferenceCode,
       Email: emailKey(email),
@@ -852,7 +925,7 @@ async function writeTireProfile(catalystApp, ReferenceCode, email, b, now) {
   });
 
   if (details) {
-    later.push(insertTolerant(catalystApp, T.tireWaitlistDetails.name, {
+    later.push(put(T.tireWaitlistDetails.name, 'ReferenceCode', {
       ReferenceCode,
       Email: emailKey(email),
       Needs: orNull(str(details.needs)),
@@ -880,14 +953,19 @@ async function writeTireProfile(catalystApp, ReferenceCode, email, b, now) {
       InstallerPostal: orNull(str(details.installerPostal).toUpperCase()),
       InsuranceHelp: details.insuranceHelp == null ? null : bool(details.insuranceHelp),
       InsurerProvince: orNull(str(details.insurerProvince)),
-      PremiumAnnual: toNumber(details.premiumAnnual)
-    }, [['BrandLine', 'TravelRadius', 'InstallerName', 'InstallerAddress', 'InstallerPostal',
+      PremiumAnnual: toNumber(details.premiumAnnual),
+      // Where the household would rather the appointment be: home, work, or
+      // either. /join has asked it since the v3 rebuild, and the column existed
+      // in the store before anything wrote to it.
+      Anchor: orNull(str(details.anchor))
+    }, [['Anchor'],
+        ['BrandLine', 'TravelRadius', 'InstallerName', 'InstallerAddress', 'InstallerPostal',
          'InsuranceHelp', 'InsurerProvince', 'PremiumAnnual']]));
   }
 
   windows.forEach((w, i) => {
     const rank = Number(w.rank) || i + 1;
-    later.push(insertTolerant(catalystApp, T.tireInstallWindows.name, {
+    later.push(put(T.tireInstallWindows.name, 'WindowKey', {
       WindowKey: `${ReferenceCode}:${rank}`,
       ReferenceCode,
       Email: emailKey(email),
@@ -902,7 +980,7 @@ async function writeTireProfile(catalystApp, ReferenceCode, email, b, now) {
   });
 
   toolRuns.forEach((t) => {
-    later.push(insertTolerant(catalystApp, T.tireToolRuns.name, {
+    later.push(put(T.tireToolRuns.name, 'RunKey', {
       RunKey: `${ReferenceCode}:${str(t.tool)}`,
       ReferenceCode,
       Tool: str(t.tool),
@@ -916,7 +994,25 @@ async function writeTireProfile(catalystApp, ReferenceCode, email, b, now) {
 
   const results = await Promise.allSettled(later);
   const failed = results.filter(r => r.status === 'rejected');
-  return { total: later.length, failed: failed.length, reason: failed.length ? failed[0].reason : null };
+
+  // A profile that picks its dates again replaces the set: ranks past the new
+  // count are the old picks, and would otherwise sit beside the new ones as if
+  // the household still wanted them. Only when a set was sent, so a save that
+  // carries no dates changes nothing.
+  if (mode === 'upsert' && windows.length) {
+    try {
+      const rows = await catalystApp.zcql().executeZCQLQuery(
+        `SELECT ROWID, Rank FROM ${T.tireInstallWindows.name} WHERE ReferenceCode = '${zlit(ReferenceCode)}' LIMIT 300`);
+      const table = catalystApp.datastore().table(T.tireInstallWindows.name);
+      for (const r of rows || []) {
+        const w = r[T.tireInstallWindows.name];
+        if (w && Number(w.Rank) > windows.length) await table.deleteRow(w.ROWID);
+      }
+    } catch (err) {
+      console.error(`[formSubmit] tire profile: stale install windows not trimmed for ${ReferenceCode}:`, err);
+    }
+  }
+  return { total: later.length, failed: failed.length, reason: failed.length ? failed[0].reason : null, mode };
 }
 
 // The guided path on tires.whollar.ca saves twice: once to hold the spot, which
@@ -944,7 +1040,7 @@ async function tireProfile(req, res, b) {
       return res.status(404).json({ ok: false, error: 'We could not find that spot. Check the reference and the email.' });
     }
     const now = catalystNow();
-    const saved = await writeTireProfile(catalystApp, reference, email, b, now);
+    const saved = await writeTireProfile(catalystApp, reference, email, b, now, 'upsert');
     if (saved.failed) {
       console.error(`[formSubmit] tire profile: ${saved.failed} of ${saved.total} ` +
         `side tables failed for ${reference}:`, saved.reason);
@@ -952,17 +1048,27 @@ async function tireProfile(req, res, b) {
     // The two consents the profile asks that the hold could not: whether the
     // installers may see the postal code, vehicle and dates, and whether the
     // household wants to hear about an internet cohort. Columns, not a blob,
-    // because the installer-sharing rule reads the column. Best effort.
-    try {
-      await catalystApp.datastore().table(T.tireWaitlistSignups.name).updateRow({
-        ROWID: found.ROWID,
-        ConsentShare: bool(b.consentShare),
-        AlsoInternet: bool(b.alsoInternet)
-      });
-    } catch (err) {
-      console.error(`[formSubmit] tire profile: consent columns not updated for ${reference}:`, err);
+    // because the installer-sharing rule reads the column. Best effort, and
+    // ONLY FOR THE KEYS THE REQUEST CARRIES: bool(undefined) is 'false', and
+    // writing that for an absent key turned a consent given at the hold into a
+    // refusal at the profile (row 2ZSA, 2026-09-06: both flags true going in,
+    // both false coming out). A save that does not mention a consent leaves it.
+    const patch = { ROWID: found.ROWID };
+    if (b.consentShare !== undefined) patch.ConsentShare = bool(b.consentShare);
+    if (b.alsoInternet !== undefined) patch.AlsoInternet = bool(b.alsoInternet);
+    if (Object.keys(patch).length > 1) {
+      try {
+        await catalystApp.datastore().table(T.tireWaitlistSignups.name).updateRow(patch);
+      } catch (err) {
+        console.error(`[formSubmit] tire profile: consent columns not updated for ${reference}:`, err);
+      }
     }
-    return res.status(200).json({ ok: true, reference, wave: found.Wave == null ? null : Number(found.Wave) });
+    return res.status(200).json({
+      ok: true, reference, wave: found.Wave == null ? null : Number(found.Wave),
+      // What the side tables did, so a test can tell a save that landed from a
+      // save that was swallowed. Counts only, never the rows.
+      saved: { total: saved.total, failed: saved.failed }
+    });
   } catch (err) {
     return serverError(res, err, 'tire-waitlist-join profile');
   }
@@ -970,6 +1076,7 @@ async function tireProfile(req, res, b) {
 
 app.post('/tire-waitlist-join', limit({ key: 'tire-waitlist-join', max: 20, windowSec: 3600 }), async (req, res) => {
   const b = req.body || {};
+  flattenConsent(b);
   const firstName = str(b.firstName);
   const lastName = str(b.lastName);
   const email = str(b.email);

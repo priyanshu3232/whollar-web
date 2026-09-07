@@ -2611,6 +2611,7 @@ One row per person. The row every other tire table points back at.
 | `ConsentText` | Text | 4000 | | ✅ | | the exact sentence agreed to. CASL needs what, when and where, and a checkbox state proves none of the three a year later |
 | `ConsentAt` | DateTime | - | | ✅ | | |
 | `SubmittedAt` | DateTime | - | | ✅ | | |
+| `UserId` | Var Char | 64 | | | | **Added 2026-09-07, optional, and never Mandatory: the table is populated.** The `users.user_id` this spot was linked to, written by the auth function's `GET /me/tires` the first time the member reads their spots. Absent, the link is by lowercased email alone, which is how every other form table is joined to a member; this column makes it survive a change of address |
 
 ### 35b. `TireWaitlistVehicles` (new table)
 

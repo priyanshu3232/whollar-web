@@ -116,7 +116,8 @@ const T = Object.freeze({
  * from this function, and nothing here may be renamed from this function
  * either. routes/admin.js reads all of them for the staff intake views;
  * routes/member.js reads two of them to seed a member's bill from whatever they
- * had already filled in before they had an account.
+ * had already filled in before they had an account, and a third to find the
+ * tire cohort spots held under the member's address.
  */
 const F = Object.freeze({
   waitlistSignups:        { name: 'WaitlistSignups',        surface: 'shared',   spec: '14' },
@@ -130,6 +131,7 @@ const F = Object.freeze({
   contactSubmissions:     { name: 'ContactSubmissions',     surface: 'shared',   spec: '14' },
   deepReadRequests:       { name: 'DeepReadRequests',       surface: 'internet', spec: '14' },
   crmSyncQueue:           { name: 'CrmSyncQueue',           surface: 'shared',   spec: '14' },
+  tireWaitlistSignups:    { name: 'TireWaitlistSignups',    surface: 'tires',    spec: '35a, 36a' },
 });
 
 /**
