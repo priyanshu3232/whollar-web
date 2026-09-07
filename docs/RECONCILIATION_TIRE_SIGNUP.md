@@ -295,10 +295,18 @@ both surfaces: hold at step 1, profile attached to the reference, flat consent,
 `toolRuns` with inputs on `/join`, brand line, radius, own shop, insurance help,
 size acknowledgement, staggered, trim. That resolved D1, D2, D4, D5, D7 and most
 of section B **in the checkout**. The live site never received it, because every
-Vercel deployment of the tires repo since 04:10 on 6 September, preview and
-production, reports "Deployment was blocked". Sibling projects on the same team
-deployed fine in the same hour, so it is project-level. Only the Vercel
-dashboard shows the reason.
+Vercel deployment of the tires repo from 04:10 to 10:26 on 6 September, preview
+and production, reports "Deployment was blocked", and production is still
+serving 5 September. The push of `tire-signup-reconcile` on 7 September
+deployed cleanly (`whollar-tires-n2ru5quer-whollar1.vercel.app`), so whatever
+blocked the earlier five has passed. Re-run production by merging, and check
+the deployment status rather than assuming.
+
+The preview is behind Vercel Deployment Protection: every URL on it answers a
+302 to the Vercel sign-in for anyone not logged into the team. A team member
+can open it in a browser as normal. To hand the link to anyone else, turn
+protection off for preview deployments on the `whollar-tires` project, or use
+a bypass link from the project's Deployment Protection settings.
 
 ### Backend, deployed (formSubmit only)
 
