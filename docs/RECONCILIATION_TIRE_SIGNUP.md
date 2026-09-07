@@ -409,6 +409,10 @@ Frontend only, same branch.
   the landing page's full tool in a new tab. The tan "worth knowing" note stays
   for the chip-only path and is hidden once the helper's result already says it.
 
+### Live
+
+`tire-signup-reconcile` merged to `main` (`ddf343a`) on 2026-09-07 and deployed to production; every served file verified byte-for-byte against `main`. The backend PR carrying the deployed `formSubmit` code was not merged in the same sitting; until it is, `main` of `whollar-web` is behind the live function.
+
 ### Test rows to remove
 
 Tagged `QAAUDIT0907`: `TireWaitlistSignups` 1258000000094307 and
