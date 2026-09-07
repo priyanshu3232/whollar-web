@@ -371,6 +371,25 @@ answer and the structured data.
   writes null. The column has a default in the console. Clear it: a premium of
   ten dollars is a false fact in a money column.
 
+### Pass 2, from the owner's review of the preview (2026-09-07)
+
+Frontend only, on the same branch.
+
+- **Cohort, not wave**, everywhere a household reads it. `wave` stays the
+  identifier and the column; the wave number is no longer printed anywhere.
+- **The kit's confirmation and the welcome card** still promised an email. Both
+  now say what the reference is for.
+- **A visible referral field** on both hold forms, prefilled from `?r=`, `?ref=`
+  or the banked `whollar.ref`, and editable. Sent as typed; stored as typed.
+- **A share link with a copy button** on the landing confirmation (the quick
+  path had none) and as a fallback on `/join`.
+- **A link to the full tool** after each of the four quick helper results on
+  `/join`, opening in a new tab. The landing page opens the named tool on
+  arrival via `?tool=strategy|size|rims|insurance`.
+- **What to expect** on both confirmations: quiet until installers bid, and the
+  reference plus postal code and email is how a spot is found if no email
+  arrives. The first half is a promise the owner keeps by hand today.
+
 ### Test rows to remove
 
 Tagged `QAAUDIT0907`: `TireWaitlistSignups` 1258000000094307 and
