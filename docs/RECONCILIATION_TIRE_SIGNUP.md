@@ -390,6 +390,25 @@ Frontend only, on the same branch.
   reference plus postal code and email is how a spot is found if no email
   arrives. The first half is a promise the owner keeps by hand today.
 
+### Pass 3, from the owner's second review (2026-09-07)
+
+Frontend only, same branch.
+
+- **The FAQ follows the sign-up** in both layouts. The header's FAQ link still
+  reaches it.
+- **"Every city starts with a few neighbours."** replaces the question that
+  started from absence.
+- **The sign-up announces itself**: the section's gradient breathes, the
+  eyebrow pill glows, a live dot beats beside "HOLD YOUR SPOT". All off under
+  `prefers-reduced-motion`. The stylesheet sits at the end of the section so
+  nothing that reads its children by position moves; the harness now accepts
+  either eyebrow text.
+- **The full tools, where they can be seen.** After each of the four quick
+  helpers on `/join` renders a result, a standalone block follows the helper:
+  "The full tool can change this answer", one sentence, and a button opening
+  the landing page's full tool in a new tab. The tan "worth knowing" note stays
+  for the chip-only path and is hidden once the helper's result already says it.
+
 ### Test rows to remove
 
 Tagged `QAAUDIT0907`: `TireWaitlistSignups` 1258000000094307 and
