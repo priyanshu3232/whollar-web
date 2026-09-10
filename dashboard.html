@@ -2218,7 +2218,9 @@ div.cc:hover{box-shadow:none;transform:none}
               <h3>How we reach you</h3>
               <label class="tog"><input type="checkbox" id="nt-promo_cliff" data-notify="promo_cliff" checked><i></i><span>Promo cliff reminders</span></label>
               <label class="tog"><input type="checkbox" id="nt-outage" data-notify="outage" checked><i></i><span>Outage updates for my area</span></label>
+              <label class="tog"><input type="checkbox" id="nt-referrals" data-notify="referrals" checked><i></i><span>When someone joins with my link</span></label>
               <label class="tog"><input type="checkbox" id="nt-region_openings" data-notify="region_openings"><i></i><span>New region openings</span></label>
+              <label class="tog"><input type="checkbox" id="nt-cross_vertical" data-notify="cross_vertical"><i></i><span>Other Whollar products</span></label>
               <p class="fnote" id="nt-note">Email about a cohort you have joined always arrives, and so does anything about your account: that is the service you signed up for, not marketing. Everything above is yours to switch off, here or from the link in any email.</p>
             </section>
             <!-- Excluded providers, section 4.4. Painted by paintExclCard():
@@ -5277,8 +5279,10 @@ paintChecklist();
    under CASL has to be given and never assumed. The markup ships in that same
    state so the card does not visibly flip a moment after it loads. */
 (function(){
-  var CATS=['promo_cliff','outage','region_openings'];
-  var DEFAULTS={promo_cliff:true,outage:true,region_openings:false};
+  var CATS=['promo_cliff','outage','referrals','region_openings','cross_vertical'];
+  /* Transactional opt-outs default on, commercial ones default off. A cem
+     category arriving pre-ticked is consent nobody gave. */
+  var DEFAULTS={promo_cliff:true,outage:true,referrals:true,region_openings:false,cross_vertical:false};
   /* Everything else in the blob is somebody else's key. Read it, keep it,
      write it back: /me/prefs merges whole top-level keys, so sending a
      `notify` object built from these three alone would silently drop any

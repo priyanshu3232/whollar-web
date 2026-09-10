@@ -75,6 +75,11 @@ const LINK_HOSTS = new Set([
      names, which sent mail still carries and the redirect map still honours. */
   'internet.whollar.ca',
   'www.whollar.ca', 'whollar.ca', 'www.whollar.com', 'whollar.com',
+  /* The tire vertical is a separate host, and the cross-vertical letters exist
+     to send members to it. Without this the one link G1 and G5 are written
+     around fails the gate, which would mean shipping a cross-sell that cannot
+     name what it is selling. */
+  'tires.whollar.ca',
 ]);
 
 const MAX_SUBJECT = 60;

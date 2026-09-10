@@ -225,4 +225,68 @@ module.exports = [
       },
     },
   },
+
+  /* ---------------------------------------------------------------- *
+   * The promo cliff.
+   *
+   * The moment the whole product exists to catch, and until now there was no
+   * letter for it: `promo_cliff` was a preference category with a dashboard
+   * toggle and nothing behind it.
+   *
+   * WHY ONLY TWO KEYS ARE REQUIRED. The numbers are the household's own, off
+   * the bill it gave us, and a bill with no recorded discount cannot say what
+   * the jump is. A letter reading "The jump, every month: " with nothing after
+   * it must not send, so those rows drop instead of failing the row. The day
+   * count and the price being left behind are the two things without which
+   * there is no letter at all.
+   * ---------------------------------------------------------------- */
+  {
+    key: 'member.promo.cliff',
+    audience: 'member',
+    casl: 'transactional',
+    priority: 'reminder',
+    collapse: null,
+    category: 'promo_cliff',
+    required: ['days_left', 'promo_price', 'dashboard_url'],
+    fixtures: [
+      {
+        days_left: 30, promo_price: '64.99', regular_price: '99.99', jump: '35.00',
+        region_label: 'Brampton East', first_name: 'Sam',
+        dashboard_url: 'https://internet.whollar.ca/dashboard',
+      },
+      /* The thin case: one price, no discount on file, no region yet. */
+      {
+        days_left: 1, promo_price: '64.99', regular_price: null, jump: null,
+        region_label: null, first_name: null,
+        dashboard_url: 'https://internet.whollar.ca/dashboard',
+      },
+    ],
+    locales: {
+      en: (c, h) => {
+        const days = Number(c.days_left);
+        const rows = [['Promo price now', `$${c.promo_price} a month`]];
+        if (c.regular_price) rows.push(['Regular price after', `$${c.regular_price} a month`]);
+        if (c.jump) rows.push(['The jump, every month', `$${c.jump}`]);
+
+        return {
+          subject: days === 1
+            ? 'Your promo price ends tomorrow'
+            : `Your promo price ends in ${days} days`,
+          preheader: 'The jump is planned. Here is yours, and the way around it.',
+          greeting: h.greet(c.first_name),
+          blocks: [
+            h.B.hero('The price you actually pay is about to change.'),
+            h.B.rows(rows),
+            h.B.para('These are your own numbers, from the bill details you gave us. The jump is not a mistake, it is the plan: promotional prices exist to expire quietly while nobody is looking.'),
+            h.B.para(c.region_label
+              ? `You are looking. If a cohort is gathering in ${c.region_label}, that is the exit: sealed bids, one offer, and the decision in your hands before the jump lands.`
+              : 'You are looking. A cohort is the exit: sealed bids, one offer, and the decision in your hands before the jump lands.'),
+            h.B.action("See what's open in your region", c.dashboard_url),
+            h.B.note('You get promo alerts because the toggle is on in your dashboard. Turn it off any time.'),
+          ],
+        };
+      },
+    },
+  },
+
 ];

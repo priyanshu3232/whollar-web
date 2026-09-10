@@ -320,6 +320,13 @@ function mount(router) {
         have: after && after.live && typeof after.seats === 'number' ? after.seats : null,
         need: target.target || null,
       });
+
+      /* And the neighbour who sent them, if there was one. Beside the joining
+         letter rather than inside it: they are two different people hearing
+         two different pieces of news, and a failure to find the referrer must
+         not cost the joiner their own confirmation. `referralLanded` is silent
+         when there is no code, no owner, or the owner is this household. */
+      await events.referralLanded(req, { user });
     }
     return ok(res, { claim, cohort: cohortShape(target, now, after) });
   }));

@@ -28,6 +28,7 @@ const orgs = require('../lib/orgs');
 const terms = require('../lib/terms');
 const audit = require('../lib/audit');
 const crm = require('../lib/crm/outbox');
+const notify = require('../lib/notify');
 const bids = require('../lib/bids');
 const { ok, ms } = require('../lib/envelope');
 const { requirePartner: guardPartner } = require('../lib/guards');
@@ -224,6 +225,28 @@ function mount(router) {
         leadType: 'partner',
         payload: { org_id: context.orgId, org_name: context.orgName || null,
           doc_type: terms.DOC_TYPE, doc_version: result.version },
+      });
+
+      /* The partner's own copy of what they just signed. Inside this branch
+         with the CRM note and for the same reason: a re-accept on a page
+         reload is not a new record and must not produce a second letter. The
+         event key names the org and the version rather than the request, so
+         even a retried first acceptance sends once.
+
+         Not awaited for its result and unable to throw: `notify.dispatch`
+         catches everything and returns a failed row. An acceptance already on
+         file must not be undone by a mail provider having a bad minute. */
+      const cfg = req.app.get('cfg');
+      await notify.dispatch(req, {
+        templateKey: 'partner.terms.accepted',
+        eventKey: `terms.accepted:${context.orgId}:${result.version}`,
+        user,
+        context: {
+          terms_version: result.version,
+          accepted_at: Date.now(),
+          org_name: context.orgName || null,
+          console_url: `${String(cfg.APP_BASE_URL || '').replace(/\/+$/, '')}/partner`,
+        },
       });
     }
 

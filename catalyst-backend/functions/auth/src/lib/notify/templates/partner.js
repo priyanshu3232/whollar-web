@@ -292,4 +292,50 @@ module.exports = [
       }),
     },
   },
+
+  /* ---------------------------------------------------------------- *
+   * The countersigned record.
+   *
+   * `routes/contracts.js` had zero notify calls, so a partner accepted the
+   * standard cohort terms and nothing arrived. An acceptance the accepting
+   * party holds no copy of is a weak record.
+   *
+   * EVERY KEY IS REQUIRED HERE, which is rare in this file and deliberate: a
+   * record missing its version, its timestamp or the organisation it binds is
+   * not a record, and sending it anyway would be worse than sending nothing.
+   * ---------------------------------------------------------------- */
+  {
+    key: 'partner.terms.accepted',
+    audience: 'partner',
+    casl: 'transactional',
+    priority: 'informational',
+    category: 'account',
+    collapse: null,
+    required: ['terms_version', 'accepted_at', 'org_name', 'console_url'],
+    fixtures: [
+      {
+        terms_version: 'Standard cohort terms v3', accepted_at: 1787000000000,
+        org_name: 'Northline Fibre', first_name: 'Dana',
+        console_url: 'https://internet.whollar.ca/partner',
+      },
+    ],
+    locales: {
+      en: (c, h) => ({
+        subject: 'Your signed agreement, on the record',
+        preheader: 'Accepted terms, timestamped, for your files.',
+        greeting: h.greet(c.first_name),
+        blocks: [
+          h.B.hero('This is your countersigned record.'),
+          h.B.rows([
+            ['Agreement', c.terms_version],
+            ['Accepted', h.when(c.accepted_at)],
+            ['Account', c.org_name],
+          ]),
+          h.B.para('Keep this email. It is the record of the terms your organisation accepted, exactly as they stood at that timestamp.'),
+          h.B.action('Open the console', c.console_url),
+        ],
+      }),
+    },
+  },
+
 ];

@@ -219,6 +219,22 @@ function mount(router, cfg) {
        * attribution: in every case the cookie has nothing left to say, and an
        * expired cookie cannot be replayed onto some other account later. */
       if (share.readRefCookie(req)) share.clearRefCookie(req, res);
+
+      /* The welcome, on the account's first breath and only then. A returning
+         member asking for a code has not joined anything, and this letter
+         explains a mechanism they already know.
+
+         Keyed on the user rather than the request so a retried verify cannot
+         produce a second one. It is `informational`, so this enqueues and the
+         drain sends it: nobody waits on it at the sign-in form. */
+      await notify.dispatch(req, {
+        templateKey: 'member.welcome',
+        eventKey: `member.welcome:${user.user_id}`,
+        user,
+        context: {
+          dashboard_url: `${String(cfg.APP_BASE_URL || '').replace(/\/+$/, '')}/dashboard`,
+        },
+      });
     }
 
     await users.touchLastLogin(req.catalyst, user);

@@ -27,6 +27,7 @@ const notify = require('./index');
 const users = require('../users');
 const orgs = require('../orgs');
 const datastore = require('../datastore');
+const referral = require('../referral');
 
 /* ------------------------------------------------------------------ *
  * Resolvers
@@ -183,6 +184,56 @@ async function cohortJoined(req, { campaign, user, have = null, need = null }) {
       have, need,
       dashboard_url: `${base(cfg)}/dashboard`,
       first_name: user.first_name || null,
+    },
+  });
+}
+
+/**
+ * A household joined through somebody else's link, and that somebody hears.
+ *
+ * READ OFF THE JOINER, NOT OFF campaign_members. `users.referral_code` is
+ * attached at account creation by otp.js and the signup path, and has been
+ * since the referral system went live. `campaign_members.referral_code` is
+ * still owed in the console, so reading it here would make this letter wait on
+ * a column instead of on the fact it reports.
+ *
+ * SILENT IN THREE NORMAL CASES: no code on the account, a code that resolves
+ * to nobody, and a code that resolves to the joiner. A self-referral is not
+ * news, and it is the one an attacker would manufacture.
+ *
+ * Keyed on the JOINER, so one household credits its referrer exactly once
+ * however many cohorts it later moves between.
+ */
+async function referralLanded(req, { user }) {
+  const cfg = req.app.get('cfg');
+  if (!user || !user.referral_code) return null;
+
+  let owner = null;
+  try {
+    owner = await referral.resolve(req.catalyst, user.referral_code);
+  } catch {
+    /* A read over tables that may lag. An unattributed referral is not worth
+       failing, or even logging over, a join that has already succeeded. */
+    return null;
+  }
+  if (!owner || !owner.email_normalized) return null;
+  if (owner.user_id === user.user_id) return null;
+
+  /* The token when one exists, the legacy code when it does not, which is the
+     same preference GET /me/referral applies. `/r/:token` normalises both, so
+     neither produces a dead link. */
+  let share = null;
+  try {
+    share = await referral.tokenFor(req.catalyst, owner);
+  } catch { /* the table may not be provisioned; the code below still works */ }
+
+  return emit(req, 'referral.landed', {
+    templateKey: 'member.referral.landed',
+    eventKey: `referral.landed:${user.user_id}`,
+    recipient: memberRecipient(owner),
+    context: {
+      share_url: `${base(cfg)}/r/${share || referral.codeFor(owner)}`,
+      first_name: owner.first_name || null,
     },
   });
 }
@@ -459,7 +510,7 @@ module.exports = {
   /* resolvers, exported for the tests */
   memberById, orgName, partnerContacts, memberRecipient, base,
   /* member */
-  cohortJoined, offerAccepted, offerPassed,
+  cohortJoined, referralLanded, offerAccepted, offerPassed,
   installScheduled, installException, switchComplete, orderReleased,
   /* partner */
   bidSealed, tierAwarded, tierNotAwarded, statementReady, disputeLogged,

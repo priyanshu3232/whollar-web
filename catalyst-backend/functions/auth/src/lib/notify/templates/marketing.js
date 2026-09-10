@@ -89,4 +89,45 @@ module.exports = [
     },
   },
 
+  /* ---------------------------------------------------------------- *
+   * The region opened.
+   *
+   * The letter `region_openings` promised and never had. It goes to people who
+   * asked to be told, which is why it is commercial: they registered an
+   * interest, they did not join anything, and nothing about their account
+   * obliges us to write.
+   *
+   * It cannot send at all while MAIL_POSTAL_ADDRESS is unset. That is
+   * `outbox.js` refusing every cem send rather than shipping a footer with no
+   * address in it, and it is the correct failure.
+   * ---------------------------------------------------------------- */
+  {
+    key: 'member.region.opened',
+    audience: 'member',
+    casl: 'cem',
+    priority: 'informational',
+    category: 'region_openings',
+    collapse: null,
+    required: ['region_label', 'join_url'],
+    fixtures: [
+      {
+        region_label: 'Brampton East', first_name: 'Sam',
+        join_url: 'https://internet.whollar.ca/waitlist',
+      },
+    ],
+    locales: {
+      en: (c, h) => ({
+        subject: 'Your area is opening for sealed bids',
+        preheader: "You asked us to write when this happened. It's happening.",
+        greeting: h.greet(c.first_name),
+        blocks: [
+          h.B.hero('A cohort is opening where you are.'),
+          h.B.para(`This is the letter we promised. Enough households near you are in, so the ${c.region_label} cohort is forming. When it locks, providers place sealed bids to win it, and one offer comes back for everyone.`),
+          h.B.para('Seats are taken by joining. A heavier cohort draws sharper bids, so the earlier your seat, the more you are part of the weight.'),
+          h.B.action('Take your seat', c.join_url),
+        ],
+      }),
+    },
+  },
+
 ];

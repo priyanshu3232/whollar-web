@@ -63,6 +63,18 @@ const CATEGORIES = Object.freeze({
   bidding:          { locked: true,  casl: 'transactional', label: 'Bids and results' },
   billing:          { locked: true,  casl: 'transactional', label: 'Billing' },
   region_openings:  { locked: false, casl: 'cem',           label: 'New region openings' },
+  /* A confirmation of something the person just did. Locked, because an
+     opt-out here means submitting a bill into silence: the acknowledgement IS
+     the service at that moment, and nobody asks for a receipt and then asks
+     not to be told it arrived. Locked also means no dashboard toggle to
+     build, which is the honest consequence rather than a convenience. */
+  receipts:         { locked: true,  casl: 'transactional', label: 'Receipts and confirmations' },
+  /* One vertical writing to the members of another: internet to tires, tires
+     to the bill checkup. Commercial without qualification, because a member
+     who joined for internet never asked to hear about tires, so it carries an
+     unsubscribe and its own switch rather than riding `product_interest`,
+     which is about products they DID vote for. */
+  cross_vertical:   { locked: false, casl: 'cem',           label: 'Other Whollar products' },
   product_interest: { locked: false, casl: 'cem',           label: 'Product updates' },
 });
 

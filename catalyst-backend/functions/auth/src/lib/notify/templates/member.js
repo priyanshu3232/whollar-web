@@ -379,4 +379,80 @@ module.exports = [
       },
     },
   },
+
+  /* ---------------------------------------------------------------- *
+   * The first letter, and the only one that explains the mechanism.
+   *
+   * It fires on account creation, which is the one moment a person has
+   * nothing yet: no cohort, no region, no offer, no bill on file. So it names
+   * none of them. Everything here is true on day zero and stays true, which
+   * is why the only required key is the link.
+   * ---------------------------------------------------------------- */
+  {
+    key: 'member.welcome',
+    audience: 'member',
+    casl: 'transactional',
+    priority: 'informational',
+    category: 'account',
+    collapse: null,
+    required: ['dashboard_url'],
+    fixtures: [
+      { dashboard_url: 'https://internet.whollar.ca/dashboard', first_name: 'Sam' },
+      { dashboard_url: 'https://internet.whollar.ca/dashboard', first_name: null },
+    ],
+    locales: {
+      en: (c, h) => ({
+        subject: 'Welcome to Whollar. Your bill stops being your job',
+        preheader: 'Households join one cohort, providers bid sealed, you accept or pass.',
+        greeting: h.greet(c.first_name),
+        blocks: [
+          h.B.hero('You never have to negotiate again.'),
+          h.B.para('How it works, in three lines: households in your region join one cohort. Providers place sealed bids to win the whole cohort at once. One offer comes back, and you accept or pass, owing nothing either way.'),
+          h.B.para('Our fee exists at exactly one moment: your switch completes and the new line passes its test. Until then, everything is free.'),
+          h.B.action("See your region's stage", c.dashboard_url),
+          h.B.note('Internet is live today. Winter tires are gathering, and members vote on what we build next, right on the site.'),
+        ],
+      }),
+    },
+  },
+
+  /* ---------------------------------------------------------------- *
+   * Somebody joined through this member's link.
+   *
+   * `referrals` was a preference category with no letter behind it: the share
+   * code, the token lane and the click tracking were all built, and nothing
+   * ever told the person it had worked.
+   *
+   * IT NAMES NOBODY. The referrer learns that it happened and never who, which
+   * is the same rule the rest of this file follows about other households.
+   * Collapsed, because three neighbours joining in one afternoon is one piece
+   * of news, not three.
+   * ---------------------------------------------------------------- */
+  {
+    key: 'member.referral.landed',
+    audience: 'member',
+    casl: 'transactional',
+    priority: 'informational',
+    category: 'referrals',
+    collapse: 'referrals',
+    required: ['share_url'],
+    fixtures: [
+      { share_url: 'https://internet.whollar.ca/r/9f2a41c7', first_name: 'Sam' },
+      { share_url: 'https://internet.whollar.ca/r/9f2a41c7', first_name: null },
+    ],
+    locales: {
+      en: (c, h) => ({
+        subject: 'Your link worked. The cohort just got heavier',
+        preheader: 'One more household means sharper bids for everyone.',
+        greeting: h.greet(c.first_name),
+        blocks: [
+          h.B.hero('Someone joined through your link.'),
+          h.B.para('Every household added makes the cohort worth more to win, and that is what pushes bids down. Sharing your link is literally lowering your own offer.'),
+          h.B.action('Share it again', c.share_url),
+          h.B.note("We don't say who joined. Their details are theirs, the same way yours are yours."),
+        ],
+      }),
+    },
+  },
+
 ];

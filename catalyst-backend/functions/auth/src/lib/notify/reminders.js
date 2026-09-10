@@ -40,6 +40,7 @@ const { T } = require('../tables');
 
 const ORDERS = T.providerOrders.name;
 const COVERAGE = T.providerCoverage.name;
+const BILLS = T.memberBills.name;
 
 const HOUR = 3600 * 1000;
 
@@ -62,6 +63,44 @@ const BATCH = 120;
 const OFFER_OFFSETS = Object.freeze([72, 24]);
 const INSTALL_OFFSETS = Object.freeze([24]);
 const BID_CLOSE_OFFSETS = Object.freeze([24, 2]);
+
+/* The promo cliff is the one deadline here measured in DAYS rather than hours,
+   because `member_bills.promo_end_date` has no time of day on it: it is
+   'YYYY-MM-DD' or 'YYYY-MM' exactly as the household typed it. Reminding
+   somebody at 3am that their price changes in 720 hours is arithmetic, not a
+   product. Thirty days is enough to join a cohort and see it through; seven is
+   the last honest moment to act. */
+const PROMO_CLIFF_OFFSETS = Object.freeze([30, 7]);
+const DAY = 24 * HOUR;
+
+/**
+ * 'YYYY-MM-DD' for an instant, in the household's calendar rather than UTC.
+ *
+ * A promo ending "on the 1st" is a date somebody read off a bill in Toronto,
+ * so a UTC day boundary would put a fifth of the country's evenings on the
+ * wrong side of it and send the D-7 letter six days out.
+ */
+function dateKey(at, timeZone = 'America/Toronto') {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date(at));
+  const get = (t) => (parts.find((x) => x.type === t) || {}).value;
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+/** Promo price and the jump, from two money-as-string columns, or nulls. */
+function cliffMoney(row) {
+  const now = parseFloat(String(row.monthly_cost || '').replace(/[^0-9.]/g, ''));
+  const cut = parseFloat(String(row.discount_amount || '').replace(/[^0-9.]/g, ''));
+  if (!Number.isFinite(now) || now <= 0) return null;
+  const fmt = (n) => n.toFixed(2);
+  /* No recorded discount means we know what they pay and not what it becomes.
+     The template drops both rows rather than guessing a jump. */
+  if (!Number.isFinite(cut) || cut <= 0) {
+    return { promo_price: fmt(now), regular_price: null, jump: null };
+  }
+  return { promo_price: fmt(now), regular_price: fmt(now + cut), jump: fmt(cut) };
+}
 
 /** Is `deadline` currently sitting `hours` out, within the sweep window? */
 function due(now, deadline, hours) {
@@ -296,6 +335,70 @@ async function sweepBidClose(catalystApp, cfg, campaign, now, out) {
   }
 }
 
+/**
+ * The promo cliff, swept once per pass rather than once per campaign.
+ *
+ * NOT CAMPAIGN SCOPED, and that is the point. A household whose promotional
+ * price is about to expire needs telling whether or not a cohort exists near
+ * them yet: it is the moment the whole product exists to catch, and gating it
+ * on a campaign would silence it exactly where Whollar has not arrived.
+ *
+ * TWO STRING SHAPES, because the column holds what the household typed.
+ * 'YYYY-MM-DD' matches on the day. 'YYYY-MM' means they knew only the month,
+ * and is read as the first of it, so it is only ever due when the target date
+ * lands on a first. Equality on an indexed column beats scanning every bill.
+ */
+async function sweepPromoCliff(catalystApp, cfg, now, out) {
+  for (const days of PROMO_CLIFF_OFFSETS) {
+    const target = dateKey(now + days * DAY);
+    const wanted = target.endsWith('-01') ? [target, target.slice(0, 7)] : [target];
+
+    for (const value of wanted) {
+      let rows = [];
+      try {
+        /* eslint-disable-next-line no-await-in-loop */
+        rows = await datastore.queryAll(catalystApp, BILLS,
+          ['user_id', 'monthly_cost', 'discount_amount', 'promo_end_date', 'promo_expired'],
+          `promo_end_date = ${datastore.lit(value)}`) || [];
+      } catch {
+        continue;   // an unreadable bills table costs this offset, not the pass
+      }
+
+      for (const row of rows.slice(0, BATCH)) {
+        /* Already past it by the household's own account. The date says the
+           cliff is ahead; this flag says they told us otherwise, and they win. */
+        if (String(row.promo_expired) === '1' || row.promo_expired === true) continue;
+        const money = cliffMoney(row);
+        if (!money) continue;
+
+        /* eslint-disable-next-line no-await-in-loop */
+        const recipient = await recipientFor(catalystApp, row.user_id);
+        if (!recipient) continue;
+
+        /* eslint-disable-next-line no-await-in-loop */
+        const r = await outbox.enqueue(catalystApp, cfg, {
+          templateKey: 'member.promo.cliff',
+          /* The date is in the key, so a household correcting its promo end
+             date earns a fresh letter rather than being deduplicated against
+             the one sent for the old one. */
+          eventKey: `promo.cliff:${row.user_id}:${row.promo_end_date}`,
+          slot: `d-${days}`,
+          recipient,
+          context: {
+            days_left: days,
+            ...money,
+            region_label: null,
+            dashboard_url: `${base(cfg)}/dashboard`,
+            first_name: recipient.firstName || null,
+          },
+          now,
+        });
+        if (r && r.created) out.queued += 1;
+      }
+    }
+  }
+}
+
 /** Active people at one org, as partner recipients. */
 async function bidContacts(catalystApp, orgId) {
   let rows = [];
@@ -362,6 +465,9 @@ async function sweep(catalystApp, cfg, states, now = Date.now()) {
     try { await sweepBidClose(catalystApp, cfg, campaign, now, out); } catch { /* next */ }
     /* eslint-enable no-await-in-loop */
   }
+
+  /* Outside the loop, once: the cliff belongs to a bill, not to a cohort. */
+  try { await sweepPromoCliff(catalystApp, cfg, now, out); } catch { /* next pass */ }
   return out;
 }
 
@@ -372,7 +478,8 @@ function sweepAsync(catalystApp, cfg, states, now) {
 
 module.exports = {
   WINDOW_MS, BATCH, OFFER_OFFSETS, INSTALL_OFFSETS, BID_CLOSE_OFFSETS,
-  due, slotLabel, sweep, sweepAsync,
-  sweepOffers, sweepInstalls, sweepBidClose,
+  PROMO_CLIFF_OFFSETS,
+  due, slotLabel, dateKey, cliffMoney, sweep, sweepAsync,
+  sweepOffers, sweepInstalls, sweepBidClose, sweepPromoCliff,
   ordersOn, orgsCovering, householdsOn,
 };
