@@ -840,6 +840,19 @@ async function bumpTireCounter(catalystApp, city) {
 //
 // Windows are capped because every one is its own concurrent write; the page
 // keeps the full list of days in details.payload.days so nothing is lost.
+// Section 35d declared both JSON columns 2000 long and the code cut them
+// there. A cut string is not JSON: the rims tool's answer runs to about 5000
+// characters and landed unparseable, which is worse than not landing at all.
+// The live columns take far more than the spec asked for (tested to 20000 on
+// 2026-09-11), so keep whole answers up to the cap, and past it store a valid
+// envelope that says what was lost rather than a broken fragment.
+const TOOL_JSON_CAP = 10000;
+function toolJson(value, whenEmpty) {
+  const s = json(value ?? whenEmpty);
+  if (s.length <= TOOL_JSON_CAP) return s;
+  return JSON.stringify({ truncated: true, chars: s.length, head: s.slice(0, TOOL_JSON_CAP - 200) });
+}
+
 const TIRE_WINDOW_CAP = 31;
 const zlit = v => String(v == null ? '' : v).replace(/'/g, "''");
 
@@ -984,10 +997,16 @@ async function writeTireProfile(catalystApp, ReferenceCode, email, b, now, mode 
       RunKey: `${ReferenceCode}:${str(t.tool)}`,
       ReferenceCode,
       Tool: str(t.tool),
-      InputJson: json(t.input ?? null).slice(0, 2000),
+      // What they answered. `{}` and not `null` when a page sends nothing,
+      // because the column is Mandatory and the store reads the literal
+      // `null` as empty: from the day the landing page's four tools shipped
+      // sending `input: null`, every one of their rows was refused with
+      // MANDATORY_MISSING and the refusal swallowed here. Verified live
+      // 2026-09-11 on WHL-TIRE-GTA-MHAS.
+      InputJson: toolJson(t.input, {}),
       // What we told them, on a date, about their money. If an insurance
       // estimate is ever disputed this is the only record of what was said.
-      OutputJson: json(t.output ?? null).slice(0, 2000),
+      OutputJson: toolJson(t.output, null),
       RanAt: now
     }));
   });
