@@ -2678,8 +2678,8 @@ contract `cohort_counter` has in section 26.
 | `RunKey` | Var Char | 40 | ✅ | ✅ | | `${ReferenceCode}:${Tool}` |
 | `ReferenceCode` | Var Char | 24 | | ✅ | | |
 | `Tool` | Var Char | 12 | | ✅ | | `insurance`, `size`, `rims`, `strategy` |
-| `InputJson` | Text | 2000 | | ✅ | | what they answered |
-| `OutputJson` | Text | 2000 | | ✅ | | what we told them. Keep it: this is a statement we made, on a date, about their money |
+| `InputJson` | Text | 10000 | | ✅ | | what they answered, every question in the wizard's own answer bag. **Mandatory, and the store reads a JSON `null` as empty**, so a page that sends no input has every row refused: the route writes `{}` rather than `null` for that reason |
+| `OutputJson` | Text | 10000 | | ✅ | | what we told them. Keep it: this is a statement we made, on a date, about their money. 2000 was the original length and it was too short: the wheels tool answers with about 5000 characters, and a cut string is not JSON |
 | `RanAt` | DateTime | - | | ✅ | | |
 
 ### 35e. `TireCohortCounter` (new table, optional)
